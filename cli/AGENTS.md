@@ -117,6 +117,10 @@ authorization, live events, backup and restore, and backend tests.
   timer; retain cooldowns only after successful work so failures can retry.
 - Subject/key shapes are part of the storage contract. When changing them,
   update constructors, parsers, tests, architecture docs, and e2e coverage.
+- Server-side remote media imports must reserve distributed quota and
+  idempotency state before downloading bytes. Keep provisional reservations
+  short-lived, and do not use replica-local projection freshness as the
+  coordination signal.
 - For mixed records in one stream or KV bucket, encode discriminators in the key
   prefix so reads can filter by subject/prefix without deserializing everything.
 - Projection snapshots are disposable acceleration data, never recovery data.

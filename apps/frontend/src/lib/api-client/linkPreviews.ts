@@ -1,6 +1,9 @@
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
-import type { LinkPreview } from '@chatto/api-types/api/v1/link_previews_pb';
+import type {
+  ImportedLinkAttachment,
+  LinkPreview
+} from '@chatto/api-types/api/v1/link_previews_pb';
 import type { SocialPostPreviewView } from '$lib/render/linkPreviews';
 export type LinkPreviewAPIConfig = {
   serverId?: string;
@@ -22,18 +25,50 @@ export type ComposerLinkPreview = {
   socialPost?: SocialPostPreviewView | null;
 };
 
+export type ComposerImportedAttachment = {
+  assetId: string;
+  filename: string;
+  contentType: string;
+  size: bigint;
+  width: number;
+  height: number;
+  previewUrl: string;
+};
+
+export type ComposerLinkResult =
+  | { kind: 'preview'; preview: ComposerLinkPreview }
+  | { kind: 'attachment'; attachment: ComposerImportedAttachment };
+
 export function createLinkPreviewAPI(config: LinkPreviewAPIConfig) {
   const client = createChattoClient(MessageService, config);
   const headers = () => authHeaders(config);
   return {
-    async fetchLinkPreview(url: string): Promise<ComposerLinkPreview | null> {
+    async fetchLinkPreview(url: string, roomId?: string): Promise<ComposerLinkResult | null> {
       try {
-        const response = await client.fetchLinkPreview({ url }, { headers: headers() });
-        return composerLinkPreview(response.preview, response.previewToken);
+        const response = await client.fetchLinkPreview({ url, roomId }, { headers: headers() });
+        const attachment = composerImportedAttachment(response.importedAttachment);
+        if (attachment) return { kind: 'attachment', attachment };
+        const preview = composerLinkPreview(response.preview, response.previewToken);
+        return preview ? { kind: 'preview', preview } : null;
       } catch (err) {
         return handleAuthError(config, err);
       }
     }
+  };
+}
+
+function composerImportedAttachment(
+  asset: ImportedLinkAttachment | undefined
+): ComposerImportedAttachment | null {
+  if (!asset?.assetId || !asset.previewUrl) return null;
+  return {
+    assetId: asset.assetId,
+    filename: asset.filename,
+    contentType: asset.contentType,
+    size: asset.size,
+    width: asset.width,
+    height: asset.height,
+    previewUrl: asset.previewUrl
   };
 }
 

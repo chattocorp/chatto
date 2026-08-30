@@ -7,7 +7,8 @@ import {
   SocialPostImage,
   SocialPostPreview,
   LinkPreview,
-  FetchLinkPreviewResponse
+  FetchLinkPreviewResponse,
+  ImportedLinkAttachment
 } from '@chatto/api-types/api/v1/link_previews_pb';
 import { Timestamp } from '@bufbuild/protobuf';
 import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
@@ -67,21 +68,59 @@ describe('createLinkPreviewAPI', () => {
       bearerToken: 'remote-token'
     });
 
-    await expect(api.fetchLinkPreview('https://example.com/story')).resolves.toMatchObject({
-      url: 'https://example.com/story',
-      previewToken: 'cht_LPpreviewtoken',
-      title: 'Story',
-      description: 'Description',
-      imageUrl: '/assets/preview.webp',
-      imageAssetId: 'asset_preview',
-      siteName: 'Example',
-      embedType: 'generic',
-      embedId: null
+    await expect(
+      api.fetchLinkPreview('https://example.com/story', 'room_1')
+    ).resolves.toMatchObject({
+      kind: 'preview',
+      preview: {
+        url: 'https://example.com/story',
+        previewToken: 'cht_LPpreviewtoken',
+        title: 'Story',
+        description: 'Description',
+        imageUrl: '/assets/preview.webp',
+        imageAssetId: 'asset_preview',
+        siteName: 'Example',
+        embedType: 'generic',
+        embedId: null
+      }
     });
     expect(mocks.fetchLinkPreview).toHaveBeenCalledWith(
-      { url: 'https://example.com/story' },
+      { url: 'https://example.com/story', roomId: 'room_1' },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
+  });
+
+  it('maps a directly linked image to a pending attachment', async () => {
+    mocks.fetchLinkPreview.mockResolvedValue(
+      new FetchLinkPreviewResponse({
+        importedAttachment: new ImportedLinkAttachment({
+          assetId: 'asset_linked',
+          filename: 'linked-image.gif',
+          contentType: 'image/gif',
+          size: 1234n,
+          width: 320,
+          height: 180,
+          previewUrl: '/assets/files/asset_linked/image/600x314/contain?access=ticket'
+        })
+      })
+    );
+    const api = createLinkPreviewAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.fetchLinkPreview('https://example.com/image', 'room_1')).resolves.toEqual({
+      kind: 'attachment',
+      attachment: {
+        assetId: 'asset_linked',
+        filename: 'linked-image.gif',
+        contentType: 'image/gif',
+        size: 1234n,
+        width: 320,
+        height: 180,
+        previewUrl: '/assets/files/asset_linked/image/600x314/contain?access=ticket'
+      }
+    });
   });
 
   it('returns null when the server has no preview', async () => {
@@ -155,8 +194,10 @@ describe('createLinkPreviewAPI', () => {
     await expect(
       api.fetchLinkPreview('https://bsky.app/profile/bsky.app/post/example')
     ).resolves.toMatchObject({
-      embedType: 'bluesky',
-      socialPost: {
+      kind: 'preview',
+      preview: {
+        embedType: 'bluesky',
+        socialPost: {
         provider: 'bluesky',
         url: 'https://bsky.app/profile/bsky.app/post/example',
         author: {
@@ -174,6 +215,7 @@ describe('createLinkPreviewAPI', () => {
           author: { displayName: 'Quoted Author', handle: 'quoted.example' },
           text: 'Quoted words.',
           images: [{ url: '/assets/quoted.webp', alt: 'Quoted attachment' }]
+        }
         }
       }
     });

@@ -44,7 +44,9 @@ Use this as a member convenience surface, not as a permanent document-management
 
 ## Link Previews
 
-Chatto fetches link-preview metadata when a user composes a message with a URL. Preview images are persisted through the asset backend, so S3-backed deployments store preview media alongside uploaded files.
+Chatto fetches link-preview metadata when a user composes a message with a URL. When the first URL directly returns a JPEG, PNG, GIF, or static WebP up to 5 MB, Chatto can import it as an ordinary room attachment. The URL remains in the message, and the imported image uses the normal attachment thumbnail, image viewer, limits, storage, deletion controls, and room Files index. Animated GIFs enter the same optional video-processing path as uploaded GIFs.
+
+Direct image importing requires `message.attach`. Dismissing the imported image removes it from the draft; if the message is never sent, existing pending-attachment cleanup eventually removes the unclaimed asset. Repeated requests for the same actor, room, and source reuse the pending import, and each member can have at most 10 outstanding linked-image imports. OpenGraph and specialized link previews keep their separate preview-token and cache behavior.
 
 The fetcher is designed to be SSRF-safe and caches successful and failed lookups for bounded periods. Operators do not need a separate preview worker.
 

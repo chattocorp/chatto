@@ -178,9 +178,14 @@
   <ComposerLinkPreview state={composer.linkPreviews} />
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
+    importedAttachment={composer.linkPreviews.activeImportedAttachment}
     disabled={composer.submission.loading}
     getSubmissionStatus={(file) => composer.submission.attachmentStatus(file)}
     onremove={(index) => composer.attachments.removeFile(index)}
+    onremoveimported={() => {
+      const url = composer.linkPreviews.activeURL;
+      if (url) composer.linkPreviews.dismissPreview(url);
+    }}
   />
 
   {#if slowModeSeconds > 0}

@@ -1,18 +1,24 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import type { ComposerImportedAttachment } from '$lib/api-client/linkPreviews';
+  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
   import { formatFileSize, type AttachmentsState } from './attachments.svelte';
   import { uploadPercentage, type AttachmentSubmissionStatus } from './submission.svelte';
 
   let {
     attachments,
+    importedAttachment,
     disabled,
     getSubmissionStatus,
-    onremove
+    onremove,
+    onremoveimported
   }: {
     attachments: AttachmentsState;
+    importedAttachment: ComposerImportedAttachment | null;
     disabled: boolean;
     getSubmissionStatus: (file: File) => AttachmentSubmissionStatus | null;
     onremove: (index: number) => void;
+    onremoveimported: () => void;
   } = $props();
 
   function uploadStatusLabel(status: AttachmentSubmissionStatus): string {
@@ -23,8 +29,42 @@
   }
 </script>
 
-{#if attachments.filesWithUrls.length > 0}
+{#if attachments.filesWithUrls.length > 0 || importedAttachment}
   <div class="flex flex-wrap gap-2">
+    {#if importedAttachment}
+      <div
+        class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
+        data-testid="linked-image-attachment-preview"
+      >
+        <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
+          <SkeletonImg
+            src={importedAttachment.previewUrl}
+            alt={importedAttachment.filename}
+            class="h-full w-full object-cover"
+          />
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center justify-between gap-2">
+            <span class="truncate font-medium text-text" title={importedAttachment.filename}
+              >{importedAttachment.filename}</span
+            >
+            <button
+              type="button"
+              onclick={onremoveimported}
+              {disabled}
+              class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+              aria-label={m('composer.upload.remove', { filename: importedAttachment.filename })}
+              title={m('composer.upload.remove', { filename: importedAttachment.filename })}
+            >
+              <span class="iconify icon-[uil--times]"></span>
+            </button>
+          </div>
+          <div class="mt-0.5 truncate text-xs text-muted">
+            {formatFileSize(Number(importedAttachment.size))}
+          </div>
+        </div>
+      </div>
+    {/if}
     {#each attachments.filesWithUrls as { file, url }, index (url)}
       {@const submissionStatus = getSubmissionStatus(file)}
       {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}

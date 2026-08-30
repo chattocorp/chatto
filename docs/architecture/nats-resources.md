@@ -21,7 +21,7 @@ inventories.
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`              |
 | Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
-| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including credentials, telemetry, notification boundaries, linked-image import reservations, wrapped app DEKs, and snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS records from `chatto.core.key_material.v1`; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |

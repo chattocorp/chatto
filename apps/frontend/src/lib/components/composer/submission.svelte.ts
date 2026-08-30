@@ -156,7 +156,7 @@ export class ComposerSubmissionState {
           roomId: post.roomId,
           body: post.bodyToSend,
           attachmentAssetIds: post.attachmentAssetIds,
-          attachments: post.attachmentAssetIds?.length ? null : post.filesToSend,
+          attachments: post.filesToSend,
           onAttachmentUploadUpdate: (update) => this.updateAttachmentStatus(update),
           threadRootEventId: post.threadRootEventId,
           inReplyTo: post.inReplyTo,

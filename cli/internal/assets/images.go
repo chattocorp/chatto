@@ -15,6 +15,7 @@ import (
 	"github.com/HugoSmits86/nativewebp"
 	"github.com/disintegration/imageorient"
 	xdraw "golang.org/x/image/draw"
+	_ "golang.org/x/image/webp" // Register static WebP decoding.
 )
 
 // Default values for asset processing

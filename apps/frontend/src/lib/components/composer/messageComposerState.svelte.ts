@@ -466,7 +466,13 @@ export class MessageComposerState {
   }
 
   #synchronizeLinkPreviews(): void {
-    $effect(() => this.linkPreviews.scheduleDetection(this.message, this.isEditing));
+    $effect(() =>
+      this.linkPreviews.scheduleDetection(
+        this.message,
+        this.isEditing,
+        this.#dependencies.getCanAttach() ? this.#dependencies.getRoomId() : undefined
+      )
+    );
   }
 
   #synchronizeAttachmentPermission(): void {
@@ -577,6 +583,7 @@ export class MessageComposerState {
       roomId: this.#dependencies.getRoomId(),
       bodyToSend,
       filesToSend,
+      attachmentAssetIds: this.linkPreviews.buildAttachmentAssetIds(),
       threadRootEventId: this.#dependencies.getThreadRootEventId() ?? null,
       inReplyTo: this.#dependencies.getReplyEventId() ?? null,
       linkPreviewToken: this.linkPreviews.buildToken(),
