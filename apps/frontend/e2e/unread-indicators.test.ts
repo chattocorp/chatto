@@ -416,7 +416,7 @@ test.describe('Unread indicators', () => {
 
         // Enter the room while the Chatto page is still backgrounded. The
         // server cursor must stay unread until the page becomes visible.
-        await chatPage.enterRoom('general');
+        await generalLink.evaluate((link: HTMLAnchorElement) => link.click());
         await waitForRoomReady(page, 'general');
         await waitForRoomUnreadViaConnect(page, generalRoomId, true);
 
