@@ -44,9 +44,11 @@ recommendation, not a trust or reciprocal relationship.
   visible so that an administrator can review or remove it. A failed request
   does not hide profiles that loaded successfully.
 - The Server Directory starts one automatic batch of 12 candidate-directory
-  requests. **Load more** starts another batch of 12. One page session permits
-  at most 48 directory requests, 24 profile requests, and 72 discovery requests
-  in total. It queues at most 120 canonical candidates.
+  requests. After the user scrolls near the end of the results, the client can
+  start one more automatic batch of 12. **Load more** starts each later batch.
+  One page session permits at most 48 directory requests, 24 profile requests,
+  and 72 discovery requests in total. It queues at most 120 canonical
+  candidates.
 - The client uses at most six active discovery requests. Each request has a
   ten-second timeout. It requests one directory and one profile at most for one
   canonical origin. It does not retry a failed request in the same page session.
@@ -220,14 +222,17 @@ direct join flow, even when it might work with the client.
 **Decision:** The client shows direct recommendations and follows at most two
 verified mutual hops. It uses one shared six-request scheduler and fixed
 candidate, directory, profile, and total request limits. The first candidate
-batch starts automatically. Later batches require **Load more**.
+batch starts automatically. One more batch can start after the user scrolls
+near the end of the results. Later batches require **Load more**.
 
 **Why:** Progressive discovery can find servers beyond a direct recommendation,
 but one malicious or cyclic directory must not start unbounded browser work.
 Fixed limits make the maximum request effect testable.
 
 **Tradeoff:** A page session can stop before it explores every recommendation.
-Discovery order reflects completion and bounded scheduling, not quality.
+The second automatic batch does not start on a short page that the user does
+not scroll. Discovery order reflects completion and bounded scheduling, not
+quality.
 
 ## Non-goals
 
@@ -245,4 +250,5 @@ Discovery order reflects completion and bounded scheduling, not quality.
   Configuration), FDR-031 (Client–Server Compatibility Discovery)
 - **Issues:** [#1669](https://github.com/chattocorp/chatto/issues/1669),
   [#2208](https://github.com/chattocorp/chatto/issues/2208),
-  [#2207](https://github.com/chattocorp/chatto/issues/2207)
+  [#2207](https://github.com/chattocorp/chatto/issues/2207),
+  [#2206](https://github.com/chattocorp/chatto/issues/2206)

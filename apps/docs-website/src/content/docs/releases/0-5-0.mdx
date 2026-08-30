@@ -96,8 +96,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Directory shows direct recommendations from a user's registered servers. It
     follows a remote server recursively only when both servers advertise each
     other, for at most two mutual hops. Results appear as requests finish, and
-    fixed batch, concurrency, timeout, and page-session limits bound browser
-    work. Administrators can add a public testimonial to each
+    one additional batch can load when a user scrolls near the end. Fixed batch,
+    concurrency, timeout, and page-session limits bound browser work.
+    Administrators can add a public testimonial to each
     recommendation. Testimonials support paragraphs and limited inline
     Markdown. The directory shows them as source-labelled review cards below
     each server profile in a tapestry layout. Mutuality is a current client

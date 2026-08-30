@@ -1,5 +1,5 @@
 import { flushSync } from 'svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerDirectorySnapshot } from '$lib/serverDirectory';
@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
   authenticated: new Set<string>(),
   loadServerDirectory: vi.fn(),
   loadMoreDirectory: vi.fn(),
+  publishDirectorySnapshot: undefined as
+    | ((snapshot: Partial<ServerDirectorySnapshot>) => void)
+    | undefined,
   getPublicServerInfo: vi.fn(),
   startServerOAuthFlow: vi.fn(),
   startRemoteReauthentication: vi.fn(),
@@ -69,9 +72,11 @@ vi.mock('$lib/serverDirectory', async (importOriginal) => {
       return {
         subscribe(callback: (value: ServerDirectorySnapshot) => void) {
           listener = callback;
+          mocks.publishDirectorySnapshot = (value) => listener?.(snapshot(value));
           callback(snapshot({ isStarted: false, isLoading: true, isInitialLoading: true }));
           return () => {
             listener = undefined;
+            mocks.publishDirectorySnapshot = undefined;
           };
         },
         start() {
@@ -142,6 +147,44 @@ function recommendation(
   return { sourceOrigin, testimonial };
 }
 
+let intersectionCallback: IntersectionObserverCallback | undefined;
+
+function mockIntersectionObserver() {
+  intersectionCallback = undefined;
+  vi.stubGlobal(
+    'IntersectionObserver',
+    class {
+      constructor(callback: IntersectionObserverCallback) {
+        intersectionCallback = callback;
+      }
+      observe = vi.fn();
+      disconnect = vi.fn();
+    }
+  );
+}
+
+function triggerIntersection(isIntersecting = true) {
+  intersectionCallback?.(
+    [{ isIntersecting } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
+}
+
+function approachAutomaticLoad(container: HTMLElement): HTMLElement {
+  const sentinel = container.querySelector<HTMLElement>(
+    '[data-testid="server-directory-auto-load-sentinel"]'
+  )!;
+  const scrollContainer = sentinel.closest<HTMLElement>('[role="region"]')!;
+  Object.defineProperty(scrollContainer, 'scrollTop', {
+    configurable: true,
+    value: 100,
+    writable: true
+  });
+  triggerIntersection();
+  scrollContainer.dispatchEvent(new Event('scroll'));
+  return scrollContainer;
+}
+
 describe('Server Directory page', () => {
   beforeEach(() => {
     mocks.servers = [
@@ -163,6 +206,7 @@ describe('Server Directory page', () => {
     mocks.authenticated = new Set(['joined']);
     mocks.loadServerDirectory.mockReset();
     mocks.loadMoreDirectory.mockReset();
+    mocks.publishDirectorySnapshot = undefined;
     mocks.getPublicServerInfo.mockReset();
     mocks.startServerOAuthFlow.mockReset();
     mocks.startServerOAuthFlow.mockResolvedValue(undefined);
@@ -170,6 +214,11 @@ describe('Server Directory page', () => {
     mocks.startRemoteReauthentication.mockResolvedValue(undefined);
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('keeps directory response order and marks registered entries as joined', async () => {
@@ -616,6 +665,150 @@ describe('Server Directory page', () => {
     });
   });
 
+  it('does not add an automatic batch after the user loads more manually', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 2
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Load more')).toBeDefined());
+    button(container, 'Load more')?.click();
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+
+    approachAutomaticLoad(container);
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce();
+  });
+
+  it('does not automatically load when a short directory starts near the sentinel', async () => {
+    mockIntersectionObserver();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://first.example',
+          profile: profile('First'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    triggerIntersection();
+
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+    expect(button(container, 'Load more')).toBeDefined();
+  });
+
+  it('automatically loads only one batch after the user scrolls near the end', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 2
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    const scrollContainer = approachAutomaticLoad(container);
+    triggerIntersection();
+
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+    scrollContainer.dispatchEvent(new Event('scroll'));
+    triggerIntersection();
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce();
+    expect(button(container, 'Load more')).toBeDefined();
+  });
+
+  it('waits for active discovery before spending an approached automatic batch', async () => {
+    mockIntersectionObserver();
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      isLoading: true,
+      canLoadMore: false,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({ entries: [first] });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    approachAutomaticLoad(container);
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+
+    mocks.publishDirectorySnapshot?.({
+      entries: [first],
+      isLoading: false,
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+  });
+
+  it('does not spend the automatic batch while the page is hidden', async () => {
+    mockIntersectionObserver();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible');
+    const first = {
+      origin: 'https://first.example',
+      profile: profile('First'),
+      sourceOrigins: ['https://source.example'],
+      recommendations: [recommendation()]
+    };
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [first],
+      canLoadMore: true,
+      queuedCandidateCount: 1
+    });
+    mocks.loadMoreDirectory.mockResolvedValue({ entries: [first] });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(intersectionCallback).toBeDefined());
+    visibility.mockReturnValue('hidden');
+    approachAutomaticLoad(container);
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
+
+    visibility.mockReturnValue('visible');
+    document.dispatchEvent(new Event('visibilitychange'));
+    await vi.waitFor(() => expect(mocks.loadMoreDirectory).toHaveBeenCalledOnce());
+    visibility.mockRestore();
+  });
+
   it('uses discovered source profiles for recursive testimonial attribution', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
@@ -654,10 +847,19 @@ describe('Server Directory page', () => {
   });
 
   it('explains when the page-session discovery limit is reached', async () => {
+    mockIntersectionObserver();
     mocks.loadServerDirectory.mockResolvedValue({
-      entries: [],
+      entries: [
+        {
+          origin: 'https://first.example',
+          profile: profile('First'),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
       failedSourceCount: 0,
       sourceCount: 2,
+      canLoadMore: false,
       sessionLimitReached: true
     });
 
@@ -668,5 +870,9 @@ describe('Server Directory page', () => {
       );
     });
     expect(button(container, 'Load more')).toBeUndefined();
+    expect(
+      container.querySelector('[data-testid="server-directory-auto-load-sentinel"]')
+    ).toBeNull();
+    expect(mocks.loadMoreDirectory).not.toHaveBeenCalled();
   });
 });
