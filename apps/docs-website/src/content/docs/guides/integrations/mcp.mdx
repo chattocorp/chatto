@@ -5,15 +5,25 @@ description: Enable Chatto's experimental network MCP server and connect an agen
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Chatto can expose a small, read-only tool catalog through the Model Context
+Chatto can expose a small tool catalog through the Model Context
 Protocol (MCP). The optional MCP integration uses the same public HTTP server,
 OAuth implementation, and version as the rest of Chatto.
 
-The first experimental version supports MCP `2026-07-28` and two tools:
-`get_server_info` and `list_rooms`. The identity tool returns the effective
-server name, public URL, and Chatto version. The room tool returns a bounded
-page of rooms that the authenticated account can see. It applies the same room
-visibility rules as the public Chatto API.
+The experimental integration supports MCP `2026-07-28` and these tools:
+
+| Tool | Result or action |
+| --- | --- |
+| `get_server_info` | Get the effective server name, public URL, and Chatto version. |
+| `get_current_user` | Get the authenticated account ID, display name, and account type. |
+| `list_rooms` | List a bounded page of rooms that the account can see. |
+| `list_room_messages` | List a bounded page of messages in a joined room. |
+| `post_message` | Post one root text message in a joined room. |
+| `join_room` | Join one visible channel room. |
+| `leave_room` | Leave one joined channel room. |
+
+The tools apply the same RBAC, membership, validation, and visibility rules as
+the public Chatto API. `post_message` is not idempotent. An agent must not retry
+it when the first result is uncertain.
 
 <Aside type="caution">
   MCP access can expose private Chatto data to an agent host. Enable it only
@@ -39,9 +49,10 @@ reverse proxy needs no separate MCP upstream.
 
 Human users authorize an MCP client through OAuth Authorization Code with S256
 PKCE. Chatto resolves the client's Client ID Metadata Document (CIMD), shows
-the exact `chatto:rooms:read` scope on the consent page, and issues an access
-token bound to the configured MCP resource. A first-party Chatto bearer token
-without this resource and scope cannot use MCP.
+the exact `chatto:rooms:read`, `chatto:rooms:write`,
+`chatto:messages:read`, and `chatto:messages:write` scopes on the consent page,
+and issues an access token bound to the configured MCP resource. A first-party
+Chatto bearer token without this resource and grant cannot use MCP.
 
 An unattended integration can send a current bot API key as its bearer token.
 The bot acts as its own account. Its explicit permission allowlist and its
@@ -52,12 +63,28 @@ owner's current permission ceiling still apply. See [Bot Accounts](/guides/integ
 1. Give your agent host the public Chatto URL with the `/mcp` path.
 2. Let the host read protected-resource and authorization-server metadata.
 3. Complete the Chatto consent screen when the host opens it.
-4. Confirm that the host discovers `get_server_info` and `list_rooms`.
+4. Confirm that the host discovers the seven tools in the table above.
 5. Ask the host to identify the server. Confirm that it reports the expected
    name and public URL.
-6. Confirm that it can list only rooms that your account can see.
+6. Ask the host to identify the connected account and list its visible rooms.
+7. In a test room, ask the host to join, post a unique test message, read the
+   message, and leave.
 
 </Steps>
+
+## Understand permission failures
+
+An MCP call can succeed only when both the MCP OAuth grant and the normal
+Chatto authorization permit it. The current OAuth flow grants the complete
+tester scope set. RBAC and room membership can still reject one operation or
+target.
+
+Chatto returns a failed operation as an MCP tool error. When Chatto can confirm
+that an RBAC permission is missing, the error contains `permission_denied` and
+the permission name, such as `room.join` or `message.post`. An agent can report
+that name and ask the human driver to contact an administrator. Chatto uses a
+generic error for room policy denials and hidden resources so it does not
+disclose private state.
 
 ## Disable access
 

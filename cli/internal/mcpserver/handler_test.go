@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -74,7 +75,7 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
 	const resource = "https://chat.example/mcp"
-	credentials, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", resource, []string{config.MCPRoomsReadScope}, generation)
+	credentials, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", resource, config.MCPOAuthScopes(), generation)
 	if err != nil {
 		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
 	}
@@ -114,8 +115,14 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListTools: %v", err)
 	}
-	if len(tools.Tools) != 2 || !mcpToolsContain(tools.Tools, "get_server_info") || !mcpToolsContain(tools.Tools, "list_rooms") {
-		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Tools)
+	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room"}
+	if len(tools.Tools) != len(wantTools) {
+		t.Fatalf("tools = %#v, want %v", tools.Tools, wantTools)
+	}
+	for _, name := range wantTools {
+		if !mcpToolsContain(tools.Tools, name) {
+			t.Fatalf("tools = %#v, missing %q", tools.Tools, name)
+		}
 	}
 	serverInfoResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_server_info"})
 	if err != nil {
@@ -131,6 +138,15 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	}
 	if serverInfo.ServerName != "Engineering Chat" || serverInfo.ServerURL != "https://chat.example" || serverInfo.SoftwareVersion != "test" {
 		t.Fatalf("get_server_info = %#v", serverInfo)
+	}
+	currentUserResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_current_user"})
+	if err != nil {
+		t.Fatalf("CallTool get_current_user: %v", err)
+	}
+	var currentUser getCurrentUserOutput
+	decodeStructuredContent(t, currentUserResult.StructuredContent, &currentUser)
+	if currentUser.ID != viewer.GetId() || currentUser.DisplayName != viewer.GetDisplayName() || currentUser.AccountType != "human" {
+		t.Fatalf("get_current_user = %#v", currentUser)
 	}
 	result, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_rooms", Arguments: map[string]any{"limit": 100}})
 	if err != nil {
@@ -152,6 +168,50 @@ func TestMCPHandlerListsOnlyVisibleRoomsWithScopedToken(t *testing.T) {
 	}
 	if roomResultsContain(output.Rooms, hidden.GetId()) {
 		t.Fatalf("hidden room %q present in %#v", hidden.GetId(), output.Rooms)
+	}
+
+	joinResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "join_room", Arguments: map[string]any{"room_id": visible.GetId()}})
+	if err != nil || joinResult.IsError {
+		t.Fatalf("CallTool join_room: result=%#v err=%v", joinResult, err)
+	}
+	var joined joinRoomOutput
+	decodeStructuredContent(t, joinResult.StructuredContent, &joined)
+	if joined.Room.ID != visible.GetId() || !joined.Room.IsMember {
+		t.Fatalf("join_room = %#v", joined)
+	}
+
+	postResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "post_message", Arguments: map[string]any{
+		"room_id": visible.GetId(), "body": "Hello from MCP",
+	}})
+	if err != nil || postResult.IsError {
+		t.Fatalf("CallTool post_message: result=%#v err=%v", postResult, err)
+	}
+	var posted postMessageOutput
+	decodeStructuredContent(t, postResult.StructuredContent, &posted)
+	if posted.Message.RoomID != visible.GetId() || posted.Message.AuthorID != viewer.GetId() || posted.Message.Body != "Hello from MCP" || posted.Message.ID == "" {
+		t.Fatalf("post_message = %#v", posted)
+	}
+
+	messagesResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "list_room_messages", Arguments: map[string]any{
+		"room_id": visible.GetId(), "limit": 10,
+	}})
+	if err != nil || messagesResult.IsError {
+		t.Fatalf("CallTool list_room_messages: result=%#v err=%v", messagesResult, err)
+	}
+	var messages listRoomMessagesOutput
+	decodeStructuredContent(t, messagesResult.StructuredContent, &messages)
+	if len(messages.Messages) != 1 || messages.Messages[0].ID != posted.Message.ID || messages.Messages[0].Body != "Hello from MCP" {
+		t.Fatalf("list_room_messages = %#v", messages)
+	}
+
+	leaveResult, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "leave_room", Arguments: map[string]any{"room_id": visible.GetId()}})
+	if err != nil || leaveResult.IsError {
+		t.Fatalf("CallTool leave_room: result=%#v err=%v", leaveResult, err)
+	}
+	var left leaveRoomOutput
+	decodeStructuredContent(t, leaveResult.StructuredContent, &left)
+	if left.RoomID != visible.GetId() || !left.Left {
+		t.Fatalf("leave_room = %#v", left)
 	}
 }
 
@@ -260,8 +320,14 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 		} `json:"result"`
 	}
 	decodeMCPResponse(t, list, &tools)
-	if len(tools.Result.Tools) != 2 || !rawMCPToolsContain(tools.Result.Tools, "get_server_info") || !rawMCPToolsContain(tools.Result.Tools, "list_rooms") {
-		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Result.Tools)
+	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room"}
+	if len(tools.Result.Tools) != len(wantTools) {
+		t.Fatalf("tools = %#v, want %v", tools.Result.Tools, wantTools)
+	}
+	for _, name := range wantTools {
+		if !rawMCPToolsContain(tools.Result.Tools, name) {
+			t.Fatalf("tools = %#v, missing %q", tools.Result.Tools, name)
+		}
 	}
 
 	call := performRawMCPRequest(t, handler, bot.APIKey, "tools/call", "list_rooms", `{
@@ -290,6 +356,36 @@ func TestMCPHandlerServesProtocol20260728OverRawHTTP(t *testing.T) {
 	}
 	if !roomResultsContain(output.Rooms, room.GetId()) {
 		t.Fatalf("visible room %q missing from %#v", room.GetId(), output.Rooms)
+	}
+
+	denied := performRawMCPRequest(t, handler, bot.APIKey, "tools/call", "join_room", `{
+		"jsonrpc":"2.0",
+		"id":4,
+		"method":"tools/call",
+		"params":{
+			"_meta":{
+				"io.modelcontextprotocol/protocolVersion":"2026-07-28",
+				"io.modelcontextprotocol/clientInfo":{"name":"raw-http-test","version":"1.0"},
+				"io.modelcontextprotocol/clientCapabilities":{}
+			},
+			"name":"join_room",
+			"arguments":{"room_id":"`+room.GetId()+`"}
+		}
+	}`)
+	var deniedResult struct {
+		Result struct {
+			IsError bool `json:"isError"`
+			Content []struct {
+				Type string `json:"type"`
+				Text string `json:"text"`
+			} `json:"content"`
+		} `json:"result"`
+	}
+	decodeMCPResponse(t, denied, &deniedResult)
+	if !deniedResult.Result.IsError || len(deniedResult.Result.Content) == 0 ||
+		!strings.Contains(deniedResult.Result.Content[0].Text, "permission_denied") ||
+		!strings.Contains(deniedResult.Result.Content[0].Text, string(core.PermRoomJoin)) {
+		t.Fatalf("join_room denial = %#v, want visible missing RBAC permission", deniedResult.Result)
 	}
 }
 
@@ -325,7 +421,7 @@ func TestMCPHandlerRejectsWrongHostAndCrossOriginBrowserPOST(t *testing.T) {
 	}
 }
 
-func TestMCPHandlerRejectsUnscopedHumanBearer(t *testing.T) {
+func TestMCPHandlerRejectsHumanBearerWithoutCompleteMCPGrant(t *testing.T) {
 	_, nc := testutil.StartSharedNATS(t)
 	chattoCore, err := core.NewChattoCore(context.Background(), nc, config.CoreConfig{
 		SecretKey: "test-core-secret", Assets: config.AssetsConfig{SigningSecret: "test-signing-secret"},
@@ -346,6 +442,17 @@ func TestMCPHandlerRejectsUnscopedHumanBearer(t *testing.T) {
 	verifier := tokenVerifier(chattoCore, "https://chat.example/mcp")
 	if _, err := verifier(ctx, credentials.AccessToken, nil); err == nil {
 		t.Fatal("unscoped first-party bearer was accepted")
+	}
+	generation, err := chattoCore.CurrentAuthGeneration(ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	legacyGrant, err := chattoCore.CreateOAuthBearerSessionForClientGrant(ctx, viewer.GetId(), "https://agent.example/client.json", "https://chat.example/mcp", []string{config.MCPRoomsReadScope}, generation)
+	if err != nil {
+		t.Fatalf("CreateOAuthBearerSessionForClientGrant: %v", err)
+	}
+	if _, err := verifier(ctx, legacyGrant.AccessToken, nil); err == nil {
+		t.Fatal("resource-bound bearer without the complete current MCP grant was accepted")
 	}
 }
 
@@ -371,7 +478,7 @@ func TestMCPTokenVerifierAcceptsCurrentBotAPIKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("verify bot API key: %v", err)
 	}
-	if token.UserID != bot.User.GetId() || !slices.Contains(token.Scopes, config.MCPRoomsReadScope) {
+	if token.UserID != bot.User.GetId() || !slices.Equal(token.Scopes, config.MCPOAuthScopes()) {
 		t.Fatalf("bot token info = %#v", token)
 	}
 }
@@ -412,6 +519,17 @@ func mcpToolsContain(tools []*mcp.Tool, name string) bool {
 		}
 	}
 	return false
+}
+
+func decodeStructuredContent(t *testing.T, content any, output any) {
+	t.Helper()
+	raw, err := json.Marshal(content)
+	if err != nil {
+		t.Fatalf("marshal structured content: %v", err)
+	}
+	if err := json.Unmarshal(raw, output); err != nil {
+		t.Fatalf("decode structured content: %v", err)
+	}
 }
 
 func rawMCPToolsContain(tools []struct {

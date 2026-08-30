@@ -68,7 +68,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **MCP server** — Optional Chatto public HTTP integration that lets an agent host discover and call bounded user-scoped tools through the Model Context Protocol. It has no Operator API authority. See [FDR-043](fdr/FDR-043-model-context-protocol-integration.md) and [ADR-085](adr/ADR-085-agent-integration-through-mcp.md).
 
-**MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
+**MCP scope** — OAuth grant ceiling for one class of MCP tools, such as `chatto:rooms:read` or `chatto:messages:write`. It limits delegated agent authority in addition to normal Chatto permissions and resource visibility. It is not an RBAC permission.
 
 **Bot account** — Passwordless user identity for an integration, explicitly owned by a human and marked as a bot. It receives only directly configured permissions, capped by the owner's current authority. See [FDR-038](fdr/FDR-038-bot-accounts.md).
 

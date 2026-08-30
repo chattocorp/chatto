@@ -716,7 +716,7 @@ func normalizeOAuthScopes(raw string) ([]string, error) {
 }
 
 func (s *HTTPServer) validOAuthGrant(resource string, scopes []string) bool {
-	return s.config.MCP.Enabled && resource == s.config.MCPResourceURL() && slices.Equal(scopes, []string{config.MCPRoomsReadScope})
+	return s.config.MCP.Enabled && resource == s.config.MCPResourceURL() && slices.Equal(scopes, config.MCPOAuthScopes())
 }
 
 // hasPendingOAuthAuthorize checks if the session has a pending OAuth authorize flow.

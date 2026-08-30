@@ -112,8 +112,27 @@ type MCPConfig struct {
 	Enabled bool `toml:"enabled" env:"CHATTO_MCP_ENABLED" comment:"Expose the experimental MCP routes on the public HTTP server. Default: false."`
 }
 
-// MCPRoomsReadScope grants bounded room-directory reads through MCP.
-const MCPRoomsReadScope = "chatto:rooms:read"
+const (
+	// MCPMessagesReadScope grants bounded message reads through MCP.
+	MCPMessagesReadScope = "chatto:messages:read"
+	// MCPMessagesWriteScope grants message creation through MCP.
+	MCPMessagesWriteScope = "chatto:messages:write"
+	// MCPRoomsReadScope grants bounded room-directory reads through MCP.
+	MCPRoomsReadScope = "chatto:rooms:read"
+	// MCPRoomsWriteScope grants room membership changes through MCP.
+	MCPRoomsWriteScope = "chatto:rooms:write"
+)
+
+// MCPOAuthScopes returns the complete sorted scope set for the experimental
+// MCP tool catalog. Callers can safely modify the returned slice.
+func MCPOAuthScopes() []string {
+	return []string{
+		MCPMessagesReadScope,
+		MCPMessagesWriteScope,
+		MCPRoomsReadScope,
+		MCPRoomsWriteScope,
+	}
+}
 
 // MCPResourceURL returns the canonical MCP endpoint and OAuth resource. MCP is
 // mounted on the public HTTP server, so it always shares the webserver.url

@@ -59,11 +59,38 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "get_server_info",
 			Description: "Get the configured name, public URL, and software version of this Chatto server.",
+			Annotations: readOnlyToolAnnotations("Get server information"),
 		}, getServerInfoHandler(chattoCore, issuer, version))
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "get_current_user",
+			Description: "Get the identity and account type of the authenticated Chatto user or bot.",
+			Annotations: readOnlyToolAnnotations("Get current user"),
+		}, getCurrentUserHandler(chattoCore))
 		mcp.AddTool(server, &mcp.Tool{
 			Name:        "list_rooms",
 			Description: "List a bounded page of Chatto rooms visible to the authenticated account.",
+			Annotations: readOnlyToolAnnotations("List rooms"),
 		}, listRoomsHandler(chattoCore))
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "list_room_messages",
+			Description: "List a bounded page of recent messages in a joined Chatto room.",
+			Annotations: readOnlyToolAnnotations("List room messages"),
+		}, listRoomMessagesHandler(chattoCore))
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "post_message",
+			Description: "Post one text message to a joined Chatto room. This operation is not idempotent; do not retry it after an uncertain result.",
+			Annotations: mutationToolAnnotations("Post message", false, false),
+		}, postMessageHandler(chattoCore))
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "join_room",
+			Description: "Join one visible Chatto channel room as the authenticated account.",
+			Annotations: mutationToolAnnotations("Join room", true, false),
+		}, joinRoomHandler(chattoCore))
+		mcp.AddTool(server, &mcp.Tool{
+			Name:        "leave_room",
+			Description: "Leave one joined Chatto channel room as the authenticated account.",
+			Annotations: mutationToolAnnotations("Leave room", true, true),
+		}, leaveRoomHandler(chattoCore))
 		return server
 	}, &mcp.StreamableHTTPOptions{
 		Stateless:                    true,
@@ -75,7 +102,7 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 	})
 	protected := auth.RequireBearerToken(tokenVerifier(chattoCore, resource), &auth.RequireBearerTokenOptions{
 		ResourceMetadataURL:    metadataURL,
-		Scopes:                 []string{config.MCPRoomsReadScope},
+		Scopes:                 config.MCPOAuthScopes(),
 		AllowMissingExpiration: true,
 	})(streamable)
 
@@ -86,7 +113,7 @@ func NewHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, version st
 	mux.Handle("/.well-known/oauth-protected-resource/mcp", auth.ProtectedResourceMetadataHandler(&oauthex.ProtectedResourceMetadata{
 		Resource:               resource,
 		AuthorizationServers:   []string{issuer},
-		ScopesSupported:        []string{config.MCPRoomsReadScope},
+		ScopesSupported:        config.MCPOAuthScopes(),
 		BearerMethodsSupported: []string{"header"},
 		ResourceName:           "Chatto MCP",
 	}))
@@ -126,7 +153,7 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 	return func(ctx context.Context, token string, _ *http.Request) (*auth.TokenInfo, error) {
 		credential, err := chattoCore.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationBearer)
 		if err == nil {
-			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !slices.Contains(credential.Scopes, config.MCPRoomsReadScope) {
+			if credential.Kind != core.AuthTokenKindOAuthAccessToken || credential.Resource != resource || !hasAllScopes(credential.Scopes, config.MCPOAuthScopes()) {
 				return nil, auth.ErrInvalidToken
 			}
 			return &auth.TokenInfo{Scopes: credential.Scopes, Expiration: credential.ExpiresAt, UserID: credential.UserID}, nil
@@ -141,8 +168,27 @@ func tokenVerifier(chattoCore *core.ChattoCore, resource string) auth.TokenVerif
 			}
 			return nil, err
 		}
-		return &auth.TokenInfo{Scopes: []string{config.MCPRoomsReadScope}, UserID: bot.GetId()}, nil
+		return &auth.TokenInfo{Scopes: config.MCPOAuthScopes(), UserID: bot.GetId()}, nil
 	}
+}
+
+func hasAllScopes(granted, required []string) bool {
+	for _, scope := range required {
+		if !slices.Contains(granted, scope) {
+			return false
+		}
+	}
+	return true
+}
+
+func readOnlyToolAnnotations(title string) *mcp.ToolAnnotations {
+	closedWorld := false
+	return &mcp.ToolAnnotations{Title: title, ReadOnlyHint: true, IdempotentHint: true, OpenWorldHint: &closedWorld}
+}
+
+func mutationToolAnnotations(title string, idempotent, destructive bool) *mcp.ToolAnnotations {
+	closedWorld := false
+	return &mcp.ToolAnnotations{Title: title, IdempotentHint: idempotent, DestructiveHint: &destructive, OpenWorldHint: &closedWorld}
 }
 
 type getServerInfoInput struct{}

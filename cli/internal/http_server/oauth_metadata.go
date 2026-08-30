@@ -33,7 +33,7 @@ func (s *HTTPServer) setupOAuthMetadataRoutes() {
 		}
 		scopes := []string(nil)
 		if s.config.MCP.Enabled {
-			scopes = []string{config.MCPRoomsReadScope}
+			scopes = config.MCPOAuthScopes()
 		}
 		c.Header("Access-Control-Allow-Origin", "*")
 		c.Header("Cache-Control", "public, max-age=300")

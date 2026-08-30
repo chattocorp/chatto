@@ -53,9 +53,10 @@ The first implementation will use these boundaries:
    call this version "MCP 2.0." The SDK can negotiate its older supported
    versions during their compatibility window, but Chatto does not add a
    separate compatibility promise for them.
-3. The first walking slice is the read-only `list_rooms` tool. Later read
-   tools can adapt other existing public operations after this transport and
-   authorization path has operational evidence.
+3. The initial catalog stays small. It has server and account identity,
+   bounded room and message reads, root text posting, and channel membership
+   changes. Later tools can adapt other existing public operations after this
+   transport and authorization path has operational evidence.
 4. Human clients use Chatto's OAuth Authorization Code flow with PKCE and CIMD
    client identity. MCP access tokens are bound to the canonical MCP resource
    and to explicit MCP scopes.
@@ -113,12 +114,6 @@ them additively where practical. A tool contract can change independently from
 the protobuf package version, but the same compatibility review and release
 guidance apply.
 
-The first rollout has an activation fence. An operator must upgrade every
-serving replica to a version that understands resource-bound grants before the
-operator enables MCP. The operator must not roll back one replica to an older
-version after MCP grants exist. This rule prevents an old replica from reading
-a scoped consent or runtime record as legacy broad OAuth authority.
-
 ## Consequences
 
 General agent hosts can use Chatto through a standard protocol. They do not
@@ -135,10 +130,9 @@ timeouts, cancellation, audit attribution, OAuth protected-resource metadata,
 resource indicators, token audience checks, and scope handling. Adding the SDK
 also requires the normal dependency and `NOTICE` review.
 
-The first release cannot modify Chatto state. This reduces the first tool
-catalog and delays some useful workflows, but it lets the project validate
-authentication, data exposure, host compatibility, and prompt-injection risks
-before it adds write authority.
+The initial write catalog is limited to root text posting and channel
+membership. It does not include content changes, deletion, moderation,
+administration, or operator authority.
 
 Message content stays sensitive even when a tool is read-only. Operators and
 users must still make an explicit grant, and Chatto must apply current message

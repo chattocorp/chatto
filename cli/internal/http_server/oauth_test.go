@@ -10,6 +10,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -1052,7 +1053,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 		"code_challenge_method": {"S256"},
 		"state":                 {"mcp-state"},
 		"resource":              {resource},
-		"scope":                 {config.MCPRoomsReadScope},
+		"scope":                 {strings.Join(config.MCPOAuthScopes(), " ")},
 	}
 	authorizeReq := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+params.Encode(), nil)
 	addCookies(authorizeReq, cookies)
@@ -1077,7 +1078,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err := json.Unmarshal(consentW.Body.Bytes(), &consent); err != nil {
 		t.Fatalf("decode consent request: %v", err)
 	}
-	if consent.Resource != resource || len(consent.Scopes) != 1 || consent.Scopes[0] != config.MCPRoomsReadScope {
+	if consent.Resource != resource || !slices.Equal(consent.Scopes, config.MCPOAuthScopes()) {
 		t.Fatalf("consent grant = resource %q, scopes %v", consent.Resource, consent.Scopes)
 	}
 
@@ -1132,7 +1133,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate access token: %v", err)
 	}
-	if credential.Resource != resource || len(credential.Scopes) != 1 || credential.Scopes[0] != config.MCPRoomsReadScope {
+	if credential.Resource != resource || !slices.Equal(credential.Scopes, config.MCPOAuthScopes()) {
 		t.Fatalf("access token grant = resource %q, scopes %v", credential.Resource, credential.Scopes)
 	}
 	if _, ok, err := s.bearerPresentedCredential(context.Background(), tokenResponse.AccessToken); err != nil || ok {
@@ -1145,7 +1146,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 		t.Fatalf("resource-bound token authenticated on realtime path: %v", err)
 	}
 	if len(tokenResponse.User) != 0 {
-		t.Fatalf("room-only token response disclosed user profile: %s", tokenResponse.User)
+		t.Fatalf("MCP token response disclosed user profile: %s", tokenResponse.User)
 	}
 
 	refresh := func() *httptest.ResponseRecorder {
@@ -1176,7 +1177,7 @@ func TestOAuthMCPGrantBindsConsentCodeAndAccessToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("validate refreshed access token: %v", err)
 	}
-	if refreshedCredential.Resource != resource || len(refreshedCredential.Scopes) != 1 || refreshedCredential.Scopes[0] != config.MCPRoomsReadScope {
+	if refreshedCredential.Resource != resource || !slices.Equal(refreshedCredential.Scopes, config.MCPOAuthScopes()) {
 		t.Fatalf("refreshed grant = resource %q, scopes %v", refreshedCredential.Resource, refreshedCredential.Scopes)
 	}
 	if retryW := refresh(); retryW.Code != http.StatusBadRequest {
@@ -1258,8 +1259,14 @@ func TestOfficialMCPClientCompletesChattoOAuthAndDiscoversTools(t *testing.T) {
 	for _, tool := range tools.Tools {
 		toolNames[tool.Name] = true
 	}
-	if len(tools.Tools) != 2 || !toolNames["get_server_info"] || !toolNames["list_rooms"] {
-		t.Fatalf("tools = %#v, want get_server_info and list_rooms", tools.Tools)
+	wantTools := []string{"get_server_info", "get_current_user", "list_rooms", "list_room_messages", "post_message", "join_room", "leave_room"}
+	if len(tools.Tools) != len(wantTools) {
+		t.Fatalf("tools = %#v, want %v", tools.Tools, wantTools)
+	}
+	for _, name := range wantTools {
+		if !toolNames[name] {
+			t.Fatalf("tools = %#v, missing %q", tools.Tools, name)
+		}
 	}
 	if _, err := session.CallTool(ctx, &mcp.CallToolParams{Name: "get_server_info"}); err != nil {
 		t.Fatalf("CallTool get_server_info: %v", err)

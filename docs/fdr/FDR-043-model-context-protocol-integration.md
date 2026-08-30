@@ -2,16 +2,16 @@
 
 **Status:** Experimental
 **Last reviewed:** 2026-08-30
-**Implementation state:** Initial walking slice implemented with OAuth, server
-identity, and `list_rooms`.
+**Implementation state:** Tester tool catalog implemented with OAuth, server
+and account identity, room and message reads, posting, and room membership.
 
 ## Overview
 
 Chatto's Model Context Protocol (MCP) integration lets an agent host inspect a
 Chatto server through a standard, user-scoped tool interface. MCP tools adapt
 the existing public Chatto operations. They do not replace the public API or
-give an agent operator authority. The first release is read-only so Chatto can
-validate the security and compatibility model before it adds writes.
+give an agent operator authority. The first catalog has bounded reads and a
+small set of user actions for practical agent-host tests.
 
 MCP has three main server primitives. Tools let a model request an operation.
 Resources let a host load identified content. Prompts provide reusable
@@ -38,16 +38,21 @@ primitive.
 - A human grants an MCP client access through Chatto OAuth. The flow uses
   Authorization Code with PKCE and the client's CIMD identity.
 - Human MCP access tokens are valid only for the server's canonical MCP
-  resource. The initial `chatto:rooms:read` scope is an additional ceiling on
+  resource. The current grant has the `chatto:rooms:read`,
+  `chatto:rooms:write`, `chatto:messages:read`, and
+  `chatto:messages:write` scopes. These scopes are an additional ceiling on
   the user's normal Chatto authority.
 - A bot can use its existing Bot API key. Calls act as that bot and remain
   limited by its explicit permissions and its owner's current authority.
 - The MCP endpoint does not accept browser cookies. It does not accept a human
   bearer session that has no MCP resource and scope grant.
-- The initial tool catalog contains `get_server_info` and `list_rooms`.
-  `get_server_info` returns the effective server name, canonical public URL,
-  and Chatto version. `list_rooms` returns a bounded page of rooms visible to
-  the caller and identifies the Chatto server that supplied the page.
+- The tool catalog contains `get_server_info`, `get_current_user`,
+  `list_rooms`, `list_room_messages`, `post_message`, `join_room`, and
+  `leave_room`.
+- Identity tools return the effective server identity or the authenticated
+  account identity. Room and message list tools return bounded pages.
+  `post_message` creates one root text message. The room membership tools join
+  or leave one channel room.
 - MCP server metadata uses `Chatto` as its stable implementation name and the
   effective Chatto server name as its display title.
 - Static MCP instructions tell an agent host to call `get_server_info` when it
@@ -59,11 +64,15 @@ primitive.
 - The endpoint requires the canonical public server Host, rejects cross-origin
   browser writes, limits admission to 20 requests per second with a burst of
   40, and gives each request 15 seconds.
-- The server can omit a tool when the credential type or MCP scope cannot use
-  that class of operation. A listed tool can still reject a specific target.
+- A listed tool can reject a specific target even when the credential has the
+  complete MCP grant.
 - Every tool call applies current Chatto RBAC, room membership, message access,
   search visibility, and absence rules. A successful earlier call does not
   grant authority to a later call.
+- A failed tool call returns an MCP error result. When Chatto can confirm that
+  an RBAC permission is missing, the error names that permission and tells the
+  agent to ask an administrator. Policy denials and hidden resources remain
+  generic so the error does not disclose private state.
 - A tool returns only the data needed for its declared operation. It does not
   add related private resources for agent convenience.
 - User-controlled Chatto content is untrusted data. It cannot change tool
@@ -91,18 +100,16 @@ from becoming a second product API with different rules.
 **Tradeoff:** MCP result shapes need explicit mapping, and not every public RPC
 should become a tool.
 
-### 2. Start with a small read-only catalog
+### 2. Keep the tester catalog small
 
-**Decision:** The first walking slice exposes server identity and a bounded
-room-directory read. It exposes no mutation tools, resources, or prompts.
-Later read tools must use the same operation-adapter rule.
-**Why:** Server identity lets an agent confirm which Chatto instance supplied
-its authority. A room list tests discovery, OAuth, tool schemas, pagination,
-and normal visibility rules without returning message content. A small catalog
-lets Chatto test host behavior before a model can read more sensitive content
-or change state.
-**Tradeoff:** Agents cannot post, react, update read state, moderate content,
-or manage the server through the first release. Read access can still disclose
+**Decision:** Expose identity, bounded room and message reads, root text
+posting, and channel membership changes. Do not expose reactions, edits,
+deletions, attachments, moderation, administration, resources, or prompts.
+**Why:** This catalog is sufficient to test discovery, OAuth, schemas,
+pagination, RBAC, membership, reads, and writes in a real agent host. It does
+not create a second complete Chatto API.
+**Tradeoff:** Message posting changes state and is not idempotent. An agent
+must not retry it after an uncertain result. Read access can disclose
 sensitive content and needs full authorization.
 
 ### 3. Use explicit human consent and existing bot identity
@@ -188,11 +195,14 @@ decision.
 
 ## Permissions
 
-The initial MCP integration adds no RBAC permissions.
+The MCP integration adds no RBAC permissions.
 
-- `chatto:rooms:read` is an OAuth grant ceiling for a human MCP client. It is
-  not an RBAC permission.
+- `chatto:rooms:read`, `chatto:rooms:write`, `chatto:messages:read`, and
+  `chatto:messages:write` are OAuth grant ceilings for a human MCP client.
+  They are not RBAC permissions.
 - `room.list` controls room-directory visibility where applicable.
+- `room.join` controls channel joins where applicable.
+- `message.post` controls root message posting.
 - `message.read` controls broad message access in channel rooms.
 - `message.read-interactions` controls relationship-scoped message access.
 - DM membership continues to authorize DM reads.
@@ -216,13 +226,11 @@ relationships. The operation remains the source of truth.
 
 ## Open Questions
 
-- Which low-risk mutation should be first: posting, replying, reacting, or
-  updating read state?
-- Which product scopes should cover later message, thread, search, and write
+- Which product scopes should cover later thread, search, and other write
   tools?
 - When should Chatto add MCP resources or prompts instead of more tools?
 - Do real agent hosts require support for an older MCP specification version?
 - Should Chatto ship a separate local operator MCP bridge after the public
-  read-only endpoint has operational experience?
+  endpoint has operational experience?
 - Which audit events and safe usage metrics should identify MCP calls without
   recording message content or other PII?

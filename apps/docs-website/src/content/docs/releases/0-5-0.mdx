@@ -156,6 +156,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Existing experimental MCP connections must authorize again. The tester tool
+  catalog now needs the room and message read/write MCP scopes. A token that
+  has only `chatto:rooms:read` cannot use the expanded catalog.
+
 - Upgrade every Chatto replica before you rely on private time zones. An older replica does not
   understand the sharing setting and can expose a stored time zone. A rollback to an older
   replica has the same risk.

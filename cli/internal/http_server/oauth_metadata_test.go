@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"slices"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -37,7 +38,7 @@ func TestOAuthAuthorizationServerMetadataAdvertisesMCPCompatibility(t *testing.T
 	if !metadata.ClientIDMetadataDocumentSupported || !metadata.AuthorizationResponseISSParameterSupport {
 		t.Fatalf("MCP OAuth capabilities are absent: %#v", metadata)
 	}
-	if len(metadata.ScopesSupported) != 1 || metadata.ScopesSupported[0] != config.MCPRoomsReadScope {
+	if !slices.Equal(metadata.ScopesSupported, config.MCPOAuthScopes()) {
 		t.Fatalf("scopes = %v", metadata.ScopesSupported)
 	}
 }
