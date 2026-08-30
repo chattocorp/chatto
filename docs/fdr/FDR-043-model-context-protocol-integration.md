@@ -29,9 +29,6 @@ primitive.
 ## Behavior
 
 - The MCP integration is disabled by default while it is experimental.
-- On the first MCP rollout, every serving replica must be upgraded while MCP
-  stays disabled. Enable MCP only after all replicas understand resource-bound
-  grants. Do not roll one replica back to an older version after grants exist.
 - When enabled, Chatto serves MCP over stateless Streamable HTTP at `/mcp` on
   the existing public HTTP server. The canonical resource is the public
   `webserver.url` origin with the `/mcp` path.

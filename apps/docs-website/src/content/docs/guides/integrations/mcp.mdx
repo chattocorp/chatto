@@ -20,12 +20,6 @@ visibility rules as the public Chatto API.
   for hosts that you trust. Treat tool results as untrusted user content.
 </Aside>
 
-<Aside type="caution">
-  For the first MCP rollout, upgrade every serving Chatto replica while MCP
-  stays disabled. Enable MCP only after all replicas run the new version. Do
-  not roll one replica back to a pre-MCP version after users create MCP grants.
-</Aside>
-
 ## Enable MCP
 
 Add this section to `chatto.toml`:

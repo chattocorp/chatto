@@ -24,6 +24,10 @@ Starlight.
   guide pages that mention them.
 - Add a sidebar entry in `astro.config.mjs` for a new page when needed.
 - Keep generated ConnectRPC reference pages useful to API users.
+- Do not add instructions to upgrade all replicas for a routine feature.
+  Operators already keep replicas on a consistent version. Add rollout
+  instructions only when an upgrade needs a special order, downtime, an
+  irreversible migration, or another action beyond a normal deployment.
 
 ## Style
 
