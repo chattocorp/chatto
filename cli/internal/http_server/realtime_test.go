@@ -1667,32 +1667,33 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, otherRoom.Id, viewer.Id, "unretained update", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage unretained: %v", err)
 	}
-	for {
+	var foundCursorAdvance, foundRoomActivity, foundViewerActivity bool
+	for !foundCursorAdvance || !foundRoomActivity || !foundViewerActivity {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
-			t.Fatal("timed out waiting for unretained cursor advance")
+			t.Fatalf("timed out waiting for unretained updates: cursor=%v room_activity=%v viewer_activity=%v", foundCursorAdvance, foundRoomActivity, foundViewerActivity)
 		}
 		projection := frame.GetProjectionEvent()
-		if projection == nil || projection.GetResumeCursor() == "" {
+		if projection == nil {
 			continue
 		}
-		foundRoomActivity := false
+		foundCursorAdvance = foundCursorAdvance || projection.GetResumeCursor() != ""
 		for _, operation := range projection.GetOperations() {
-			if operation.GetRoomTimelineEventUpsert() != nil || operation.GetRoomTimelineEventRemove() != nil || operation.GetRoomTimelineReplace() != nil {
-				t.Fatalf("unretained projection leaked timeline operation: %+v", operation)
-			}
-			if operation.GetRoomUpsert() != nil {
-				t.Fatalf("unretained message retransmitted its room summary: %+v", operation)
-			}
-			if operation.GetRoomViewerStateReplace() != nil || operation.GetRoomViewerActivityReplace() != nil {
-				t.Fatalf("message projection retransmitted viewer state: %+v", operation)
+			if projection.GetResumeCursor() != "" {
+				if operation.GetRoomTimelineEventUpsert() != nil || operation.GetRoomTimelineEventRemove() != nil || operation.GetRoomTimelineReplace() != nil {
+					t.Fatalf("unretained projection leaked timeline operation: %+v", operation)
+				}
+				if operation.GetRoomUpsert() != nil {
+					t.Fatalf("unretained message retransmitted its room summary: %+v", operation)
+				}
+				if operation.GetRoomViewerStateReplace() != nil || operation.GetRoomViewerActivityReplace() != nil {
+					t.Fatalf("message projection retransmitted viewer state: %+v", operation)
+				}
 			}
 			foundRoomActivity = foundRoomActivity || operation.GetRoomActivity().GetRoomId() == otherRoom.Id
+			viewerActivity := operation.GetRoomViewerActivityReplace()
+			foundViewerActivity = foundViewerActivity || (viewerActivity.GetRoomId() == otherRoom.Id && !viewerActivity.GetHasUnread())
 		}
-		if !foundRoomActivity {
-			t.Fatal("unretained root message did not emit lightweight room activity")
-		}
-		break
 	}
 
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
@@ -2583,7 +2584,6 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerActivity(t *testing
 	} else if len(notifications.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("room-read notifications = %+v, want no unread notification state", notifications)
 	}
-
 }
 
 func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
