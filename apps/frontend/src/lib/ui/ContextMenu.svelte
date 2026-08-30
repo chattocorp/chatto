@@ -25,6 +25,7 @@ ignored (the BottomSheet handles its own positioning).
   import type { Snippet } from 'svelte';
   import BottomSheet from './BottomSheet.svelte';
   import FloatingPopover from './FloatingPopover.svelte';
+  import { provideMenuContext } from './menuContext.svelte';
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
 
   type ContextMenuPresentation = 'auto' | 'floating' | 'sheet';
@@ -59,6 +60,10 @@ ignored (the BottomSheet handles its own positioning).
     presentation === 'sheet' ||
       (presentation === 'auto' && prefersTouchActions() && !supportsHoverActions())
   );
+  provideMenuContext({
+    presentation: () => (useSheet ? 'sheet' : 'floating'),
+    containerRole: () => role
+  });
   let sheetVisible = $state(true);
 
   function handleKeydown(e: KeyboardEvent) {

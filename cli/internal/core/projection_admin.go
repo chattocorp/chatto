@@ -207,9 +207,9 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 	if p.server.banner != nil {
 		values++
 	}
-	values += int64(len(p.server.neighbors)) * 3
+	values += int64(len(p.server.neighbors)) * 4
 	for _, neighbor := range p.server.neighbors {
-		neighborPayloadBytes += projectionMapEntryOverhead + int64(len(neighbor.ID)+len(neighbor.Origin)+len(neighbor.Revision))
+		neighborPayloadBytes += projectionMapEntryOverhead + int64(len(neighbor.ID)+len(neighbor.Origin)+len(neighbor.Testimonial)+len(neighbor.Revision))
 	}
 	for _, u := range p.users {
 		if u.timezone != nil {

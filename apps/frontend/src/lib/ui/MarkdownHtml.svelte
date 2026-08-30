@@ -1,7 +1,8 @@
 <!--
 @component
 
-Single audited sink for HTML produced by `$lib/markdown`.
+Single audited sink for HTML produced by the full and restricted renderers in
+`$lib/markdown`.
 
 The markdown renderer disables source HTML and owns every tag/attribute it emits.
 Keep all rendered markdown HTML flowing through this component so raw HTML usage

@@ -1926,6 +1926,7 @@ type ServerNeighborSnapshot struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
 	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	Testimonial   string                 `protobuf:"bytes,4,opt,name=testimonial,proto3" json:"testimonial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1977,6 +1978,13 @@ func (x *ServerNeighborSnapshot) GetOrigin() string {
 func (x *ServerNeighborSnapshot) GetRevision() string {
 	if x != nil {
 		return x.Revision
+	}
+	return ""
+}
+
+func (x *ServerNeighborSnapshot) GetTestimonial() string {
+	if x != nil {
+		return x.Testimonial
 	}
 	return ""
 }
@@ -3962,11 +3970,12 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x06banner\x18\a \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x06banner\x12C\n" +
 	"\x05users\x18\b \x03(\v2-.chatto.core.projection.v1.UserConfigSnapshotR\x05users\x12O\n" +
 	"\tneighbors\x18\t \x03(\v21.chatto.core.projection.v1.ServerNeighborSnapshotR\tneighborsB\x14\n" +
-	"\x12_blocked_usernames\"\\\n" +
+	"\x12_blocked_usernames\"~\n" +
 	"\x16ServerNeighborSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
 	"\x06origin\x18\x02 \x01(\tR\x06origin\x12\x1a\n" +
-	"\brevision\x18\x03 \x01(\tR\brevision\"\xb8\x04\n" +
+	"\brevision\x18\x03 \x01(\tR\brevision\x12 \n" +
+	"\vtestimonial\x18\x04 \x01(\tR\vtestimonial\"\xb8\x04\n" +
 	"\x12UserConfigSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12D\n" +

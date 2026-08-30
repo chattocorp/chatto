@@ -73,9 +73,24 @@ Request for the public Neighbor directory.
 
 #### Result: ListNeighborsResponse
 
-Publicly advertised canonical server origins. The response has no ordering
-contract.
+Publicly advertised servers. The response has no ordering contract.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `origins` | `repeated string` | No field description provided. |
+| `origins` | `repeated string` | Canonical origins for clients that do not support structured Neighbors. |
+| `neighbors` | repeated [`Neighbor`](#chatto-discovery-v1-Neighbor) | Structured recommendations with optional testimonials. |
+
+
+
+## Supporting Types
+
+<a id="chatto-discovery-v1-Neighbor"></a>
+
+### Neighbor
+
+One public server recommendation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `origin` | `string` | Canonical HTTP or HTTPS server origin. |
+| `testimonial` | `optional string` | Optional explanation from the recommending server's operator. |

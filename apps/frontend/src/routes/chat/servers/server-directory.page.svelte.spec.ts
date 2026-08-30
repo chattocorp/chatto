@@ -75,6 +75,19 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
   );
 }
 
+function link(container: HTMLElement, label: string): HTMLAnchorElement | undefined {
+  return Array.from(container.querySelectorAll<HTMLAnchorElement>('a')).find(
+    (candidate) => candidate.textContent?.trim() === label
+  );
+}
+
+function recommendation(
+  sourceOrigin = 'https://source.example',
+  testimonial: string | null = null
+) {
+  return { sourceOrigin, testimonial };
+}
+
 describe('Server Directory page', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -111,12 +124,14 @@ describe('Server Directory page', () => {
         {
           origin: 'https://z.example',
           profile: profile('Zulu'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         },
         {
           origin: 'https://a.example',
           profile: profile('Alpha'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -146,12 +161,14 @@ describe('Server Directory page', () => {
         {
           origin: 'https://offline.example',
           profile: null,
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         },
         {
           origin: 'https://online.example',
           profile: profile('Online'),
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 1,
@@ -180,7 +197,8 @@ describe('Server Directory page', () => {
         {
           origin: 'https://remote.example',
           profile: remoteProfile,
-          sourceOrigins: ['https://source.example']
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -208,13 +226,48 @@ describe('Server Directory page', () => {
     });
   });
 
+  it('hands an incompatible advertised server off to its own client', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://old.example',
+          profile: profile('Old server', { version: '0.4.19', authorizeUrl: '' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+
+    const externalAction = link(container, 'Open in new tab')!;
+    expect(externalAction.href).toBe('https://old.example/');
+    expect(externalAction.target).toBe('_blank');
+    expect(externalAction.rel).toBe('noopener noreferrer');
+    expect(externalAction.querySelector('.iconify')).toBeTruthy();
+    expect(button(container, 'Sign-in unavailable')).toBeUndefined();
+
+    const iconAction = container.querySelector<HTMLAnchorElement>(
+      '[data-testid="server-directory-entry-icon-action"]'
+    )!;
+    expect(iconAction.href).toBe('https://old.example/');
+    expect(iconAction.target).toBe('_blank');
+    expect(iconAction.rel).toBe('noopener noreferrer');
+    expect(iconAction.getAttribute('aria-label')).toBe('Open in new tab: Old server');
+    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+  });
+
   it('opens an advertised server that is already joined', async () => {
     mocks.loadServerDirectory.mockResolvedValue({
       entries: [
         {
           origin: 'https://a.example',
-          profile: profile('Alpha'),
-          sourceOrigins: ['https://source.example']
+          profile: profile('Alpha', { version: '0.4.19' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
         }
       ],
       failedSourceCount: 0,
@@ -228,6 +281,56 @@ describe('Server Directory page', () => {
     await vi.waitFor(() => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/joined');
     });
+  });
+
+  it('keeps sign-in for an incompatible joined server without a session', async () => {
+    mocks.authenticated.clear();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://a.example',
+          profile: profile('Alpha', { version: '0.4.19' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Sign in')).toBeDefined());
+    expect(link(container, 'Open in new tab')).toBeUndefined();
+    button(container, 'Sign in')?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'joined' })
+      );
+    });
+  });
+
+  it('keeps sign-in unavailable for a supported server without an OAuth URL', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://closed.example',
+          profile: profile('Closed', { authorizeUrl: '' }),
+          sourceOrigins: ['https://source.example'],
+          recommendations: [recommendation()]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => expect(button(container, 'Sign-in unavailable')).toBeDefined());
+    expect(button(container, 'Sign-in unavailable')?.disabled).toBe(true);
+    expect(link(container, 'Open in new tab')).toBeUndefined();
+    expect(
+      container.querySelector('[data-testid="server-directory-entry-icon-action"]')
+    ).toBeNull();
   });
 
   it('probes a custom address and shows the same profile card', async () => {
@@ -254,6 +357,31 @@ describe('Server Directory page', () => {
     });
   });
 
+  it('hands a custom server with an unknown version off to its own client', async () => {
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+    mocks.getPublicServerInfo.mockResolvedValue(
+      profile('Custom build', { version: 'custom-build', authorizeUrl: '' })
+    );
+
+    const { container } = render(Page);
+    const input = container.querySelector<HTMLInputElement>('#add-server-url')!;
+    input.value = 'custom.example';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    container.querySelector('form')!.requestSubmit();
+
+    await vi.waitFor(() => expect(link(container, 'Open in new tab')).toBeDefined());
+    const externalAction = link(container, 'Open in new tab')!;
+    expect(externalAction.href).toBe('https://custom.example/');
+    expect(externalAction.target).toBe('_blank');
+    expect(externalAction.rel).toBe('noopener noreferrer');
+    expect(mocks.startServerOAuthFlow).not.toHaveBeenCalled();
+  });
+
   it('shows compact recommendation provenance with the full accessible source list', async () => {
     mocks.servers = [
       { id: 'one', url: 'https://one.example', name: 'One', iconUrl: null, addedAt: 1 },
@@ -265,20 +393,26 @@ describe('Server Directory page', () => {
         {
           origin: 'https://single.example',
           profile: profile('Single'),
-          sourceOrigins: ['https://one.example']
+          sourceOrigins: ['https://one.example'],
+          recommendations: [recommendation('https://one.example')]
         },
         {
           origin: 'https://double.example',
           profile: profile('Double'),
-          sourceOrigins: ['https://one.example', 'https://two.example']
+          sourceOrigins: ['https://one.example', 'https://two.example'],
+          recommendations: [
+            recommendation('https://one.example'),
+            recommendation('https://two.example')
+          ]
         },
         {
           origin: 'https://triple.example',
           profile: profile('Triple'),
-          sourceOrigins: [
-            'https://one.example',
-            'https://two.example',
-            'https://three.example'
+          sourceOrigins: ['https://one.example', 'https://two.example', 'https://three.example'],
+          recommendations: [
+            recommendation('https://one.example'),
+            recommendation('https://two.example'),
+            recommendation('https://three.example')
           ]
         }
       ],
@@ -288,9 +422,9 @@ describe('Server Directory page', () => {
 
     const { container } = render(Page);
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="server-recommendation-sources"]')).toHaveLength(
-        3
-      );
+      expect(
+        container.querySelectorAll('[data-testid="server-recommendation-sources"]')
+      ).toHaveLength(3);
     });
     const attributions = Array.from(
       container.querySelectorAll<HTMLElement>('[data-testid="server-recommendation-sources"]')
@@ -300,5 +434,62 @@ describe('Server Directory page', () => {
     expect(attributions[2]?.textContent).toContain('Recommended by One, Two, and 1 more');
     expect(attributions[2]?.getAttribute('aria-label')).toContain('One, Two, and Three');
     expect(attributions[2]?.title).toContain('One, Two, and Three');
+  });
+
+  it('shows source-specific testimonials in a labelled tapestry card', async () => {
+    mocks.servers = [
+      {
+        id: 'one',
+        url: 'https://one.example',
+        name: 'One',
+        iconUrl: 'https://cdn.example/one.webp',
+        addedAt: 1
+      },
+      { id: 'two', url: 'https://two.example', name: 'Two', iconUrl: null, addedAt: 2 }
+    ];
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [
+        {
+          origin: 'https://remote.example',
+          profile: profile('Remote'),
+          sourceOrigins: ['https://one.example', 'https://two.example'],
+          recommendations: [
+            recommendation(
+              'https://one.example',
+              'A **thoughtful** place for long conversations.\n\nPeople listen.'
+            ),
+            recommendation('https://two.example', 'Friendly people and excellent moderation.')
+          ]
+        }
+      ],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const { container } = render(Page);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="server-testimonial"]')).toHaveLength(2);
+    });
+    const section = container.querySelector<HTMLElement>('[data-testid="server-testimonials"]')!;
+    expect(section.getAttribute('aria-label')).toBe('Testimonials for Remote');
+    expect(section.querySelectorAll('p')).toHaveLength(3);
+    expect(section.querySelector('strong')?.textContent).toBe('thoughtful');
+    expect(
+      section.querySelector<HTMLImageElement>('[data-testid="server-testimonial-source-icon"] img')
+        ?.src
+    ).toBe('https://cdn.example/one.webp');
+    expect(section.textContent).toContain('One');
+    expect(section.textContent).toContain('Two');
+    expect(section.textContent).not.toContain('Recommended by');
+    const firstReview = section.querySelector<HTMLElement>('[data-testid="server-testimonial"]')!;
+    expect(Array.from(firstReview.children, (child) => child.tagName)).toEqual([
+      'FIGCAPTION',
+      'BLOCKQUOTE'
+    ]);
+    expect(firstReview.querySelector('blockquote')).toHaveClass('bg-surface-emphasized');
+    const profileCard = container.querySelector('[data-testid="server-directory-entry"]')!;
+    expect(profileCard.contains(section)).toBe(false);
+    expect(profileCard.nextElementSibling).toBe(section);
+    expect(container.querySelector('.columns-1')).not.toBeNull();
   });
 });

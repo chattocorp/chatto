@@ -37,6 +37,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '$lib/state/server/rooms.svelte';
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
     contextMenuTrigger,
@@ -519,19 +521,11 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     ariaLabel={m('room_list.group_settings', { group: contextGroup.name })}
     onclose={() => (groupContextMenu = null)}
   >
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button
-          type="button"
-          class="sidebar-item"
-          onclick={() => handleConfigureGroup(contextGroup)}
-          role="menuitem"
-        >
-          <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
-          {m('room_list.group_settings', { group: contextGroup.name })}
-        </button>
-      </nav>
-    </div>
+    <MenuSection>
+      <MenuItem icon="icon-[uil--setting]" onclick={() => handleConfigureGroup(contextGroup)}>
+        {m('room_list.group_settings', { group: contextGroup.name })}
+      </MenuItem>
+    </MenuSection>
   </ContextMenu>
 {/if}
 
@@ -556,19 +550,14 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
-    <div class="menu-section">
-      <nav class="sidebar-nav">
-        <button
-          type="button"
-          class="sidebar-item"
-          onclick={() => void handleCopyRoomId(contextRoom.id)}
-          role="menuitem"
-          data-testid="copy-room-id"
-        >
-          <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
-          {m('room_list.copy_room_id')}
-        </button>
-      </nav>
-    </div>
+    <MenuSection>
+      <MenuItem
+        icon="icon-[uil--copy]"
+        onclick={() => void handleCopyRoomId(contextRoom.id)}
+        dataTestid="copy-room-id"
+      >
+        {m('room_list.copy_room_id')}
+      </MenuItem>
+    </MenuSection>
   </ContextMenu>
 {/if}

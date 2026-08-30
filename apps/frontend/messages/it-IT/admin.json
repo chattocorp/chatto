@@ -31,7 +31,10 @@
       "delete_description": "Smettere di pubblicare {origin}?",
       "created": "Vicino aggiunto",
       "updated": "Vicino aggiornato",
-      "deleted": "Vicino eliminato"
+      "deleted": "Vicino eliminato",
+      "testimonial": "Testimonianza (facoltativa)",
+      "testimonial_help": "Spiega perché consigli questo server. Questo testo è pubblico e può contenere fino a 500 caratteri.",
+      "testimonial_label": "Testimonianza pubblica"
     },
     "common": {
       "page_title": "{title} | Ammin",

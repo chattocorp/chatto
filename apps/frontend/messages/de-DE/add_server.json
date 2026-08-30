@@ -18,17 +18,21 @@
       "servers_title": "Server",
       "servers_description": "Von Servern empfohlen, denen du beigetreten bist. Die Ergebnisse haben keine Rangfolge.",
       "recommended_by": "Empfohlen von {servers}",
-      "more_recommenders_count": { "other": "{count} weitere" },
+      "more_recommenders_count": {
+        "other": "{count} weitere"
+      },
       "joined": "Beigetreten",
       "join": "Beitreten",
       "open": "Öffnen",
+      "open_in_new_tab": "In neuem Tab öffnen",
       "sign_in_unavailable": "Anmeldung nicht verfügbar",
       "profile_unavailable": "Das öffentliche Profil dieses Servers konnte nicht geladen werden.",
       "partial": "Einige deiner Server konnten keine Empfehlungen liefern.",
       "unavailable_title": "Verzeichnis nicht verfügbar",
       "unavailable_body": "Deine Server konnten keine Empfehlungen liefern. Du kannst dich weiterhin direkt verbinden.",
       "empty_title": "Noch keine empfohlenen Server",
-      "empty_body": "Du kannst dich weiterhin direkt über eine Serveradresse verbinden."
+      "empty_body": "Du kannst dich weiterhin direkt über eine Serveradresse verbinden.",
+      "testimonials_for": "Empfehlungstexte für {server}"
     }
   }
 }

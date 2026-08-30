@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  getPublicNeighborOrigins,
+  getPublicNeighbors,
   getPublicServerInfo,
   InvalidPublicServerError
 } from '$lib/api-client/server';
@@ -37,16 +37,33 @@ describe('public server discovery', () => {
     });
   });
 
-  it('loads public Neighbor origins without authentication', async () => {
+  it('loads structured public Neighbors without authentication', async () => {
     const signal = AbortSignal.timeout(1000);
     mocks.listNeighbors.mockResolvedValue({
-      origins: ['https://one.example', 'https://two.example']
+      origins: ['https://one.example', 'https://two.example'],
+      neighbors: [
+        { origin: 'https://one.example', testimonial: 'A kind place.' },
+        { origin: 'https://two.example' }
+      ]
     });
 
-    await expect(
-      getPublicNeighborOrigins('https://chat.example.test', { signal })
-    ).resolves.toEqual(['https://one.example', 'https://two.example']);
+    await expect(getPublicNeighbors('https://chat.example.test', { signal })).resolves.toEqual([
+      { origin: 'https://one.example', testimonial: 'A kind place.' },
+      { origin: 'https://two.example', testimonial: null }
+    ]);
     expect(mocks.listNeighbors).toHaveBeenCalledWith({}, { signal });
+  });
+
+  it('falls back to origin-only Neighbor responses from older servers', async () => {
+    mocks.listNeighbors.mockResolvedValue({
+      origins: ['https://one.example', 'https://two.example'],
+      neighbors: []
+    });
+
+    await expect(getPublicNeighbors('https://chat.example.test')).resolves.toEqual([
+      { origin: 'https://one.example', testimonial: null },
+      { origin: 'https://two.example', testimonial: null }
+    ]);
   });
 
   it('loads public server metadata and maps the shared profile', async () => {

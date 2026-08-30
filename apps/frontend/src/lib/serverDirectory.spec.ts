@@ -7,6 +7,10 @@ import {
 } from './serverDirectory';
 import type { PublicServerInfo } from '$lib/api-client/server';
 
+function recommendation(origin: string, testimonial: string | null = null) {
+  return { origin, testimonial };
+}
+
 function profile(name: string): PublicServerInfo {
   return {
     name,
@@ -33,9 +37,7 @@ describe('canonicalServerOrigin', () => {
 
 describe('serverOriginFromInput', () => {
   it('accepts a hostname or full server URL and keeps only its origin', () => {
-    expect(serverOriginFromInput('dev.preview.chatto.run')).toBe(
-      'https://dev.preview.chatto.run'
-    );
+    expect(serverOriginFromInput('dev.preview.chatto.run')).toBe('https://dev.preview.chatto.run');
     expect(serverOriginFromInput('https://dev.preview.chatto.run/chat/-/RMch1OYtMwZ7sOJ')).toBe(
       'https://dev.preview.chatto.run'
     );
@@ -53,12 +55,15 @@ describe('loadServerDirectory', () => {
       if (origin === 'https://broken.example') throw new Error('offline');
       if (origin === 'https://one.example') {
         return [
-          'https://z.example',
-          'HTTPS://A.EXAMPLE:443/',
-          'https://invalid.example/path'
+          recommendation('https://z.example', 'A quiet place for careful conversations.'),
+          recommendation('HTTPS://A.EXAMPLE:443/', 'A lively maker community.'),
+          recommendation('https://invalid.example/path')
         ];
       }
-      return ['https://a.example', 'mailto:not-a-server'];
+      return [
+        recommendation('https://a.example', 'A second endorsement.'),
+        recommendation('mailto:not-a-server')
+      ];
     });
     const getServerInfo = vi.fn(async (origin: string) => {
       if (origin === 'https://invalid.example') throw new Error('not Chatto');
@@ -81,14 +86,21 @@ describe('loadServerDirectory', () => {
       ['https://one.example', 'https://two.example'],
       ['https://one.example']
     ]);
+    expect(snapshot.entries[1]?.recommendations).toEqual([
+      {
+        sourceOrigin: 'https://one.example',
+        testimonial: 'A lively maker community.'
+      },
+      { sourceOrigin: 'https://two.example', testimonial: 'A second endorsement.' }
+    ]);
     expect(snapshot.entries.at(-1)?.profile).toBeNull();
   });
 
   it('deduplicates repeated recommendations from the same source', async () => {
     const snapshot = await loadServerDirectory(['https://source.example'], {
       listNeighbors: vi.fn(async () => [
-        'https://neighbor.example',
-        'HTTPS://NEIGHBOR.EXAMPLE:443/path'
+        recommendation('https://neighbor.example', 'First testimonial'),
+        recommendation('HTTPS://NEIGHBOR.EXAMPLE:443/path', 'Ignored duplicate')
       ]),
       getServerInfo: vi.fn(async (origin: string) => profile(origin))
     });
@@ -97,13 +109,30 @@ describe('loadServerDirectory', () => {
       {
         origin: 'https://neighbor.example',
         profile: profile('https://neighbor.example'),
-        sourceOrigins: ['https://source.example']
+        sourceOrigins: ['https://source.example'],
+        recommendations: [
+          { sourceOrigin: 'https://source.example', testimonial: 'First testimonial' }
+        ]
       }
     ]);
   });
 
+  it('normalizes and bounds untrusted testimonial text', async () => {
+    const oversized = `  ${'界'.repeat(505)}  `;
+    const snapshot = await loadServerDirectory(['https://source.example'], {
+      listNeighbors: vi.fn(async () => [
+        recommendation('https://bounded.example', oversized),
+        recommendation('https://empty.example', '   ')
+      ]),
+      getServerInfo: vi.fn(async (origin: string) => profile(origin))
+    });
+
+    expect(snapshot.entries[0]?.recommendations[0]?.testimonial).toBe('界'.repeat(500));
+    expect(snapshot.entries[1]?.recommendations[0]?.testimonial).toBeNull();
+  });
+
   it('canonicalizes and deduplicates registered source origins', async () => {
-    const listNeighbors = vi.fn(async () => ['https://neighbor.example']);
+    const listNeighbors = vi.fn(async () => [recommendation('https://neighbor.example')]);
 
     const snapshot = await loadServerDirectory(
       ['HTTPS://SOURCE.EXAMPLE:443/path', 'https://source.example', 'not a URL'],
@@ -123,7 +152,9 @@ describe('loadServerDirectory', () => {
   });
 
   it('limits each source to the server-side directory maximum', async () => {
-    const advertised = Array.from({ length: 105 }, (_, index) => `https://n${index}.example`);
+    const advertised = Array.from({ length: 105 }, (_, index) =>
+      recommendation(`https://n${index}.example`)
+    );
     const getServerInfo = vi.fn(async (origin: string) => profile(origin));
 
     const snapshot = await loadServerDirectory(['https://source.example'], {
@@ -142,7 +173,7 @@ describe('loadServerDirectory', () => {
     await expect(
       loadServerDirectory(['https://source.example'], {
         signal: controller.signal,
-        listNeighbors: vi.fn(async () => ['https://neighbor.example']),
+        listNeighbors: vi.fn(async () => [recommendation('https://neighbor.example')]),
         getServerInfo: vi.fn(async () => profile('Neighbor'))
       })
     ).rejects.toMatchObject({ name: 'AbortError' });

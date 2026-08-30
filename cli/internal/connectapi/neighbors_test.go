@@ -20,10 +20,12 @@ func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
 	requireConnectCode(t, err, connect.CodePermissionDenied)
 	require.NoError(t, env.core.GrantServerPermission(env.ctx, core.SystemActorID, core.RoleEveryone, core.PermServerManageNeighbors))
 
-	created, err := env.serverState.CreateNeighbor(callerCtx, connect.NewRequest(&adminv1.CreateNeighborRequest{Origin: "https://Neighbor.Example/"}))
+	testimonial := "A thoughtful place to talk."
+	created, err := env.serverState.CreateNeighbor(callerCtx, connect.NewRequest(&adminv1.CreateNeighborRequest{Origin: "https://Neighbor.Example/", Testimonial: &testimonial}))
 	require.NoError(t, err)
 	neighbor := created.Msg.GetNeighbor()
 	require.Equal(t, "https://neighbor.example", neighbor.GetOrigin())
+	require.Equal(t, testimonial, neighbor.GetTestimonial())
 	require.NotEmpty(t, neighbor.GetId())
 	require.NotEmpty(t, neighbor.GetRevision())
 
@@ -44,12 +46,15 @@ func TestAdminServerServiceNeighborCRUDAndPublicDiscovery(t *testing.T) {
 	public, err := (&serverDiscoveryService{api: env.api}).ListNeighbors(context.Background(), connect.NewRequest(&discoveryv1.ListNeighborsRequest{}))
 	require.NoError(t, err)
 	require.Equal(t, []string{"https://neighbor.example"}, public.Msg.GetOrigins())
+	require.Equal(t, []*discoveryv1.Neighbor{{Origin: "https://neighbor.example", Testimonial: &testimonial}}, public.Msg.GetNeighbors())
 
+	updatedTestimonial := "A welcoming place for makers."
 	updated, err := env.serverState.UpdateNeighbor(callerCtx, connect.NewRequest(&adminv1.UpdateNeighborRequest{
-		NeighborId: neighbor.GetId(), Origin: "https://updated.example", Revision: neighbor.GetRevision(),
+		NeighborId: neighbor.GetId(), Origin: "https://updated.example", Revision: neighbor.GetRevision(), Testimonial: &updatedTestimonial,
 	}))
 	require.NoError(t, err)
 	require.Equal(t, "https://updated.example", updated.Msg.GetNeighbor().GetOrigin())
+	require.Equal(t, updatedTestimonial, updated.Msg.GetNeighbor().GetTestimonial())
 	_, err = env.serverState.UpdateNeighbor(callerCtx, connect.NewRequest(&adminv1.UpdateNeighborRequest{
 		NeighborId: neighbor.GetId(), Origin: "https://self.example", Revision: updated.Msg.GetNeighbor().GetRevision(),
 	}))

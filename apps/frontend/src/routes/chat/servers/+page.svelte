@@ -10,6 +10,7 @@
   } from '$lib/api-client/server';
   import { startRemoteReauthentication, startServerOAuthFlow } from '$lib/auth/reauth';
   import ServerProfileCard from '$lib/components/ServerProfileCard.svelte';
+  import ServerTestimonialCard from '$lib/components/ServerTestimonialCard.svelte';
   import { m } from '$lib/i18n/messages';
   import { getReactiveLocale } from '$lib/i18n/state.svelte';
   import { serverIdToSegment } from '$lib/navigation';
@@ -19,6 +20,7 @@
     loadServerDirectory,
     type ServerDirectoryEntry
   } from '$lib/serverDirectory';
+  import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
@@ -112,8 +114,17 @@
         ? m('add_server.directory.open')
         : m('add_server.sign_in');
     }
+    if (opensInServerClient(origin, profile)) return m('add_server.directory.open_in_new_tab');
     if (!profile?.authorizeUrl) return m('add_server.directory.sign_in_unavailable');
     return m('add_server.directory.join');
+  }
+
+  function opensInServerClient(origin: string, profile: PublicServerInfo | null): boolean {
+    return (
+      !registeredServer(origin) &&
+      profile !== null &&
+      evaluateServerCompatibility({ serverVersion: profile.version }).status !== 'supported'
+    );
   }
 
   async function openOrJoin(origin: string, profile: PublicServerInfo | null) {
@@ -151,7 +162,11 @@
   }
 
   function cardDisabled(entry: ServerDirectoryEntry): boolean {
-    return !registeredServer(entry.origin) && !entry.profile?.authorizeUrl;
+    return (
+      !registeredServer(entry.origin) &&
+      !opensInServerClient(entry.origin, entry.profile) &&
+      !entry.profile?.authorizeUrl
+    );
   }
 
   function sourceName(origin: string): string {
@@ -173,7 +188,10 @@
     const remaining = names.length - 2;
     const visibleNames =
       remaining > 0
-        ? [...names.slice(0, 2), m('add_server.directory.more_recommenders_count', { count: remaining })]
+        ? [
+            ...names.slice(0, 2),
+            m('add_server.directory.more_recommenders_count', { count: remaining })
+          ]
         : names;
     return {
       visible: m('add_server.directory.recommended_by', {
@@ -181,6 +199,21 @@
       }),
       full: m('add_server.directory.recommended_by', { servers: formatter.format(names) })
     };
+  }
+
+  function testimonialRecommendations(entry: ServerDirectoryEntry) {
+    return entry.recommendations.flatMap((recommendation) =>
+      recommendation.testimonial
+        ? [
+            {
+              sourceOrigin: recommendation.sourceOrigin,
+              sourceName: sourceName(recommendation.sourceOrigin),
+              sourceIconUrl: registeredServer(recommendation.sourceOrigin)?.iconUrl ?? null,
+              testimonial: recommendation.testimonial
+            }
+          ]
+        : []
+    );
   }
 </script>
 
@@ -223,23 +256,41 @@
         {#if customProfile && customOrigin}
           {@const profile = customProfile}
           {@const joined = registeredServer(customOrigin)}
+          {@const external = opensInServerClient(customOrigin, profile)}
           <div class="mt-5 max-w-md">
             {#snippet customActions()}
-              <Button
-                variant={joined ? 'secondary' : 'action'}
-                fullWidth
-                loading={pendingOrigin === customOrigin}
-                disabled={!joined && !profile.authorizeUrl}
-                onclick={() => openOrJoin(customOrigin, profile)}
-              >
-                {actionLabel(customOrigin, customProfile)}
-              </Button>
+              {#if external}
+                <Button
+                  href={customOrigin}
+                  opensInNewTab
+                  variant="secondary"
+                  fullWidth
+                >
+                  <span>{actionLabel(customOrigin, customProfile)}</span>
+                  <span
+                    class="iconify icon-[uil--external-link-alt]"
+                    aria-hidden="true"
+                  ></span>
+                </Button>
+              {:else}
+                <Button
+                  variant={joined ? 'secondary' : 'action'}
+                  fullWidth
+                  loading={pendingOrigin === customOrigin}
+                  disabled={!joined && !profile.authorizeUrl}
+                  onclick={() => openOrJoin(customOrigin, profile)}
+                >
+                  {actionLabel(customOrigin, customProfile)}
+                </Button>
+              {/if}
             {/snippet}
             <ServerProfileCard
               origin={customOrigin}
               {profile}
               badge={joined ? m('add_server.directory.joined') : undefined}
-              onIconClick={!joined && !profile.authorizeUrl
+              iconHref={external ? customOrigin : undefined}
+              iconOpensInNewTab={external}
+              onIconClick={external || (!joined && !profile.authorizeUrl)
                 ? undefined
                 : () => openOrJoin(customOrigin, profile)}
               iconActionLabel={actionLabel(customOrigin, profile)}
@@ -286,10 +337,12 @@
             {m('add_server.directory.empty_body')}
           </EmptyState>
         {:else}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div class="columns-1 gap-4 sm:columns-2 lg:columns-3">
             {#each entries as entry (entry.origin)}
               {@const joined = registeredServer(entry.origin)}
+              {@const external = opensInServerClient(entry.origin, entry.profile)}
               {@const attribution = sourceAttribution(entry)}
+              {@const testimonials = testimonialRecommendations(entry)}
               {#snippet cardActions()}
                 <div class="flex flex-col gap-3">
                   <p
@@ -300,29 +353,65 @@
                   >
                     <bdi>{attribution.visible}</bdi>
                   </p>
-                  <Button
-                    variant={joined ? 'secondary' : 'action'}
-                    fullWidth
-                    loading={pendingOrigin === entry.origin}
-                    disabled={cardDisabled(entry)}
-                    onclick={() => openOrJoin(entry.origin, entry.profile)}
-                  >
-                    {actionLabel(entry.origin, entry.profile)}
-                  </Button>
+                  {#if external}
+                    <Button
+                      href={entry.origin}
+                      opensInNewTab
+                      variant="secondary"
+                      fullWidth
+                    >
+                      <span>{actionLabel(entry.origin, entry.profile)}</span>
+                      <span
+                        class="iconify icon-[uil--external-link-alt]"
+                        aria-hidden="true"
+                      ></span>
+                    </Button>
+                  {:else}
+                    <Button
+                      variant={joined ? 'secondary' : 'action'}
+                      fullWidth
+                      loading={pendingOrigin === entry.origin}
+                      disabled={cardDisabled(entry)}
+                      onclick={() => openOrJoin(entry.origin, entry.profile)}
+                    >
+                      {actionLabel(entry.origin, entry.profile)}
+                    </Button>
+                  {/if}
                 </div>
               {/snippet}
-              <ServerProfileCard
-                origin={entry.origin}
-                profile={entry.profile}
-                badge={joined ? m('add_server.directory.joined') : undefined}
-                onIconClick={cardDisabled(entry)
-                  ? undefined
-                  : () => openOrJoin(entry.origin, entry.profile)}
-                iconActionLabel={actionLabel(entry.origin, entry.profile)}
-                iconActionDisabled={pendingOrigin === entry.origin}
-                actions={cardActions}
-                testId="server-directory-entry"
-              />
+              <div class="mb-4 break-inside-avoid">
+                <ServerProfileCard
+                  origin={entry.origin}
+                  profile={entry.profile}
+                  badge={joined ? m('add_server.directory.joined') : undefined}
+                  iconHref={external ? entry.origin : undefined}
+                  iconOpensInNewTab={external}
+                  onIconClick={external || cardDisabled(entry)
+                    ? undefined
+                    : () => openOrJoin(entry.origin, entry.profile)}
+                  iconActionLabel={actionLabel(entry.origin, entry.profile)}
+                  iconActionDisabled={pendingOrigin === entry.origin}
+                  actions={cardActions}
+                  testId="server-directory-entry"
+                />
+                {#if testimonials.length > 0}
+                  <section
+                    class="mt-2 flex flex-col gap-2"
+                    aria-label={m('add_server.directory.testimonials_for', {
+                      server: entry.profile?.name ?? entry.origin
+                    })}
+                    data-testid="server-testimonials"
+                  >
+                    {#each testimonials as testimonial (testimonial.sourceOrigin)}
+                      <ServerTestimonialCard
+                        testimonial={testimonial.testimonial}
+                        sourceName={testimonial.sourceName}
+                        sourceIconUrl={testimonial.sourceIconUrl}
+                      />
+                    {/each}
+                  </section>
+                {/if}
+              </div>
             {/each}
           </div>
         {/if}

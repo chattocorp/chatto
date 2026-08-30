@@ -1,7 +1,8 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import {
-  getPublicNeighborOrigins,
+  getPublicNeighbors,
   getPublicServerInfo,
+  type PublicNeighbor,
   type PublicServerInfo
 } from '$lib/api-client/server';
 
@@ -9,6 +10,7 @@ const DISCOVERY_TIMEOUT_MS = 10_000;
 const SOURCE_CONCURRENCY = 6;
 const PROFILE_CONCURRENCY = 6;
 const MAX_NEIGHBORS_PER_SOURCE = 100;
+const MAX_TESTIMONIAL_LENGTH = 500;
 
 export type ServerProfileEntry = {
   origin: string;
@@ -18,6 +20,13 @@ export type ServerProfileEntry = {
 export type ServerDirectoryEntry = ServerProfileEntry & {
   /** Canonical origins of the registered servers that advertised this entry. */
   sourceOrigins: string[];
+  /** Ordered recommendations, including source-specific public testimonials. */
+  recommendations: ServerDirectoryRecommendation[];
+};
+
+export type ServerDirectoryRecommendation = {
+  sourceOrigin: string;
+  testimonial: string | null;
 };
 
 export type ServerDirectorySnapshot = {
@@ -28,7 +37,7 @@ export type ServerDirectorySnapshot = {
 
 type DirectoryLoadOptions = {
   signal?: AbortSignal;
-  listNeighbors?: typeof getPublicNeighborOrigins;
+  listNeighbors?: typeof getPublicNeighbors;
   getServerInfo?: typeof getPublicServerInfo;
 };
 
@@ -78,7 +87,7 @@ export async function loadServerDirectory(
   registeredOrigins: readonly string[],
   options: DirectoryLoadOptions = {}
 ): Promise<ServerDirectorySnapshot> {
-  const listNeighbors = options.listNeighbors ?? getPublicNeighborOrigins;
+  const listNeighbors = options.listNeighbors ?? getPublicNeighbors;
   const getServerInfo = options.getServerInfo ?? getPublicServerInfo;
   const sourceOrigins = [
     ...new Set(
@@ -93,13 +102,13 @@ export async function loadServerDirectory(
     SOURCE_CONCURRENCY,
     async (sourceOrigin) => {
       try {
-        const advertisedOrigins = await listNeighbors(sourceOrigin, {
+        const advertisedNeighbors = await listNeighbors(sourceOrigin, {
           signal: discoverySignal(options.signal)
         });
-        return { status: 'fulfilled' as const, sourceOrigin, advertisedOrigins };
+        return { status: 'fulfilled' as const, sourceOrigin, advertisedNeighbors };
       } catch (error) {
         if (error instanceof ConnectError && error.code === Code.Unimplemented) {
-          return { status: 'fulfilled' as const, sourceOrigin, advertisedOrigins: [] };
+          return { status: 'fulfilled' as const, sourceOrigin, advertisedNeighbors: [] };
         }
         return { status: 'rejected' as const, sourceOrigin };
       }
@@ -107,7 +116,7 @@ export async function loadServerDirectory(
   );
   throwIfAborted(options.signal);
 
-  const sourcesByAdvertisedOrigin = new Map<string, string[]>();
+  const recommendationsByAdvertisedOrigin = new Map<string, ServerDirectoryRecommendation[]>();
   let failedSourceCount = 0;
 
   for (const result of sourceResults) {
@@ -115,25 +124,33 @@ export async function loadServerDirectory(
       failedSourceCount += 1;
       continue;
     }
-    for (const advertised of result.advertisedOrigins.slice(0, MAX_NEIGHBORS_PER_SOURCE)) {
-      const origin = canonicalServerOrigin(advertised);
+    for (const advertised of result.advertisedNeighbors.slice(0, MAX_NEIGHBORS_PER_SOURCE)) {
+      const origin = canonicalServerOrigin(advertised.origin);
       if (!origin) continue;
-      const sourceOrigins = sourcesByAdvertisedOrigin.get(origin);
-      if (!sourceOrigins) {
-        sourcesByAdvertisedOrigin.set(origin, [result.sourceOrigin]);
-      } else if (!sourceOrigins.includes(result.sourceOrigin)) {
-        sourceOrigins.push(result.sourceOrigin);
+      const recommendations = recommendationsByAdvertisedOrigin.get(origin);
+      if (!recommendations) {
+        recommendationsByAdvertisedOrigin.set(origin, [
+          recommendationFrom(result.sourceOrigin, advertised)
+        ]);
+      } else if (
+        !recommendations.some(({ sourceOrigin }) => sourceOrigin === result.sourceOrigin)
+      ) {
+        recommendations.push(recommendationFrom(result.sourceOrigin, advertised));
       }
     }
   }
 
-  const profiles = await loadServerProfiles([...sourcesByAdvertisedOrigin.keys()], {
+  const profiles = await loadServerProfiles([...recommendationsByAdvertisedOrigin.keys()], {
     signal: options.signal,
     getServerInfo
   });
   const entries = profiles.map((entry) => ({
     ...entry,
-    sourceOrigins: sourcesByAdvertisedOrigin.get(entry.origin) ?? []
+    sourceOrigins:
+      recommendationsByAdvertisedOrigin
+        .get(entry.origin)
+        ?.map(({ sourceOrigin }) => sourceOrigin) ?? [],
+    recommendations: recommendationsByAdvertisedOrigin.get(entry.origin) ?? []
   }));
 
   return {
@@ -141,6 +158,26 @@ export async function loadServerDirectory(
     failedSourceCount,
     sourceCount: sourceOrigins.length
   };
+}
+
+function recommendationFrom(
+  sourceOrigin: string,
+  advertised: PublicNeighbor
+): ServerDirectoryRecommendation {
+  return { sourceOrigin, testimonial: boundedTestimonial(advertised.testimonial) };
+}
+
+function boundedTestimonial(value: string | null): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  let bounded = '';
+  let length = 0;
+  for (const character of trimmed) {
+    if (length === MAX_TESTIMONIAL_LENGTH) break;
+    bounded += character;
+    length += 1;
+  }
+  return bounded;
 }
 
 function discoverySignal(parent?: AbortSignal): AbortSignal {
@@ -167,8 +204,6 @@ async function mapWithConcurrency<T, R>(
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, values.length) }, () => worker())
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, values.length) }, () => worker()));
   return results;
 }

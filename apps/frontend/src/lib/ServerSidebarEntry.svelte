@@ -11,6 +11,8 @@
   import ServerIcon from './ServerIcon.svelte';
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import MenuItem from '$lib/ui/MenuItem.svelte';
+  import MenuSection from '$lib/ui/MenuSection.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
   import {
     contextMenuTrigger,
@@ -86,9 +88,7 @@
       compatibility.status === 'supported' &&
       !serverConnection.showConnectionLostIcon
   );
-  const iconDimmed = $derived(
-    signInRequired || !loaded || serverConnection.showConnectionLostIcon
-  );
+  const iconDimmed = $derived(signInRequired || !loaded || serverConnection.showConnectionLostIcon);
   const iconTitle = $derived(
     signInRequired
       ? m('ui.auth_status.sidebar_reauth', { server: iconServer.name })
@@ -286,20 +286,15 @@
       onLeave={handleRemoveServer}
     />
     {#if serverHost}
-      <div class="menu-section">
-        <nav class="sidebar-nav">
-          <button
-            type="button"
-            class="sidebar-item"
-            onclick={() => void handleCopyServerHostname()}
-            role="menuitem"
-            data-testid="copy-server-hostname"
-          >
-            <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
-            {m('room_list.copy_server_hostname')}
-          </button>
-        </nav>
-      </div>
+      <MenuSection>
+        <MenuItem
+          icon="icon-[uil--copy]"
+          onclick={() => void handleCopyServerHostname()}
+          dataTestid="copy-server-hostname"
+        >
+          {m('room_list.copy_server_hostname')}
+        </MenuItem>
+      </MenuSection>
     {/if}
   </ContextMenu>
 {/if}

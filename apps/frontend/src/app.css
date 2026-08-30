@@ -801,6 +801,38 @@
   @apply bg-surface;
 }
 
+/* Semantic command rows for ContextMenu and related action surfaces. */
+@utility menu-entry {
+  @apply relative flex min-h-8 w-full shrink-0 cursor-pointer items-center gap-2 overflow-hidden rounded-md px-1 py-1 text-start text-text;
+  @apply transition-[background-color,color] duration-150 hover:bg-surface hover:text-text active:bg-surface-emphasized;
+  @apply focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action;
+  @apply disabled:cursor-not-allowed disabled:opacity-50;
+
+  &[aria-disabled='true'] {
+    @apply cursor-not-allowed opacity-50;
+  }
+}
+
+@utility menu-entry-sheet {
+  @apply min-h-11 gap-3 px-3 py-2.5 text-base;
+}
+
+@utility menu-entry-selected {
+  @apply bg-surface;
+}
+
+@utility menu-entry-leading {
+  @apply flex h-5 w-5 shrink-0 items-center justify-center text-base;
+}
+
+@utility menu-entry-leading-floating {
+  @apply mt-0.5;
+}
+
+@utility menu-entry-leading-sheet {
+  @apply mt-0.5;
+}
+
 /* Simple non-interactive tooltip surface for FloatingTooltip. */
 @utility floating-tooltip {
   @apply max-w-xs rounded-md border border-text/10 bg-surface-emphasized px-2.5 py-1.5 text-xs leading-snug text-text shadow-lg;

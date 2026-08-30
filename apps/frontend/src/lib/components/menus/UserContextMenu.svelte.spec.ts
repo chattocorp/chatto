@@ -30,12 +30,12 @@ vi.mock('$lib/navigation', () => ({
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
-      serverId: serverScopeMock.serverId,
-      store: {
-        permissions: serverScopeMock.permissions,
-        currentUser: serverScopeMock.currentUser,
-        projection: serverScopeMock.projection
-      }
+    serverId: serverScopeMock.serverId,
+    store: {
+      permissions: serverScopeMock.permissions,
+      currentUser: serverScopeMock.currentUser,
+      projection: serverScopeMock.projection
+    }
   })
 }));
 
@@ -306,7 +306,7 @@ describe('UserContextMenu', () => {
       'View in Server Admin',
       'Ban from room'
     ]);
-    const actionIcons = Array.from(dialog.querySelectorAll('.sidebar-item > .sidebar-icon'));
+    const actionIcons = Array.from(dialog.querySelectorAll('.menu-entry > .menu-entry-leading'));
     expect(
       actionIcons.map((icon) =>
         Array.from(icon.classList).find((className) => className.startsWith('icon-[uil--'))
@@ -318,7 +318,6 @@ describe('UserContextMenu', () => {
       'icon-[uil--ban]',
       'icon-[uil--copy]'
     ]);
-    expect(actionIcons.every((icon) => icon.classList.contains('self-start'))).toBe(true);
     expect(sections[2]?.textContent).toContain('Copy User ID');
     expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
     expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);

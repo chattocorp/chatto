@@ -31,7 +31,10 @@
       "delete_description": "Stop advertising {origin}?",
       "created": "Neighbor added",
       "updated": "Neighbor updated",
-      "deleted": "Neighbor deleted"
+      "deleted": "Neighbor deleted",
+      "testimonial": "Atsauksme (neobligāti)",
+      "testimonial_help": "Paskaidrojiet, kāpēc iesakāt šo serveri. Šis teksts ir publisks un var saturēt līdz 500 rakstzīmēm.",
+      "testimonial_label": "Publiska atsauksme"
     },
     "common": {
       "page_title": "{title} | Administrators",

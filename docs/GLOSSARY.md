@@ -58,9 +58,11 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).
 
-**Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+**Neighbor** — Chatto server that another server advertises in its public directory. A Neighbor has a canonical origin and can have a public testimonial. It is a recommendation, not a trust or reciprocal relationship. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
-**Server Directory** — Client page that combines the direct Neighbors advertised by registered servers. It shows Neighbors whose public server profiles load successfully, keeps registered results visible as joined, and also accepts a direct server address. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+**Server Directory** — Client page that combines the direct Neighbors advertised by registered servers. It shows Neighbors whose public server profiles load successfully, keeps registered results visible as joined, shows source testimonials in a tapestry layout, and also accepts a direct server address. It does not rank its results. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
+
+**Testimonial** — Optional public text in a Neighbor that explains why one server recommends another server. A testimonial belongs to the directed recommendation that supplied it. See [FDR-042](fdr/FDR-042-chatto-neighbors.md).
 
 **Client application** — Browser, desktop, mobile app, or integration that a user authorizes to access a Chatto server; its stable identity comes from CIMD or a built-in registration. A client appears in server administration after completing at least one user-approved authorization. Administrators may label it trusted or block it, but trust never replaces user consent. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md) and [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

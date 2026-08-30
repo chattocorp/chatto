@@ -20,10 +20,20 @@ message GetServerResponse {
 // Request for the public Neighbor directory.
 message ListNeighborsRequest {}
 
-// Publicly advertised canonical server origins. The response has no ordering
-// contract.
+// One public server recommendation.
+message Neighbor {
+  // Canonical HTTP or HTTPS server origin.
+  string origin = 1;
+  // Optional explanation from the recommending server's operator.
+  optional string testimonial = 2;
+}
+
+// Publicly advertised servers. The response has no ordering contract.
 message ListNeighborsResponse {
+  // Canonical origins for clients that do not support structured Neighbors.
   repeated string origins = 1;
+  // Structured recommendations with optional testimonials.
+  repeated Neighbor neighbors = 2;
 }
 
 // Provides unauthenticated server discovery metadata.
