@@ -25,6 +25,10 @@ scroll container; children render inside the scroll container.
     bottom?: boolean;
     /** Tailwind class for fade height. Default `h-8`. */
     fadeHeight?: string;
+    /** Fill the remaining height of a flex parent. Disable for intrinsic-height viewports. */
+    fill?: boolean;
+    /** Tailwind classes for the opaque end of each fade. */
+    fadeColorClass?: string;
     /** Extra classes for the outer positioning wrapper. */
     class?: string;
     /** Extra classes for the inner scroll container. */
@@ -39,6 +43,8 @@ scroll container; children render inside the scroll container.
     top = false,
     bottom = false,
     fadeHeight = 'h-8',
+    fill = true,
+    fadeColorClass = 'from-background',
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
@@ -94,7 +100,7 @@ scroll container; children render inside the scroll container.
   }
 </script>
 
-<div class={['relative flex min-h-0 min-w-0 flex-1 flex-col', className]}>
+<div class={['relative flex min-h-0 min-w-0 flex-col', fill && 'flex-1', className]}>
   <div
     bind:this={scrollEl}
     {@attach trackScrollEdges}
@@ -107,7 +113,8 @@ scroll container; children render inside the scroll container.
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-background to-transparent transition-opacity',
+        'pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b to-transparent transition-opacity',
+        fadeColorClass,
         fadeHeight,
         !scrolledFromTop && 'opacity-0'
       ]}
@@ -117,7 +124,8 @@ scroll container; children render inside the scroll container.
     <div
       aria-hidden="true"
       class={[
-        'pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background to-transparent transition-opacity',
+        'pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t to-transparent transition-opacity',
+        fadeColorClass,
         fadeHeight,
         !scrolledFromBottom && 'opacity-0'
       ]}

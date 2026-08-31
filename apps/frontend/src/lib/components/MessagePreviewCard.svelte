@@ -39,6 +39,7 @@ unknown instance) the component renders nothing.
     type ExpiringAssetUrl
   } from '$lib/attachments/attachmentUrls';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
+  import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import MessageContent from './MessageContent.svelte';
   import UserAvatar, { UserAvatarViewData } from './UserAvatar.svelte';
   import DeletedUserLabel from './DeletedUserLabel.svelte';
@@ -416,21 +417,18 @@ unknown instance) the component renders nothing.
         </div>
       </div>
       {#if hasBody}
-        <div class="relative">
-          <div
-            class="pointer-events-none absolute inset-x-0 top-0 z-10 h-5 bg-gradient-to-b from-surface-100 via-surface-100/80 to-transparent"
-            aria-hidden="true"
-          ></div>
-          <div
-            class="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-5 bg-gradient-to-t from-surface-100 via-surface-100/80 to-transparent"
-            aria-hidden="true"
-          ></div>
-          <div
-            class="max-h-52 overflow-y-auto overscroll-contain px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text"
-          >
+        <ScrollFader
+          top
+          bottom
+          fill={false}
+          fadeHeight="h-5"
+          fadeColorClass="from-surface-100 via-surface-100/80"
+          scrollClass="max-h-52 overscroll-contain"
+        >
+          <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent body={bodyMarkdown} />
           </div>
-        </div>
+        </ScrollFader>
       {/if}
       {#if preview.attachments.length > 0}
         <div
