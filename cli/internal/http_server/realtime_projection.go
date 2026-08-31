@@ -214,14 +214,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}}, true, nil
 	}
 	canonical := event.CanonicalEvent()
-	var deliveryEvent *evtv1.Event
-	if isRealtimePublicEvent(canonical) {
-		deliveryEvent = proto.Clone(canonical).(*evtv1.Event)
-		if err := s.core.PopulateEventPlaintext(ctx, deliveryEvent); err != nil {
-			return nil, false, err
-		}
-	}
-	projection := &realtimev1.RealtimeEvent{Event: projectRealtimeEvent(deliveryEvent)}
+	projection := &realtimev1.RealtimeEvent{}
 	if event.DeliverySeq() > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, event.DeliverySeq())
 		if err != nil {
@@ -254,6 +247,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if !canRead {
 			return realtimeProjectionServerFrame(projection), true, nil
 		}
+	}
+	if isRealtimePublicEvent(canonical) {
+		deliveryEvent := proto.Clone(canonical).(*evtv1.Event)
+		if err := s.core.PopulateEventPlaintext(ctx, deliveryEvent); err != nil {
+			return nil, false, err
+		}
+		projection.Event = projectRealtimeEvent(deliveryEvent)
 	}
 	if evt != nil && projection.GetEvent() == nil {
 		return nil, false, nil

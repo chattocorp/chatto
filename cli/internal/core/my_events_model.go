@@ -96,8 +96,8 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // that is relevant to a specific user.
 //
 // The process-wide MyEventsHub receives two internal NATS Core subject roots:
-// live.sync.> carries transient LiveEvent messages and live.evt.> is the raw
-// singleton republish of committed EVT facts. EVT delivery is not UI-safe by
+// live.sync.> carries transient canonical Event messages and live.evt.> is the
+// raw singleton republish of committed EVT facts. EVT delivery is not UI-safe by
 // itself: the hub waits for the relevant local projection(s) to reach the
 // republished stream sequence, then applies each user's authorization before
 // forwarding the event through the realtime API.

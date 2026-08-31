@@ -944,14 +944,6 @@ export class MessageBody extends Message<MessageBody> {
   encryptionNonce = new Uint8Array(0);
 
   /**
-   * Decrypted message text for an authorized delivery object. EVT storage
-   * rejects this client-only field.
-   *
-   * @generated from field: optional string body_plaintext = 22;
-   */
-  bodyPlaintext?: string;
-
-  /**
    * Legacy embedded attachment protos. Older bodies (and the legacy
    * import path) carry full Attachment records here. New bodies write
    * asset_ids instead and API response mapping hydrates from the asset
@@ -996,7 +988,6 @@ export class MessageBody extends Message<MessageBody> {
     { no: 6, name: "body_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 20, name: "encrypted_body", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
     { no: 21, name: "encryption_nonce", kind: "scalar", T: 12 /* ScalarType.BYTES */ },
-    { no: 22, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 30, name: "attachments", kind: "message", T: Attachment, repeated: true },
     { no: 31, name: "asset_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 40, name: "link_preview", kind: "message", T: LinkPreview },

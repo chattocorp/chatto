@@ -210,7 +210,8 @@ durability. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-
 **Live Event** — An Event delivered through the internal live ingress. Durable
 Events reach it through EVT republish on `live.evt.>`. Transient Events publish
 directly on `live.sync.>`. The previous `livev1.LiveEvent` envelope is only a
-rolling-upgrade read format. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+temporary rolling-wire view. See
+[ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Public Realtime Event** — Fresh authorized copy of a canonical Event for
 bots, integrations, alternate clients, and the bundled frontend. The server

@@ -18,7 +18,7 @@ contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.
 - `live/v1` owns transient payload messages and the previous LiveEvent envelope
-  that current code reads only for rolling compatibility.
+  that current code reads and writes only for rolling-wire compatibility.
 
 Do not put a type in a package because one consumer uses it. Put the type in the
 package that owns its authoritative lifecycle.

@@ -136,7 +136,7 @@ Resume uses this handoff:
 2. Capture a stable EVT boundary.
 3. Wait for registered projections through that boundary.
 4. Read the bounded EVT sequence range with JetStream point reads.
-5. Apply current authorization and map each public fact to a semantic event.
+5. Apply current authorization and censor each public canonical event.
 6. Send finite latest-value reconciliation state.
 7. Send `caught_up`, discard buffered duplicates through the boundary, and
    continue with live delivery.
@@ -193,9 +193,11 @@ per-client NATS subscriptions or JetStream consumers.
 
 Transient `live.sync.>` messages and durable `live.evt.>` messages use
 `chatto.core.evt.v1.Event`. Transient variants use oneof tags 20000 through
-29999. During a rolling upgrade, the hub can read the previous
-`chatto.core.live.v1.LiveEvent` envelope and convert it to the canonical Event.
-Current publishers do not write the previous envelope.
+29999. During a rolling upgrade, one transient wire message also contains the
+matching previous `chatto.core.live.v1.LiveEvent` oneof tag. Old replicas read
+that tag and ignore the canonical tag. New replicas read the canonical tag and
+ignore the old tag. The hub also converts messages that contain only the old
+envelope.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after

@@ -32,7 +32,9 @@ boundary rejects transient variants and client-only fields.
 
 Durable variants keep their existing field numbers. Transient-only variants use
 field numbers 20000 through 29999. The previous `livev1.LiveEvent` is a
-rolling-upgrade read format and is not a current publish format.
+temporary rolling-upgrade wire view. Callers publish only the canonical Event;
+the serializer adds the old oneof tag so previous replicas can read the same
+NATS message.
 
 Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
@@ -43,7 +45,7 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 | `chatto.core.evt.v1` | Canonical `Event` wrapper, durable facts, transient variants, and fact-owned values | Existing durable field numbers and structures are stored in JetStream and need storage compatibility; transient variants cannot enter EVT |
 | `chatto.core.event.v1` | Event field-surface protobuf options | Options control storage and authorized realtime projection |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
-| `chatto.core.live.v1` | Transient payload messages and the previous `LiveEvent` read format | Records are not stored, but changes need rolling-wire review |
+| `chatto.core.live.v1` | Transient payload messages and the temporary `LiveEvent` rolling-wire view | Records are not stored, but changes need rolling-wire review |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
 in-process realtime delivery interface. Private implementations let it carry a
@@ -400,7 +402,8 @@ directly on NATS Core. They are not persisted. Genuinely ephemeral activity
 can be a public transient event. Latest-value invalidations are inputs to live
 projection assembly but are not replay facts.
 
-Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
+Patterns: `live.sync.>` for transient canonical Event pubsub and `live.evt.>`
+for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
 - Direct NATS Core publishes: transient canonical events on `live.sync.>` with
   no stream storage.
@@ -470,7 +473,7 @@ boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-- One process-wide `ChanSubscribe("live.sync.>")` for transient `LiveEvent`
+- One process-wide `ChanSubscribe("live.sync.>")` for transient canonical Event
   messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,

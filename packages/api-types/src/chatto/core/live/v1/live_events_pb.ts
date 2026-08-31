@@ -74,8 +74,9 @@ proto3.util.setEnumType(CallParticipantEventSource, "chatto.core.live.v1.CallPar
  *
  * LiveEvent is the legacy wire envelope for transient pubsub signals. New
  * publishers use chatto.core.evt.v1.Event for both durable and transient
- * events. Readers retain this message only while mixed 0.5 binaries can leave
- * old messages in flight on live.sync.>.
+ * events. During rolling replacement, the transient serializer also appends
+ * this legacy oneof tag to canonical Event bytes. Old and new replicas can
+ * then decode the same live.sync.> message.
  *
  * @generated from message chatto.core.live.v1.LiveEvent
  * @deprecated

@@ -9,7 +9,8 @@ import (
 // EventEnvelope is the in-process envelope used by StreamMyEvents and the
 // realtime API. Concrete implementations are intentionally private so an
 // envelope can only wrap one backing source: a durable EVT fact, a transient
-// LiveEvent, or a synthetic heartbeat.
+// canonical Event, a legacy LiveEvent during rolling replacement, or a
+// synthetic heartbeat.
 type EventEnvelope interface {
 	ID() string
 	CreatedAt() *timestamppb.Timestamp
@@ -210,4 +211,51 @@ func CanonicalEventFromLive(live *livev1.LiveEvent) *evtv1.Event {
 		return nil
 	}
 	return event
+}
+
+// legacyLiveEventFromCanonical creates the temporary rolling-replacement view
+// of a transient canonical Event. Remove it with the legacy LiveEvent reader
+// after the mixed-version compatibility window ends.
+func legacyLiveEventFromCanonical(event *evtv1.Event) *livev1.LiveEvent {
+	if event == nil || event.GetEvent() == nil {
+		return nil
+	}
+	legacy := &livev1.LiveEvent{Id: event.GetId(), CreatedAt: event.GetCreatedAt(), ActorId: event.GetActorId()}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserCreatedSync:
+		legacy.Event = &livev1.LiveEvent_UserCreated{UserCreated: payload.UserCreatedSync}
+	case *evtv1.Event_UserProfileSync:
+		legacy.Event = &livev1.LiveEvent_UserProfileUpdated{UserProfileUpdated: payload.UserProfileSync}
+	case *evtv1.Event_ServerUserPreferencesSync:
+		legacy.Event = &livev1.LiveEvent_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: payload.ServerUserPreferencesSync}
+	case *evtv1.Event_ThreadFollowChangedSync:
+		legacy.Event = &livev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: payload.ThreadFollowChangedSync}
+	case *evtv1.Event_ServerMemberDeletedSync:
+		legacy.Event = &livev1.LiveEvent_ServerMemberDeleted{ServerMemberDeleted: payload.ServerMemberDeletedSync}
+	case *evtv1.Event_ServerUpdatedSync:
+		legacy.Event = &livev1.LiveEvent_ServerUpdated{ServerUpdated: payload.ServerUpdatedSync}
+	case *evtv1.Event_UserTypingSignal:
+		legacy.Event = &livev1.LiveEvent_UserTyping{UserTyping: payload.UserTypingSignal}
+	case *evtv1.Event_PresenceChangedSignal:
+		legacy.Event = &livev1.LiveEvent_PresenceChanged{PresenceChanged: payload.PresenceChangedSignal}
+	case *evtv1.Event_CallParticipantJoinedSignal:
+		legacy.Event = &livev1.LiveEvent_CallParticipantJoined{CallParticipantJoined: payload.CallParticipantJoinedSignal}
+	case *evtv1.Event_CallParticipantLeftSignal:
+		legacy.Event = &livev1.LiveEvent_CallParticipantLeft{CallParticipantLeft: payload.CallParticipantLeftSignal}
+	case *evtv1.Event_NotificationOccurrencesInvalidated:
+		legacy.Event = &livev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: payload.NotificationOccurrencesInvalidated}
+	case *evtv1.Event_NotificationUnreadChanged:
+		legacy.Event = &livev1.LiveEvent_NotificationUnreadChanged{NotificationUnreadChanged: payload.NotificationUnreadChanged}
+	case *evtv1.Event_RoomMarkedAsReadSync:
+		legacy.Event = &livev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: payload.RoomMarkedAsReadSync}
+	case *evtv1.Event_MentionStatusClearedSync:
+		legacy.Event = &livev1.LiveEvent_MentionStatusCleared{MentionStatusCleared: payload.MentionStatusClearedSync}
+	case *evtv1.Event_RoomGroupsUpdatedSync:
+		legacy.Event = &livev1.LiveEvent_RoomGroupsUpdated{RoomGroupsUpdated: payload.RoomGroupsUpdatedSync}
+	case *evtv1.Event_SessionTerminatedSignal:
+		legacy.Event = &livev1.LiveEvent_SessionTerminated{SessionTerminated: payload.SessionTerminatedSignal}
+	default:
+		return nil
+	}
+	return legacy
 }

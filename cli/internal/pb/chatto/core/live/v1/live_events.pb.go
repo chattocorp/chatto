@@ -130,8 +130,9 @@ func (CallParticipantEventSource) EnumDescriptor() ([]byte, []int) {
 
 // LiveEvent is the legacy wire envelope for transient pubsub signals. New
 // publishers use chatto.core.evt.v1.Event for both durable and transient
-// events. Readers retain this message only while mixed 0.5 binaries can leave
-// old messages in flight on live.sync.>.
+// events. During rolling replacement, the transient serializer also appends
+// this legacy oneof tag to canonical Event bytes. Old and new replicas can
+// then decode the same live.sync.> message.
 //
 // Deprecated: Marked as deprecated in chatto/core/live/v1/live_events.proto.
 type LiveEvent struct {

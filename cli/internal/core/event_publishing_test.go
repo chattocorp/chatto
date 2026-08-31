@@ -11,6 +11,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/dynamicpb"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -45,6 +47,57 @@ func TestCanonicalEventFromLivePreservesRollingUpgradeEnvelope(t *testing.T) {
 	}
 	if canonical.GetUserTypingSignal().GetRoomId() != "room-id" {
 		t.Fatalf("canonical payload = %+v, want typing payload", canonical.GetEvent())
+	}
+}
+
+func TestTransientEventWireIsReadableByCurrentAndPreviousReplicas(t *testing.T) {
+	createdAt := timestamppb.Now()
+	event := &evtv1.Event{
+		Id: "canonical-id", CreatedAt: createdAt, ActorId: "actor-id",
+		Event: &evtv1.Event_UserTypingSignal{UserTypingSignal: &livev1.UserTypingEvent{RoomId: "room-id"}},
+	}
+
+	wire, err := marshalTransientEvent(event)
+	if err != nil {
+		t.Fatalf("marshalTransientEvent: %v", err)
+	}
+	var canonical evtv1.Event
+	if err := proto.Unmarshal(wire, &canonical); err != nil {
+		t.Fatalf("unmarshal canonical Event: %v", err)
+	}
+	if canonical.GetId() != event.GetId() || canonical.GetUserTypingSignal().GetRoomId() != "room-id" {
+		t.Fatalf("canonical decode = %+v, want metadata and typing payload", &canonical)
+	}
+	var legacy livev1.LiveEvent
+	if err := proto.Unmarshal(wire, &legacy); err != nil {
+		t.Fatalf("unmarshal previous LiveEvent: %v", err)
+	}
+	if legacy.GetId() != event.GetId() || legacy.GetCreatedAt() == nil || legacy.GetActorId() != event.GetActorId() || legacy.GetUserTyping().GetRoomId() != "room-id" {
+		t.Fatalf("legacy decode = %+v, want metadata and typing payload", &legacy)
+	}
+}
+
+func TestEveryTransientVariantHasPreviousReplicaEncoding(t *testing.T) {
+	descriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
+	oneof := descriptor.Oneofs().ByName("event")
+	for index := 0; index < oneof.Fields().Len(); index++ {
+		field := oneof.Fields().Get(index)
+		if field.Number() < 20000 || field.Number() > 29999 {
+			continue
+		}
+		dynamicEvent := dynamicpb.NewMessage(descriptor)
+		dynamicEvent.Mutable(field)
+		wire, err := proto.Marshal(dynamicEvent)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", field.FullName(), err)
+		}
+		var event evtv1.Event
+		if err := proto.Unmarshal(wire, &event); err != nil {
+			t.Fatalf("unmarshal %s: %v", field.FullName(), err)
+		}
+		if legacyLiveEventFromCanonical(&event) == nil {
+			t.Errorf("transient event %s has no previous-replica encoding", field.FullName())
+		}
 	}
 }
 

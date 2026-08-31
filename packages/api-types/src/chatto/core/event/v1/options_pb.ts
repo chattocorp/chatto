@@ -13,7 +13,9 @@ import { FieldOptions, proto3 } from "@bufbuild/protobuf";
  */
 export enum EventFieldSurface {
   /**
-   * The field is not classified and cannot cross a storage or public boundary.
+   * The field has no explicit public surface. EVT can store it. Public
+   * projection omits it at a payload root; nested fields can inherit a
+   * classified parent message's surface.
    *
    * @generated from enum value: EVENT_FIELD_SURFACE_UNSPECIFIED = 0;
    */
@@ -54,7 +56,7 @@ proto3.util.setEnumType(EventFieldSurface, "chatto.core.event.v1.EventFieldSurfa
  * @generated from extension: chatto.core.event.v1.EventFieldSurface event_field_surface = 50001;
  */
 export const event_field_surface = proto3.makeExtension<FieldOptions, EventFieldSurface>(
-  "chatto.core.event.v1.event_field_surface", 
-  FieldOptions, 
+  "chatto.core.event.v1.event_field_surface",
+  FieldOptions,
   () => ({ no: 50001, kind: "enum", T: proto3.getEnumType(EventFieldSurface) }),
 );

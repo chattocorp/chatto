@@ -603,8 +603,8 @@ func TestRealtimeProjectionOmitsMessageStateWithoutMessageRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
-		t.Fatalf("message frame = %+v, handled=%v; want empty cursor-advance projection", frame, handled)
+	if !handled || frame.GetEvent() == nil || frame.GetEvent().GetEvent() != nil || len(frame.GetEvent().GetState()) != 0 {
+		t.Fatalf("message frame = %+v, handled=%v; want cursor-only event without canonical payload", frame, handled)
 	}
 
 	_, err = env.httpServer.realtimeEventEnvelope(env.ctx, viewer.GetId(), core.NewLiveEventEnvelope(&livev1.LiveEvent{

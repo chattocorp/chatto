@@ -14,474 +14,105 @@ Endpoint paths use the Connect convention:
 
 Use this reference when building clients against Chatto's public ConnectRPC API.
 
-<a id="chatto-api-v1-ViewerService"></a>
+<a id="chatto-api-v1-RoleService"></a>
 
-## ViewerService
+## RoleService
 
-Provides authenticated user profile, preferences, and capability state.
+Provides authenticated reads for public role metadata.
 
-<a id="chatto-api-v1-ViewerService-GetViewer"></a>
+<a id="chatto-api-v1-RoleService-ListRoles"></a>
 
-### GetViewer
+### ListRoles
 
-Returns the current authenticated viewer. This RPC requires a logged-in
-user; unauthenticated callers receive an UNAUTHENTICATED error.
-
-```http
-POST /api/connect/chatto.api.v1.ViewerService/GetViewer
-```
-
-<a id="chatto-api-v1-GetViewerRequest"></a>
-
-#### Input: GetViewerRequest
-
-Request for the authenticated viewer snapshot.
-
-
-<a id="chatto-api-v1-GetViewerResponse"></a>
-
-#### Result: GetViewerResponse
-
-Authenticated viewer snapshot needed by application shells.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
-| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
-| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
-| `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
-
-
-<a id="chatto-api-v1-MyAccountService"></a>
-
-## MyAccountService
-
-Self-service account, profile, avatar, display preference, presence,
-custom-status, external identity, and account lifecycle commands for the
+Lists the current role catalog as a finite snapshot. Requires an
 authenticated user.
 
-<a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
-
-### UpdateProfile
-
-Updates the authenticated user's login, display name, and/or bio.
-
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
+POST /api/connect/chatto.api.v1.RoleService/ListRoles
 ```
 
-<a id="chatto-api-v1-UpdateProfileRequest"></a>
+<a id="chatto-api-v1-ListRolesRequest"></a>
 
-#### Input: UpdateProfileRequest
+#### Input: ListRolesRequest
 
-Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. At least one field must be present.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
-| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
-| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
+Request the current role catalog.
 
 
-<a id="chatto-api-v1-UpdateProfileResponse"></a>
+<a id="chatto-api-v1-ListRolesResponse"></a>
 
-#### Result: UpdateProfileResponse
+#### Result: ListRolesResponse
 
-Result of a profile update.
+Snapshot of the role catalog visible to the authenticated viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
 
 
-<a id="chatto-api-v1-MyAccountService-UploadAvatar"></a>
+<a id="chatto-api-v1-RoleService-GetRole"></a>
 
-### UploadAvatar
+### GetRole
 
-Uploads and sets the authenticated user's avatar.
+Gets one public role by stable name. Returns NOT_FOUND when the role is
+unknown.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UploadAvatar
+POST /api/connect/chatto.api.v1.RoleService/GetRole
 ```
 
-<a id="chatto-api-v1-UploadAvatarRequest"></a>
+<a id="chatto-api-v1-GetRoleRequest"></a>
 
-#### Input: UploadAvatarRequest
+#### Input: GetRoleRequest
 
-Request to upload and set the authenticated user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
-
-
-<a id="chatto-api-v1-UploadAvatarResponse"></a>
-
-#### Result: UploadAvatarResponse
-
-Result of uploading the authenticated user's avatar.
+Request one public role by stable role name.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+| `name` | `string` | Required stable role name. |
 
 
-<a id="chatto-api-v1-MyAccountService-DeleteAvatar"></a>
+<a id="chatto-api-v1-GetRoleResponse"></a>
 
-### DeleteAvatar
+#### Result: GetRoleResponse
 
-Deletes the authenticated user's avatar. The call is idempotent.
+Public role lookup response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role` | [`Role`](#chatto-api-v1-Role) | Requested role. |
+
+
+<a id="chatto-api-v1-RoleService-BatchGetRoles"></a>
+
+### BatchGetRoles
+
+Gets public role records for multiple role names referenced by member rows,
+mentions, or integration clients.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/DeleteAvatar
+POST /api/connect/chatto.api.v1.RoleService/BatchGetRoles
 ```
 
-<a id="chatto-api-v1-DeleteAvatarRequest"></a>
+<a id="chatto-api-v1-BatchGetRolesRequest"></a>
 
-#### Input: DeleteAvatarRequest
+#### Input: BatchGetRolesRequest
 
-Request to delete the authenticated user's avatar.
-
-
-<a id="chatto-api-v1-DeleteAvatarResponse"></a>
-
-#### Result: DeleteAvatarResponse
-
-Result of deleting the authenticated user's avatar.
+Request public role records for a set of stable role names.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+| `names` | `repeated string` | Required role names. Unknown names are omitted from the response. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdatePassword"></a>
+<a id="chatto-api-v1-BatchGetRolesResponse"></a>
 
-### UpdatePassword
+#### Result: BatchGetRolesResponse
 
-Updates or adds the authenticated user's password.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePassword
-```
-
-<a id="chatto-api-v1-UpdatePasswordRequest"></a>
-
-#### Input: UpdatePasswordRequest
-
-Request to update or add the authenticated user's password.
+Batch public role response.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
-| `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
-
-
-<a id="chatto-api-v1-UpdatePasswordResponse"></a>
-
-#### Result: UpdatePasswordResponse
-
-Result of updating or adding the authenticated account password.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Current authenticated user profile after the password update. |
-
-
-<a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
-
-### UpdateSettings
-
-Updates the authenticated user's display preferences.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
-```
-
-<a id="chatto-api-v1-UpdateSettingsRequest"></a>
-
-#### Input: UpdateSettingsRequest
-
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
-| `time_format` | optional [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
-| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. |
-
-
-<a id="chatto-api-v1-UpdateSettingsResponse"></a>
-
-#### Result: UpdateSettingsResponse
-
-Result of updating display preferences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
-
-
-<a id="chatto-api-v1-MyAccountService-ListExternalIdentities"></a>
-
-### ListExternalIdentities
-
-Lists configured external identity providers and identities linked to the
-authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/ListExternalIdentities
-```
-
-<a id="chatto-api-v1-ListExternalIdentitiesRequest"></a>
-
-#### Input: ListExternalIdentitiesRequest
-
-Request to list configured and linked external identities for the current user.
-
-
-<a id="chatto-api-v1-ListExternalIdentitiesResponse"></a>
-
-#### Result: ListExternalIdentitiesResponse
-
-Finite snapshot of configured providers and linked external identities.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `providers` | repeated [`ExternalIdentityProvider`](#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
-| `linked_identities` | repeated [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
-
-
-<a id="chatto-api-v1-MyAccountService-StartExternalIdentityLink"></a>
-
-### StartExternalIdentityLink
-
-Creates a short-lived browser handoff URL for linking a provider identity
-to the authenticated account. The provider callback completes through
-chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink
-```
-
-<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
-
-#### Input: StartExternalIdentityLinkRequest
-
-Request to start linking a configured provider to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `provider_id` | `string` | Provider ID to link. |
-| `redirect_path` | `string` | Internal path to return to after confirmation. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
-
-
-<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
-
-#### Result: StartExternalIdentityLinkResponse
-
-Result of preparing an external identity link flow.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
-
-
-<a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
-
-### DisconnectExternalIdentity
-
-Disconnects a provider identity from the authenticated account.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity
-```
-
-<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
-
-#### Input: DisconnectExternalIdentityRequest
-
-Request to disconnect a linked provider identity from the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
-| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
-
-
-<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
-
-#### Result: DisconnectExternalIdentityResponse
-
-Result of disconnecting a provider identity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `disconnected` | `bool` | True when the identity was disconnected. |
-
-
-<a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
-
-### UpdatePresence
-
-Updates the current user's live presence status. This state is transient:
-clients should refresh it periodically while visible, and should stop
-calling this RPC when the user chooses to appear offline.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePresence
-```
-
-<a id="chatto-api-v1-UpdatePresenceRequest"></a>
-
-#### Input: UpdatePresenceRequest
-
-Request to update the current user's live presence status.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to store for the authenticated user. Offline is rejected. |
-| `user_selected` | `bool` | True when this update comes from a deliberate user selection rather than automatic idle/refresh updates. Automatic updates do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
-
-
-<a id="chatto-api-v1-UpdatePresenceResponse"></a>
-
-#### Result: UpdatePresenceResponse
-
-Result of updating live presence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
-
-
-<a id="chatto-api-v1-MyAccountService-UpdateCustomStatus"></a>
-
-### UpdateCustomStatus
-
-Updates or replaces the current user's custom status. Emoji and text are
-required, and expires_at must be omitted or in the future.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus
-```
-
-<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
-
-#### Input: UpdateCustomStatusRequest
-
-Request to update or replace the current user's custom status.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `emoji` | `string` | Short emoji marker displayed with the status. |
-| `text` | `string` | User-written status text. |
-| `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
-
-
-<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
-
-#### Result: UpdateCustomStatusResponse
-
-Result of updating the current user's custom status.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
-
-
-<a id="chatto-api-v1-MyAccountService-DeleteCustomStatus"></a>
-
-### DeleteCustomStatus
-
-Deletes the current user's custom status. The call is idempotent and returns
-the resulting empty status state.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/DeleteCustomStatus
-```
-
-<a id="chatto-api-v1-DeleteCustomStatusRequest"></a>
-
-#### Input: DeleteCustomStatusRequest
-
-Request to delete the current user's custom status.
-
-
-<a id="chatto-api-v1-DeleteCustomStatusResponse"></a>
-
-#### Result: DeleteCustomStatusResponse
-
-Result of deleting the current user's custom status.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
-
-
-<a id="chatto-api-v1-MyAccountService-RequestAccountDeletion"></a>
-
-### RequestAccountDeletion
-
-Issues a short-lived token used to confirm self-deletion. Requires
-user.delete-self.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion
-```
-
-<a id="chatto-api-v1-RequestAccountDeletionRequest"></a>
-
-#### Input: RequestAccountDeletionRequest
-
-Request a short-lived confirmation token for deleting the authenticated
-account.
-
-
-<a id="chatto-api-v1-RequestAccountDeletionResponse"></a>
-
-#### Result: RequestAccountDeletionResponse
-
-Result of issuing an account deletion confirmation token.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `confirmation_token` | `string` | Confirmation token. Clients must pass this to DeleteMyAccount. |
-
-
-<a id="chatto-api-v1-MyAccountService-DeleteMyAccount"></a>
-
-### DeleteMyAccount
-
-Permanently deletes the authenticated account after token validation.
-Requires user.delete-self.
-
-```http
-POST /api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount
-```
-
-<a id="chatto-api-v1-DeleteMyAccountRequest"></a>
-
-#### Input: DeleteMyAccountRequest
-
-Request to permanently delete the authenticated account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `confirmation_token` | `string` | Confirmation token obtained from RequestAccountDeletion. |
-
-
-<a id="chatto-api-v1-DeleteMyAccountResponse"></a>
-
-#### Result: DeleteMyAccountResponse
-
-Result of deleting the authenticated account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the account was deleted. |
+| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |
 
 
 <a id="chatto-api-v1-AssetService"></a>
@@ -565,529 +196,6 @@ Response containing room-scoped assets.
 | Field | Type | Description |
 | --- | --- | --- |
 | `assets` | repeated [`Asset`](#chatto-api-v1-Asset) | Assets in first-seen request order. |
-
-
-<a id="chatto-api-v1-AssetUploadService"></a>
-
-## AssetUploadService
-
-Creates room-scoped attachment assets through chunked ConnectRPC uploads.
-
-<a id="chatto-api-v1-AssetUploadService-CreateUpload"></a>
-
-### CreateUpload
-
-Starts a room-scoped attachment upload for the authenticated user.
-
-```http
-POST /api/connect/chatto.api.v1.AssetUploadService/CreateUpload
-```
-
-<a id="chatto-api-v1-CreateUploadRequest"></a>
-
-#### Input: CreateUploadRequest
-
-Request to start a room-scoped attachment upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required room ID. |
-| `filename` | `string` | Original filename supplied by the client. |
-| `content_type` | `string` | MIME content type. Empty values are treated as application/octet-stream. |
-| `size` | `int64` | Required total file size in bytes. |
-| `sha256` | `string` | Required SHA-256 digest of the complete file, lowercase hexadecimal. |
-
-
-<a id="chatto-api-v1-CreateUploadResponse"></a>
-
-#### Result: CreateUploadResponse
-
-Response after creating an upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Created upload session. |
-
-
-<a id="chatto-api-v1-AssetUploadService-UploadChunk"></a>
-
-### UploadChunk
-
-Appends one chunk at the upload's current committed offset.
-
-```http
-POST /api/connect/chatto.api.v1.AssetUploadService/UploadChunk
-```
-
-<a id="chatto-api-v1-UploadChunkRequest"></a>
-
-#### Input: UploadChunkRequest
-
-Request to append one chunk to an upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Required upload session ID. |
-| `offset` | `int64` | Byte offset where this chunk starts. |
-| `content` | `bytes` | Chunk bytes. The server enforces a per-RPC size limit. |
-| `chunk_sha256` | `string` | SHA-256 digest of this chunk, lowercase hexadecimal. |
-
-
-<a id="chatto-api-v1-UploadChunkResponse"></a>
-
-#### Result: UploadChunkResponse
-
-Response after committing an upload chunk.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
-
-
-<a id="chatto-api-v1-AssetUploadService-GetUpload"></a>
-
-### GetUpload
-
-Reads current upload state for retry or resume.
-
-```http
-POST /api/connect/chatto.api.v1.AssetUploadService/GetUpload
-```
-
-<a id="chatto-api-v1-GetUploadRequest"></a>
-
-#### Input: GetUploadRequest
-
-Request to fetch upload state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Required upload session ID. |
-
-
-<a id="chatto-api-v1-GetUploadResponse"></a>
-
-#### Result: GetUploadResponse
-
-Response containing upload state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Current upload session. |
-
-
-<a id="chatto-api-v1-AssetUploadService-CompleteUpload"></a>
-
-### CompleteUpload
-
-Verifies the completed upload and creates the attachment asset.
-
-```http
-POST /api/connect/chatto.api.v1.AssetUploadService/CompleteUpload
-```
-
-<a id="chatto-api-v1-CompleteUploadRequest"></a>
-
-#### Input: CompleteUploadRequest
-
-Request to complete an upload and create its attachment asset.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Required upload session ID. |
-
-
-<a id="chatto-api-v1-CompleteUploadResponse"></a>
-
-#### Result: CompleteUploadResponse
-
-Response after an upload completes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Completed upload session. |
-| `asset` | [`Asset`](#chatto-api-v1-Asset) | Attachment asset produced by this upload. |
-
-
-<a id="chatto-api-v1-AssetUploadService-CancelUpload"></a>
-
-### CancelUpload
-
-Cancels an incomplete upload and releases temporary storage.
-
-```http
-POST /api/connect/chatto.api.v1.AssetUploadService/CancelUpload
-```
-
-<a id="chatto-api-v1-CancelUploadRequest"></a>
-
-#### Input: CancelUploadRequest
-
-Request to cancel an upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Required upload session ID. |
-
-
-<a id="chatto-api-v1-CancelUploadResponse"></a>
-
-#### Result: CancelUploadResponse
-
-Response after cancelling an upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
-
-
-<a id="chatto-api-v1-BotService"></a>
-
-## BotService
-
-Creates and manages bot accounts owned by human users. Bot API keys cannot
-call this service.
-
-<a id="chatto-api-v1-BotService-ListBots"></a>
-
-### ListBots
-
-Lists bots visible to the authenticated caller.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/ListBots
-```
-
-<a id="chatto-api-v1-ListBotsRequest"></a>
-
-#### Input: ListBotsRequest
-
-Request bots visible to the caller. Owners see their own bots; callers with
-bot.manage see every bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive login or display-name search. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListBotsResponse"></a>
-
-#### Result: ListBotsResponse
-
-Page of visible bots.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-BotService-GetBot"></a>
-
-### GetBot
-
-Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-PERMISSION_DENIED for a bot managed by another user.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/GetBot
-```
-
-<a id="chatto-api-v1-GetBotRequest"></a>
-
-#### Input: GetBotRequest
-
-Request one bot by stable user ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-
-
-<a id="chatto-api-v1-GetBotResponse"></a>
-
-#### Result: GetBotResponse
-
-Response containing one bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
-
-
-<a id="chatto-api-v1-BotService-BatchGetBots"></a>
-
-### BatchGetBots
-
-Gets several visible bots. Missing and inaccessible bots are omitted.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/BatchGetBots
-```
-
-<a id="chatto-api-v1-BatchGetBotsRequest"></a>
-
-#### Input: BatchGetBotsRequest
-
-Request several bots by stable user ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_ids` | `repeated string` | Required bot user IDs. Missing or inaccessible bots are omitted. |
-
-
-<a id="chatto-api-v1-BatchGetBotsResponse"></a>
-
-#### Result: BatchGetBotsResponse
-
-Response containing accessible bots in first-seen request order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots. |
-
-
-<a id="chatto-api-v1-BotService-CreateBot"></a>
-
-### CreateBot
-
-Creates a bot owned by the authenticated human caller. Requires bot.create.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/CreateBot
-```
-
-<a id="chatto-api-v1-CreateBotRequest"></a>
-
-#### Input: CreateBotRequest
-
-Request creation of a bot owned by the authenticated human caller.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `login` | `string` | Bot login. Must end in `_bot`. |
-| `display_name` | `string` | Public display name. |
-| `api_key_name` | `optional string` | Optional name for the initial API key. Defaults to "Default key". |
-
-
-<a id="chatto-api-v1-CreateBotResponse"></a>
-
-#### Result: CreateBotResponse
-
-Result of creating a bot. api_key is shown once and cannot be retrieved.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
-| `api_key` | `string` | Newly issued API key. |
-| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
-
-
-<a id="chatto-api-v1-BotService-DeleteBot"></a>
-
-### DeleteBot
-
-Deletes a bot and invalidates all of its API keys.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/DeleteBot
-```
-
-<a id="chatto-api-v1-DeleteBotRequest"></a>
-
-#### Input: DeleteBotRequest
-
-Request deletion of a bot account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-
-
-<a id="chatto-api-v1-DeleteBotResponse"></a>
-
-#### Result: DeleteBotResponse
-
-Result of deleting a bot account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the bot was deleted. |
-
-
-<a id="chatto-api-v1-BotService-CreateBotApiKey"></a>
-
-### CreateBotApiKey
-
-Creates one named API key. A bot can have at most 20 active API keys.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/CreateBotApiKey
-```
-
-<a id="chatto-api-v1-CreateBotApiKeyRequest"></a>
-
-#### Input: CreateBotApiKeyRequest
-
-Request creation of one named API key for a bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
-
-
-<a id="chatto-api-v1-CreateBotApiKeyResponse"></a>
-
-#### Result: CreateBotApiKeyResponse
-
-Result of creating one API key. api_key is shown once and cannot be
-retrieved later.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
-| `api_key` | `string` | Newly issued API key. |
-| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
-
-
-<a id="chatto-api-v1-BotService-RevokeBotApiKey"></a>
-
-### RevokeBotApiKey
-
-Revokes one API key without changing other active keys.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RevokeBotApiKey
-```
-
-<a id="chatto-api-v1-RevokeBotApiKeyRequest"></a>
-
-#### Input: RevokeBotApiKeyRequest
-
-Request irreversible revocation of one bot API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `key_id` | `string` | Required API-key credential ID. |
-
-
-<a id="chatto-api-v1-RevokeBotApiKeyResponse"></a>
-
-#### Result: RevokeBotApiKeyResponse
-
-Result of revoking one bot API key.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
-
-
-<a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
-
-### CreateBotIncomingWebhook
-
-Creates a named incoming webhook. A bot can have at most 20 active
-incoming webhooks.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/CreateBotIncomingWebhook
-```
-
-<a id="chatto-api-v1-CreateBotIncomingWebhookRequest"></a>
-
-#### Input: CreateBotIncomingWebhookRequest
-
-Request creation of one named incoming webhook for a bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
-
-
-<a id="chatto-api-v1-CreateBotIncomingWebhookResponse"></a>
-
-#### Result: CreateBotIncomingWebhookResponse
-
-Result of creating an incoming webhook. webhook_url is shown once and cannot
-be retrieved later.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
-| `webhook_url` | `string` | Newly issued incoming webhook URL. |
-
-
-<a id="chatto-api-v1-BotService-RevokeBotIncomingWebhook"></a>
-
-### RevokeBotIncomingWebhook
-
-Revokes one incoming webhook without changing other webhooks.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/RevokeBotIncomingWebhook
-```
-
-<a id="chatto-api-v1-RevokeBotIncomingWebhookRequest"></a>
-
-#### Input: RevokeBotIncomingWebhookRequest
-
-Request irreversible revocation of one incoming webhook credential.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `webhook_id` | `string` | Required webhook credential ID. |
-
-
-<a id="chatto-api-v1-RevokeBotIncomingWebhookResponse"></a>
-
-#### Result: RevokeBotIncomingWebhookResponse
-
-Result of revoking an incoming webhook.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
-
-
-<a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
-
-### ReassignBotOwner
-
-Reassigns a bot to another active human owner. Requires bot.manage. The
-current API keys and configured permission allowlist remain unchanged,
-while effective permissions immediately use the new owner's ceiling.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/ReassignBotOwner
-```
-
-<a id="chatto-api-v1-ReassignBotOwnerRequest"></a>
-
-#### Input: ReassignBotOwnerRequest
-
-Request an administrative reassignment of a bot to another human owner.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `owner_user_id` | `string` | Required user ID of the new human owner. |
-
-
-<a id="chatto-api-v1-ReassignBotOwnerResponse"></a>
-
-#### Result: ReassignBotOwnerResponse
-
-Result of reassigning a bot owner. The bot's API keys and configured
-permission allowlist are unchanged.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
 
 
 <a id="chatto-api-v1-UserService"></a>
@@ -1196,480 +304,6 @@ Batch user directory response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
-<a id="chatto-api-v1-MessageSearchService"></a>
-
-## MessageSearchService
-
-Searches current message content visible to an authenticated user.
-
-<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
-
-### GetStatus
-
-Reports whether the operator enabled Search and whether its provider can
-currently answer. This method remains available when Search is disabled.
-
-```http
-POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
-```
-
-<a id="chatto-api-v1-GetStatusRequest"></a>
-
-#### Input: GetStatusRequest
-
-Request for current message-search availability.
-
-
-<a id="chatto-api-v1-GetStatusResponse"></a>
-
-#### Result: GetStatusResponse
-
-Current message-search availability.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
-| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
-
-
-<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
-
-### SearchMessages
-
-Searches current message bodies in rooms where the caller is a member.
-Channel-room results also require message.read or a matching thread
-relationship with message.read-interactions. DM membership authorizes DM
-results. Results are authorized and hydrated from current Chatto state
-after provider matching. Returns FAILED_PRECONDITION when Search is
-disabled and UNAVAILABLE when its provider is not ready.
-
-```http
-POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
-```
-
-<a id="chatto-api-v1-SearchMessagesRequest"></a>
-
-#### Input: SearchMessagesRequest
-
-Request to search current message bodies visible to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `query` | `string` | Required query expression. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized filter may be used without a word or phrase. |
-| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
-| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
-| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
-| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
-| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
-| `order` | [`MessageSearchOrder`](#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
-| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
-| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
-
-
-<a id="chatto-api-v1-SearchMessagesResponse"></a>
-
-#### Result: SearchMessagesResponse
-
-One ordered page of current, authorized message results. Pagination reads a live
-search index rather than a pinned snapshot, so results may move, repeat, or
-disappear between page requests while the index advances.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
-| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
-
-
-<a id="chatto-api-v1-MessageService"></a>
-
-## MessageService
-
-Creates messages in room and thread timelines.
-
-<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
-
-### FetchLinkPreview
-
-Fetches and caches metadata for a composer URL. Authentication is required
-to avoid exposing the preview fetcher as an unauthenticated network proxy.
-Successful responses include a short-lived token accepted by CreateMessage.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
-```
-
-<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
-
-#### Input: FetchLinkPreviewRequest
-
-Request to fetch server-side link preview metadata for a URL.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `url` | `string` | URL to preview. |
-
-
-<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
-
-#### Result: FetchLinkPreviewResponse
-
-Result of fetching link preview metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
-| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
-
-
-<a id="chatto-api-v1-MessageService-CreateMessage"></a>
-
-### CreateMessage
-
-Creates a message for the current user. The user must be a room member and
-must have message.post for room messages or message.post-in-thread for
-thread replies. Echoing a thread reply also requires message.echo and
-message.post. The room's Threading Mode may automatically establish a root
-thread or reject a thread placement that the mode does not allow.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/CreateMessage
-```
-
-<a id="chatto-api-v1-CreateMessageRequest"></a>
-
-#### Input: CreateMessageRequest
-
-Request to create a message in a room or thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room where the message should be created. |
-| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Completed room-scoped asset IDs uploaded by the caller and not yet attached to a message. The server attaches them exclusively and atomically to this message. At most 10 IDs may be supplied. |
-| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
-| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
-| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
-| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
-| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
-
-
-<a id="chatto-api-v1-CreateMessageResponse"></a>
-
-#### Result: CreateMessageResponse
-
-Result of creating a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by the request. |
-
-
-<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
-
-### UpdateMessage
-
-Edits a message body. Authors can edit their own messages within the edit
-window. Non-authors need message.manage and cannot change channel echo
-state. Disabled rooms reject creation of a new channel echo while allowing
-an existing echo to be removed. Room membership is also required.
-Channel-room edits require message.read or a matching thread relationship
-with message.read-interactions. DM membership authorizes the DM read.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
-```
-
-<a id="chatto-api-v1-UpdateMessageRequest"></a>
-
-#### Input: UpdateMessageRequest
-
-Request to patch a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `optional string` | New message body text. Omit to preserve the current body. |
-| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
-
-
-<a id="chatto-api-v1-UpdateMessageResponse"></a>
-
-#### Result: UpdateMessageResponse
-
-Result of editing a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
-
-### DeleteMessage
-
-Retracts a message. Authors can delete their own messages. Non-authors need
-message.manage.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
-```
-
-<a id="chatto-api-v1-DeleteMessageRequest"></a>
-
-#### Input: DeleteMessageRequest
-
-Request to retract a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message to retract. |
-
-
-<a id="chatto-api-v1-DeleteMessageResponse"></a>
-
-#### Result: DeleteMessageResponse
-
-Result of retracting a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the delete/retract request was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
-
-### DeleteAttachment
-
-Removes one attachment from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
-```
-
-<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
-
-#### Input: DeleteAttachmentRequest
-
-Request to remove one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
-| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
-
-
-<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
-
-#### Result: DeleteAttachmentResponse
-
-Result of removing one attachment from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the attachment removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
-
-### DeleteLinkPreview
-
-Removes the accepted link preview from the author's own message.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
-```
-
-<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
-
-#### Input: DeleteLinkPreviewRequest
-
-Request to remove the accepted link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
-| `url` | `string` | Required. URL of the link preview to remove. |
-
-
-<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
-
-#### Result: DeleteLinkPreviewResponse
-
-Result of removing a link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the link preview removal was accepted. |
-
-
-<a id="chatto-api-v1-MessageService-GetMessage"></a>
-
-### GetMessage
-
-Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, thread metadata, and pin state. Authentication
-and room membership are required. Channel-room reads also require
-message.read or a matching thread relationship with
-message.read-interactions. DM membership authorizes DM reads. Returns
-NOT_FOUND when the event does not exist, is not a message, has been
-retracted, or belongs to a different room.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/GetMessage
-```
-
-<a id="chatto-api-v1-GetMessageRequest"></a>
-
-#### Input: GetMessageRequest
-
-Request to read one visible message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Message event ID. |
-
-
-<a id="chatto-api-v1-GetMessageResponse"></a>
-
-#### Result: GetMessageResponse
-
-Response containing one renderable message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message. |
-
-
-<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
-
-### BatchGetMessages
-
-Reads many renderable messages and their current pin state in one room.
-Authentication and room membership are required. Channel-room reads also
-require message.read or a matching thread relationship with
-message.read-interactions. DM membership authorizes DM reads. Missing,
-retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
-Results preserve first-seen request order, and repeated event IDs are
-de-duplicated.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
-```
-
-<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
-
-#### Input: BatchGetMessagesRequest
-
-Request to read many visible messages in one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the messages. |
-| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
-
-#### Result: BatchGetMessagesResponse
-
-Response containing renderable messages.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
-
-
-<a id="chatto-api-v1-MessageService-AddReaction"></a>
-
-### AddReaction
-
-Adds a reaction to a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read-interactions. DM membership
-authorizes the DM read.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/AddReaction
-```
-
-<a id="chatto-api-v1-AddReactionRequest"></a>
-
-#### Input: AddReactionRequest
-
-Request to add the current user's reaction to a message.
-
-When `message_event_id` names a channel echo of a thread reply, the server
-treats it as an alias for the original thread reply and stores the reaction
-on that original event. The server returns `RESOURCE_EXHAUSTED` when the
-current user already has 20 distinct emoji reactions on the canonical
-message; adding an emoji that already exists remains an idempotent success.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-AddReactionResponse"></a>
-
-#### Result: AddReactionResponse
-
-Result of adding a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
-| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
-
-
-<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
-
-### RemoveReaction
-
-Removes a reaction from a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read-interactions. DM membership
-authorizes the DM read.
-
-```http
-POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
-```
-
-<a id="chatto-api-v1-RemoveReactionRequest"></a>
-
-#### Input: RemoveReactionRequest
-
-Request to remove the current user's reaction from a message.
-
-When `message_event_id` names a channel echo of a thread reply, the server
-treats it as an alias for the original thread reply and removes the reaction
-from that original event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the message event. |
-| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
-| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
-
-
-<a id="chatto-api-v1-RemoveReactionResponse"></a>
-
-#### Result: RemoveReactionResponse
-
-Result of removing a reaction.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
-| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
 
 
 <a id="chatto-api-v1-RoomService"></a>
@@ -2553,6 +1187,1682 @@ Result of removing a room ban.
 | `unbanned` | `bool` | True when the unban operation completed. |
 
 
+<a id="chatto-api-v1-RoomDirectoryService"></a>
+
+## RoomDirectoryService
+
+Reads room directory data.
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
+
+### ListRooms
+
+Lists rooms visible to the current user. Channel rooms are non-archived
+rooms visible through membership or room.list. DM membership authorizes DM
+reads. Empty DMs are omitted. Results are returned as a finite navigation
+snapshot.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
+```
+
+<a id="chatto-api-v1-ListRoomsRequest"></a>
+
+#### Input: ListRoomsRequest
+
+Request for rooms visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`RoomDirectoryScope`](#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+
+
+<a id="chatto-api-v1-ListRoomsResponse"></a>
+
+#### Result: ListRoomsResponse
+
+Finite snapshot of rooms visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
+
+### ListRoomGroups
+
+Lists ordered channel room groups and sidebar items visible to the current
+user as a finite navigation snapshot. Hidden room entries are omitted.
+Archived room entries are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
+```
+
+<a id="chatto-api-v1-ListRoomGroupsRequest"></a>
+
+#### Input: ListRoomGroupsRequest
+
+Request for ordered room groups visible to the current user.
+
+
+<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
+
+#### Result: ListRoomGroupsResponse
+
+Finite snapshot of ordered room groups visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-GetRoomGroup"></a>
+
+### GetRoomGroup
+
+Returns one ordered room group by ID. Hidden room entries are omitted.
+Archived room entries are omitted.
+Returns NOT_FOUND when the room group does not exist.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoomGroup
+```
+
+<a id="chatto-api-v1-GetRoomGroupRequest"></a>
+
+#### Input: GetRoomGroupRequest
+
+Request for one ordered room group visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | Required. Room group to resolve. |
+
+
+<a id="chatto-api-v1-GetRoomGroupResponse"></a>
+
+#### Result: GetRoomGroupResponse
+
+One ordered room group visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group` | [`RoomGroup`](#chatto-api-v1-RoomGroup) | Resolved room group. Hidden and archived room entries are omitted. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-BatchGetRoomGroups"></a>
+
+### BatchGetRoomGroups
+
+Returns ordered room groups for a set of stable group IDs. Hidden room
+entries are omitted. Archived room entries are omitted. Unknown groups are
+omitted. Results preserve first-seen request order and repeated IDs are
+de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRoomGroups
+```
+
+<a id="chatto-api-v1-BatchGetRoomGroupsRequest"></a>
+
+#### Input: BatchGetRoomGroupsRequest
+
+Request visible room groups by stable group ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_ids` | `repeated string` | Required room group IDs. Unknown groups are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetRoomGroupsResponse"></a>
+
+#### Result: BatchGetRoomGroupsResponse
+
+Visible room group batch response for direct group hydration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Resolved room groups in first-seen request order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-GetRoom"></a>
+
+### GetRoom
+
+Returns one visible room by ID. DM rooms require membership. Returns
+NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
+exists but is hidden from the caller.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
+```
+
+<a id="chatto-api-v1-GetRoomRequest"></a>
+
+#### Input: GetRoomRequest
+
+Request for one room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room to resolve. |
+
+
+<a id="chatto-api-v1-GetRoomResponse"></a>
+
+#### Result: GetRoomResponse
+
+Room visible to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved room and viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-BatchGetRooms"></a>
+
+### BatchGetRooms
+
+Returns visible rooms for a set of stable room IDs. This is a direct
+hydration API, so visible archived rooms may be returned. Unknown rooms and
+rooms hidden from the caller are omitted. Results preserve first-seen
+request order and repeated IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRooms
+```
+
+<a id="chatto-api-v1-BatchGetRoomsRequest"></a>
+
+#### Input: BatchGetRoomsRequest
+
+Request visible rooms by stable room ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Required room IDs. Unknown rooms and rooms hidden from the caller are omitted from the response. Archived rooms may be returned when the caller can still refresh them directly. |
+
+
+<a id="chatto-api-v1-BatchGetRoomsResponse"></a>
+
+#### Result: BatchGetRoomsResponse
+
+Visible room batch response for direct room hydration.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |
+
+
+<a id="chatto-api-v1-ViewerService"></a>
+
+## ViewerService
+
+Provides authenticated user profile, preferences, and capability state.
+
+<a id="chatto-api-v1-ViewerService-GetViewer"></a>
+
+### GetViewer
+
+Returns the current authenticated viewer. This RPC requires a logged-in
+user; unauthenticated callers receive an UNAUTHENTICATED error.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/GetViewer
+```
+
+<a id="chatto-api-v1-GetViewerRequest"></a>
+
+#### Input: GetViewerRequest
+
+Request for the authenticated viewer snapshot.
+
+
+<a id="chatto-api-v1-GetViewerResponse"></a>
+
+#### Result: GetViewerResponse
+
+Authenticated viewer snapshot needed by application shells.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`ViewerUser`](#chatto-api-v1-ViewerUser) | Current authenticated user. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
+| `viewer_state` | [`ServerViewerState`](#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
+
+
+<a id="chatto-api-v1-MyAccountService"></a>
+
+## MyAccountService
+
+Self-service account, profile, avatar, display preference, presence,
+custom-status, external identity, and account lifecycle commands for the
+authenticated user.
+
+<a id="chatto-api-v1-MyAccountService-UpdateProfile"></a>
+
+### UpdateProfile
+
+Updates the authenticated user's login, display name, and/or bio.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
+```
+
+<a id="chatto-api-v1-UpdateProfileRequest"></a>
+
+#### Input: UpdateProfileRequest
+
+Request to update the authenticated user's profile. Human and bot accounts
+use this same self-service operation. At least one field must be present.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
+
+
+<a id="chatto-api-v1-UpdateProfileResponse"></a>
+
+#### Result: UpdateProfileResponse
+
+Result of a profile update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
+<a id="chatto-api-v1-MyAccountService-UploadAvatar"></a>
+
+### UploadAvatar
+
+Uploads and sets the authenticated user's avatar.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UploadAvatar
+```
+
+<a id="chatto-api-v1-UploadAvatarRequest"></a>
+
+#### Input: UploadAvatarRequest
+
+Request to upload and set the authenticated user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
+
+
+<a id="chatto-api-v1-UploadAvatarResponse"></a>
+
+#### Result: UploadAvatarResponse
+
+Result of uploading the authenticated user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
+<a id="chatto-api-v1-MyAccountService-DeleteAvatar"></a>
+
+### DeleteAvatar
+
+Deletes the authenticated user's avatar. The call is idempotent.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteAvatar
+```
+
+<a id="chatto-api-v1-DeleteAvatarRequest"></a>
+
+#### Input: DeleteAvatarRequest
+
+Request to delete the authenticated user's avatar.
+
+
+<a id="chatto-api-v1-DeleteAvatarResponse"></a>
+
+#### Result: DeleteAvatarResponse
+
+Result of deleting the authenticated user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
+<a id="chatto-api-v1-MyAccountService-UpdatePassword"></a>
+
+### UpdatePassword
+
+Updates or adds the authenticated user's password.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UpdatePassword
+```
+
+<a id="chatto-api-v1-UpdatePasswordRequest"></a>
+
+#### Input: UpdatePasswordRequest
+
+Request to update or add the authenticated user's password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
+| `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
+
+
+<a id="chatto-api-v1-UpdatePasswordResponse"></a>
+
+#### Result: UpdatePasswordResponse
+
+Result of updating or adding the authenticated account password.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Current authenticated user profile after the password update. |
+
+
+<a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
+
+### UpdateSettings
+
+Updates the authenticated user's display preferences.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
+```
+
+<a id="chatto-api-v1-UpdateSettingsRequest"></a>
+
+#### Input: UpdateSettingsRequest
+
+Request to update the authenticated user's display preferences. Omitted
+fields are left unchanged. An empty timezone clears the explicit timezone.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
+| `time_format` | optional [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. |
+
+
+<a id="chatto-api-v1-UpdateSettingsResponse"></a>
+
+#### Result: UpdateSettingsResponse
+
+Result of updating display preferences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Stored settings after merging the request. |
+
+
+<a id="chatto-api-v1-MyAccountService-ListExternalIdentities"></a>
+
+### ListExternalIdentities
+
+Lists configured external identity providers and identities linked to the
+authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ListExternalIdentities
+```
+
+<a id="chatto-api-v1-ListExternalIdentitiesRequest"></a>
+
+#### Input: ListExternalIdentitiesRequest
+
+Request to list configured and linked external identities for the current user.
+
+
+<a id="chatto-api-v1-ListExternalIdentitiesResponse"></a>
+
+#### Result: ListExternalIdentitiesResponse
+
+Finite snapshot of configured providers and linked external identities.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `providers` | repeated [`ExternalIdentityProvider`](#chatto-api-v1-ExternalIdentityProvider) | Configured providers the user may link. |
+| `linked_identities` | repeated [`LinkedExternalIdentity`](#chatto-api-v1-LinkedExternalIdentity) | Provider identities already linked to the authenticated user. |
+
+
+<a id="chatto-api-v1-MyAccountService-StartExternalIdentityLink"></a>
+
+### StartExternalIdentityLink
+
+Creates a short-lived browser handoff URL for linking a provider identity
+to the authenticated account. The provider callback completes through
+chatto.auth.v1.ExternalIdentityAuthService.ConfirmExternalIdentityLink.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/StartExternalIdentityLink
+```
+
+<a id="chatto-api-v1-StartExternalIdentityLinkRequest"></a>
+
+#### Input: StartExternalIdentityLinkRequest
+
+Request to start linking a configured provider to the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID to link. |
+| `redirect_path` | `string` | Internal path to return to after confirmation. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-api-v1-StartExternalIdentityLinkResponse"></a>
+
+#### Result: StartExternalIdentityLinkResponse
+
+Result of preparing an external identity link flow.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `start_url` | `string` | Browser URL that starts provider authorization on the target server origin. |
+
+
+<a id="chatto-api-v1-MyAccountService-DisconnectExternalIdentity"></a>
+
+### DisconnectExternalIdentity
+
+Disconnects a provider identity from the authenticated account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DisconnectExternalIdentity
+```
+
+<a id="chatto-api-v1-DisconnectExternalIdentityRequest"></a>
+
+#### Input: DisconnectExternalIdentityRequest
+
+Request to disconnect a linked provider identity from the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `subject_hash` | `string` | Stable one-way subject hash of the linked identity to disconnect. |
+| `current_password` | `string` | Current password proof for accounts with a password when the active runtime credential is no longer fresh. |
+
+
+<a id="chatto-api-v1-DisconnectExternalIdentityResponse"></a>
+
+#### Result: DisconnectExternalIdentityResponse
+
+Result of disconnecting a provider identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `disconnected` | `bool` | True when the identity was disconnected. |
+
+
+<a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
+
+### UpdatePresence
+
+Updates the current user's live presence status. This state is transient:
+clients should refresh it periodically while visible, and should stop
+calling this RPC when the user chooses to appear offline.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UpdatePresence
+```
+
+<a id="chatto-api-v1-UpdatePresenceRequest"></a>
+
+#### Input: UpdatePresenceRequest
+
+Request to update the current user's live presence status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Live status to store for the authenticated user. Offline is rejected. |
+| `user_selected` | `bool` | True when this update comes from a deliberate user selection rather than automatic idle/refresh updates. Automatic updates do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
+
+
+<a id="chatto-api-v1-UpdatePresenceResponse"></a>
+
+#### Result: UpdatePresenceResponse
+
+Result of updating live presence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
+
+
+<a id="chatto-api-v1-MyAccountService-UpdateCustomStatus"></a>
+
+### UpdateCustomStatus
+
+Updates or replaces the current user's custom status. Emoji and text are
+required, and expires_at must be omitted or in the future.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus
+```
+
+<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
+
+#### Input: UpdateCustomStatusRequest
+
+Request to update or replace the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | Short emoji marker displayed with the status. |
+| `text` | `string` | User-written status text. |
+| `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
+
+
+<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
+
+#### Result: UpdateCustomStatusResponse
+
+Result of updating the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Stored custom status after validation and normalization. |
+
+
+<a id="chatto-api-v1-MyAccountService-DeleteCustomStatus"></a>
+
+### DeleteCustomStatus
+
+Deletes the current user's custom status. The call is idempotent and returns
+the resulting empty status state.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteCustomStatus
+```
+
+<a id="chatto-api-v1-DeleteCustomStatusRequest"></a>
+
+#### Input: DeleteCustomStatusRequest
+
+Request to delete the current user's custom status.
+
+
+<a id="chatto-api-v1-DeleteCustomStatusResponse"></a>
+
+#### Result: DeleteCustomStatusResponse
+
+Result of deleting the current user's custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Current custom status after the operation. Usually absent after a clear. |
+
+
+<a id="chatto-api-v1-MyAccountService-RequestAccountDeletion"></a>
+
+### RequestAccountDeletion
+
+Issues a short-lived token used to confirm self-deletion. Requires
+user.delete-self.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/RequestAccountDeletion
+```
+
+<a id="chatto-api-v1-RequestAccountDeletionRequest"></a>
+
+#### Input: RequestAccountDeletionRequest
+
+Request a short-lived confirmation token for deleting the authenticated
+account.
+
+
+<a id="chatto-api-v1-RequestAccountDeletionResponse"></a>
+
+#### Result: RequestAccountDeletionResponse
+
+Result of issuing an account deletion confirmation token.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `confirmation_token` | `string` | Confirmation token. Clients must pass this to DeleteMyAccount. |
+
+
+<a id="chatto-api-v1-MyAccountService-DeleteMyAccount"></a>
+
+### DeleteMyAccount
+
+Permanently deletes the authenticated account after token validation.
+Requires user.delete-self.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/DeleteMyAccount
+```
+
+<a id="chatto-api-v1-DeleteMyAccountRequest"></a>
+
+#### Input: DeleteMyAccountRequest
+
+Request to permanently delete the authenticated account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `confirmation_token` | `string` | Confirmation token obtained from RequestAccountDeletion. |
+
+
+<a id="chatto-api-v1-DeleteMyAccountResponse"></a>
+
+#### Result: DeleteMyAccountResponse
+
+Result of deleting the authenticated account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the account was deleted. |
+
+
+<a id="chatto-api-v1-AssetUploadService"></a>
+
+## AssetUploadService
+
+Creates room-scoped attachment assets through chunked ConnectRPC uploads.
+
+<a id="chatto-api-v1-AssetUploadService-CreateUpload"></a>
+
+### CreateUpload
+
+Starts a room-scoped attachment upload for the authenticated user.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CreateUpload
+```
+
+<a id="chatto-api-v1-CreateUploadRequest"></a>
+
+#### Input: CreateUploadRequest
+
+Request to start a room-scoped attachment upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required room ID. |
+| `filename` | `string` | Original filename supplied by the client. |
+| `content_type` | `string` | MIME content type. Empty values are treated as application/octet-stream. |
+| `size` | `int64` | Required total file size in bytes. |
+| `sha256` | `string` | Required SHA-256 digest of the complete file, lowercase hexadecimal. |
+
+
+<a id="chatto-api-v1-CreateUploadResponse"></a>
+
+#### Result: CreateUploadResponse
+
+Response after creating an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Created upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-UploadChunk"></a>
+
+### UploadChunk
+
+Appends one chunk at the upload's current committed offset.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/UploadChunk
+```
+
+<a id="chatto-api-v1-UploadChunkRequest"></a>
+
+#### Input: UploadChunkRequest
+
+Request to append one chunk to an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+| `offset` | `int64` | Byte offset where this chunk starts. |
+| `content` | `bytes` | Chunk bytes. The server enforces a per-RPC size limit. |
+| `chunk_sha256` | `string` | SHA-256 digest of this chunk, lowercase hexadecimal. |
+
+
+<a id="chatto-api-v1-UploadChunkResponse"></a>
+
+#### Result: UploadChunkResponse
+
+Response after committing an upload chunk.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-GetUpload"></a>
+
+### GetUpload
+
+Reads current upload state for retry or resume.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/GetUpload
+```
+
+<a id="chatto-api-v1-GetUploadRequest"></a>
+
+#### Input: GetUploadRequest
+
+Request to fetch upload state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-GetUploadResponse"></a>
+
+#### Result: GetUploadResponse
+
+Response containing upload state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Current upload session. |
+
+
+<a id="chatto-api-v1-AssetUploadService-CompleteUpload"></a>
+
+### CompleteUpload
+
+Verifies the completed upload and creates the attachment asset.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CompleteUpload
+```
+
+<a id="chatto-api-v1-CompleteUploadRequest"></a>
+
+#### Input: CompleteUploadRequest
+
+Request to complete an upload and create its attachment asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-CompleteUploadResponse"></a>
+
+#### Result: CompleteUploadResponse
+
+Response after an upload completes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Completed upload session. |
+| `asset` | [`Asset`](#chatto-api-v1-Asset) | Attachment asset produced by this upload. |
+
+
+<a id="chatto-api-v1-AssetUploadService-CancelUpload"></a>
+
+### CancelUpload
+
+Cancels an incomplete upload and releases temporary storage.
+
+```http
+POST /api/connect/chatto.api.v1.AssetUploadService/CancelUpload
+```
+
+<a id="chatto-api-v1-CancelUploadRequest"></a>
+
+#### Input: CancelUploadRequest
+
+Request to cancel an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Required upload session ID. |
+
+
+<a id="chatto-api-v1-CancelUploadResponse"></a>
+
+#### Result: CancelUploadResponse
+
+Response after cancelling an upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
+
+
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Creates and manages bot accounts owned by human users. Bot API keys cannot
+call this service.
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots visible to the authenticated caller.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request bots visible to the caller. Owners see their own bots; callers with
+bot.manage see every bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive login or display-name search. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of visible bots.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one visible bot. Returns NOT_FOUND for an unknown bot and
+PERMISSION_DENIED for a bot managed by another user.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one bot by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Response containing one bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets several visible bots. Missing and inaccessible bots are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request several bots by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_ids` | `repeated string` | Required bot user IDs. Missing or inaccessible bots are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Response containing accessible bots in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human caller. Requires bot.create.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Bot login. Must end in `_bot`. |
+| `display_name` | `string` | Public display name. |
+| `api_key_name` | `optional string` | Optional name for the initial API key. Defaults to "Default key". |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Result of creating a bot. api_key is shown once and cannot be retrieved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
+| `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Deletes a bot and invalidates all of its API keys.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Result of deleting a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the bot was deleted. |
+
+
+<a id="chatto-api-v1-BotService-CreateBotApiKey"></a>
+
+### CreateBotApiKey
+
+Creates one named API key. A bot can have at most 20 active API keys.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBotApiKey
+```
+
+<a id="chatto-api-v1-CreateBotApiKeyRequest"></a>
+
+#### Input: CreateBotApiKeyRequest
+
+Request creation of one named API key for a bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
+
+
+<a id="chatto-api-v1-CreateBotApiKeyResponse"></a>
+
+#### Result: CreateBotApiKeyResponse
+
+Result of creating one API key. api_key is shown once and cannot be
+retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+| `api_key` | `string` | Newly issued API key. |
+| `api_key_metadata` | [`BotApiKey`](#chatto-api-v1-BotApiKey) | Safe metadata for the newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotApiKey"></a>
+
+### RevokeBotApiKey
+
+Revokes one API key without changing other active keys.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotApiKey
+```
+
+<a id="chatto-api-v1-RevokeBotApiKeyRequest"></a>
+
+#### Input: RevokeBotApiKeyRequest
+
+Request irreversible revocation of one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `key_id` | `string` | Required API-key credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotApiKeyResponse"></a>
+
+#### Result: RevokeBotApiKeyResponse
+
+Result of revoking one bot API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+
+
+<a id="chatto-api-v1-BotService-CreateBotIncomingWebhook"></a>
+
+### CreateBotIncomingWebhook
+
+Creates a named incoming webhook. A bot can have at most 20 active
+incoming webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookRequest"></a>
+
+#### Input: CreateBotIncomingWebhookRequest
+
+Request creation of one named incoming webhook for a bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `name` | `string` | Required manager-defined name. Names do not need to be unique. |
+
+
+<a id="chatto-api-v1-CreateBotIncomingWebhookResponse"></a>
+
+#### Result: CreateBotIncomingWebhookResponse
+
+Result of creating an incoming webhook. webhook_url is shown once and cannot
+be retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+| `webhook_url` | `string` | Newly issued incoming webhook URL. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotIncomingWebhook"></a>
+
+### RevokeBotIncomingWebhook
+
+Revokes one incoming webhook without changing other webhooks.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotIncomingWebhook
+```
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookRequest"></a>
+
+#### Input: RevokeBotIncomingWebhookRequest
+
+Request irreversible revocation of one incoming webhook credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `webhook_id` | `string` | Required webhook credential ID. |
+
+
+<a id="chatto-api-v1-RevokeBotIncomingWebhookResponse"></a>
+
+#### Result: RevokeBotIncomingWebhookResponse
+
+Result of revoking an incoming webhook.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+
+
+<a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
+
+### ReassignBotOwner
+
+Reassigns a bot to another active human owner. Requires bot.manage. The
+current API keys and configured permission allowlist remain unchanged,
+while effective permissions immediately use the new owner's ceiling.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ReassignBotOwner
+```
+
+<a id="chatto-api-v1-ReassignBotOwnerRequest"></a>
+
+#### Input: ReassignBotOwnerRequest
+
+Request an administrative reassignment of a bot to another human owner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `owner_user_id` | `string` | Required user ID of the new human owner. |
+
+
+<a id="chatto-api-v1-ReassignBotOwnerResponse"></a>
+
+#### Result: ReassignBotOwnerResponse
+
+Result of reassigning a bot owner. The bot's API keys and configured
+permission allowlist are unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
+
+
+<a id="chatto-api-v1-MessageSearchService"></a>
+
+## MessageSearchService
+
+Searches current message content visible to an authenticated user.
+
+<a id="chatto-api-v1-MessageSearchService-GetStatus"></a>
+
+### GetStatus
+
+Reports whether the operator enabled Search and whether its provider can
+currently answer. This method remains available when Search is disabled.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/GetStatus
+```
+
+<a id="chatto-api-v1-GetStatusRequest"></a>
+
+#### Input: GetStatusRequest
+
+Request for current message-search availability.
+
+
+<a id="chatto-api-v1-GetStatusResponse"></a>
+
+#### Result: GetStatusResponse
+
+Current message-search availability.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`MessageSearchState`](#chatto-api-v1-MessageSearchState) | Current feature/provider state. |
+| `retry_after` | `google.protobuf.Duration` | Suggested delay before checking again while search is not ready. |
+
+
+<a id="chatto-api-v1-MessageSearchService-SearchMessages"></a>
+
+### SearchMessages
+
+Searches current message bodies in rooms where the caller is a member.
+Channel-room results also require message.read or a matching thread
+relationship with message.read-interactions. DM membership authorizes DM
+results. Results are authorized and hydrated from current Chatto state
+after provider matching. Returns FAILED_PRECONDITION when Search is
+disabled and UNAVAILABLE when its provider is not ready.
+
+```http
+POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
+```
+
+<a id="chatto-api-v1-SearchMessagesRequest"></a>
+
+#### Input: SearchMessagesRequest
+
+Request to search current message bodies visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `query` | `string` | Required query expression. Words are required terms, quoted text is an exact phrase, and `AND` may separate terms. The query also accepts `in:`, `from:`, `before:`, `after:`, and `has:attachment` filters; a recognized filter may be used without a word or phrase. |
+| `room_id` | `optional string` | Optional room-ID scope. The server intersects this room with rooms the current user may read and with any `in:` filters in query. |
+| `author_id` | `optional string` | Optional author-ID scope. The server intersects this author with any `from:` filters in query. |
+| `created_after` | `google.protobuf.Timestamp` | Exclusive lower bound on message creation time. The stricter bound wins when query also contains `after:`. |
+| `created_before` | `google.protobuf.Timestamp` | Exclusive upper bound on message creation time. The stricter bound wins when query also contains `before:`. |
+| `has_attachments` | `bool` | When true, return only messages that currently have attachments. |
+| `order` | [`MessageSearchOrder`](#chatto-api-v1-MessageSearchOrder) | Result ordering. Unspecified defaults to relevance. |
+| `page_size` | `uint32` | Maximum messages to return. Zero uses the server default of 50; the maximum is 100. Stale or no-longer-visible provider hits are omitted, so a page may contain fewer messages than requested even when next_cursor is present. |
+| `cursor` | `string` | Opaque cursor returned by the preceding response. It is bound to the authenticated user and every other query field. |
+
+
+<a id="chatto-api-v1-SearchMessagesResponse"></a>
+
+#### Result: SearchMessagesResponse
+
+One ordered page of current, authorized message results. Pagination reads a live
+search index rather than a pinned snapshot, so results may move, repeat, or
+disappear between page requests while the index advances.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `results` | repeated [`MessageSearchResult`](#chatto-api-v1-MessageSearchResult) | Current renderable messages and their provider relevance scores in the requested order. Clients can batch hydrate referenced room and actor IDs through the existing APIs. |
+| `next_cursor` | `string` | Opaque cursor for the next provider page. Empty means no more matches. |
+
+
+<a id="chatto-api-v1-MessageService"></a>
+
+## MessageService
+
+Creates messages in room and thread timelines.
+
+<a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
+
+### FetchLinkPreview
+
+Fetches and caches metadata for a composer URL. Authentication is required
+to avoid exposing the preview fetcher as an unauthenticated network proxy.
+Successful responses include a short-lived token accepted by CreateMessage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/FetchLinkPreview
+```
+
+<a id="chatto-api-v1-FetchLinkPreviewRequest"></a>
+
+#### Input: FetchLinkPreviewRequest
+
+Request to fetch server-side link preview metadata for a URL.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `url` | `string` | URL to preview. |
+
+
+<a id="chatto-api-v1-FetchLinkPreviewResponse"></a>
+
+#### Result: FetchLinkPreviewResponse
+
+Result of fetching link preview metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `preview` | [`LinkPreview`](#chatto-api-v1-LinkPreview) | Preview metadata, or absent when the URL cannot be previewed. |
+| `preview_token` | `string` | Short-lived opaque token to pass to CreateMessage.link_preview_token when the user posts this preview. |
+
+
+<a id="chatto-api-v1-MessageService-CreateMessage"></a>
+
+### CreateMessage
+
+Creates a message for the current user. The user must be a room member and
+must have message.post for room messages or message.post-in-thread for
+thread replies. Echoing a thread reply also requires message.echo and
+message.post. The room's Threading Mode may automatically establish a root
+thread or reject a thread placement that the mode does not allow.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/CreateMessage
+```
+
+<a id="chatto-api-v1-CreateMessageRequest"></a>
+
+#### Input: CreateMessageRequest
+
+Request to create a message in a room or thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room where the message should be created. |
+| `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
+| `attachment_asset_ids` | `repeated string` | Completed room-scoped asset IDs uploaded by the caller and not yet attached to a message. The server attaches them exclusively and atomically to this message. At most 10 IDs may be supplied. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
+| `in_reply_to` | `string` | Event ID this message replies to for attribution. |
+| `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
+| `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
+
+
+<a id="chatto-api-v1-CreateMessageResponse"></a>
+
+#### Result: CreateMessageResponse
+
+Result of creating a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message created by the request. |
+
+
+<a id="chatto-api-v1-MessageService-UpdateMessage"></a>
+
+### UpdateMessage
+
+Edits a message body. Authors can edit their own messages within the edit
+window. Non-authors need message.manage and cannot change channel echo
+state. Disabled rooms reject creation of a new channel echo while allowing
+an existing echo to be removed. Room membership is also required.
+Channel-room edits require message.read or a matching thread relationship
+with message.read-interactions. DM membership authorizes the DM read.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
+```
+
+<a id="chatto-api-v1-UpdateMessageRequest"></a>
+
+#### Input: UpdateMessageRequest
+
+Request to patch a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to edit. |
+| `body` | `optional string` | New message body text. Omit to preserve the current body. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+
+
+<a id="chatto-api-v1-UpdateMessageResponse"></a>
+
+#### Result: UpdateMessageResponse
+
+Result of editing a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the edit. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteMessage"></a>
+
+### DeleteMessage
+
+Retracts a message. Authors can delete their own messages. Non-authors need
+message.manage.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteMessage
+```
+
+<a id="chatto-api-v1-DeleteMessageRequest"></a>
+
+#### Input: DeleteMessageRequest
+
+Request to retract a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message to retract. |
+
+
+<a id="chatto-api-v1-DeleteMessageResponse"></a>
+
+#### Result: DeleteMessageResponse
+
+Result of retracting a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the delete/retract request was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
+
+### DeleteAttachment
+
+Removes one attachment from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteAttachment
+```
+
+<a id="chatto-api-v1-DeleteAttachmentRequest"></a>
+
+#### Input: DeleteAttachmentRequest
+
+Request to remove one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment ID to remove from the message. |
+
+
+<a id="chatto-api-v1-DeleteAttachmentResponse"></a>
+
+#### Result: DeleteAttachmentResponse
+
+Result of removing one attachment from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the attachment removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
+
+### DeleteLinkPreview
+
+Removes the accepted link preview from the author's own message.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/DeleteLinkPreview
+```
+
+<a id="chatto-api-v1-DeleteLinkPreviewRequest"></a>
+
+#### Input: DeleteLinkPreviewRequest
+
+Request to remove the accepted link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Event ID of the message containing the link preview. |
+| `url` | `string` | Required. URL of the link preview to remove. |
+
+
+<a id="chatto-api-v1-DeleteLinkPreviewResponse"></a>
+
+#### Result: DeleteLinkPreviewResponse
+
+Result of removing a link preview from a message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the link preview removal was accepted. |
+
+
+<a id="chatto-api-v1-MessageService-GetMessage"></a>
+
+### GetMessage
+
+Reads one renderable message, including current body, attachment metadata,
+link preview, reactions, thread metadata, and pin state. Authentication
+and room membership are required. Channel-room reads also require
+message.read or a matching thread relationship with
+message.read-interactions. DM membership authorizes DM reads. Returns
+NOT_FOUND when the event does not exist, is not a message, has been
+retracted, or belongs to a different room.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/GetMessage
+```
+
+<a id="chatto-api-v1-GetMessageRequest"></a>
+
+#### Input: GetMessageRequest
+
+Request to read one visible message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Message event ID. |
+
+
+<a id="chatto-api-v1-GetMessageResponse"></a>
+
+#### Result: GetMessageResponse
+
+Response containing one renderable message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message. |
+
+
+<a id="chatto-api-v1-MessageService-BatchGetMessages"></a>
+
+### BatchGetMessages
+
+Reads many renderable messages and their current pin state in one room.
+Authentication and room membership are required. Channel-room reads also
+require message.read or a matching thread relationship with
+message.read-interactions. DM membership authorizes DM reads. Missing,
+retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
+Results preserve first-seen request order, and repeated event IDs are
+de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
+```
+
+<a id="chatto-api-v1-BatchGetMessagesRequest"></a>
+
+#### Input: BatchGetMessagesRequest
+
+Request to read many visible messages in one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the messages. |
+| `event_ids` | `repeated string` | Required. Message event IDs. Missing, retracted, non-message, and wrong-room event IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetMessagesResponse"></a>
+
+#### Result: BatchGetMessagesResponse
+
+Response containing renderable messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `messages` | repeated [`Message`](#chatto-api-v1-Message) | Renderable messages in first-seen request order. |
+
+
+<a id="chatto-api-v1-MessageService-AddReaction"></a>
+
+### AddReaction
+
+Adds a reaction to a message. The user must be a room member and have
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read-interactions. DM membership
+authorizes the DM read.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/AddReaction
+```
+
+<a id="chatto-api-v1-AddReactionRequest"></a>
+
+#### Input: AddReactionRequest
+
+Request to add the current user's reaction to a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and stores the reaction
+on that original event. The server returns `RESOURCE_EXHAUSTED` when the
+current user already has 20 distinct emoji reactions on the canonical
+message; adding an emoji that already exists remains an idempotent success.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message being reacted to, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-AddReactionResponse"></a>
+
+#### Result: AddReactionResponse
+
+Result of adding a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `added` | `bool` | True when the reaction was newly added, false when it already existed. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. |
+
+
+<a id="chatto-api-v1-MessageService-RemoveReaction"></a>
+
+### RemoveReaction
+
+Removes a reaction from a message. The user must be a room member and have
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read-interactions. DM membership
+authorizes the DM read.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
+```
+
+<a id="chatto-api-v1-RemoveReactionRequest"></a>
+
+#### Input: RemoveReactionRequest
+
+Request to remove the current user's reaction from a message.
+
+When `message_event_id` names a channel echo of a thread reply, the server
+treats it as an alias for the original thread reply and removes the reaction
+from that original event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message event. |
+| `message_event_id` | `string` | Required. Event ID of the message whose reaction should be removed, or a channel echo of the message. |
+| `emoji` | `string` | Required. Emoji shortcode name, such as "thumbsup" or "heart". |
+
+
+<a id="chatto-api-v1-RemoveReactionResponse"></a>
+
+#### Result: RemoveReactionResponse
+
+Result of removing a reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `removed` | `bool` | True when the reaction was removed, false when it did not exist. |
+| `reaction` | [`MessageReaction`](#chatto-api-v1-MessageReaction) | Updated aggregate reaction state for this emoji. Empty when no reactions for the emoji remain. |
+
+
 <a id="chatto-api-v1-NotificationPolicyService"></a>
 
 ## NotificationPolicyService
@@ -3093,316 +3403,6 @@ Result of sending a test Web Push notification.
 | Field | Type | Description |
 | --- | --- | --- |
 | `sent` | `bool` | True when the push provider accepted the notification. |
-
-
-<a id="chatto-api-v1-RoleService"></a>
-
-## RoleService
-
-Provides authenticated reads for public role metadata.
-
-<a id="chatto-api-v1-RoleService-ListRoles"></a>
-
-### ListRoles
-
-Lists the current role catalog as a finite snapshot. Requires an
-authenticated user.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/ListRoles
-```
-
-<a id="chatto-api-v1-ListRolesRequest"></a>
-
-#### Input: ListRolesRequest
-
-Request the current role catalog.
-
-
-<a id="chatto-api-v1-ListRolesResponse"></a>
-
-#### Result: ListRolesResponse
-
-Snapshot of the role catalog visible to the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Roles sorted by position. |
-
-
-<a id="chatto-api-v1-RoleService-GetRole"></a>
-
-### GetRole
-
-Gets one public role by stable name. Returns NOT_FOUND when the role is
-unknown.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/GetRole
-```
-
-<a id="chatto-api-v1-GetRoleRequest"></a>
-
-#### Input: GetRoleRequest
-
-Request one public role by stable role name.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Required stable role name. |
-
-
-<a id="chatto-api-v1-GetRoleResponse"></a>
-
-#### Result: GetRoleResponse
-
-Public role lookup response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `role` | [`Role`](#chatto-api-v1-Role) | Requested role. |
-
-
-<a id="chatto-api-v1-RoleService-BatchGetRoles"></a>
-
-### BatchGetRoles
-
-Gets public role records for multiple role names referenced by member rows,
-mentions, or integration clients.
-
-```http
-POST /api/connect/chatto.api.v1.RoleService/BatchGetRoles
-```
-
-<a id="chatto-api-v1-BatchGetRolesRequest"></a>
-
-#### Input: BatchGetRolesRequest
-
-Request public role records for a set of stable role names.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `names` | `repeated string` | Required role names. Unknown names are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetRolesResponse"></a>
-
-#### Result: BatchGetRolesResponse
-
-Batch public role response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `roles` | repeated [`Role`](#chatto-api-v1-Role) | Found roles. The server preserves first-seen request order and de-duplicates repeated names. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService"></a>
-
-## RoomDirectoryService
-
-Reads room directory data.
-
-<a id="chatto-api-v1-RoomDirectoryService-ListRooms"></a>
-
-### ListRooms
-
-Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM membership authorizes DM
-reads. Empty DMs are omitted. Results are returned as a finite navigation
-snapshot.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
-```
-
-<a id="chatto-api-v1-ListRoomsRequest"></a>
-
-#### Input: ListRoomsRequest
-
-Request for rooms visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `scope` | [`RoomDirectoryScope`](#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
-
-
-<a id="chatto-api-v1-ListRoomsResponse"></a>
-
-#### Result: ListRoomsResponse
-
-Finite snapshot of rooms visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
-
-### ListRoomGroups
-
-Lists ordered channel room groups and sidebar items visible to the current
-user as a finite navigation snapshot. Hidden room entries are omitted.
-Archived room entries are omitted.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRoomGroups
-```
-
-<a id="chatto-api-v1-ListRoomGroupsRequest"></a>
-
-#### Input: ListRoomGroupsRequest
-
-Request for ordered room groups visible to the current user.
-
-
-<a id="chatto-api-v1-ListRoomGroupsResponse"></a>
-
-#### Result: ListRoomGroupsResponse
-
-Finite snapshot of ordered room groups visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Channel room groups in sidebar order. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-GetRoomGroup"></a>
-
-### GetRoomGroup
-
-Returns one ordered room group by ID. Hidden room entries are omitted.
-Archived room entries are omitted.
-Returns NOT_FOUND when the room group does not exist.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoomGroup
-```
-
-<a id="chatto-api-v1-GetRoomGroupRequest"></a>
-
-#### Input: GetRoomGroupRequest
-
-Request for one ordered room group visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required. Room group to resolve. |
-
-
-<a id="chatto-api-v1-GetRoomGroupResponse"></a>
-
-#### Result: GetRoomGroupResponse
-
-One ordered room group visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group` | [`RoomGroup`](#chatto-api-v1-RoomGroup) | Resolved room group. Hidden and archived room entries are omitted. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-BatchGetRoomGroups"></a>
-
-### BatchGetRoomGroups
-
-Returns ordered room groups for a set of stable group IDs. Hidden room
-entries are omitted. Archived room entries are omitted. Unknown groups are
-omitted. Results preserve first-seen request order and repeated IDs are
-de-duplicated.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRoomGroups
-```
-
-<a id="chatto-api-v1-BatchGetRoomGroupsRequest"></a>
-
-#### Input: BatchGetRoomGroupsRequest
-
-Request visible room groups by stable group ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_ids` | `repeated string` | Required room group IDs. Unknown groups are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetRoomGroupsResponse"></a>
-
-#### Result: BatchGetRoomGroupsResponse
-
-Visible room group batch response for direct group hydration.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `groups` | repeated [`RoomGroup`](#chatto-api-v1-RoomGroup) | Resolved room groups in first-seen request order. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-GetRoom"></a>
-
-### GetRoom
-
-Returns one visible room by ID. DM rooms require membership. Returns
-NOT_FOUND when the room does not exist and PERMISSION_DENIED when the room
-exists but is hidden from the caller.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/GetRoom
-```
-
-<a id="chatto-api-v1-GetRoomRequest"></a>
-
-#### Input: GetRoomRequest
-
-Request for one room visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room to resolve. |
-
-
-<a id="chatto-api-v1-GetRoomResponse"></a>
-
-#### Result: GetRoomResponse
-
-Room visible to the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved room and viewer state. |
-
-
-<a id="chatto-api-v1-RoomDirectoryService-BatchGetRooms"></a>
-
-### BatchGetRooms
-
-Returns visible rooms for a set of stable room IDs. This is a direct
-hydration API, so visible archived rooms may be returned. Unknown rooms and
-rooms hidden from the caller are omitted. Results preserve first-seen
-request order and repeated IDs are de-duplicated.
-
-```http
-POST /api/connect/chatto.api.v1.RoomDirectoryService/BatchGetRooms
-```
-
-<a id="chatto-api-v1-BatchGetRoomsRequest"></a>
-
-#### Input: BatchGetRoomsRequest
-
-Request visible rooms by stable room ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_ids` | `repeated string` | Required room IDs. Unknown rooms and rooms hidden from the caller are omitted from the response. Archived rooms may be returned when the caller can still refresh them directly. |
-
-
-<a id="chatto-api-v1-BatchGetRoomsResponse"></a>
-
-#### Result: BatchGetRoomsResponse
-
-Visible room batch response for direct room hydration.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |
 
 
 <a id="chatto-api-v1-ServerService"></a>
@@ -4012,78 +4012,47 @@ Response from recording a leave intent.
 
 ## Supporting Types
 
-<a id="chatto-api-v1-ImageTransformOptions"></a>
+<a id="chatto-api-v1-PageInfo"></a>
 
-### ImageTransformOptions
+### PageInfo
 
-Image transform parameters for generated image URLs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `width` | `int32` | Target image width in pixels. |
-| `height` | `int32` | Target image height in pixels. |
-| `fit` | [`ImageFitMode`](#chatto-api-v1-ImageFitMode) | Image crop/fit behavior. |
-
-
-
-<a id="chatto-api-v1-ImageUpload"></a>
-
-### ImageUpload
-
-Browser-supplied image upload payload.
+Offset-based page metadata returned by list RPCs.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `image` | `bytes` | Raw image bytes. |
-| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
-| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
+| `total_count` | `int64` | Total matching item count before pagination. |
+| `has_more` | `bool` | True when another page exists after this response. |
 
 
 
-<a id="chatto-api-v1-ProviderMetadata"></a>
+<a id="chatto-api-v1-PageRequest"></a>
 
-### ProviderMetadata
+### PageRequest
 
-Public login/provider metadata shared by discovery and account-linking APIs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable configured provider ID. |
-| `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
-| `label` | `string` | Human-readable provider label. |
-| `login_url` | `string` | URL that starts login for this provider. |
-| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
-| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
-
-
-
-<a id="chatto-api-v1-ExternalIdentityProvider"></a>
-
-### ExternalIdentityProvider
-
-Public metadata for a configured external login provider.
+Offset-based page request for list RPCs whose result order is stable enough
+for simple list browsing.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
-| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
-| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
-| `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
+| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
+| `offset` | `int32` | Zero-based number of matching items to skip. |
 
 
 
-<a id="chatto-api-v1-LinkedExternalIdentity"></a>
+<a id="chatto-api-v1-Role"></a>
 
-### LinkedExternalIdentity
+### Role
 
-Linked provider identity metadata for the authenticated user's settings UI.
+Public role metadata used for rendering role mentions, labels, and catalogs.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
-| `provider_type` | `string` | Provider type recorded when the identity was linked. |
-| `provider_label` | `string` | Current or fallback provider label. |
-| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+| `name` | `string` | Stable role name used in permission and assignment records. |
+| `display_name` | `string` | Display name shown in user-facing role UIs. |
+| `description` | `string` | Optional role description. |
+| `is_system` | `bool` | Whether this is a built-in role. |
+| `position` | `int32` | Display/order position. |
+| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
 
 
 
@@ -4163,71 +4132,48 @@ Effective decision for one permission key.
 
 
 
-<a id="chatto-api-v1-ServerViewerPermissions"></a>
+<a id="chatto-api-v1-ImageTransformOptions"></a>
 
-### ServerViewerPermissions
+### ImageTransformOptions
 
-Effective server/channel permission decisions for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
-
-
-
-<a id="chatto-api-v1-ServerViewerState"></a>
-
-### ServerViewerState
-
-Non-permission server state for the authenticated user.
+Image transform parameters for generated image URLs.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
+| `width` | `int32` | Target image width in pixels. |
+| `height` | `int32` | Target image height in pixels. |
+| `fit` | [`ImageFitMode`](#chatto-api-v1-ImageFitMode) | Image crop/fit behavior. |
 
 
 
-<a id="chatto-api-v1-UserSettings"></a>
+<a id="chatto-api-v1-ImageUpload"></a>
 
-### UserSettings
+### ImageUpload
 
-Server-level display settings for the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
-| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
-| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
-
-
-
-<a id="chatto-api-v1-ViewerCapabilities"></a>
-
-### ViewerCapabilities
-
-Permission-derived capabilities for the authenticated user.
+Browser-supplied image upload payload.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
-| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+| `image` | `bytes` | Raw image bytes. |
+| `filename` | `string` | Original browser filename, for diagnostics and future compatibility. |
+| `content_type` | `string` | Browser-provided content type, for diagnostics and future compatibility. |
 
 
 
-<a id="chatto-api-v1-ViewerUser"></a>
+<a id="chatto-api-v1-ProviderMetadata"></a>
 
-### ViewerUser
+### ProviderMetadata
 
-Current authenticated user's public profile plus self-only settings.
+Public login/provider metadata shared by discovery and account-linking APIs.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
-| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
-| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
-| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
-| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+| `id` | `string` | Stable configured provider ID. |
+| `type` | `string` | Provider type, such as "password", "oidc", "github", or "discord". |
+| `label` | `string` | Human-readable provider label. |
+| `login_url` | `string` | URL that starts login for this provider. |
+| `issuer_url` | `optional string` | OIDC issuer URL. Absent for providers that do not use OpenID Connect. Clients can compare this value with their own trusted issuer selection; the server does not select the client's identity provider. |
+| `auto_provision` | `optional bool` | Whether an unlinked identity may create a new account through this provider. |
 
 
 
@@ -4528,105 +4474,6 @@ One current room attachment and its message anchor.
 
 
 
-<a id="chatto-api-v1-AssetUpload"></a>
-
-### AssetUpload
-
-Current server-side state for one room-scoped attachment upload.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `upload_id` | `string` | Upload session ID. |
-| `room_id` | `string` | Room the resulting attachment asset will belong to. |
-| `status` | [`AssetUploadStatus`](#chatto-api-v1-AssetUploadStatus) | Current upload status. |
-| `committed_offset` | `int64` | Number of bytes committed so far. |
-| `size` | `int64` | Total declared file size in bytes. |
-| `max_chunk_size` | `int32` | Maximum accepted chunk size in bytes. |
-| `sha256` | `string` | SHA-256 digest of the complete file, lowercase hexadecimal. |
-| `expires_at` | `google.protobuf.Timestamp` | Upload expiry. Clients should create a new upload after this time. |
-| `asset_id` | `string` | Asset ID after completion. |
-
-
-
-<a id="chatto-api-v1-PageInfo"></a>
-
-### PageInfo
-
-Offset-based page metadata returned by list RPCs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `total_count` | `int64` | Total matching item count before pagination. |
-| `has_more` | `bool` | True when another page exists after this response. |
-
-
-
-<a id="chatto-api-v1-PageRequest"></a>
-
-### PageRequest
-
-Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
-| `offset` | `int32` | Zero-based number of matching items to skip. |
-
-
-
-<a id="chatto-api-v1-Bot"></a>
-
-### Bot
-
-A managed bot account. Raw API keys are returned only when Chatto issues
-them.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
-| `owner_user_id` | `string` | Stable human owner user ID. |
-| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
-| `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
-| `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
-| `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
-
-
-
-<a id="chatto-api-v1-BotApiKey"></a>
-
-### BotApiKey
-
-Safe metadata for one active bot API key. The raw key is returned only when
-Chatto creates it.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable API-key credential ID. |
-| `name` | `string` | Manager-defined name. |
-| `created_at` | `google.protobuf.Timestamp` | Time the API key was created. |
-| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
-| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
-
-
-
-<a id="chatto-api-v1-BotIncomingWebhook"></a>
-
-### BotIncomingWebhook
-
-Safe metadata for one active bot incoming webhook. The webhook URL is
-returned only when the credential is created.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable webhook credential ID. |
-| `name` | `string` | Manager-defined name for the credential. |
-| `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
-| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
-| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
-
-
-
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -4639,19 +4486,6 @@ surfaces.
 | `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
-
-
-
-<a id="chatto-api-v1-MessageSearchResult"></a>
-
-### MessageSearchResult
-
-One current, authorized message search result.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
-| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 
 
@@ -4838,6 +4672,306 @@ Lightweight room reference for cross-resource rows.
 | `id` | `string` | Stable room ID. |
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
+
+
+
+<a id="chatto-api-v1-RoomGroup"></a>
+
+### RoomGroup
+
+Ordered group of channel rooms and sidebar links.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable room group ID. |
+| `name` | `string` | Display name. |
+| `description` | `string` | Public group description, when set. |
+| `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
+| `viewer_state` | [`RoomGroupViewerState`](#chatto-api-v1-RoomGroupViewerState) | State and permissions resolved for the current user. |
+
+
+
+<a id="chatto-api-v1-RoomGroupItem"></a>
+
+### RoomGroupItem
+
+One ordered item in a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `item.room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Visible room entry. |
+| `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
+
+
+
+<a id="chatto-api-v1-RoomGroupViewerState"></a>
+
+### RoomGroupViewerState
+
+Viewer-specific state for one room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective group-scoped permission decisions after group state constraints. |
+
+
+
+<a id="chatto-api-v1-RoomViewerState"></a>
+
+### RoomViewerState
+
+Viewer-specific state and permission decisions for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `is_member` | `bool` | True when the current user is an effective room member. |
+| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
+| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+
+
+
+<a id="chatto-api-v1-RoomWithViewerState"></a>
+
+### RoomWithViewerState
+
+Room metadata plus state and capabilities resolved for the authenticated
+viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
+| `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
+
+
+
+<a id="chatto-api-v1-SidebarLink"></a>
+
+### SidebarLink
+
+Sidebar link metadata for room group navigation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable sidebar link ID. |
+| `label` | `string` | Display label. |
+| `url` | `string` | Absolute http(s) URL or server-local path. |
+
+
+
+<a id="chatto-api-v1-ServerLogin"></a>
+
+### ServerLogin
+
+Login and registration options exposed before authentication.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
+| `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
+| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
+| `account_creation_policy` | [`AccountCreationPolicy`](#chatto-api-v1-AccountCreationPolicy) | Admission policy for direct registration and provider auto-provisioning. |
+| `direct_login_enabled` | `optional bool` | Whether users can sign in directly with a username or email address and password. Absent on older servers, where clients should treat direct login as enabled. |
+
+
+
+<a id="chatto-api-v1-ServerPublicProfile"></a>
+
+### ServerPublicProfile
+
+Public server profile, identity, and branding fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Display name of the Chatto server. |
+| `version` | `string` | Server software version. |
+| `logo_url` | `optional string` | Optional server logo URL. |
+| `banner_url` | `optional string` | Optional server banner URL. |
+| `welcome_message` | `optional string` | Optional welcome message. |
+| `description` | `optional string` | Optional server description. |
+
+
+
+<a id="chatto-api-v1-ExternalIdentityProvider"></a>
+
+### ExternalIdentityProvider
+
+Public metadata for a configured external login provider.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `link_url` | `string` | URL that starts authenticated account linking for this provider. Clients should use StartExternalIdentityLink instead of navigating here directly. |
+| `linked` | `bool` | True when this provider is already linked to the authenticated user. |
+| `linked_identity_subject_hash` | `string` | Linked identity subject hash for this provider, when linked. |
+| `provider` | [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Shared provider metadata. |
+
+
+
+<a id="chatto-api-v1-LinkedExternalIdentity"></a>
+
+### LinkedExternalIdentity
+
+Linked provider identity metadata for the authenticated user's settings UI.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `provider_id` | `string` | Provider ID recorded when the identity was linked. |
+| `provider_type` | `string` | Provider type recorded when the identity was linked. |
+| `provider_label` | `string` | Current or fallback provider label. |
+| `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
+
+
+
+<a id="chatto-api-v1-ServerViewerPermissions"></a>
+
+### ServerViewerPermissions
+
+Effective server/channel permission decisions for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | One row per permission known to the server. |
+
+
+
+<a id="chatto-api-v1-ServerViewerState"></a>
+
+### ServerViewerState
+
+Non-permission server state for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
+
+
+
+<a id="chatto-api-v1-UserSettings"></a>
+
+### UserSettings
+
+Server-level display settings for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `optional string` | Optional IANA timezone override. Absent means the client should use the browser's local timezone. |
+| `time_format` | [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. New servers always set this field. Its absence means the server does not support private time zones and may publish any stored time zone. |
+
+
+
+<a id="chatto-api-v1-ViewerCapabilities"></a>
+
+### ViewerCapabilities
+
+Permission-derived capabilities for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `grants` | repeated [`CapabilityGrant`](#chatto-api-v1-CapabilityGrant) | Keyed capability decisions for the authenticated user. |
+| `has_unread_followed_threads` | `bool` | Whether the user has unread followed threads. |
+
+
+
+<a id="chatto-api-v1-ViewerUser"></a>
+
+### ViewerUser
+
+Current authenticated user's public profile plus self-only settings.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
+| `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
+| `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
+| `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
+| `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+
+
+
+<a id="chatto-api-v1-AssetUpload"></a>
+
+### AssetUpload
+
+Current server-side state for one room-scoped attachment upload.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `upload_id` | `string` | Upload session ID. |
+| `room_id` | `string` | Room the resulting attachment asset will belong to. |
+| `status` | [`AssetUploadStatus`](#chatto-api-v1-AssetUploadStatus) | Current upload status. |
+| `committed_offset` | `int64` | Number of bytes committed so far. |
+| `size` | `int64` | Total declared file size in bytes. |
+| `max_chunk_size` | `int32` | Maximum accepted chunk size in bytes. |
+| `sha256` | `string` | SHA-256 digest of the complete file, lowercase hexadecimal. |
+| `expires_at` | `google.protobuf.Timestamp` | Upload expiry. Clients should create a new upload after this time. |
+| `asset_id` | `string` | Asset ID after completion. |
+
+
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A managed bot account. Raw API keys are returned only when Chatto issues
+them.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
+| `owner_user_id` | `string` | Stable human owner user ID. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Legacy time for the initial API key. Use api_keys for active credentials. |
+| `incoming_webhooks` | repeated [`BotIncomingWebhook`](#chatto-api-v1-BotIncomingWebhook) | Active incoming webhook credentials, ordered by creation time. |
+| `api_keys` | repeated [`BotApiKey`](#chatto-api-v1-BotApiKey) | Active API keys, ordered by creation time. |
+
+
+
+<a id="chatto-api-v1-BotApiKey"></a>
+
+### BotApiKey
+
+Safe metadata for one active bot API key. The raw key is returned only when
+Chatto creates it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable API-key credential ID. |
+| `name` | `string` | Manager-defined name. |
+| `created_at` | `google.protobuf.Timestamp` | Time the API key was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
+
+
+
+<a id="chatto-api-v1-BotIncomingWebhook"></a>
+
+### BotIncomingWebhook
+
+Safe metadata for one active bot incoming webhook. The webhook URL is
+returned only when the credential is created.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable webhook credential ID. |
+| `name` | `string` | Manager-defined name for the credential. |
+| `created_at` | `google.protobuf.Timestamp` | Time the incoming webhook credential was created. |
+| `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
+| `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
+
+
+
+<a id="chatto-api-v1-MessageSearchResult"></a>
+
+### MessageSearchResult
+
+One current, authorized message search result.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
+| `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
 
 
 
@@ -5096,140 +5230,6 @@ One policy together with the explicit scope that produced it.
 
 
 
-<a id="chatto-api-v1-Role"></a>
-
-### Role
-
-Public role metadata used for rendering role mentions, labels, and catalogs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Stable role name used in permission and assignment records. |
-| `display_name` | `string` | Display name shown in user-facing role UIs. |
-| `description` | `string` | Optional role description. |
-| `is_system` | `bool` | Whether this is a built-in role. |
-| `position` | `int32` | Display/order position. |
-| `pingable` | `bool` | Whether messages may notify users assigned to this role. |
-
-
-
-<a id="chatto-api-v1-RoomGroup"></a>
-
-### RoomGroup
-
-Ordered group of channel rooms and sidebar links.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable room group ID. |
-| `name` | `string` | Display name. |
-| `description` | `string` | Public group description, when set. |
-| `items` | repeated [`RoomGroupItem`](#chatto-api-v1-RoomGroupItem) | Mixed room/sidebar-link entries in sidebar order. |
-| `viewer_state` | [`RoomGroupViewerState`](#chatto-api-v1-RoomGroupViewerState) | State and permissions resolved for the current user. |
-
-
-
-<a id="chatto-api-v1-RoomGroupItem"></a>
-
-### RoomGroupItem
-
-One ordered item in a room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `item.room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Visible room entry. |
-| `item.sidebar_link` | [`SidebarLink`](#chatto-api-v1-SidebarLink) | Sidebar link entry. |
-
-
-
-<a id="chatto-api-v1-RoomGroupViewerState"></a>
-
-### RoomGroupViewerState
-
-Viewer-specific state for one room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective group-scoped permission decisions after group state constraints. |
-
-
-
-<a id="chatto-api-v1-RoomViewerState"></a>
-
-### RoomViewerState
-
-Viewer-specific state and permission decisions for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `is_member` | `bool` | True when the current user is an effective room member. |
-| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
-| `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
-| `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
-
-
-
-<a id="chatto-api-v1-RoomWithViewerState"></a>
-
-### RoomWithViewerState
-
-Room metadata plus state and capabilities resolved for the authenticated
-viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
-| `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
-
-
-
-<a id="chatto-api-v1-SidebarLink"></a>
-
-### SidebarLink
-
-Sidebar link metadata for room group navigation.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable sidebar link ID. |
-| `label` | `string` | Display label. |
-| `url` | `string` | Absolute http(s) URL or server-local path. |
-
-
-
-<a id="chatto-api-v1-ServerLogin"></a>
-
-### ServerLogin
-
-Login and registration options exposed before authentication.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `direct_registration_enabled` | `bool` | Whether users can create accounts through the public UI. |
-| `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
-| `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
-| `account_creation_policy` | [`AccountCreationPolicy`](#chatto-api-v1-AccountCreationPolicy) | Admission policy for direct registration and provider auto-provisioning. |
-| `direct_login_enabled` | `optional bool` | Whether users can sign in directly with a username or email address and password. Absent on older servers, where clients should treat direct login as enabled. |
-
-
-
-<a id="chatto-api-v1-ServerPublicProfile"></a>
-
-### ServerPublicProfile
-
-Public server profile, identity, and branding fields.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `name` | `string` | Display name of the Chatto server. |
-| `version` | `string` | Server software version. |
-| `logo_url` | `optional string` | Optional server logo URL. |
-| `banner_url` | `optional string` | Optional server banner URL. |
-| `welcome_message` | `optional string` | Optional welcome message. |
-| `description` | `optional string` | Optional server description. |
-
-
-
 <a id="chatto-api-v1-ServerRuntimeConfig"></a>
 
 ### ServerRuntimeConfig
@@ -5308,6 +5308,25 @@ User currently participating in a room call.
 
 ## Enums
 
+<a id="chatto-api-v1-PresenceStatus"></a>
+
+### PresenceStatus
+
+Live presence status returned by public read APIs.
+
+Offline is a read-side state only. Clients cannot update their presence to
+Offline through the account presence RPC; they should stop refreshing and let
+the server's live presence record expire.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
+| `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
+| `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
+| `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
+| `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+
+
 <a id="chatto-api-v1-ImageFitMode"></a>
 
 ### ImageFitMode
@@ -5337,23 +5356,58 @@ Direct-message rooms do not support threads and use UNSPECIFIED.
 | `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
 
 
-<a id="chatto-api-v1-PresenceStatus"></a>
+<a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
 
-### PresenceStatus
+### MessageVideoProcessingStatus
 
-Live presence status returned by public read APIs.
-
-Offline is a read-side state only. Clients cannot update their presence to
-Offline through the account presence RPC; they should stop refreshing and let
-the server's live presence record expire.
+Processing state for a video attachment.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `PRESENCE_STATUS_UNSPECIFIED` | `0` | No presence status was specified. |
-| `PRESENCE_STATUS_ONLINE` | `1` | The user is actively available. |
-| `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
-| `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
-| `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED` | `0` | The processing status was not specified. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
+| `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
+
+
+<a id="chatto-api-v1-RoomKind"></a>
+
+### RoomKind
+
+Kind of room represented by the public API.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
+| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
+| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-RoomDirectoryScope"></a>
+
+### RoomDirectoryScope
+
+Room kinds to include in directory responses.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and readable active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and readable active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's readable active DM rooms only. |
+
+
+<a id="chatto-api-v1-AccountCreationPolicy"></a>
+
+### AccountCreationPolicy
+
+Policy controlling whether self-service account creation requires an invitation.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
+| `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
+| `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
 
 
 <a id="chatto-api-v1-TimeFormat"></a>
@@ -5368,20 +5422,6 @@ User preference for rendering times in clients.
 | `TIME_FORMAT_AUTO` | `1` | Let the client choose based on locale and browser settings. |
 | `TIME_FORMAT_12_HOUR` | `2` | Render times using a 12-hour clock. |
 | `TIME_FORMAT_24_HOUR` | `3` | Render times using a 24-hour clock. |
-
-
-<a id="chatto-api-v1-MessageVideoProcessingStatus"></a>
-
-### MessageVideoProcessingStatus
-
-Processing state for a video attachment.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `MESSAGE_VIDEO_PROCESSING_STATUS_UNSPECIFIED` | `0` | The processing status was not specified. |
-| `MESSAGE_VIDEO_PROCESSING_STATUS_PROCESSING` | `1` | Video processing is still running. |
-| `MESSAGE_VIDEO_PROCESSING_STATUS_COMPLETED` | `2` | Video processing completed successfully. |
-| `MESSAGE_VIDEO_PROCESSING_STATUS_FAILED` | `3` | Video processing failed. |
 
 
 <a id="chatto-api-v1-AssetUploadStatus"></a>
@@ -5442,19 +5482,6 @@ Current availability of message search on this server.
 | `MESSAGE_SEARCH_STATE_UNAVAILABLE` | `6` | Search is enabled but no provider can currently answer. |
 
 
-<a id="chatto-api-v1-RoomKind"></a>
-
-### RoomKind
-
-Kind of room represented by the public API.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
-| `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
-| `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
-
-
 <a id="chatto-api-v1-NotificationAttentionLevel"></a>
 
 ### NotificationAttentionLevel
@@ -5484,33 +5511,6 @@ Delivery behavior for one notification signal class.
 | `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION. |
 | `NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION` | `3` | Matching activity creates an in-app notification and may send push. |
 | `NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE` | `4` | Matching activity adds a neutral unread indicator without creating a notification occurrence, playing a sound, or sending push. |
-
-
-<a id="chatto-api-v1-RoomDirectoryScope"></a>
-
-### RoomDirectoryScope
-
-Room kinds to include in directory responses.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and readable active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and readable active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
-| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's readable active DM rooms only. |
-
-
-<a id="chatto-api-v1-AccountCreationPolicy"></a>
-
-### AccountCreationPolicy
-
-Policy controlling whether self-service account creation requires an invitation.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
-| `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
-| `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
 
 
 <a id="chatto-api-v1-CallMediaPublisherKind"></a>

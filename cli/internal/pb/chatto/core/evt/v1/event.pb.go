@@ -1762,8 +1762,8 @@ type Event_AssetAttached struct {
 type Event_ServerNameChanged struct {
 	// ----- Config / preferences (500-599, durable) -----
 	// These variants live on the EVT stream (subjects under evt.config.>)
-	// per ADRs 033/034/035. Member-visible server profile/config live
-	// invalidation uses LiveEvent.ServerUpdatedEvent instead.
+	// per ADRs 033/034/035. Member-visible server profile/config invalidation
+	// uses the transient server_updated_sync variant instead.
 	ServerNameChanged *ServerNameChangedEvent `protobuf:"bytes,501,opt,name=server_name_changed,json=serverNameChanged,proto3,oneof"`
 }
 
@@ -2574,7 +2574,7 @@ var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a\"chatto/core/event/v1/options.proto\x1a%chatto/core/live/v1/live_events.proto\"\xa6\x80\x01\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a\"chatto/core/event/v1/options.proto\x1a%chatto/core/live/v1/live_events.proto\"\x86\x81\x01\n" +
 	"\x05Event\x12\x14\n" +
 	"\x02id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x02id\x12?\n" +
 	"\n" +
@@ -2729,7 +2729,7 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x18mentionStatusClearedSync\x12h\n" +
 	"\x18room_groups_updated_sync\x18\xae\x9c\x01 \x01(\v2+.chatto.core.live.v1.RoomGroupsUpdatedEventH\x00R\x15roomGroupsUpdatedSync\x12k\n" +
 	"\x19session_terminated_signal\x18\xaf\x9c\x01 \x01(\v2+.chatto.core.live.v1.SessionTerminatedEventH\x00R\x17sessionTerminatedSignalB\a\n" +
-	"\x05eventJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idB\xc5\x01\n" +
+	"\x05eventJ\x04\b\x14\x10\x15J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x19\x10\x1aJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b(\x10)J\x04\b-\x10.J\x04\b<\x10=J\x04\b=\x10>J\x04\bH\x10IJ\x04\bI\x10JJ\x04\bP\x10QJ\x04\bQ\x10RJ\x04\bZ\x10[J\x04\bd\x10eJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idB\xc5\x01\n" +
 	"\x16com.chatto.core.evt.v1B\n" +
 	"EventProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 

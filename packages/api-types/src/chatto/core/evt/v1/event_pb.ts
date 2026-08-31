@@ -293,8 +293,8 @@ export class Event extends Message<Event> {
     /**
      * ----- Config / preferences (500-599, durable) -----
      * These variants live on the EVT stream (subjects under evt.config.>)
-     * per ADRs 033/034/035. Member-visible server profile/config live
-     * invalidation uses LiveEvent.ServerUpdatedEvent instead.
+     * per ADRs 033/034/035. Member-visible server profile/config invalidation
+     * uses the transient server_updated_sync variant instead.
      *
      * @generated from field: chatto.core.evt.v1.ServerNameChangedEvent server_name_changed = 501;
      */

@@ -47,9 +47,14 @@ retired legacy live variants, except the durable reaction tags 1050 and 1051.
 High protobuf field numbers have a small key-size cost but no relevant runtime
 or compatibility cost here.
 
-`chatto.core.live.v1.LiveEvent` remains only as a rolling-upgrade read format.
-Current code does not publish it. The process-wide ingress can decode it and
-convert it to the canonical Event until the rolling compatibility window ends.
+`chatto.core.live.v1.LiveEvent` remains only as a rolling-upgrade wire format.
+Callers construct and publish the canonical Event. During mixed-version
+replacement, the NATS serializer appends the matching legacy oneof field to
+the same protobuf message. The canonical high tag is unknown to an old reader,
+and the legacy tag is unknown to a new reader. Both readers get the shared
+metadata and their known payload. The process-wide ingress also converts
+messages written by an old replica to the canonical Event. Remove this bridge
+after the rolling compatibility window ends.
 
 ### Public delivery uses an authorized Event copy
 
@@ -70,7 +75,7 @@ classifies fields as:
 - `SHARED`: allowed in storage and authorized delivery;
 - `STORAGE_ONLY`: allowed in storage and removed from delivery;
 - `CLIENT_ONLY`: rejected by storage and allowed in authorized delivery; or
-- `UNSPECIFIED`: denied at an event-payload boundary.
+- `UNSPECIFIED`: allowed in EVT, but denied at a public event-payload root.
 
 A classified shared message field includes its ordinary nested value fields.
 An explicit nested classification still overrides that inherited surface. This
@@ -111,6 +116,10 @@ them.
 The public realtime change is intentionally breaking. Protocol negotiation
 makes old and new clients fail at the handshake instead of interpreting the
 wrong event shape.
+
+The transient NATS wire supports mixed old and new replicas during rolling
+replacement. An old replica reads the temporary legacy oneof tag. A new
+replica reads the canonical high tag or converts an old-only message.
 
 ## Consequences
 

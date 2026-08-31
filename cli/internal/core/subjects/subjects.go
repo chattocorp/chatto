@@ -155,7 +155,7 @@ func AllRoomEventsFiltersAnyKind() []string {
 //	server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}      (thread)
 //	server.room.{kind}.{roomId}.meta                                     (meta)
 //
-// Transient LiveEvent messages use `live.sync.>`. Parsers normalize that
+// Transient canonical Event messages use `live.sync.>`. Parsers normalize that
 // live root so durable and transient room subjects share one set of length
 // checks.
 
@@ -266,33 +266,33 @@ func splitSubject(subject string) []string {
 // ===== LIVE SUBJECTS =====
 //
 // Live subjects are used for transient events that bypass JetStream storage.
-// `live.sync.>` carries LiveEvent envelopes.
+// `live.sync.>` carries canonical Event envelopes.
 
-// LiveSyncAllEvents returns the wildcard subject for new transient LiveEvent
+// LiveSyncAllEvents returns the wildcard subject for new transient Event
 // messages. Pattern: `live.sync.>`.
 func LiveSyncAllEvents() string {
 	return "live.sync.>"
 }
 
-// LiveSyncUserEvent returns the LiveEvent subject for a specific user's event.
+// LiveSyncUserEvent returns the transient Event subject for a specific user.
 // Pattern: `live.sync.user.{userId}.{eventType}`.
 func LiveSyncUserEvent(userID, eventType string) string {
 	return fmt.Sprintf("live.sync.user.%s.%s", userID, eventType)
 }
 
-// LiveSyncRoomEvent returns the LiveEvent subject for a room event.
+// LiveSyncRoomEvent returns the transient Event subject for a room event.
 // Pattern: `live.sync.room.{kind}.{roomId}.{eventType}`.
 func LiveSyncRoomEvent(kind, roomID, eventType string) string {
 	return fmt.Sprintf("live.sync.room.%s.%s.%s", kind, roomID, eventType)
 }
 
-// LiveSyncConfigEvent returns the LiveEvent subject for a deployment-wide
+// LiveSyncConfigEvent returns the transient Event subject for a deployment-wide
 // config event. Pattern: `live.sync.config.{eventType}`.
 func LiveSyncConfigEvent(eventType string) string {
 	return fmt.Sprintf("live.sync.config.%s", eventType)
 }
 
-// LiveSyncMember returns the LiveEvent subject for a server-level membership
+// LiveSyncMember returns the transient Event subject for server-level membership
 // event. `member_` prefix is stripped from `eventType` (mirrors Member).
 // Pattern: `live.sync.member.{verb}`.
 func LiveSyncMember(eventType string) string {

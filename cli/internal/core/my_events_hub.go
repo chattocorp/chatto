@@ -510,7 +510,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 		// One shredded author can invalidate plaintext in many room windows.
-		// Reconnect all clients so protocol 3 snapshots current tombstones.
+		// Reconnect all clients so protocol 4 snapshots current tombstones.
 		return true
 	}
 	h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
