@@ -2011,3 +2011,17 @@ Sidebar item kind used in reorder requests.
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED` | `0` | The item kind was not specified. |
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
 | `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |
+
+<a id="chatto-core-event-v1-EventFieldSurface"></a>
+
+### EventFieldSurface
+
+EventFieldSurface controls whether an Event payload field can exist in
+stored EVT bytes, an authorized public event, or both.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EVENT_FIELD_SURFACE_UNSPECIFIED` | `0` | The field is not classified and cannot cross a storage or public boundary. |
+| `EVENT_FIELD_SURFACE_SHARED` | `1` | The field can exist in EVT and in an authorized public event. |
+| `EVENT_FIELD_SURFACE_STORAGE_ONLY` | `2` | The field can exist only in EVT. Public projection removes it. |
+| `EVENT_FIELD_SURFACE_CLIENT_ONLY` | `3` | The field can exist only in an authorized public event. EVT rejects it. |

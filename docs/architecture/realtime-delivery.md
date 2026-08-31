@@ -3,6 +3,8 @@
 Key files:
 
 - [`proto/chatto/realtime/v1/realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
+- [`proto/chatto/core/evt/v1/event.proto`](../../proto/chatto/core/evt/v1/event.proto)
+- [`proto/chatto/core/event/v1/options.proto`](../../proto/chatto/core/event/v1/options.proto)
 - [`proto/chatto/core/live/v1/live_events.proto`](../../proto/chatto/core/live/v1/live_events.proto)
 - [`cli/internal/core/my_events_hub.go`](../../cli/internal/core/my_events_hub.go)
 - [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go)
@@ -14,15 +16,16 @@ Key files:
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
-and [ADR-087](../adr/ADR-087-semantic-realtime-events-with-bounded-resume.md).
+[ADR-087](../adr/ADR-087-semantic-realtime-events-with-bounded-resume.md),
+and [ADR-088](../adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 ## Public protocol
 
 The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
-server accepts behavioral protocol version 3. The `chatto.realtime.v1` suffix
+server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.
 
-The first client frame is `hello`. It contains protocol version 3 and can
+The first client frame is `hello`. It contains protocol version 4 and can
 contain a bearer credential. A same-origin browser can use its cookie session.
 The server replies with `hello` and reports the accepted version, server
 version, and heartbeat interval. The protocol does not have a capability
@@ -44,22 +47,28 @@ The server replies with `subscribed`. Its recovery mode is one of:
 The server then sends `caught_up` with the live handoff cursor. The client can
 consider the subscription current only after this frame.
 
-## Semantic events
+## Canonical events
 
-`RealtimeEvent` is the public unit for activity. It describes what happened in
-Chatto. It does not describe a frontend cache operation. Bots, integrations,
-alternate clients, and the bundled frontend receive this same contract.
+`chatto.core.evt.v1.Event` is the semantic unit for durable facts and transient
+signals. `RealtimeEvent` is its public transport wrapper. Bots, integrations,
+alternate clients, and the bundled frontend receive the same event vocabulary.
 
-A durable event has a stable public event ID, source time, visible actor, one
-semantic event variant, and an opaque resume cursor. Current variants cover
+A durable event has a stable event ID, source time, visible actor ID, and one
+event variant. The transport wrapper adds an opaque resume cursor. Variants cover
 messages, reactions, pins, assets, rooms, room membership, threads, users,
 calls, and public invalidation events. Typing, presence changes, and session
 termination use the same envelope but have no resume cursor.
 
-Common metadata and the cursor are outside the event `oneof`. A client can
+Common metadata is outside the event `oneof`, and the cursor is outside the
+canonical Event. A client can
 ignore a new event variant and still retain its cursor after it accepts the
-complete frame. Public events do not expose raw EVT payloads, subjects, stream
-identities, or sequence numbers.
+complete frame. The server creates a fresh authorized event for delivery. A
+public catalogue omits internal variants. Protobuf field-surface options allow
+shared, storage-only, and client-only fields. Unspecified payload fields are
+denied by default. The copier does not retain unknown fields. Authorized
+delivery-only decrypted values use `_plaintext` fields. Public events do not
+expose raw EVT bytes, ciphertext, subjects, stream identities, or sequence
+numbers.
 
 An event can include authorized `RealtimeStateItem` values. These values show
 current resources after the event. They help a projection client converge, but
@@ -182,9 +191,11 @@ waits for projections once, and fans immutable envelopes to bounded per-session
 queues. Sessions for one user share room-visibility state. There are no
 per-client NATS subscriptions or JetStream consumers.
 
-Transient `live.sync.>` messages use `chatto.core.live.v1.LiveEvent`. Durable
-`live.evt.>` messages use persisted `chatto.core.evt.v1.Event`. The public
-mapper converts both internal schemas to `chatto.realtime.v1`.
+Transient `live.sync.>` messages and durable `live.evt.>` messages use
+`chatto.core.evt.v1.Event`. Transient variants use oneof tags 20000 through
+29999. During a rolling upgrade, the hub can read the previous
+`chatto.core.live.v1.LiveEvent` envelope and convert it to the canonical Event.
+Current publishers do not write the previous envelope.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after
@@ -195,11 +206,11 @@ that exceeds its queue count or byte limit closes independently.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
 `subscribed.recovery_mode` is `SNAPSHOT`, applies standalone state frames, and
-then applies state attached to semantic events. It saves an event cursor only
+then applies state attached to canonical events. It saves an event cursor only
 after its projection reducer accepts the complete event.
 
-Root message events update room recency and first-message visibility from the
-semantic message action. Reaction and pin events drive their specific UI
+Root message events update room recency and first-message visibility. Reaction
+and pin events drive their specific UI
 effects. Unknown additive event and state variants do not stop known state from
 applying or prevent the common cursor from advancing.
 
@@ -228,7 +239,7 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 3 semantic events, explicit snapshot or live-only startup, lazy room state, and bounded resume |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 authorized canonical events, explicit snapshot or live-only startup, lazy room state, and bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and

@@ -1,5 +1,5 @@
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { presenceStatusOrOffline } from '$lib/api-client/enumDefaults';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TransientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 
 function timestampToISO(value: { toDate(): Date } | undefined): string {
@@ -7,15 +7,17 @@ function timestampToISO(value: { toDate(): Date } | undefined): string {
 }
 
 export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEventEnvelope | null {
+  const source = frame.event;
+  if (!source) return null;
   const base = {
-    id: frame.id,
-    createdAt: timestampToISO(frame.createdAt),
-    actorId: frame.actorId ?? null
+    id: source.id,
+    createdAt: timestampToISO(source.createdAt),
+    actorId: source.actorId || null
   };
 
-  switch (frame.event.case) {
-    case 'userTyping': {
-      const value = frame.event.value;
+  switch (source.event.case) {
+    case 'userTypingSignal': {
+      const value = source.event.value;
       return {
         ...base,
         event: {
@@ -25,24 +27,37 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEve
         }
       };
     }
-    case 'presenceChanged':
+    case 'presenceChangedSignal':
       return {
         ...base,
-        actorId: frame.event.value.userId || base.actorId,
         event: {
           kind: TransientEventKind.PresenceChanged,
-          status: presenceStatusOrOffline(frame.event.value.status)
+          status: presenceStatusFromSignal(source.event.value.status)
         }
       };
-    case 'sessionTerminated':
+    case 'sessionTerminatedSignal':
       return {
         ...base,
         event: {
           kind: TransientEventKind.SessionTerminated,
-          reason: frame.event.value.reason
+          reason: source.event.value.reason
         }
       };
     default:
       return null;
+  }
+}
+
+function presenceStatusFromSignal(status: string): PresenceStatus {
+  switch (status) {
+    case 'ONLINE':
+      return PresenceStatus.ONLINE;
+    case 'AWAY':
+      return PresenceStatus.AWAY;
+    case 'DO_NOT_DISTURB':
+      return PresenceStatus.DO_NOT_DISTURB;
+    case 'OFFLINE':
+    default:
+      return PresenceStatus.OFFLINE;
   }
 }

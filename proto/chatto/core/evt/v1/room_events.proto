@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "chatto/core/evt/v1/models.proto";
+import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -27,34 +28,34 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 message RoomCreatedEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
-  string name = 3;
-  string description = 4;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string name = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string description = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Room kind (channel or DM). Added when this event became durable
   // on the EVT stream — the room-catalog projection needs it to
   // distinguish DMs (which don't appear in group structures) from
   // channels.
-  RoomKind kind = 5;
+  RoomKind kind = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Whether this channel room grants effective membership to every
   // join-eligible server member. DM rooms must leave this false.
-  bool universal = 6;
+  bool universal = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Threading policy for this channel. Historical events omit the field and
   // are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
-  RoomThreadingMode threading_mode = 7;
+  RoomThreadingMode threading_mode = 7 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message RoomUpdatedEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
-  string name = 3;
-  string description = 4;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string name = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string description = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message RoomDeletedEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // RoomArchivedEvent is published when a room is archived.
@@ -62,7 +63,7 @@ message RoomDeletedEvent {
 message RoomArchivedEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // RoomUnarchivedEvent is published when a room is unarchived.
@@ -70,7 +71,7 @@ message RoomArchivedEvent {
 message RoomUnarchivedEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // RoomUniversalChangedEvent is published when a channel room's universal
@@ -78,22 +79,22 @@ message RoomUnarchivedEvent {
 // rather than enabled/disabled lifecycle events so replay can apply the latest
 // boolean value directly.
 message RoomUniversalChangedEvent {
-  string room_id = 1;
-  bool universal = 2;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bool universal = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // RoomSlowModeChangedEvent is published when a channel room's per-user
 // posting interval changes. Zero disables slow mode.
 message RoomSlowModeChangedEvent {
-  string room_id = 1;
-  uint32 slow_mode_seconds = 2;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  uint32 slow_mode_seconds = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // RoomThreadingModeChangedEvent is published when a channel room's thread
 // creation and reply-placement policy changes.
 message RoomThreadingModeChangedEvent {
-  string room_id = 1;
-  RoomThreadingMode threading_mode = 2;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  RoomThreadingMode threading_mode = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -103,13 +104,13 @@ message RoomThreadingModeChangedEvent {
 message UserJoinedRoomEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserLeftRoomEvent {
   reserved 1;
   reserved "space_id";
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ServerMemberDeletedEvent is published when a user's account is deleted.
@@ -119,7 +120,7 @@ message UserLeftRoomEvent {
 message ServerMemberDeletedEvent {
   reserved 1;
   reserved "space_id";
-  string user_id = 2;
+  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -142,9 +143,9 @@ enum CallParticipantEventSource {
 // facts represent explicit user intent and may be optimistic; LIVEKIT and
 // RECONCILIATION facts represent observed media-server state.
 message CallParticipantJoinedEvent {
-  string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CallParticipantEventSource source = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // Event: a user left or attempted to leave a voice call in a room.
@@ -153,9 +154,9 @@ message CallParticipantJoinedEvent {
 // facts represent explicit user intent; LIVEKIT and RECONCILIATION facts
 // represent observed media-server state.
 message CallParticipantLeftEvent {
-  string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CallParticipantEventSource source = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // Event: a voice call session started in a room.
@@ -163,17 +164,17 @@ message CallParticipantLeftEvent {
 // The e2ee_key_ref points to a per-call LiveKit E2EE key stored behind the KMS
 // boundary. The raw key is deliberately not stored in EVT.
 message CallStartedEvent {
-  string room_id = 1;
-  string call_id = 2;
-  string e2ee_key_ref = 3;
-  CallParticipantEventSource source = 4;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string e2ee_key_ref = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  CallParticipantEventSource source = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // Event: a voice call session ended in a room.
 //
 // The associated KMS call key is shredded when this fact is committed.
 message CallEndedEvent {
-  string room_id = 1;
-  string call_id = 2;
-  CallParticipantEventSource source = 3;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CallParticipantEventSource source = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }

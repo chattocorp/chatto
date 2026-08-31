@@ -5,15 +5,20 @@ contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs
 
 ## Package Ownership
 
-- `evt/v1` owns the durable `EVT` envelope, its facts, and values that are part
-  of those facts.
+- `evt/v1` owns the canonical Event envelope, durable `EVT` facts, transient
+  event variants, and values that are part of those events. Durable variants
+  keep their stored compatibility contract. Transient variants use the
+  reserved 20000 through 29999 oneof tag range and must not enter EVT.
+- `event/v1` owns protobuf options that classify Event fields for storage and
+  authorized public delivery.
 - `notification/v1` owns the bounded `NOTIFICATIONS` envelope and lifecycle
   facts.
 - `runtime_state/v1` owns durable latest-value records in `RUNTIME_STATE`.
 - `key_material/v1` owns KMS records in `ENCRYPTION_KEYS`.
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.
-- `live/v1` owns transient signals on `live.sync.>`.
+- `live/v1` owns transient payload messages and the previous LiveEvent envelope
+  that current code reads only for rolling compatibility.
 
 Do not put a type in a package because one consumer uses it. Put the type in the
 package that owns its authoritative lifecycle.

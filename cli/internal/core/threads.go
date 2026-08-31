@@ -580,9 +580,9 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 // invalidation. It fires for follow changes and read-marker advances; projection
 // transports hydrate the complete current root row from its identifiers.
 func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_ThreadFollowChanged{
-			ThreadFollowChanged: &livev1.ThreadFollowChangedEvent{
+	event := newTransientEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_ThreadFollowChangedSync{
+			ThreadFollowChangedSync: &livev1.ThreadFollowChangedEvent{
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,

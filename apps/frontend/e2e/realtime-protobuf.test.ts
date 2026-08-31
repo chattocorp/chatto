@@ -15,8 +15,6 @@ import {
   RealtimeEvent,
   RealtimeHydrateRoom,
   RealtimeInitialState,
-  RealtimeMessageAction,
-  RealtimeReactionAction,
   RealtimeRecoveryMode,
   RealtimeServerFrame,
   RealtimeStateItem,
@@ -89,7 +87,7 @@ class RealtimeProtobufClient {
       new RealtimeClientFrame({
         frame: {
           case: 'hello',
-          value: new RealtimeClientHello({ protocolVersion: 3, bearerToken })
+          value: new RealtimeClientHello({ protocolVersion: 4, bearerToken })
         }
       })
     );
@@ -160,7 +158,7 @@ class RealtimeProtobufClient {
           if (index >= 0) this.#waiters.splice(index, 1);
           const queued = this.#frames.map((frame) => {
             if (frame.frame.case === 'event') {
-              return `event:${frame.frame.value.event.case ?? 'unknown'}`;
+              return `event:${frame.frame.value.event?.event.case ?? 'unknown'}`;
             }
             if (frame.frame.case === 'state') {
               return `state:${frame.frame.value.state.case ?? 'unknown'}`;
@@ -277,10 +275,7 @@ test.describe('protobuf realtime stream', () => {
         `semantic realtime ${Date.now()}`
       );
       const posted = await realtime.waitForEvent(
-        (event) =>
-          event.event.case === 'message' &&
-          event.event.value.action === RealtimeMessageAction.POSTED &&
-          event.event.value.messageEventId === messageId
+        (event) => event.event?.event.case === 'messagePosted' && event.event.id === messageId
       );
       expect(posted.resumeCursor).toBeTruthy();
       expect(posted.state.some((state) => state.state.case === 'roomTimelineEvent')).toBe(false);
@@ -300,11 +295,10 @@ test.describe('protobuf realtime stream', () => {
         expect(resumed.recoveryMode).toBe(RealtimeRecoveryMode.RESUME);
         const reaction = await resumed.waitForEvent(
           (event) =>
-            event.event.case === 'reaction' &&
-            event.event.value.action === RealtimeReactionAction.ADDED &&
-            event.event.value.messageEventId === messageId
+            event.event?.event.case === 'reactionAdded' &&
+            event.event.event.value.messageEventId === messageId
         );
-        expect(reaction.event.case).toBe('reaction');
+        expect(reaction.event?.event.case).toBe('reactionAdded');
         expect(reaction.resumeCursor).toBeTruthy();
         await resumed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
 
@@ -315,9 +309,8 @@ test.describe('protobuf realtime stream', () => {
         });
         const edited = await resumed.waitForEvent(
           (event) =>
-            event.event.case === 'message' &&
-            event.event.value.action === RealtimeMessageAction.EDITED &&
-            event.event.value.messageEventId === messageId
+            event.event?.event.case === 'messageEdited' &&
+            event.event.event.value.eventId === messageId
         );
         expect(edited.resumeCursor).toBeTruthy();
       } finally {

@@ -39,8 +39,9 @@ from discovery metadata.
 The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
-realtime protocol 3. Protocol 3 replaces protocol 2 during the 0.5 alpha. It
-uses semantic events, explicit `SNAPSHOT` or `LIVE_ONLY` startup, standalone
+realtime protocol 4. Protocol 4 replaces earlier development protocols during
+the 0.5 alpha. It uses authorized canonical events, explicit `SNAPSHOT` or
+`LIVE_ONLY` startup, standalone
 current-state items, and bounded cursor resume. Regenerate clients and update
 the handshake and reducers together.
 
@@ -150,7 +151,7 @@ ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or
 read-your-writes handling with assumptions about projection internals.
 
-Protocol 3 resume cursors are opaque, viewer-bound, and valid for up to 24
+Protocol 4 resume cursors are opaque, viewer-bound, and valid for up to 24
 hours. Retain a cursor only after the complete event succeeds, and replace it
 after each `caught_up` frame. A missing, expired, or unusable cursor selects the
 subscription's explicit fallback. A `SNAPSHOT` client receives current state.

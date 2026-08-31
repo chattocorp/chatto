@@ -83,9 +83,9 @@ func (c *ChattoCore) CleanupUserState(ctx context.Context, userID string, kind R
 	}
 
 	if isAccountDeletion {
-		memberDeletedEvent := newLiveEvent(userID, &livev1.LiveEvent{
-			Event: &livev1.LiveEvent_ServerMemberDeleted{
-				ServerMemberDeleted: &livev1.ServerMemberDeletedEvent{
+		memberDeletedEvent := newTransientEvent(userID, &evtv1.Event{
+			Event: &evtv1.Event_ServerMemberDeletedSync{
+				ServerMemberDeletedSync: &livev1.ServerMemberDeletedEvent{
 					UserId: userID,
 				},
 			},

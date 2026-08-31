@@ -225,6 +225,11 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.Len(t, loginEvents, 1)
 	login := loginEvents[0].GetUserLoginChanged()
 	require.NotNil(t, login.GetEncryptedLogin())
+	require.Nil(t, login.LoginPlaintext)
+	deliveryEvent := proto.Clone(loginEvents[0]).(*evtv1.Event)
+	require.NoError(t, core.PopulateEventPlaintext(ctx, deliveryEvent))
+	require.Equal(t, "piiuser2", deliveryEvent.GetUserLoginChanged().GetLoginPlaintext())
+	require.Nil(t, loginEvents[0].GetUserLoginChanged().LoginPlaintext)
 
 	found, err := core.GetUserByLogin(ctx, "piiuser2")
 	require.NoError(t, err)

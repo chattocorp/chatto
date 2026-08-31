@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -12,9 +13,9 @@ import (
 // Authorization: published to the deployment-scoped config subject, delivered
 // to all authenticated users via the existing live-event authorization filter.
 func (c *ChattoCore) PublishRoomGroupsUpdated(ctx context.Context, actorID string, kind RoomKind) error {
-	event := newLiveEvent(actorID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_RoomGroupsUpdated{
-			RoomGroupsUpdated: &livev1.RoomGroupsUpdatedEvent{},
+	event := newTransientEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_RoomGroupsUpdatedSync{
+			RoomGroupsUpdatedSync: &livev1.RoomGroupsUpdatedEvent{},
 		},
 	})
 

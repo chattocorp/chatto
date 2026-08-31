@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "chatto/core/evt/v1/models.proto";
+import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -22,31 +23,31 @@ message MessagePostedEvent {
   reserved "space_id", "message_body_id", "body";
 
   // Room ID - identifies which room this message belongs to
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Threading: event ID of the message this is replying to (empty = top-level message)
-  string in_reply_to = 4;
+  string in_reply_to = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Threading: event ID of the thread root message (empty = top-level message)
   // For direct replies to a root, in_thread == in_reply_to.
   // For nested replies, in_thread references the original root.
-  string in_thread = 5;
+  string in_thread = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // User IDs selected by valid resolved mentions. This is a flattened view of
   // direct, role, @here, and @all recipients and does not identify which cause
   // selected a user. Use mentions whenever policy or cause depends on mention
   // provenance; older events may have only mentioned_user_ids.
-  repeated string mentioned_user_ids = 6;
+  repeated string mentioned_user_ids = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Echo fields (empty for regular messages, set for "also send to channel" echoes).
   // When set, this event is an echo of a thread reply. Echoes are independent
   // message events that reference the original reply by event ID.
 
   // Event ID of the original thread reply this echoes (empty = not an echo)
-  string echo_of_event_id = 7;
+  string echo_of_event_id = 7 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Thread root event ID — the thread this echo originates from (empty = not an echo)
-  string echo_from_thread_root_event_id = 8;
+  string echo_from_thread_root_event_id = 8 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // The message's durable event ID lives on the Event envelope, not on this
   // payload.
@@ -56,13 +57,13 @@ message MessagePostedEvent {
   // a direct, role, presence-scoped, or room-wide mention. Derived consumers
   // can therefore apply the correct policy without re-parsing message content
   // or consulting newer room state.
-  repeated MessageMention mentions = 10;
+  repeated MessageMention mentions = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message DirectUserMention {}
 
 message RoleMessageMention {
-  string role_name = 1;
+  string role_name = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message HereMessageMention {}
@@ -73,12 +74,12 @@ message AllMessageMention {}
 // user can appear more than once when a message reaches them through several
 // independently configurable causes.
 message MessageMention {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   oneof cause {
-    DirectUserMention direct = 2;
-    RoleMessageMention role = 3;
-    HereMessageMention here = 4;
-    AllMessageMention all = 5;
+    DirectUserMention direct = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    RoleMessageMention role = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    HereMessageMention here = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    AllMessageMention all = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   }
 }
 // ============================================================================
@@ -96,14 +97,14 @@ message MessageMention {
 // edits also emit a bodyless MessageEditedEvent as the public semantic signal.
 message MessageBodyEvent {
   // Room ID — identifies which room this message body belongs to.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the message whose current body is being set.
-  string event_id = 2;
+  string event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Encrypted body envelope. For new writes body.body_event_id must match the
   // outer Event envelope ID that carries this MessageBodyEvent.
-  MessageBody body = 3;
+  MessageBody body = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 // MessageEditedEvent is the durable semantic event published when a message's
@@ -111,12 +112,12 @@ message MessageBodyEvent {
 // MessageBodyEvent.
 message MessageEditedEvent {
   // Room ID — identifies which room this message belongs to.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the message being edited (the original MessagePostedEvent's
   // ID). The actor performing the edit lives on the Event envelope's
   // actor_id.
-  string event_id = 2;
+  string event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   reserved 3;
   reserved "body";
@@ -129,25 +130,25 @@ message MessageEditedEvent {
 // dropped.
 message MessageRetractedEvent {
   // Room ID — identifies which room this message belonged to.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the message being retracted. The actor performing the
   // retraction lives on the Event envelope's actor_id.
-  string event_id = 2;
+  string event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Optional human-readable reason (e.g. "spam", "user requested",
   // "moderator action"). May be empty.
-  string reason = 3;
+  string reason = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 // MessagePinnedEvent adds a canonical message to its channel room's pinned
 // message set. The actor performing the pin lives on the Event envelope.
 message MessagePinnedEvent {
   // Channel room containing the message.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the canonical MessagePostedEvent being pinned.
-  string message_event_id = 2;
+  string message_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // MessageUnpinnedEvent removes a canonical message from its channel room's
@@ -155,10 +156,10 @@ message MessagePinnedEvent {
 // envelope.
 message MessageUnpinnedEvent {
   // Channel room containing the message.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the canonical MessagePostedEvent being unpinned.
-  string message_event_id = 2;
+  string message_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message MessageUpdatedEvent {
@@ -166,27 +167,27 @@ message MessageUpdatedEvent {
   reserved "space_id", "sequence_id";
 
   // Room ID - identifies which room this message belongs to
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   reserved 3; // was sequence_id (dead field, never read)
 
   // Compound key for body storage in KV: {userId}.{eventId}
   // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 4;
+  string message_body_id = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Threading: event ID of the message this is replying to (empty = top-level message)
-  string in_reply_to = 5;
+  string in_reply_to = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Threading: event ID of the thread root message (empty = top-level message)
-  string in_thread = 6;
+  string in_thread = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the updated message for legacy live payload consumers.
   // Populated at publish time from the body key.
-  string message_event_id = 7;
+  string message_event_id = 7 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Parent event's ID (populated at read time for resolver access)
   // Used for reactions lookup since reactions are keyed by event ID
-  string event_id = 1000;
+  string event_id = 1000 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message MessageDeletedEvent {
@@ -194,13 +195,13 @@ message MessageDeletedEvent {
   reserved "space_id";
 
   // Room ID - identifies which room the message belonged to
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Compound key for body storage in KV: {userId}.{eventId}
   // The userId prefix enables efficient per-user filtering for GDPR deletion.
-  string message_body_id = 3;
+  string message_body_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Event ID of the deleted message for legacy live payload consumers.
   // Populated at publish time from the body key.
-  string message_event_id = 4;
+  string message_event_id = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }

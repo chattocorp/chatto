@@ -17,13 +17,15 @@ import "chatto/core/evt/v1/thread_events.proto";
 import "chatto/core/evt/v1/user_events.proto";
 import "chatto/core/evt/v1/invitation_events.proto";
 import "chatto/core/evt/v1/oauth_client_events.proto";
+import "chatto/core/event/v1/options.proto";
+import "chatto/core/live/v1/live_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
 /*
-   Event is the wire-format envelope for durable domain facts. New writes
-   to the event-sourced EVT stream use this wrapper; projections consume it
-   as source-of-truth input.
+   Event is Chatto's canonical domain-event envelope. Durable facts use this
+   wrapper in EVT. Transient signals use the same wrapper on NATS Core and are
+   never persisted.
 
    Field-number convention for the `event` oneof:
 
@@ -34,8 +36,11 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
      - **1050-1051**: durable reaction variants that kept their legacy
        live tags during the EVT cutover. Treat them like persisted tags.
 
-     - **>= 1000, except 1050-1051**: retired legacy live-only variant
-       numbers. New transient pubsub signals belong in LiveEvent, not Event.
+     - **1000-9999, except 1050-1051**: retired legacy live-only variant
+       numbers. Do not reuse them.
+
+     - **20000-29999**: transient variants. They can use NATS Core but the EVT
+       storage boundary rejects them.
 
    Category ownership for the top-level oneof tags is documented in the
    sibling *_events.proto files. The top-level tag is the durable/event
@@ -46,13 +51,13 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 message Event {
   // Universal event identifier (NanoID) for forward-compatibility with
   // non-NATS systems.
-  string id = 1;
+  string id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // When this event was created.
-  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp created_at = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // ID of the user who triggered this event.
-  string actor_id = 3;
+  string actor_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
   reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
@@ -262,5 +267,23 @@ message Event {
     // frozen durable IDs even though they sit in the >=1000 range.
     ReactionAddedEvent reaction_added = 1050;
     ReactionRemovedEvent reaction_removed = 1051;
+
+    // ----- Transient signals (20000-29999, never stored in EVT) -----
+    chatto.core.live.v1.UserCreatedSyncEvent user_created_sync = 20000;
+    chatto.core.live.v1.UserProfileSyncEvent user_profile_sync = 20001;
+    chatto.core.live.v1.ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
+    chatto.core.live.v1.ThreadFollowChangedEvent thread_follow_changed_sync = 20003;
+    chatto.core.live.v1.ServerMemberDeletedEvent server_member_deleted_sync = 20004;
+    chatto.core.live.v1.ServerUpdatedEvent server_updated_sync = 20005;
+    chatto.core.live.v1.UserTypingEvent user_typing_signal = 20006;
+    chatto.core.live.v1.PresenceChangedEvent presence_changed_signal = 20007;
+    chatto.core.live.v1.CallParticipantJoinedEvent call_participant_joined_signal = 20008;
+    chatto.core.live.v1.CallParticipantLeftEvent call_participant_left_signal = 20009;
+    chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
+    chatto.core.live.v1.NotificationUnreadChangedEvent notification_unread_changed = 20011;
+    chatto.core.live.v1.RoomMarkedAsReadEvent room_marked_as_read_sync = 20012;
+    chatto.core.live.v1.MentionStatusClearedEvent mention_status_cleared_sync = 20013;
+    chatto.core.live.v1.RoomGroupsUpdatedEvent room_groups_updated_sync = 20014;
+    chatto.core.live.v1.SessionTerminatedEvent session_terminated_signal = 20015;
   }
 }

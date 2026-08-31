@@ -19,7 +19,7 @@ protocol at `/api/realtime`.
 - Realtime compatibility includes protocol behavior and protobuf field tags.
   Negotiate new required client behavior with hello/capability fields or a new
   protocol version.
-- `chatto.realtime.v1` is the protobuf namespace; protocol version 3 is the
+- `chatto.realtime.v1` is the protobuf namespace; protocol version 4 is the
   only accepted handshake. Do not reintroduce older compatibility paths.
 - Resume cursors are encrypted, authenticated, and viewer-bound. They may use
   EVT coordinates internally but must never disclose NATS/JetStream identities,

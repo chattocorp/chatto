@@ -159,9 +159,9 @@ func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userI
 		tz = *settings.Timezone
 	}
 
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_ServerUserPreferencesUpdated{
-			ServerUserPreferencesUpdated: &livev1.ServerUserPreferencesSyncEvent{
+	event := newTransientEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_ServerUserPreferencesSync{
+			ServerUserPreferencesSync: &livev1.ServerUserPreferencesSyncEvent{
 				Timezone:      tz,
 				TimeFormat:    livev1.TimeFormat(settings.TimeFormat),
 				ShareTimezone: settings.GetShareTimezone(),

@@ -237,11 +237,7 @@ export class ServerProjectionStore {
           break;
       }
     }
-    if (
-      semantic?.case === 'message' &&
-      semantic.value.action === 1 &&
-      !semantic.value.threadRootEventId
-    ) {
+    if (semantic?.case === 'messagePosted' && !semantic.value.inThread) {
       this.activateRoom(semantic.value.roomId);
     }
   }

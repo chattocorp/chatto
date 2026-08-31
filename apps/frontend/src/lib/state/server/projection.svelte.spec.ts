@@ -27,9 +27,6 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
   RealtimeActiveCallsState,
-  RealtimeEvent,
-  RealtimeMessageAction,
-  RealtimeMessageEvent,
   RealtimeStateItem,
   RealtimePresencesState,
   RealtimeThreadViewerState,
@@ -45,6 +42,8 @@ import {
   RealtimeServerState,
   RealtimeUserRemovedState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
+import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
 import { ServerProjectionStore } from './projection.svelte';
 
 function event(...operations: RealtimeStateItem[]): RealtimeProjectionUpdate {
@@ -534,14 +533,12 @@ describe('ServerProjectionStore', () => {
     const store = new ServerProjectionStore();
     store.apply(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: new Event({
           id: 'M1',
           event: {
-            case: 'message',
-            value: new RealtimeMessageEvent({
-              action: RealtimeMessageAction.POSTED,
-              roomId: 'R2',
-              messageEventId: 'M1'
+            case: 'messagePosted',
+            value: new MessagePostedEvent({
+              roomId: 'R2'
             })
           }
         }),
@@ -618,14 +615,12 @@ describe('ServerProjectionStore', () => {
 
     store.apply(
       new RealtimeProjectionUpdate({
-        event: new RealtimeEvent({
+        event: new Event({
           id: 'M2',
           event: {
-            case: 'message',
-            value: new RealtimeMessageEvent({
-              action: RealtimeMessageAction.POSTED,
-              roomId: 'R2',
-              messageEventId: 'M2'
+            case: 'messagePosted',
+            value: new MessagePostedEvent({
+              roomId: 'R2'
             })
           }
         })

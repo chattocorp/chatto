@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -270,24 +271,24 @@ var File_chatto_core_evt_v1_moderation_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_moderation_events_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/evt/v1/moderation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb0\x01\n" +
-	"\x15RoomMemberBannedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\x12>\n" +
+	"*chatto/core/evt/v1/moderation_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"chatto/core/event/v1/options.proto\"\xc8\x01\n" +
+	"\x15RoomMemberBannedEvent\x12\x1d\n" +
+	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
+	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1c\n" +
+	"\x06reason\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\x06reason\x12D\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampH\x00R\texpiresAt\x88\x01\x01B\r\n" +
-	"\v_expires_at\"c\n" +
-	"\x17RoomMemberUnbannedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x16\n" +
-	"\x06reason\x18\x03 \x01(\tR\x06reason\"H\n" +
-	"\x14RoomMemberAddedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\"J\n" +
-	"\x16RoomMemberRemovedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userIdB\xd0\x01\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x04\x88\xb5\x18\x01H\x00R\texpiresAt\x88\x01\x01B\r\n" +
+	"\v_expires_at\"u\n" +
+	"\x17RoomMemberUnbannedEvent\x12\x1d\n" +
+	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
+	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1c\n" +
+	"\x06reason\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\x06reason\"T\n" +
+	"\x14RoomMemberAddedEvent\x12\x1d\n" +
+	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
+	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"V\n" +
+	"\x16RoomMemberRemovedEvent\x12\x1d\n" +
+	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
+	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userIdB\xd0\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x15ModerationEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (

@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "chatto/core/evt/v1/user_preferences.proto";
+import "chatto/core/event/v1/options.proto";
 import "chatto/core/evt/v1/models.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
@@ -22,201 +23,207 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 // ============================================================================
 
 message EncryptedUserString {
-  bytes encrypted_value = 1;
-  bytes nonce = 2;
-  int32 content_key_epoch = 3;
+  bytes encrypted_value = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  bytes nonce = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  int32 content_key_epoch = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 message UserAccountCreatedEvent {
-  string user_id = 1;
-  bool is_bot = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bool is_bot = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Required for bot accounts and empty for human accounts.
-  string bot_owner_user_id = 3;
-  EncryptedUserString encrypted_login = 10;
-  EncryptedUserString encrypted_display_name = 11;
+  string bot_owner_user_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  EncryptedUserString encrypted_login = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  EncryptedUserString encrypted_display_name = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  optional string login_plaintext = 12 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
+  optional string display_name_plaintext = 13 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 // BotApiKeyCreatedEvent records the verifier for a bot's initial API key. The
 // raw bearer credential is returned once and is never persisted.
 message BotApiKeyCreatedEvent {
-  string user_id = 1;
-  bytes verifier = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes verifier = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
   // Stable credential ID. Empty historical values identify the default key.
-  string key_id = 3;
+  string key_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Manager-defined name. Empty historical values use the default key name.
-  string name = 4;
+  string name = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotApiKeyRotatedEvent preserves historical replace-all facts and supports
 // rollback-safe revocation of keys that older binaries can read. Current
 // servers do not expose a replace-all command.
 message BotApiKeyRotatedEvent {
-  string user_id = 1;
-  bytes verifier = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes verifier = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
   // Stable replacement credential ID. Empty historical values identify the
   // default key.
-  string key_id = 3;
+  string key_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Manager-defined replacement name. Empty historical values use the default
   // key name.
-  string name = 4;
+  string name = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // When set, current servers revoke only this migrated key and treat verifier
   // as an unissued rollback fence. Older servers install that verifier as their
   // sole key, so the revoked raw key cannot become valid after rollback.
-  string revoked_key_id = 5;
+  string revoked_key_id = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotApiKeyAddedEvent records one additional named API-key verifier. The raw
 // bearer credential is returned once and is never persisted.
 message BotApiKeyAddedEvent {
-  string user_id = 1;
-  string key_id = 2;
-  string name = 3;
-  bytes verifier = 4;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string key_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string name = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes verifier = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 // BotApiKeyRevokedEvent invalidates one named API key without changing other
 // active keys.
 message BotApiKeyRevokedEvent {
-  string user_id = 1;
-  string key_id = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string key_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotOwnerReassignedEvent records an administrative change to the human
 // account responsible for a bot. The bot's API-key verifier is unchanged.
 message BotOwnerReassignedEvent {
-  string user_id = 1;
-  string previous_owner_user_id = 2;
-  string owner_user_id = 3;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string previous_owner_user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string owner_user_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotIncomingWebhookCreatedEvent records the verifier and safe metadata for
 // one bot incoming webhook. The raw credential is returned once and is never
 // persisted. webhook_id and name are empty only in legacy singular events.
 message BotIncomingWebhookCreatedEvent {
-  string user_id = 1;
-  bytes verifier = 2;
-  string webhook_id = 3;
-  string name = 4;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes verifier = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string webhook_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string name = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotIncomingWebhookRotatedEvent replays a replacement verifier written by an
 // unreleased implementation. Current servers do not write this event.
 // webhook_id is empty only in a legacy singular event.
 message BotIncomingWebhookRotatedEvent {
-  string user_id = 1;
-  bytes verifier = 2;
-  string webhook_id = 3;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes verifier = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string webhook_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // BotIncomingWebhookRevokedEvent invalidates one incoming webhook credential.
 // webhook_id is empty only in a legacy singular event.
 message BotIncomingWebhookRevokedEvent {
-  string user_id = 1;
-  string webhook_id = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string webhook_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserLoginChangedEvent {
-  string user_id = 1;
-  EncryptedUserString encrypted_login = 10;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  EncryptedUserString encrypted_login = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  optional string login_plaintext = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 message UserDisplayNameChangedEvent {
-  string user_id = 1;
-  EncryptedUserString encrypted_display_name = 10;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  EncryptedUserString encrypted_display_name = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  optional string display_name_plaintext = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 // UserBioChangedEvent is the authoritative durable fact for a change to a
 // user's self-authored bio. An empty encrypted value clears the bio. Bio text
 // is user PII and stays encrypted at rest.
 message UserBioChangedEvent {
-  string user_id = 1;
-  EncryptedUserString encrypted_bio = 10;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  EncryptedUserString encrypted_bio = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  optional string bio_plaintext = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 message UserAvatarSetEvent {
   // Deprecated: legacy avatar storage pointer retained for decoding old
   // user events. New avatar writes append AssetCreatedEvent with
   // UserAvatarAssetOwner instead.
-  string user_id = 1;
-  DeprecatedAsset avatar = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  DeprecatedAsset avatar = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserAvatarClearedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserVerifiedEmailAddedEvent {
-  string user_id = 1;
-  EncryptedUserString encrypted_email = 10;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  EncryptedUserString encrypted_email = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  optional string email_plaintext = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 message UserPasswordHashChangedEvent {
-  string user_id = 1;
-  bytes password_hash = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes password_hash = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
   // True when adding the first password to a passwordless account. Existing
   // sessions remain valid; later password changes and password resets leave
   // this false so they advance auth generation and revoke old credentials.
-  bool preserve_existing_credentials = 3;
+  bool preserve_existing_credentials = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserOIDCSubjectLinkedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // New writes include issuer/subject so the event is inspectable. Legacy
   // imports may only have the hash, because the old KV index key is one-way.
-  string issuer = 2;
-  string subject = 3;
-  string subject_hash = 4;
+  string issuer = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string subject = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string subject_hash = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 message UserExternalIdentityLinkedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Durable identity namespace used for lookup. For OIDC providers this is the
   // verified issuer URL from the ID token, which lets the link survive local
   // provider ID or label changes. For OAuth-only providers this is the stable
   // configured local provider ID because there is no verified issuer URL.
-  string issuer = 2;
+  string issuer = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
   // Raw provider subjects are included only for events written after this
   // field existed. Projections prefer subject_hash when present.
-  string subject = 3;
-  string subject_hash = 4;
+  string subject = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string subject_hash = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
   // Event-time metadata about the configured provider that created the link.
   // This is not dereferenced against current config during replay; providers
   // may be renamed, removed, or reconfigured without changing existing links.
-  string provider_id = 5;
-  string provider_type = 6;
+  string provider_id = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string provider_type = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserExternalIdentityUnlinkedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Stable one-way identity hash previously written by
   // UserExternalIdentityLinkedEvent or legacy UserOIDCSubjectLinkedEvent.
-  string subject_hash = 2;
+  string subject_hash = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
 }
 
 message UserServerPreferencesChangedEvent {
-  string user_id = 1;
-  ServerUserPreferences preferences = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  ServerUserPreferences preferences = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserLoginCooldownStartedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserLoginCooldownClearedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserAccountDeletedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserCustomStatusSetEvent {
-  string user_id = 1;
-  CustomUserStatus status = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CustomUserStatus status = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message UserCustomStatusClearedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // UserKeyShreddedEvent records physical completion of a user's
@@ -224,7 +231,7 @@ message UserCustomStatusClearedEvent {
 // logical privacy boundary because events written before
 // UserKeyShreddingRequestedEvent existed have no separate request fact.
 message UserKeyShreddedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // UserKeyShreddingRequestedEvent is the durable logical privacy boundary for
@@ -232,7 +239,7 @@ message UserKeyShreddedEvent {
 // the user's immutable DEK-generation facts and surviving runtime DEK records
 // before destructive work starts.
 message UserKeyShreddingRequestedEvent {
-  string user_id = 1;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 enum UserDEKPurpose {
@@ -246,11 +253,11 @@ enum UserDEKPurpose {
 // epochs; the wrapped key material lives in RUNTIME_STATE under
 // content_key_ref so it can be shredded independently of immutable EVT history.
 message UserDEKGeneratedEvent {
-  string user_id = 1;
-  UserDEKPurpose purpose = 2;
-  int32 epoch = 3;
-  string content_key_ref = 4;
-  string wrapping_key_ref = 5;
-  string wrapping_algorithm = 6;
-  bytes wrapping_metadata = 7;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  UserDEKPurpose purpose = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  int32 epoch = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string content_key_ref = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string wrapping_key_ref = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string wrapping_algorithm = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  bytes wrapping_metadata = 7 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }

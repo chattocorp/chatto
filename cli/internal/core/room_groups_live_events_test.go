@@ -1,7 +1,6 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -56,11 +55,11 @@ func expectRoomGroupsUpdated(t *testing.T, ch <-chan *nats.Msg, wantActorID stri
 	t.Helper()
 	select {
 	case msg := <-ch:
-		var got livev1.LiveEvent
+		var got evtv1.Event
 		if err := proto.Unmarshal(msg.Data, &got); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		if got.GetRoomGroupsUpdated() == nil {
+		if got.GetRoomGroupsUpdatedSync() == nil {
 			t.Fatalf("expected RoomGroupsUpdatedEvent, got %T", got.Event)
 		}
 		if got.ActorId != wantActorID {
@@ -371,11 +370,11 @@ func TestRoomLayout_MoveNotificationWaitsForProjectionCatchUp(t *testing.T) {
 
 	select {
 	case observation := <-observations:
-		var event livev1.LiveEvent
+		var event evtv1.Event
 		if err := proto.Unmarshal(observation.msg.Data, &event); err != nil {
 			t.Fatalf("unmarshal published event: %v", err)
 		}
-		if event.GetRoomGroupsUpdated() == nil {
+		if event.GetRoomGroupsUpdatedSync() == nil {
 			t.Fatalf("expected RoomGroupsUpdatedEvent, got %T", event.Event)
 		}
 		if event.GetActorId() != "actor" {

@@ -1,6 +1,6 @@
 ---
 title: Use Realtime From TypeScript
-description: Generate TypeScript bindings and build a small event-driven client for Chatto realtime protocol 3.
+description: Generate TypeScript bindings and build a small event-driven client for Chatto realtime protocol 4.
 ---
 
 import {
@@ -104,7 +104,7 @@ import {
   RealtimeSubscribeEvents,
 } from "./gen/chatto/realtime/v1/realtime_pb.js";
 
-const PROTOCOL_VERSION = 3;
+const PROTOCOL_VERSION = 4;
 const BASE_RECONNECT_MS = 1_000;
 const MAX_RECONNECT_MS = 30_000;
 
@@ -202,7 +202,7 @@ export class ChattoRealtimeClient {
         const hello = frame.frame.value;
         if (hello.protocolVersion !== PROTOCOL_VERSION) {
           this.#stopped = true;
-          throw new Error("The server does not support realtime protocol 3");
+          throw new Error("The server does not support realtime protocol 4");
         }
         this.#heartbeatStallMs =
           hello.heartbeatIntervalSeconds > 0
@@ -313,25 +313,24 @@ export class ChattoRealtimeClient {
 
 ## Handle the events that your bot needs
 
-Pass the access credential from a secure runtime source. Switch on the semantic
-event variant and use ConnectRPC when you need the current resource.
+Pass the access credential from a secure runtime source. Switch on the
+canonical event variant and use ConnectRPC when you need the current resource.
 
 ```ts
-import { RealtimeMessageAction } from "./gen/chatto/realtime/v1/realtime_pb.js";
 import { ChattoRealtimeClient } from "./realtime.js";
 
 const client = new ChattoRealtimeClient(
   "https://chat.example.com",
   accessToken,
   async (event) => {
-    switch (event.event.case) {
-      case "message":
-        if (event.event.value.action === RealtimeMessageAction.POSTED) {
-          console.info("New message ID", event.event.value.messageEventId);
-        }
+    const canonical = event.event;
+    if (!canonical) return;
+    switch (canonical.event.case) {
+      case "messagePosted":
+        console.info("New message ID", canonical.id);
         break;
-      case "reaction":
-        console.info("Reaction", event.event.value.emoji);
+      case "reactionAdded":
+        console.info("Reaction", canonical.event.value.emoji);
         break;
       default:
         // Ignore event variants that this integration does not use.

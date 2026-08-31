@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -949,7 +948,7 @@ func TestDMNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
-		var live livev1.LiveEvent
+		var live evtv1.Event
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			t.Fatalf("unmarshal live event: %v", err)
 		}

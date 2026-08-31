@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1164,6 +1165,9 @@ type MessageBody struct {
 	// Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
 	// for v2 XChaCha20-Poly1305.
 	EncryptionNonce []byte `protobuf:"bytes,21,opt,name=encryption_nonce,json=encryptionNonce,proto3" json:"encryption_nonce,omitempty"`
+	// Decrypted message text for an authorized delivery object. EVT storage
+	// rejects this client-only field.
+	BodyPlaintext *string `protobuf:"bytes,22,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	// Legacy embedded attachment protos. Older bodies (and the legacy
 	// import path) carry full Attachment records here. New bodies write
 	// asset_ids instead and API response mapping hydrates from the asset
@@ -1266,6 +1270,13 @@ func (x *MessageBody) GetEncryptionNonce() []byte {
 		return x.EncryptionNonce
 	}
 	return nil
+}
+
+func (x *MessageBody) GetBodyPlaintext() string {
+	if x != nil && x.BodyPlaintext != nil {
+		return *x.BodyPlaintext
+	}
+	return ""
 }
 
 func (x *MessageBody) GetAttachments() []*Attachment {
@@ -1923,7 +1934,7 @@ var File_chatto_core_evt_v1_models_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xee\x02\n" +
+	"\x1fchatto/core/evt/v1/models.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\"chatto/core/event/v1/options.proto\"\xee\x02\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
@@ -1999,7 +2010,7 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x06height\x18\b \x01(\x05R\x06height\x12=\n" +
 	"\astorage\x18\t \x01(\v2#.chatto.core.evt.v1.DeprecatedAssetR\astorage\x12&\n" +
 	"\x0fmessage_body_id\x18\n" +
-	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\x94\x04\n" +
+	" \x01(\tR\rmessageBodyIdJ\x04\b\x02\x10\x03R\bspace_id\"\xd9\x04\n" +
 	"\vMessageBody\x12\x1b\n" +
 	"\tauthor_id\x18\x01 \x01(\tR\bauthorId\x129\n" +
 	"\n" +
@@ -2010,10 +2021,12 @@ const file_chatto_core_evt_v1_models_proto_rawDesc = "" +
 	"\x11content_key_epoch\x18\x05 \x01(\x05R\x0fcontentKeyEpoch\x12\"\n" +
 	"\rbody_event_id\x18\x06 \x01(\tR\vbodyEventId\x12%\n" +
 	"\x0eencrypted_body\x18\x14 \x01(\fR\rencryptedBody\x12)\n" +
-	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x12@\n" +
+	"\x10encryption_nonce\x18\x15 \x01(\fR\x0fencryptionNonce\x120\n" +
+	"\x0ebody_plaintext\x18\x16 \x01(\tB\x04\x88\xb5\x18\x03H\x00R\rbodyPlaintext\x88\x01\x01\x12@\n" +
 	"\vattachments\x18\x1e \x03(\v2\x1e.chatto.core.evt.v1.AttachmentR\vattachments\x12\x1b\n" +
 	"\tasset_ids\x18\x1f \x03(\tR\bassetIds\x12B\n" +
-	"\flink_preview\x18( \x01(\v2\x1f.chatto.core.evt.v1.LinkPreviewR\vlinkPreview\"\x88\x03\n" +
+	"\flink_preview\x18( \x01(\v2\x1f.chatto.core.evt.v1.LinkPreviewR\vlinkPreviewB\x11\n" +
+	"\x0f_body_plaintext\"\x88\x03\n" +
 	"\vLinkPreview\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -2175,6 +2188,7 @@ func file_chatto_core_evt_v1_models_proto_init() {
 		(*AssetRecord_Nats)(nil),
 		(*AssetRecord_S3)(nil),
 	}
+	file_chatto_core_evt_v1_models_proto_msgTypes[11].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_models_proto_msgTypes[12].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_models_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}

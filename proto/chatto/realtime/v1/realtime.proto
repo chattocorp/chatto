@@ -12,20 +12,21 @@ import "chatto/api/v1/server.proto";
 import "chatto/api/v1/server_state.proto";
 import "chatto/api/v1/viewer.proto";
 import "chatto/api/v1/voice_calls.proto";
+import "chatto/core/evt/v1/event.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
 //
 // Clients send binary protobuf frames to `/api/realtime`. The first frame must
 // be `hello`. After the server replies with `hello`, clients send
-// `subscribe_events` to start one authorized semantic event stream.
+// `subscribe_events` to start one authorized canonical event stream.
 message RealtimeClientFrame {
   reserved "ack";
 
   oneof frame {
     // Opens the protocol session and optionally carries a bearer token.
     RealtimeClientHello hello = 1;
-    // Starts the caller's authorized semantic event stream.
+    // Starts the caller's authorized canonical event stream.
     RealtimeSubscribeEvents subscribe_events = 2;
     // Application-level ping. The server replies with `pong`.
     RealtimePing ping = 3;
@@ -33,7 +34,6 @@ message RealtimeClientFrame {
     RealtimeHydrateRoom hydrate_room = 4;
   }
 }
-
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 message RealtimeServerFrame {
   oneof frame {
@@ -41,7 +41,7 @@ message RealtimeServerFrame {
     RealtimeServerHello hello = 1;
     // Confirms the stream and the recovery mode that the server selected.
     RealtimeSubscribed subscribed = 2;
-    // One authorized semantic public event.
+    // One authorized canonical event copy.
     RealtimeEvent event = 3;
     // Application-level heartbeat used for liveness checks.
     RealtimeHeartbeat heartbeat = 4;
@@ -64,7 +64,7 @@ message RealtimeClientHello {
   reserved "resume_cursor";
 
   // Behavioral protocol version requested by the client. The only supported
-  // version is 3.
+  // version is 4.
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
@@ -101,18 +101,18 @@ enum RealtimeRecoveryMode {
   REALTIME_RECOVERY_MODE_LIVE_ONLY = 1;
   // Current-state items replace the client's local projection.
   REALTIME_RECOVERY_MODE_SNAPSHOT = 2;
-  // Durable semantic events resume after the supplied cursor.
+  // Durable canonical events resume after the supplied cursor.
   REALTIME_RECOVERY_MODE_RESUME = 3;
 }
 
-// Request to start the caller's authorized semantic event stream.
+// Request to start the caller's authorized canonical event stream.
 message RealtimeSubscribeEvents {
   // Opaque cursor from a previously received durable event or `caught_up`
   // frame. A usable cursor receives bounded authorized durable events after
   // that position. Cursors expire 24 hours after issue.
   optional string resume_cursor = 1;
   // Joined rooms whose recent timeline state the client retains. This affects
-  // snapshot and state hydration only. It never filters semantic events. At
+  // snapshot and state hydration only. It never filters canonical events. At
   // most 64 room IDs may be supplied.
   repeated string retained_room_ids = 2;
   // Required fallback when the cursor is absent or cannot resume safely.
@@ -122,7 +122,7 @@ message RealtimeSubscribeEvents {
 // Requests current room and recent timeline state for one joined room.
 //
 // The server replies with `state` frames containing `room` and
-// `room_timeline`. Once hydrated, later semantic events can include current
+// `room_timeline`. Once hydrated, later canonical events can include current
 // timeline rows for that room. A connection can retain at most 64 distinct
 // room IDs.
 message RealtimeHydrateRoom {
@@ -150,308 +150,23 @@ message RealtimeCaughtUp {
   string cursor = 1;
 }
 
-// One authorized semantic event.
+// One authorized event and optional current-state sidecars.
 //
-// Durable events have a resume cursor. Transient events do not. Common
-// metadata and the cursor stay outside the event `oneof`, so a client can
-// ignore an additive event variant and still advance safely. `state` contains
-// optional authorized current resources that help projection clients converge;
-// it does not change the event's semantic meaning.
+// `event` uses the same canonical shape as EVT and transient NATS Core
+// delivery. The server creates a fresh caller-specific value and omits events
+// and fields that the caller cannot see. Durable events have a resume cursor.
+// Transient events do not.
 message RealtimeEvent {
-  // Stable public event ID.
-  string id = 1;
-  // Time the source change occurred.
-  google.protobuf.Timestamp created_at = 2;
-  // User or system actor, when visible to the caller.
-  optional string actor_id = 3;
+  // Authorized canonical event. The server never sends raw stored bytes.
+  chatto.core.evt.v1.Event event = 1;
   // Opaque cursor safe to retain after this complete event is accepted.
-  optional string resume_cursor = 4;
-
-  oneof event {
-    // Message post, edit, or retraction.
-    RealtimeMessageEvent message = 10;
-    // Reaction add or removal.
-    RealtimeReactionEvent reaction = 11;
-    // Pin creation or deletion.
-    RealtimePinnedMessageEvent pinned_message = 12;
-    // Asset-processing or deletion change.
-    RealtimeAssetEvent asset = 13;
-    // Room lifecycle or settings change.
-    RealtimeRoomEvent room = 20;
-    // Room membership or moderation change.
-    RealtimeRoomMembershipEvent room_membership = 21;
-    // Thread lifecycle change.
-    RealtimeThreadEvent thread = 22;
-    // Public user lifecycle or profile change.
-    RealtimeUserEvent user = 30;
-    // Voice-call lifecycle or participant change.
-    RealtimeCallEvent call = 40;
-    // Public server state invalidation.
-    RealtimeServerChangedEvent server_changed = 50;
-    // Visible room-group layout invalidation.
-    RealtimeRoomGroupsChangedEvent room_groups_changed = 51;
-    // Authenticated viewer state invalidation.
-    RealtimeViewerChangedEvent viewer_changed = 52;
-    // Authenticated viewer notification-state invalidation.
-    RealtimeNotificationsChangedEvent notifications_changed = 53;
-    // Viewer-specific room state invalidation.
-    RealtimeRoomViewerChangedEvent room_viewer_changed = 54;
-    // Viewer-specific thread state invalidation.
-    RealtimeThreadViewerChangedEvent thread_viewer_changed = 55;
-    // Transient typing activity.
-    RealtimeTypingEvent user_typing = 70;
-    // Transient presence transition.
-    RealtimePresenceChangedEvent presence_changed = 71;
-    // Termination of the connected credential's session.
-    RealtimeSessionTerminatedEvent session_terminated = 90;
-  }
+  optional string resume_cursor = 2;
 
   // Authorized current resources caused or invalidated by this event. Clients
   // that do not maintain a projection can ignore these items.
-  repeated RealtimeStateItem state = 100;
+  repeated RealtimeStateItem state = 3;
 }
 
-// Type of public message change.
-enum RealtimeMessageAction {
-  // Invalid or unknown action.
-  REALTIME_MESSAGE_ACTION_UNSPECIFIED = 0;
-  // A message was posted.
-  REALTIME_MESSAGE_ACTION_POSTED = 1;
-  // A message was edited.
-  REALTIME_MESSAGE_ACTION_EDITED = 2;
-  // A message was retracted.
-  REALTIME_MESSAGE_ACTION_RETRACTED = 3;
-}
-
-// Message lifecycle change.
-message RealtimeMessageEvent {
-  // Message change that occurred.
-  RealtimeMessageAction action = 1;
-  // Room that contains the message.
-  string room_id = 2;
-  // Stable ID of the original message event.
-  string message_event_id = 3;
-  // Thread root for a reply. Absent for a room root message.
-  optional string thread_root_event_id = 4;
-}
-
-// Type of public reaction change.
-enum RealtimeReactionAction {
-  // Invalid or unknown action.
-  REALTIME_REACTION_ACTION_UNSPECIFIED = 0;
-  // The actor added the reaction.
-  REALTIME_REACTION_ACTION_ADDED = 1;
-  // The actor removed the reaction.
-  REALTIME_REACTION_ACTION_REMOVED = 2;
-}
-
-// Reaction lifecycle change.
-message RealtimeReactionEvent {
-  // Reaction change that occurred.
-  RealtimeReactionAction action = 1;
-  // Room that contains the message.
-  string room_id = 2;
-  // Stable ID of the reacted-to message event.
-  string message_event_id = 3;
-  // Chatto emoji shortcode, such as `thumbsup`.
-  string emoji = 4;
-  // User who added or removed the reaction.
-  string user_id = 5;
-}
-
-// Type of public pinned-message change.
-enum RealtimePinnedMessageAction {
-  // Invalid or unknown action.
-  REALTIME_PINNED_MESSAGE_ACTION_UNSPECIFIED = 0;
-  // A message was pinned.
-  REALTIME_PINNED_MESSAGE_ACTION_CREATED = 1;
-  // A pin was removed.
-  REALTIME_PINNED_MESSAGE_ACTION_DELETED = 2;
-}
-
-// Pinned-message lifecycle change.
-message RealtimePinnedMessageEvent {
-  // Pin change that occurred.
-  RealtimePinnedMessageAction action = 1;
-  // Room that owns the pin.
-  string room_id = 2;
-  // Stable ID of the pinned or unpinned message event.
-  string message_event_id = 3;
-}
-
-// Type of public asset change.
-enum RealtimeAssetAction {
-  // Invalid or unknown action.
-  REALTIME_ASSET_ACTION_UNSPECIFIED = 0;
-  // Processing started.
-  REALTIME_ASSET_ACTION_PROCESSING_STARTED = 1;
-  // Processing completed successfully.
-  REALTIME_ASSET_ACTION_PROCESSING_SUCCEEDED = 2;
-  // Processing failed.
-  REALTIME_ASSET_ACTION_PROCESSING_FAILED = 3;
-  // The asset was deleted.
-  REALTIME_ASSET_ACTION_DELETED = 4;
-}
-
-// Asset lifecycle change associated with a message when one remains visible.
-message RealtimeAssetEvent {
-  // Asset change that occurred.
-  RealtimeAssetAction action = 1;
-  // Stable asset ID.
-  string asset_id = 2;
-  // Owning room when a visible message still references the asset.
-  optional string room_id = 3;
-  // Owning message when a visible message still references the asset.
-  optional string message_event_id = 4;
-}
-
-// Type of public room change.
-enum RealtimeRoomAction {
-  // Invalid or unknown action.
-  REALTIME_ROOM_ACTION_UNSPECIFIED = 0;
-  // A room was created.
-  REALTIME_ROOM_ACTION_CREATED = 1;
-  // Public room metadata changed.
-  REALTIME_ROOM_ACTION_UPDATED = 2;
-  // A room was deleted.
-  REALTIME_ROOM_ACTION_DELETED = 3;
-  // A room was archived.
-  REALTIME_ROOM_ACTION_ARCHIVED = 4;
-  // A room was restored from archive.
-  REALTIME_ROOM_ACTION_UNARCHIVED = 5;
-  // Universal membership changed.
-  REALTIME_ROOM_ACTION_UNIVERSAL_CHANGED = 6;
-  // Slow Mode configuration changed.
-  REALTIME_ROOM_ACTION_SLOW_MODE_CHANGED = 7;
-  // Threading Mode configuration changed.
-  REALTIME_ROOM_ACTION_THREADING_MODE_CHANGED = 8;
-}
-
-// Room lifecycle or settings change.
-message RealtimeRoomEvent {
-  // Room change that occurred.
-  RealtimeRoomAction action = 1;
-  // Affected room ID.
-  string room_id = 2;
-}
-
-// Type of public room-membership change.
-enum RealtimeRoomMembershipAction {
-  // Invalid or unknown action.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_UNSPECIFIED = 0;
-  // A user joined the room themselves.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_JOINED = 1;
-  // A user left the room themselves.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_LEFT = 2;
-  // An administrator added a room member.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_ADDED = 3;
-  // An administrator removed a room member.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_REMOVED = 4;
-  // An administrator banned a room member.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_BANNED = 5;
-  // An administrator removed a room ban.
-  REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED = 6;
-}
-
-// Room-membership or moderation change.
-message RealtimeRoomMembershipEvent {
-  // Membership change that occurred.
-  RealtimeRoomMembershipAction action = 1;
-  // Affected room ID.
-  string room_id = 2;
-  // Affected user ID.
-  string user_id = 3;
-}
-
-// Type of public thread change.
-enum RealtimeThreadAction {
-  // Invalid or unknown action.
-  REALTIME_THREAD_ACTION_UNSPECIFIED = 0;
-  // A thread root was created.
-  REALTIME_THREAD_ACTION_CREATED = 1;
-}
-
-// Thread lifecycle or viewer-follow change.
-message RealtimeThreadEvent {
-  // Thread change that occurred.
-  RealtimeThreadAction action = 1;
-  // Room that contains the thread.
-  string room_id = 2;
-  // Stable message event ID of the thread root.
-  string thread_root_event_id = 3;
-}
-
-// Type of public user change.
-enum RealtimeUserAction {
-  // Invalid or unknown action.
-  REALTIME_USER_ACTION_UNSPECIFIED = 0;
-  // A public user account was created.
-  REALTIME_USER_ACTION_CREATED = 1;
-  // Public profile data changed.
-  REALTIME_USER_ACTION_PROFILE_CHANGED = 2;
-  // A public user account was deleted.
-  REALTIME_USER_ACTION_DELETED = 3;
-}
-
-// Public user lifecycle or profile change.
-message RealtimeUserEvent {
-  // User change that occurred.
-  RealtimeUserAction action = 1;
-  // Affected user ID.
-  string user_id = 2;
-}
-
-// Type of public call change.
-enum RealtimeCallAction {
-  // Invalid or unknown action.
-  REALTIME_CALL_ACTION_UNSPECIFIED = 0;
-  // A voice call started.
-  REALTIME_CALL_ACTION_STARTED = 1;
-  // A user joined a voice call.
-  REALTIME_CALL_ACTION_PARTICIPANT_JOINED = 2;
-  // A user left a voice call.
-  REALTIME_CALL_ACTION_PARTICIPANT_LEFT = 3;
-  // A voice call ended.
-  REALTIME_CALL_ACTION_ENDED = 4;
-}
-
-// Voice-call lifecycle or participant change.
-message RealtimeCallEvent {
-  // Call change that occurred.
-  RealtimeCallAction action = 1;
-  // Room that owns the call.
-  string room_id = 2;
-  // Stable call ID.
-  string call_id = 3;
-  // Affected participant for a join or leave action.
-  optional string user_id = 4;
-}
-
-// Public server profile or runtime state changed.
-message RealtimeServerChangedEvent {}
-
-// Visible room-group layout changed.
-message RealtimeRoomGroupsChangedEvent {}
-
-// The authenticated viewer's public resource changed.
-message RealtimeViewerChangedEvent {}
-
-// The authenticated viewer's notification state changed.
-message RealtimeNotificationsChangedEvent {}
-
-// One room's viewer-specific state changed.
-message RealtimeRoomViewerChangedEvent {
-  // Room whose viewer state changed.
-  string room_id = 1;
-}
-
-// One thread's viewer-specific state changed.
-message RealtimeThreadViewerChangedEvent {
-  // Room that contains the thread.
-  string room_id = 1;
-  // Stable message event ID of the thread root.
-  string thread_root_event_id = 2;
-}
 
 // One authorized current-state item.
 //
@@ -663,26 +378,4 @@ message RealtimeClose {
   bool reconnect = 3;
   // Suggested delay before reconnect.
   uint32 retry_after_ms = 4;
-}
-
-// Typing signal. It is transient and never replayed.
-message RealtimeTypingEvent {
-  // Room in which the user is typing.
-  string room_id = 1;
-  // Thread root when the user is typing in a thread.
-  optional string thread_root_event_id = 2;
-}
-
-// Latest presence transition. It is transient and never replayed.
-message RealtimePresenceChangedEvent {
-  // User whose presence changed.
-  string user_id = 1;
-  // New latest-value presence status.
-  chatto.api.v1.PresenceStatus status = 2;
-}
-
-// Session termination for the connected credential.
-message RealtimeSessionTerminatedEvent {
-  // Safe reason for session termination.
-  string reason = 1;
 }

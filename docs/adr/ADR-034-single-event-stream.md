@@ -1,5 +1,10 @@
 # ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
+**Status:** Partially superseded by
+[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+The single durable stream remains active. ADR-088 replaces the separate
+transient envelope.
+
 **Date:** 2026-05-24
 
 **Updated:** 2026-08-19
@@ -96,9 +101,21 @@ The realtime websocket consumes `live.evt.>` server-side and turns it into the u
 
 Ordinary projectors must not publish live events from `Apply`. Every app replica has its own local projectors, so projector-side publish effects would multiply one committed EVT event by the number of Chatto replicas.
 
-Transient UI and latest-value sync signals that are not durable facts use a separate `livev1.LiveEvent` wrapper on `live.sync.>`. The realtime WebSocket consumes these server-side and applies the same room, user, and config authorization gates. Transient activity such as typing and presence becomes a semantic public realtime event. Notification, preference, profile, read-state, and layout signals become semantic invalidation events with authoritative current state. The internal `LiveEvent` shape is not the public contract. Voice-call state is durable EVT state and converges through semantic call events with current active-call state.
+Transient UI and latest-value sync signals that are not durable facts use the
+canonical `evtv1.Event` wrapper on `live.sync.>`. The realtime WebSocket
+applies the same room, user, and config authorization gates. Transient activity
+such as typing and presence becomes a public realtime event. Notification,
+preference, profile, read-state, and layout signals include authoritative
+current state. Voice-call state is durable EVT state and converges through call
+events with current active-call state.
 
-`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the public realtime stream: durable facts reach the mapper through EVT republish, while ephemeral activity and latest-value invalidations reach it through `LiveEvent`. Both are converted to authorized semantic public events with optional current state.
+`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated
+EVT-backed mutations must not publish direct event-envelope live mirrors.
+`live.evt.>` and `live.sync.>` are the only server-side ingress roots for the
+public realtime stream. Durable facts reach the mapper through EVT republish.
+Ephemeral activity and latest-value invalidations reach it as transient
+canonical Events. Both become authorized Event copies with optional current
+state.
 
 ### Replication and retention
 

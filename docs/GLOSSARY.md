@@ -184,7 +184,10 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
 
-**Event** — Durable domain fact stored on `EVT` using the `evtv1.Event` wrapper. Contrast with *Live Event*.
+**Event** — Canonical `evtv1.Event` envelope and payload that describe one
+Chatto domain change. A durable Event is stored in EVT. A transient Event is
+published only on NATS Core. The publisher, not the envelope, selects
+durability. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
@@ -204,9 +207,16 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Live Event** — Internal `livev1.LiveEvent` signal published on `live.sync.>` for transient activity and latest-value invalidation. The server can map a transient signal, such as typing or presence, to a public realtime event. It can also use an invalidation to assemble authorized current state. The internal signal is never the public contract. Durable EVT facts reach live subscribers through `live.evt.>` after projection readiness and authorization checks. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md).
+**Live Event** — An Event delivered through the internal live ingress. Durable
+Events reach it through EVT republish on `live.evt.>`. Transient Events publish
+directly on `live.sync.>`. The previous `livev1.LiveEvent` envelope is only a
+rolling-upgrade read format. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
-**Public Realtime Event** — Authorized semantic description of Chatto domain activity for bots, integrations, alternate clients, and the bundled frontend. The server derives a durable public event from an EVT fact and can derive a transient public event from a Live Event. Raw EVT payloads, subjects, stream identities, and sequence numbers are not public API. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
+**Public Realtime Event** — Fresh authorized copy of a canonical Event for
+bots, integrations, alternate clients, and the bundled frontend. The server
+omits internal variants and storage-only fields and can add client-only
+plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
+numbers are not public API. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Client Projection** — Authenticated, server-scoped current state that a client builds from an authorized realtime snapshot and maintains with Public Realtime Events. It is a convergence view rather than an audit log. It does not replace the resource-oriented `chatto.api.v1` API for explicit reads, commands, pagination, and history. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md).
 

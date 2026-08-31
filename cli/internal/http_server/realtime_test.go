@@ -387,24 +387,24 @@ func TestRealtimeMapperMapsOfflinePresence(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeEventEnvelope: %v", err)
 	}
-	presence := frame.GetPresenceChanged()
+	presence := frame.GetEvent().GetPresenceChangedSignal()
 	if presence == nil {
 		t.Fatalf("event = %T, want presence_changed", frame.GetEvent())
 	}
-	if presence.Status != apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE {
+	if presence.GetStatus() != core.PresenceStatusOffline {
 		t.Fatalf("presence status = %v, want OFFLINE", presence.Status)
 	}
 }
 
-func TestRealtimeTransientMapperRejectsDurableEvents(t *testing.T) {
-	_, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&evtv1.Event{
+func TestRealtimeMapperAcceptsPublicDurableEvents(t *testing.T) {
+	mapped, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "", core.NewEVTEventEnvelope(&evtv1.Event{
 		Id: "thread-created-1",
 		Event: &evtv1.Event_ThreadCreated{ThreadCreated: &evtv1.ThreadCreatedEvent{
 			RoomId: "R1", ThreadRootEventId: "M1",
 		}},
 	}))
-	if err == nil {
-		t.Fatal("durable event was accepted by transient mapper")
+	if err != nil || mapped.GetEvent().GetThreadCreated().GetThreadRootEventId() != "M1" {
+		t.Fatalf("canonical durable event = %+v, err=%v", mapped, err)
 	}
 }
 
@@ -412,16 +412,16 @@ func TestRealtimeDurableSemanticMapperCoversProfileAndUnbanEvents(t *testing.T) 
 	tests := []struct {
 		name      string
 		event     *evtv1.Event
-		assertion func(*testing.T, *realtimev1.RealtimeEvent)
+		assertion func(*testing.T, *evtv1.Event)
 	}{
 		{
 			name: "user bio changed",
 			event: &evtv1.Event{Event: &evtv1.Event_UserBioChanged{
 				UserBioChanged: &evtv1.UserBioChangedEvent{UserId: "U1"},
 			}},
-			assertion: func(t *testing.T, event *realtimev1.RealtimeEvent) {
-				profile := event.GetUser()
-				if profile.GetAction() != realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED || profile.GetUserId() != "U1" {
+			assertion: func(t *testing.T, event *evtv1.Event) {
+				profile := event.GetUserBioChanged()
+				if profile.GetUserId() != "U1" {
 					t.Fatalf("profile event = %+v", profile)
 				}
 			},
@@ -431,9 +431,9 @@ func TestRealtimeDurableSemanticMapperCoversProfileAndUnbanEvents(t *testing.T) 
 			event: &evtv1.Event{Event: &evtv1.Event_RoomMemberUnbanned{
 				RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{RoomId: "R1", UserId: "U1"},
 			}},
-			assertion: func(t *testing.T, event *realtimev1.RealtimeEvent) {
-				membership := event.GetRoomMembership()
-				if membership.GetAction() != realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED || membership.GetRoomId() != "R1" || membership.GetUserId() != "U1" {
+			assertion: func(t *testing.T, event *evtv1.Event) {
+				membership := event.GetRoomMemberUnbanned()
+				if membership.GetRoomId() != "R1" || membership.GetUserId() != "U1" {
 					t.Fatalf("membership event = %+v", membership)
 				}
 			},
@@ -442,8 +442,8 @@ func TestRealtimeDurableSemanticMapperCoversProfileAndUnbanEvents(t *testing.T) 
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mapped := &realtimev1.RealtimeEvent{}
-			if !(&HTTPServer{}).mapRealtimeDurableSemantics(mapped, tt.event) {
+			mapped := projectRealtimeEvent(tt.event)
+			if mapped == nil {
 				t.Fatal("durable public event has no semantic mapping")
 			}
 			tt.assertion(t, mapped)
@@ -475,7 +475,7 @@ func TestRealtimeProjectionMapsBioChangeToCurrentUserState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetEvent().GetUser().GetAction() != realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED {
+	if !handled || frame.GetEvent().GetEvent().GetUserBioChanged() == nil {
 		t.Fatalf("bio projection frame = %+v, handled=%v", frame, handled)
 	}
 	var currentUser *apiv1.DirectoryMember
@@ -704,8 +704,8 @@ func TestRealtimeMapsPinnedMessageAsSemanticEvent(t *testing.T) {
 	if !handled || frame.GetEvent() == nil {
 		t.Fatalf("pin event frame = %+v, handled=%v", frame, handled)
 	}
-	change := frame.GetEvent().GetPinnedMessage()
-	if change.GetAction() != realtimev1.RealtimePinnedMessageAction_REALTIME_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
+	change := frame.GetEvent().GetEvent().GetMessagePinned()
+	if change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
 		t.Fatalf("pinned message change = %+v", change)
 	}
 
@@ -717,12 +717,12 @@ func TestRealtimeMapsPinnedMessageAsSemanticEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEventWithRooms retraction: %v", err)
 	}
-	if !handled || frame.GetEvent().GetMessage().GetAction() != realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_RETRACTED {
+	if !handled || frame.GetEvent().GetEvent().GetMessageRetracted() == nil {
 		t.Fatalf("retraction event frame = %+v, handled=%v", frame, handled)
 	}
 }
 
-func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
+func TestRealtimeMapperAcceptsProjectionOwnedTransientEvents(t *testing.T) {
 	tests := []struct {
 		name  string
 		event *livev1.LiveEvent
@@ -740,8 +740,8 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			_, err := (&HTTPServer{}).realtimeEventEnvelope(context.Background(), "U1", core.NewLiveEventEnvelope(test.event))
-			if err == nil {
-				t.Fatal("projection-owned live event was accepted by transient mapper")
+			if err != nil {
+				t.Fatalf("projection-owned canonical event was rejected: %v", err)
 			}
 		})
 	}
@@ -1769,8 +1769,8 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 			continue
 		}
 		foundCursorAdvance = foundCursorAdvance || projection.GetResumeCursor() != ""
-		messageEvent := projection.GetMessage()
-		foundSemanticMessage = foundSemanticMessage || (messageEvent.GetRoomId() == otherRoom.Id && messageEvent.GetAction() == realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_POSTED)
+		messageEvent := projection.GetEvent().GetMessagePosted()
+		foundSemanticMessage = foundSemanticMessage || messageEvent.GetRoomId() == otherRoom.Id
 		for _, operation := range projection.GetState() {
 			if projection.GetResumeCursor() != "" {
 				if operation.GetRoomTimelineEvent() != nil || operation.GetRoomTimelineEventRemoved() != nil || operation.GetRoomTimeline() != nil {
@@ -2331,10 +2331,10 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	for createdInvalidation == nil {
 		select {
 		case envelope := <-eventStream:
-			if envelope == nil || envelope.LiveEvent() == nil {
+			if envelope == nil || envelope.CanonicalEvent() == nil {
 				continue
 			}
-			if invalidation := envelope.LiveEvent().GetNotificationOccurrencesInvalidated(); invalidation != nil {
+			if invalidation := envelope.CanonicalEvent().GetNotificationOccurrencesInvalidated(); invalidation != nil {
 				createdInvalidation = proto.Clone(invalidation).(*livev1.NotificationOccurrencesInvalidatedEvent)
 			}
 		case <-deadline:
@@ -2999,7 +2999,7 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 			break
 		}
 		projection := frame.GetEvent()
-		if projection == nil || projection.GetId() != posted.Id {
+		if projection == nil || projection.GetEvent().GetId() != posted.Id {
 			continue
 		}
 		for _, operation := range projection.GetState() {
@@ -3602,8 +3602,8 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	if !ok || replayed.GetEvent() == nil || len(replayed.GetEvent().GetState()) != 1 {
 		t.Fatalf("replayed frame = %+v, want one current-state item", replayed)
 	}
-	reaction := replayed.GetEvent().GetReaction()
-	if reaction.GetRoomId() != room.Id || reaction.GetMessageEventId() != message.Id || reaction.GetEmoji() != "thumbsup" || reaction.GetAction() != realtimev1.RealtimeReactionAction_REALTIME_REACTION_ACTION_ADDED {
+	reaction := replayed.GetEvent().GetEvent().GetReactionAdded()
+	if reaction.GetRoomId() != room.Id || reaction.GetMessageEventId() != message.Id || reaction.GetEmoji() != "thumbsup" {
 		t.Fatalf("replayed reaction = %+v", reaction)
 	}
 	if replayed.GetEvent().GetResumeCursor() == "" {
@@ -3963,18 +3963,18 @@ func TestRealtimeWebSocketDeliversPresenceUpdateToOtherUser(t *testing.T) {
 	}
 
 	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEvent) bool {
-		presence := event.GetPresenceChanged()
-		return presence != nil && presence.UserId == actor.Id
+		presence := event.GetEvent().GetPresenceChangedSignal()
+		return presence != nil && event.GetEvent().GetActorId() == actor.Id
 	})
 	if event == nil {
 		t.Fatal("viewer did not receive actor presence_changed event")
 	}
-	if event.GetActorId() != actor.Id {
-		t.Fatalf("presence envelope actor_id = %q, want %q", event.GetActorId(), actor.Id)
+	if event.GetEvent().GetActorId() != actor.Id {
+		t.Fatalf("presence envelope actor_id = %q, want %q", event.GetEvent().GetActorId(), actor.Id)
 	}
-	presence := event.GetPresenceChanged()
-	if presence.Status != apiv1.PresenceStatus_PRESENCE_STATUS_AWAY {
-		t.Fatalf("presence status = %v, want AWAY", presence.Status)
+	presence := event.GetEvent().GetPresenceChangedSignal()
+	if presence.Status != "AWAY" {
+		t.Fatalf("presence status = %q, want AWAY", presence.Status)
 	}
 }
 

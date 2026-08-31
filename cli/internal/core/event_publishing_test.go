@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strconv"
 	"strings"
 	"testing"
@@ -15,6 +14,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -23,11 +23,29 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.sync.test", &livev1.LiveEvent{})
+		err := core.publishLiveEvent(ctx, "live.sync.test", &evtv1.Event{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
+}
+
+func TestCanonicalEventFromLivePreservesRollingUpgradeEnvelope(t *testing.T) {
+	legacy := &livev1.LiveEvent{
+		Id:      "legacy-id",
+		ActorId: "actor-id",
+		Event: &livev1.LiveEvent_UserTyping{UserTyping: &livev1.UserTypingEvent{
+			RoomId: "room-id",
+		}},
+	}
+
+	canonical := CanonicalEventFromLive(legacy)
+	if canonical.GetId() != legacy.GetId() || canonical.GetActorId() != legacy.GetActorId() {
+		t.Fatalf("canonical metadata = %+v, want legacy metadata", canonical)
+	}
+	if canonical.GetUserTypingSignal().GetRoomId() != "room-id" {
+		t.Fatalf("canonical payload = %+v, want typing payload", canonical.GetEvent())
+	}
 }
 
 func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {

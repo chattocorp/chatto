@@ -114,11 +114,11 @@ semantics for deployed clients, and documents any intentional skew boundary.
 
 The realtime protocol is versioned by protocol behavior, not by its protobuf
 package suffix. The `chatto.realtime.v1` namespace currently accepts only
-protocol version 3 and provides semantic events, an optional current-state
-snapshot, and bounded resume. Public cursors are encrypted, authenticated
-capabilities and never expose NATS or JetStream coordinates. Future frame
-additions must be additive where possible. New required client behavior uses a
-new protocol version instead of a capability matrix.
+protocol version 4 and provides authorized canonical events, an optional
+current-state snapshot, and bounded resume. Public cursors are encrypted,
+authenticated capabilities and never expose NATS or JetStream coordinates.
+Future frame additions must be additive where possible. New required client
+behavior uses a new protocol version instead of a capability matrix.
 
 Generated API reference documentation is split by domain instead of presented
 as one large mixed page. ConnectRPC service pages, shared ConnectRPC types, and

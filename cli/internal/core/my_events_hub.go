@@ -364,21 +364,32 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 
 func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 	h.decoded.Add(1)
-	var event livev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &event); err != nil {
+	event := new(evtv1.Event)
+	if err := proto.Unmarshal(msg.Data, event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
 	}
 	if event.Event == nil {
-		h.model.core.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
-		return false
+		// Accept the previous LiveEvent envelope while old 0.5 replicas can have
+		// messages in flight during a rolling replacement.
+		var legacy livev1.LiveEvent
+		if err := proto.Unmarshal(msg.Data, &legacy); err != nil {
+			h.model.core.logger.Warn("Failed to unmarshal legacy live sync event", "subject", msg.Subject, "error", err)
+			return false
+		}
+		canonical := CanonicalEventFromLive(&legacy)
+		if canonical == nil {
+			h.model.core.logger.Warn("Dropping live sync event without a known payload", "subject", msg.Subject)
+			return false
+		}
+		event = canonical
 	}
 
 	bytes := int64(len(msg.Data))
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for userID, state := range h.users {
-		authorized, ok := h.model.filterLiveSyncEvent(context.Background(), userID, state.memberRooms, msg, &event)
+		authorized, ok := h.model.filterLiveSyncEvent(context.Background(), userID, state.memberRooms, msg, event)
 		if ok {
 			h.enqueueUserLocked(state, authorized, bytes)
 		}

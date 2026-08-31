@@ -29,9 +29,9 @@ Chatto's pre-1.0 API remains experimental.
 - The bundled client shows relative sidebar drag handles only when the server
   version supports relative room-group and sidebar-item moves. Other sidebar
   management actions continue to use the older management API when available.
-- The `chatto.realtime.v1` protobuf namespace uses behavioural protocol version
-  3 for the semantic event stream. The alpha server does not retain protocol 2.
-  It rejects older and unknown handshakes.
+- The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
+  4 for the canonical event stream. The alpha server rejects older and unknown
+  handshakes.
 
 ## Design Decisions
 

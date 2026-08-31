@@ -274,11 +274,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   refresh without another permission prompt when the user opens it and
   notification permission is still granted. Push delivery can be unavailable
   until that first visit.
-- Realtime protocol 3 is required by both the 0.5 client and server. Upgrade every server
+- Realtime protocol 4 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server does not accept protocol 1 or protocol 2. Integrations that use
-  `/api/realtime` must regenerate their clients. Protocol 3 sends semantic events for bots
-  and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
+  `/api/realtime` must regenerate their clients. Protocol 4 sends authorized canonical
+  events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
   bounded cursor resume. Retained room IDs affect current timeline state only. They do not
   filter events.
 - Upgrade every Chatto server replica from 0.4 to 0.5 together rather than using a rolling

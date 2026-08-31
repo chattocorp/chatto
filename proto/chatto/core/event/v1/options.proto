@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package chatto.core.event.v1;
+
+import "google/protobuf/descriptor.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/event/v1;eventv1";
+
+// EventFieldSurface controls whether an Event payload field can exist in
+// stored EVT bytes, an authorized public event, or both.
+enum EventFieldSurface {
+  // The field is not classified and cannot cross a storage or public boundary.
+  EVENT_FIELD_SURFACE_UNSPECIFIED = 0;
+  // The field can exist in EVT and in an authorized public event.
+  EVENT_FIELD_SURFACE_SHARED = 1;
+  // The field can exist only in EVT. Public projection removes it.
+  EVENT_FIELD_SURFACE_STORAGE_ONLY = 2;
+  // The field can exist only in an authorized public event. EVT rejects it.
+  EVENT_FIELD_SURFACE_CLIENT_ONLY = 3;
+}
+
+extend google.protobuf.FieldOptions {
+  // Surface classification for one field reachable from Event.
+  EventFieldSurface event_field_surface = 50001;
+}

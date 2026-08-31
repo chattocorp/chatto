@@ -4,7 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
@@ -212,11 +213,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			},
 		}}, true, nil
 	}
-	projection := &realtimev1.RealtimeEvent{
-		Id:        event.ID(),
-		CreatedAt: event.CreatedAt(),
-		ActorId:   optionalRealtimeString(event.ActorID()),
+	canonical := event.CanonicalEvent()
+	var deliveryEvent *evtv1.Event
+	if isRealtimePublicEvent(canonical) {
+		deliveryEvent = proto.Clone(canonical).(*evtv1.Event)
+		if err := s.core.PopulateEventPlaintext(ctx, deliveryEvent); err != nil {
+			return nil, false, err
+		}
 	}
+	projection := &realtimev1.RealtimeEvent{Event: projectRealtimeEvent(deliveryEvent)}
 	if event.DeliverySeq() > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, event.DeliverySeq())
 		if err != nil {
@@ -250,7 +255,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			return realtimeProjectionServerFrame(projection), true, nil
 		}
 	}
-	if evt != nil && !s.mapRealtimeDurableSemantics(projection, evt) {
+	if evt != nil && projection.GetEvent() == nil {
 		return nil, false, nil
 	}
 
@@ -265,13 +270,11 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		return ok
 	}
 	if evt == nil {
-		live := event.LiveEvent()
-		if live == nil {
+		if canonical == nil {
 			return nil, false, nil
 		}
-		switch payload := live.GetEvent().(type) {
-		case *livev1.LiveEvent_ServerUpdated:
-			projection.Event = &realtimev1.RealtimeEvent_ServerChanged{ServerChanged: &realtimev1.RealtimeServerChangedEvent{}}
+		switch payload := canonical.GetEvent().(type) {
+		case *evtv1.Event_ServerUpdatedSync:
 			server, err := s.connectAPI.BuildRealtimeProjectionServer(ctx)
 			if err != nil {
 				return nil, false, err
@@ -281,24 +284,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_ServerState{
 				ServerState: realtimeProjectionServerState(serverState),
 			}})
-		case *livev1.LiveEvent_UserProfileUpdated:
-			projection.Event = &realtimev1.RealtimeEvent_User{User: &realtimev1.RealtimeUserEvent{
-				Action: realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED,
-				UserId: payload.UserProfileUpdated.GetUserId(),
-			}}
-			if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserProfileUpdated.GetUserId(), appendOperation); err != nil {
+		case *evtv1.Event_UserProfileSync:
+			if err := s.appendRealtimeProjectionUser(ctx, viewerID, payload.UserProfileSync.GetUserId(), appendOperation); err != nil {
 				return nil, false, err
 			}
-		case *livev1.LiveEvent_ServerMemberDeleted:
-			projection.Event = &realtimev1.RealtimeEvent_User{User: &realtimev1.RealtimeUserEvent{
-				Action: realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_DELETED,
-				UserId: payload.ServerMemberDeleted.GetUserId(),
-			}}
+		case *evtv1.Event_ServerMemberDeletedSync:
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_UserRemoved{
-				UserRemoved: &realtimev1.RealtimeUserRemovedState{UserId: payload.ServerMemberDeleted.GetUserId()},
+				UserRemoved: &realtimev1.RealtimeUserRemovedState{UserId: payload.ServerMemberDeletedSync.GetUserId()},
 			}})
-		case *livev1.LiveEvent_RoomGroupsUpdated:
-			projection.Event = &realtimev1.RealtimeEvent_RoomGroupsChanged{RoomGroupsChanged: &realtimev1.RealtimeRoomGroupsChangedEvent{}}
+		case *evtv1.Event_RoomGroupsUpdatedSync:
 			groups, err := s.connectAPI.BuildRealtimeProjectionRoomGroups(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
@@ -306,15 +300,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_RoomGroups{
 				RoomGroups: &realtimev1.RealtimeRoomGroupsState{Groups: groups},
 			}})
-		case *livev1.LiveEvent_ServerUserPreferencesUpdated:
-			projection.Event = &realtimev1.RealtimeEvent_ViewerChanged{ViewerChanged: &realtimev1.RealtimeViewerChangedEvent{}}
+		case *evtv1.Event_ServerUserPreferencesSync:
 			viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_Viewer{Viewer: viewer}})
-		case *livev1.LiveEvent_NotificationOccurrencesInvalidated:
-			projection.Event = &realtimev1.RealtimeEvent_NotificationsChanged{NotificationsChanged: &realtimev1.RealtimeNotificationsChangedEvent{}}
+		case *evtv1.Event_NotificationOccurrencesInvalidated:
 			invalidation := payload.NotificationOccurrencesInvalidated
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
@@ -347,9 +339,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_Notifications{
 				Notifications: replacement,
 			}})
-		case *livev1.LiveEvent_RoomMarkedAsRead:
-			roomID := payload.RoomMarkedAsRead.GetRoomId()
-			projection.Event = &realtimev1.RealtimeEvent_RoomViewerChanged{RoomViewerChanged: &realtimev1.RealtimeRoomViewerChangedEvent{RoomId: roomID}}
+		case *evtv1.Event_RoomMarkedAsReadSync:
+			roomID := payload.RoomMarkedAsReadSync.GetRoomId()
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
 			if err != nil {
 				return nil, false, err
@@ -362,10 +353,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeStateItem{State: &realtimev1.RealtimeStateItem_Notifications{
 				Notifications: realtimeProjectionNotificationOccurrences(notifications),
 			}})
-		case *livev1.LiveEvent_NotificationUnreadChanged:
+		case *evtv1.Event_NotificationUnreadChanged:
 			invalidation := payload.NotificationUnreadChanged
 			roomID := invalidation.GetRoomId()
-			projection.Event = &realtimev1.RealtimeEvent_RoomViewerChanged{RoomViewerChanged: &realtimev1.RealtimeRoomViewerChangedEvent{RoomId: roomID}}
 			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
 			if err != nil {
 				if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) {
@@ -374,11 +364,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(realtimeProjectionRoomViewerOperation(roomID, viewerState))
-		case *livev1.LiveEvent_ThreadFollowChanged:
-			thread := payload.ThreadFollowChanged
-			projection.Event = &realtimev1.RealtimeEvent_ThreadViewerChanged{ThreadViewerChanged: &realtimev1.RealtimeThreadViewerChangedEvent{
-				RoomId: thread.GetRoomId(), ThreadRootEventId: thread.GetThreadRootEventId(),
-			}}
+		case *evtv1.Event_ThreadFollowChangedSync:
+			thread := payload.ThreadFollowChangedSync
 			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
@@ -946,155 +933,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	// they only affect a room timeline this connection has not materialised.
 	// Keep the empty envelope so the client can safely advance its one cursor.
 	return realtimeProjectionServerFrame(projection), true, nil
-}
-
-// mapRealtimeDurableSemantics maps each durable fact that the realtime hub can
-// expose to one stable public event. State hydration stays separate from this
-// mapping so retained rooms never change which semantic events a bot sees.
-func (s *HTTPServer) mapRealtimeDurableSemantics(event *realtimev1.RealtimeEvent, evt *evtv1.Event) bool {
-	if event == nil || evt == nil {
-		return false
-	}
-	message := func(action realtimev1.RealtimeMessageAction, roomID, messageID, threadRootID string) bool {
-		event.Event = &realtimev1.RealtimeEvent_Message{Message: &realtimev1.RealtimeMessageEvent{
-			Action: action, RoomId: roomID, MessageEventId: messageID, ThreadRootEventId: optionalRealtimeString(threadRootID),
-		}}
-		return true
-	}
-	room := func(action realtimev1.RealtimeRoomAction, roomID string) bool {
-		event.Event = &realtimev1.RealtimeEvent_Room{Room: &realtimev1.RealtimeRoomEvent{Action: action, RoomId: roomID}}
-		return true
-	}
-	membership := func(action realtimev1.RealtimeRoomMembershipAction, roomID, userID string) bool {
-		event.Event = &realtimev1.RealtimeEvent_RoomMembership{RoomMembership: &realtimev1.RealtimeRoomMembershipEvent{
-			Action: action, RoomId: roomID, UserId: userID,
-		}}
-		return true
-	}
-	user := func(action realtimev1.RealtimeUserAction, userID string) bool {
-		event.Event = &realtimev1.RealtimeEvent_User{User: &realtimev1.RealtimeUserEvent{Action: action, UserId: userID}}
-		return true
-	}
-	call := func(action realtimev1.RealtimeCallAction, roomID, callID, userID string) bool {
-		event.Event = &realtimev1.RealtimeEvent_Call{Call: &realtimev1.RealtimeCallEvent{
-			Action: action, RoomId: roomID, CallId: callID, UserId: optionalRealtimeString(userID),
-		}}
-		return true
-	}
-	asset := func(action realtimev1.RealtimeAssetAction, assetID string) bool {
-		semantic := &realtimev1.RealtimeAssetEvent{Action: action, AssetId: assetID}
-		if roomID, messageID, ok := s.core.AssetEventTimelineTarget(evt); ok {
-			semantic.RoomId = optionalRealtimeString(roomID)
-			semantic.MessageEventId = optionalRealtimeString(messageID)
-		}
-		event.Event = &realtimev1.RealtimeEvent_Asset{Asset: semantic}
-		return true
-	}
-
-	switch payload := evt.GetEvent().(type) {
-	case *evtv1.Event_MessagePosted:
-		return message(realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_POSTED, payload.MessagePosted.GetRoomId(), evt.GetId(), payload.MessagePosted.GetInThread())
-	case *evtv1.Event_MessageEdited:
-		return message(realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_EDITED, payload.MessageEdited.GetRoomId(), payload.MessageEdited.GetEventId(), "")
-	case *evtv1.Event_MessageRetracted:
-		return message(realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_RETRACTED, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), "")
-	case *evtv1.Event_ReactionAdded:
-		reaction := payload.ReactionAdded
-		event.Event = &realtimev1.RealtimeEvent_Reaction{Reaction: &realtimev1.RealtimeReactionEvent{
-			Action: realtimev1.RealtimeReactionAction_REALTIME_REACTION_ACTION_ADDED, RoomId: reaction.GetRoomId(),
-			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()), Emoji: reaction.GetEmoji(), UserId: evt.GetActorId(),
-		}}
-		return true
-	case *evtv1.Event_ReactionRemoved:
-		reaction := payload.ReactionRemoved
-		event.Event = &realtimev1.RealtimeEvent_Reaction{Reaction: &realtimev1.RealtimeReactionEvent{
-			Action: realtimev1.RealtimeReactionAction_REALTIME_REACTION_ACTION_REMOVED, RoomId: reaction.GetRoomId(),
-			MessageEventId: s.core.CanonicalReactionMessageEventID(reaction.GetRoomId(), reaction.GetMessageEventId()), Emoji: reaction.GetEmoji(), UserId: evt.GetActorId(),
-		}}
-		return true
-	case *evtv1.Event_MessagePinned:
-		pin := payload.MessagePinned
-		event.Event = &realtimev1.RealtimeEvent_PinnedMessage{PinnedMessage: &realtimev1.RealtimePinnedMessageEvent{
-			Action: realtimev1.RealtimePinnedMessageAction_REALTIME_PINNED_MESSAGE_ACTION_CREATED, RoomId: pin.GetRoomId(), MessageEventId: pin.GetMessageEventId(),
-		}}
-		return true
-	case *evtv1.Event_MessageUnpinned:
-		pin := payload.MessageUnpinned
-		event.Event = &realtimev1.RealtimeEvent_PinnedMessage{PinnedMessage: &realtimev1.RealtimePinnedMessageEvent{
-			Action: realtimev1.RealtimePinnedMessageAction_REALTIME_PINNED_MESSAGE_ACTION_DELETED, RoomId: pin.GetRoomId(), MessageEventId: pin.GetMessageEventId(),
-		}}
-		return true
-	case *evtv1.Event_AssetProcessingStarted:
-		return asset(realtimev1.RealtimeAssetAction_REALTIME_ASSET_ACTION_PROCESSING_STARTED, payload.AssetProcessingStarted.GetAssetId())
-	case *evtv1.Event_AssetProcessingSucceeded:
-		return asset(realtimev1.RealtimeAssetAction_REALTIME_ASSET_ACTION_PROCESSING_SUCCEEDED, payload.AssetProcessingSucceeded.GetAssetId())
-	case *evtv1.Event_AssetProcessingFailed:
-		return asset(realtimev1.RealtimeAssetAction_REALTIME_ASSET_ACTION_PROCESSING_FAILED, payload.AssetProcessingFailed.GetAssetId())
-	case *evtv1.Event_AssetDeleted:
-		return asset(realtimev1.RealtimeAssetAction_REALTIME_ASSET_ACTION_DELETED, payload.AssetDeleted.GetAssetId())
-	case *evtv1.Event_VoiceCallStarted:
-		return call(realtimev1.RealtimeCallAction_REALTIME_CALL_ACTION_STARTED, payload.VoiceCallStarted.GetRoomId(), payload.VoiceCallStarted.GetCallId(), "")
-	case *evtv1.Event_VoiceCallParticipantJoined:
-		return call(realtimev1.RealtimeCallAction_REALTIME_CALL_ACTION_PARTICIPANT_JOINED, payload.VoiceCallParticipantJoined.GetRoomId(), payload.VoiceCallParticipantJoined.GetCallId(), evt.GetActorId())
-	case *evtv1.Event_VoiceCallParticipantLeft:
-		return call(realtimev1.RealtimeCallAction_REALTIME_CALL_ACTION_PARTICIPANT_LEFT, payload.VoiceCallParticipantLeft.GetRoomId(), payload.VoiceCallParticipantLeft.GetCallId(), evt.GetActorId())
-	case *evtv1.Event_VoiceCallEnded:
-		return call(realtimev1.RealtimeCallAction_REALTIME_CALL_ACTION_ENDED, payload.VoiceCallEnded.GetRoomId(), payload.VoiceCallEnded.GetCallId(), "")
-	case *evtv1.Event_RoomCreated:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_CREATED, payload.RoomCreated.GetRoomId())
-	case *evtv1.Event_RoomUpdated:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_UPDATED, payload.RoomUpdated.GetRoomId())
-	case *evtv1.Event_RoomDeleted:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_DELETED, payload.RoomDeleted.GetRoomId())
-	case *evtv1.Event_RoomArchived:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_ARCHIVED, payload.RoomArchived.GetRoomId())
-	case *evtv1.Event_RoomUnarchived:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_UNARCHIVED, payload.RoomUnarchived.GetRoomId())
-	case *evtv1.Event_RoomUniversalChanged:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_UNIVERSAL_CHANGED, payload.RoomUniversalChanged.GetRoomId())
-	case *evtv1.Event_RoomSlowModeChanged:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_SLOW_MODE_CHANGED, payload.RoomSlowModeChanged.GetRoomId())
-	case *evtv1.Event_RoomThreadingModeChanged:
-		return room(realtimev1.RealtimeRoomAction_REALTIME_ROOM_ACTION_THREADING_MODE_CHANGED, payload.RoomThreadingModeChanged.GetRoomId())
-	case *evtv1.Event_UserJoinedRoom:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_JOINED, payload.UserJoinedRoom.GetRoomId(), evt.GetActorId())
-	case *evtv1.Event_UserLeftRoom:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_LEFT, payload.UserLeftRoom.GetRoomId(), evt.GetActorId())
-	case *evtv1.Event_RoomMemberAdded:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_ADDED, payload.RoomMemberAdded.GetRoomId(), payload.RoomMemberAdded.GetUserId())
-	case *evtv1.Event_RoomMemberRemoved:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_REMOVED, payload.RoomMemberRemoved.GetRoomId(), payload.RoomMemberRemoved.GetUserId())
-	case *evtv1.Event_RoomMemberBanned:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_BANNED, payload.RoomMemberBanned.GetRoomId(), payload.RoomMemberBanned.GetUserId())
-	case *evtv1.Event_RoomMemberUnbanned:
-		return membership(realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED, payload.RoomMemberUnbanned.GetRoomId(), payload.RoomMemberUnbanned.GetUserId())
-	case *evtv1.Event_ThreadCreated:
-		thread := payload.ThreadCreated
-		event.Event = &realtimev1.RealtimeEvent_Thread{Thread: &realtimev1.RealtimeThreadEvent{
-			Action: realtimev1.RealtimeThreadAction_REALTIME_THREAD_ACTION_CREATED, RoomId: thread.GetRoomId(), ThreadRootEventId: thread.GetThreadRootEventId(),
-		}}
-		return true
-	case *evtv1.Event_UserAccountCreated:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_CREATED, payload.UserAccountCreated.GetUserId())
-	case *evtv1.Event_UserCustomStatusSet:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserCustomStatusSet.GetUserId())
-	case *evtv1.Event_UserCustomStatusCleared:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserCustomStatusCleared.GetUserId())
-	case *evtv1.Event_UserLoginChanged:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserLoginChanged.GetUserId())
-	case *evtv1.Event_UserDisplayNameChanged:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserDisplayNameChanged.GetUserId())
-	case *evtv1.Event_UserBioChanged:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserBioChanged.GetUserId())
-	case *evtv1.Event_UserAvatarSet:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserAvatarSet.GetUserId())
-	case *evtv1.Event_UserAvatarCleared:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED, payload.UserAvatarCleared.GetUserId())
-	case *evtv1.Event_UserAccountDeleted:
-		return user(realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_DELETED, payload.UserAccountDeleted.GetUserId())
-	default:
-		return false
-	}
 }
 
 // canAdvanceSelfAuthoredRBAC identifies self-authored RBAC mutations that

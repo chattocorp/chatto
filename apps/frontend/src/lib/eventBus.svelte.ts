@@ -10,7 +10,8 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
-import { RealtimeEvent, type RealtimeStateItem } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimeStateItem } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import {
   TransientEventKind,
   transientEventKind,
@@ -22,7 +23,7 @@ export type EventHandler = (event: TransientEventEnvelope) => void;
 /** One ordered update consumed by the bundled frontend projection. */
 export class RealtimeProjectionUpdate {
   /** Semantic source event. Snapshot state items do not have one. */
-  readonly event: RealtimeEvent | null;
+  readonly event: Event | null;
   /** Authorized current state to apply in order. */
   readonly state: readonly RealtimeStateItem[];
   /** Clear the retained projection before applying this update. */
@@ -30,7 +31,7 @@ export class RealtimeProjectionUpdate {
 
   constructor(
     init: {
-      event?: RealtimeEvent | null;
+      event?: Event | null;
       state?: readonly RealtimeStateItem[];
       /** Test and migration convenience for the former projection vocabulary. */
       operations?: readonly RealtimeStateItem[];
@@ -43,9 +44,7 @@ export class RealtimeProjectionUpdate {
     this.reset = init.reset ?? false;
     this.event =
       init.event ??
-      (init.id || init.actorId
-        ? new RealtimeEvent({ id: init.id, actorId: init.actorId, state: [...this.state] })
-        : null);
+      (init.id || init.actorId ? new Event({ id: init.id, actorId: init.actorId }) : null);
   }
 }
 export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;

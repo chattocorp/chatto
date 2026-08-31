@@ -1,12 +1,12 @@
 ---
 title: Realtime Protocol Overview
-description: Receive semantic events, choose initial state, resume a short gap, and hydrate room state.
+description: Receive canonical events, choose initial state, resume a short gap, and hydrate room state.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 import realtimeSequence from "../../../../assets/realtime-protocol-sequence.svg?raw";
 
-Use realtime protocol 3 when a bot or client must react to activity on one
+Use realtime protocol 4 when a bot or client must react to activity on one
 Chatto server. The protocol sends binary protobuf frames over a WebSocket at
 `/api/realtime`.
 
@@ -29,9 +29,9 @@ integration needs.
 
 1. Open a WebSocket to `wss://chat.example.com/api/realtime`.
 2. Send a binary [`RealtimeClientFrame`](/reference/connectrpc-api/realtime/#realtimeclientframe)
-   with `hello`. Request protocol version `3`. Include a bearer credential when
+   with `hello`. Request protocol version `4`. Include a bearer credential when
    you do not use a same-origin cookie.
-3. Wait for the server `hello`. Check that it accepts version `3`.
+3. Wait for the server `hello`. Check that it accepts version `4`.
 4. Send `subscribe_events`. Select `SNAPSHOT` or `LIVE_ONLY` as the required
    initial-state fallback. You can also include a safe resume cursor and the
    IDs of room timelines that your projection retains.
@@ -68,19 +68,27 @@ normal recovery behavior. The server does not send a partial replay.
   the server binds it to the authenticated viewer.
 </Aside>
 
-## Handle semantic events
+## Handle canonical events
 
-Each `RealtimeEvent` describes one authorized activity. Durable variants
+Each `RealtimeEvent` carries one authorized copy of Chatto's canonical Event.
+Durable variants
 include messages, edits, retractions, reactions, pins, assets, rooms,
 membership, profiles, threads, and calls. Typing, presence changes, and session
 termination are transient variants and have no resume cursor.
 
-An event contains common metadata outside its event `oneof`:
+The canonical Event contains common metadata outside its event `oneof`:
 
 - a stable event ID;
 - source time;
-- a visible actor, when applicable; and
-- a resume cursor for durable activity.
+- a visible actor ID, when applicable.
+
+The `RealtimeEvent` transport wrapper contains the resume cursor for durable
+activity and optional current state. The canonical Event does not contain
+broker coordinates or a cursor.
+
+The server omits internal event variants and storage-only fields. It can add
+authorized delivery-only `_plaintext` fields. It never sends raw EVT bytes,
+ciphertext, credential data, subjects, or JetStream sequences.
 
 An event can also contain current `state` items. A bot can ignore this state
 and fetch resources through ConnectRPC. A projection client can apply it to
@@ -89,7 +97,7 @@ converge without extra reads.
 Process one event as one unit:
 
 1. Decode the complete frame.
-2. Process the semantic variant that you understand.
+2. Process the canonical variant that you understand.
 3. Apply any current-state items that your client uses.
 4. Save `resume_cursor` only after your processing succeeds.
 
@@ -126,7 +134,7 @@ you apply both, keep that room ID in your retained set and send the set in
 later subscriptions. One connection can retain at most 64 room timelines.
 
 Retained room IDs affect only current timeline state. They never filter
-semantic events. A bot receives an authorized message or reaction event even
+canonical events. A bot receives an authorized message or reaction event even
 when it does not retain that room's timeline.
 
 Hydration admission errors are non-fatal. They identify the room and can

@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -246,6 +247,10 @@ message MessageBody {
   // Nonce for encrypted_body: 12 bytes for legacy ChaCha20-Poly1305, 24 bytes
   // for v2 XChaCha20-Poly1305.
   bytes encryption_nonce = 21;
+
+  // Decrypted message text for an authorized delivery object. EVT storage
+  // rejects this client-only field.
+  optional string body_plaintext = 22 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 
   // Legacy embedded attachment protos. Older bodies (and the legacy
   // import path) carry full Attachment records here. New bodies write

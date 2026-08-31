@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"net/http"
 	"slices"
 	"strings"
@@ -25,7 +24,7 @@ import (
 
 const (
 	realtimePath                    = "/api/realtime"
-	realtimeProtocolVersion         = 3
+	realtimeProtocolVersion         = 4
 	realtimeReadLimitBytes          = 64 << 10
 	realtimeReadBufferBytes         = 256
 	realtimeWriteBufferBytes        = 512
@@ -885,38 +884,21 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 }
 
 func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
-	envelope := &realtimev1.RealtimeEvent{
-		Id:        event.ID(),
-		CreatedAt: event.CreatedAt(),
-		ActorId:   optionalRealtimeString(event.ActorID()),
+	canonical := event.CanonicalEvent()
+	if canonical == nil {
+		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-
-	if event.EVTEvent() != nil {
-		return nil, errors.New("durable events must use semantic event mapping")
-	}
-	if live := event.LiveEvent(); live != nil {
-		if err := s.mapRealtimeLive(ctx, viewerID, envelope, live); err != nil {
-			return nil, err
-		}
-		return envelope, nil
-	}
-	return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
-}
-
-func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *realtimev1.RealtimeEvent, event *livev1.LiveEvent) error {
-	switch payload := event.GetEvent().(type) {
-	case *livev1.LiveEvent_UserTyping:
-		typing := payload.UserTyping
+	if typing := canonical.GetUserTypingSignal(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		isMember, err := s.core.RoomMembershipExists(ctx, kind, viewerID, typing.GetRoomId())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !isMember {
-			return core.ErrPermissionDenied
+			return nil, core.ErrPermissionDenied
 		}
 		var canRead bool
 		if typing.GetThreadRootEventId() != "" {
@@ -925,26 +907,17 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 			canRead, err = s.core.CanReadMessages(ctx, viewerID, kind, typing.GetRoomId())
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !canRead {
-			return core.ErrPermissionDenied
+			return nil, core.ErrPermissionDenied
 		}
-		envelope.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: &realtimev1.RealtimeTypingEvent{
-			RoomId: typing.GetRoomId(), ThreadRootEventId: optionalRealtimeString(typing.GetThreadRootEventId()),
-		}}
-	case *livev1.LiveEvent_PresenceChanged:
-		envelope.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: &realtimev1.RealtimePresenceChangedEvent{
-			UserId: event.GetActorId(), Status: apiPresenceStatus(payload.PresenceChanged.GetStatus()),
-		}}
-	case *livev1.LiveEvent_SessionTerminated:
-		envelope.Event = &realtimev1.RealtimeEvent_SessionTerminated{SessionTerminated: &realtimev1.RealtimeSessionTerminatedEvent{
-			Reason: payload.SessionTerminated.GetReason(),
-		}}
-	default:
-		return fmt.Errorf("unsupported live event %T", payload)
 	}
-	return nil
+	projected := projectRealtimeEvent(canonical)
+	if projected == nil {
+		return nil, fmt.Errorf("unsupported realtime event %T", canonical.GetEvent())
+	}
+	return &realtimev1.RealtimeEvent{Event: projected}, nil
 }
 
 func optionalRealtimeString(value string) *string {

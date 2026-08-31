@@ -574,6 +574,46 @@ func (p *UserProjection) userPIIStringLocked(ctx context.Context, eventID, userI
 	return plaintext, true, nil
 }
 
+// decryptEventPII resolves one encrypted value with the key material retained
+// by the projection. It does not retain the resulting plaintext.
+func (p *UserProjection) decryptEventPII(ctx context.Context, eventID, userID, eventType, purpose string, encrypted *evtv1.EncryptedUserString) (string, bool, error) {
+	if encrypted == nil {
+		return "", false, nil
+	}
+	p.RLock()
+	byPurpose := p.dekEvents[userID]
+	var dekEvent *evtv1.UserDEKGeneratedEvent
+	if byPurpose != nil {
+		dekEvent = byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII][encrypted.GetContentKeyEpoch()]
+		if dekEvent == nil {
+			dekEvent = byPurpose[evtv1.UserDEKPurpose_USER_DEK_PURPOSE_UNSPECIFIED][encrypted.GetContentKeyEpoch()]
+		}
+	}
+	if dekEvent != nil {
+		dekEvent = proto.Clone(dekEvent).(*evtv1.UserDEKGeneratedEvent)
+	}
+	resolver := p.dekResolver
+	p.RUnlock()
+	if dekEvent == nil || resolver == nil {
+		return "", false, nil
+	}
+	dek, err := resolver.Resolve(ctx, dekEvent, evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII)
+	if err != nil {
+		if errors.Is(err, encryption.ErrKeyNotFound) {
+			return "", false, nil
+		}
+		return "", false, fmt.Errorf("resolve event PII key: %w", err)
+	}
+	if dek == nil || len(dek.key) == 0 {
+		return "", false, nil
+	}
+	plaintext, err := decryptUserPIIString(dek.key, eventID, userID, eventType, purpose, encrypted)
+	if err != nil {
+		return "", false, fmt.Errorf("decrypt event PII value: %w", err)
+	}
+	return plaintext, true, nil
+}
+
 type projectedPIISnapshot struct {
 	value    *projectedUserPII
 	dekEvent *evtv1.UserDEKGeneratedEvent

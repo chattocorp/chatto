@@ -31,7 +31,10 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ### 2. Public profile/config changes publish one internal live signal
 
-**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated`. The realtime service consumes that internal invalidation signal and emits an authoritative semantic public server-change event to each authenticated client; the internal event is not part of the public wire protocol.
+**Decision:** Public server profile and config changes publish one transient
+`ServerUpdatedSync` canonical Event on `live.sync.config.server_updated`. The
+realtime service sends an authorized copy of that Event with authoritative
+current server state to each authenticated client.
 **Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One internal signal keeps profile/config live behavior clear, avoids duplicate broadcasts from text updates, and lets the public stream converge without a client-side refetch.
 **Tradeoff:** Every connected client rebuilds the small projected server resource when public profile/config changes, including fields it may not render. Volume is low (operators don't tweak branding constantly), so this is preferable to exposing invalidation mechanics to clients.
 

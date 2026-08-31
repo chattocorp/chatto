@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
@@ -468,9 +469,9 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_SessionTerminated{
-			SessionTerminated: &livev1.SessionTerminatedEvent{
+	event := newTransientEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_SessionTerminatedSignal{
+			SessionTerminatedSignal: &livev1.SessionTerminatedEvent{
 				Reason: reason,
 			},
 		},

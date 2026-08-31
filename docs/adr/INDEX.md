@@ -49,7 +49,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Partially superseded | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | Superseded | 2026-05-23 |
 | [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | Accepted | 2026-05-24 |
-| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
+| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Partially superseded | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Completed | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Partially superseded | 2026-05-27 |
 | [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Partially superseded | 2026-05-31 |
@@ -99,7 +99,8 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
 | [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
 | [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
-| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
+| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Partially superseded | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
 | [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md) | Commit Room-Layout Structural Mutations Atomically | Accepted | 2026-08-30 |
-| [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Accepted | 2026-08-30 |
+| [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
+| [ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md) | Use One Event Vocabulary for Storage, Live Delivery, and Realtime | Accepted | 2026-08-31 |

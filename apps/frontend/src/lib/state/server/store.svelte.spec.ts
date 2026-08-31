@@ -31,14 +31,8 @@ import {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import {
   RealtimeActiveCallsState,
-  RealtimeEvent,
-  RealtimeMessageAction,
-  RealtimeMessageEvent,
   RealtimeStateItem,
-  RealtimePinnedMessageAction,
-  RealtimePinnedMessageEvent,
   RealtimeRoomViewerState,
-  RealtimeReactionEvent,
   RealtimeRoomTimelineEventRemovedState,
   RealtimeRoomTimelineEventState,
   RealtimeRoomTimelineState,
@@ -49,6 +43,12 @@ import {
   RealtimeThreadViewerStatesState,
   RealtimeUserRemovedState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
+import {
+  MessagePinnedEvent,
+  MessagePostedEvent
+} from '@chatto/api-types/core/evt/v1/message_events_pb';
+import { ReactionAddedEvent } from '@chatto/api-types/core/evt/v1/reaction_events_pb';
 import { MAX_RETAINED_ROOM_TIMELINES } from './realtimeSync.svelte';
 import { roomPinsSeenStorageKey } from '$lib/state/room/pins.svelte';
 
@@ -1238,11 +1238,11 @@ describe('ServerStateStore live server updates', () => {
     const store = makeStore(new FakeServerConnection([]));
     const pins = store.pinsForRoom('R1');
     pins.applyRealtimeChange(
-      new RealtimePinnedMessageEvent({
+      new MessagePinnedEvent({
         roomId: 'R1',
-        messageEventId: 'M1',
-        action: RealtimePinnedMessageAction.CREATED
+        messageEventId: 'M1'
       }),
+      true,
       'PIN-1'
     );
     pins.markSeen();
@@ -1469,9 +1469,9 @@ describe('ServerStateStore live server updates', () => {
     for (const handler of bus.projectionHandlers) {
       handler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: new Event({
             id: 'REACTION-1',
-            event: { case: 'reaction', value: new RealtimeReactionEvent() }
+            event: { case: 'reactionAdded', value: new ReactionAddedEvent() }
           }),
           operations: [
             new RealtimeStateItem({
@@ -1524,9 +1524,9 @@ describe('ServerStateStore live server updates', () => {
     for (const handler of bus.projectionHandlers) {
       handler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: new Event({
             id: 'REACTION-2',
-            event: { case: 'reaction', value: new RealtimeReactionEvent() }
+            event: { case: 'reactionAdded', value: new ReactionAddedEvent() }
           }),
           operations: [
             new RealtimeStateItem({
@@ -1711,14 +1711,12 @@ describe('ServerStateStore live server updates', () => {
     for (const handler of bus.projectionHandlers) {
       handler(
         new RealtimeProjectionUpdate({
-          event: new RealtimeEvent({
+          event: new Event({
             id: 'M2',
             event: {
-              case: 'message',
-              value: new RealtimeMessageEvent({
-                action: RealtimeMessageAction.POSTED,
-                roomId: 'R2',
-                messageEventId: 'M2'
+              case: 'messagePosted',
+              value: new MessagePostedEvent({
+                roomId: 'R2'
               })
             }
           })

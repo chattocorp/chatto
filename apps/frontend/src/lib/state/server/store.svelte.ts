@@ -33,7 +33,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState } from '$lib/api-client/viewer';
@@ -397,7 +397,8 @@ export class ServerStateStore {
     const previousViewer = this.projection.viewer;
     const sourceEvent = update.event;
     const sourceEventId = sourceEvent?.id ?? '';
-    const isReaction = sourceEvent?.event.case === 'reaction';
+    const isReaction =
+      sourceEvent?.event.case === 'reactionAdded' || sourceEvent?.event.case === 'reactionRemoved';
     const resetsProjection = update.reset;
     const existingTimelineRows = new SvelteSet<string>();
     for (const stateItem of update.state) {
@@ -419,9 +420,12 @@ export class ServerStateStore {
       this.forEachMessageSearch((store) => store.clearResults());
     }
     this.projection.apply(update);
-    if (sourceEvent?.event.case === 'pinnedMessage') {
+    if (sourceEvent?.event.case === 'messagePinned') {
       const pin = sourceEvent.event.value;
-      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, sourceEvent.id);
+      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, true, sourceEvent.id);
+    } else if (sourceEvent?.event.case === 'messageUnpinned') {
+      const pin = sourceEvent.event.value;
+      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, false, sourceEvent.id);
     }
     for (const stateItem of update.state) {
       switch (stateItem.state.case) {
@@ -852,10 +856,7 @@ export class ServerStateStore {
     void playCallSound(kind);
   }
 
-  private reconcileActiveCallTransition(
-    event: RealtimeEvent | null,
-    calls: readonly ActiveCall[]
-  ): void {
+  private reconcileActiveCallTransition(event: Event | null, calls: readonly ActiveCall[]): void {
     const actorId = event?.actorId;
     const previousActorCall = actorId ? this.activeCallRooms.findParticipantCall(actorId) : null;
     const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;

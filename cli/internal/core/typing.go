@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -20,9 +21,9 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string,
 		typingEvent.ThreadRootEventId = threadRootEventID
 	}
 
-	event := newLiveEvent(actorID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_UserTyping{
-			UserTyping: typingEvent,
+	event := newTransientEvent(actorID, &evtv1.Event{
+		Event: &evtv1.Event_UserTypingSignal{
+			UserTypingSignal: typingEvent,
 		},
 	})
 

@@ -95,7 +95,7 @@ function clientHelloFrame(token: string | null): Uint8Array {
     frame: {
       case: 'hello',
       value: new RealtimeClientHello({
-        protocolVersion: 3,
+        protocolVersion: 4,
         bearerToken: token ?? undefined
       })
     }
@@ -385,7 +385,7 @@ class EventBusManager {
     };
 
     const dispatchEventState = (event: RealtimeEvent) => {
-      dispatchProjectionUpdate({ event, state: event.state, reset: false });
+      dispatchProjectionUpdate({ event: event.event ?? null, state: event.state, reset: false });
     };
 
     const dispatchSnapshotState = (state: RealtimeStateItem) => {

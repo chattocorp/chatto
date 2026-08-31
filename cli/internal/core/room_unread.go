@@ -42,9 +42,9 @@ type LastReadEventIDAdvance struct {
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_RoomMarkedAsRead{
-			RoomMarkedAsRead: &livev1.RoomMarkedAsReadEvent{
+	event := newTransientEvent(userID, &evtv1.Event{
+		Event: &evtv1.Event_RoomMarkedAsReadSync{
+			RoomMarkedAsReadSync: &livev1.RoomMarkedAsReadEvent{
 				RoomId: roomID,
 			},
 		},

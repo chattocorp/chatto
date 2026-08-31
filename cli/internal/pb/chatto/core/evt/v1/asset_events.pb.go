@@ -10,6 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
+	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -898,59 +899,59 @@ var File_chatto_core_evt_v1_asset_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_asset_events_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/evt/v1/asset_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe2\x03\n" +
-	"\x11AssetCreatedEvent\x125\n" +
-	"\x05asset\x18\x01 \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordR\x05asset\x12:\n" +
-	"\x19original_binary_available\x18\x02 \x01(\bR\x17originalBinaryAvailable\x12\x17\n" +
-	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12&\n" +
-	"\x0fparent_asset_id\x18\x05 \x01(\tR\rparentAssetId\x12P\n" +
-	"\x0fderivative_role\x18\x06 \x01(\x0e2'.chatto.core.evt.v1.AssetDerivativeRoleR\x0ederivativeRole\x12\x17\n" +
-	"\auser_id\x18\a \x01(\tR\x06userId\x12\x16\n" +
-	"\x06sha256\x18\b \x01(\tR\x06sha256\x12H\n" +
-	"\x12pending_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\x10pendingExpiresAt\x124\n" +
+	"%chatto/core/evt/v1/asset_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\"chatto/core/event/v1/options.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x98\x04\n" +
+	"\x11AssetCreatedEvent\x12;\n" +
+	"\x05asset\x18\x01 \x01(\v2\x1f.chatto.core.evt.v1.AssetRecordB\x04\x88\xb5\x18\x02R\x05asset\x12@\n" +
+	"\x19original_binary_available\x18\x02 \x01(\bB\x04\x88\xb5\x18\x01R\x17originalBinaryAvailable\x12\x1d\n" +
+	"\aroom_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12,\n" +
+	"\x0fparent_asset_id\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\rparentAssetId\x12V\n" +
+	"\x0fderivative_role\x18\x06 \x01(\x0e2'.chatto.core.evt.v1.AssetDerivativeRoleB\x04\x88\xb5\x18\x01R\x0ederivativeRole\x12\x1d\n" +
+	"\auser_id\x18\a \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1c\n" +
+	"\x06sha256\x18\b \x01(\tB\x04\x88\xb5\x18\x02R\x06sha256\x12N\n" +
+	"\x12pending_expires_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampB\x04\x88\xb5\x18\x02R\x10pendingExpiresAt\x12:\n" +
 	"\x16needs_video_processing\x18\n" +
-	" \x01(\bR\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
-	"\x11AssetDeletedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\"\x8b\x01\n" +
-	"\x12AssetAttachedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x17\n" +
-	"\auser_id\x18\x04 \x01(\tR\x06userId\"b\n" +
-	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\xa3\x01\n" +
-	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12=\n" +
-	"\x05video\x18\x02 \x01(\v2'.chatto.core.evt.v1.AssetProcessedVideoR\x05video\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\xb4\x01\n" +
-	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12Q\n" +
-	"\ffailure_code\x18\x02 \x01(\x0e2..chatto.core.evt.v1.AssetProcessingFailureCodeR\vfailureCode\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\"\x8e\x02\n" +
-	"\x13AssetProcessedVideo\x12\x1f\n" +
-	"\vduration_ms\x18\x01 \x01(\x03R\n" +
-	"durationMs\x12\x14\n" +
-	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12,\n" +
-	"\x12thumbnail_asset_id\x18\x04 \x01(\tR\x10thumbnailAssetId\x12A\n" +
-	"\bvariants\x18\x05 \x03(\v2%.chatto.core.evt.v1.AssetVideoVariantR\bvariants\x127\n" +
-	"\x03hls\x18\x06 \x01(\v2%.chatto.core.evt.v1.AssetProcessedHLSR\x03hls\"H\n" +
+	" \x01(\bB\x04\x88\xb5\x18\x01R\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\"4\n" +
+	"\x11AssetDeletedEvent\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\"\xa3\x01\n" +
+	"\x12AssetAttachedEvent\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\x12\x1d\n" +
+	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12.\n" +
+	"\x10message_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\x12\x1d\n" +
+	"\auser_id\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"n\n" +
+	"\x1bAssetProcessingStartedEvent\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\x12.\n" +
+	"\x10message_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\"\xb5\x01\n" +
+	"\x1dAssetProcessingSucceededEvent\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\x12C\n" +
+	"\x05video\x18\x02 \x01(\v2'.chatto.core.evt.v1.AssetProcessedVideoB\x04\x88\xb5\x18\x01R\x05video\x12.\n" +
+	"\x10message_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\"\xc6\x01\n" +
+	"\x1aAssetProcessingFailedEvent\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\x12W\n" +
+	"\ffailure_code\x18\x02 \x01(\x0e2..chatto.core.evt.v1.AssetProcessingFailureCodeB\x04\x88\xb5\x18\x01R\vfailureCode\x12.\n" +
+	"\x10message_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\"\xb2\x02\n" +
+	"\x13AssetProcessedVideo\x12%\n" +
+	"\vduration_ms\x18\x01 \x01(\x03B\x04\x88\xb5\x18\x01R\n" +
+	"durationMs\x12\x1a\n" +
+	"\x05width\x18\x02 \x01(\x05B\x04\x88\xb5\x18\x01R\x05width\x12\x1c\n" +
+	"\x06height\x18\x03 \x01(\x05B\x04\x88\xb5\x18\x01R\x06height\x122\n" +
+	"\x12thumbnail_asset_id\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x10thumbnailAssetId\x12G\n" +
+	"\bvariants\x18\x05 \x03(\v2%.chatto.core.evt.v1.AssetVideoVariantB\x04\x88\xb5\x18\x01R\bvariants\x12=\n" +
+	"\x03hls\x18\x06 \x01(\v2%.chatto.core.evt.v1.AssetProcessedHLSB\x04\x88\xb5\x18\x01R\x03hls\"N\n" +
 	"\x11AssetVideoVariant\x12\x18\n" +
-	"\aquality\x18\x01 \x01(\tR\aquality\x12\x19\n" +
-	"\basset_id\x18\x02 \x01(\tR\aassetId\"Z\n" +
-	"\x11AssetProcessedHLS\x12E\n" +
+	"\aquality\x18\x01 \x01(\tR\aquality\x12\x1f\n" +
+	"\basset_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\"`\n" +
+	"\x11AssetProcessedHLS\x12K\n" +
 	"\n" +
-	"renditions\x18\x01 \x03(\v2%.chatto.core.evt.v1.AssetHLSRenditionR\n" +
-	"renditions\"\xa0\x01\n" +
-	"\x11AssetHLSRendition\x12\x14\n" +
-	"\x05width\x18\x02 \x01(\x05R\x05width\x12\x16\n" +
-	"\x06height\x18\x03 \x01(\x05R\x06height\x12\x1c\n" +
-	"\tbandwidth\x18\x04 \x01(\x03R\tbandwidth\x12?\n" +
-	"\bsegments\x18\x05 \x03(\v2#.chatto.core.evt.v1.AssetHLSSegmentR\bsegments\"M\n" +
-	"\x0fAssetHLSSegment\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x1f\n" +
-	"\vduration_ms\x18\x02 \x01(\x03R\n" +
+	"renditions\x18\x01 \x03(\v2%.chatto.core.evt.v1.AssetHLSRenditionB\x04\x88\xb5\x18\x01R\n" +
+	"renditions\"\xb8\x01\n" +
+	"\x11AssetHLSRendition\x12\x1a\n" +
+	"\x05width\x18\x02 \x01(\x05B\x04\x88\xb5\x18\x01R\x05width\x12\x1c\n" +
+	"\x06height\x18\x03 \x01(\x05B\x04\x88\xb5\x18\x01R\x06height\x12\"\n" +
+	"\tbandwidth\x18\x04 \x01(\x03B\x04\x88\xb5\x18\x01R\tbandwidth\x12E\n" +
+	"\bsegments\x18\x05 \x03(\v2#.chatto.core.evt.v1.AssetHLSSegmentB\x04\x88\xb5\x18\x01R\bsegments\"Y\n" +
+	"\x0fAssetHLSSegment\x12\x1f\n" +
+	"\basset_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\aassetId\x12%\n" +
+	"\vduration_ms\x18\x02 \x01(\x03B\x04\x88\xb5\x18\x01R\n" +
 	"durationMs*\xb7\x01\n" +
 	"\x13AssetDerivativeRole\x12%\n" +
 	"!ASSET_DERIVATIVE_ROLE_UNSPECIFIED\x10\x00\x12#\n" +

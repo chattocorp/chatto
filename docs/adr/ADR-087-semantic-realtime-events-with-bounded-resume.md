@@ -1,5 +1,10 @@
 # ADR-087: Use Semantic Realtime Events with Bounded Resume
 
+**Status:** Partially superseded by
+[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+ADR-088 replaces the separate public event schema and selects protocol 4. The
+authorization, snapshot, bounded-resume, and transport rules remain active.
+
 **Date:** 2026-08-30
 
 **Supersedes:** [ADR-051](ADR-051-server-scoped-resumable-client-projection.md).
@@ -81,9 +86,9 @@ The implementation and future protocol changes must preserve these invariants:
     a capability matrix to restate required frame semantics. A change that
     requires every client to behave differently uses a new behavioral protocol
     version.
-13. **The public schema stays separate from persisted schemas.** Public events
-    can derive from EVT facts, but persisted protobuf compatibility does not
-    force internal payloads into the public contract.
+13. **Public delivery does not expose stored bytes.** Per ADR-088, public
+    delivery uses the canonical Event schema. The server still creates a fresh
+    authorized copy and removes internal variants and storage-only fields.
 14. **Long-offline reliable automation is separate.** If Chatto later promises
     eventual processing of every durable trigger, that promise uses an
     acknowledged webhook or paged activity contract. It does not change the
@@ -100,8 +105,8 @@ Each durable domain change that has an authorized public meaning maps to a
 semantic public event. Examples include message posts, edits, and retractions;
 reaction changes; room and membership changes; profile changes; call changes;
 and other public domain activity. Public events are not raw EVT messages. The
-server maps internal facts to stable public messages after projection readiness
-and authorization checks.
+server creates authorized canonical Event copies after projection readiness and
+authorization checks.
 
 A durable public event contains:
 
@@ -191,12 +196,12 @@ public activity API. That future contract can reuse semantic public event
 messages. It must not turn every realtime WebSocket into a durable server-side
 consumer.
 
-### Protocol 3 replaces protocol 2
+### Protocol 4 replaces earlier development protocols
 
-The semantic event contract is intentionally incompatible with protocol 2's
-projection-operation contract. The implementation will use behavioral
-protocol version 3 and will reject protocol 2. Chatto is in alpha, so the
-server will not retain a protocol-2 compatibility path.
+The canonical event contract is intentionally incompatible with earlier
+development protocols. The implementation uses behavioral protocol version 4
+and rejects earlier versions. Chatto is in alpha, so the server does not retain
+those compatibility paths.
 
 The protobuf namespace remains `chatto.realtime.v1`. Package `v1` identifies
 the experimental public schema namespace; it is not the behavioral protocol

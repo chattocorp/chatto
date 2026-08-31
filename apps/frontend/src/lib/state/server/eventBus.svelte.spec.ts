@@ -11,12 +11,13 @@ import {
   RealtimeHeartbeat,
   RealtimeServerFrame,
   RealtimeServerHello,
-  RealtimeTypingEvent,
   RealtimeSubscribed,
   RealtimeRecoveryMode,
   RealtimeStateItem,
   RealtimeRoomTimelineState
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
+import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
 import {
   eventBusManager,
   setRealtimePollRandomForTests,
@@ -130,7 +131,7 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   return serverFrame({
     case: 'hello',
     value: new RealtimeServerHello({
-      protocolVersion: 3,
+      protocolVersion: 4,
       serverVersion: 'test',
       heartbeatIntervalSeconds
     })
@@ -149,7 +150,7 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
     case: 'event',
     value: new RealtimeEvent({
       resumeCursor: cursor,
-      event: { case: undefined },
+      event: new CanonicalEvent(),
       state: []
     })
   });
@@ -174,13 +175,15 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
-      id,
-      createdAt: Timestamp.now(),
-      actorId: 'user-1',
-      event: {
-        case: 'userTyping',
-        value: new RealtimeTypingEvent({ roomId: 'room-1' })
-      }
+      event: new CanonicalEvent({
+        id,
+        createdAt: Timestamp.now(),
+        actorId: 'user-1',
+        event: {
+          case: 'userTypingSignal',
+          value: new UserTypingEvent({ roomId: 'room-1' })
+        }
+      })
     })
   });
 }
@@ -257,7 +260,7 @@ describe('eventBusManager realtime transport', () => {
     const hello = RealtimeClientFrame.fromBinary(sockets[0].sent[0]);
     expect(hello.frame.case).toBe('hello');
     if (hello.frame.case !== 'hello') throw new Error('expected hello frame');
-    expect(hello.frame.value.protocolVersion).toBe(3);
+    expect(hello.frame.value.protocolVersion).toBe(4);
 
     await sockets[0].receive(helloFrame());
     expect(sockets[0].sent).toHaveLength(2);

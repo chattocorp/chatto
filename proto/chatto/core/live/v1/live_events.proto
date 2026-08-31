@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.core.live.v1;
 
 import "google/protobuf/timestamp.proto";
+import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
 
@@ -17,23 +18,21 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
 // ============================================================================
 
 /*
-   LiveEvent is the wire-format envelope for transient pubsub signals.
-   These events are never stored in EVT and are not projection input. They
-   are delivered over the live.sync.> subject family and adapted by myEvents
-   into public realtime events.
-
-   Durable facts belong in Event on the EVT stream. Do not add new transient
-   variants to Event.
+   LiveEvent is the legacy wire envelope for transient pubsub signals. New
+   publishers use chatto.core.evt.v1.Event for both durable and transient
+   events. Readers retain this message only while mixed 0.5 binaries can leave
+   old messages in flight on live.sync.>.
 */
 message LiveEvent {
+  option deprecated = true;
   // Universal event identifier (NanoID) for dedupe and client-side idempotency.
-  string id = 1;
+  string id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // When this live signal was created.
-  google.protobuf.Timestamp created_at = 2;
+  google.protobuf.Timestamp created_at = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // ID of the user or system actor that triggered this signal.
-  string actor_id = 3;
+  string actor_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   reserved 10, 21, 24, 41, 50, 51, 70, 71;
   reserved "config_updated", "notification_level_changed", "video_processing_completed",
@@ -42,39 +41,39 @@ message LiveEvent {
 
   oneof event {
     // ----- User lifecycle / preferences -----
-    UserCreatedSyncEvent user_created = 20;
+    UserCreatedSyncEvent user_created = 20 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
     // Transient current-profile snapshot derived after a durable profile change.
-    UserProfileSyncEvent user_profile_updated = 22;
-    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23;
-    ThreadFollowChangedEvent thread_follow_changed = 25;
+    UserProfileSyncEvent user_profile_updated = 22 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    ThreadFollowChangedEvent thread_follow_changed = 25 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Server membership / lifecycle -----
-    ServerMemberDeletedEvent server_member_deleted = 30;
-    ServerUpdatedEvent server_updated = 31;
+    ServerMemberDeletedEvent server_member_deleted = 30 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    ServerUpdatedEvent server_updated = 31 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Typing -----
-    UserTypingEvent user_typing = 40;
+    UserTypingEvent user_typing = 40 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Presence -----
-    PresenceChangedEvent presence_changed = 45;
+    PresenceChangedEvent presence_changed = 45 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Voice calls -----
-    CallParticipantJoinedEvent call_participant_joined = 60;
-    CallParticipantLeftEvent call_participant_left = 61;
+    CallParticipantJoinedEvent call_participant_joined = 60 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    CallParticipantLeftEvent call_participant_left = 61 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Notification sync -----
-    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72;
-    NotificationUnreadChangedEvent notification_unread_changed = 73;
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    NotificationUnreadChangedEvent notification_unread_changed = 73 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Unread indicators -----
-    RoomMarkedAsReadEvent room_marked_as_read = 80;
-    MentionStatusClearedEvent mention_status_cleared = 81;
+    RoomMarkedAsReadEvent room_marked_as_read = 80 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+    MentionStatusClearedEvent mention_status_cleared = 81 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Room layout -----
-    RoomGroupsUpdatedEvent room_groups_updated = 90;
+    RoomGroupsUpdatedEvent room_groups_updated = 90 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
     // ----- Session termination -----
-    SessionTerminatedEvent session_terminated = 100;
+    SessionTerminatedEvent session_terminated = 100 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   }
 }
 
@@ -102,7 +101,7 @@ enum TimeFormat {
 message ServerMemberDeletedEvent {
   reserved 1;
   reserved "space_id";
-  string user_id = 2;
+  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // CallParticipantEventSource describes the source of a transient call
@@ -116,16 +115,16 @@ enum CallParticipantEventSource {
 
 // CallParticipantJoinedEvent is the transient call-participant join signal.
 message CallParticipantJoinedEvent {
-  string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CallParticipantEventSource source = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // CallParticipantLeftEvent is the transient call-participant leave signal.
 message CallParticipantLeftEvent {
-  string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  CallParticipantEventSource source = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string call_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -134,36 +133,36 @@ message CallParticipantLeftEvent {
 
 // UserCreatedSyncEvent reports a newly created public user profile.
 message UserCreatedSyncEvent {
-  string user_id = 1;
-  string login = 2;
-  string display_name = 3;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string login = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string display_name = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // UserProfileSyncEvent is a transient, projection-derived live snapshot. It
 // is published after a public profile field changes and is never stored in EVT.
 // Durable user events remain the authoritative profile facts.
 message UserProfileSyncEvent {
-  string user_id = 1;
-  string display_name = 2;
+  string user_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string display_name = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // URL to the user's avatar, or empty if no avatar is set.
-  string avatar_url = 3;
+  string avatar_url = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // The user's current login/username.
-  string login = 4;
+  string login = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // The user's current public bio, or empty when unset.
-  string bio = 5;
+  string bio = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // The user's shared IANA time zone, or empty when none is shared.
-  string timezone = 6;
+  string timezone = 6 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ServerUserPreferencesSyncEvent reports updated user display preferences for
 // synchronization between the user's active clients.
 message ServerUserPreferencesSyncEvent {
   // IANA time zone name. An empty value selects the browser default.
-  string timezone = 1;
+  string timezone = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Preferred time display format.
-  TimeFormat time_format = 2;
+  TimeFormat time_format = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Whether the stored time zone may appear on the user's public profile.
-  bool share_timezone = 3;
+  bool share_timezone = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -171,13 +170,13 @@ message ServerUserPreferencesSyncEvent {
 // ============================================================================
 
 message ServerUpdatedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
+  string server_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string name = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string description = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // URL to the server's logo, or empty if no logo is set.
-  string logo_url = 4;
+  string logo_url = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // URL to the server's banner, or empty if no banner is set.
-  string banner_url = 5;
+  string banner_url = 5 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -192,11 +191,11 @@ message UserTypingEvent {
   reserved "space_id";
 
   // Room ID where the user is typing
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 
   // Thread root event ID (optional). If set, the user is typing a reply in this thread.
   // If empty, the user is typing in the main room view.
-  optional string thread_root_event_id = 3;
+  optional string thread_root_event_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -209,7 +208,7 @@ message UserTypingEvent {
 // Presence is server-wide; the server context is implicit in the subscription.
 message PresenceChangedEvent {
   // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
-  string status = 1;
+  string status = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -221,10 +220,10 @@ message NotificationOccurrencesInvalidatedEvent {
   // Legacy candidate for a one-shot local sound on a push-eligible
   // occurrence. Consumers must still validate the candidate against the
   // current occurrence and policy. Retained for rolling compatibility.
-  optional string alert_candidate_notification_id = 1;
+  optional string alert_candidate_notification_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Candidate occurrence for one-shot in-app sound. New publishers set this
   // for both in-app and push-notification modes. Older consumers ignore it.
-  optional string sound_candidate_notification_id = 2;
+  optional string sound_candidate_notification_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -238,11 +237,11 @@ message ThreadFollowChangedEvent {
   reserved 1;
   reserved "space_id";
   // The room containing the thread.
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // The root event ID of the thread.
-  string thread_root_event_id = 3;
+  string thread_root_event_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Whether the user is now following (true) or not following (false).
-  bool is_following = 4;
+  bool is_following = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -256,7 +255,7 @@ message RoomMarkedAsReadEvent {
   reserved "space_id";
 
   // Room ID that was marked as read
-  string room_id = 2;
+  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // Invalidates neutral unread attention after a Badge delivery decision or a
@@ -264,9 +263,9 @@ message RoomMarkedAsReadEvent {
 // content. Projection transports hydrate authoritative room and thread state.
 message NotificationUnreadChangedEvent {
   // Room whose unread state changed.
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
   // Thread root whose unread state changed. Empty means room-level activity.
-  string thread_root_event_id = 2;
+  string thread_root_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // Published to the user whose mention indicator for a room was cleared.
@@ -276,7 +275,7 @@ message NotificationUnreadChangedEvent {
 // use this to drop the orange dot for the room without waiting for a refetch.
 message MentionStatusClearedEvent {
   // Room ID whose mention indicator was cleared
-  string room_id = 1;
+  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 // ============================================================================
@@ -301,5 +300,5 @@ message RoomGroupsUpdatedEvent {
 // ensuring the WebSocket connection is torn down server-side.
 message SessionTerminatedEvent {
   // Reason for termination: "logout", "admin_boot", "account_deleted"
-  string reason = 1;
+  string reason = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }

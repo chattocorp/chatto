@@ -1,8 +1,10 @@
 import { browser } from '$app/environment';
 import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import type { RealtimePinnedMessageEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { RealtimePinnedMessageAction } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type {
+  MessagePinnedEvent,
+  MessageUnpinnedEvent
+} from '@chatto/api-types/core/evt/v1/message_events_pb';
 import { SvelteMap } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -121,13 +123,17 @@ export class RoomPinsStore {
     this.invalidateAndReload();
   }
 
-  applyRealtimeChange(change: RealtimePinnedMessageEvent, changeEventId: string): void {
+  applyRealtimeChange(
+    change: MessagePinnedEvent | MessageUnpinnedEvent,
+    created: boolean,
+    changeEventId: string
+  ): void {
     if (this.accessBlocked || change.roomId !== this.roomId) return;
-    if (change.action === RealtimePinnedMessageAction.CREATED) {
+    if (created) {
       this.pinStatuses.set(change.messageEventId, true);
       this.noteLatest(changeEventId);
       this.invalidateAndReload();
-    } else if (change.action === RealtimePinnedMessageAction.DELETED) {
+    } else {
       this.removeLocal(change.messageEventId);
       this.invalidateAndReload();
     }

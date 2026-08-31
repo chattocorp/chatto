@@ -2,12 +2,14 @@
 
 **Date:** 2026-03-01
 
-**Updated:** 2026-08-30
+**Updated:** 2026-08-31
 
 **Partially superseded by:**
 [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md) for the
-public realtime mapping. The durable `EVT` and transient `live.sync.>` split
-remains in effect.
+public realtime behavior and
+[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md)
+for the canonical envelope. The durable `EVT` and transient `live.sync.>`
+delivery split remains in effect.
 
 **Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), and ADR-042 (protobuf-first public API), the live equivalents are `live.evt.>` for republished durable EVT facts, `live.sync.>` for transient `LiveEvent` signals, and realtime websocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
 

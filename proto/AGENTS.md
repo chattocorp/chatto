@@ -78,7 +78,7 @@ For public API packages:
   clearly named operational details; do not reuse those shapes as client or
   integration contracts.
 - The `chatto.realtime.v1` package suffix is a protobuf namespace. It currently
-  implements only behavioral protocol version 3; older handshakes are rejected.
+  implements only behavioral protocol version 4; older handshakes are rejected.
 
 ## Presence And API Shape
 
