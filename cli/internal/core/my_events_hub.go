@@ -499,7 +499,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 		// One shredded author can invalidate plaintext in many room windows.
-		// Reconnect all clients so protocol v2 compacts current tombstones.
+		// Reconnect all clients so protocol 3 snapshots current tombstones.
 		return true
 	}
 	h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
@@ -752,7 +752,7 @@ func (h *MyEventsHub) captureVisibleRooms(ctx context.Context, userID string) (m
 	return visibleRooms, nil
 }
 
-type roomVisibilitySeqs [5]uint64
+type roomVisibilitySeqs [9]uint64
 
 func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySeqs, uint64, error) {
 	filters := [...]string{
@@ -761,6 +761,10 @@ func (h *MyEventsHub) roomVisibilityTails(ctx context.Context) (roomVisibilitySe
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged),
 		evtstream.RoomEventTypeFilter(evtstream.EventUserJoinedRoom),
 		evtstream.RoomEventTypeFilter(evtstream.EventUserLeftRoom),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberAdded),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberBanned),
+		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberUnbanned),
 	}
 	var seqs roomVisibilitySeqs
 	var tail uint64
@@ -852,7 +856,8 @@ func eventChangesRoomVisibility(event *evtv1.Event) bool {
 		*evtv1.Event_UserLeftRoom,
 		*evtv1.Event_RoomMemberAdded,
 		*evtv1.Event_RoomMemberRemoved,
-		*evtv1.Event_RoomMemberBanned:
+		*evtv1.Event_RoomMemberBanned,
+		*evtv1.Event_RoomMemberUnbanned:
 		return true
 	default:
 		return false
@@ -878,6 +883,8 @@ func eventChangesUserRoomVisibility(event *evtv1.Event, userID string) bool {
 		return payload.RoomMemberRemoved.GetUserId() == userID
 	case *evtv1.Event_RoomMemberBanned:
 		return payload.RoomMemberBanned.GetUserId() == userID
+	case *evtv1.Event_RoomMemberUnbanned:
+		return payload.RoomMemberUnbanned.GetUserId() == userID
 	default:
 		return false
 	}

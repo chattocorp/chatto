@@ -191,7 +191,7 @@ func TestPlanRealtimeReplayResetsForExpiredPublicCursor(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("expired cursor plan = %+v, want compacted reset", plan)
+		t.Fatalf("expired cursor plan = %+v, want snapshot fallback", plan)
 	}
 }
 
@@ -244,7 +244,7 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 		t.Fatalf("outsider PlanRealtimeReplay: %v", err)
 	}
 	if !outsiderReplay.Reset || outsiderReplay.StartCursor != outsiderReplay.BoundaryCursor {
-		t.Fatalf("cross-user cursor plan = %+v, want compacted reset", outsiderReplay)
+		t.Fatalf("cross-user cursor plan = %+v, want snapshot fallback", outsiderReplay)
 	}
 	for _, event := range outsiderReplay.Events {
 		if event.EVTEvent().GetReactionAdded() != nil || event.EVTEvent().GetReactionRemoved() != nil {
@@ -387,7 +387,7 @@ func TestPlanRealtimeReplayResetsForDifferentStreamIncarnation(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want compacted reset", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
 	}
 }
 
@@ -427,7 +427,7 @@ func TestPlanRealtimeReplayResetsAfterUserKeyShredding(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want compacted reset", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
 	}
 }
 
@@ -449,7 +449,7 @@ func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want compacted authorization reset", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want authorization snapshot fallback", plan)
 	}
 }
 

@@ -23,7 +23,7 @@ import { createMessageSearchAPI, type MessageSearchAPI } from '$lib/api-client/m
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
 import { eventBusManager } from './eventBus.svelte';
-import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import type { ProjectionHandler, RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
@@ -33,7 +33,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState } from '$lib/api-client/viewer';
@@ -393,65 +393,64 @@ export class ServerStateStore {
     delete this.#threadMessageRefCounts[key];
   }
 
-  private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
+  private ingestProjectionEvent(update: RealtimeProjectionUpdate): void {
     const previousViewer = this.projection.viewer;
-    const resetsProjection = event.operations.some(
-      (operation) => operation.operation.case === 'reset'
-    );
+    const sourceEvent = update.event;
+    const sourceEventId = sourceEvent?.id ?? '';
+    const isReaction = sourceEvent?.event.case === 'reaction';
+    const resetsProjection = update.reset;
     const existingTimelineRows = new SvelteSet<string>();
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
+    for (const stateItem of update.state) {
+      if (stateItem.state.case !== 'roomTimelineEvent') continue;
+      const timelineUpdate = stateItem.state.value;
       if (
-        update.event &&
+        timelineUpdate.event &&
         this.projection.timelines
-          .get(update.roomId)
-          ?.events.some((candidate) => candidate.id === update.event?.id)
+          .get(timelineUpdate.roomId)
+          ?.events.some((candidate) => candidate.id === timelineUpdate.event?.id)
       ) {
-        existingTimelineRows.add(`${update.roomId}\u0000${update.event.id}`);
+        existingTimelineRows.add(`${timelineUpdate.roomId}\u0000${timelineUpdate.event.id}`);
       }
     }
-    this.projection.apply(event);
-    let adminRoomLayoutChanged = false;
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'reset':
-          resetRegisteredFollowedThreadQueries(this.serverId);
-          this.resetProjectionMirrors();
-          this.forEachMessageSearch((store) => store.clearResults());
-          adminRoomLayoutChanged = true;
+    let adminRoomLayoutChanged = resetsProjection;
+    if (resetsProjection) {
+      resetRegisteredFollowedThreadQueries(this.serverId);
+      this.resetProjectionMirrors();
+      this.forEachMessageSearch((store) => store.clearResults());
+    }
+    this.projection.apply(update);
+    if (sourceEvent?.event.case === 'pinnedMessage') {
+      const pin = sourceEvent.event.value;
+      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, sourceEvent.id);
+    }
+    for (const stateItem of update.state) {
+      switch (stateItem.state.case) {
+        case 'server':
+          this.serverInfo.applyProjectionProfile(stateItem.state.value);
           break;
-        case 'serverUpsert':
-          this.serverInfo.applyProjectionProfile(operation.operation.value);
-          break;
-        case 'serverStateUpsert':
-          this.serverInfo.applyProjectionState(operation.operation.value);
+        case 'serverState':
+          this.serverInfo.applyProjectionState(stateItem.state.value);
           this.forEachMessageSearch((store) => store.refreshRetainedResults());
-          if (operation.operation.value.pinnedMessageChange) {
-            this.#roomPins[
-              operation.operation.value.pinnedMessageChange.roomId
-            ]?.applyRealtimeChange(operation.operation.value.pinnedMessageChange, event.id);
-          }
           break;
-        case 'viewerUpsert': {
-          if (viewerAuthorizationLost(previousViewer, operation.operation.value)) {
+        case 'viewer': {
+          if (viewerAuthorizationLost(previousViewer, stateItem.state.value)) {
             removeRegisteredAdminQueries(this.serverId);
           }
-          const viewer = viewerResponseToState(operation.operation.value);
+          const viewer = viewerResponseToState(stateItem.state.value);
           this.currentUser.user = viewer.user;
           this.currentUser.loading = false;
           this.setPermissions(viewer);
           this.roomUnread.acknowledgeViewerProjection();
           break;
         }
-        case 'userUpsert': {
-          const member = mapDirectoryMember(operation.operation.value);
+        case 'user': {
+          const member = mapDirectoryMember(stateItem.state.value);
           if (!member.id) break;
           notifyUserSummaries(this.serverId, [member]);
           break;
         }
-        case 'userRemove': {
-          const userId = operation.operation.value.userId;
+        case 'userRemoved': {
+          const userId = stateItem.state.value.userId;
           scrubRegisteredFollowedThreadUser(this.serverId);
           scrubRegisteredRoomMemberUser(this.serverId, userId);
           removeRegisteredAdminUserQueries(this.serverId, userId);
@@ -467,12 +466,12 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomUpsert': {
+        case 'room': {
           adminRoomLayoutChanged = true;
-          const roomId = operation.operation.value.room?.room?.id;
+          const roomId = stateItem.state.value.room?.room?.id;
           if (!roomId) break;
           reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
-          const viewerState = operation.operation.value.room?.viewerState;
+          const viewerState = stateItem.state.value.room?.viewerState;
           this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
           this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
           if (viewerState?.isMember === false) {
@@ -484,9 +483,9 @@ export class ServerStateStore {
           invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
           break;
         }
-        case 'roomRemove': {
+        case 'roomRemoved': {
           adminRoomLayoutChanged = true;
-          const roomId = operation.operation.value.roomId;
+          const roomId = stateItem.state.value.roomId;
           reconcileRegisteredAdminRoomQueries(this.serverId, roomId, true);
           this.roomDirectory.removeMembershipProjection(roomId);
           this.roomUnread.removeRoomProjection(roomId);
@@ -495,16 +494,16 @@ export class ServerStateStore {
           this.clearRoomAccess(roomId, true);
           break;
         }
-        case 'roomGroupsReplace': {
+        case 'roomGroups': {
           adminRoomLayoutChanged = true;
           reconcileRegisteredAdminRoomGroupQueries(
             this.serverId,
-            operation.operation.value.groups.map((group) => group.id)
+            stateItem.state.value.groups.map((group) => group.id)
           );
           break;
         }
-        case 'roomTimelineReplace': {
-          const replacement = operation.operation.value;
+        case 'roomTimeline': {
+          const replacement = stateItem.state.value;
           this.forRoomMessageSearch(replacement.roomId, (store) =>
             store.invalidateRoom(replacement.roomId)
           );
@@ -516,8 +515,8 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomTimelineEventUpsert': {
-          const update = operation.operation.value;
+        case 'roomTimelineEvent': {
+          const update = stateItem.state.value;
           const projectedMessage =
             update.event?.event.case === 'messagePosted' ? update.event.event.value.message : null;
           if (update.event && projectedMessage?.deletedAt) {
@@ -544,7 +543,7 @@ export class ServerStateStore {
               hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies
             });
           }
-          if (update.event && !update.reactionChange) {
+          if (update.event && !isReaction) {
             const eventId = update.event.id;
             this.forRoomMessageSearch(update.roomId, (store) =>
               store.invalidateMessage(
@@ -567,8 +566,11 @@ export class ServerStateStore {
               update.retainDeletedRow,
               retainedByProjection
             );
-            if (!update.reactionChange) {
-              this.#roomFiles[update.roomId]?.applyTimelineEvent(update.event, event.id);
+            if (!isReaction) {
+              this.#roomFiles[update.roomId]?.applyTimelineEvent(
+                update.event,
+                sourceEventId || update.event.id
+              );
             }
             for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
               if (!key.startsWith(`${update.roomId}\u0000`)) continue;
@@ -582,8 +584,8 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'notificationOccurrencesReplace': {
-          const replacement = operation.operation.value;
+        case 'notifications': {
+          const replacement = stateItem.state.value;
           if (replacement.occurrences) {
             this.notifications.replaceOccurrenceProjection(
               mapNotificationOccurrencePage(replacement.occurrences)
@@ -591,8 +593,8 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomViewerStateReplace': {
-          const replacement = operation.operation.value;
+        case 'roomViewer': {
+          const replacement = stateItem.state.value;
           this.roomDirectory.acknowledgeMembership(
             replacement.roomId,
             replacement.viewerState?.isMember
@@ -611,21 +613,21 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomViewerActivityReplace': {
-          const replacement = operation.operation.value;
+        case 'roomViewerActivity': {
+          const replacement = stateItem.state.value;
           this.roomUnread.acknowledgeRoomProjection(replacement.roomId, replacement.hasUnread);
           break;
         }
-        case 'activeCallsReplace': {
-          const calls = operation.operation.value.calls;
-          this.reconcileActiveCallTransition(event, calls);
+        case 'activeCalls': {
+          const calls = stateItem.state.value.calls;
+          this.reconcileActiveCallTransition(sourceEvent, calls);
           this.activeCallRooms.replaceProjection(calls);
           break;
         }
-        case 'presencesReplace': {
+        case 'presences': {
           break;
         }
-        case 'threadViewerStatesReplace': {
+        case 'threadViewerStates': {
           reconcileRegisteredFollowedThreadQueries(
             this.serverId,
             this.projection.threadViewerStates
@@ -655,8 +657,8 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomTimelineEventRemove': {
-          const removal = operation.operation.value;
+        case 'roomTimelineEventRemoved': {
+          const removal = stateItem.state.value;
           scrubRegisteredFollowedThreadMessage(this.serverId, removal.roomId, removal.eventId);
           this.forRoomMessageSearch(removal.roomId, (store) =>
             store.invalidateMessage(removal.roomId, removal.eventId, true)
@@ -671,12 +673,8 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'roomActivity':
-          break;
         case undefined:
-          // ServerProjectionStore validates the whole event before either
-          // reducer mutates state, so this is unreachable for accepted input.
-          throw new Error('unsupported realtime projection operation');
+          break;
       }
     }
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
@@ -855,16 +853,16 @@ export class ServerStateStore {
   }
 
   private reconcileActiveCallTransition(
-    event: RealtimeProjectionEvent,
+    event: RealtimeEvent | null,
     calls: readonly ActiveCall[]
   ): void {
-    const actorId = event.actorId;
+    const actorId = event?.actorId;
     const previousActorCall = actorId ? this.activeCallRooms.findParticipantCall(actorId) : null;
     const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;
 
     if (!previousActorCall && nextActorCall) {
       this.playCallTransitionSound(
-        event.id,
+        event?.id ?? '',
         'join',
         nextActorCall.roomId,
         nextActorCall.callId,
@@ -880,7 +878,7 @@ export class ServerStateStore {
       )
     ) {
       this.playCallTransitionSound(
-        event.id,
+        event?.id ?? '',
         'leave',
         previousActorCall.roomId,
         previousActorCall.callId,

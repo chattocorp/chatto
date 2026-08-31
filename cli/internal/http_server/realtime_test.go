@@ -48,7 +48,7 @@ func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *test
 	}
 }
 
-func TestRealtimeProjectionRoomViewerOperationUsesFocusedActivityShape(t *testing.T) {
+func TestRealtimeRoomStateViewerOperationUsesFocusedActivityShape(t *testing.T) {
 	deadline := timestamppb.New(time.Date(2026, time.January, 1, 12, 0, 0, 0, time.UTC))
 	viewerState := &apiv1.RoomViewerState{
 		IsMember:           true,
@@ -58,11 +58,11 @@ func TestRealtimeProjectionRoomViewerOperationUsesFocusedActivityShape(t *testin
 	}
 
 	focused := realtimeProjectionRoomViewerOperation("R1", viewerState)
-	activity := focused.GetRoomViewerActivityReplace()
+	activity := focused.GetRoomViewerActivity()
 	if activity.GetRoomId() != "R1" || !activity.GetHasUnread() || !proto.Equal(activity.GetSlowModeNextPostAt(), deadline) {
 		t.Fatalf("focused viewer-activity replacement = %+v", activity)
 	}
-	if focused.GetRoomViewerStateReplace() != nil {
+	if focused.GetRoomViewer() != nil {
 		t.Fatal("focused operation retransmitted full viewer state")
 	}
 }
@@ -251,12 +251,13 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 		t.Fatalf("unexpected realtime hello: %+v", got)
 	} else if got.HeartbeatIntervalSeconds != uint32(core.MyEventsHeartbeatInterval/time.Second) {
 		t.Fatalf("heartbeat interval = %d, want %d", got.HeartbeatIntervalSeconds, core.MyEventsHeartbeatInterval/time.Second)
-	} else if want := realtimeServerCapabilities; !slices.Equal(got.GetCapabilities(), want) {
-		t.Fatalf("realtime capabilities = %v, want %v", got.GetCapabilities(), want)
 	}
 
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{RetainedRoomIds: retainedRoomIDs},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{
+			RetainedRoomIds: retainedRoomIDs,
+			InitialState:    realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT,
+		},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok {
@@ -264,6 +265,8 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 	}
 	if subscribed.GetSubscribed() == nil {
 		t.Fatalf("second realtime frame = %T (%+v), want subscribed", subscribed.GetFrame(), subscribed)
+	} else if subscribed.GetSubscribed().GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
+		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetSubscribed().GetRecoveryMode())
 	}
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, realtimeTestCatchUpReadTimeout)
@@ -273,13 +276,13 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 		if frame.GetCaughtUp() != nil {
 			return frame.GetCaughtUp().GetCursor()
 		}
-		if frame.GetProjectionEvent() == nil {
-			t.Fatalf("realtime bootstrap frame = %T, want projection_event or caught_up", frame.GetFrame())
+		if frame.GetEvent() == nil && frame.GetState() == nil {
+			t.Fatalf("realtime bootstrap frame = %T, want event, state, or caught_up", frame.GetFrame())
 		}
 	}
 }
 
-func waitRealtimeEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeEventEnvelope) bool) *realtimev1.RealtimeEventEnvelope {
+func waitRealtimeEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeEvent) bool) *realtimev1.RealtimeEvent {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -294,7 +297,7 @@ func waitRealtimeEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration
 	return nil
 }
 
-func waitRealtimeTimelineUpsert(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool) *realtimev1.RealtimeProjectionRoomTimelineEventUpsert {
+func waitRealtimeTimelineUpsert(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeRoomTimelineEventState) bool) *realtimev1.RealtimeRoomTimelineEventState {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -302,12 +305,12 @@ func waitRealtimeTimelineUpsert(t testing.TB, conn *websocket.Conn, timeout time
 		if !ok {
 			return nil
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && match(upsert) {
+		for _, operation := range projection.GetState() {
+			if upsert := operation.GetRoomTimelineEvent(); upsert != nil && match(upsert) {
 				return upsert
 			}
 		}
@@ -315,7 +318,7 @@ func waitRealtimeTimelineUpsert(t testing.TB, conn *websocket.Conn, timeout time
 	return nil
 }
 
-func waitRealtimeProjectionEvent(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionEvent) bool) *realtimev1.RealtimeProjectionEvent {
+func waitRealtimeTimelineRemove(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeRoomTimelineEventRemovedState) bool) *realtimev1.RealtimeRoomTimelineEventRemovedState {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -323,27 +326,12 @@ func waitRealtimeProjectionEvent(t testing.TB, conn *websocket.Conn, timeout tim
 		if !ok {
 			return nil
 		}
-		if projection := frame.GetProjectionEvent(); projection != nil && match(projection) {
-			return projection
-		}
-	}
-	return nil
-}
-
-func waitRealtimeTimelineRemove(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionRoomTimelineEventRemove) bool) *realtimev1.RealtimeProjectionRoomTimelineEventRemove {
-	t.Helper()
-	deadline := time.Now().Add(timeout)
-	for time.Now().Before(deadline) {
-		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
-		if !ok {
-			return nil
-		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			if remove := operation.GetRoomTimelineEventRemove(); remove != nil && match(remove) {
+		for _, operation := range projection.GetState() {
+			if remove := operation.GetRoomTimelineEventRemoved(); remove != nil && match(remove) {
 				return remove
 			}
 		}
@@ -351,7 +339,7 @@ func waitRealtimeTimelineRemove(t testing.TB, conn *websocket.Conn, timeout time
 	return nil
 }
 
-func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeProjectionRoom) bool) *realtimev1.RealtimeProjectionRoom {
+func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Duration, match func(*realtimev1.RealtimeRoomState) bool) *realtimev1.RealtimeRoomState {
 	t.Helper()
 	deadline := time.Now().Add(timeout)
 	for time.Now().Before(deadline) {
@@ -359,12 +347,12 @@ func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Dur
 		if !ok {
 			return nil
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			if upsert := operation.GetRoomUpsert(); upsert != nil && match(upsert) {
+		for _, operation := range projection.GetState() {
+			if upsert := operation.GetRoom(); upsert != nil && match(upsert) {
 				return upsert
 			}
 		}
@@ -382,8 +370,8 @@ func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.Realti
 		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
 			return caughtUp
 		}
-		if frame.GetProjectionEvent() == nil {
-			t.Fatalf("bootstrap frame = %T, want projection_event or caught_up", frame.GetFrame())
+		if frame.GetEvent() == nil && frame.GetState() == nil {
+			t.Fatalf("bootstrap frame = %T, want event, state, or caught_up", frame.GetFrame())
 		}
 	}
 }
@@ -420,6 +408,88 @@ func TestRealtimeTransientMapperRejectsDurableEvents(t *testing.T) {
 	}
 }
 
+func TestRealtimeDurableSemanticMapperCoversProfileAndUnbanEvents(t *testing.T) {
+	tests := []struct {
+		name      string
+		event     *evtv1.Event
+		assertion func(*testing.T, *realtimev1.RealtimeEvent)
+	}{
+		{
+			name: "user bio changed",
+			event: &evtv1.Event{Event: &evtv1.Event_UserBioChanged{
+				UserBioChanged: &evtv1.UserBioChangedEvent{UserId: "U1"},
+			}},
+			assertion: func(t *testing.T, event *realtimev1.RealtimeEvent) {
+				profile := event.GetUser()
+				if profile.GetAction() != realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED || profile.GetUserId() != "U1" {
+					t.Fatalf("profile event = %+v", profile)
+				}
+			},
+		},
+		{
+			name: "room member unbanned",
+			event: &evtv1.Event{Event: &evtv1.Event_RoomMemberUnbanned{
+				RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{RoomId: "R1", UserId: "U1"},
+			}},
+			assertion: func(t *testing.T, event *realtimev1.RealtimeEvent) {
+				membership := event.GetRoomMembership()
+				if membership.GetAction() != realtimev1.RealtimeRoomMembershipAction_REALTIME_ROOM_MEMBERSHIP_ACTION_UNBANNED || membership.GetRoomId() != "R1" || membership.GetUserId() != "U1" {
+					t.Fatalf("membership event = %+v", membership)
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mapped := &realtimev1.RealtimeEvent{}
+			if !(&HTTPServer{}).mapRealtimeDurableSemantics(mapped, tt.event) {
+				t.Fatal("durable public event has no semantic mapping")
+			}
+			tt.assertion(t, mapped)
+		})
+	}
+}
+
+func TestRealtimeProjectionMapsBioChangeToCurrentUserState(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bio-projection", "RT Bio Projection", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := env.core.UpdateUserBio(env.ctx, viewer.Id, "Updated through durable realtime"); err != nil {
+		t.Fatalf("UpdateUserBio: %v", err)
+	}
+	events, _, err := env.core.EventPublisher.SubjectEvents(
+		env.ctx,
+		evtstream.UserAggregate(viewer.Id).Subject(evtstream.EventUserBioChanged),
+	)
+	if err != nil {
+		t.Fatalf("SubjectEvents: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("bio change events = %d, want 1", len(events))
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(events[0]))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled || frame.GetEvent().GetUser().GetAction() != realtimev1.RealtimeUserAction_REALTIME_USER_ACTION_PROFILE_CHANGED {
+		t.Fatalf("bio projection frame = %+v, handled=%v", frame, handled)
+	}
+	var currentUser *apiv1.DirectoryMember
+	for _, state := range frame.GetEvent().GetState() {
+		if state.GetUser().GetUser().GetId() == viewer.Id {
+			currentUser = state.GetUser()
+			break
+		}
+	}
+	if currentUser.GetUser().GetBio() != "Updated through durable realtime" {
+		t.Fatalf("projected bio = %q, want updated bio", currentUser.GetUser().GetBio())
+	}
+}
+
 func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-projection", "RT Call Projection", "password123")
@@ -436,11 +506,11 @@ func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
+	if !handled || frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 1 {
 		t.Fatalf("call projection frame = %+v, handled=%v", frame, handled)
 	}
-	if frame.GetProjectionEvent().GetOperations()[0].GetActiveCallsReplace() == nil {
-		t.Fatalf("call projection operation = %T, want active_calls_replace", frame.GetProjectionEvent().GetOperations()[0].GetOperation())
+	if frame.GetEvent().GetState()[0].GetActiveCalls() == nil {
+		t.Fatalf("call event state = %T, want active_calls", frame.GetEvent().GetState()[0].GetState())
 	}
 }
 
@@ -475,16 +545,16 @@ func TestRealtimeProjectionMapsThreadingModeChangeToRoomAndTimeline(t *testing.T
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetProjectionEvent() == nil {
+	if !handled || frame.GetEvent() == nil {
 		t.Fatalf("threading mode projection frame = %+v, handled=%v", frame, handled)
 	}
-	var roomUpsert *realtimev1.RealtimeProjectionRoom
-	var timelineUpsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
-	for _, operation := range frame.GetProjectionEvent().GetOperations() {
-		if upsert := operation.GetRoomUpsert(); upsert != nil {
+	var roomUpsert *realtimev1.RealtimeRoomState
+	var timelineUpsert *realtimev1.RealtimeRoomTimelineEventState
+	for _, operation := range frame.GetEvent().GetState() {
+		if upsert := operation.GetRoom(); upsert != nil {
 			roomUpsert = upsert
 		}
-		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil {
+		if upsert := operation.GetRoomTimelineEvent(); upsert != nil {
 			timelineUpsert = upsert
 		}
 	}
@@ -533,7 +603,7 @@ func TestRealtimeProjectionOmitsMessageStateWithoutMessageRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 0 {
+	if !handled || frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
 		t.Fatalf("message frame = %+v, handled=%v; want empty cursor-advance projection", frame, handled)
 	}
 
@@ -580,11 +650,11 @@ func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
 	if err := env.core.HandleCallParticipantJoined(env.ctx, room.Id, user.Id); err != nil {
 		t.Fatalf("HandleCallParticipantJoined: %v", err)
 	}
-	started := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+	started := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
 		var hasActiveCalls, hasStarted bool
-		for _, operation := range projection.GetOperations() {
-			hasActiveCalls = hasActiveCalls || operation.GetActiveCallsReplace() != nil
-			upsert := operation.GetRoomTimelineEventUpsert()
+		for _, operation := range projection.GetState() {
+			hasActiveCalls = hasActiveCalls || operation.GetActiveCalls() != nil
+			upsert := operation.GetRoomTimelineEvent()
 			hasStarted = hasStarted || (upsert.GetRoomId() == room.Id && upsert.GetEvent().GetCallStarted().GetCallId() != "")
 		}
 		return hasActiveCalls && hasStarted
@@ -596,11 +666,11 @@ func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
 	if err := env.core.HandleCallParticipantLeft(env.ctx, room.Id, user.Id); err != nil {
 		t.Fatalf("HandleCallParticipantLeft: %v", err)
 	}
-	ended := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+	ended := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
 		var hasActiveCalls, hasEnded bool
-		for _, operation := range projection.GetOperations() {
-			hasActiveCalls = hasActiveCalls || operation.GetActiveCallsReplace() != nil
-			upsert := operation.GetRoomTimelineEventUpsert()
+		for _, operation := range projection.GetState() {
+			hasActiveCalls = hasActiveCalls || operation.GetActiveCalls() != nil
+			upsert := operation.GetRoomTimelineEvent()
 			hasEnded = hasEnded || (upsert.GetRoomId() == room.Id && upsert.GetEvent().GetCallEnded().GetCallId() != "")
 		}
 		return hasActiveCalls && hasEnded
@@ -610,7 +680,7 @@ func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
 	}
 }
 
-func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperation(t *testing.T) {
+func TestRealtimeMapsPinnedMessageAsSemanticEvent(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-pin-projection", "RT Pin Projection", "password123")
 	if err != nil {
@@ -631,11 +701,11 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
 	}
-	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
-		t.Fatalf("pin projection frame = %+v, handled=%v", frame, handled)
+	if !handled || frame.GetEvent() == nil {
+		t.Fatalf("pin event frame = %+v, handled=%v", frame, handled)
 	}
-	change := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
+	change := frame.GetEvent().GetPinnedMessage()
+	if change.GetAction() != realtimev1.RealtimePinnedMessageAction_REALTIME_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
 		t.Fatalf("pinned message change = %+v", change)
 	}
 
@@ -647,12 +717,8 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEventWithRooms retraction: %v", err)
 	}
-	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 1 {
-		t.Fatalf("retraction projection frame = %+v, handled=%v", frame, handled)
-	}
-	change = frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
-		t.Fatalf("retraction pinned message change = %+v", change)
+	if !handled || frame.GetEvent().GetMessage().GetAction() != realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_RETRACTED {
+		t.Fatalf("retraction event frame = %+v, handled=%v", frame, handled)
 	}
 }
 
@@ -727,15 +793,15 @@ func TestRealtimeWebSocketUsesFocusedRoomViewerActivity(t *testing.T) {
 		if !ok {
 			t.Fatal("timed out waiting for focused room viewer activity")
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			if operation.GetRoomViewerStateReplace() != nil {
+		for _, operation := range projection.GetState() {
+			if operation.GetRoomViewer() != nil {
 				t.Fatalf("client received full viewer state for activity: %+v", operation)
 			}
-			activity := operation.GetRoomViewerActivityReplace()
+			activity := operation.GetRoomViewerActivity()
 			if activity == nil || activity.GetRoomId() != room.Id {
 				continue
 			}
@@ -836,9 +902,9 @@ func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage root mention: %v", err)
 	}
-	mentionProjection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
-		for _, operation := range projection.GetOperations() {
-			for _, occurrence := range operation.GetNotificationOccurrencesReplace().GetOccurrences().GetOccurrences() {
+	mentionProjection := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
+		for _, operation := range projection.GetState() {
+			for _, occurrence := range operation.GetNotifications().GetOccurrences().GetOccurrences() {
 				if occurrence.GetSignal().GetDirectMentionReceived().GetMessage().GetEventId() == root.GetId() {
 					return true
 				}
@@ -854,9 +920,9 @@ func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage followed reply: %v", err)
 	}
-	followProjection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
-		for _, operation := range projection.GetOperations() {
-			for _, occurrence := range operation.GetNotificationOccurrencesReplace().GetOccurrences().GetOccurrences() {
+	followProjection := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
+		for _, operation := range projection.GetState() {
+			for _, occurrence := range operation.GetNotifications().GetOccurrences().GetOccurrences() {
 				if occurrence.GetSignal().GetFollowedThreadActivity().GetMessage().GetEventId() == reply.GetId() {
 					return true
 				}
@@ -895,8 +961,8 @@ func TestRealtimeSelfAuthoredRBACAdvancesWithoutUnnecessaryProjectionReset(t *te
 	if err != nil || !handled {
 		t.Fatalf("self-authored bot permission frame = %+v, %v, %v", frame, handled, err)
 	}
-	if frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 0 {
-		t.Fatalf("self-authored bot permission frame = %+v, want empty projection event", frame)
+	if frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
+		t.Fatalf("self-authored bot permission frame = %+v, want cursor-only event", frame)
 	}
 
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, core.SystemActorID, core.NewEVTEventEnvelope(event))
@@ -928,8 +994,8 @@ func TestRealtimeSelfAuthoredRBACAdvancesWithoutUnnecessaryProjectionReset(t *te
 	if err != nil || !handled {
 		t.Fatalf("self-authored owner RBAC frame = %+v, %v, %v", frame, handled, err)
 	}
-	if frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 0 {
-		t.Fatalf("self-authored owner RBAC frame = %+v, want empty projection event", frame)
+	if frame.GetEvent() == nil || len(frame.GetEvent().GetState()) != 0 {
+		t.Fatalf("self-authored owner RBAC frame = %+v, want cursor-only event", frame)
 	}
 	if err := env.core.RevokeServerRole(env.ctx, core.SystemActorID, owner.GetId(), core.RoleOwner); err != nil {
 		t.Fatalf("RevokeServerRole owner: %v", err)
@@ -1171,7 +1237,7 @@ func TestRealtimeWebSocketBoundsWholeCatchUpDuration(t *testing.T) {
 		t.Fatalf("hello response = %+v, want server hello", frame)
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok || frame.GetClose().GetCode() != "catch_up_timeout" || !frame.GetClose().GetReconnect() || frame.GetClose().GetRetryAfterMs() == 0 {
@@ -1208,7 +1274,7 @@ func TestRealtimeWebSocketRateLimitsStaleCursorReuse(t *testing.T) {
 		t.Fatalf("replay hello response = %+v, want server hello", frame)
 	}
 	sendRealtimeClientFrame(t, replay, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	for {
 		frame, ok := readRealtimeServerFrame(t, replay, realtimeTestCatchUpReadTimeout)
@@ -1231,7 +1297,7 @@ func TestRealtimeWebSocketRateLimitsStaleCursorReuse(t *testing.T) {
 		t.Fatalf("hello response = %+v, want server hello", frame)
 	}
 	sendRealtimeClientFrame(t, limited, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	frame, ok := readRealtimeServerFrame(t, limited, 5*time.Second)
 	if !ok || frame.GetClose().GetCode() != "catch_up_rate_limited" || !frame.GetClose().GetReconnect() || frame.GetClose().GetRetryAfterMs() == 0 {
@@ -1270,7 +1336,7 @@ func TestRealtimeWebSocketAllowsCurrentBoundaryReconnectAfterRateLimitBurst(t *t
 		t.Fatalf("hello response = %+v, want server hello", frame)
 	}
 	sendRealtimeClientFrame(t, reconnected, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatalf("current-boundary reconnect response = %+v, want subscribed", frame)
@@ -1283,8 +1349,8 @@ func TestRealtimeWebSocketAllowsCurrentBoundaryReconnectAfterRateLimitBurst(t *t
 		if frame.GetCaughtUp() != nil {
 			break
 		}
-		if frame.GetProjectionEvent() == nil {
-			t.Fatalf("reconnect frame = %T, want projection_event or caught_up", frame.GetFrame())
+		if frame.GetEvent() == nil && frame.GetState() == nil {
+			t.Fatalf("reconnect frame = %T, want event, state, or caught_up", frame.GetFrame())
 		}
 	}
 }
@@ -1298,6 +1364,33 @@ func TestRealtimeWebSocketRejectsVersionOne(t *testing.T) {
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok || frame.GetError().GetCode() != "unsupported_protocol" || !frame.GetError().GetFatal() {
 		t.Fatalf("v1 response = %+v, want fatal unsupported_protocol", frame)
+	}
+}
+
+func TestRealtimeWebSocketRequiresInitialState(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-initial-state", "RT Initial State", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatalf("hello response = %+v, want server hello", frame)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetError().GetCode() != "bad_subscribe" || !frame.GetError().GetFatal() {
+		t.Fatalf("subscribe response = %+v, want fatal bad_subscribe", frame)
 	}
 }
 
@@ -1318,7 +1411,7 @@ func TestRealtimeWebSocketRejectsUnknownProtocolVersion(t *testing.T) {
 	}
 }
 
-func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResources(t *testing.T) {
+func TestRealtimeProjectionSnapshotFramesContainCanonicalResources(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-snapshot", "RT Snapshot", "password123")
 	if err != nil {
@@ -1341,38 +1434,33 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 		t.Fatalf("realtimeProjectionSnapshotFrames: %v", err)
 	}
 	if len(frames) == 0 {
-		t.Fatal("snapshot frames are empty, want reset prefix")
-	}
-	first := frames[0].GetProjectionEvent()
-	if first == nil || len(first.GetOperations()) != 1 || first.GetOperations()[0].GetReset_() == nil {
-		t.Fatalf("first snapshot frame = %+v, want reset", frames)
+		t.Fatal("snapshot frames are empty")
 	}
 
 	var hasServer, hasServerState, hasViewer, hasViewerUser, hasRoom bool
 	var hasGroups, hasNotifications, hasTimeline bool
 	for _, frame := range frames {
-		projection := frame.GetProjectionEvent()
-		if projection == nil || len(projection.GetOperations()) != 1 {
-			t.Fatalf("snapshot frame = %+v, want exactly one projection operation", frame)
+		operation := frame.GetState()
+		if operation == nil {
+			t.Fatalf("snapshot frame = %+v, want exactly one state item", frame)
 		}
-		operation := projection.GetOperations()[0]
-		hasServer = hasServer || operation.GetServerUpsert() != nil
-		hasServerState = hasServerState || operation.GetServerStateUpsert() != nil
-		hasViewer = hasViewer || operation.GetViewerUpsert() != nil
-		if user := operation.GetUserUpsert(); user.GetUser().GetId() == viewer.Id {
+		hasServer = hasServer || operation.GetServer() != nil
+		hasServerState = hasServerState || operation.GetServerState() != nil
+		hasViewer = hasViewer || operation.GetViewer() != nil
+		if user := operation.GetUser(); user.GetUser().GetId() == viewer.Id {
 			hasViewerUser = true
 		}
-		if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+		if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
 			hasRoom = slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
 		}
-		hasGroups = hasGroups || operation.GetRoomGroupsReplace() != nil
-		if notifications := operation.GetNotificationOccurrencesReplace(); notifications != nil {
+		hasGroups = hasGroups || operation.GetRoomGroups() != nil
+		if notifications := operation.GetNotifications(); notifications != nil {
 			hasNotifications = true
 			if notifications.GetPlayNotificationSound() {
 				t.Fatal("snapshot notification replacement requested notification sound")
 			}
 		}
-		if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+		if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
 			hasTimeline = timeline.GetEventCursors()[message.Id] != ""
 		}
 	}
@@ -1403,13 +1491,15 @@ func TestRealtimeProjectionSnapshotFramesKeepTimelinesAndChannelMembershipLazy(t
 		t.Fatalf("realtimeProjectionSnapshotFrames: %v", err)
 	}
 	for _, frame := range frames {
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			if timeline := operation.GetRoomTimelineReplace(); timeline != nil {
-				t.Fatalf("cold snapshot unexpectedly hydrated timeline %q", timeline.GetRoomId())
-			}
-			if projectedRoom := operation.GetRoomUpsert(); projectedRoom.GetRoom().GetRoom().GetId() == room.Id && len(projectedRoom.GetMemberUserIds()) != 0 {
-				t.Fatalf("cold channel membership = %v, want lazy empty membership", projectedRoom.GetMemberUserIds())
-			}
+		operation := frame.GetState()
+		if operation == nil {
+			t.Fatalf("snapshot frame = %+v, want state", frame)
+		}
+		if timeline := operation.GetRoomTimeline(); timeline != nil {
+			t.Fatalf("cold snapshot unexpectedly hydrated timeline %q", timeline.GetRoomId())
+		}
+		if projectedRoom := operation.GetRoom(); projectedRoom.GetRoom().GetRoom().GetId() == room.Id && len(projectedRoom.GetMemberUserIds()) != 0 {
+			t.Fatalf("cold channel membership = %v, want lazy empty membership", projectedRoom.GetMemberUserIds())
 		}
 	}
 }
@@ -1453,13 +1543,14 @@ func TestRealtimeProjectionCompactedReconciliationRepairsOnlyRoomMarkersChangedD
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &snapshot.RoomMarkerFence)
+	frames, err := env.httpServer.realtimeProjectionReconciliationFrames(env.ctx, viewer.Id, &snapshot.RoomMarkerFence)
 	if err != nil {
-		t.Fatalf("realtimeProjectionReconciliationFrame: %v", err)
+		t.Fatalf("realtimeProjectionReconciliationFrames: %v", err)
 	}
-	var replacements []*realtimev1.RealtimeProjectionRoomViewerActivityReplace
-	for _, operation := range frame.GetProjectionEvent().GetOperations() {
-		if replacement := operation.GetRoomViewerActivityReplace(); replacement != nil {
+	var replacements []*realtimev1.RealtimeRoomViewerActivityState
+	for _, frame := range frames {
+		operation := frame.GetState()
+		if replacement := operation.GetRoomViewerActivity(); replacement != nil {
 			replacements = append(replacements, replacement)
 		}
 	}
@@ -1505,7 +1596,7 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	// Resume at the current boundary because this test covers post-bootstrap
-	// hydration admission. Other tests cover compacted snapshot delivery.
+	// hydration admission. Other tests cover snapshot delivery.
 	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.Id, "")
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
@@ -1521,7 +1612,7 @@ func TestRealtimeWebSocketHydrationRejectionIdentifiesRoomAndRetryDelay(t *testi
 		t.Fatal("did not receive realtime hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive realtime subscribed")
@@ -1603,7 +1694,7 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 		t.Fatal("did not receive realtime hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive realtime subscribed")
@@ -1613,29 +1704,25 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
 		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: retainedRoom.Id},
 	}})
-	hydratedFrame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || hydratedFrame.GetProjectionEvent() == nil {
-		t.Fatalf("room hydration frame = %+v", hydratedFrame)
+	hydratedRoomFrame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || hydratedRoomFrame.GetState().GetRoom() == nil {
+		t.Fatalf("room hydration room frame = %+v", hydratedRoomFrame)
 	}
-	var hydratedTimeline *realtimev1.RealtimeProjectionRoomTimelineReplace
-	var hydratedRoom *realtimev1.RealtimeProjectionRoom
-	for _, operation := range hydratedFrame.GetProjectionEvent().GetOperations() {
-		if operation.GetRoomTimelineReplace().GetRoomId() == retainedRoom.Id {
-			hydratedTimeline = operation.GetRoomTimelineReplace()
-		}
-		if operation.GetRoomUpsert().GetRoom().GetRoom().GetId() == retainedRoom.Id {
-			hydratedRoom = operation.GetRoomUpsert()
-		}
+	hydratedRoom := hydratedRoomFrame.GetState().GetRoom()
+	if !slices.Contains(hydratedRoom.GetMemberUserIds(), viewer.Id) {
+		t.Fatalf("hydrated room membership = %+v, want viewer", hydratedRoom)
 	}
+	hydratedTimelineFrame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || hydratedTimelineFrame.GetState().GetRoomTimeline() == nil {
+		t.Fatalf("room hydration timeline frame = %+v", hydratedTimelineFrame)
+	}
+	hydratedTimeline := hydratedTimelineFrame.GetState().GetRoomTimeline()
 	hasBeforeHydration := false
 	for _, event := range hydratedTimeline.GetPage().GetEvents() {
 		hasBeforeHydration = hasBeforeHydration || event.GetId() == beforeHydration.Id
 	}
 	if hydratedTimeline == nil || !hasBeforeHydration {
 		t.Fatalf("hydrated timeline = %+v, want message %q", hydratedTimeline, beforeHydration.Id)
-	}
-	if hydratedRoom == nil || !slices.Contains(hydratedRoom.GetMemberUserIds(), viewer.Id) {
-		t.Fatalf("hydrated room membership = %+v, want viewer", hydratedRoom)
 	}
 
 	afterHydration, err := env.core.PostMessage(env.ctx, core.KindChannel, retainedRoom.Id, viewer.Id, "after hydration", nil, "", "", nil, false)
@@ -1647,19 +1734,23 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 		if !ok {
 			t.Fatal("timed out waiting for retained room update")
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
 		found := false
-		for _, operation := range projection.GetOperations() {
-			upsert := operation.GetRoomTimelineEventUpsert()
+		foundViewerActivity := false
+		for _, operation := range projection.GetState() {
+			upsert := operation.GetRoomTimelineEvent()
 			found = found || (upsert.GetRoomId() == retainedRoom.Id && upsert.GetEvent().GetId() == afterHydration.Id)
-			if operation.GetRoomUpsert() != nil || operation.GetRoomViewerStateReplace() != nil || operation.GetRoomViewerActivityReplace() != nil {
-				t.Fatalf("message projection retransmitted room or viewer state: %+v", operation)
+			if activity := operation.GetRoomViewerActivity(); activity != nil {
+				foundViewerActivity = foundViewerActivity || activity.GetRoomId() == retainedRoom.Id
+			}
+			if operation.GetRoom() != nil || operation.GetRoomViewer() != nil {
+				t.Fatalf("message event retransmitted room state: %+v", operation)
 			}
 		}
-		if found {
+		if found && foundViewerActivity {
 			break
 		}
 	}
@@ -1667,31 +1758,32 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, otherRoom.Id, viewer.Id, "unretained update", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage unretained: %v", err)
 	}
-	var foundCursorAdvance, foundRoomActivity, foundViewerActivity bool
-	for !foundCursorAdvance || !foundRoomActivity || !foundViewerActivity {
+	var foundCursorAdvance, foundSemanticMessage, foundViewerActivity bool
+	for !foundCursorAdvance || !foundSemanticMessage || !foundViewerActivity {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
-			t.Fatalf("timed out waiting for unretained updates: cursor=%v room_activity=%v viewer_activity=%v", foundCursorAdvance, foundRoomActivity, foundViewerActivity)
+			t.Fatalf("timed out waiting for unretained updates: cursor=%v semantic_message=%v viewer_activity=%v", foundCursorAdvance, foundSemanticMessage, foundViewerActivity)
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
 		foundCursorAdvance = foundCursorAdvance || projection.GetResumeCursor() != ""
-		for _, operation := range projection.GetOperations() {
+		messageEvent := projection.GetMessage()
+		foundSemanticMessage = foundSemanticMessage || (messageEvent.GetRoomId() == otherRoom.Id && messageEvent.GetAction() == realtimev1.RealtimeMessageAction_REALTIME_MESSAGE_ACTION_POSTED)
+		for _, operation := range projection.GetState() {
 			if projection.GetResumeCursor() != "" {
-				if operation.GetRoomTimelineEventUpsert() != nil || operation.GetRoomTimelineEventRemove() != nil || operation.GetRoomTimelineReplace() != nil {
+				if operation.GetRoomTimelineEvent() != nil || operation.GetRoomTimelineEventRemoved() != nil || operation.GetRoomTimeline() != nil {
 					t.Fatalf("unretained projection leaked timeline operation: %+v", operation)
 				}
-				if operation.GetRoomUpsert() != nil {
+				if operation.GetRoom() != nil {
 					t.Fatalf("unretained message retransmitted its room summary: %+v", operation)
 				}
-				if operation.GetRoomViewerStateReplace() != nil || operation.GetRoomViewerActivityReplace() != nil {
-					t.Fatalf("message projection retransmitted viewer state: %+v", operation)
+				if operation.GetRoomViewer() != nil {
+					t.Fatalf("message event retransmitted full viewer state: %+v", operation)
 				}
 			}
-			foundRoomActivity = foundRoomActivity || operation.GetRoomActivity().GetRoomId() == otherRoom.Id
-			viewerActivity := operation.GetRoomViewerActivityReplace()
+			viewerActivity := operation.GetRoomViewerActivity()
 			foundViewerActivity = foundViewerActivity || (viewerActivity.GetRoomId() == otherRoom.Id && !viewerActivity.GetHasUnread())
 		}
 	}
@@ -1699,8 +1791,23 @@ func TestRealtimeWebSocketHydratesRoomLazilyAndFiltersOtherTimelines(t *testing.
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
 		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: retainedRoom.Id},
 	}})
-	if duplicate, ok := readRealtimeServerFrame(t, conn, 200*time.Millisecond); ok {
-		t.Fatalf("duplicate hydration unexpectedly rebuilt the room: %+v", duplicate)
+	deadline := time.Now().Add(200 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		duplicate, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
+		if !ok {
+			break
+		}
+		var stateItems []*realtimev1.RealtimeStateItem
+		if event := duplicate.GetEvent(); event != nil {
+			stateItems = event.GetState()
+		} else if state := duplicate.GetState(); state != nil {
+			stateItems = []*realtimev1.RealtimeStateItem{state}
+		}
+		for _, state := range stateItems {
+			if timeline := state.GetRoomTimeline(); timeline != nil && timeline.GetRoomId() == retainedRoom.Id {
+				t.Fatalf("duplicate hydration unexpectedly rebuilt the room timeline: %+v", duplicate)
+			}
+		}
 	}
 }
 
@@ -1749,16 +1856,16 @@ func TestRealtimeWebSocketMaterializesRetainedRoomAfterViewerGainsAccess(t *test
 		if !ok {
 			break
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil {
 			continue
 		}
 		var hasRoom, hasMessage bool
-		for _, operation := range projection.GetOperations() {
-			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+		for _, operation := range projection.GetState() {
+			if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
 				hasRoom = slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
 			}
-			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+			if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
 				for _, event := range timeline.GetPage().GetEvents() {
 					hasMessage = hasMessage || event.GetId() == message.Id
 				}
@@ -1825,12 +1932,12 @@ func TestRealtimeWebSocketReplacesActiveCallsWhenViewerGainsRoomAccess(t *testin
 	if _, err := env.core.AddMember(env.ctx, alice.Id, core.KindChannel, room.Id, bob.Id); err != nil {
 		t.Fatalf("AddMember Bob: %v", err)
 	}
-	projection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+	projection := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
 		var hasRoom, hasCalls bool
-		for _, operation := range projection.GetOperations() {
-			upsert := operation.GetRoomUpsert()
+		for _, operation := range projection.GetState() {
+			upsert := operation.GetRoom()
 			hasRoom = hasRoom || upsert.GetRoom().GetRoom().GetId() == room.Id
-			hasCalls = hasCalls || operation.GetActiveCallsReplace() != nil
+			hasCalls = hasCalls || operation.GetActiveCalls() != nil
 		}
 		return hasRoom && hasCalls
 	})
@@ -1840,20 +1947,20 @@ func TestRealtimeWebSocketReplacesActiveCallsWhenViewerGainsRoomAccess(t *testin
 
 	var gotRoom, gotTimeline, gotNotifications bool
 	var calls []*apiv1.ActiveCall
-	for _, operation := range projection.GetOperations() {
-		if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+	for _, operation := range projection.GetState() {
+		if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
 			gotRoom = upsert.GetRoom().GetViewerState().GetIsMember() && slices.Contains(upsert.GetMemberUserIds(), bob.Id)
 		}
-		if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+		if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
 			gotTimeline = true
 		}
-		if replacement := operation.GetActiveCallsReplace(); replacement != nil {
+		if replacement := operation.GetActiveCalls(); replacement != nil {
 			calls = replacement.GetCalls()
 		}
-		gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
+		gotNotifications = gotNotifications || operation.GetNotifications() != nil
 	}
 	if !gotRoom || !gotTimeline || !gotNotifications {
-		t.Fatalf("room access projection room=%t timeline=%t notifications=%t; operations=%+v", gotRoom, gotTimeline, gotNotifications, projection.GetOperations())
+		t.Fatalf("room access projection room=%t timeline=%t notifications=%t; operations=%+v", gotRoom, gotTimeline, gotNotifications, projection.GetState())
 	}
 	if len(calls) != 1 || calls[0].GetRoom().GetId() != room.Id || len(calls[0].GetParticipants()) != 1 || calls[0].GetParticipants()[0].GetUser().GetId() != alice.Id {
 		t.Fatalf("post-membership active calls = %+v, want Alice in room %q", calls, room.Id)
@@ -1911,11 +2018,11 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 	subscribeRealtime(t, explicitConn, tokenFor(explicitViewer.Id), room.Id)
 	subscribeRealtime(t, lazyConn, tokenFor(lazyViewer.Id))
 
-	roomTransition := func(conn *websocket.Conn) *realtimev1.RealtimeProjectionEvent {
+	roomTransition := func(conn *websocket.Conn) *realtimev1.RealtimeEvent {
 		t.Helper()
-		return waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
-			for _, operation := range projection.GetOperations() {
-				projectedRoom := operation.GetRoomUpsert().GetRoom().GetRoom()
+		return waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
+			for _, operation := range projection.GetState() {
+				projectedRoom := operation.GetRoom().GetRoom().GetRoom()
 				if projectedRoom.GetId() == room.Id {
 					return true
 				}
@@ -1923,33 +2030,33 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 			return false
 		})
 	}
-	assertTransition := func(name string, projection *realtimev1.RealtimeProjectionEvent, wantMember, wantTimeline, wantMessage bool) {
+	assertTransition := func(name string, projection *realtimev1.RealtimeEvent, wantMember, wantTimeline, wantMessage bool) {
 		t.Helper()
 		if projection == nil {
 			t.Fatalf("%s: timed out waiting for universal projection", name)
 		}
 		var gotRoom, gotTimeline, gotMessage, gotCalls, gotNotifications bool
-		for _, operation := range projection.GetOperations() {
-			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+		for _, operation := range projection.GetState() {
+			if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
 				gotRoom = true
 				if got := upsert.GetRoom().GetViewerState().GetIsMember(); got != wantMember {
 					t.Fatalf("%s: viewer membership = %t, want %t", name, got, wantMember)
 				}
 			}
-			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+			if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
 				gotTimeline = true
 				for _, event := range timeline.GetPage().GetEvents() {
 					gotMessage = gotMessage || event.GetId() == message.Id
 				}
 			}
-			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
-			gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
+			gotCalls = gotCalls || operation.GetActiveCalls() != nil
+			gotNotifications = gotNotifications || operation.GetNotifications() != nil
 		}
 		if !gotRoom || gotTimeline != wantTimeline || gotMessage != wantMessage {
-			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetOperations())
+			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetState())
 		}
 		if !gotCalls || !gotNotifications {
-			t.Fatalf("%s: access transition omitted active-call/notification replacements; operations=%+v", name, projection.GetOperations())
+			t.Fatalf("%s: access transition omitted active-call/notification replacements; operations=%+v", name, projection.GetState())
 		}
 	}
 
@@ -2016,37 +2123,34 @@ func TestRealtimeWebSocketResumeResetsRetainedTimelineAfterUniversalMembershipRe
 		t.Fatal("did not receive replay hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second); !ok || frame.GetSubscribed() == nil || frame.GetSubscribed().GetStartCursor() == resumeCursor {
-		t.Fatalf("authorization-sensitive resume did not select a new compacted boundary: %+v", frame)
+		t.Fatalf("authorization-sensitive resume did not select a new snapshot boundary: %+v", frame)
 	}
 
-	var foundReset, foundRevokedRoom bool
+	var foundRevokedRoom bool
 	for {
 		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 		if !ok {
-			t.Fatal("timed out waiting for compacted revocation reset")
+			t.Fatal("timed out waiting for revocation snapshot")
 		}
 		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
-			if !foundReset || !foundRevokedRoom || caughtUp.GetCursor() == "" {
-				t.Fatalf("revocation reset incomplete before caught_up: reset=%t revoked_room=%t caught_up=%+v", foundReset, foundRevokedRoom, caughtUp)
+			if !foundRevokedRoom || caughtUp.GetCursor() == "" {
+				t.Fatalf("revocation snapshot incomplete before caught_up: revoked_room=%t caught_up=%+v", foundRevokedRoom, caughtUp)
 			}
 			break
 		}
-		projection := frame.GetProjectionEvent()
-		if projection == nil {
+		operation := frame.GetState()
+		if operation == nil {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			foundReset = foundReset || operation.GetReset_() != nil
-			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
-				foundRevokedRoom = !upsert.GetRoom().GetViewerState().GetIsMember()
-			}
-			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
-				if len(timeline.GetPage().GetEvents()) != 0 {
-					t.Fatalf("revocation reset leaked retained timeline: %+v", timeline)
-				}
+		if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+			foundRevokedRoom = !upsert.GetRoom().GetViewerState().GetIsMember()
+		}
+		if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
+			if len(timeline.GetPage().GetEvents()) != 0 {
+				t.Fatalf("revocation snapshot leaked retained timeline: %+v", timeline)
 			}
 		}
 	}
@@ -2086,8 +2190,8 @@ func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {
 		if !ok {
 			break
 		}
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			removed = removed || operation.GetRoomRemove().GetRoomId() == room.Id
+		for _, operation := range frame.GetEvent().GetState() {
+			removed = removed || operation.GetRoomRemoved().GetRoomId() == room.Id
 		}
 	}
 	if !removed {
@@ -2097,16 +2201,16 @@ func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {
 	if _, err := env.core.UnarchiveRoom(env.ctx, viewer.Id, core.KindChannel, room.Id); err != nil {
 		t.Fatalf("UnarchiveRoom: %v", err)
 	}
-	projection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+	projection := waitRealtimeEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeEvent) bool {
 		var gotMessage, gotCalls, gotNotifications bool
-		for _, operation := range projection.GetOperations() {
-			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+		for _, operation := range projection.GetState() {
+			if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
 				for _, event := range timeline.GetPage().GetEvents() {
 					gotMessage = gotMessage || event.GetId() == message.Id
 				}
 			}
-			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
-			gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
+			gotCalls = gotCalls || operation.GetActiveCalls() != nil
+			gotNotifications = gotNotifications || operation.GetNotifications() != nil
 		}
 		return gotMessage && gotCalls && gotNotifications
 	})
@@ -2144,7 +2248,7 @@ func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T
 	if err := env.core.LeaveRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
 		t.Fatalf("LeaveRoom: %v", err)
 	}
-	left := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+	left := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomState) bool {
 		return upsert.GetRoom().GetRoom().GetId() == room.Id && !upsert.GetRoom().GetViewerState().GetIsMember()
 	})
 	if left == nil {
@@ -2160,8 +2264,8 @@ func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T
 			break
 		}
 		removed := false
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			removed = removed || operation.GetRoomRemove().GetRoomId() == room.Id
+		for _, operation := range frame.GetEvent().GetState() {
+			removed = removed || operation.GetRoomRemoved().GetRoomId() == room.Id
 		}
 		if removed {
 			break
@@ -2170,7 +2274,7 @@ func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T
 	if _, err := env.core.UnarchiveRoom(env.ctx, owner.Id, core.KindChannel, room.Id); err != nil {
 		t.Fatalf("UnarchiveRoom: %v", err)
 	}
-	unarchived := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+	unarchived := waitRealtimeRoomUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomState) bool {
 		return upsert.GetRoom().GetRoom().GetId() == room.Id && !upsert.GetRoom().GetRoom().GetArchived() && !upsert.GetRoom().GetViewerState().GetIsMember()
 	})
 	if unarchived == nil {
@@ -2259,7 +2363,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("created projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
+	replacement := frame.GetEvent().GetState()[0].GetNotifications()
 	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetUnreadCount() != 1 {
 		t.Fatalf("created replacement = %+v, want one unread occurrence", replacement)
 	}
@@ -2269,7 +2373,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if !replacement.GetPlayNotificationSound() {
 		t.Fatal("in-app followed-thread notification did not request sound")
 	}
-	operations := frame.GetProjectionEvent().GetOperations()
+	operations := frame.GetEvent().GetState()
 	if len(operations) != 1 {
 		t.Fatalf("created notification operations = %+v, want one notification replacement", operations)
 	}
@@ -2285,7 +2389,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
+	replacement = frame.GetEvent().GetState()[0].GetNotifications()
 	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetOccurrences()[0].GetUnread() || replacement.GetOccurrences().GetUnreadCount() != 0 {
 		t.Fatalf("updated replacement = %+v, want one read occurrence", replacement)
 	}
@@ -2303,7 +2407,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-read frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
+	replacement = frame.GetEvent().GetState()[0].GetNotifications()
 	if replacement.GetPlayNotificationSound() {
 		t.Fatal("stale alert candidate played sound after the occurrence was read")
 	}
@@ -2321,7 +2425,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-delete frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
+	replacement = frame.GetEvent().GetState()[0].GetNotifications()
 	if len(replacement.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("stale created-after-delete occurrences = %+v, want empty", replacement.GetOccurrences().GetOccurrences())
 	}
@@ -2360,11 +2464,11 @@ func TestRealtimeProjectionThreadFollowReplacesStateForUnretainedRoom(t *testing
 	if err != nil {
 		t.Fatalf("realtimeProjectionFrameForEventWithRooms: %v", err)
 	}
-	operations := frame.GetProjectionEvent().GetOperations()
-	if !handled || len(operations) != 1 || operations[0].GetThreadViewerStatesReplace() == nil {
+	operations := frame.GetEvent().GetState()
+	if !handled || len(operations) != 1 || operations[0].GetThreadViewerStates() == nil {
 		t.Fatalf("unretained thread-follow projection = %+v, handled=%v", frame, handled)
 	}
-	states := operations[0].GetThreadViewerStatesReplace().GetStates()
+	states := operations[0].GetThreadViewerStates().GetStates()
 	if len(states) != 1 || states[0].GetRoomId() != room.Id || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetIsFollowing() {
 		t.Fatalf("thread viewer states = %+v", states)
 	}
@@ -2439,14 +2543,14 @@ func TestRealtimeProjectionBadgeReplacesRoomThreadAndRetainedRoot(t *testing.T) 
 		t.Fatal("Badge unread invalidation was not handled")
 	}
 	var roomUnread, hasThreadReplacement, hasRootUpsert bool
-	for _, operation := range frame.GetProjectionEvent().GetOperations() {
-		if replacement := operation.GetRoomViewerActivityReplace(); replacement != nil {
+	for _, operation := range frame.GetEvent().GetState() {
+		if replacement := operation.GetRoomViewerActivity(); replacement != nil {
 			roomUnread = replacement.GetHasUnread()
 		}
-		if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
+		if replacement := operation.GetThreadViewerStates(); replacement != nil {
 			hasThreadReplacement = true
 		}
-		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
+		if upsert := operation.GetRoomTimelineEvent(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
 			hasRootUpsert = true
 		}
 	}
@@ -2492,7 +2596,7 @@ func TestRealtimeProjectionRefreshesSearchForEveryEditedOrRetractedMessage(t *te
 			if err != nil {
 				t.Fatalf("realtimeProjectionFrameForEventWithRooms: %v", err)
 			}
-			refresh := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert()
+			refresh := frame.GetEvent().GetState()[0].GetServerState()
 			if !handled || refresh == nil {
 				t.Fatalf("search refresh fence = %+v, handled=%v", refresh, handled)
 			}
@@ -2512,7 +2616,7 @@ func TestRealtimeProjectionRefreshesSearchForEveryEditedOrRetractedMessage(t *te
 	if err != nil {
 		t.Fatalf("retracted realtimeProjectionFrameForEventWithRooms: %v", err)
 	}
-	if refresh := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert(); !handled || refresh == nil {
+	if refresh := frame.GetEvent().GetState()[0].GetServerState(); !handled || refresh == nil {
 		t.Fatalf("retracted search refresh fence = %+v, handled=%v", refresh, handled)
 	}
 
@@ -2521,8 +2625,8 @@ func TestRealtimeProjectionRefreshesSearchForEveryEditedOrRetractedMessage(t *te
 	if err != nil {
 		t.Fatalf("disabled realtimeProjectionFrameForEventWithRooms: %v", err)
 	}
-	for _, operation := range frame.GetProjectionEvent().GetOperations() {
-		if state := operation.GetServerStateUpsert(); state != nil && state.GetPinnedMessageChange() == nil {
+	for _, operation := range frame.GetEvent().GetState() {
+		if state := operation.GetServerState(); state != nil {
 			t.Fatal("search-disabled server emitted a search refresh fence")
 		}
 	}
@@ -2531,7 +2635,7 @@ func TestRealtimeProjectionRefreshesSearchForEveryEditedOrRetractedMessage(t *te
 	}
 }
 
-func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerActivity(t *testing.T) {
+func TestRealtimeRoomStateReadReplacesOnlyThatRoomViewerActivity(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-read-viewer", "RT Read Viewer", "password123")
 	if err != nil {
@@ -2571,15 +2675,15 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerActivity(t *testing
 	if !handled {
 		t.Fatal("room-read event was not handled as a projection mutation")
 	}
-	operations := frame.GetProjectionEvent().GetOperations()
+	operations := frame.GetEvent().GetState()
 	if len(operations) != 2 {
 		t.Fatalf("room-read operations = %d, want viewer-activity and notification replacements", len(operations))
 	}
-	replacement := operations[0].GetRoomViewerActivityReplace()
+	replacement := operations[0].GetRoomViewerActivity()
 	if replacement.GetRoomId() != room.Id || replacement.GetHasUnread() {
 		t.Fatalf("room-read replacement = %+v, want room %q with has_unread=false", replacement, room.Id)
 	}
-	if notifications := operations[1].GetNotificationOccurrencesReplace(); notifications == nil {
+	if notifications := operations[1].GetNotifications(); notifications == nil {
 		t.Fatal("room-read event did not replace current notification state")
 	} else if len(notifications.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("room-read notifications = %+v, want no unread notification state", notifications)
@@ -2626,7 +2730,7 @@ func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 		t.Fatal("did not receive hello")
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{RetainedRoomIds: []string{room.Id}},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive subscribed")
@@ -2636,7 +2740,7 @@ func TestRealtimeThreadReadMarkerPublishesProjectionUpdate(t *testing.T) {
 	if _, err := env.core.SetThreadLastReadEventID(env.ctx, core.KindChannel, viewer.Id, room.Id, root.Id, reply.Id); err != nil {
 		t.Fatalf("SetThreadLastReadEventID: %v", err)
 	}
-	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == root.Id
 	})
 	thread := upsert.GetEvent().GetMessagePosted().GetMessage().GetThread()
@@ -2684,7 +2788,7 @@ func TestRealtimeWebSocketRevalidatesCookieBeforeSubscription(t *testing.T) {
 	}
 
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 	if !ok || frame.GetError().GetCode() != "authentication_required" || !frame.GetError().GetFatal() {
@@ -2887,22 +2991,22 @@ func TestRealtimeWebSocketDeliversRoomMessageToMember(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	var upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
+	var upsert *realtimev1.RealtimeRoomTimelineEventState
 	deadline := time.Now().Add(5 * time.Second)
 	for upsert == nil && time.Now().Before(deadline) {
 		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
 		if !ok {
 			break
 		}
-		projection := frame.GetProjectionEvent()
+		projection := frame.GetEvent()
 		if projection == nil || projection.GetId() != posted.Id {
 			continue
 		}
-		for _, operation := range projection.GetOperations() {
-			if operation.GetRoomUpsert() != nil {
+		for _, operation := range projection.GetState() {
+			if operation.GetRoom() != nil {
 				t.Fatal("message projection redundantly included a full room upsert")
 			}
-			if candidate := operation.GetRoomTimelineEventUpsert(); candidate.GetEvent().GetId() == posted.Id {
+			if candidate := operation.GetRoomTimelineEvent(); candidate.GetEvent().GetId() == posted.Id {
 				upsert = candidate
 			}
 		}
@@ -2942,7 +3046,7 @@ func TestRealtimeWebSocketConvergesDirectoryRoomsAndAdministrativeMembership(t *
 	if _, err := env.core.UpdateRoom(env.ctx, owner.Id, core.KindChannel, room.Id, "directory-room-renamed", ""); err != nil {
 		t.Fatalf("UpdateRoom: %v", err)
 	}
-	visible := waitRealtimeRoomUpsert(t, viewerConn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+	visible := waitRealtimeRoomUpsert(t, viewerConn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomState) bool {
 		return upsert.GetRoom().GetRoom().GetId() == room.Id && upsert.GetRoom().GetRoom().GetName() == "directory-room-renamed"
 	})
 	if visible == nil {
@@ -2958,7 +3062,7 @@ func TestRealtimeWebSocketConvergesDirectoryRoomsAndAdministrativeMembership(t *
 	if _, err := env.core.AddMember(env.ctx, owner.Id, core.KindChannel, room.Id, viewer.Id); err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
-	membership := waitRealtimeRoomUpsert(t, ownerConn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoom) bool {
+	membership := waitRealtimeRoomUpsert(t, ownerConn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomState) bool {
 		return slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
 	})
 	if membership == nil {
@@ -3020,19 +3124,19 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 		t.Fatalf("PostMessage reply: %v", err)
 	}
 
-	var upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
-	var states []*realtimev1.RealtimeProjectionThreadViewerState
+	var upsert *realtimev1.RealtimeRoomTimelineEventState
+	var states []*realtimev1.RealtimeThreadViewerState
 	for upsert == nil || len(states) == 0 {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
 			t.Fatal("timed out waiting for thread reply projection")
 		}
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			candidate := operation.GetRoomTimelineEventUpsert()
+		for _, operation := range frame.GetEvent().GetState() {
+			candidate := operation.GetRoomTimelineEvent()
 			if candidate.GetEvent().GetId() == root.Id {
 				upsert = candidate
 			}
-			if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
+			if replacement := operation.GetThreadViewerStates(); replacement != nil {
 				states = replacement.GetStates()
 			}
 		}
@@ -3084,11 +3188,11 @@ func TestRealtimeProjectionThreadReplyChangesRefreshUnretainedFollowedThread(t *
 			t.Fatalf("realtimeProjectionFrameForEventWithRooms = %+v, %v, %v", frame, handled, err)
 		}
 		var refreshed bool
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			if operation.GetRoomTimelineEventUpsert() != nil {
+		for _, operation := range frame.GetEvent().GetState() {
+			if operation.GetRoomTimelineEvent() != nil {
 				t.Fatal("unretained room received a timeline upsert")
 			}
-			for _, state := range operation.GetThreadViewerStatesReplace().GetStates() {
+			for _, state := range operation.GetThreadViewerStates().GetStates() {
 				if state.GetRoomId() == room.Id && state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetIsFollowing() {
 					refreshed = true
 				}
@@ -3143,7 +3247,7 @@ func TestRealtimeWebSocketMessageRetractionUpsertsDeletedRow(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, message.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
-	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetEvent().GetId() == message.Id
 	})
 	if upsert == nil {
@@ -3192,7 +3296,7 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	}); err != nil || !added {
 		t.Fatalf("AddReaction: added=%v err=%v", added, err)
 	}
-	echoUpsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	echoUpsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetEvent().GetId() == echoID
 	})
 	if echoUpsert == nil || len(echoUpsert.GetEvent().GetMessagePosted().GetMessage().GetReactions()) != 1 {
@@ -3202,7 +3306,7 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	if err := env.core.EditMessage(env.ctx, user.Id, core.KindChannel, room.Id, reply.Id, "reply without echo", core.WithMessageChannelEcho(false)); err != nil {
 		t.Fatalf("EditMessage remove echo: %v", err)
 	}
-	removed := waitRealtimeTimelineRemove(t, conn, 5*time.Second, func(remove *realtimev1.RealtimeProjectionRoomTimelineEventRemove) bool {
+	removed := waitRealtimeTimelineRemove(t, conn, 5*time.Second, func(remove *realtimev1.RealtimeRoomTimelineEventRemovedState) bool {
 		return remove.GetRoomId() == room.Id && remove.GetEventId() == echoID
 	})
 	if removed == nil {
@@ -3216,7 +3320,7 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	if !ok || restoredEchoID == echoID {
 		t.Fatalf("restored echo = %q, want a new visible echo", restoredEchoID)
 	}
-	if restored := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	if restored := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetEvent().GetId() == restoredEchoID
 	}); restored == nil {
 		t.Fatal("did not receive restored channel echo upsert")
@@ -3225,7 +3329,7 @@ func TestRealtimeWebSocketMirrorsChannelEchoReactionsAndRemoval(t *testing.T) {
 	if err := env.core.DeleteMessage(env.ctx, user.Id, core.KindChannel, room.Id, reply.Id); err != nil {
 		t.Fatalf("DeleteMessage canonical reply: %v", err)
 	}
-	tombstone := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	tombstone := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetEvent().GetId() == restoredEchoID
 	})
 	if tombstone == nil || tombstone.GetEvent().GetMessagePosted().GetMessage().GetDeletedAt() == nil {
@@ -3280,11 +3384,11 @@ func TestRealtimeProjectionReplayAdvancesPastAlreadyHiddenEchoCreation(t *testin
 		if err != nil {
 			t.Fatalf("map replay event %q (%T): %v", event.ID(), event.EVTEvent().GetEvent(), err)
 		}
-		if !handled || frame.GetProjectionEvent() == nil {
+		if !handled || frame.GetEvent() == nil {
 			continue
 		}
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			remove := operation.GetRoomTimelineEventRemove()
+		for _, operation := range frame.GetEvent().GetState() {
+			remove := operation.GetRoomTimelineEventRemoved()
 			if remove.GetRoomId() == room.Id && remove.GetEventId() == echoID {
 				seenRemoval = true
 			}
@@ -3342,14 +3446,14 @@ func TestRealtimeProjectionReplayMapsAssetLifecycleToCurrentMessage(t *testing.T
 		if err != nil {
 			t.Fatalf("map asset replay event %q (%T): %v", event.ID(), event.EVTEvent().GetEvent(), err)
 		}
-		if !handled || frame.GetProjectionEvent() == nil {
+		if !handled || frame.GetEvent() == nil {
 			t.Fatalf("asset replay event %q (%T) was not projected", event.ID(), event.EVTEvent().GetEvent())
 		}
-		operations := frame.GetProjectionEvent().GetOperations()
-		if len(operations) != 1 || operations[0].GetRoomTimelineEventUpsert().GetEvent().GetId() != message.Id {
+		operations := frame.GetEvent().GetState()
+		if len(operations) != 1 || operations[0].GetRoomTimelineEvent().GetEvent().GetId() != message.Id {
 			t.Fatalf("asset replay operations = %+v, want message %q upsert", operations, message.Id)
 		}
-		if frame.GetProjectionEvent().GetResumeCursor() == "" {
+		if frame.GetEvent().GetResumeCursor() == "" {
 			t.Fatal("asset replay projection has no resume cursor")
 		}
 	}
@@ -3416,13 +3520,13 @@ func TestRealtimeProjectionReplayAdvancesPastDeletedAttachmentAssetLifecycle(t *
 		if err != nil {
 			t.Fatalf("map asset deletion event: %v", err)
 		}
-		if !handled || frame.GetProjectionEvent() == nil {
+		if !handled || frame.GetEvent() == nil {
 			t.Fatal("asset deletion was not projected")
 		}
-		if len(frame.GetProjectionEvent().GetOperations()) != 0 {
-			t.Fatalf("asset deletion operations = %+v, want cursor-only projection", frame.GetProjectionEvent().GetOperations())
+		if len(frame.GetEvent().GetState()) != 0 {
+			t.Fatalf("asset deletion operations = %+v, want cursor-only projection", frame.GetEvent().GetState())
 		}
-		if frame.GetProjectionEvent().GetResumeCursor() == "" {
+		if frame.GetEvent().GetResumeCursor() == "" {
 			t.Fatal("asset deletion projection has no resume cursor")
 		}
 	}
@@ -3461,7 +3565,7 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 		t.Fatal("did not receive replay hello")
 	}
 	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive replay subscribed")
@@ -3488,38 +3592,42 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 		t.Fatal("did not receive resumed hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	if !ok || subscribed.GetSubscribed() == nil || subscribed.GetSubscribed().GetStartCursor() != resumeCursor {
 		t.Fatalf("resumed subscribed = %+v", subscribed)
 	}
 	replayed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
-	if !ok || replayed.GetProjectionEvent() == nil || len(replayed.GetProjectionEvent().GetOperations()) != 1 {
-		t.Fatalf("replayed frame = %+v, want one projection operation", replayed)
+	if !ok || replayed.GetEvent() == nil || len(replayed.GetEvent().GetState()) != 1 {
+		t.Fatalf("replayed frame = %+v, want one current-state item", replayed)
 	}
-	upsert := replayed.GetProjectionEvent().GetOperations()[0].GetRoomTimelineEventUpsert()
-	reaction := upsert.GetReactionChange()
-	if upsert.GetRoomId() != room.Id || reaction.GetMessageEventId() != message.Id || reaction.GetEmoji() != "thumbsup" || reaction.GetAction() != realtimev1.RealtimeProjectionReactionAction_REALTIME_PROJECTION_REACTION_ACTION_ADDED {
+	reaction := replayed.GetEvent().GetReaction()
+	if reaction.GetRoomId() != room.Id || reaction.GetMessageEventId() != message.Id || reaction.GetEmoji() != "thumbsup" || reaction.GetAction() != realtimev1.RealtimeReactionAction_REALTIME_REACTION_ACTION_ADDED {
 		t.Fatalf("replayed reaction = %+v", reaction)
 	}
-	if replayed.GetProjectionEvent().GetResumeCursor() == "" {
+	if replayed.GetEvent().GetResumeCursor() == "" {
 		t.Fatal("replayed reaction has no resume cursor")
 	}
-	reconciliation, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	foundNotifications := false
-	if ok && reconciliation.GetProjectionEvent() != nil {
-		for _, operation := range reconciliation.GetProjectionEvent().GetOperations() {
-			foundNotifications = foundNotifications || operation.GetNotificationOccurrencesReplace() != nil
+	for {
+		reconciliation, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for post-replay reconciliation")
+		}
+		if reconciliation.GetCaughtUp() != nil {
+			break
+		}
+		if state := reconciliation.GetState(); state != nil {
+			foundNotifications = foundNotifications || state.GetNotifications() != nil
 		}
 	}
 	if !foundNotifications {
-		t.Fatalf("post-replay frame = %+v, want latest-value reconciliation", reconciliation)
+		t.Fatal("post-replay frames omitted notification reconciliation")
 	}
-	readRealtimeCaughtUp(t, resumed)
 }
 
-func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
+func TestRealtimeWebSocketExpiredCursorFallsBackToSnapshot(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-expired-resume", "Expired Resume", "password123")
 	if err != nil {
@@ -3555,7 +3663,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 		t.Fatal("did not receive boundary hello")
 	}
 	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive boundary subscribed")
@@ -3572,7 +3680,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 		UserID         string `json:"u"`
 		IssuedAtUnix   int64  `json:"t"`
 	}
-	payloadJSON, err := publiccursor.Open("test-core-secret", "realtime-resume-v2", user.Id, boundary.GetCursor())
+	payloadJSON, err := publiccursor.Open("test-core-secret", "realtime-resume-v3", user.Id, boundary.GetCursor())
 	if err != nil {
 		t.Fatalf("open boundary cursor: %v", err)
 	}
@@ -3585,7 +3693,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode expired cursor payload: %v", err)
 	}
-	expiredCursor, err := publiccursor.Seal("test-core-secret", "realtime-resume-v2", user.Id, payloadJSON)
+	expiredCursor, err := publiccursor.Seal("test-core-secret", "realtime-resume-v3", user.Id, payloadJSON)
 	if err != nil {
 		t.Fatalf("seal expired cursor: %v", err)
 	}
@@ -3599,7 +3707,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 		t.Fatal("did not receive resumed hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &expiredCursor, RetainedRoomIds: []string{room.Id}},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &expiredCursor, RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	if !ok || subscribed.GetSubscribed() == nil {
@@ -3608,16 +3716,8 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 	if subscribed.GetSubscribed().GetStartCursor() == expiredCursor {
 		t.Fatal("expired resume retained the unusable cursor")
 	}
-	firstProjection, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
-	if !ok || firstProjection.GetProjectionEvent() == nil {
-		t.Fatalf("expired resume first projection frame = %+v", firstProjection)
-	}
-	operations := firstProjection.GetProjectionEvent().GetOperations()
-	if len(operations) != 1 || operations[0].GetReset_() == nil {
-		t.Fatalf("expired resume first operations = %+v, want reset", operations)
-	}
-	if firstProjection.GetProjectionEvent().GetResumeCursor() != "" {
-		t.Fatal("expired resume reset exposed a cursor before the replacement snapshot completed")
+	if subscribed.GetSubscribed().GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
+		t.Fatalf("expired resume recovery mode = %v, want snapshot", subscribed.GetSubscribed().GetRecoveryMode())
 	}
 
 	var foundRoom, foundTimeline, foundThreadStates, foundNotifications, foundViewer, foundPresence bool
@@ -3632,43 +3732,33 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 			}
 			break
 		}
-		projection := frame.GetProjectionEvent()
-		if projection == nil {
-			t.Fatalf("expired-resume frame = %T, want projection_event or caught_up", frame.GetFrame())
+		operation := frame.GetState()
+		if operation == nil {
+			t.Fatalf("expired-resume frame = %T, want state or caught_up", frame.GetFrame())
 		}
-		var frameHasThreadStates, frameHasNotifications, frameHasViewer bool
-		var framePresences *realtimev1.RealtimeProjectionPresencesReplace
-		for _, operation := range projection.GetOperations() {
-			if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
-				t.Fatalf("compacted reset repeated room viewer state for %q", replacement.GetRoomId())
-			}
-			if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
-				viewerState := upsert.GetRoom().GetViewerState()
-				foundRoom = viewerState.GetIsMember() && !viewerState.GetHasUnread() && len(viewerState.GetPermissions()) > 0 && slices.Contains(upsert.GetMemberUserIds(), user.Id)
-			}
-			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
-				foundTimeline = timeline.GetEventCursors()[message.Id] != ""
-			}
-			if threads := operation.GetThreadViewerStatesReplace(); threads != nil {
-				for _, state := range threads.GetStates() {
-					frameHasThreadStates = frameHasThreadStates || state.GetRoomId() == room.Id && state.GetThreadRootEventId() == message.Id && state.GetViewerState().GetIsFollowing()
-				}
-			}
-			frameHasNotifications = frameHasNotifications || operation.GetNotificationOccurrencesReplace() != nil
-			frameHasViewer = frameHasViewer || operation.GetViewerUpsert() != nil
-			if presences := operation.GetPresencesReplace(); presences != nil {
-				framePresences = presences
+		if replacement := operation.GetRoomViewer(); replacement != nil {
+			t.Fatalf("snapshot repeated room viewer state for %q", replacement.GetRoomId())
+		}
+		if upsert := operation.GetRoom(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+			viewerState := upsert.GetRoom().GetViewerState()
+			foundRoom = viewerState.GetIsMember() && !viewerState.GetHasUnread() && len(viewerState.GetPermissions()) > 0 && slices.Contains(upsert.GetMemberUserIds(), user.Id)
+		}
+		if timeline := operation.GetRoomTimeline(); timeline.GetRoomId() == room.Id {
+			foundTimeline = timeline.GetEventCursors()[message.Id] != ""
+		}
+		if threads := operation.GetThreadViewerStates(); threads != nil {
+			for _, state := range threads.GetStates() {
+				foundThreadStates = foundThreadStates || state.GetRoomId() == room.Id && state.GetThreadRootEventId() == message.Id && state.GetViewerState().GetIsFollowing()
 			}
 		}
-		if framePresences != nil {
-			_, foundPresence = framePresences.GetStatuses()[user.Id]
-			foundThreadStates = frameHasThreadStates
-			foundNotifications = frameHasNotifications
-			foundViewer = frameHasViewer
+		foundNotifications = foundNotifications || operation.GetNotifications() != nil
+		foundViewer = foundViewer || operation.GetViewer() != nil
+		if presences := operation.GetPresences(); presences != nil {
+			_, foundPresence = presences.GetStatuses()[user.Id]
 		}
 	}
 	if !foundRoom || !foundTimeline || !foundThreadStates || !foundNotifications || !foundViewer || !foundPresence {
-		t.Fatalf("compacted reset coverage: room=%v timeline=%v thread_states=%v notifications=%v viewer=%v presence=%v", foundRoom, foundTimeline, foundThreadStates, foundNotifications, foundViewer, foundPresence)
+		t.Fatalf("snapshot coverage: room=%v timeline=%v thread_states=%v notifications=%v viewer=%v presence=%v", foundRoom, foundTimeline, foundThreadStates, foundNotifications, foundViewer, foundPresence)
 	}
 }
 
@@ -3710,7 +3800,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 		t.Fatal("did not receive boundary hello")
 	}
 	sendRealtimeClientFrame(t, boundaryConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	if frame, ok := readRealtimeServerFrame(t, boundaryConn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
 		t.Fatal("did not receive boundary subscribed")
@@ -3754,7 +3844,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 		t.Fatal("did not receive resumed hello")
 	}
 	sendRealtimeClientFrame(t, resumed, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &resumeCursor, RetainedRoomIds: []string{room.Id}, InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
 	}})
 	subscribed, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
 	if !ok || subscribed.GetSubscribed() == nil || subscribed.GetSubscribed().GetStartCursor() != resumeCursor {
@@ -3779,30 +3869,32 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 			caughtUpCursor = caughtUp.GetCursor()
 			break
 		}
-		projection := frame.GetProjectionEvent()
-		if projection == nil {
-			t.Fatalf("replay frame = %T, want projection_event or caught_up", frame.GetFrame())
+		projection := frame.GetEvent()
+		var stateItems []*realtimev1.RealtimeStateItem
+		if projection != nil {
+			stateItems = projection.GetState()
+		} else if state := frame.GetState(); state != nil {
+			stateItems = []*realtimev1.RealtimeStateItem{state}
+		} else {
+			t.Fatalf("replay frame = %T, want event, state, or caught_up", frame.GetFrame())
 		}
-		for _, operation := range projection.GetOperations() {
-			if operation.GetReset_() != nil {
-				t.Fatal("valid resume unexpectedly emitted a compacted reset")
-			}
-			if remove := operation.GetRoomTimelineEventRemove(); remove != nil && remove.GetRoomId() == room.Id && remove.GetEventId() == echoID {
+		for _, operation := range stateItems {
+			if remove := operation.GetRoomTimelineEventRemoved(); remove != nil && remove.GetRoomId() == room.Id && remove.GetEventId() == echoID {
 				echoRemovals++
-				if projection.GetResumeCursor() == "" {
+				if projection == nil || projection.GetResumeCursor() == "" {
 					t.Fatal("replayed echo removal has no resume cursor")
 				}
 			}
-			if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetRoomId() == room.Id {
+			if upsert := operation.GetRoomTimelineEvent(); upsert != nil && upsert.GetRoomId() == room.Id {
 				switch upsert.GetEvent().GetId() {
 				case reply.Id:
 					replyUpserts++
-					if projection.GetResumeCursor() == "" {
+					if projection == nil || projection.GetResumeCursor() == "" {
 						t.Fatal("replayed reply upsert has no resume cursor")
 					}
 				case assetMessage.Id:
 					assetUpserts++
-					if projection.GetResumeCursor() == "" {
+					if projection == nil || projection.GetResumeCursor() == "" {
 						t.Fatal("replayed asset upsert has no resume cursor")
 					}
 					if attachments := upsert.GetEvent().GetMessagePosted().GetMessage().GetAttachments(); len(attachments) != 0 {
@@ -3810,19 +3902,19 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 					}
 				}
 			}
-			if operation.GetNotificationOccurrencesReplace() != nil {
+			if operation.GetNotifications() != nil {
 				notificationReconciliations++
 			}
-			if operation.GetPresencesReplace() != nil {
+			if operation.GetPresences() != nil {
 				presenceReconciliations++
 			}
-			if operation.GetViewerUpsert() != nil {
+			if operation.GetViewer() != nil {
 				viewerReconciliations++
 			}
-			if operation.GetRoomViewerActivityReplace() != nil {
+			if operation.GetRoomViewerActivity() != nil {
 				roomViewerReconciliations++
 			}
-			if operation.GetThreadViewerStatesReplace() != nil {
+			if operation.GetThreadViewerStates() != nil {
 				threadViewerReconciliations++
 			}
 		}
@@ -3841,7 +3933,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	if err != nil {
 		t.Fatalf("PostMessage live: %v", err)
 	}
-	if upsert := waitRealtimeTimelineUpsert(t, resumed, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	if upsert := waitRealtimeTimelineUpsert(t, resumed, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		return upsert.GetRoomId() == room.Id && upsert.GetEvent().GetId() == liveMessage.Id
 	}); upsert == nil {
 		t.Fatal("resumed socket did not continue with live delivery after caught_up")
@@ -3870,7 +3962,7 @@ func TestRealtimeWebSocketDeliversPresenceUpdateToOtherUser(t *testing.T) {
 		t.Fatalf("SetPresenceWithOptions actor: %v", err)
 	}
 
-	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEventEnvelope) bool {
+	event := waitRealtimeEvent(t, conn, 5*time.Second, func(event *realtimev1.RealtimeEvent) bool {
 		presence := event.GetPresenceChanged()
 		return presence != nil && presence.UserId == actor.Id
 	})
@@ -3927,7 +4019,7 @@ func TestRealtimeWebSocketDoesNotDeliverRoomMessageToOutsider(t *testing.T) {
 		t.Fatalf("PostMessage visible: %v", err)
 	}
 
-	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert) bool {
+	upsert := waitRealtimeTimelineUpsert(t, conn, 5*time.Second, func(upsert *realtimev1.RealtimeRoomTimelineEventState) bool {
 		if upsert.GetEvent().GetId() == posted.Id {
 			t.Fatalf("outsider received unauthorized realtime timeline upsert: %+v", upsert)
 		}

@@ -336,8 +336,8 @@ export class ServerConnection {
     // A suspended browser can retain a locally "open" WebSocket long after the
     // server has dropped it. Replace the active transport after a meaningful
     // hidden interval so its retained projection resumes by cursor. If that
-    // cursor expired, the server responds on the same stream with a compacted
-    // reset; no component-level reload is needed.
+    // cursor expired, the server responds on the same stream with a snapshot;
+    // no component-level reload is needed.
     if (typeof document !== 'undefined') {
       this.#visibilityHandler = () => {
         if (document.visibilityState === 'visible') {

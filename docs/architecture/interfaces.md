@@ -154,7 +154,7 @@ The direct-login capability uses scalar presence so a new client treats an
 older server that omits it as enabled. The bundled client refreshes discovery
 per server and owns an internal feature-to-minimum-server-version table for compatibility gates.
 The 0.5 client requires the 0.5 server baseline before opening realtime
-protocol 2, the only accepted behavioral version. The
+protocol 3, the only accepted behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.
 
 Public server discovery includes each OIDC provider's issuer for clients that

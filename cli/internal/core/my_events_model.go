@@ -391,6 +391,13 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		if e.RoomMemberBanned.GetUserId() == userID {
 			delete(memberRooms, roomID)
 		}
+	case *evtv1.Event_RoomMemberUnbanned:
+		if e.RoomMemberUnbanned.GetUserId() == userID {
+			if isEffective, err := s.core.RoomMembershipExists(context.Background(), KindChannel, userID, roomID); err == nil && isEffective {
+				memberRooms[roomID] = struct{}{}
+				isMember = true
+			}
+		}
 	case *evtv1.Event_RoomMemberAdded:
 		if e.RoomMemberAdded.GetUserId() == userID {
 			memberRooms[roomID] = struct{}{}

@@ -151,7 +151,7 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 		),
 		realtimeCatchUps: prometheus.NewDesc(
 			"chatto_realtime_catch_ups",
-			"Current realtime replay or compacted-bootstrap catch-ups in this process.",
+			"Current realtime replay or snapshot catch-ups in this process.",
 			nil,
 			nil,
 		),

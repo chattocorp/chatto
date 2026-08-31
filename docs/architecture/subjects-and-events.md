@@ -151,10 +151,10 @@ cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
 Transient `LiveEvent` messages are adapted at this boundary into public
-protobuf `/api/realtime` frames and remain live-only. Protocol v2 maps durable
-facts to current public projection operations; fresh or unsafe resumes begin
-with a compacted server projection. Subscriber overflow closes only that
-session.
+protobuf `/api/realtime` events and remain live-only. Protocol 3 maps durable
+facts to semantic public events with optional current-resource state. Fresh or
+unsafe subscriptions use the caller's explicit snapshot or live-only fallback.
+Subscriber overflow closes only that session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old
@@ -162,10 +162,10 @@ subscriptions, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
 The bundled web client watches server heartbeats for silent stalls. Its
-in-memory server projection resumes a short socket gap or accepts a compacted
-reset; page reload deliberately starts without a cursor. Protocol v2 creates no
-long-lived per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
-and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
+in-memory server projection resumes a short socket gap or accepts an explicit
+snapshot; page reload starts without a cursor. Protocol 3 creates no
+per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
+and [ADR-087](../adr/ADR-087-semantic-realtime-events-with-bounded-resume.md).
 
 ## Durable and live subject patterns
 
@@ -173,7 +173,7 @@ and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `evtv1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. Notification materialization derives exact-sequence output directly from existing source/lifecycle facts; it adds no notification-only EVT facts or prepared-work records. |
 | `NOTIFICATIONS`              | `notificationv1.NotificationEvent` | User occurrence | Bounded 90-day notification lifecycle log on four fixed subjects. A 24-hour broker cleanup grace follows the application expiry. Its projector owns the current list; the push worker consumes signalled facts directly. |
-| Live Sync                    | `livev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
+| Live Sync                    | `livev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; transient activity becomes public realtime events, while invalidations produce semantic events with authoritative current state. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
@@ -448,10 +448,10 @@ cycles. A successful elected pass deletes the counter.
 
 `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
 `ListCallParticipants` expose the active call ID to integrations and command
-flows. The bundled frontend receives complete authorized active-call state in
-`active_calls_replace` projection operations and infers one-shot join/leave/end
-presentation effects by comparing replacements. Room membership remains the
-authorization boundary for live delivery.
+flows. The bundled frontend receives complete authorized active-call state
+with semantic call events and infers one-shot join, leave, and end presentation
+effects by comparing current state. Room membership remains the authorization
+boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
@@ -460,6 +460,6 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,
   user/config/member subject gates, and projection readiness.
-- Live delivery plus protocol-v2 bounded replay of durable facts as current public projection operations. The WebSocket subscribes to the hub before capturing its EVT cutoff, replays through that cutoff, then drops buffered duplicates before continuing live. Fresh and unsafe resumes receive a compacted server projection through the same operation stream; transient sync and presence signals remain live-only.
+- Live delivery plus protocol-3 bounded replay of durable facts as semantic public events. The WebSocket subscribes to the hub before it captures its EVT cutoff, replays through that cutoff, and then drops buffered duplicates before it continues live. Fresh and unsafe subscriptions use the requested snapshot or live-only fallback. Transient sync and presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).

@@ -185,24 +185,24 @@
   });
 
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'roomUpsert':
-          if (operation.operation.value.room?.room?.id === roomId) {
+    for (const stateItem of event.state) {
+      switch (stateItem.state.case) {
+        case 'room':
+          if (stateItem.state.value.room?.room?.id === roomId) {
             void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
             return;
           }
           break;
-        case 'roomRemove':
-          if (operation.operation.value.roomId === roomId) {
+        case 'roomRemoved':
+          if (stateItem.state.value.roomId === roomId) {
             privacyGeneration += 1;
             clearLocalState();
             purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
             return;
           }
           break;
-        case 'userRemove': {
-          const userId = operation.operation.value.userId;
+        case 'userRemoved': {
+          const userId = stateItem.state.value.userId;
           const affectsSelection = selectedUser?.id === userId;
           const affectsRemoval = removeCandidate?.id === userId;
           const affectsMutation =
@@ -376,7 +376,7 @@
           onclear={clearSelectedUser}
         >
           {#snippet item({ item: user })}
-            <UserAvatar user={user} size="sm" useLiveProfile={false} />
+            <UserAvatar {user} size="sm" useLiveProfile={false} />
             <span class="min-w-0 truncate">{user.displayName}</span>
             <span class="min-w-0 truncate text-muted">@{user.login}</span>
           {/snippet}

@@ -27,7 +27,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Durable LiveKit Call State | Accepted | 2026-03-01 |
 | [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md) | Svelte 5 Reactive Cache Whitelisting | Accepted | 2026-03-01 |
 | [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | Partially superseded | 2026-03-01 |
-| [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Accepted | 2026-03-01 |
+| [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Partially superseded | 2026-03-01 |
 | [ADR-013](ADR-013-per-space-stream-sharding.md) | Per-Space JetStream Stream Sharding with Lazy Initialization | Superseded | 2026-03-01 |
 | [ADR-014](ADR-014-single-subscription-per-space.md) | Single GraphQL Subscription Per Space | Superseded | 2026-03-01 |
 | [ADR-015](ADR-015-dms-as-hidden-space.md) | Direct Messages as a Hidden Space | Superseded | 2026-03-01 |
@@ -66,7 +66,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | Accepted | 2026-07-09 |
 | [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | Accepted | 2026-07-14 |
 | [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) | Ephemeral Encrypted Projection Snapshots | Accepted | 2026-07-13 |
-| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Accepted | 2026-07-16 |
+| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Superseded | 2026-07-16 |
 | [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md) | Subject-Specific RBAC with an Everyone Baseline | Accepted | 2026-07-19 |
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | Accepted | 2026-07-20 |
 | [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | Accepted | 2026-07-20 |
@@ -102,3 +102,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
 | [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md) | Commit Room-Layout Structural Mutations Atomically | Accepted | 2026-08-30 |
+| [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Accepted | 2026-08-30 |

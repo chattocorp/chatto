@@ -11,7 +11,7 @@ import {
 import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
-import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeRoomState } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { isNavigationVisibleRoom, NavigationStore } from './rooms.svelte';
@@ -40,8 +40,8 @@ function projectedRoom(
     hasMessageHistory?: boolean;
     canReadMessages?: boolean;
   } = {}
-): RealtimeProjectionRoom {
-  return new RealtimeProjectionRoom({
+): RealtimeRoomState {
+  return new RealtimeRoomState({
     room: new RoomWithViewerState({
       room: new Room({ id, name: id, kind }),
       viewerState: new RoomViewerState({
@@ -177,7 +177,7 @@ describe('NavigationStore', () => {
     expect(navigation.isInitialLoading).toBe(true);
   });
 
-  it('hides a compacted projection prefix until caught up while retaining stale state', () => {
+  it('hides a snapshot prefix until caught up while retaining stale state', () => {
     const projection = new ServerProjectionStore();
     const sync = new RealtimeProjectionSyncState();
     sync.beginCatchUp();

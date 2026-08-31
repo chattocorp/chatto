@@ -2,6 +2,11 @@
 
 **Date:** 2026-07-16
 
+**Superseded by:** [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md).
+ADR-087 keeps the server-scoped projection bootstrap and bounded resume model,
+but replaces frontend-shaped live projection operations with semantic public
+events.
+
 ## Context
 
 The bundled client previously loaded only the room being rendered. It combined

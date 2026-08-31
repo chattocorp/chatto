@@ -39,11 +39,15 @@ from discovery metadata.
 The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
-realtime protocol 2; older clients must migrate to the server-scoped projection
-stream.
+realtime protocol 3. Protocol 3 replaces protocol 2 during the 0.5 alpha. It
+uses semantic events, explicit `SNAPSHOT` or `LIVE_ONLY` startup, standalone
+current-state items, and bounded cursor resume. Regenerate clients and update
+the handshake and reducers together.
 
-Protocol 2 uses `room_viewer_activity_replace` for room unread and Slow Mode
-changes. This operation does not repeat room membership and permission state.
+The `chatto.realtime.v1` protobuf package name does not select behavioral
+protocol version 1. The `hello.protocol_version` field selects the complete
+required behavior. Chatto does not publish a separate capability matrix for
+required frame semantics.
 
 The 0.5 authentication boundary also replaces sliding human bearer tokens with
 short-lived access tokens and rotating refresh credentials. A 0.5 server
@@ -146,13 +150,13 @@ ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or
 read-your-writes handling with assumptions about projection internals.
 
-Protocol 2 resume cursors are opaque, viewer-bound, and valid for up to 24
-hours. Retain a cursor only with the projection state produced before it, and
-replace it after each `caught_up` frame. A missing, expired, or unusable cursor
-does not fail convergence: the server sends a compacted `reset` and current
-projection state through the same operation stream. An integration that is
-offline for more than 24 hours recovers current state but cannot request every
-historical transition from that interval.
+Protocol 3 resume cursors are opaque, viewer-bound, and valid for up to 24
+hours. Retain a cursor only after the complete event succeeds, and replace it
+after each `caught_up` frame. A missing, expired, or unusable cursor selects the
+subscription's explicit fallback. A `SNAPSHOT` client receives current state.
+A `LIVE_ONLY` client starts at the current boundary. An integration that is
+offline for more than 24 hours cannot request every transition from that
+interval.
 
 ### Migrating from 0.5 development snapshots
 

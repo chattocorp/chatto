@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -31,7 +31,7 @@ Operators can customize how their Chatto server presents itself. The server's na
 
 ### 2. Public profile/config changes publish one internal live signal
 
-**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated`. The realtime service consumes that internal invalidation signal and emits an authoritative server projection replacement to each authenticated client; the internal event is not part of the public wire protocol.
+**Decision:** Public server profile/config changes publish one transient `ServerUpdatedEvent` on `live.sync.config.server_updated`. The realtime service consumes that internal invalidation signal and emits an authoritative semantic public server-change event to each authenticated client; the internal event is not part of the public wire protocol.
 **Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One internal signal keeps profile/config live behavior clear, avoids duplicate broadcasts from text updates, and lets the public stream converge without a client-side refetch.
 **Tradeoff:** Every connected client rebuilds the small projected server resource when public profile/config changes, including fields it may not render. Volume is low (operators don't tweak branding constantly), so this is preferable to exposing invalidation mechanics to clients.
 
@@ -81,5 +81,5 @@ with rich structure can be visually noisy in the compact banner.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-087 (semantic realtime events)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring), FDR-045 (Realtime Event Stream)

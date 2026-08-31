@@ -1,8 +1,8 @@
 import { browser } from '$app/environment';
 import type { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import type { RealtimeProjectionPinnedMessageChange } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { RealtimeProjectionPinnedMessageAction } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimePinnedMessageEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimePinnedMessageAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { SvelteMap } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
@@ -121,13 +121,13 @@ export class RoomPinsStore {
     this.invalidateAndReload();
   }
 
-  applyRealtimeChange(change: RealtimeProjectionPinnedMessageChange, changeEventId: string): void {
+  applyRealtimeChange(change: RealtimePinnedMessageEvent, changeEventId: string): void {
     if (this.accessBlocked || change.roomId !== this.roomId) return;
-    if (change.action === RealtimeProjectionPinnedMessageAction.CREATED) {
+    if (change.action === RealtimePinnedMessageAction.CREATED) {
       this.pinStatuses.set(change.messageEventId, true);
       this.noteLatest(changeEventId);
       this.invalidateAndReload();
-    } else if (change.action === RealtimeProjectionPinnedMessageAction.DELETED) {
+    } else if (change.action === RealtimePinnedMessageAction.DELETED) {
       this.removeLocal(change.messageEventId);
       this.invalidateAndReload();
     }
