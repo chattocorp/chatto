@@ -377,8 +377,7 @@ unknown instance) the component renders nothing.
           fill={false}
           fadeHeight="h-5"
           fadeColorClass="from-surface via-surface/80"
-          class="max-h-52"
-          scrollClass="overscroll-contain"
+          scrollClass="max-h-52 overscroll-contain"
         >
           <div class="px-3 py-2.5 text-sm leading-relaxed pointer-fine:select-text">
             <MessageContent
