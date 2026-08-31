@@ -1,5 +1,5 @@
 import { authHeaders, createChattoClient } from './connect.js';
-import { UserService } from '@chatto/api-types/api/v1/member_directory_connect';
+import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';
