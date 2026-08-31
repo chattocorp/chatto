@@ -57,25 +57,6 @@ export function createAccountAPI(config: AccountAPIConfig) {
       return accountUser(response.user);
     },
 
-    async uploadAvatar(file: File): Promise<AccountUser> {
-      const response = await client.uploadAvatar(
-        {
-          image: {
-            image: new Uint8Array(await file.arrayBuffer()),
-            filename: file.name,
-            contentType: file.type
-          }
-        },
-        { headers: headers() }
-      );
-      return accountUser(response.user);
-    },
-
-    async deleteAvatar(): Promise<AccountUser> {
-      const response = await client.deleteAvatar({}, { headers: headers() });
-      return accountUser(response.user);
-    },
-
     async updatePassword(input: UpdatePasswordInput): Promise<void> {
       await client.updatePassword(
         { password: input.password, currentPassword: input.currentPassword },

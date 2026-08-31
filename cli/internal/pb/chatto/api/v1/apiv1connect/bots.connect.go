@@ -64,8 +64,9 @@ const (
 type BotServiceClient interface {
 	// Lists bots visible to the authenticated caller.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
-	// Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-	// PERMISSION_DENIED for a bot managed by another user.
+	// Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+	// PERMISSION_DENIED when the caller is not the owner and has neither
+	// bot.manage nor user.manage-accounts.
 	GetBot(context.Context, *connect.Request[v1.GetBotRequest]) (*connect.Response[v1.GetBotResponse], error)
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)
@@ -234,8 +235,9 @@ func (c *botServiceClient) ReassignBotOwner(ctx context.Context, req *connect.Re
 type BotServiceHandler interface {
 	// Lists bots visible to the authenticated caller.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
-	// Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-	// PERMISSION_DENIED for a bot managed by another user.
+	// Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+	// PERMISSION_DENIED when the caller is not the owner and has neither
+	// bot.manage nor user.manage-accounts.
 	GetBot(context.Context, *connect.Request[v1.GetBotRequest]) (*connect.Response[v1.GetBotResponse], error)
 	// Gets several visible bots. Missing and inaccessible bots are omitted.
 	BatchGetBots(context.Context, *connect.Request[v1.BatchGetBotsRequest]) (*connect.Response[v1.BatchGetBotsResponse], error)

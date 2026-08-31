@@ -72,8 +72,8 @@ message BotIncomingWebhook {
   optional google.protobuf.Timestamp last_used_at = 6;
 }
 
-// Request bots visible to the caller. Owners see their own bots; callers with
-// bot.manage see every bot.
+// Request bots visible to the caller. Owners see their own bots. Callers with
+// bot.manage or user.manage-accounts see every bot.
 message ListBotsRequest {
   // Optional case-insensitive login or display-name search.
   string search = 1 [(buf.validate.field).string.max_len = 100];
@@ -233,8 +233,9 @@ message ReassignBotOwnerResponse {
 service BotService {
   // Lists bots visible to the authenticated caller.
   rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
-  // Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-  // PERMISSION_DENIED for a bot managed by another user.
+  // Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+  // PERMISSION_DENIED when the caller is not the owner and has neither
+  // bot.manage nor user.manage-accounts.
   rpc GetBot(GetBotRequest) returns (GetBotResponse);
   // Gets several visible bots. Missing and inaccessible bots are omitted.
   rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);

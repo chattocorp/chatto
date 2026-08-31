@@ -3,14 +3,14 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAvatarRequest, DeleteAvatarResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse, UploadAvatarRequest, UploadAvatarResponse } from "./account_pb.js";
+import { DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
- * Self-service account, profile, avatar, display preference, presence,
+ * Self-service account, profile, display preference, presence,
  * custom-status, external identity, and account lifecycle commands for the
  * authenticated user.
  *
@@ -29,29 +29,6 @@ export const MyAccountService = {
       I: UpdateProfileRequest,
       O: UpdateProfileResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * Uploads and sets the authenticated user's avatar.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.UploadAvatar
-     */
-    uploadAvatar: {
-      name: "UploadAvatar",
-      I: UploadAvatarRequest,
-      O: UploadAvatarResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Deletes the authenticated user's avatar. The call is idempotent.
-     *
-     * @generated from rpc chatto.api.v1.MyAccountService.DeleteAvatar
-     */
-    deleteAvatar: {
-      name: "DeleteAvatar",
-      I: DeleteAvatarRequest,
-      O: DeleteAvatarResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Updates or adds the authenticated user's password.

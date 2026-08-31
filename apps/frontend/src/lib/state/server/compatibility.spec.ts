@@ -85,6 +85,8 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.5.0', 'serverInvitations')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.4', 'relativeSidebarMoves')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.3', 'relativeSidebarMoves')).toBe(false);
+    expect(supportsServerFeature('0.5.0-alpha.6', 'userAvatars')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.5', 'userAvatars')).toBe(false);
     expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
     expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
   });

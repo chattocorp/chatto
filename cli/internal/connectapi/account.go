@@ -1,7 +1,6 @@
 package connectapi
 
 import (
-	"bytes"
 	"context"
 
 	"connectrpc.com/connect"
@@ -47,55 +46,6 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.UpdateProfileResponse{User: user}), nil
-}
-
-func (s *accountService) UploadAvatar(ctx context.Context, req *connect.Request[apiv1.UploadAvatarRequest]) (*connect.Response[apiv1.UploadAvatarResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	image := req.Msg.GetImage()
-	if image == nil || len(image.GetImage()) == 0 {
-		return nil, invalidArgument("image is required")
-	}
-
-	asset, err := s.api.core.UploadUserAvatar(ctx, caller.UserID, bytes.NewReader(image.GetImage()))
-	if err != nil {
-		return nil, connectError(err)
-	}
-	if err := s.api.core.SetUserAvatar(ctx, caller.UserID, asset); err != nil {
-		s.api.core.CleanupAsset(ctx, core.DeprecatedAssetFromAsset(asset))
-		return nil, connectError(err)
-	}
-	user, err := s.api.core.GetUser(ctx, caller.UserID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	responseUser, err := requiredUserSummary(ctx, s.api, user)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.UploadAvatarResponse{User: responseUser}), nil
-}
-
-func (s *accountService) DeleteAvatar(ctx context.Context, _ *connect.Request[apiv1.DeleteAvatarRequest]) (*connect.Response[apiv1.DeleteAvatarResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.api.core.DeleteUserAvatar(ctx, caller.UserID); err != nil {
-		return nil, connectError(err)
-	}
-	user, err := s.api.core.GetUser(ctx, caller.UserID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	responseUser, err := requiredUserSummary(ctx, s.api, user)
-	if err != nil {
-		return nil, err
-	}
-	return connect.NewResponse(&apiv1.DeleteAvatarResponse{User: responseUser}), nil
 }
 
 func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Request[apiv1.UpdatePasswordRequest]) (*connect.Response[apiv1.UpdatePasswordResponse], error) {

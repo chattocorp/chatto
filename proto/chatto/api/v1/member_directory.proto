@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
@@ -76,6 +77,37 @@ message BatchGetUsersResponse {
   repeated DirectoryMember users = 1;
 }
 
+// Request to upload and set one user's avatar.
+message UploadAvatarRequest {
+  reserved 1 to 3;
+  reserved "filename", "content_type";
+
+  // Image payload. The server validates, resizes, and stores a WebP avatar.
+  ImageUpload image = 4;
+  // Required target user ID. Self-updates are allowed. Updating another user
+  // requires the applicable account-management or bot-management authority.
+  string user_id = 5 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of uploading one user's avatar.
+message UploadAvatarResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
+// Request to delete one user's avatar.
+message DeleteAvatarRequest {
+  // Required target user ID. Self-updates are allowed. Updating another user
+  // requires the applicable account-management or bot-management authority.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting one user's avatar.
+message DeleteAvatarResponse {
+  // Updated user profile.
+  User user = 1;
+}
+
 // Request for members of one room.
 message ListRoomMembersRequest {
   reserved 3, 4;
@@ -138,7 +170,7 @@ message BatchGetRoomMembersResponse {
   repeated DirectoryMember members = 1;
 }
 
-// Reads the authenticated server-wide user directory.
+// Reads users and manages public user avatars.
 service UserService {
   // Lists users visible to the authenticated user. Admin-sensitive account
   // fields stay out of this public row shape.
@@ -149,4 +181,16 @@ service UserService {
   // Gets visible user rows for multiple stable user IDs. Unknown IDs are
   // omitted from the response.
   rpc BatchGetUsers(BatchGetUsersRequest) returns (BatchGetUsersResponse);
+  // Uploads and sets an avatar for the target user. Users can update
+  // themselves. Updating another human requires user.manage-accounts.
+  // Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+  // A bot cannot target another account. Unknown or deleted targets return
+  // NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+  rpc UploadAvatar(UploadAvatarRequest) returns (UploadAvatarResponse);
+  // Deletes the target user's avatar. Authorization matches UploadAvatar. The
+  // call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+  // invalid ID returns INVALID_ARGUMENT.
+  rpc DeleteAvatar(DeleteAvatarRequest) returns (DeleteAvatarResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }

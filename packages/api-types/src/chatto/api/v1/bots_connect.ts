@@ -27,8 +27,9 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-     * PERMISSION_DENIED for a bot managed by another user.
+     * Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+     * PERMISSION_DENIED when the caller is not the owner and has neither
+     * bot.manage nor user.manage-accounts.
      *
      * @generated from rpc chatto.api.v1.BotService.GetBot
      */

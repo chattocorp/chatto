@@ -322,6 +322,40 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 	return bot, nil
 }
 
+// requireBotViewer permits bot owners, bot managers, and account managers to
+// read bot metadata. It does not grant authority over bot credentials or
+// lifecycle operations.
+func (c *ChattoCore) requireBotViewer(ctx context.Context, actorID, botID string) (*evtv1.User, error) {
+	if err := c.requireHumanUser(ctx, actorID); err != nil {
+		return nil, err
+	}
+	bot, err := c.GetUser(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	if !bot.GetIsBot() {
+		return nil, ErrNotFound
+	}
+	if bot.GetBotOwnerUserId() == actorID {
+		return bot, nil
+	}
+	canManageBots, err := c.CanManageBots(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if canManageBots {
+		return bot, nil
+	}
+	canManageAccounts, err := c.CanManageUserAccounts(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !canManageAccounts {
+		return nil, ErrPermissionDenied
+	}
+	return bot, nil
+}
+
 func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID string) error {
 	if err := c.requireHumanUser(ctx, actorID); err != nil {
 		return err
@@ -471,7 +505,7 @@ func (c *ChattoCore) CreateBotWithAPIKeyName(ctx context.Context, actorID, login
 // GetBot returns one bot visible to the human caller without optional
 // credential-use telemetry. Response assembly can hydrate that state later.
 func (c *ChattoCore) GetBot(ctx context.Context, actorID, botID string) (*Bot, error) {
-	user, err := c.requireBotManager(ctx, actorID, botID)
+	user, err := c.requireBotViewer(ctx, actorID, botID)
 	if err != nil {
 		return nil, err
 	}
@@ -488,6 +522,12 @@ func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, erro
 	manageAll, err := c.CanManageBots(ctx, actorID)
 	if err != nil {
 		return nil, err
+	}
+	if !manageAll {
+		manageAll, err = c.CanManageUserAccounts(ctx, actorID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	ids := c.userModel.botIDsOwnedBy(actorID)
 	if manageAll {

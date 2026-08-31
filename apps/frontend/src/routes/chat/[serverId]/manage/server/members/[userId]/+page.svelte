@@ -12,6 +12,8 @@
     type AdminUpdateUserInput,
     type AdminUserManagementAPI
   } from '$lib/api-client/adminUsers';
+  import { createUserAPI } from '$lib/api-client/users';
+  import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
@@ -40,6 +42,7 @@
   const isSelf = $derived(currentUser.user?.id === userId);
   const canViewMemberEmails = $derived(isSelf || store.permissions.canAdminViewUsers);
   const canAdminManageAccounts = $derived(store.permissions.canAdminManageAccounts);
+  const supportsUserAvatars = $derived(store.serverInfo.supportsFeature('userAvatars'));
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/members', {
       serverId: serverIdToSegment(activeServerId)
@@ -252,6 +255,26 @@
     return isCurrentTarget(target) ? updated : null;
   }
 
+  async function uploadAvatar(file: File): Promise<boolean> {
+    const target = mutationScope();
+    if (!target) return false;
+    const updated = await target.connection.getAPI(createUserAPI).uploadAvatar(target.userId, file);
+    if (!isCurrentTarget(target)) return false;
+    updateCachedMember(target, (current) => ({ ...current, avatarUrl: updated.avatarUrl }));
+    invalidateMemberLists(target);
+    return true;
+  }
+
+  async function deleteAvatar(): Promise<boolean> {
+    const target = mutationScope();
+    if (!target) return false;
+    const updated = await target.connection.getAPI(createUserAPI).deleteAvatar(target.userId);
+    if (!isCurrentTarget(target)) return false;
+    updateCachedMember(target, (current) => ({ ...current, avatarUrl: updated.avatarUrl }));
+    invalidateMemberLists(target);
+    return true;
+  }
+
   async function toggleMemberRole(roleName: string, currentlyHasRole: boolean): Promise<boolean> {
     const target = mutationScope();
     if (!target || (roleMutation.isPending && isCurrentTarget(roleMutation.variables)))
@@ -331,6 +354,12 @@
         {/if}
 
         <MemberOverviewPanel {member} roles={details.roles} {canViewMemberEmails} />
+
+        {#if supportsUserAvatars && (isSelf || canAdminManageAccounts) && !member.deleted}
+          {#key memberTargetKey}
+            <AvatarEditor user={member} onupload={uploadAvatar} ondelete={deleteAvatar} />
+          {/key}
+        {/if}
 
         {#if canDeleteHere}
           <MemberDangerZone {member} />

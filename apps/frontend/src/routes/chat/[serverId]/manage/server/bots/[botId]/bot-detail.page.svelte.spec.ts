@@ -18,10 +18,13 @@ const mocks = vi.hoisted(() => ({
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
+  uploadAvatar: vi.fn(),
+  deleteAvatar: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   settings: null as { timezone: string; timeFormat: TimeFormat } | null,
   canManageBots: true,
+  canManageAccounts: false,
   supportsMultipleAPIKeys: true,
   bot: {
     id: 'bot-user-id',
@@ -57,6 +60,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
           feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
       },
       currentUser: { user: { settings: mocks.settings } },
+      permissions: { canAdminManageAccounts: mocks.canManageAccounts },
       projection: {
         viewer: {
           user: { profile: { id: 'viewer', login: 'viewer', displayName: 'Viewer' } },
@@ -76,7 +80,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         revokeBotAPIKey: mocks.revokeBotAPIKey,
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
-        revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook
+        revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook,
+        uploadAvatar: mocks.uploadAvatar,
+        deleteAvatar: mocks.deleteAvatar
       })
     },
     isCurrent: () => true
@@ -119,6 +125,7 @@ describe('Bot detail page', () => {
     botDetailPageTestState.reset();
     mocks.settings = null;
     mocks.canManageBots = true;
+    mocks.canManageAccounts = false;
     mocks.supportsMultipleAPIKeys = true;
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
@@ -159,6 +166,8 @@ describe('Bot detail page', () => {
       webhookUrl: 'https://chat.example/webhooks/incoming/secret'
     });
     mocks.revokeBotIncomingWebhook.mockResolvedValue({ ...mocks.bot, incomingWebhooks: [] });
+    mocks.uploadAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: '/bot-avatar.webp' });
+    mocks.deleteAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: null });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
@@ -181,6 +190,25 @@ describe('Bot detail page', () => {
       expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret')
     );
     expect(container.textContent).toContain('This URL is shown only once');
+  });
+
+  it('uploads the selected bot avatar through the user API', async () => {
+    const { container } = render(BotDetailPage);
+    await settle();
+    const file = new File([new Uint8Array([137, 80, 78, 71])], 'bot.png', {
+      type: 'image/png'
+    });
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    Object.defineProperty(input, 'files', { configurable: true, value: [file] });
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => expect(mocks.uploadAvatar).toHaveBeenCalledWith('bot-user-id', file));
+    await vi.waitFor(() => {
+      const cached = queryClient.getQueryData<{ avatarUrl: string | null }>(
+        settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+      );
+      expect(cached?.avatarUrl).toBe('/bot-avatar.webp');
+    });
   });
 
   it('creates and revokes API keys independently', async () => {
@@ -377,6 +405,18 @@ describe('Bot detail page', () => {
     const { container } = render(BotDetailPage);
     await settle();
 
+    expect(container.textContent).not.toContain('Reassign owner');
+  });
+
+  it('shows only avatar management to an account manager who does not manage bots', async () => {
+    mocks.canManageBots = false;
+    mocks.canManageAccounts = true;
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    expect(container.textContent).toContain('Upload avatar');
+    expect(container.textContent).not.toContain('Create API key');
+    expect(container.textContent).not.toContain('Create incoming webhook');
     expect(container.textContent).not.toContain('Reassign owner');
   });
 

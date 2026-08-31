@@ -35,8 +35,8 @@ POST /api/connect/chatto.api.v1.BotService/ListBots
 
 #### Input: ListBotsRequest
 
-Request bots visible to the caller. Owners see their own bots; callers with
-bot.manage see every bot.
+Request bots visible to the caller. Owners see their own bots. Callers with
+bot.manage or user.manage-accounts see every bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -60,8 +60,9 @@ Page of visible bots.
 
 ### GetBot
 
-Gets one visible bot. Returns NOT_FOUND for an unknown bot and
-PERMISSION_DENIED for a bot managed by another user.
+Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
+PERMISSION_DENIED when the caller is not the owner and has neither
+bot.manage nor user.manage-accounts.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/GetBot

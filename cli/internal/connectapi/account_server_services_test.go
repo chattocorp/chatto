@@ -259,20 +259,29 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	}
 }
 
-func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
+func TestUserServiceAvatarAndMyAccountServiceDeletion(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.account.UploadAvatar(env.ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
-		Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
+	if _, err := env.users.UploadAvatar(env.ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+		UserId: env.viewer.Id, Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UploadAvatar code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.account.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := env.users.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{UserId: env.viewer.Id})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UploadAvatar code = %v, want invalid_argument", connect.CodeOf(err))
 	}
+	if _, err := env.users.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+		Image: &apiv1.ImageUpload{Image: connectAPITestPNG()},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing target UploadAvatar code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	if _, err := env.users.DeleteAvatar(ctx, connect.NewRequest(&apiv1.DeleteAvatarRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing target DeleteAvatar code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 
-	uploadAvatarResp, err := env.account.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+	uploadAvatarResp, err := env.users.UploadAvatar(ctx, connect.NewRequest(&apiv1.UploadAvatarRequest{
+		UserId: env.viewer.Id,
 		Image: &apiv1.ImageUpload{
 			Image:       connectAPITestPNG(),
 			Filename:    "avatar.png",
@@ -286,7 +295,7 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 		t.Fatalf("UploadAvatar user = %+v, want viewer with avatar URL", user)
 	}
 
-	deleteAvatarResp, err := env.account.DeleteAvatar(ctx, connect.NewRequest(&apiv1.DeleteAvatarRequest{}))
+	deleteAvatarResp, err := env.users.DeleteAvatar(ctx, connect.NewRequest(&apiv1.DeleteAvatarRequest{UserId: env.viewer.Id}))
 	if err != nil {
 		t.Fatalf("DeleteAvatar: %v", err)
 	}
@@ -295,6 +304,9 @@ func TestMyAccountServiceDeletesAvatarAndAccount(t *testing.T) {
 	}
 	if deleteAvatarResp.Msg.GetUser().AvatarUrl != nil {
 		t.Fatalf("DeleteAvatar avatar URL = %q, want nil", deleteAvatarResp.Msg.GetUser().GetAvatarUrl())
+	}
+	if _, err := env.users.DeleteAvatar(ctx, connect.NewRequest(&apiv1.DeleteAvatarRequest{UserId: env.viewer.Id})); err != nil {
+		t.Fatalf("idempotent DeleteAvatar: %v", err)
 	}
 
 	tokenResp, err := env.account.RequestAccountDeletion(ctx, connect.NewRequest(&apiv1.RequestAccountDeletionRequest{}))

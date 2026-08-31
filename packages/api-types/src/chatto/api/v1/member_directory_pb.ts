@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
+import { ImageUpload } from "./common_pb.js";
 
 /**
  * Public user/member row used by user directory, room membership, and mention
@@ -342,6 +343,180 @@ export class BatchGetUsersResponse extends Message<BatchGetUsersResponse> {
 
   static equals(a: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined, b: BatchGetUsersResponse | PlainMessage<BatchGetUsersResponse> | undefined): boolean {
     return proto3.util.equals(BatchGetUsersResponse, a, b);
+  }
+}
+
+/**
+ * Request to upload and set one user's avatar.
+ *
+ * @generated from message chatto.api.v1.UploadAvatarRequest
+ */
+export class UploadAvatarRequest extends Message<UploadAvatarRequest> {
+  /**
+   * Image payload. The server validates, resizes, and stores a WebP avatar.
+   *
+   * @generated from field: chatto.api.v1.ImageUpload image = 4;
+   */
+  image?: ImageUpload;
+
+  /**
+   * Required target user ID. Self-updates are allowed. Updating another user
+   * requires the applicable account-management or bot-management authority.
+   *
+   * @generated from field: string user_id = 5;
+   */
+  userId = "";
+
+  constructor(data?: PartialMessage<UploadAvatarRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UploadAvatarRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 4, name: "image", kind: "message", T: ImageUpload },
+    { no: 5, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadAvatarRequest {
+    return new UploadAvatarRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UploadAvatarRequest {
+    return new UploadAvatarRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UploadAvatarRequest {
+    return new UploadAvatarRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UploadAvatarRequest | PlainMessage<UploadAvatarRequest> | undefined, b: UploadAvatarRequest | PlainMessage<UploadAvatarRequest> | undefined): boolean {
+    return proto3.util.equals(UploadAvatarRequest, a, b);
+  }
+}
+
+/**
+ * Result of uploading one user's avatar.
+ *
+ * @generated from message chatto.api.v1.UploadAvatarResponse
+ */
+export class UploadAvatarResponse extends Message<UploadAvatarResponse> {
+  /**
+   * Updated user profile.
+   *
+   * @generated from field: chatto.api.v1.User user = 1;
+   */
+  user?: User;
+
+  constructor(data?: PartialMessage<UploadAvatarResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UploadAvatarResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user", kind: "message", T: User },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UploadAvatarResponse {
+    return new UploadAvatarResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UploadAvatarResponse {
+    return new UploadAvatarResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UploadAvatarResponse {
+    return new UploadAvatarResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UploadAvatarResponse | PlainMessage<UploadAvatarResponse> | undefined, b: UploadAvatarResponse | PlainMessage<UploadAvatarResponse> | undefined): boolean {
+    return proto3.util.equals(UploadAvatarResponse, a, b);
+  }
+}
+
+/**
+ * Request to delete one user's avatar.
+ *
+ * @generated from message chatto.api.v1.DeleteAvatarRequest
+ */
+export class DeleteAvatarRequest extends Message<DeleteAvatarRequest> {
+  /**
+   * Required target user ID. Self-updates are allowed. Updating another user
+   * requires the applicable account-management or bot-management authority.
+   *
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
+  constructor(data?: PartialMessage<DeleteAvatarRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteAvatarRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAvatarRequest {
+    return new DeleteAvatarRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAvatarRequest {
+    return new DeleteAvatarRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAvatarRequest {
+    return new DeleteAvatarRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAvatarRequest | PlainMessage<DeleteAvatarRequest> | undefined, b: DeleteAvatarRequest | PlainMessage<DeleteAvatarRequest> | undefined): boolean {
+    return proto3.util.equals(DeleteAvatarRequest, a, b);
+  }
+}
+
+/**
+ * Result of deleting one user's avatar.
+ *
+ * @generated from message chatto.api.v1.DeleteAvatarResponse
+ */
+export class DeleteAvatarResponse extends Message<DeleteAvatarResponse> {
+  /**
+   * Updated user profile.
+   *
+   * @generated from field: chatto.api.v1.User user = 1;
+   */
+  user?: User;
+
+  constructor(data?: PartialMessage<DeleteAvatarResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeleteAvatarResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user", kind: "message", T: User },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAvatarResponse {
+    return new DeleteAvatarResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeleteAvatarResponse {
+    return new DeleteAvatarResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeleteAvatarResponse {
+    return new DeleteAvatarResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeleteAvatarResponse | PlainMessage<DeleteAvatarResponse> | undefined, b: DeleteAvatarResponse | PlainMessage<DeleteAvatarResponse> | undefined): boolean {
+    return proto3.util.equals(DeleteAvatarResponse, a, b);
   }
 }
 

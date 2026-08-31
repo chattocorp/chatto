@@ -22,6 +22,24 @@ export function createUserAPI(config: UserAPIConfig) {
         const summary = member.user;
         return summary ? [mapUserSummary(summary)] : [];
       });
+    },
+    async uploadAvatar(userId: string, file: File): Promise<UserSummary> {
+      const response = await client.uploadAvatar(
+        {
+          userId,
+          image: {
+            image: new Uint8Array(await file.arrayBuffer()),
+            filename: file.name,
+            contentType: file.type
+          }
+        },
+        { headers: headers() }
+      );
+      return mapUserSummary(requiredUser(response.user));
+    },
+    async deleteAvatar(userId: string): Promise<UserSummary> {
+      const response = await client.deleteAvatar({ userId }, { headers: headers() });
+      return mapUserSummary(requiredUser(response.user));
     }
   };
 }
@@ -30,4 +48,9 @@ export type UserAPI = ReturnType<typeof createUserAPI>;
 
 export function mapDirectoryMemberUserSummary(member: APIDirectoryMember): UserSummary | null {
   return mapOptionalUserSummary(member.user);
+}
+
+function requiredUser(user: Parameters<typeof mapUserSummary>[0] | undefined) {
+  if (!user) throw new Error('avatar response did not include a user');
+  return user;
 }
