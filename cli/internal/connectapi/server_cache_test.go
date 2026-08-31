@@ -29,7 +29,7 @@ func TestPublicRPCIdempotencyLevels(t *testing.T) {
 		},
 		{
 			name:    "delete avatar is idempotent",
-			file:    apiv1.File_chatto_api_v1_member_directory_proto,
+			file:    apiv1.File_chatto_api_v1_user_service_proto,
 			service: "UserService",
 			method:  "DeleteAvatar",
 			want:    descriptorpb.MethodOptions_IDEMPOTENT,

@@ -172,6 +172,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `Unimplemented` from old servers. The bundled client disables avatar editors
   on servers earlier than 0.5.0-alpha.6.
 
+- Change generated-code imports for `UserService` and its request and response
+  messages from `member_directory` to `user_service`. The protobuf package,
+  wire format, and ConnectRPC procedure paths do not change. Regenerating the
+  client applies this source-only migration.
+
 - Existing experimental MCP connections must authorize again. The tester tool
   catalog now needs the room and message read/write MCP scopes. A token that
   has only `chatto:rooms:read` cannot use the expanded catalog.

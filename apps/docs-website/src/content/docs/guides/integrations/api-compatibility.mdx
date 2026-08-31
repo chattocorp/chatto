@@ -150,6 +150,13 @@ your client, change the service, and send the caller's own user ID for a
 self-avatar change. The bundled client hides all avatar editors on servers
 earlier than 0.5.0-alpha.6.
 
+The protobuf source for `UserService` and its request and response messages is
+now `chatto/api/v1/user_service.proto`. The protobuf package, message names,
+service name, wire format, and ConnectRPC procedure paths do not change. Go and
+TypeScript consumers that import generated code by source filename must change
+their imports from `member_directory` to `user_service`. Regenerate clients to
+apply this source-only migration.
+
 This breaking realtime migration does not retire the `chatto.api.v1`
 ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or

@@ -1031,185 +1031,6 @@ permission allowlist are unchanged.
 | `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
 
 
-<a id="chatto-api-v1-UserService"></a>
-
-## UserService
-
-Reads users and manages public user avatars.
-
-<a id="chatto-api-v1-UserService-ListUsers"></a>
-
-### ListUsers
-
-Lists users visible to the authenticated user. Admin-sensitive account
-fields stay out of this public row shape.
-
-```http
-POST /api/connect/chatto.api.v1.UserService/ListUsers
-```
-
-<a id="chatto-api-v1-ListUsersRequest"></a>
-
-#### Input: ListUsersRequest
-
-Request for users visible to the authenticated user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListUsersResponse"></a>
-
-#### Result: ListUsersResponse
-
-User directory page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Users in the requested page. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-UserService-GetUser"></a>
-
-### GetUser
-
-Gets one visible user by user ID or login. Returns NOT_FOUND when the
-target is unknown.
-
-```http
-POST /api/connect/chatto.api.v1.UserService/GetUser
-```
-
-<a id="chatto-api-v1-GetUserRequest"></a>
-
-#### Input: GetUserRequest
-
-Request one visible user by stable user ID or login.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `target.user_id` | `string` | Target stable user ID. |
-| `target.login` | `string` | Target login identifier. |
-
-
-<a id="chatto-api-v1-GetUserResponse"></a>
-
-#### Result: GetUserResponse
-
-User directory response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
-
-
-<a id="chatto-api-v1-UserService-BatchGetUsers"></a>
-
-### BatchGetUsers
-
-Gets visible user rows for multiple stable user IDs. Unknown IDs are
-omitted from the response.
-
-```http
-POST /api/connect/chatto.api.v1.UserService/BatchGetUsers
-```
-
-<a id="chatto-api-v1-BatchGetUsersRequest"></a>
-
-#### Input: BatchGetUsersRequest
-
-Request user directory rows for a set of stable user IDs.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
-
-
-<a id="chatto-api-v1-BatchGetUsersResponse"></a>
-
-#### Result: BatchGetUsersResponse
-
-Batch user directory response.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
-
-
-<a id="chatto-api-v1-UserService-UploadAvatar"></a>
-
-### UploadAvatar
-
-Uploads and sets an avatar for the target user. Users can update
-themselves. Updating another human requires user.manage-accounts.
-Updating a bot requires ownership, user.manage-accounts, or bot.manage.
-A bot cannot target another account. Unknown or deleted targets return
-NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
-
-```http
-POST /api/connect/chatto.api.v1.UserService/UploadAvatar
-```
-
-<a id="chatto-api-v1-UploadAvatarRequest"></a>
-
-#### Input: UploadAvatarRequest
-
-Request to upload and set one user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
-| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
-
-
-<a id="chatto-api-v1-UploadAvatarResponse"></a>
-
-#### Result: UploadAvatarResponse
-
-Result of uploading one user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
-
-
-<a id="chatto-api-v1-UserService-DeleteAvatar"></a>
-
-### DeleteAvatar
-
-Deletes the target user's avatar. Authorization matches UploadAvatar. The
-call is idempotent. Unknown or deleted targets return NOT_FOUND. An
-invalid ID returns INVALID_ARGUMENT.
-
-```http
-POST /api/connect/chatto.api.v1.UserService/DeleteAvatar
-```
-
-<a id="chatto-api-v1-DeleteAvatarRequest"></a>
-
-#### Input: DeleteAvatarRequest
-
-Request to delete one user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
-
-
-<a id="chatto-api-v1-DeleteAvatarResponse"></a>
-
-#### Result: DeleteAvatarResponse
-
-Result of deleting one user's avatar.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
-
-
 <a id="chatto-api-v1-MessageSearchService"></a>
 
 ## MessageSearchService
@@ -3724,6 +3545,185 @@ Result of marking a message thread as read.
 | Field | Type | Description |
 | --- | --- | --- |
 | `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+
+
+<a id="chatto-api-v1-UserService"></a>
+
+## UserService
+
+Reads users and manages public user avatars.
+
+<a id="chatto-api-v1-UserService-ListUsers"></a>
+
+### ListUsers
+
+Lists users visible to the authenticated user. Admin-sensitive account
+fields stay out of this public row shape.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/ListUsers
+```
+
+<a id="chatto-api-v1-ListUsersRequest"></a>
+
+#### Input: ListUsersRequest
+
+Request for users visible to the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive search against login and display name. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListUsersResponse"></a>
+
+#### Result: ListUsersResponse
+
+User directory page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Users in the requested page. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-UserService-GetUser"></a>
+
+### GetUser
+
+Gets one visible user by user ID or login. Returns NOT_FOUND when the
+target is unknown.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/GetUser
+```
+
+<a id="chatto-api-v1-GetUserRequest"></a>
+
+#### Input: GetUserRequest
+
+Request one visible user by stable user ID or login.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `target.user_id` | `string` | Target stable user ID. |
+| `target.login` | `string` | Target login identifier. |
+
+
+<a id="chatto-api-v1-GetUserResponse"></a>
+
+#### Result: GetUserResponse
+
+User directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Requested user. |
+
+
+<a id="chatto-api-v1-UserService-BatchGetUsers"></a>
+
+### BatchGetUsers
+
+Gets visible user rows for multiple stable user IDs. Unknown IDs are
+omitted from the response.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/BatchGetUsers
+```
+
+<a id="chatto-api-v1-BatchGetUsersRequest"></a>
+
+#### Input: BatchGetUsersRequest
+
+Request user directory rows for a set of stable user IDs.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | Required target user IDs. Unknown IDs are omitted from the response. |
+
+
+<a id="chatto-api-v1-BatchGetUsersResponse"></a>
+
+#### Result: BatchGetUsersResponse
+
+Batch user directory response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `users` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Found users. The server preserves first-seen request order and de-duplicates repeated IDs. |
+
+
+<a id="chatto-api-v1-UserService-UploadAvatar"></a>
+
+### UploadAvatar
+
+Uploads and sets an avatar for the target user. Users can update
+themselves. Updating another human requires user.manage-accounts.
+Updating a bot requires ownership, user.manage-accounts, or bot.manage.
+A bot cannot target another account. Unknown or deleted targets return
+NOT_FOUND. Invalid IDs or missing images return INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/UploadAvatar
+```
+
+<a id="chatto-api-v1-UploadAvatarRequest"></a>
+
+#### Input: UploadAvatarRequest
+
+Request to upload and set one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `image` | [`ImageUpload`](#chatto-api-v1-ImageUpload) | Image payload. The server validates, resizes, and stores a WebP avatar. |
+| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
+
+
+<a id="chatto-api-v1-UploadAvatarResponse"></a>
+
+#### Result: UploadAvatarResponse
+
+Result of uploading one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
+
+
+<a id="chatto-api-v1-UserService-DeleteAvatar"></a>
+
+### DeleteAvatar
+
+Deletes the target user's avatar. Authorization matches UploadAvatar. The
+call is idempotent. Unknown or deleted targets return NOT_FOUND. An
+invalid ID returns INVALID_ARGUMENT.
+
+```http
+POST /api/connect/chatto.api.v1.UserService/DeleteAvatar
+```
+
+<a id="chatto-api-v1-DeleteAvatarRequest"></a>
+
+#### Input: DeleteAvatarRequest
+
+Request to delete one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required target user ID. Self-updates are allowed. Updating another user requires the applicable account-management or bot-management authority. |
+
+
+<a id="chatto-api-v1-DeleteAvatarResponse"></a>
+
+#### Result: DeleteAvatarResponse
+
+Result of deleting one user's avatar.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
 <a id="chatto-api-v1-VoiceCallService"></a>
