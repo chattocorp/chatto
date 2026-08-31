@@ -78,6 +78,19 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if _, err := chattoCore.storage.notificationStream.GetMsg(ctx, created.GetNotificationStreamSequence()); !notificationSignalAlreadyAbsent(err) {
 		t.Fatalf("rich signal after delete = %v, want securely deleted", err)
 	}
+	// Model a restart or another replica, which does not share this process's
+	// successful-delete cache. Cleanup must converge when the signal is already
+	// absent instead of retrying it for the tombstone's full grace period.
+	model.cleanedMu.Lock()
+	model.cleaned = make(map[uint64]time.Time)
+	model.cleanedMu.Unlock()
+	model.cleanupDismissedSignals(ctx, now)
+	model.cleanedMu.Lock()
+	_, cleanedAfterRestart := model.cleaned[created.GetNotificationStreamSequence()]
+	model.cleanedMu.Unlock()
+	if !cleanedAfterRestart {
+		t.Fatal("already-absent signal was not recorded as successfully cleaned")
+	}
 	if recreated, wasCreated, err := model.Create(ctx, input); err != nil || wasCreated || recreated != nil {
 		t.Fatalf("Create after tombstone = (%+v, %v, %v), want suppressed", recreated, wasCreated, err)
 	}

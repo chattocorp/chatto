@@ -212,7 +212,7 @@ func (m *NotificationOccurrenceModel) cleanupDismissedSignals(ctx context.Contex
 		if cleaned {
 			continue
 		}
-		if err := m.stream.SecureDeleteMsg(ctx, tombstone.signalSequence); err != nil && !notificationSignalAlreadyAbsent(err) {
+		if err := m.secureDeleteNotificationSignal(ctx, tombstone.signalSequence); err != nil {
 			m.logger.Warn("Notification signal physical deletion will retry", "notification_id", notificationID, "error", err)
 			continue
 		}
@@ -220,6 +220,23 @@ func (m *NotificationOccurrenceModel) cleanupDismissedSignals(ctx context.Contex
 		m.cleaned[tombstone.signalSequence] = tombstone.expiresAt.Add(notificationPhysicalCleanupGrace)
 		m.cleanedMu.Unlock()
 	}
+}
+
+// secureDeleteNotificationSignal makes physical cleanup idempotent across
+// replicas and process restarts. nats.go can hide the structured "not found"
+// API error behind ErrMsgDeleteUnsuccessful, so a failed delete must confirm
+// the exact stream sequence before it is safe to retry.
+func (m *NotificationOccurrenceModel) secureDeleteNotificationSignal(ctx context.Context, sequence uint64) error {
+	deleteErr := m.stream.SecureDeleteMsg(ctx, sequence)
+	if deleteErr == nil {
+		return nil
+	}
+	if _, lookupErr := m.stream.GetMsg(ctx, sequence); notificationSignalAlreadyAbsent(lookupErr) {
+		return nil
+	} else if lookupErr != nil {
+		return errors.Join(deleteErr, fmt.Errorf("confirm notification signal absence: %w", lookupErr))
+	}
+	return deleteErr
 }
 
 // NATS does not currently expose these server API error codes as Go constants.
