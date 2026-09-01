@@ -99,8 +99,10 @@ current projections and guards every state boundary that it used.
 **Why:** A process failure between separate writes can leave a room without a
 group or leave a deleted group in the authoritative order. Reconciliation can
 hide an incomplete state, but it cannot add the missing durable fact to EVT.
-**Tradeoff:** These commands can retry when a concurrent room, group, layout, or
-authorization change advances one of their OCC boundaries. See ADR-086.
+**Tradeoff:** These commands can repeat their authorization read when an input
+changes during the decision. They can retry the complete command when a
+concurrent room, group, or layout change advances a domain OCC boundary. See
+ADR-086 and ADR-087.
 
 ## Permissions
 

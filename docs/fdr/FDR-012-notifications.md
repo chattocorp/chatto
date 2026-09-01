@@ -176,9 +176,9 @@ inert. Group IDs are not reused, and deletion does not fan out cleanup writes
 to user configuration aggregates.
 
 Room-group and room policy writes validate scope access at request time and use
-OCC on the user's configuration aggregate. A concurrent membership loss, room deletion, or group
-deletion can leave a newly committed preference inert, but it cannot change
-another user's state or grant access to the deleted scope.
+OCC on the user's configuration aggregate. A concurrent membership loss, room
+deletion, or group deletion can leave a newly committed preference inert, but
+it cannot change another user's state or grant access to the deleted scope.
 
 ### 4. Materialization uses current policy and visibility
 
