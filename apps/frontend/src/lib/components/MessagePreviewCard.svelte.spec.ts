@@ -1,3 +1,4 @@
+import '../../app.css';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import MessagePreviewCard from './MessagePreviewCard.svelte';
@@ -218,7 +219,7 @@ describe('MessagePreviewCard', () => {
     });
   });
 
-  it('renders the linked message body as markdown in a scrollable preview', async () => {
+  it('renders fitted linked message markdown without scroll fades', async () => {
     timelineResults.push(
       bodyPreviewResult('# Release notes\n\n- **Breaking** change\n- More details')
     );
@@ -237,9 +238,50 @@ describe('MessagePreviewCard', () => {
       container.querySelector('[data-testid="message-preview-card"] strong')?.textContent
     ).toBe('Breaking');
     expect(container.querySelector('[data-testid="message-preview-card"] ul')).not.toBeNull();
-    expect(container.querySelector('.max-h-52.overflow-y-auto')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-b')).not.toBeNull();
-    expect(container.querySelector('.bg-gradient-to-t')).not.toBeNull();
+    const scrollViewport = container.querySelector<HTMLElement>('.max-h-52.overflow-y-auto');
+    expect(scrollViewport).not.toBeNull();
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+    expect(fades).toHaveLength(2);
+    expect(fades[0].className).toContain('from-surface-100');
+    expect(fades[1].className).toContain('bg-gradient-to-t');
+    await vi.waitFor(() => {
+      expect(scrollViewport!.scrollHeight).toBeLessThanOrEqual(scrollViewport!.clientHeight + 1);
+      expect(fades[0].classList).toContain('opacity-0');
+      expect(fades[1].classList).toContain('opacity-0');
+    });
+  });
+
+  it('shows only the applicable fade at each edge of an overflowing linked message', async () => {
+    timelineResults.push(
+      bodyPreviewResult(
+        Array.from({ length: 30 }, (_, index) => `Paragraph ${index + 1}`).join('\n\n')
+      )
+    );
+
+    const { container } = render(MessagePreviewCard, {
+      props: { link: link(), showDismiss: false }
+    });
+
+    const scrollViewport = await vi.waitFor(() => {
+      const viewport = container.querySelector<HTMLElement>('.max-h-52.overflow-y-auto');
+      expect(viewport).not.toBeNull();
+      expect(viewport!.scrollHeight).toBeGreaterThan(viewport!.clientHeight + 1);
+      return viewport!;
+    });
+    const fades = container.querySelectorAll<HTMLElement>('[aria-hidden="true"]');
+
+    await vi.waitFor(() => {
+      expect(fades[0].classList).toContain('opacity-0');
+      expect(fades[1].classList).not.toContain('opacity-0');
+    });
+
+    scrollViewport.scrollTop = scrollViewport.scrollHeight;
+    scrollViewport.dispatchEvent(new Event('scroll'));
+
+    await vi.waitFor(() => {
+      expect(fades[0].classList).not.toContain('opacity-0');
+      expect(fades[1].classList).toContain('opacity-0');
+    });
   });
 
   it('refreshes attachment thumbnail asset URLs after image load failure', async () => {
