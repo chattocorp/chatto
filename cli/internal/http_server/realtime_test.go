@@ -230,8 +230,23 @@ func TestRealtimeDurableEventHasCanonicalShapeAndOpaqueCursor(t *testing.T) {
 	if bioChanged.GetEncryptedBio() != nil {
 		t.Fatal("realtime event exposed encrypted_bio")
 	}
-	if frame.GetEvent().GetResumeCursor() == "" || strings.Contains(frame.GetEvent().GetResumeCursor(), "42") {
-		t.Fatalf("resume cursor = %q, want opaque non-empty value", frame.GetEvent().GetResumeCursor())
+	resumeCursor := frame.GetEvent().GetResumeCursor()
+	if resumeCursor == "" || resumeCursor == "42" {
+		t.Fatalf("resume cursor = %q, want sealed non-empty value", resumeCursor)
+	}
+	payloadJSON, err := publiccursor.Open("test-core-secret", "realtime-resume-v3", viewer.GetId(), resumeCursor)
+	if err != nil {
+		t.Fatalf("open resume cursor: %v", err)
+	}
+	var payload struct {
+		Sequence uint64 `json:"s"`
+		UserID   string `json:"u"`
+	}
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		t.Fatalf("decode resume cursor: %v", err)
+	}
+	if payload.Sequence != 42 || payload.UserID != viewer.GetId() {
+		t.Fatalf("resume cursor payload = %+v, want sequence 42 for viewer", payload)
 	}
 }
 
