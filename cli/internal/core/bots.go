@@ -803,9 +803,9 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 }
 
 // ReassignBotOwner changes the human account responsible for a bot without
-// changing its configured permission allowlist or active API key. Bot changes
-// use user-aggregate OCC. Authorization and owner state use a stable
-// request-time read.
+// changing its configured permission allowlist or active API key. User-family
+// OCC serializes bot changes with deletion of the previous or new owner.
+// Authorization uses a stable request-time read.
 func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, ownerUserID string) (*Bot, error) {
 	// Resolve once before building subject filters so malformed public IDs can
 	// never become NATS wildcards. Every decision is repeated inside the OCC
@@ -820,25 +820,15 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 		return nil, err
 	}
 
-	botFilter := evtstream.UserAggregate(botID).AllEventsFilter()
-	actorFilter := evtstream.UserAggregate(actorID).AllEventsFilter()
-	ownerFilter := evtstream.UserAggregate(ownerUserID).AllEventsFilter()
-	rbacFilter := evtstream.RBACSubjectFilter()
+	userFilter := evtstream.UserSubjectFilter()
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
-		botSeq, err := c.EventPublisher.LastSubjectSeq(ctx, botFilter)
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
 		if err != nil {
-			return nil, fmt.Errorf("read bot OCC filter seq: %w", err)
+			return nil, fmt.Errorf("read user-family OCC filter seq: %w", err)
 		}
-		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner reassignment", actorFilter, botFilter, ownerFilter); err != nil {
-			return nil, err
-		}
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
-		if err != nil {
-			return nil, fmt.Errorf("read RBAC projection position: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
-			return nil, fmt.Errorf("wait for RBAC projection: %w", err)
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userFilter, userSeq)); err != nil {
+			return nil, fmt.Errorf("wait for user projection: %w", err)
 		}
 
 		var bot *evtv1.User
@@ -878,7 +868,7 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 		}})
 		subject := evtstream.UserAggregate(botID).SubjectFor(event)
 		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: botSeq, FilterSubject: botFilter,
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userFilter,
 		}})
 		if err == nil {
 			position := events.SubjectPosition(subject, seqs[0])
