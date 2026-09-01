@@ -816,7 +816,7 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 	})
 
 	if ok {
-		t.Fatal("expected empty LiveEvent to be rejected")
+		t.Fatal("expected empty canonical Event to be rejected")
 	}
 	if event != nil {
 		t.Fatalf("expected no delivered event, got %+v", event)

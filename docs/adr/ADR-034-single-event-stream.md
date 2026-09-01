@@ -140,7 +140,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
 - **No implicit cross-aggregate ordering guarantee.** Independent commands can interleave. An explicit atomic batch gives its entries one adjacent stream order, and projections apply that recorded order. Projections that compare independent facts still use their event data instead of assuming a global command order.
 - **Legacy stream is decommissioned.** Historical backups may still contain `SERVER_EVENTS`, but current runtime behavior is centered on `EVT`.
-- **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
+- **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable canonical Event signals.
 
 ## Out of scope for this ADR
 

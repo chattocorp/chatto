@@ -66,10 +66,20 @@ storage-only, and client-only fields. Unspecified payload fields are denied by
 default. The copier does not retain unknown fields. Authorized delivery-only
 decrypted values use `_plaintext` fields. Public events do not expose raw EVT
 bytes, ciphertext, subjects, stream identities, or sequence numbers.
+
+Field surfaces are static. They do not make viewer-specific authorization
+decisions. Event-level authorization must make every delivered shared or
+client-only field safe for that viewer. A future field with narrower visibility
+needs an explicit viewer-aware projection rule or a separate authorized shape.
+
 An authorized message-post event carries `body_plaintext` for immediate
-display. EVT does not store this field. The frontend then reads the message
-resource in the background to reconcile attachments, reactions, thread
-metadata, and its timeline cursor.
+display. EVT does not store this field. The frontend inserts a temporary
+timeline row from the event ID, actor, time, reply references, and plaintext
+body. Values that belong only to the complete message resource start empty.
+These values include attachments, link previews, reactions, pin state, thread
+counts, thread participants, and the timeline cursor. A background `GetMessage`
+read replaces the temporary row with the authoritative resource. A wider
+timeline-window refresh then reconciles ordering and pagination cursors.
 
 ## Snapshot resources
 
@@ -123,7 +133,12 @@ Resume uses this handoff:
 
 The direct-read path creates no JetStream consumer. It scans at most 10,000 EVT
 sequences and emits at most 2,000 durable events. The complete catch-up has a
-30-second deadline.
+30-second deadline. These are independent safety caps. The sequence cap bounds
+work even when most events are not visible to the viewer. The emitted-event cap
+bounds reducer and transport fanout after authorization. The time limit bounds
+the complete operation. The current values are conservative defaults, not
+capacity claims. Production measurements can change them without changing the
+protocol or cursor shape.
 
 A missing, invalid, expired, foreign-stream, oversized, or
 authorization-unsafe cursor selects the requested fallback. A `SNAPSHOT`
@@ -172,11 +187,11 @@ are no per-client NATS subscriptions or JetStream consumers.
 
 Transient `live.sync.>` messages and durable `live.evt.>` messages use
 `chatto.core.evt.v1.Event`. Transient variants use oneof tags 20000 through
-29999. During a rolling upgrade, one transient wire message also contains the
-matching previous `chatto.core.live.v1.LiveEvent` oneof tag. Old replicas read
-that tag and ignore the canonical tag. New replicas read the canonical tag and
-ignore the old tag. The hub also converts messages that contain only the old
-envelope.
+29999. The transient wire contains no second envelope or compatibility tag.
+During a rolling replacement from an older envelope, old and new replicas
+drop each other's transient signals. This is safe because these signals have
+no replay contract. Durable facts continue through `live.evt.>`, and reconnect
+snapshots restore current resource state.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after

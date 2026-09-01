@@ -978,14 +978,16 @@ test.describe('Message link rendering', () => {
     await expect(link).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
     // The link should not overflow its prose container
-    const overflows = await link.evaluate((el) => {
-      const prose = el.closest('.prose');
-      if (!prose) return true;
-      const proseRect = prose.getBoundingClientRect();
-      const linkRect = el.getBoundingClientRect();
-      return linkRect.right > proseRect.right + 1; // 1px tolerance
-    });
-
-    expect(overflows).toBe(false);
+    await expect
+      .poll(async () => {
+        return link.evaluate((el) => {
+          const prose = el.closest('.prose');
+          if (!prose) return true;
+          const proseRect = prose.getBoundingClientRect();
+          const linkRect = el.getBoundingClientRect();
+          return linkRect.right > proseRect.right + 1; // 1px tolerance
+        });
+      })
+      .toBe(false);
   });
 });

@@ -89,6 +89,18 @@ The server omits internal event variants and storage-only fields. It can add
 authorized delivery-only `_plaintext` fields. It never sends raw EVT bytes,
 ciphertext, credential data, subjects, or JetStream sequences.
 
+Field surfaces are static exposure classes. Event authorization makes every
+delivered shared or client-only field safe for that viewer. The protocol does
+not currently define viewer-specific visibility for one field inside an
+otherwise authorized event.
+
+`MessagePostedEvent.body_plaintext` lets a client show a new message without
+waiting for another request. The event does not duplicate the complete message
+resource. Use `MessageService.GetMessage` to load attachments, link previews,
+reactions, pin state, thread details, and other resource state. A client can
+render the event metadata and plaintext first, then replace that temporary row
+with the authoritative resource response.
+
 Process one event as one unit:
 
 1. Decode the complete frame.

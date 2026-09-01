@@ -267,6 +267,10 @@ test.describe('protobuf realtime stream', () => {
         (event) => event.event?.event.case === 'messagePosted' && event.event.id === messageId
       );
       expect(posted.resumeCursor).toBeTruthy();
+      if (posted.event?.event.case !== 'messagePosted') {
+        throw new Error('expected canonical message-post event');
+      }
+      expect(posted.event.event.value.bodyPlaintext).toContain('semantic realtime');
       realtime.close();
 
       await connectPost(page, 'chatto.api.v1.MessageService/AddReaction', {

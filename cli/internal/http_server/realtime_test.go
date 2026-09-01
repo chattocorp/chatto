@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -15,6 +16,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
+	"hmans.de/chatto/internal/publiccursor"
 )
 
 func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
@@ -29,9 +31,16 @@ func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *test
 }
 
 func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
+	return env.dialRealtimeWithOrigin(t, "")
+}
+
+func (env *wsTestEnv) dialRealtimeWithOrigin(t testing.TB, origin string) *websocket.Conn {
 	t.Helper()
 	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
 	header := http.Header{}
+	if origin != "" {
+		header.Set("Origin", origin)
+	}
 	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
 		header.Add("Cookie", cookie.String())
 	}
@@ -48,6 +57,22 @@ func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
 
 func (env *wsTestEnv) connectRealtime(t testing.TB) *websocket.Conn {
 	return env.dialRealtime(t)
+}
+
+func (env *wsTestEnv) dialCompressedRealtime(t testing.TB) *websocket.Conn {
+	t.Helper()
+	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
+	dialer := *websocket.DefaultDialer
+	dialer.EnableCompression = true
+	conn, response, err := dialer.Dial(wsURL, nil)
+	if err != nil {
+		if response != nil {
+			t.Fatalf("compressed realtime WebSocket dial failed with status %d: %v", response.StatusCode, err)
+		}
+		t.Fatalf("compressed realtime WebSocket dial failed: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	return conn
 }
 
 func sendRealtimeClientFrame(t testing.TB, conn *websocket.Conn, frame *realtimev1.RealtimeClientFrame) {
@@ -110,6 +135,63 @@ func realtimePingRoundTrip(conn *websocket.Conn, nonce string) error {
 				return fmt.Errorf("pong nonce = %q, want %q", pong.GetNonce(), nonce)
 			}
 			return nil
+		}
+	}
+}
+
+func subscribeRealtime(
+	t testing.TB,
+	conn *websocket.Conn,
+	token string,
+	initialState realtimev1.RealtimeInitialState,
+	resumeCursor string,
+) *realtimev1.RealtimeSubscribed {
+	t.Helper()
+	hello := &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion}
+	if token != "" {
+		hello.BearerToken = proto.String(token)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{Hello: hello}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetHello() == nil {
+		t.Fatalf("hello response = %+v, want hello", frame)
+	}
+	subscribe := &realtimev1.RealtimeSubscribeEvents{InitialState: initialState}
+	if resumeCursor != "" {
+		subscribe.ResumeCursor = proto.String(resumeCursor)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: subscribe,
+	}})
+	frame, ok = readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSubscribed() == nil {
+		t.Fatalf("subscribe response = %+v, want subscribed", frame)
+	}
+	return frame.GetSubscribed()
+}
+
+func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeCaughtUp {
+	t.Helper()
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for realtime caught_up")
+		}
+		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+			return caughtUp
+		}
+	}
+}
+
+func readCanonicalRealtimeEvent(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeEvent {
+	t.Helper()
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for canonical realtime event")
+		}
+		if event := frame.GetEvent(); event != nil {
+			return event
 		}
 	}
 }
@@ -249,6 +331,350 @@ func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
 	}
 	if err := realtimePingRoundTrip(conn, "nonce"); err != nil {
 		t.Fatalf("ping round trip: %v", err)
+	}
+}
+
+func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
+	t.Run("rejects unauthenticated hello", func(t *testing.T) {
+		env := setupWebSocketTestServer(t)
+		conn := env.dialRealtime(t)
+		sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
+		}})
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok || frame.GetError().GetCode() != "authentication_required" || !frame.GetError().GetFatal() {
+			t.Fatalf("unauthenticated response = %+v, want fatal authentication_required", frame)
+		}
+	})
+
+	t.Run("rejects unsupported protocol", func(t *testing.T) {
+		env := setupWebSocketTestServer(t)
+		conn := env.dialRealtime(t)
+		sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion + 1},
+		}})
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok || frame.GetError().GetCode() != "unsupported_protocol" || !frame.GetError().GetFatal() {
+			t.Fatalf("unsupported protocol response = %+v, want fatal unsupported_protocol", frame)
+		}
+	})
+
+	t.Run("accepts bearer credential", func(t *testing.T) {
+		env := setupWebSocketTestServer(t)
+		viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bearer", "RT Bearer", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+		if err != nil {
+			t.Fatalf("CreateAuthToken: %v", err)
+		}
+		conn := env.dialRealtime(t)
+		subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+		if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY {
+			t.Fatalf("recovery mode = %v, want live-only", subscribed.GetRecoveryMode())
+		}
+		readRealtimeCaughtUp(t, conn)
+	})
+
+	t.Run("accepts same-origin cookie", func(t *testing.T) {
+		env := setupWebSocketTestServer(t)
+		if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie", "RT Cookie", "password123"); err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		env.login(t, "rt-cookie", "password123")
+		conn := env.dialRealtime(t)
+		subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+		readRealtimeCaughtUp(t, conn)
+	})
+
+	t.Run("requires bearer across origins", func(t *testing.T) {
+		env := setupWebSocketTestServer(t)
+		viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cross-origin", "RT Cross Origin", "password123")
+		if err != nil {
+			t.Fatalf("CreateUser: %v", err)
+		}
+		env.login(t, "rt-cross-origin", "password123")
+
+		cookieConn := env.dialRealtimeWithOrigin(t, "https://client.example")
+		sendRealtimeClientFrame(t, cookieConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
+		}})
+		frame, ok := readRealtimeServerFrame(t, cookieConn, 5*time.Second)
+		if !ok || frame.GetError().GetCode() != "authentication_required" {
+			t.Fatalf("cross-origin cookie response = %+v, want authentication_required", frame)
+		}
+
+		token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+		if err != nil {
+			t.Fatalf("CreateAuthToken: %v", err)
+		}
+		bearerConn := env.dialRealtimeWithOrigin(t, "https://client.example")
+		subscribeRealtime(t, bearerConn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+		readRealtimeCaughtUp(t, bearerConn)
+	})
+}
+
+func TestRealtimeWebSocketClosesAtBearerExpiry(t *testing.T) {
+	env := setupWebSocketTestServerWithAccessTokenTTL(t, 2*time.Second)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-expiry", "RT Expiry", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || !frame.GetClose().GetReconnect() {
+		t.Fatalf("expiry response = %+v, want reconnecting authentication_required", frame)
+	}
+}
+
+func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.realtimeCredentialCheckEvery = 25 * time.Millisecond
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie-revoke", "RT Cookie Revoke", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "rt-cookie-revoke", "password123")
+	var sessionID string
+	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			sessionID = cookie.Value
+			break
+		}
+	}
+	if sessionID == "" {
+		t.Fatal("login did not set browser session cookie")
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.RevokeCookieSession(env.ctx, sessionID); err != nil {
+		t.Fatalf("RevokeCookieSession: %v", err)
+	}
+	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("revocation response = %+v, want terminal authentication_required", frame)
+	}
+}
+
+func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-multi-key-owner", "RT Multi-key Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_multi_key_bot", "RT Multi-key Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	first, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "First worker")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey first: %v", err)
+	}
+	second, err := env.core.CreateBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), "Second worker")
+	if err != nil {
+		t.Fatalf("CreateBotAPIKey second: %v", err)
+	}
+
+	firstConn := env.dialRealtime(t)
+	subscribeRealtime(t, firstConn, first.Credential, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, firstConn)
+	secondConn := env.dialRealtime(t)
+	subscribeRealtime(t, secondConn, second.Credential, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, secondConn)
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), first.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey first: %v", err)
+	}
+	frame, ok := readRealtimeServerFrame(t, firstConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
+		t.Fatalf("first revoked socket frame = %+v, want terminal authentication_required", frame)
+	}
+	if err := realtimePingRoundTrip(secondConn, "still-valid"); err != nil {
+		t.Fatalf("second bot API key socket after first revocation: %v", err)
+	}
+
+	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), second.KeyID); err != nil {
+		t.Fatalf("RevokeBotAPIKey second: %v", err)
+	}
+	frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("second revoked socket frame = %+v, want terminal authentication_required", frame)
+	}
+}
+
+func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-member", "RT Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-outsider", "RT Outsider", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser outsider: %v", err)
+	}
+	privateRoom, err := env.core.CreateRoom(env.ctx, member.GetId(), core.KindChannel, "", "rt-private", "")
+	if err != nil {
+		t.Fatalf("CreateRoom private: %v", err)
+	}
+	visibleRoom, err := env.core.CreateRoom(env.ctx, outsider.GetId(), core.KindChannel, "", "rt-visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom visible: %v", err)
+	}
+	for userID, roomID := range map[string]string{member.GetId(): privateRoom.GetId(), outsider.GetId(): visibleRoom.GetId()} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, roomID); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, outsider.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+
+	hidden, err := env.core.PostMessage(env.ctx, core.KindChannel, privateRoom.GetId(), member.GetId(), "hidden", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage hidden: %v", err)
+	}
+	visible, err := env.core.PostMessage(env.ctx, core.KindChannel, visibleRoom.GetId(), outsider.GetId(), "visible", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage visible: %v", err)
+	}
+	for {
+		delivery := readCanonicalRealtimeEvent(t, conn)
+		event := delivery.GetEvent()
+		if event.GetId() == hidden.GetId() {
+			t.Fatalf("outsider received unauthorized event: %+v", event)
+		}
+		if event.GetId() == visible.GetId() {
+			if got := event.GetMessagePosted().GetBodyPlaintext(); got != "visible" {
+				t.Fatalf("visible body_plaintext = %q, want visible", got)
+			}
+			if delivery.GetResumeCursor() == "" {
+				t.Fatal("authorized durable event omitted resume cursor")
+			}
+			return
+		}
+	}
+}
+
+func TestRealtimeWebSocketDeliversCanonicalTransientEvent(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-typing-viewer", "RT Typing Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-typing-actor", "RT Typing Actor", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, actor.GetId(), core.KindChannel, "", "rt-typing", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{viewer.GetId(), actor.GetId()} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	if err := env.core.PublishTypingIndicator(env.ctx, actor.GetId(), core.KindChannel, room.GetId(), nil); err != nil {
+		t.Fatalf("PublishTypingIndicator: %v", err)
+	}
+	for {
+		delivery := readCanonicalRealtimeEvent(t, conn)
+		typing := delivery.GetEvent().GetUserTypingSignal()
+		if typing == nil || delivery.GetEvent().GetActorId() != actor.GetId() {
+			continue
+		}
+		if typing.GetRoomId() != room.GetId() {
+			t.Fatalf("typing room = %q, want %q", typing.GetRoomId(), room.GetId())
+		}
+		if delivery.GetResumeCursor() != "" {
+			t.Fatal("transient event unexpectedly carried a resume cursor")
+		}
+		return
+	}
+}
+
+func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-expired", "RT Expired", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	boundaryConn := env.dialRealtime(t)
+	subscribeRealtime(t, boundaryConn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	boundary := readRealtimeCaughtUp(t, boundaryConn).GetCursor()
+	_ = boundaryConn.Close()
+
+	type cursorPayload struct {
+		Version        int    `json:"v"`
+		StreamIdentity string `json:"i"`
+		Sequence       uint64 `json:"s"`
+		UserID         string `json:"u"`
+		IssuedAtUnix   int64  `json:"t"`
+	}
+	payloadJSON, err := publiccursor.Open("test-core-secret", "realtime-resume-v3", viewer.GetId(), boundary)
+	if err != nil {
+		t.Fatalf("open boundary cursor: %v", err)
+	}
+	var payload cursorPayload
+	if err := json.Unmarshal(payloadJSON, &payload); err != nil {
+		t.Fatalf("decode boundary cursor: %v", err)
+	}
+	payload.IssuedAtUnix = time.Now().Add(-25 * time.Hour).Unix()
+	payloadJSON, err = json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("encode expired cursor: %v", err)
+	}
+	expired, err := publiccursor.Seal("test-core-secret", "realtime-resume-v3", viewer.GetId(), payloadJSON)
+	if err != nil {
+		t.Fatalf("seal expired cursor: %v", err)
+	}
+
+	conn := env.dialRealtime(t)
+	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, expired)
+	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
+		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetRecoveryMode())
+	}
+	readRealtimeCaughtUp(t, conn)
+}
+
+func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-compression", "RT Compression", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialCompressedRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+	nonce := strings.Repeat("0123456789abcdef", 512)
+	if err := realtimePingRoundTrip(conn, nonce); err != nil {
+		t.Fatalf("large compressed ping round trip: %v", err)
 	}
 }
 

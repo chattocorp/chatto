@@ -36,7 +36,7 @@ test.describe('Emoji reactions', () => {
     await message.expectNoReaction('❤️');
   });
 
-  test('real-time reaction sync via LiveEvent subscription', async ({
+  test('real-time reaction sync via canonical event subscription', async ({
     page,
     chatPage,
     roomPage,
@@ -48,7 +48,7 @@ test.describe('Emoji reactions', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    const testMessage = `LiveEvent sync test ${Date.now()}`;
+    const testMessage = `Canonical event sync test ${Date.now()}`;
     const message1 = await roomPage.sendMessage(testMessage);
 
     // Verify no reactions yet (use expectNoReaction to check for reaction count buttons, not toolbar buttons)
@@ -72,7 +72,7 @@ test.describe('Emoji reactions', () => {
         await message2.react('😂');
         await message2.expectReaction('😂', 1);
 
-        // User 1 should see the reaction appear via LiveEvent subscription
+        // User 1 should see the reaction through canonical realtime delivery.
         await message1.expectReaction('😂', 1);
       },
       { viewport: { width: 1280, height: 720 } }

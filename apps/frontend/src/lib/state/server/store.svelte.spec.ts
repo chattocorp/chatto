@@ -894,7 +894,17 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(ingest).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'E-POST',
-        event: expect.objectContaining({ body: 'new body', roomId: 'R1' })
+        event: expect.objectContaining({
+          body: 'new body',
+          roomId: 'R1',
+          attachments: [],
+          linkPreview: null,
+          reactions: [],
+          pinned: false,
+          threadExists: false,
+          replyCount: 0,
+          threadParticipants: []
+        })
       })
     );
     expect(hydrate).toHaveBeenCalledWith('E-POST');

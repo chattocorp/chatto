@@ -68,27 +68,9 @@ func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEve
 	return nil
 }
 
-// marshalTransientEvent produces one protobuf message that both current Event
-// readers and previous LiveEvent readers can decode. The legacy payload tag is
-// an unknown field to Event; the canonical high tag is unknown to LiveEvent.
-// Shared metadata is encoded once through Event.
+// marshalTransientEvent encodes the canonical Event used on live.sync.>.
 func marshalTransientEvent(event *evtv1.Event) ([]byte, error) {
-	canonicalWire, err := proto.Marshal(event)
-	if err != nil {
-		return nil, err
-	}
-	legacy := legacyLiveEventFromCanonical(event)
-	if legacy == nil {
-		return nil, fmt.Errorf("%w: transient variant has no legacy rolling encoding", ErrInvalidEvent)
-	}
-	legacy.Id = ""
-	legacy.CreatedAt = nil
-	legacy.ActorId = ""
-	legacyWire, err := proto.Marshal(legacy)
-	if err != nil {
-		return nil, err
-	}
-	return append(canonicalWire, legacyWire...), nil
+	return proto.Marshal(event)
 }
 
 func validateEvent(event *evtv1.Event) error {

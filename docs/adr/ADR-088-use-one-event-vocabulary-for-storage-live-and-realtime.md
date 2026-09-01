@@ -47,14 +47,14 @@ retired legacy live variants, except the durable reaction tags 1050 and 1051.
 High protobuf field numbers have a small key-size cost but no relevant runtime
 or compatibility cost here.
 
-`chatto.core.live.v1.LiveEvent` remains only as a rolling-upgrade wire format.
-Callers construct and publish the canonical Event. During mixed-version
-replacement, the NATS serializer appends the matching legacy oneof field to
-the same protobuf message. The canonical high tag is unknown to an old reader,
-and the legacy tag is unknown to a new reader. Both readers get the shared
-metadata and their known payload. The process-wide ingress also converts
-messages written by an old replica to the canonical Event. Remove this bridge
-after the rolling compatibility window ends.
+Transient publishers serialize only the canonical Event. The old
+`chatto.core.live.v1.LiveEvent` envelope is removed in the same atomic change.
+Mixed old and new application replicas do not exchange transient
+`live.sync.>` signals during a rolling replacement. Each side drops the
+unknown envelope safely. Durable EVT delivery is unaffected, and reconnect
+snapshots and credential revalidation restore authoritative current state.
+Transient payload messages stay in `chatto.core.live.v1`; moving those symbols
+would add source churn without changing the one-envelope runtime model.
 
 ### Public delivery uses an authorized Event copy
 
@@ -80,6 +80,12 @@ A classified shared message field includes its ordinary nested value fields.
 An explicit nested classification still overrides that inherited surface. This
 keeps reusable value messages practical while storage-only fields remain
 visible in code review.
+
+Field surfaces are static exposure classes. They do not express viewer-specific
+policy. Event-level authorization must therefore be sufficient for every
+`SHARED` or populated `CLIENT_ONLY` field in that event. If a future field is
+visible to only some authorized viewers, Chatto must add an explicit
+viewer-aware projection rule or use a separate authorized resource or event.
 
 Encrypted fields use an `_encrypted` or `encrypted_` name when the existing
 stored compatibility contract permits that name. Delivery-only decrypted
@@ -129,9 +135,9 @@ The public realtime change is intentionally breaking. Protocol negotiation
 makes old and new clients fail at the handshake instead of interpreting the
 wrong event shape.
 
-The transient NATS wire supports mixed old and new replicas during rolling
-replacement. An old replica reads the temporary legacy oneof tag. A new
-replica reads the canonical high tag or converts an old-only message.
+The transient NATS wire is canonical-only. This intentional source and rolling
+wire break applies to unreleased 0.5 development versions. Stored EVT bytes are
+not affected.
 
 ## Consequences
 

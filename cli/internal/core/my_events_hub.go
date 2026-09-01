@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -370,19 +369,8 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 		return false
 	}
 	if event.Event == nil {
-		// Accept the previous LiveEvent envelope while old 0.5 replicas can have
-		// messages in flight during a rolling replacement.
-		var legacy livev1.LiveEvent
-		if err := proto.Unmarshal(msg.Data, &legacy); err != nil {
-			h.model.core.logger.Warn("Failed to unmarshal legacy live sync event", "subject", msg.Subject, "error", err)
-			return false
-		}
-		canonical := CanonicalEventFromLive(&legacy)
-		if canonical == nil {
-			h.model.core.logger.Warn("Dropping live sync event without a known payload", "subject", msg.Subject)
-			return false
-		}
-		event = canonical
+		h.model.core.logger.Warn("Dropping live sync event without a canonical payload", "subject", msg.Subject)
+		return false
 	}
 
 	bytes := int64(len(msg.Data))

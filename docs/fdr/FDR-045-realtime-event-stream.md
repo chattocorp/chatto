@@ -56,6 +56,10 @@ models from disagreeing. Existing EVT compatibility also gives the public
 event vocabulary a strong additive contract. See ADR-088.
 **Tradeoff:** Every public event and field needs an explicit authorization and
 surface decision. The storage publisher must reject delivery-only fields.
+Field surfaces are static exposure classes. Viewer-specific field policy is not
+part of this version. Event authorization must make all delivered fields safe;
+a future narrower field needs an explicit viewer-aware projection rule or a
+separate authorized shape.
 
 ### 2. Initial state is explicit
 
@@ -109,6 +113,10 @@ describe a change. Clients use ConnectRPC when they need an explicit resource,
 large collection, history page, command response, or additional detail.
 An authorized message-post event can include its client-only plaintext body so
 the client can show the post before it reads the complete message resource.
+The bundled frontend first creates a temporary row with the event metadata,
+reply references, actor, and plaintext. It leaves resource-only values empty,
+then replaces the row after `GetMessage` returns attachments, previews,
+reactions, pin state, thread details, and the timeline cursor.
 **Why:** Events should not become unbounded resource dumps. Complete public
 resource APIs also let simple bots avoid maintaining the complete frontend
 projection.
@@ -142,4 +150,7 @@ that must process every transition after a long outage.
 
 - Define whether reliable long-offline automation first uses outgoing
   webhooks or a paged public activity API.
-- Set the resume age, scan, event, byte, and time budgets from measurements.
+- Validate the 24-hour cursor lifetime, 10,000-position scan cap, 2,000-event
+  delivery cap, and 30-second catch-up limit against production measurements.
+  Add a byte cap if event-size measurements show that event count is not a
+  sufficient transport bound.

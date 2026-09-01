@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.core.live.v1;
 
-import "google/protobuf/timestamp.proto";
 import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
@@ -10,72 +9,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
 // ============================================================================
 // LIVE-ONLY EVENT DEFINITIONS
 //
-// LiveEvent oneof tags are local to this legacy envelope. They do not match
-// Event oneof numbers and are never stored in EVT.
-// ============================================================================
-
-// ============================================================================
-
-/*
-   LiveEvent is the legacy wire envelope for transient pubsub signals. New
-   publishers use chatto.core.evt.v1.Event for both durable and transient
-   events. During rolling replacement, the transient serializer also appends
-   this legacy oneof tag to canonical Event bytes. Old and new replicas can
-   then decode the same live.sync.> message.
-*/
-message LiveEvent {
-  option deprecated = true;
-  // Universal event identifier (NanoID) for dedupe and client-side idempotency.
-  string id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-  // When this live signal was created.
-  google.protobuf.Timestamp created_at = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-  // ID of the user or system actor that triggered this signal.
-  string actor_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-  reserved 10, 21, 24, 41, 50, 51, 70, 71;
-  reserved "config_updated", "notification_level_changed", "video_processing_completed",
-    "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed",
-    "user_deleted";
-
-  oneof event {
-    // ----- User lifecycle / preferences -----
-    UserCreatedSyncEvent user_created = 20 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    // Transient current-profile snapshot derived after a durable profile change.
-    UserProfileSyncEvent user_profile_updated = 22 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    ThreadFollowChangedEvent thread_follow_changed = 25 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Server membership / lifecycle -----
-    ServerMemberDeletedEvent server_member_deleted = 30 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    ServerUpdatedEvent server_updated = 31 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Typing -----
-    UserTypingEvent user_typing = 40 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Presence -----
-    PresenceChangedEvent presence_changed = 45 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Voice calls -----
-    CallParticipantJoinedEvent call_participant_joined = 60 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    CallParticipantLeftEvent call_participant_left = 61 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Notification sync -----
-    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    NotificationUnreadChangedEvent notification_unread_changed = 73 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Unread indicators -----
-    RoomMarkedAsReadEvent room_marked_as_read = 80 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-    MentionStatusClearedEvent mention_status_cleared = 81 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Room layout -----
-    RoomGroupsUpdatedEvent room_groups_updated = 90 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-
-    // ----- Session termination -----
-    SessionTerminatedEvent session_terminated = 100 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  }
-}
+// The canonical chatto.core.evt.v1.Event envelope carries these payloads on
+// NATS Core. They are never stored in EVT.
 
 // ============================================================================
 // SUBSCRIPTION LIVENESS
