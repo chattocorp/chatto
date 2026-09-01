@@ -15,13 +15,13 @@ reads, pagination, history, and read-your-writes results. Realtime events tell
 you what happened. ConnectRPC gives you the resource detail that your
 integration needs.
 
-| Need                                                                     | Use               |
-| ------------------------------------------------------------------------ | ----------------- |
-| React to a message, edit, reaction, membership change, or other activity | Realtime event    |
-| Create, update, or delete a resource                                     | ConnectRPC        |
-| Read one resource or a paginated list                                    | ConnectRPC        |
-| Build a complete current local view                                     | Cursor-bounded ConnectRPC reads |
-| Repair a short connection gap                                            | Realtime resume   |
+| Need                                                                     | Use                             |
+| ------------------------------------------------------------------------ | ------------------------------- |
+| React to a message, edit, reaction, membership change, or other activity | Realtime event                  |
+| Create, update, or delete a resource                                     | ConnectRPC                      |
+| Read one resource or a paginated list                                    | ConnectRPC                      |
+| Build a complete current local view                                      | Cursor-bounded ConnectRPC reads |
+| Repair a short connection gap                                            | Realtime resume                 |
 
 ## Connection lifecycle
 
@@ -73,7 +73,8 @@ normal recovery behavior. The server does not send a partial replay.
 
 ## Handle canonical events
 
-Each `RealtimeEvent` carries one authorized copy of Chatto's canonical Event.
+Each `RealtimeEvent` carries one authorized copy of Chatto's canonical
+[`Event`](/reference/connectrpc-api/realtime-events/).
 Durable variants
 include messages, edits, retractions, reactions, pins, assets, rooms,
 membership, profiles, threads, and calls. Typing, presence changes, and session
@@ -132,6 +133,13 @@ The serving replica validates the viewer-bound cursor and waits until its
 local projections include `E`. Requests can use different replicas without
 returning state older than the WebSocket boundary.
 
+`E` is a minimum boundary, not an exact snapshot revision. A resource response
+can already include changes after `E`. Catch-up can then describe a change that
+the resource response already includes. Apply event reducers idempotently, or
+use an event as a hint to read and replace the affected authoritative resource.
+Both approaches must converge when the same change is observed through a
+resource response and then through catch-up.
+
 Read only the resources that your client keeps. Do not list the complete user
 directory unless your integration needs it. Use bounded batch reads for users
 that rooms or events reference. Read room and thread timelines through
@@ -182,6 +190,11 @@ session before they reconnect.
     title="Realtime Frame Reference"
     href="/reference/connectrpc-api/realtime/"
     description="Read every realtime protobuf message, field, and enum."
+  />
+  <LinkCard
+    title="Realtime Event Catalogue"
+    href="/reference/connectrpc-api/realtime-events/"
+    description="Read every public canonical event variant and payload field."
   />
   <LinkCard
     title="API Compatibility"

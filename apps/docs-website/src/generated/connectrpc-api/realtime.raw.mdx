@@ -113,8 +113,8 @@ Protocol error.
 
 One authorized canonical event.
 
-`event` uses the same canonical shape as EVT and transient NATS Core
-delivery. The server creates a fresh caller-specific value and omits events
+`event` uses Chatto's canonical event shape for both durable and transient
+activity. The server creates a fresh caller-specific value and omits events
 and fields that the caller cannot see. Durable events have a resume cursor.
 Transient events do not.
 
@@ -233,7 +233,7 @@ stored EVT bytes, an authorized public event, or both.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `EVENT_FIELD_SURFACE_UNSPECIFIED` | `0` | The field has no explicit public surface. EVT can store it. Public projection omits it at a payload root; nested fields can inherit a classified parent message's surface. |
+| `EVENT_FIELD_SURFACE_UNSPECIFIED` | `0` | The field has no explicit public surface. EVT can store it. Public projection omits it at a payload root; nested fields can inherit a classified parent message's surface. This default-deny value is intentional: a new persisted field must not become public by accident. |
 | `EVENT_FIELD_SURFACE_SHARED` | `1` | The field can exist in EVT and in an authorized public event. |
 | `EVENT_FIELD_SURFACE_STORAGE_ONLY` | `2` | The field can exist only in EVT. Public projection removes it. |
 | `EVENT_FIELD_SURFACE_CLIENT_ONLY` | `3` | The field can exist only in an authorized public event. EVT rejects it. |

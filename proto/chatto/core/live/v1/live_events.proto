@@ -11,6 +11,10 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
 //
 // The canonical chatto.core.evt.v1.Event envelope carries these payloads on
 // NATS Core. They are never stored in EVT.
+//
+// This file keeps its historical name and package so generated source imports
+// for these payload messages stay compatible. It does not define a LiveEvent
+// envelope.
 
 // ============================================================================
 // SUBSCRIPTION LIVENESS

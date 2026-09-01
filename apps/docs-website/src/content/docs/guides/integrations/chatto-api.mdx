@@ -17,13 +17,13 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 
 ## API Surfaces
 
-| Surface               | Path or transport                               | Use for                                                                                                   |
-| --------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                                   |
-| Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                                       |
+| Surface               | Path or transport                               | Use for                                                                                                       |
+| --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                                       |
+| Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                                           |
 | Realtime WebSocket    | `/api/realtime`                                 | Canonical protobuf events, cursor-bounded ConnectRPC bootstrap, and bounded resume for authenticated clients. |
-| MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                                     |
-| Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                            |
+| MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                                         |
+| Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                                |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
 
@@ -92,7 +92,9 @@ Durable events contain one authorized canonical event and an opaque resume
 cursor. They do not contain resource sidecars. Typing, presence changes, and
 session termination are transient and do not have resume cursors. Projection
 clients use event variants as refresh hints and read current resources through
-ConnectRPC.
+ConnectRPC. See the [Realtime Event
+Catalogue](/reference/connectrpc-api/realtime-events/) for the public variants
+and client-visible payload fields.
 
 Realtime does not replace `chatto.api.v1`. Use the resource-oriented
 ConnectRPC services for explicit reads, pagination, commands, and
@@ -103,19 +105,19 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 
 ## Integration Patterns
 
-| Goal                           | Recommended API                                                                                              |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
-| Render room navigation         | `RoomDirectoryService`                                                                                       |
-| Read room history              | `RoomService.GetRoomEvents` and `RoomService.GetRoomEventsAround`                                            |
-| Post, edit, or delete messages | `MessageService`                                                                                             |
-| React to messages              | `MessageService.AddReaction` and `MessageService.RemoveReaction`                                             |
-| Track unread state             | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead`                                            |
-| React to bot activations       | Canonical realtime events and `NotificationService.ListNotificationOccurrences`                             |
-| Start DMs                      | `RoomService`                                                                                                |
-| Read users and profiles        | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`                                                      |
-| Manage bot identities and keys | `BotService`                                                                                                 |
-| Manage roles or permissions    | `chatto.admin.v1` role and permission services                                                               |
-| Inspect operational health     | `AdminDiagnosticsService`, metrics, and exporter                                                             |
+| Goal                           | Recommended API                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| Render room navigation         | `RoomDirectoryService`                                                          |
+| Read room history              | `RoomService.GetRoomEvents` and `RoomService.GetRoomEventsAround`               |
+| Post, edit, or delete messages | `MessageService`                                                                |
+| React to messages              | `MessageService.AddReaction` and `MessageService.RemoveReaction`                |
+| Track unread state             | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead`               |
+| React to bot activations       | Canonical realtime events and `NotificationService.ListNotificationOccurrences` |
+| Start DMs                      | `RoomService`                                                                   |
+| Read users and profiles        | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`                         |
+| Manage bot identities and keys | `BotService`                                                                    |
+| Manage roles or permissions    | `chatto.admin.v1` role and permission services                                  |
+| Inspect operational health     | `AdminDiagnosticsService`, metrics, and exporter                                |
 
 ## Message Body Tokens
 
@@ -161,6 +163,11 @@ support inline timestamps.
     title="Realtime API"
     href="/reference/connectrpc-api/realtime/"
     description="Protobuf realtime WebSocket frame reference."
+  />
+  <LinkCard
+    title="Realtime Events"
+    href="/reference/connectrpc-api/realtime-events/"
+    description="Canonical event variants and client-visible payload fields."
   />
   <LinkCard
     title="Server Discovery"

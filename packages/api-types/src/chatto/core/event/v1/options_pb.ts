@@ -15,7 +15,8 @@ export enum EventFieldSurface {
   /**
    * The field has no explicit public surface. EVT can store it. Public
    * projection omits it at a payload root; nested fields can inherit a
-   * classified parent message's surface.
+   * classified parent message's surface. This default-deny value is
+   * intentional: a new persisted field must not become public by accident.
    *
    * @generated from enum value: EVENT_FIELD_SURFACE_UNSPECIFIED = 0;
    */

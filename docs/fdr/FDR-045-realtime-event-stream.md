@@ -95,6 +95,13 @@ through ConnectRPC with `E` as the minimum cursor. The client then requests
 catch-up. The server sends events after `E` through `F`, then sends
 `caught_up(F)`. Each serving replica waits until its local projections include
 `E` before it answers a bounded read.
+
+`E` is a minimum boundary, not an exact snapshot revision. A resource read can
+include later events. Catch-up can then deliver an event that the resource
+response already includes. Clients must use idempotent event reducers or use
+events as hints to replace authoritative resources. Both approaches must
+converge when resource reads and catch-up contain the same change.
+
 **Why:** This closes races between replicas without putting resource shapes in
 the WebSocket protocol. Each resource has one public API and one compatibility
 contract.

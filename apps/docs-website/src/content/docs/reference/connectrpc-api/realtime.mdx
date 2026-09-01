@@ -14,7 +14,11 @@ Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) b
 
 
 
-This page is the field-level reference. Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.
+This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the public `chatto.core.evt.v1.Event` variants and payload fields.
+
+
+
+Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.
 
 
 
@@ -106,14 +110,14 @@ Protocol error.
 
 One authorized canonical event.
 
-`event` uses the same canonical shape as EVT and transient NATS Core
-delivery. The server creates a fresh caller-specific value and omits events
+`event` uses Chatto's canonical event shape for both durable and transient
+activity. The server creates a fresh caller-specific value and omits events
 and fields that the caller cannot see. Durable events have a resume cursor.
 Transient events do not.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | `chatto.core.evt.v1.Event` | Authorized canonical event. The server never sends raw stored bytes. |
+| `event` | [`chatto.core.evt.v1.Event`](/reference/connectrpc-api/realtime-events/#chatto-core-evt-v1-Event) | Authorized canonical event. The server never sends raw stored bytes. |
 | `resume_cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
 
 <a id="chatto-realtime-v1-RealtimeHeartbeat"></a>

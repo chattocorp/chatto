@@ -70,6 +70,10 @@ they materially improve the API, but must carry an explicit compatibility
 plan, generated-client updates, public documentation updates, and release-note
 guidance. Persisted internal messages under `chatto.core` remain subject to the
 stronger non-breaking storage contract regardless of this public API posture.
+Protocol 4 also uses an authorized subset of `chatto.core.evt.v1.Event` as its
+public event payload. That subset has both contracts: durable fields keep their
+storage compatibility, and client-visible variants and fields are part of the
+experimental realtime API.
 
 `ServerDiscoveryService.GetServer` reports the server software version. The
 bundled web client maintains explicit minimum server versions for features that
@@ -114,8 +118,8 @@ semantics for deployed clients, and documents any intentional skew boundary.
 
 The realtime protocol is versioned by protocol behavior, not by its protobuf
 package suffix. The `chatto.realtime.v1` namespace currently accepts only
-protocol version 4 and provides authorized canonical events, an optional
-current-state snapshot, and bounded resume. Public cursors are encrypted,
+protocol version 4 and provides authorized canonical events, cursor-bound
+ConnectRPC resource reads, and bounded resume. Public cursors are encrypted,
 authenticated capabilities and never expose NATS or JetStream coordinates.
 Future frame additions must be additive where possible. New required client
 behavior uses a new protocol version instead of a capability matrix.

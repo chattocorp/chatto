@@ -29,7 +29,8 @@ type EventFieldSurface int32
 const (
 	// The field has no explicit public surface. EVT can store it. Public
 	// projection omits it at a payload root; nested fields can inherit a
-	// classified parent message's surface.
+	// classified parent message's surface. This default-deny value is
+	// intentional: a new persisted field must not become public by accident.
 	EventFieldSurface_EVENT_FIELD_SURFACE_UNSPECIFIED EventFieldSurface = 0
 	// The field can exist in EVT and in an authorized public event.
 	EventFieldSurface_EVENT_FIELD_SURFACE_SHARED EventFieldSurface = 1

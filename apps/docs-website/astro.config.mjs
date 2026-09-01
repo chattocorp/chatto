@@ -175,7 +175,10 @@ export default defineConfig({
             },
             {
               label: "chatto.realtime.v1",
-              items: ["reference/connectrpc-api/realtime"],
+              items: [
+                "reference/connectrpc-api/realtime",
+                "reference/connectrpc-api/realtime-events",
+              ],
             },
             "reference/connectrpc-api/types",
           ],

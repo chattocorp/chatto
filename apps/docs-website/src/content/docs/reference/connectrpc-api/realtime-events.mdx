@@ -1,0 +1,983 @@
+---
+title: Realtime Event Catalogue
+description: Public canonical event variants and client-visible payload fields for realtime protocol 4.
+editUrl: false
+---
+
+{/* Generated from the runtime realtime catalogue and Chatto protobuf descriptors. Do not edit directly. */}
+
+<a id="chatto-core-evt-v1-Event"></a>
+
+## Event
+
+This catalogue contains the canonical event variants that Chatto can send through `RealtimeEvent.event`. It is a public subset of `chatto.core.evt.v1.Event`. Internal variants and storage-only fields are excluded. The page is generated from the runtime public-event catalogue and the protobuf field-surface rules.
+
+The canonical event package is public because protocol 4 puts this message directly on the wire. The package name still reflects the persisted compatibility contract. It does not mean that the server sends stored bytes.
+
+Every canonical event also contains these common fields:
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable event identifier. |
+| `created_at` | `google.protobuf.Timestamp` | Time when Chatto created the event. |
+| `actor_id` | `string` | Visible user that caused the event, when applicable. |
+
+The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the canonical event.
+
+## Durable variants
+
+Durable variants can have a resume cursor and can appear during catch-up.
+
+| Event oneof field | Number | Payload | Recovery |
+| --- | --- | --- | --- |
+| `room_created` | `300` | [`RoomCreatedEvent`](#chatto-core-evt-v1-RoomCreatedEvent) | Bounded replay |
+| `room_updated` | `301` | [`RoomUpdatedEvent`](#chatto-core-evt-v1-RoomUpdatedEvent) | Bounded replay |
+| `room_deleted` | `302` | [`RoomDeletedEvent`](#chatto-core-evt-v1-RoomDeletedEvent) | Bounded replay |
+| `room_archived` | `303` | [`RoomArchivedEvent`](#chatto-core-evt-v1-RoomArchivedEvent) | Bounded replay |
+| `room_unarchived` | `304` | [`RoomUnarchivedEvent`](#chatto-core-evt-v1-RoomUnarchivedEvent) | Bounded replay |
+| `room_universal_changed` | `305` | [`RoomUniversalChangedEvent`](#chatto-core-evt-v1-RoomUniversalChangedEvent) | Bounded replay |
+| `room_slow_mode_changed` | `307` | [`RoomSlowModeChangedEvent`](#chatto-core-evt-v1-RoomSlowModeChangedEvent) | Bounded replay |
+| `room_threading_mode_changed` | `308` | [`RoomThreadingModeChangedEvent`](#chatto-core-evt-v1-RoomThreadingModeChangedEvent) | Bounded replay |
+| `user_joined_room` | `310` | [`UserJoinedRoomEvent`](#chatto-core-evt-v1-UserJoinedRoomEvent) | Bounded replay |
+| `user_left_room` | `311` | [`UserLeftRoomEvent`](#chatto-core-evt-v1-UserLeftRoomEvent) | Bounded replay |
+| `voice_call_participant_joined` | `330` | [`CallParticipantJoinedEvent`](#chatto-core-evt-v1-CallParticipantJoinedEvent) | Bounded replay |
+| `voice_call_participant_left` | `331` | [`CallParticipantLeftEvent`](#chatto-core-evt-v1-CallParticipantLeftEvent) | Bounded replay |
+| `voice_call_started` | `332` | [`CallStartedEvent`](#chatto-core-evt-v1-CallStartedEvent) | Bounded replay |
+| `voice_call_ended` | `333` | [`CallEndedEvent`](#chatto-core-evt-v1-CallEndedEvent) | Bounded replay |
+| `message_posted` | `400` | [`MessagePostedEvent`](#chatto-core-evt-v1-MessagePostedEvent) | Bounded replay |
+| `message_edited` | `401` | [`MessageEditedEvent`](#chatto-core-evt-v1-MessageEditedEvent) | Bounded replay |
+| `message_retracted` | `402` | [`MessageRetractedEvent`](#chatto-core-evt-v1-MessageRetractedEvent) | Bounded replay |
+| `message_pinned` | `405` | [`MessagePinnedEvent`](#chatto-core-evt-v1-MessagePinnedEvent) | Bounded replay |
+| `message_unpinned` | `406` | [`MessageUnpinnedEvent`](#chatto-core-evt-v1-MessageUnpinnedEvent) | Bounded replay |
+| `thread_created` | `425` | [`ThreadCreatedEvent`](#chatto-core-evt-v1-ThreadCreatedEvent) | Bounded replay |
+| `asset_processing_started` | `451` | [`AssetProcessingStartedEvent`](#chatto-core-evt-v1-AssetProcessingStartedEvent) | Bounded replay |
+| `asset_processing_succeeded` | `452` | [`AssetProcessingSucceededEvent`](#chatto-core-evt-v1-AssetProcessingSucceededEvent) | Bounded replay |
+| `asset_processing_failed` | `453` | [`AssetProcessingFailedEvent`](#chatto-core-evt-v1-AssetProcessingFailedEvent) | Bounded replay |
+| `asset_deleted` | `454` | [`AssetDeletedEvent`](#chatto-core-evt-v1-AssetDeletedEvent) | Bounded replay |
+| `server_motd_changed` | `504` | [`ServerMotdChangedEvent`](#chatto-core-evt-v1-ServerMotdChangedEvent) | Bounded replay |
+| `user_account_created` | `700` | [`UserAccountCreatedEvent`](#chatto-core-evt-v1-UserAccountCreatedEvent) | Bounded replay |
+| `user_login_changed` | `701` | [`UserLoginChangedEvent`](#chatto-core-evt-v1-UserLoginChangedEvent) | Bounded replay |
+| `user_display_name_changed` | `702` | [`UserDisplayNameChangedEvent`](#chatto-core-evt-v1-UserDisplayNameChangedEvent) | Bounded replay |
+| `user_avatar_set` | `703` | [`UserAvatarSetEvent`](#chatto-core-evt-v1-UserAvatarSetEvent) | Bounded replay |
+| `user_avatar_cleared` | `704` | [`UserAvatarClearedEvent`](#chatto-core-evt-v1-UserAvatarClearedEvent) | Bounded replay |
+| `user_account_deleted` | `710` | [`UserAccountDeletedEvent`](#chatto-core-evt-v1-UserAccountDeletedEvent) | Bounded replay |
+| `user_custom_status_set` | `715` | [`UserCustomStatusSetEvent`](#chatto-core-evt-v1-UserCustomStatusSetEvent) | Bounded replay |
+| `user_custom_status_cleared` | `716` | [`UserCustomStatusClearedEvent`](#chatto-core-evt-v1-UserCustomStatusClearedEvent) | Bounded replay |
+| `user_bio_changed` | `722` | [`UserBioChangedEvent`](#chatto-core-evt-v1-UserBioChangedEvent) | Bounded replay |
+| `room_member_banned` | `840` | [`RoomMemberBannedEvent`](#chatto-core-evt-v1-RoomMemberBannedEvent) | Bounded replay |
+| `room_member_unbanned` | `841` | [`RoomMemberUnbannedEvent`](#chatto-core-evt-v1-RoomMemberUnbannedEvent) | Bounded replay |
+| `room_member_added` | `842` | [`RoomMemberAddedEvent`](#chatto-core-evt-v1-RoomMemberAddedEvent) | Bounded replay |
+| `room_member_removed` | `843` | [`RoomMemberRemovedEvent`](#chatto-core-evt-v1-RoomMemberRemovedEvent) | Bounded replay |
+| `reaction_added` | `1050` | [`ReactionAddedEvent`](#chatto-core-evt-v1-ReactionAddedEvent) | Bounded replay |
+| `reaction_removed` | `1051` | [`ReactionRemovedEvent`](#chatto-core-evt-v1-ReactionRemovedEvent) | Bounded replay |
+
+## Transient variants
+
+Transient variants are live-only. They do not have a resume cursor and do not appear during catch-up.
+
+| Event oneof field | Number | Payload | Recovery |
+| --- | --- | --- | --- |
+| `user_created_sync` | `20000` | [`UserCreatedSyncEvent`](#chatto-core-live-v1-UserCreatedSyncEvent) | Live only |
+| `user_profile_sync` | `20001` | [`UserProfileSyncEvent`](#chatto-core-live-v1-UserProfileSyncEvent) | Live only |
+| `server_user_preferences_sync` | `20002` | [`ServerUserPreferencesSyncEvent`](#chatto-core-live-v1-ServerUserPreferencesSyncEvent) | Live only |
+| `thread_follow_changed_sync` | `20003` | [`ThreadFollowChangedEvent`](#chatto-core-live-v1-ThreadFollowChangedEvent) | Live only |
+| `server_member_deleted_sync` | `20004` | [`ServerMemberDeletedEvent`](#chatto-core-live-v1-ServerMemberDeletedEvent) | Live only |
+| `server_updated_sync` | `20005` | [`ServerUpdatedEvent`](#chatto-core-live-v1-ServerUpdatedEvent) | Live only |
+| `user_typing_signal` | `20006` | [`UserTypingEvent`](#chatto-core-live-v1-UserTypingEvent) | Live only |
+| `presence_changed_signal` | `20007` | [`PresenceChangedEvent`](#chatto-core-live-v1-PresenceChangedEvent) | Live only |
+| `call_participant_joined_signal` | `20008` | [`CallParticipantJoinedEvent`](#chatto-core-live-v1-CallParticipantJoinedEvent) | Live only |
+| `call_participant_left_signal` | `20009` | [`CallParticipantLeftEvent`](#chatto-core-live-v1-CallParticipantLeftEvent) | Live only |
+| `notification_occurrences_invalidated` | `20010` | [`NotificationOccurrencesInvalidatedEvent`](#chatto-core-live-v1-NotificationOccurrencesInvalidatedEvent) | Live only |
+| `notification_unread_changed` | `20011` | [`NotificationUnreadChangedEvent`](#chatto-core-live-v1-NotificationUnreadChangedEvent) | Live only |
+| `room_marked_as_read_sync` | `20012` | [`RoomMarkedAsReadEvent`](#chatto-core-live-v1-RoomMarkedAsReadEvent) | Live only |
+| `mention_status_cleared_sync` | `20013` | [`MentionStatusClearedEvent`](#chatto-core-live-v1-MentionStatusClearedEvent) | Live only |
+| `room_groups_updated_sync` | `20014` | [`RoomGroupsUpdatedEvent`](#chatto-core-live-v1-RoomGroupsUpdatedEvent) | Live only |
+| `session_terminated_signal` | `20015` | [`SessionTerminatedEvent`](#chatto-core-live-v1-SessionTerminatedEvent) | Live only |
+
+## Event payloads
+
+<a id="chatto-core-evt-v1-RoomCreatedEvent"></a>
+
+### RoomCreatedEvent
+
+`chatto.core.evt.v1.RoomCreatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `name` | `string` | — |
+| `description` | `string` | — |
+| `kind` | [`RoomKind`](#chatto-core-evt-v1-RoomKind) | Room kind (channel or DM). |
+| `universal` | `bool` | Whether this channel room grants effective membership to every join-eligible server member. DM rooms must leave this false. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-core-evt-v1-RoomThreadingMode) | Threading policy for this channel. Historical events omit the field and are interpreted as ENABLED. DM rooms leave it UNSPECIFIED. |
+
+<a id="chatto-core-evt-v1-RoomUpdatedEvent"></a>
+
+### RoomUpdatedEvent
+
+`chatto.core.evt.v1.RoomUpdatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `name` | `string` | — |
+| `description` | `string` | — |
+
+<a id="chatto-core-evt-v1-RoomDeletedEvent"></a>
+
+### RoomDeletedEvent
+
+`chatto.core.evt.v1.RoomDeletedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+
+<a id="chatto-core-evt-v1-RoomArchivedEvent"></a>
+
+### RoomArchivedEvent
+
+`chatto.core.evt.v1.RoomArchivedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+
+<a id="chatto-core-evt-v1-RoomUnarchivedEvent"></a>
+
+### RoomUnarchivedEvent
+
+`chatto.core.evt.v1.RoomUnarchivedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+
+<a id="chatto-core-evt-v1-RoomUniversalChangedEvent"></a>
+
+### RoomUniversalChangedEvent
+
+`chatto.core.evt.v1.RoomUniversalChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `universal` | `bool` | — |
+
+<a id="chatto-core-evt-v1-RoomSlowModeChangedEvent"></a>
+
+### RoomSlowModeChangedEvent
+
+`chatto.core.evt.v1.RoomSlowModeChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `slow_mode_seconds` | `uint32` | — |
+
+<a id="chatto-core-evt-v1-RoomThreadingModeChangedEvent"></a>
+
+### RoomThreadingModeChangedEvent
+
+`chatto.core.evt.v1.RoomThreadingModeChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-core-evt-v1-RoomThreadingMode) | — |
+
+<a id="chatto-core-evt-v1-UserJoinedRoomEvent"></a>
+
+### UserJoinedRoomEvent
+
+`chatto.core.evt.v1.UserJoinedRoomEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+
+<a id="chatto-core-evt-v1-UserLeftRoomEvent"></a>
+
+### UserLeftRoomEvent
+
+`chatto.core.evt.v1.UserLeftRoomEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+
+<a id="chatto-core-evt-v1-CallParticipantJoinedEvent"></a>
+
+### CallParticipantJoinedEvent
+
+`chatto.core.evt.v1.CallParticipantJoinedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-evt-v1-CallParticipantEventSource) | — |
+| `call_id` | `string` | Call identifier. |
+
+<a id="chatto-core-evt-v1-CallParticipantLeftEvent"></a>
+
+### CallParticipantLeftEvent
+
+`chatto.core.evt.v1.CallParticipantLeftEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-evt-v1-CallParticipantEventSource) | — |
+| `call_id` | `string` | Call identifier. |
+
+<a id="chatto-core-evt-v1-CallStartedEvent"></a>
+
+### CallStartedEvent
+
+`chatto.core.evt.v1.CallStartedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `call_id` | `string` | Call identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-evt-v1-CallParticipantEventSource) | — |
+
+<a id="chatto-core-evt-v1-CallEndedEvent"></a>
+
+### CallEndedEvent
+
+`chatto.core.evt.v1.CallEndedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `call_id` | `string` | Call identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-evt-v1-CallParticipantEventSource) | — |
+
+<a id="chatto-core-evt-v1-MessagePostedEvent"></a>
+
+### MessagePostedEvent
+
+`chatto.core.evt.v1.MessagePostedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID - identifies which room this message belongs to |
+| `in_reply_to` | `string` | Threading: event ID of the message this is replying to (empty = top-level message) |
+| `in_thread` | `string` | Threading: event ID of the thread root message (empty = top-level message) For direct replies to a root, in_thread == in_reply_to. For nested replies, in_thread references the original root. |
+| `mentioned_user_ids` | repeated `string` | User IDs selected by valid resolved mentions. This is a flattened view of direct, role, @here, and @all recipients and does not identify which cause selected a user. Use mentions whenever policy or cause depends on mention provenance; older events may have only mentioned_user_ids. |
+| `echo_of_event_id` | `string` | Event ID of the original thread reply this echoes (empty = not an echo) |
+| `echo_from_thread_root_event_id` | `string` | Thread root event ID — the thread this echo originates from (empty = not an echo) |
+| `mentions` | repeated [`MessageMention`](#chatto-core-evt-v1-MessageMention) | Resolved mention facts at the time this message was accepted. Unlike mentioned_user_ids, these preserve whether each recipient was selected by a direct, role, presence-scoped, or room-wide mention. Derived consumers can therefore apply the correct policy without re-parsing message content or consulting newer room state. |
+| `body_plaintext` | optional `string` | Decrypted message text for authorized realtime delivery. |
+
+<a id="chatto-core-evt-v1-MessageEditedEvent"></a>
+
+### MessageEditedEvent
+
+`chatto.core.evt.v1.MessageEditedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID — identifies which room this message belongs to. |
+| `event_id` | `string` | Event ID of the message being edited (the original MessagePostedEvent's ID). The actor performing the edit lives on the Event envelope's actor_id. |
+
+<a id="chatto-core-evt-v1-MessageRetractedEvent"></a>
+
+### MessageRetractedEvent
+
+`chatto.core.evt.v1.MessageRetractedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID — identifies which room this message belonged to. |
+| `event_id` | `string` | Event ID of the message being retracted. The actor performing the retraction lives on the Event envelope's actor_id. |
+
+<a id="chatto-core-evt-v1-MessagePinnedEvent"></a>
+
+### MessagePinnedEvent
+
+`chatto.core.evt.v1.MessagePinnedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Channel room containing the message. |
+| `message_event_id` | `string` | Event ID of the canonical MessagePostedEvent being pinned. |
+
+<a id="chatto-core-evt-v1-MessageUnpinnedEvent"></a>
+
+### MessageUnpinnedEvent
+
+`chatto.core.evt.v1.MessageUnpinnedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Channel room containing the message. |
+| `message_event_id` | `string` | Event ID of the canonical MessagePostedEvent being unpinned. |
+
+<a id="chatto-core-evt-v1-ThreadCreatedEvent"></a>
+
+### ThreadCreatedEvent
+
+`chatto.core.evt.v1.ThreadCreatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID - identifies which room owns the thread. |
+| `thread_root_event_id` | `string` | Event ID of the root MessagePostedEvent that identifies this thread. |
+
+<a id="chatto-core-evt-v1-AssetProcessingStartedEvent"></a>
+
+### AssetProcessingStartedEvent
+
+`chatto.core.evt.v1.AssetProcessingStartedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset identifier. |
+| `message_event_id` | `string` | Event id of the owning message, stamped at publish time by the code that schedules processing (which already knows it). |
+
+<a id="chatto-core-evt-v1-AssetProcessingSucceededEvent"></a>
+
+### AssetProcessingSucceededEvent
+
+`chatto.core.evt.v1.AssetProcessingSucceededEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset identifier. |
+| `video` | [`AssetProcessedVideo`](#chatto-core-evt-v1-AssetProcessedVideo) | Video/GIF derivative manifest. Set for video and animated-GIF assets. |
+| `message_event_id` | `string` | Event id of the owning message, stamped at publish time (see AssetProcessingStartedEvent.message_event_id). |
+
+<a id="chatto-core-evt-v1-AssetProcessingFailedEvent"></a>
+
+### AssetProcessingFailedEvent
+
+`chatto.core.evt.v1.AssetProcessingFailedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset identifier. |
+| `failure_code` | [`AssetProcessingFailureCode`](#chatto-core-evt-v1-AssetProcessingFailureCode) | — |
+| `message_event_id` | `string` | Event id of the owning message, stamped at publish time (see AssetProcessingStartedEvent.message_event_id). |
+
+<a id="chatto-core-evt-v1-AssetDeletedEvent"></a>
+
+### AssetDeletedEvent
+
+`chatto.core.evt.v1.AssetDeletedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset identifier. |
+
+<a id="chatto-core-evt-v1-ServerMotdChangedEvent"></a>
+
+### ServerMotdChangedEvent
+
+`chatto.core.evt.v1.ServerMotdChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `motd` | `string` | — |
+
+<a id="chatto-core-evt-v1-UserAccountCreatedEvent"></a>
+
+### UserAccountCreatedEvent
+
+`chatto.core.evt.v1.UserAccountCreatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `is_bot` | `bool` | — |
+| `bot_owner_user_id` | `string` | Required for bot accounts and empty for human accounts. |
+| `login_plaintext` | optional `string` | Plaintext value for authorized realtime delivery. |
+| `display_name_plaintext` | optional `string` | Plaintext value for authorized realtime delivery. |
+
+<a id="chatto-core-evt-v1-UserLoginChangedEvent"></a>
+
+### UserLoginChangedEvent
+
+`chatto.core.evt.v1.UserLoginChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `login_plaintext` | optional `string` | Plaintext value for authorized realtime delivery. |
+
+<a id="chatto-core-evt-v1-UserDisplayNameChangedEvent"></a>
+
+### UserDisplayNameChangedEvent
+
+`chatto.core.evt.v1.UserDisplayNameChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `display_name_plaintext` | optional `string` | Plaintext value for authorized realtime delivery. |
+
+<a id="chatto-core-evt-v1-UserAvatarSetEvent"></a>
+
+### UserAvatarSetEvent
+
+`chatto.core.evt.v1.UserAvatarSetEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Deprecated: legacy avatar storage pointer retained for decoding old user events. New avatar writes append AssetCreatedEvent with UserAvatarAssetOwner instead. |
+| `avatar` | [`DeprecatedAsset`](#chatto-core-evt-v1-DeprecatedAsset) | — |
+
+<a id="chatto-core-evt-v1-UserAvatarClearedEvent"></a>
+
+### UserAvatarClearedEvent
+
+`chatto.core.evt.v1.UserAvatarClearedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-UserAccountDeletedEvent"></a>
+
+### UserAccountDeletedEvent
+
+`chatto.core.evt.v1.UserAccountDeletedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-UserCustomStatusSetEvent"></a>
+
+### UserCustomStatusSetEvent
+
+`chatto.core.evt.v1.UserCustomStatusSetEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `status` | [`CustomUserStatus`](#chatto-core-evt-v1-CustomUserStatus) | — |
+
+<a id="chatto-core-evt-v1-UserCustomStatusClearedEvent"></a>
+
+### UserCustomStatusClearedEvent
+
+`chatto.core.evt.v1.UserCustomStatusClearedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-UserBioChangedEvent"></a>
+
+### UserBioChangedEvent
+
+`chatto.core.evt.v1.UserBioChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `bio_plaintext` | optional `string` | Plaintext value for authorized realtime delivery. |
+
+<a id="chatto-core-evt-v1-RoomMemberBannedEvent"></a>
+
+### RoomMemberBannedEvent
+
+`chatto.core.evt.v1.RoomMemberBannedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `user_id` | `string` | User identifier. |
+| `expires_at` | optional [`Timestamp`](#google-protobuf-Timestamp) | — |
+
+<a id="chatto-core-evt-v1-RoomMemberUnbannedEvent"></a>
+
+### RoomMemberUnbannedEvent
+
+`chatto.core.evt.v1.RoomMemberUnbannedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-RoomMemberAddedEvent"></a>
+
+### RoomMemberAddedEvent
+
+`chatto.core.evt.v1.RoomMemberAddedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-RoomMemberRemovedEvent"></a>
+
+### RoomMemberRemovedEvent
+
+`chatto.core.evt.v1.RoomMemberRemovedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-evt-v1-ReactionAddedEvent"></a>
+
+### ReactionAddedEvent
+
+`chatto.core.evt.v1.ReactionAddedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID - identifies the room containing the message |
+| `message_event_id` | `string` | Event ID of the message being reacted to (NanoID) |
+| `emoji` | `string` | The emoji used for the reaction (shortcode name) |
+
+<a id="chatto-core-evt-v1-ReactionRemovedEvent"></a>
+
+### ReactionRemovedEvent
+
+`chatto.core.evt.v1.ReactionRemovedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID - identifies the room containing the message |
+| `message_event_id` | `string` | Event ID of the message the reaction was removed from (NanoID) |
+| `emoji` | `string` | The emoji shortcode that was removed |
+
+<a id="chatto-core-live-v1-UserCreatedSyncEvent"></a>
+
+### UserCreatedSyncEvent
+
+`chatto.core.live.v1.UserCreatedSyncEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `login` | `string` | — |
+| `display_name` | `string` | — |
+
+<a id="chatto-core-live-v1-UserProfileSyncEvent"></a>
+
+### UserProfileSyncEvent
+
+`chatto.core.live.v1.UserProfileSyncEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `display_name` | `string` | — |
+| `avatar_url` | `string` | URL to the user's avatar, or empty if no avatar is set. |
+| `login` | `string` | The user's current login/username. |
+| `bio` | `string` | The user's current public bio, or empty when unset. |
+| `timezone` | `string` | The user's shared IANA time zone, or empty when none is shared. |
+
+<a id="chatto-core-live-v1-ServerUserPreferencesSyncEvent"></a>
+
+### ServerUserPreferencesSyncEvent
+
+`chatto.core.live.v1.ServerUserPreferencesSyncEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `string` | IANA time zone name. An empty value selects the browser default. |
+| `time_format` | [`TimeFormat`](#chatto-core-live-v1-TimeFormat) | Preferred time display format. |
+| `share_timezone` | `bool` | Whether the stored time zone may appear on the user's public profile. |
+
+<a id="chatto-core-live-v1-ThreadFollowChangedEvent"></a>
+
+### ThreadFollowChangedEvent
+
+`chatto.core.live.v1.ThreadFollowChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | The room containing the thread. |
+| `thread_root_event_id` | `string` | The root event ID of the thread. |
+| `is_following` | `bool` | Whether the user is now following (true) or not following (false). |
+
+<a id="chatto-core-live-v1-ServerMemberDeletedEvent"></a>
+
+### ServerMemberDeletedEvent
+
+`chatto.core.live.v1.ServerMemberDeletedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+
+<a id="chatto-core-live-v1-ServerUpdatedEvent"></a>
+
+### ServerUpdatedEvent
+
+`chatto.core.live.v1.ServerUpdatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_id` | `string` | Server identifier. |
+| `name` | `string` | — |
+| `description` | `string` | — |
+| `logo_url` | `string` | URL to the server's logo, or empty if no logo is set. |
+| `banner_url` | `string` | URL to the server's banner, or empty if no banner is set. |
+
+<a id="chatto-core-live-v1-UserTypingEvent"></a>
+
+### UserTypingEvent
+
+`chatto.core.live.v1.UserTypingEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID where the user is typing |
+| `thread_root_event_id` | optional `string` | Thread root event ID (optional). If set, the user is typing a reply in this thread. If empty, the user is typing in the main room view. |
+
+<a id="chatto-core-live-v1-PresenceChangedEvent"></a>
+
+### PresenceChangedEvent
+
+`chatto.core.live.v1.PresenceChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `string` | The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB") |
+
+<a id="chatto-core-live-v1-CallParticipantJoinedEvent"></a>
+
+### CallParticipantJoinedEvent
+
+`chatto.core.live.v1.CallParticipantJoinedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-live-v1-CallParticipantEventSource) | — |
+| `call_id` | `string` | Call identifier. |
+
+<a id="chatto-core-live-v1-CallParticipantLeftEvent"></a>
+
+### CallParticipantLeftEvent
+
+`chatto.core.live.v1.CallParticipantLeftEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room identifier. |
+| `source` | [`CallParticipantEventSource`](#chatto-core-live-v1-CallParticipantEventSource) | — |
+| `call_id` | `string` | Call identifier. |
+
+<a id="chatto-core-live-v1-NotificationOccurrencesInvalidatedEvent"></a>
+
+### NotificationOccurrencesInvalidatedEvent
+
+`chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `alert_candidate_notification_id` | optional `string` | Legacy candidate for a one-shot local sound on a push-eligible occurrence. Consumers must still validate the candidate against the current occurrence and policy. Retained for rolling compatibility. |
+| `sound_candidate_notification_id` | optional `string` | Candidate occurrence for one-shot in-app sound. New publishers set this for both in-app and push-notification modes. Older consumers ignore it. |
+
+<a id="chatto-core-live-v1-NotificationUnreadChangedEvent"></a>
+
+### NotificationUnreadChangedEvent
+
+`chatto.core.live.v1.NotificationUnreadChangedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose unread state changed. |
+| `thread_root_event_id` | `string` | Thread root whose unread state changed. Empty means room-level activity. |
+
+<a id="chatto-core-live-v1-RoomMarkedAsReadEvent"></a>
+
+### RoomMarkedAsReadEvent
+
+`chatto.core.live.v1.RoomMarkedAsReadEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID that was marked as read |
+
+<a id="chatto-core-live-v1-MentionStatusClearedEvent"></a>
+
+### MentionStatusClearedEvent
+
+`chatto.core.live.v1.MentionStatusClearedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID whose mention indicator was cleared |
+
+<a id="chatto-core-live-v1-RoomGroupsUpdatedEvent"></a>
+
+### RoomGroupsUpdatedEvent
+
+`chatto.core.live.v1.RoomGroupsUpdatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+
+<a id="chatto-core-live-v1-SessionTerminatedEvent"></a>
+
+### SessionTerminatedEvent
+
+`chatto.core.live.v1.SessionTerminatedEvent`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `reason` | `string` | Reason for termination: "logout", "admin_boot", "account_deleted" |
+
+<a id="chatto-core-evt-v1-MessageMention"></a>
+
+### MessageMention
+
+`chatto.core.evt.v1.MessageMention`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | User identifier. |
+| `cause.direct` | [`DirectUserMention`](#chatto-core-evt-v1-DirectUserMention) | — |
+| `cause.role` | [`RoleMessageMention`](#chatto-core-evt-v1-RoleMessageMention) | — |
+| `cause.here` | [`HereMessageMention`](#chatto-core-evt-v1-HereMessageMention) | — |
+| `cause.all` | [`AllMessageMention`](#chatto-core-evt-v1-AllMessageMention) | — |
+
+<a id="chatto-core-evt-v1-AssetProcessedVideo"></a>
+
+### AssetProcessedVideo
+
+`chatto.core.evt.v1.AssetProcessedVideo`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `duration_ms` | `int64` | — |
+| `width` | `int32` | — |
+| `height` | `int32` | — |
+| `thumbnail_asset_id` | `string` | Thumbnail asset identifier. |
+| `variants` | repeated [`AssetVideoVariant`](#chatto-core-evt-v1-AssetVideoVariant) | — |
+| `hls` | [`AssetProcessedHLS`](#chatto-core-evt-v1-AssetProcessedHLS) | HLS adaptive-streaming manifest. Absent on historical MP4-only results. |
+
+<a id="chatto-core-evt-v1-DeprecatedAsset"></a>
+
+### DeprecatedAsset
+
+`chatto.core.evt.v1.DeprecatedAsset`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset.nats` | [`NATSAsset`](#chatto-core-evt-v1-NATSAsset) | — |
+| `asset.s3` | [`S3Asset`](#chatto-core-evt-v1-S3Asset) | — |
+
+<a id="chatto-core-evt-v1-CustomUserStatus"></a>
+
+### CustomUserStatus
+
+`chatto.core.evt.v1.CustomUserStatus`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `emoji` | `string` | — |
+| `text` | `string` | — |
+| `expires_at` | [`Timestamp`](#google-protobuf-Timestamp) | — |
+
+<a id="google-protobuf-Timestamp"></a>
+
+### Timestamp
+
+`google.protobuf.Timestamp`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `seconds` | `int64` | Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be between -315576000000 and 315576000000 inclusive (which corresponds to 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z). |
+| `nanos` | `int32` | Non-negative fractions of a second at nanosecond resolution. This field is the nanosecond portion of the duration, not an alternative to seconds. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be between 0 and 999,999,999 inclusive. |
+
+<a id="chatto-core-evt-v1-DirectUserMention"></a>
+
+### DirectUserMention
+
+`chatto.core.evt.v1.DirectUserMention`
+
+| Field | Type | Description |
+| --- | --- | --- |
+
+<a id="chatto-core-evt-v1-RoleMessageMention"></a>
+
+### RoleMessageMention
+
+`chatto.core.evt.v1.RoleMessageMention`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | — |
+
+<a id="chatto-core-evt-v1-HereMessageMention"></a>
+
+### HereMessageMention
+
+`chatto.core.evt.v1.HereMessageMention`
+
+| Field | Type | Description |
+| --- | --- | --- |
+
+<a id="chatto-core-evt-v1-AllMessageMention"></a>
+
+### AllMessageMention
+
+`chatto.core.evt.v1.AllMessageMention`
+
+| Field | Type | Description |
+| --- | --- | --- |
+
+<a id="chatto-core-evt-v1-AssetVideoVariant"></a>
+
+### AssetVideoVariant
+
+`chatto.core.evt.v1.AssetVideoVariant`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `quality` | `string` | e.g., "720p", "480p" |
+| `asset_id` | `string` | Asset identifier. |
+
+<a id="chatto-core-evt-v1-AssetProcessedHLS"></a>
+
+### AssetProcessedHLS
+
+`chatto.core.evt.v1.AssetProcessedHLS`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `renditions` | repeated [`AssetHLSRendition`](#chatto-core-evt-v1-AssetHLSRendition) | — |
+
+<a id="chatto-core-evt-v1-NATSAsset"></a>
+
+### NATSAsset
+
+`chatto.core.evt.v1.NATSAsset`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | — |
+
+<a id="chatto-core-evt-v1-S3Asset"></a>
+
+### S3Asset
+
+`chatto.core.evt.v1.S3Asset`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `key` | `string` | — |
+| `bucket` | optional `string` | If absent, use configured default bucket |
+
+<a id="chatto-core-evt-v1-AssetHLSRendition"></a>
+
+### AssetHLSRendition
+
+`chatto.core.evt.v1.AssetHLSRendition`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `width` | `int32` | — |
+| `height` | `int32` | — |
+| `bandwidth` | `int64` | — |
+| `segments` | repeated [`AssetHLSSegment`](#chatto-core-evt-v1-AssetHLSSegment) | — |
+
+<a id="chatto-core-evt-v1-AssetHLSSegment"></a>
+
+### AssetHLSSegment
+
+`chatto.core.evt.v1.AssetHLSSegment`
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Asset identifier. |
+| `duration_ms` | `int64` | Exact EXTINF duration, rounded to milliseconds during packaging. |
+
+## Event enums
+
+<a id="chatto-core-evt-v1-RoomKind"></a>
+
+### RoomKind
+
+`chatto.core.evt.v1.RoomKind`
+
+RoomKind discriminates between channel rooms and direct-message rooms.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_KIND_UNSPECIFIED` | `0` | Default for legacy rooms written before the field existed. Treat as CHANNEL after boot-time backfill (see ADR-030). |
+| `ROOM_KIND_CHANNEL` | `1` | — |
+| `ROOM_KIND_DM` | `2` | — |
+
+<a id="chatto-core-evt-v1-RoomThreadingMode"></a>
+
+### RoomThreadingMode
+
+`chatto.core.evt.v1.RoomThreadingMode`
+
+RoomThreadingMode controls thread creation and reply placement for channel rooms. Historical channel events with UNSPECIFIED are interpreted as ENABLED. Direct-message rooms remain UNSPECIFIED because they do not support threads.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_THREADING_MODE_UNSPECIFIED` | `0` | — |
+| `ROOM_THREADING_MODE_REQUIRED` | `1` | — |
+| `ROOM_THREADING_MODE_ENCOURAGED` | `2` | — |
+| `ROOM_THREADING_MODE_ENABLED` | `3` | — |
+| `ROOM_THREADING_MODE_DISABLED` | `4` | — |
+
+<a id="chatto-core-evt-v1-CallParticipantEventSource"></a>
+
+### CallParticipantEventSource
+
+`chatto.core.evt.v1.CallParticipantEventSource`
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED` | `0` | — |
+| `CALL_PARTICIPANT_EVENT_SOURCE_USER` | `1` | The user explicitly requested the transition through Chatto. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT` | `2` | LiveKit reported the transition through a webhook. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION` | `3` | — |
+
+<a id="chatto-core-evt-v1-AssetProcessingFailureCode"></a>
+
+### AssetProcessingFailureCode
+
+`chatto.core.evt.v1.AssetProcessingFailureCode`
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED` | `0` | — |
+| `ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED` | `1` | — |
+| `ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING` | `2` | — |
+
+<a id="chatto-core-live-v1-TimeFormat"></a>
+
+### TimeFormat
+
+`chatto.core.live.v1.TimeFormat`
+
+TimeFormat is the transient preference value used by live synchronization.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `TIME_FORMAT_UNSPECIFIED` | `0` | — |
+| `TIME_FORMAT_12H` | `1` | — |
+| `TIME_FORMAT_24H` | `2` | — |
+
+<a id="chatto-core-live-v1-CallParticipantEventSource"></a>
+
+### CallParticipantEventSource
+
+`chatto.core.live.v1.CallParticipantEventSource`
+
+CallParticipantEventSource describes the source of a transient call participant update.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED` | `0` | — |
+| `CALL_PARTICIPANT_EVENT_SOURCE_USER` | `1` | — |
+| `CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT` | `2` | — |
+| `CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION` | `3` | — |

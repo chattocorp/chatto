@@ -109,6 +109,14 @@ const PROTOCOL_VERSION = 4;
 const BASE_RECONNECT_MS = 1_000;
 const MAX_RECONNECT_MS = 30_000;
 
+type ChattoRealtimeClientOptions = {
+  initialState?: RealtimeInitialState;
+  replaceCurrentResources?: (
+    minimumCursor: string,
+    signal: AbortSignal,
+  ) => Promise<void>;
+};
+
 export class ChattoRealtimeClient {
   #socket?: WebSocket;
   #stopped = false;
@@ -120,11 +128,13 @@ export class ChattoRealtimeClient {
   #watchdog?: number;
   #processing = Promise.resolve();
   #seenEventIds = new Set<string>();
+  #connectionAbort?: AbortController;
 
   constructor(
     private readonly serverUrl: string,
     private readonly bearerToken: string,
     private readonly onEvent: (event: RealtimeEvent) => void | Promise<void>,
+    private readonly options: ChattoRealtimeClientOptions = {},
   ) {}
 
   start(): void {
@@ -135,11 +145,15 @@ export class ChattoRealtimeClient {
   stop(): void {
     this.#stopped = true;
     window.clearInterval(this.#watchdog);
+    this.#connectionAbort?.abort();
     this.#socket?.close(1000, "client stopped");
   }
 
   #connect(): void {
     if (this.#stopped) return;
+    this.#connectionAbort?.abort();
+    const connectionAbort = new AbortController();
+    this.#connectionAbort = connectionAbort;
     const url = new URL("/api/realtime", this.serverUrl);
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
 
@@ -172,7 +186,7 @@ export class ChattoRealtimeClient {
           const bytes = await this.#binaryBytes(message.data);
           const frame = RealtimeServerFrame.fromBinary(bytes);
           this.#lastFrameAt = Date.now();
-          await this.#handleFrame(frame);
+          await this.#handleFrame(frame, connectionAbort.signal);
         })
         .catch((error) => {
           console.error("Realtime frame rejected", error);
@@ -182,6 +196,7 @@ export class ChattoRealtimeClient {
 
     socket.onclose = () => {
       if (this.#socket !== socket) return;
+      connectionAbort.abort();
       this.#socket = undefined;
       window.clearInterval(this.#watchdog);
       if (this.#stopped) return;
@@ -197,7 +212,10 @@ export class ChattoRealtimeClient {
     };
   }
 
-  async #handleFrame(frame: RealtimeServerFrame): Promise<void> {
+  async #handleFrame(
+    frame: RealtimeServerFrame,
+    connectionSignal: AbortSignal,
+  ): Promise<void> {
     switch (frame.frame.case) {
       case "hello": {
         const hello = frame.frame.value;
@@ -215,7 +233,8 @@ export class ChattoRealtimeClient {
             frame: {
               case: "subscribeEvents",
               value: new RealtimeSubscribeEvents({
-                initialState: RealtimeInitialState.LIVE_ONLY,
+                initialState:
+                  this.options.initialState ?? RealtimeInitialState.LIVE_ONLY,
                 resumeCursor: this.#resumeCursor,
               }),
             },
@@ -224,17 +243,34 @@ export class ChattoRealtimeClient {
         return;
       }
 
-      case "subscribed":
+      case "subscribed": {
+        const subscribed = frame.frame.value;
         console.info(
           "Realtime recovery mode",
-          RealtimeRecoveryMode[frame.frame.value.recoveryMode],
+          RealtimeRecoveryMode[subscribed.recoveryMode],
         );
+        if (subscribed.recoveryMode === RealtimeRecoveryMode.RESOURCE_READS) {
+          if (
+            !subscribed.startCursor ||
+            !this.options.replaceCurrentResources
+          ) {
+            throw new Error(
+              "Resource recovery needs a cursor and resource loader",
+            );
+          }
+          await this.options.replaceCurrentResources(
+            subscribed.startCursor,
+            connectionSignal,
+          );
+          connectionSignal.throwIfAborted();
+        }
         this.#send(
           new RealtimeClientFrame({
             frame: { case: "catchUp", value: new RealtimeCatchUp() },
           }),
         );
         return;
+      }
 
       case "event": {
         const event = frame.frame.value;
@@ -361,6 +397,71 @@ each required resource through ConnectRPC and set
 only after all required reads succeed. The server then sends later events and
 closes the interval with `caught_up`.
 
+Pass a resource replacement function when you create the client:
+
+```ts
+import { RealtimeInitialState } from "./gen/chatto/realtime/v1/realtime_pb.js";
+
+const projectionClient = new ChattoRealtimeClient(
+  "https://chat.example.com",
+  accessToken,
+  applyOrReconcileEvent,
+  {
+    initialState: RealtimeInitialState.RESOURCE_READS,
+    replaceCurrentResources: async (minimumCursor, signal) => {
+      const headers = { "Chatto-Realtime-Minimum-Cursor": minimumCursor };
+
+      const [profile, runtime, viewer, rooms, groups, notifications, calls] =
+        await Promise.all([
+          serverClient.getServerProfile(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+          serverClient.getRuntimeConfig(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+          viewerClient.getViewer({}, { headers, signal, timeoutMs: 10_000 }),
+          roomDirectoryClient.listRooms(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+          roomDirectoryClient.listRoomGroups(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+          notificationClient.listNotificationOccurrences(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+          voiceCallClient.listActiveCalls(
+            {},
+            { headers, signal, timeoutMs: 10_000 },
+          ),
+        ]);
+
+      signal.throwIfAborted();
+      replaceProjection({
+        profile,
+        runtime,
+        viewer,
+        rooms,
+        groups,
+        notifications,
+        calls,
+      });
+    },
+  },
+);
+
+projectionClient.start();
+```
+
+This example assumes generated ConnectRPC clients and an atomic
+`replaceProjection` function. Use the method request fields and pagination that
+your client needs. Load referenced users with bounded `BatchGetUsers` calls
+instead of listing the complete user directory.
+
 Read only the resource families that the client keeps. For example, the
 bundled frontend does not list the complete user directory. It uses bounded
 batch reads for users referenced by direct messages or later events.
@@ -368,6 +469,12 @@ batch reads for users referenced by direct messages or later events.
 Use a finite deadline for every cursor-bounded call. Associate each recovery
 with a local generation or abort signal. When a newer recovery starts, discard
 responses from the earlier generation.
+
+The minimum cursor is a lower bound. A response can already contain changes
+after that cursor, and catch-up can repeat those changes as events. Make direct
+reducers idempotent, or use the event to read and replace the affected
+resource. Do not assume that every catch-up event is absent from the resource
+responses that you just received.
 
 Do not infer old history from the realtime stream. Use ConnectRPC for commands,
 explicit reads, room or thread history, paginated lists, files, pins, and
@@ -384,6 +491,11 @@ client has loaded.
     title="Realtime Frame Reference"
     href="/reference/connectrpc-api/realtime/"
     description="Read every protobuf frame, event wrapper, control message, and enum."
+  />
+  <LinkCard
+    title="Realtime Event Catalogue"
+    href="/reference/connectrpc-api/realtime-events/"
+    description="Read public canonical event variants and payload fields."
   />
   <LinkCard
     title="Integrating With Chatto"

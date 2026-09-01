@@ -11,7 +11,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/event/v1;eventv1";
 enum EventFieldSurface {
   // The field has no explicit public surface. EVT can store it. Public
   // projection omits it at a payload root; nested fields can inherit a
-  // classified parent message's surface.
+  // classified parent message's surface. This default-deny value is
+  // intentional: a new persisted field must not become public by accident.
   EVENT_FIELD_SURFACE_UNSPECIFIED = 0;
   // The field can exist in EVT and in an authorized public event.
   EVENT_FIELD_SURFACE_SHARED = 1;

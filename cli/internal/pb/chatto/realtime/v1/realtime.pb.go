@@ -767,8 +767,8 @@ func (x *RealtimeCaughtUp) GetCursor() string {
 
 // One authorized canonical event.
 //
-// `event` uses the same canonical shape as EVT and transient NATS Core
-// delivery. The server creates a fresh caller-specific value and omits events
+// `event` uses Chatto's canonical event shape for both durable and transient
+// activity. The server creates a fresh caller-specific value and omits events
 // and fields that the caller cannot see. Durable events have a resume cursor.
 // Transient events do not.
 type RealtimeEvent struct {

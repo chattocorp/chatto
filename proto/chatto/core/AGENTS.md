@@ -1,7 +1,18 @@
-# Instructions for Chatto Internal Protobufs
+# Instructions for Chatto Core Protobufs
 
 The nearest package directory identifies each message's lifecycle and storage
 contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+
+## Public Realtime Subset
+
+Realtime protocol 4 carries an authorized `evt/v1.Event`. The runtime public
+event catalogue and `event_field_surface` options therefore define a public
+subset of this otherwise internal and persisted package. Generate that subset
+in the docs website. Do not publish internal variants or storage-only fields.
+
+The public subset has both contracts: it must remain readable as stored data,
+and public protocol changes need the realtime compatibility review. The
+package name does not authorize all core messages for public delivery.
 
 ## Package Ownership
 
