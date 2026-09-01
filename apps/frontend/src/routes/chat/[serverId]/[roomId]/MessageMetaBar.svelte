@@ -17,7 +17,7 @@ local to the footer.
   import FloatingPopover from '$lib/ui/FloatingPopover.svelte';
   import { getEmojiByName, getEmojiDisplayName } from '$lib/emoji';
   import { m } from '$lib/i18n/messages';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
   import type { MessageActionModel } from './messageActionModel';
 
   // Extract the MessagePostedEvent type from the union

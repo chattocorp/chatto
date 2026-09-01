@@ -18,6 +18,18 @@ const styleBlockAllowlist = new Set([
   'src/lib/ui/toast/ToastContainer.svelte'
 ]);
 
+// These components own specialized native-dialog behavior. Standard task
+// dialogs must use Dialog, FormDialog, or ConfirmDialog instead.
+const nativeDialogAllowlist = new Set([
+  'src/lib/components/QuickSwitcher.svelte',
+  'src/lib/ui/BottomSheet.svelte',
+  'src/lib/ui/Dialog.svelte',
+  'src/lib/ui/ImageModal.svelte',
+  'src/routes/chat/ModalContainerConfirmDialogMock.svelte',
+  'src/routes/chat/ModalContainerDialogMock.svelte',
+  'src/routes/chat/[serverId]/manage/rooms/[roomId]/RoomMembersConfirmDialogMock.svelte'
+]);
+
 const checks = [
   {
     description: 'bare transition utilities; name the transitioned properties',
@@ -117,6 +129,27 @@ for (const file of await svelteFiles(sourceRoot)) {
     failures.push(
       `${path}: unreviewed <style> block; use Tailwind or update the documented allowlist`
     );
+  }
+
+  if (/<dialog\b/.test(utilitySource) && !nativeDialogAllowlist.has(path)) {
+    failures.push(
+      `${path}: raw <dialog> is reserved for reviewed foundations and specialized overlays; use Dialog, FormDialog, or ConfirmDialog`
+    );
+  }
+
+  const directModalImport = utilitySource.match(
+    /(?:from\s+|import\s*\(\s*)['"][^'"]*\/(?:Dialog|FormDialog|ConfirmDialog)\.svelte['"]/
+  );
+  if (directModalImport && !path.startsWith('src/lib/ui/')) {
+    const line = utilitySource.slice(0, directModalImport.index).split('\n').length;
+    failures.push(`${path}:${line}: import public modal primitives from $lib/ui`);
+  }
+
+  if (
+    path !== 'src/lib/ui/FormDialog.svelte' &&
+    /<Dialog\b(?:(?!<\/Dialog>).)*<form\b/s.test(utilitySource)
+  ) {
+    failures.push(`${path}: modal forms must use FormDialog instead of nesting a form in Dialog`);
   }
 
   for (const { description, pattern } of checks) {

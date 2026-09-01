@@ -44,7 +44,7 @@ The submit button's color follows `submitTone` (`action` by default; use
     submitIcon = 'iconify icon-[uil--check]',
     submitLoadingText,
     cancelLabel = m('common.cancel'),
-    cancelIcon = 'iconify icon-[uil--times]',
+    cancelIcon = '',
     loading = false,
     disabled = false,
     error,
@@ -69,7 +69,7 @@ The submit button's color follows `submitTone` (`action` by default; use
     /** Optional override for the submit button label while `loading`. */
     submitLoadingText?: string;
     cancelLabel?: string;
-    /** Iconify class for the cancel button. Pass an empty string to suppress. */
+    /** Optional Iconify class for the cancel button. The quiet default has no icon. */
     cancelIcon?: string;
     loading?: boolean;
     /** Disables the submit button (e.g., when validation fails). */
@@ -115,25 +115,20 @@ The submit button's color follows `submitTone` (`action` by default; use
   </form>
 
   {#snippet footer()}
-    <div class="-mx-3">
-      <div class="h-px bg-text/10" aria-hidden="true"></div>
-      <div class="flex flex-wrap justify-end gap-2 px-3 pt-3">
-        <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
-          {#if cancelIcon}<span class={cancelIcon}></span>{/if}
-          {cancelLabel}
-        </Button>
-        <Button
-          type="submit"
-          form={formId}
-          variant={submitVariant}
-          {loading}
-          loadingText={submitLoadingText}
-          {disabled}
-        >
-          {#if submitIcon}<span class={submitIcon}></span>{/if}
-          {submitLabel}
-        </Button>
-      </div>
-    </div>
+    <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
+      {#if cancelIcon}<span class={cancelIcon}></span>{/if}
+      {cancelLabel}
+    </Button>
+    <Button
+      type="submit"
+      form={formId}
+      variant={submitVariant}
+      {loading}
+      loadingText={submitLoadingText}
+      {disabled}
+    >
+      {#if submitIcon}<span class={submitIcon}></span>{/if}
+      {submitLabel}
+    </Button>
   {/snippet}
 </Dialog>

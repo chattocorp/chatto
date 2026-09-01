@@ -2,7 +2,7 @@
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import FormDialog from '$lib/ui/FormDialog.svelte';
+  import { FormDialog } from '$lib/ui';
   import { TextArea } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 

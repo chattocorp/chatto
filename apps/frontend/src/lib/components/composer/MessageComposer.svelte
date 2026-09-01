@@ -7,8 +7,7 @@
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { ConfirmDialog, Dialog } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
@@ -346,18 +345,16 @@
     <p class="text-muted">{m('composer.recent_thread_confirm_body')}</p>
 
     {#snippet footer()}
-      <div class="flex justify-end gap-2">
-        <Button variant="secondary" onclick={() => composer.cancelThreadDestinationConfirmation()}>
-          {m('common.cancel')}
-        </Button>
-        <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
-          {m('composer.post_as_new_message')}
-        </Button>
-        <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
-          <span class="iconify icon-[uil--comment-alt-lines]"></span>
-          {m('composer.continue_in_thread')}
-        </Button>
-      </div>
+      <Button variant="secondary" onclick={() => composer.cancelThreadDestinationConfirmation()}>
+        {m('common.cancel')}
+      </Button>
+      <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
+        {m('composer.post_as_new_message')}
+      </Button>
+      <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
+        <span class="iconify icon-[uil--comment-alt-lines]"></span>
+        {m('composer.continue_in_thread')}
+      </Button>
     {/snippet}
   </Dialog>
 {/if}

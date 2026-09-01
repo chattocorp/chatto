@@ -6,8 +6,8 @@
   import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
-  import { Dialog, Hint } from '$lib/ui';
-  import { Button, FormError, TextInput } from '$lib/ui/form';
+  import { FormDialog, Hint } from '$lib/ui';
+  import { Button, TextInput } from '$lib/ui/form';
 
   let {
     canDeleteAccount,
@@ -86,52 +86,40 @@
   </Panel>
 {/if}
 
-<Dialog
+<FormDialog
   visible={showDeleteModal}
   title={m('settings.account.delete_modal.title')}
   size="sm"
+  submitLabel={m('settings.account.delete_button')}
+  submitTone="danger"
+  submitIcon="iconify icon-[uil--trash-alt]"
+  submitLoadingText={m('settings.account.delete_modal.deleting')}
+  loading={isDeleting}
+  disabled={!canDelete}
+  {error}
+  onsubmit={handleDeleteAccount}
   onclose={closeDeleteModal}
 >
-  <div class="flex flex-col gap-4">
-    <Hint tone="danger">
-      <strong>{m('settings.account.delete_modal.warning_label')}</strong>
-      {m('settings.account.delete_modal.warning_text')}
-    </Hint>
+  <Hint tone="danger">
+    <strong>{m('settings.account.delete_modal.warning_label')}</strong>
+    {m('settings.account.delete_modal.warning_text')}
+  </Hint>
 
-    <p class="text-sm text-muted">{m('settings.account.delete_modal.intro')}</p>
-    <ul class="list-inside list-disc text-sm text-muted">
+  <div class="text-sm text-muted">
+    <p>{m('settings.account.delete_modal.intro')}</p>
+    <ul class="mt-3 list-inside list-disc">
       <li>{m('settings.account.delete_modal.remove_from_rooms')}</li>
       <li>{m('settings.account.delete_modal.delete_messages')}</li>
       <li>{m('settings.account.delete_modal.delete_profile')}</li>
     </ul>
-
-    <TextInput
-      id="delete-confirm"
-      label={m('settings.account.delete_modal.confirm_label')}
-      bind:value={confirmText}
-      placeholder={m('settings.account.delete_modal.confirm_placeholder')}
-      disabled={isDeleting}
-      autocomplete="off"
-    />
-
-    {#if error}
-      <FormError {error} />
-    {/if}
-
-    <div class="flex flex-wrap justify-end gap-2">
-      <Button variant="secondary" onclick={closeDeleteModal} disabled={isDeleting}>
-        {m('common.cancel')}
-      </Button>
-      <Button
-        defaultAction
-        variant="danger"
-        onclick={handleDeleteAccount}
-        disabled={!canDelete || isDeleting}
-        loading={isDeleting}
-        loadingText={m('settings.account.delete_modal.deleting')}
-      >
-        {m('settings.account.delete_button')}
-      </Button>
-    </div>
   </div>
-</Dialog>
+
+  <TextInput
+    id="delete-confirm"
+    label={m('settings.account.delete_modal.confirm_label')}
+    bind:value={confirmText}
+    placeholder={m('settings.account.delete_modal.confirm_placeholder')}
+    disabled={isDeleting}
+    autocomplete="off"
+  />
+</FormDialog>

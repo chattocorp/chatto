@@ -11,9 +11,7 @@
     GroupReorderResult,
     RoomMoveFlushResult
   } from '$lib/state/server/adminRoomLayout.svelte';
-  import { EmptyState, Hint, Pill, ToggleChip } from '$lib/ui';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import FormDialog from '$lib/ui/FormDialog.svelte';
+  import { ConfirmDialog, EmptyState, FormDialog, Hint, Pill, ToggleChip } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { toast } from '$lib/ui/toast';

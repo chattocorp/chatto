@@ -1,3 +1,12 @@
+<!--
+@component
+
+The standard task-dialog shell. It owns the framed tray, inset work plane,
+fixed header and footer, scrollable body, focus behavior, and dismissal.
+
+Pass footer actions as direct children of the `footer` snippet. The dialog
+owns their single-line, end-aligned layout and truncates labels when needed.
+-->
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { m } from '$lib/i18n/messages';
@@ -174,38 +183,42 @@
   -->
   {#if visible || closing}
     <div
-      class="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-5 shadow-xl sm:max-h-[78vh]"
+      class="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-2 shadow-xl sm:max-h-[78vh]"
     >
-      <!--
+      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md bg-background p-3">
+        <!--
           Header row holds the title (if any) and the close button, so
-          they share a baseline and the title isn't artificially indented
-          relative to the body content below.
+          they share a baseline and the title is not indented relative to
+          the body content.
         -->
-      <header class={['flex shrink-0 items-center justify-between gap-3', title ? 'mb-4' : 'mb-2']}>
-        {#if title}
-          <h2 id={titleId} class="text-lg font-semibold text-balance text-text-top">{title}</h2>
-        {:else}
-          <span></span>
-        {/if}
-        <button
-          type="button"
-          onclick={close}
-          class="-m-2 icon-action shrink-0"
-          aria-label={m('ui.close')}
+        <header
+          class={['flex shrink-0 items-center justify-between gap-3', title ? 'mb-4' : 'mb-2']}
         >
-          <span class="iconify icon-[uil--times] text-xl"></span>
-        </button>
-      </header>
+          {#if title}
+            <h2 id={titleId} class="text-xl font-semibold text-balance text-text-top">{title}</h2>
+          {:else}
+            <span></span>
+          {/if}
+          <button
+            type="button"
+            onclick={close}
+            class="-m-2 icon-action shrink-0"
+            aria-label={m('ui.close')}
+          >
+            <span class="iconify icon-[uil--times] text-xl"></span>
+          </button>
+        </header>
 
-      <div class="min-h-0 overflow-y-auto text-text">
-        {@render children()}
+        <div class="min-h-0 overflow-y-auto text-text">
+          {@render children()}
+        </div>
+
+        {#if footer}
+          <footer class="dialog-actions">
+            {@render footer()}
+          </footer>
+        {/if}
       </div>
-
-      {#if footer}
-        <footer class="mt-6 shrink-0">
-          {@render footer()}
-        </footer>
-      {/if}
     </div>
   {/if}
 </dialog>

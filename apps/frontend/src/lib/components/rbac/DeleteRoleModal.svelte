@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { Button } from '$lib/ui/form';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
 
   let {
@@ -23,7 +22,16 @@
   }
 </script>
 
-<Dialog {visible} title={m('rbac.delete_role.title')} size="sm" onclose={handleClose}>
+<ConfirmDialog
+  {visible}
+  title={m('rbac.delete_role.title')}
+  actionLabel={m('rbac.delete_role.action')}
+  actionLoadingLabel={m('rbac.delete_role.deleting')}
+  actionIcon="iconify icon-[uil--trash-alt]"
+  loading={deleting}
+  onconfirm={onConfirm}
+  onclose={handleClose}
+>
   <p class="mb-4 text-muted">
     {m('rbac.delete_role.prompt', { role: roleDisplayName })}
   </p>
@@ -32,15 +40,4 @@
     <li>{m('rbac.delete_role.delete_grants')}</li>
   </ul>
   <p class="text-sm font-medium text-error">{m('rbac.delete_role.irreversible')}</p>
-
-  {#snippet footer()}
-    <div class="flex justify-end gap-3">
-      <Button variant="secondary" onclick={handleClose} disabled={deleting}
-        >{m('common.cancel')}</Button
-      >
-      <Button defaultAction variant="danger" onclick={onConfirm} disabled={deleting}>
-        {deleting ? m('rbac.delete_role.deleting') : m('rbac.delete_role.action')}
-      </Button>
-    </div>
-  {/snippet}
-</Dialog>
+</ConfirmDialog>

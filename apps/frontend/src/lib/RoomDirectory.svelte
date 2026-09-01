@@ -15,8 +15,7 @@ store owns only optimistic join/leave state.
   import { resolve } from '$app/paths';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import { Button } from '$lib/ui/form';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
   import type { RoomDirectoryStore, DirectoryRoom } from '$lib/state/server/roomDirectory.svelte';
 
@@ -343,15 +342,13 @@ store owns only optimistic join/leave state.
   </div>
 {/if}
 
-<Dialog bind:visible={leaveConfirmVisible} title={m('room.leave.title')} size="sm">
-  <p class="mb-4">
-    {m('room.directory.leave_confirm', { room: leaveConfirmRoom?.name ?? '' })}
-  </p>
-
-  <div class="flex items-center gap-3">
-    <Button defaultAction variant="danger" onclick={confirmLeaveRoom}>{m('room.leave.action')}</Button>
-    <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>
-      {m('common.cancel')}
-    </Button>
-  </div>
-</Dialog>
+<ConfirmDialog
+  bind:visible={leaveConfirmVisible}
+  title={m('room.leave.title')}
+  actionLabel={m('room.leave.action')}
+  actionIcon="iconify icon-[uil--sign-out-alt]"
+  onconfirm={confirmLeaveRoom}
+  onclose={() => (leaveConfirmVisible = false)}
+>
+  {m('room.directory.leave_confirm', { room: leaveConfirmRoom?.name ?? '' })}
+</ConfirmDialog>

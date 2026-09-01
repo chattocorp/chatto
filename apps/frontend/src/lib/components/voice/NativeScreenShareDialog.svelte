@@ -9,7 +9,7 @@ URL when its source changes or leaves the DOM.
   import type { Attachment } from 'svelte/attachments';
   import { m } from '$lib/i18n/messages';
   import type { NativeScreenShareSource } from '$lib/desktop/nativeScreenShare';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { Dialog } from '$lib/ui';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import SegmentedControl from '$lib/ui/SegmentedControl.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -80,9 +80,7 @@ URL when its source changes or leaves the DOM.
 </script>
 
 {#snippet footer()}
-  <div class="flex justify-end gap-2">
-    <Button variant="secondary" onclick={close}>{m('common.cancel')}</Button>
-  </div>
+  <Button variant="secondary" onclick={close}>{m('common.cancel')}</Button>
 {/snippet}
 
 <Dialog bind:visible title={m('voice.share_screen')} size="lg" onclose={handleClose} {footer}>

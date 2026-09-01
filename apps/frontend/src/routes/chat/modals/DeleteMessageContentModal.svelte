@@ -5,7 +5,7 @@
   import { notifyRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
 
   let {
     modal,
