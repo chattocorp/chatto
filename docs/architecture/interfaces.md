@@ -86,6 +86,10 @@ manage their own bots; `bot.manage` allows global management. A human with
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
 
+Owner reassignment validates stable request-time authorization inputs and uses
+user-family OCC. This boundary serializes reassignment with deletion of the bot
+or either human owner.
+
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
 layout so empty groups remain configurable. Each bot API key authenticates the
