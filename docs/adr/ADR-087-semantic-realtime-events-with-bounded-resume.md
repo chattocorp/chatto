@@ -3,9 +3,9 @@
 **Status:** Partially superseded by
 [ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 ADR-088 replaces the separate public event schema and selects protocol 4. The
-same ADR now also replaces WebSocket snapshot frames with cursor-bounded
+newer decision also replaces WebSocket snapshot frames with cursor-bounded
 ConnectRPC resource reads. The authorization, bounded-resume, and transport
-rules remain active.
+rules that this ADR introduced remain active.
 
 **Date:** 2026-08-30
 

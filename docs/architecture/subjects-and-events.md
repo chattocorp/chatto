@@ -161,9 +161,9 @@ stream sequence; admission does not assume global NATS publisher ordering.
 
 Canonical transient events remain live-only. Protocol 4 sends a censored,
 authorized copy of canonical durable and transient events. Durable events can
-have an opaque resume cursor. Snapshot resources use separate frames. Fresh or
-unsafe subscriptions use the caller's explicit snapshot or live-only fallback.
-Subscriber overflow closes only that session.
+have an opaque resume cursor. Fresh or unsafe subscriptions use cursor-bounded
+ConnectRPC resource reads or the caller's live-only fallback. Subscriber
+overflow closes only that session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old
@@ -171,9 +171,9 @@ subscriptions, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
 The bundled web client watches server heartbeats for silent stalls. Its
-in-memory server projection resumes a short socket gap or accepts an explicit
-snapshot; page reload starts without a cursor. Protocol 4 creates no
-per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
+in-memory server projection resumes a short socket gap or rebuilds from
+cursor-bounded resource reads; page reload starts without a cursor. Protocol 4
+creates no per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
 and [ADR-087](../adr/ADR-087-semantic-realtime-events-with-bounded-resume.md),
 and [ADR-088](../adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
@@ -478,8 +478,8 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 - Live delivery plus protocol-4 bounded replay of authorized canonical durable
   events. The WebSocket subscribes to the hub before it captures its EVT
   cutoff, replays through that cutoff, and then drops buffered duplicates
-  before it continues live. Fresh and unsafe subscriptions use the requested
-  snapshot or live-only fallback. Transient sync and presence signals remain
-  live-only.
+  before it continues live. Fresh and unsafe subscriptions use cursor-bounded
+  resource reads or the requested live-only fallback. Transient sync and
+  presence signals remain live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
