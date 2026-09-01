@@ -362,8 +362,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   notifications as phantom DMs.
 - App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
-- Realtime message events no longer repeat room permissions. Room unread and Slow Mode
-  changes use focused current-state items.
+- Realtime uses the canonical event protobuf for stored and live facts. Resource snapshots
+  reuse public API messages, while room and thread history use explicit ConnectRPC reads.
 
 ### Administration and interface polish
 

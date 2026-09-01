@@ -61,8 +61,7 @@ after the rolling compatibility window ends.
 `chatto.realtime.v1.RealtimeEvent` is a transport wrapper. It contains:
 
 - one authorized canonical `Event`;
-- an optional opaque resume cursor; and
-- optional authorized current-state items.
+- an optional opaque resume cursor.
 
 The server never sends raw stored bytes and never mutates a stored event. It
 creates a new delivery object, checks event-level authorization, and copies only
@@ -96,8 +95,16 @@ The public cursor remains encrypted, authenticated, viewer-bound, and opaque.
 It can contain an EVT sequence internally. The canonical Event never contains
 a JetStream sequence, subject, stream identity, or cursor.
 
-Snapshots and event state use transport sidecars. They do not change the Event
-shape and do not become synthetic domain events.
+Snapshot frames use `chatto.api.v1.ServerSnapshotChunk` as a transport wrapper.
+Each chunk contains the same public resource or response protobuf as the
+related ConnectRPC read. Snapshot resources do not change the Event shape and
+do not become synthetic domain events. Normal event frames do not contain
+resource sidecars. Clients use ConnectRPC to refresh a resource after an event
+when they need more than the semantic payload.
+
+Room and thread history do not use realtime snapshot messages. Clients read
+timelines through the paginated ConnectRPC services. This keeps large and lazy
+data out of the WebSocket protocol.
 
 ### Protocol version 4
 
@@ -126,6 +133,8 @@ replica reads the canonical high tag or converts an old-only message.
 - Chatto has one semantic event vocabulary for durable facts, transient
   signals, resume, bots, and the bundled frontend.
 - Adding an event no longer requires a second public event payload.
+- Snapshot delivery reuses canonical public resource messages instead of a
+  parallel realtime state hierarchy.
 - EVT compatibility strengthens the public event contract.
 - Authorization and field projection remain explicit server work. Sharing a
   protobuf does not make every event or field public.

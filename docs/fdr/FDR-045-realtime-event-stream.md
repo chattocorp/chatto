@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-31
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -29,7 +29,8 @@ the stream to build and maintain its local server projection.
 - Typing, presence transitions, and other transient activity are live-only.
   A snapshot supplies current latest-value state when clients need it.
 - A recently disconnected client can reconnect with its last safe cursor. The
-  server sends later authorized durable events before it continues live.
+  server sends current resource chunks and later authorized durable events
+  before it continues live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
 - Resume and snapshot delivery use the caller's current authorization. Deleted,
@@ -85,10 +86,13 @@ current state through ConnectRPC.
 **Decision:** Snapshot frames contain authorized current resources. The
 subscription acknowledgement tells the client to replace local state, resource
 chunks carry the snapshot, and `caught_up` marks its complete boundary.
-Snapshots do not contain synthetic domain events.
+Each chunk reuses the public resource or response protobuf from ConnectRPC.
+Snapshots do not contain synthetic domain events. Normal event frames contain
+only the canonical event and optional cursor.
 **Why:** Resource chunks let the frontend bootstrap incrementally without
 turning current state into fake history or exposing frontend cache operations.
-**Tradeoff:** Snapshot clients need a separate reducer for current-state chunks.
+**Tradeoff:** Snapshot clients need a separate reducer for current-state chunks
+and must use ConnectRPC for timelines and other large or lazy reads.
 
 ### 5. Durable and transient activity have different recovery
 

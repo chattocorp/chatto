@@ -55,7 +55,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;
     if (!currentStore.realtimeSync.hasUsableProjection) return undefined;
-    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId)?.room;
+    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
     const room = mapDirectoryRoomDetails(projectedRoom);
     // A stale projection can render known rooms immediately, but absence is
     // not authoritative until the activation catch-up reaches caught_up.

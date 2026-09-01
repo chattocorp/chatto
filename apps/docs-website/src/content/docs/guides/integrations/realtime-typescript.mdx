@@ -232,9 +232,10 @@ export class ChattoRealtimeClient {
 
       case "event": {
         const event = frame.frame.value;
-        if (!this.#seenEventIds.has(event.id)) {
+        const eventId = event.event?.id;
+        if (eventId && !this.#seenEventIds.has(eventId)) {
           await this.onEvent(event);
-          this.#seenEventIds.add(event.id);
+          this.#seenEventIds.add(eventId);
         }
         // Save the cursor only after the complete handler succeeds. An unknown
         // additive event variant can be ignored and still advance this cursor.
@@ -244,9 +245,9 @@ export class ChattoRealtimeClient {
         return;
       }
 
-      case "state":
-        // A live-only bot can ignore reconciliation state. A projection client
-        // applies the state oneof here.
+      case "snapshot":
+        // A live-only bot can ignore snapshot resources. A projection client
+        // applies the ServerSnapshotChunk resource oneof here.
         return;
 
       case "caughtUp":
@@ -354,27 +355,26 @@ indefinite durable queue.
 
 A projection client selects `RealtimeInitialState.SNAPSHOT`. When
 `subscribed.recoveryMode` is `SNAPSHOT`, clear realtime-owned state. Apply each
-standalone `state` frame until `caught_up`. Apply the `state` items attached to
-later events before you save that event's cursor.
-
-Use `hydrate_room` when the client needs complete current member IDs and a
-recent room timeline. Wait for both standalone `room` and `roomTimeline` state
-items before you add that room to the retained set. Send confirmed retained
-IDs in the next subscription.
+standalone `snapshot` frame until `caught_up`. Each frame contains a
+`ServerSnapshotChunk` whose oneof value is an existing public resource or
+ConnectRPC response protobuf. List chunks replace their complete resource
+family.
 
 Do not infer old history from the realtime stream. Use ConnectRPC for commands,
-explicit reads, old room or thread history, paginated lists, and searches.
+explicit reads, room or thread history, paginated lists, files, pins, and
+searches. Treat canonical events as refresh hints for resources that the
+client has loaded.
 
 <CardGrid>
   <LinkCard
     title="Realtime Overview"
     href="/guides/integrations/realtime-protocol/"
-    description="Review event, snapshot, cursor, hydration, and reconnect semantics."
+    description="Review event, resource snapshot, cursor, and reconnect semantics."
   />
   <LinkCard
     title="Realtime Frame Reference"
     href="/reference/connectrpc-api/realtime/"
-    description="Read every protobuf frame, event, state item, and enum."
+    description="Read every protobuf frame, event wrapper, snapshot chunk, and enum."
   />
   <LinkCard
     title="Integrating With Chatto"

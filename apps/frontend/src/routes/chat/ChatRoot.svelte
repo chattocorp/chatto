@@ -105,9 +105,9 @@
     useProjectionEvent(
       (event) => {
         if (event.reset) rootProfileCache.clear();
-        for (const stateItem of event.state) {
-          if (stateItem.state.case === 'user') {
-            const member = mapDirectoryMember(stateItem.state.value);
+        if (event.snapshot?.resource.case === 'users') {
+          for (const entry of event.snapshot.resource.value.users) {
+            const member = mapDirectoryMember(entry);
             if (!member.id) continue;
             rootProfileCache.update(
               member.id,
@@ -117,8 +117,9 @@
               member.customStatus,
               { bio: member.bio ?? null, timezone: member.timezone ?? null }
             );
-          } else if (stateItem.state.case === 'viewer') {
-            const viewer = viewerResponseToState(stateItem.state.value);
+          }
+        } else if (event.snapshot?.resource.case === 'viewer') {
+            const viewer = viewerResponseToState(event.snapshot.resource.value);
             session.currentUser.user = viewer.user;
             rootProfileCache.update(
               viewer.user.id,
@@ -128,9 +129,14 @@
               viewer.user.customStatus ?? null,
               { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
             );
-          } else if (stateItem.state.case === 'userRemoved') {
-            rootProfileCache.remove(stateItem.state.value.userId);
-          }
+        }
+        const semantic = event.event?.event;
+        if (
+          semantic?.case === 'userAccountDeleted' ||
+          semantic?.case === 'serverMemberDeleted' ||
+          semantic?.case === 'serverMemberDeletedSync'
+        ) {
+          rootProfileCache.remove(semantic.value.userId);
         }
       },
       () => session.serverId

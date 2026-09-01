@@ -30,20 +30,21 @@ Publishing all events to JetStream would waste storage on high-frequency transie
 Split events into two channels based on persistence:
 
 1. **JetStream events** (messages, joins, leaves, room lifecycle, reactions): Originally published to `space.{id}.>` subjects on a persisted per-space stream; currently published as durable `EVT` facts and exposed internally through `live.evt.>`.
-2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `livev1.LiveEvent` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions.
+2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as canonical `evtv1.Event` messages under `live.sync.>`. Not stored. Consumed via plain NATS subscriptions. A temporary `livev1.LiveEvent` wire view supports mixed-version replacement.
 
 The realtime delivery layer merges both internal channels, then maps authorized
 input to the public protocol. Durable facts with a public meaning become
 semantic public events. Genuinely non-replayable activity, such as typing and
 presence transitions, becomes transient public events. Latest-value
-invalidations can update the current-state snapshot or produce a semantic
-public change. Internal `livev1.LiveEvent` variants are triggers, not a public
-event schema. See ADR-076, ADR-077, and ADR-087.
+invalidations produce semantic public events; clients can then use canonical
+snapshot resources or ConnectRPC reads to refresh current state. The temporary
+`livev1.LiveEvent` variants are wire-compatibility views, not a public event
+schema. See ADR-076, ADR-077, ADR-087, and ADR-088.
 
 ## Consequences
 
 - **Efficient storage**: High-frequency transient events don't accumulate in JetStream streams. A busy space with constant typing indicators doesn't bloat its event stream.
 - **Appropriate delivery guarantees**: Messages get ordered, durable delivery. Typing indicators get fire-and-forget delivery, which is correct — a missed typing indicator is harmless.
-- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The process-wide hub consumes `live.evt.>` and `live.sync.>` and maps both to semantic public events or current-state snapshot changes.
-- **Delivery mapping must stay explicit**: Every new live signal must be registered in the hub/realtime mapping path so delivery can extract its authorization scope and decide whether it emits a durable semantic event, updates current snapshot state, or emits a transient public event. Missing mappings can hide otherwise-valid changes from clients, so live-signal changes need tests at the delivery boundary.
+- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The process-wide hub consumes `live.evt.>` and `live.sync.>` and maps both to authorized canonical events.
+- **Delivery mapping must stay explicit**: Every new live signal must be registered in the hub/realtime mapping path so delivery can extract its authorization scope and decide whether it emits a durable or transient public event. Missing mappings can hide otherwise-valid changes from clients, so live-signal changes need tests at the delivery boundary.
 - **New event types require a channel decision**: When adding a new event type, developers must decide whether it belongs in JetStream (persistent, ordered) or NATS Core (ephemeral, best-effort). This is an explicit architectural choice, not a default.

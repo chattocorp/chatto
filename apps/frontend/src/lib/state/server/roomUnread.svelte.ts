@@ -100,7 +100,7 @@ export class RoomUnreadStore {
     if (this.optimisticReadRooms.has(roomId)) return false;
     const override = this.roomOverrides.get(roomId);
     if (override !== undefined) return override;
-    return this.getProjection?.().rooms.get(roomId)?.room?.viewerState?.hasUnread ?? false;
+    return this.getProjection?.().rooms.get(roomId)?.viewerState?.hasUnread ?? false;
   }
 
   captureSnapshotRevision(): number {

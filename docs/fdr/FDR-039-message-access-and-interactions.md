@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -48,9 +48,9 @@ DM membership continues to authorize complete DM reads.
   each complete thread through the thread API.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
-- The normal realtime protocol carries authorized updates for retained room
-  timelines. A client that knows a thread root can use the thread API to get
-  complete context.
+- The normal realtime protocol carries authorized semantic message events.
+  Room and thread timelines use the paginated ConnectRPC APIs. A client that
+  knows a thread root can use the thread API to get complete context.
 - The normal realtime protocol also carries authorized semantic events for
   message edits, reactions, room changes, membership changes, and notification
   state. A bot can filter these events and use ConnectRPC when it needs more

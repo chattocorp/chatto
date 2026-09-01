@@ -5,17 +5,8 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { ServerSnapshotChunk } from "../../api/v1/server_snapshot_pb.js";
 import { Event } from "../../core/evt/v1/event_pb.js";
-import { ServerPublicProfile } from "../../api/v1/server_pb.js";
-import { GetViewerResponse } from "../../api/v1/viewer_pb.js";
-import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
-import { ServerRuntimeConfig } from "../../api/v1/server_state_pb.js";
-import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
-import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
-import { ListNotificationOccurrencesResponse } from "../../api/v1/notifications_pb.js";
-import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { PresenceStatus } from "../../api/v1/presence_pb.js";
-import { ThreadViewerState } from "../../api/v1/message_types_pb.js";
 
 /**
  * Current-state behavior when a subscription cannot resume from its cursor.
@@ -72,14 +63,14 @@ export enum RealtimeRecoveryMode {
   LIVE_ONLY = 1,
 
   /**
-   * Current-state items replace the client's local projection.
+   * Resource chunks replace the client's local snapshot.
    *
    * @generated from enum value: REALTIME_RECOVERY_MODE_SNAPSHOT = 2;
    */
   SNAPSHOT = 2,
 
   /**
-   * Durable canonical events resume after the supplied cursor.
+   * Current resource chunks precede durable events after the supplied cursor.
    *
    * @generated from enum value: REALTIME_RECOVERY_MODE_RESUME = 3;
    */
@@ -130,14 +121,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
      */
     value: RealtimePing;
     case: "ping";
-  } | {
-    /**
-     * Requests current state for one joined room's recent timeline.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeHydrateRoom hydrate_room = 4;
-     */
-    value: RealtimeHydrateRoom;
-    case: "hydrateRoom";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeClientFrame>) {
@@ -151,7 +134,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     { no: 1, name: "hello", kind: "message", T: RealtimeClientHello, oneof: "frame" },
     { no: 2, name: "subscribe_events", kind: "message", T: RealtimeSubscribeEvents, oneof: "frame" },
     { no: 3, name: "ping", kind: "message", T: RealtimePing, oneof: "frame" },
-    { no: 4, name: "hydrate_room", kind: "message", T: RealtimeHydrateRoom, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientFrame {
@@ -246,12 +228,12 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "caughtUp";
   } | {
     /**
-     * One authorized current-state item during snapshot or reconciliation.
+     * One authorized resource family during snapshot or reconciliation.
      *
-     * @generated from field: chatto.realtime.v1.RealtimeStateItem state = 9;
+     * @generated from field: chatto.api.v1.ServerSnapshotChunk snapshot = 9;
      */
-    value: RealtimeStateItem;
-    case: "state";
+    value: ServerSnapshotChunk;
+    case: "snapshot";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeServerFrame>) {
@@ -270,7 +252,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     { no: 6, name: "close", kind: "message", T: RealtimeClose, oneof: "frame" },
     { no: 7, name: "pong", kind: "message", T: RealtimePong, oneof: "frame" },
     { no: 8, name: "caught_up", kind: "message", T: RealtimeCaughtUp, oneof: "frame" },
-    { no: 9, name: "state", kind: "message", T: RealtimeStateItem, oneof: "frame" },
+    { no: 9, name: "snapshot", kind: "message", T: ServerSnapshotChunk, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerFrame {
@@ -413,15 +395,6 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   resumeCursor?: string;
 
   /**
-   * Joined rooms whose recent timeline state the client retains. This affects
-   * snapshot and state hydration only. It never filters canonical events. At
-   * most 64 room IDs may be supplied.
-   *
-   * @generated from field: repeated string retained_room_ids = 2;
-   */
-  retainedRoomIds: string[] = [];
-
-  /**
    * Required fallback when the cursor is absent or cannot resume safely.
    *
    * @generated from field: chatto.realtime.v1.RealtimeInitialState initial_state = 3;
@@ -437,7 +410,6 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   static readonly typeName = "chatto.realtime.v1.RealtimeSubscribeEvents";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "retained_room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 3, name: "initial_state", kind: "enum", T: proto3.getEnumType(RealtimeInitialState) },
   ]);
 
@@ -455,52 +427,6 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
 
   static equals(a: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined, b: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined): boolean {
     return proto3.util.equals(RealtimeSubscribeEvents, a, b);
-  }
-}
-
-/**
- * Requests current room and recent timeline state for one joined room.
- *
- * The server replies with `state` frames containing `room` and
- * `room_timeline`. Once hydrated, later canonical events can include current
- * timeline rows for that room. A connection can retain at most 64 distinct
- * room IDs.
- *
- * @generated from message chatto.realtime.v1.RealtimeHydrateRoom
- */
-export class RealtimeHydrateRoom extends Message<RealtimeHydrateRoom> {
-  /**
-   * Joined room to materialize. Repeating a retained room is idempotent.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RealtimeHydrateRoom>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeHydrateRoom";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeHydrateRoom {
-    return new RealtimeHydrateRoom().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeHydrateRoom {
-    return new RealtimeHydrateRoom().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeHydrateRoom {
-    return new RealtimeHydrateRoom().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeHydrateRoom | PlainMessage<RealtimeHydrateRoom> | undefined, b: RealtimeHydrateRoom | PlainMessage<RealtimeHydrateRoom> | undefined): boolean {
-    return proto3.util.equals(RealtimeHydrateRoom, a, b);
   }
 }
 
@@ -556,8 +482,8 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
 /**
  * Confirms that recovery is complete and live delivery has begun.
  *
- * Clients can retain `cursor` after they apply every preceding event and state
- * item. Transient events are never replayed.
+ * Clients can retain `cursor` after they apply every preceding event and
+ * resource chunk. Transient events are never replayed.
  *
  * @generated from message chatto.realtime.v1.RealtimeCaughtUp
  */
@@ -598,7 +524,7 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
 }
 
 /**
- * One authorized event and optional current-state sidecars.
+ * One authorized canonical event.
  *
  * `event` uses the same canonical shape as EVT and transient NATS Core
  * delivery. The server creates a fresh caller-specific value and omits events
@@ -622,14 +548,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
    */
   resumeCursor?: string;
 
-  /**
-   * Authorized current resources caused or invalidated by this event. Clients
-   * that do not maintain a projection can ignore these items.
-   *
-   * @generated from field: repeated chatto.realtime.v1.RealtimeStateItem state = 3;
-   */
-  state: RealtimeStateItem[] = [];
-
   constructor(data?: PartialMessage<RealtimeEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -640,7 +558,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "event", kind: "message", T: Event },
     { no: 2, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "state", kind: "message", T: RealtimeStateItem, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {
@@ -657,944 +574,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
 
   static equals(a: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined, b: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined): boolean {
     return proto3.util.equals(RealtimeEvent, a, b);
-  }
-}
-
-/**
- * One authorized current-state item.
- *
- * Snapshot subscriptions receive these items between `subscribed` and
- * `caught_up`. Semantic events can also include items that show current state
- * after the event. An item is current state, not a historical event.
- *
- * @generated from message chatto.realtime.v1.RealtimeStateItem
- */
-export class RealtimeStateItem extends Message<RealtimeStateItem> {
-  /**
-   * @generated from oneof chatto.realtime.v1.RealtimeStateItem.state
-   */
-  state: {
-    /**
-     * Current public server profile.
-     *
-     * @generated from field: chatto.api.v1.ServerPublicProfile server = 1;
-     */
-    value: ServerPublicProfile;
-    case: "server";
-  } | {
-    /**
-     * Current authenticated server runtime state.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeServerState server_state = 2;
-     */
-    value: RealtimeServerState;
-    case: "serverState";
-  } | {
-    /**
-     * Current authenticated viewer resource.
-     *
-     * @generated from field: chatto.api.v1.GetViewerResponse viewer = 3;
-     */
-    value: GetViewerResponse;
-    case: "viewer";
-  } | {
-    /**
-     * One current visible user.
-     *
-     * @generated from field: chatto.api.v1.DirectoryMember user = 4;
-     */
-    value: DirectoryMember;
-    case: "user";
-  } | {
-    /**
-     * One user that is no longer visible.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeUserRemovedState user_removed = 5;
-     */
-    value: RealtimeUserRemovedState;
-    case: "userRemoved";
-  } | {
-    /**
-     * One current visible room.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomState room = 6;
-     */
-    value: RealtimeRoomState;
-    case: "room";
-  } | {
-    /**
-     * One room that is no longer visible.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomRemovedState room_removed = 7;
-     */
-    value: RealtimeRoomRemovedState;
-    case: "roomRemoved";
-  } | {
-    /**
-     * Complete visible room-group layout.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomGroupsState room_groups = 8;
-     */
-    value: RealtimeRoomGroupsState;
-    case: "roomGroups";
-  } | {
-    /**
-     * Complete recent timeline for one retained room.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomTimelineState room_timeline = 9;
-     */
-    value: RealtimeRoomTimelineState;
-    case: "roomTimeline";
-  } | {
-    /**
-     * One current event row in a retained room timeline.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomTimelineEventState room_timeline_event = 10;
-     */
-    value: RealtimeRoomTimelineEventState;
-    case: "roomTimelineEvent";
-  } | {
-    /**
-     * One projection-only timeline row that is now absent.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomTimelineEventRemovedState room_timeline_event_removed = 11;
-     */
-    value: RealtimeRoomTimelineEventRemovedState;
-    case: "roomTimelineEventRemoved";
-  } | {
-    /**
-     * Complete finite notification state for the viewer.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeNotificationsState notifications = 12;
-     */
-    value: RealtimeNotificationsState;
-    case: "notifications";
-  } | {
-    /**
-     * Complete authorization and read state for one room.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomViewerState room_viewer = 13;
-     */
-    value: RealtimeRoomViewerState;
-    case: "roomViewer";
-  } | {
-    /**
-     * Complete current active-call state visible to the viewer.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeActiveCallsState active_calls = 14;
-     */
-    value: RealtimeActiveCallsState;
-    case: "activeCalls";
-  } | {
-    /**
-     * Complete latest-value presence state for visible users.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimePresencesState presences = 15;
-     */
-    value: RealtimePresencesState;
-    case: "presences";
-  } | {
-    /**
-     * Complete current followed-thread viewer state.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeThreadViewerStatesState thread_viewer_states = 16;
-     */
-    value: RealtimeThreadViewerStatesState;
-    case: "threadViewerStates";
-  } | {
-    /**
-     * Focused volatile unread and Slow Mode state for one room.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomViewerActivityState room_viewer_activity = 17;
-     */
-    value: RealtimeRoomViewerActivityState;
-    case: "roomViewerActivity";
-  } | { case: undefined; value?: undefined } = { case: undefined };
-
-  constructor(data?: PartialMessage<RealtimeStateItem>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeStateItem";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "server", kind: "message", T: ServerPublicProfile, oneof: "state" },
-    { no: 2, name: "server_state", kind: "message", T: RealtimeServerState, oneof: "state" },
-    { no: 3, name: "viewer", kind: "message", T: GetViewerResponse, oneof: "state" },
-    { no: 4, name: "user", kind: "message", T: DirectoryMember, oneof: "state" },
-    { no: 5, name: "user_removed", kind: "message", T: RealtimeUserRemovedState, oneof: "state" },
-    { no: 6, name: "room", kind: "message", T: RealtimeRoomState, oneof: "state" },
-    { no: 7, name: "room_removed", kind: "message", T: RealtimeRoomRemovedState, oneof: "state" },
-    { no: 8, name: "room_groups", kind: "message", T: RealtimeRoomGroupsState, oneof: "state" },
-    { no: 9, name: "room_timeline", kind: "message", T: RealtimeRoomTimelineState, oneof: "state" },
-    { no: 10, name: "room_timeline_event", kind: "message", T: RealtimeRoomTimelineEventState, oneof: "state" },
-    { no: 11, name: "room_timeline_event_removed", kind: "message", T: RealtimeRoomTimelineEventRemovedState, oneof: "state" },
-    { no: 12, name: "notifications", kind: "message", T: RealtimeNotificationsState, oneof: "state" },
-    { no: 13, name: "room_viewer", kind: "message", T: RealtimeRoomViewerState, oneof: "state" },
-    { no: 14, name: "active_calls", kind: "message", T: RealtimeActiveCallsState, oneof: "state" },
-    { no: 15, name: "presences", kind: "message", T: RealtimePresencesState, oneof: "state" },
-    { no: 16, name: "thread_viewer_states", kind: "message", T: RealtimeThreadViewerStatesState, oneof: "state" },
-    { no: 17, name: "room_viewer_activity", kind: "message", T: RealtimeRoomViewerActivityState, oneof: "state" },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeStateItem {
-    return new RealtimeStateItem().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeStateItem {
-    return new RealtimeStateItem().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeStateItem {
-    return new RealtimeStateItem().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeStateItem | PlainMessage<RealtimeStateItem> | undefined, b: RealtimeStateItem | PlainMessage<RealtimeStateItem> | undefined): boolean {
-    return proto3.util.equals(RealtimeStateItem, a, b);
-  }
-}
-
-/**
- * Authenticated server state required by signed-in clients.
- *
- * @generated from message chatto.realtime.v1.RealtimeServerState
- */
-export class RealtimeServerState extends Message<RealtimeServerState> {
-  /**
-   * Current message of the day, when configured.
-   *
-   * @generated from field: optional string motd = 1;
-   */
-  motd?: string;
-
-  /**
-   * Current authenticated runtime configuration.
-   *
-   * @generated from field: chatto.api.v1.ServerRuntimeConfig runtime = 2;
-   */
-  runtime?: ServerRuntimeConfig;
-
-  constructor(data?: PartialMessage<RealtimeServerState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeServerState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "runtime", kind: "message", T: ServerRuntimeConfig },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerState {
-    return new RealtimeServerState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeServerState {
-    return new RealtimeServerState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeServerState {
-    return new RealtimeServerState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeServerState | PlainMessage<RealtimeServerState> | undefined, b: RealtimeServerState | PlainMessage<RealtimeServerState> | undefined): boolean {
-    return proto3.util.equals(RealtimeServerState, a, b);
-  }
-}
-
-/**
- * Lightweight current room state visible to the caller.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomState
- */
-export class RealtimeRoomState extends Message<RealtimeRoomState> {
-  /**
-   * Canonical room and viewer-specific state.
-   *
-   * @generated from field: chatto.api.v1.RoomWithViewerState room = 1;
-   */
-  room?: RoomWithViewerState;
-
-  /**
-   * Complete member user IDs when this room's membership is hydrated.
-   *
-   * @generated from field: repeated string member_user_ids = 2;
-   */
-  memberUserIds: string[] = [];
-
-  /**
-   * Whether this DM has ever received a root message. Absent for channels.
-   *
-   * @generated from field: optional bool has_message_history = 3;
-   */
-  hasMessageHistory?: boolean;
-
-  constructor(data?: PartialMessage<RealtimeRoomState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: RoomWithViewerState },
-    { no: 2, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 3, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomState {
-    return new RealtimeRoomState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomState {
-    return new RealtimeRoomState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomState {
-    return new RealtimeRoomState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomState | PlainMessage<RealtimeRoomState> | undefined, b: RealtimeRoomState | PlainMessage<RealtimeRoomState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomState, a, b);
-  }
-}
-
-/**
- * Current-state absence of one user.
- *
- * @generated from message chatto.realtime.v1.RealtimeUserRemovedState
- */
-export class RealtimeUserRemovedState extends Message<RealtimeUserRemovedState> {
-  /**
-   * User ID to remove from projected state.
-   *
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  constructor(data?: PartialMessage<RealtimeUserRemovedState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeUserRemovedState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUserRemovedState {
-    return new RealtimeUserRemovedState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUserRemovedState {
-    return new RealtimeUserRemovedState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUserRemovedState {
-    return new RealtimeUserRemovedState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeUserRemovedState | PlainMessage<RealtimeUserRemovedState> | undefined, b: RealtimeUserRemovedState | PlainMessage<RealtimeUserRemovedState> | undefined): boolean {
-    return proto3.util.equals(RealtimeUserRemovedState, a, b);
-  }
-}
-
-/**
- * Current-state absence of one room.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomRemovedState
- */
-export class RealtimeRoomRemovedState extends Message<RealtimeRoomRemovedState> {
-  /**
-   * Room ID to remove from projected state.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RealtimeRoomRemovedState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomRemovedState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomRemovedState {
-    return new RealtimeRoomRemovedState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomRemovedState {
-    return new RealtimeRoomRemovedState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomRemovedState {
-    return new RealtimeRoomRemovedState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomRemovedState | PlainMessage<RealtimeRoomRemovedState> | undefined, b: RealtimeRoomRemovedState | PlainMessage<RealtimeRoomRemovedState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomRemovedState, a, b);
-  }
-}
-
-/**
- * Complete visible room-group layout.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomGroupsState
- */
-export class RealtimeRoomGroupsState extends Message<RealtimeRoomGroupsState> {
-  /**
-   * All visible room groups in display order.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomGroup groups = 1;
-   */
-  groups: RoomGroup[] = [];
-
-  constructor(data?: PartialMessage<RealtimeRoomGroupsState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomGroupsState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "groups", kind: "message", T: RoomGroup, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomGroupsState {
-    return new RealtimeRoomGroupsState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsState {
-    return new RealtimeRoomGroupsState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsState {
-    return new RealtimeRoomGroupsState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomGroupsState | PlainMessage<RealtimeRoomGroupsState> | undefined, b: RealtimeRoomGroupsState | PlainMessage<RealtimeRoomGroupsState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomGroupsState, a, b);
-  }
-}
-
-/**
- * Complete retained recent timeline window for one room.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomTimelineState
- */
-export class RealtimeRoomTimelineState extends Message<RealtimeRoomTimelineState> {
-  /**
-   * Room that owns this timeline.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Current recent timeline page.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelinePage page = 2;
-   */
-  page?: RoomTimelinePage;
-
-  /**
-   * Opaque pagination cursor for each included event ID.
-   *
-   * @generated from field: map<string, string> event_cursors = 3;
-   */
-  eventCursors: { [key: string]: string } = {};
-
-  constructor(data?: PartialMessage<RealtimeRoomTimelineState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomTimelineState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "page", kind: "message", T: RoomTimelinePage },
-    { no: 3, name: "event_cursors", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "scalar", T: 9 /* ScalarType.STRING */} },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomTimelineState {
-    return new RealtimeRoomTimelineState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineState {
-    return new RealtimeRoomTimelineState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineState {
-    return new RealtimeRoomTimelineState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomTimelineState | PlainMessage<RealtimeRoomTimelineState> | undefined, b: RealtimeRoomTimelineState | PlainMessage<RealtimeRoomTimelineState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomTimelineState, a, b);
-  }
-}
-
-/**
- * Current renderable state for one retained timeline event.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomTimelineEventState
- */
-export class RealtimeRoomTimelineEventState extends Message<RealtimeRoomTimelineEventState> {
-  /**
-   * Room that owns this timeline row.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Current renderable timeline event.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineEvent event = 2;
-   */
-  event?: RoomTimelineEvent;
-
-  /**
-   * Related render data for this row.
-   *
-   * @generated from field: chatto.api.v1.RoomTimelineIncludes includes = 3;
-   */
-  includes?: RoomTimelineIncludes;
-
-  /**
-   * Keep a deleted tombstone row instead of removing it.
-   *
-   * @generated from field: bool retain_deleted_row = 4;
-   */
-  retainDeletedRow = false;
-
-  /**
-   * Opaque pagination cursor for this timeline row.
-   *
-   * @generated from field: string event_cursor = 5;
-   */
-  eventCursor = "";
-
-  constructor(data?: PartialMessage<RealtimeRoomTimelineEventState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomTimelineEventState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "event", kind: "message", T: RoomTimelineEvent },
-    { no: 3, name: "includes", kind: "message", T: RoomTimelineIncludes },
-    { no: 4, name: "retain_deleted_row", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "event_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomTimelineEventState {
-    return new RealtimeRoomTimelineEventState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineEventState {
-    return new RealtimeRoomTimelineEventState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineEventState {
-    return new RealtimeRoomTimelineEventState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomTimelineEventState | PlainMessage<RealtimeRoomTimelineEventState> | undefined, b: RealtimeRoomTimelineEventState | PlainMessage<RealtimeRoomTimelineEventState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomTimelineEventState, a, b);
-  }
-}
-
-/**
- * Current-state absence of one projection-only timeline row.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomTimelineEventRemovedState
- */
-export class RealtimeRoomTimelineEventRemovedState extends Message<RealtimeRoomTimelineEventRemovedState> {
-  /**
-   * Room that owned the projection-only row.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Timeline event ID to remove.
-   *
-   * @generated from field: string event_id = 2;
-   */
-  eventId = "";
-
-  constructor(data?: PartialMessage<RealtimeRoomTimelineEventRemovedState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomTimelineEventRemovedState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomTimelineEventRemovedState {
-    return new RealtimeRoomTimelineEventRemovedState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineEventRemovedState {
-    return new RealtimeRoomTimelineEventRemovedState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomTimelineEventRemovedState {
-    return new RealtimeRoomTimelineEventRemovedState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomTimelineEventRemovedState | PlainMessage<RealtimeRoomTimelineEventRemovedState> | undefined, b: RealtimeRoomTimelineEventRemovedState | PlainMessage<RealtimeRoomTimelineEventRemovedState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomTimelineEventRemovedState, a, b);
-  }
-}
-
-/**
- * Complete finite notification state for the authenticated viewer.
- *
- * @generated from message chatto.realtime.v1.RealtimeNotificationsState
- */
-export class RealtimeNotificationsState extends Message<RealtimeNotificationsState> {
-  /**
-   * Whether this live update can play one notification sound.
-   *
-   * @generated from field: bool play_notification_sound = 1;
-   */
-  playNotificationSound = false;
-
-  /**
-   * Current finite notification occurrences and aggregate counts.
-   *
-   * @generated from field: chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 2;
-   */
-  occurrences?: ListNotificationOccurrencesResponse;
-
-  constructor(data?: PartialMessage<RealtimeNotificationsState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeNotificationsState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "play_notification_sound", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "occurrences", kind: "message", T: ListNotificationOccurrencesResponse },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeNotificationsState {
-    return new RealtimeNotificationsState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeNotificationsState {
-    return new RealtimeNotificationsState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeNotificationsState {
-    return new RealtimeNotificationsState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeNotificationsState | PlainMessage<RealtimeNotificationsState> | undefined, b: RealtimeNotificationsState | PlainMessage<RealtimeNotificationsState> | undefined): boolean {
-    return proto3.util.equals(RealtimeNotificationsState, a, b);
-  }
-}
-
-/**
- * Current viewer state for one room.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomViewerState
- */
-export class RealtimeRoomViewerState extends Message<RealtimeRoomViewerState> {
-  /**
-   * Affected room ID.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Complete current viewer state for the room.
-   *
-   * @generated from field: chatto.api.v1.RoomViewerState viewer_state = 2;
-   */
-  viewerState?: RoomViewerState;
-
-  constructor(data?: PartialMessage<RealtimeRoomViewerState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomViewerState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "viewer_state", kind: "message", T: RoomViewerState },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomViewerState {
-    return new RealtimeRoomViewerState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomViewerState {
-    return new RealtimeRoomViewerState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomViewerState {
-    return new RealtimeRoomViewerState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomViewerState | PlainMessage<RealtimeRoomViewerState> | undefined, b: RealtimeRoomViewerState | PlainMessage<RealtimeRoomViewerState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomViewerState, a, b);
-  }
-}
-
-/**
- * Volatile viewer activity state for one room.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomViewerActivityState
- */
-export class RealtimeRoomViewerActivityState extends Message<RealtimeRoomViewerActivityState> {
-  /**
-   * Affected room ID.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Whether the room currently has unread activity.
-   *
-   * @generated from field: bool has_unread = 2;
-   */
-  hasUnread = false;
-
-  /**
-   * Earliest next post time under Slow Mode, when limited.
-   *
-   * @generated from field: google.protobuf.Timestamp slow_mode_next_post_at = 3;
-   */
-  slowModeNextPostAt?: Timestamp;
-
-  constructor(data?: PartialMessage<RealtimeRoomViewerActivityState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomViewerActivityState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomViewerActivityState {
-    return new RealtimeRoomViewerActivityState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomViewerActivityState {
-    return new RealtimeRoomViewerActivityState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomViewerActivityState {
-    return new RealtimeRoomViewerActivityState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomViewerActivityState | PlainMessage<RealtimeRoomViewerActivityState> | undefined, b: RealtimeRoomViewerActivityState | PlainMessage<RealtimeRoomViewerActivityState> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomViewerActivityState, a, b);
-  }
-}
-
-/**
- * Complete current active-call state visible to the caller.
- *
- * @generated from message chatto.realtime.v1.RealtimeActiveCallsState
- */
-export class RealtimeActiveCallsState extends Message<RealtimeActiveCallsState> {
-  /**
-   * All active calls visible to the viewer.
-   *
-   * @generated from field: repeated chatto.api.v1.ActiveCall calls = 1;
-   */
-  calls: ActiveCall[] = [];
-
-  constructor(data?: PartialMessage<RealtimeActiveCallsState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeActiveCallsState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "calls", kind: "message", T: ActiveCall, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeActiveCallsState {
-    return new RealtimeActiveCallsState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeActiveCallsState {
-    return new RealtimeActiveCallsState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeActiveCallsState {
-    return new RealtimeActiveCallsState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeActiveCallsState | PlainMessage<RealtimeActiveCallsState> | undefined, b: RealtimeActiveCallsState | PlainMessage<RealtimeActiveCallsState> | undefined): boolean {
-    return proto3.util.equals(RealtimeActiveCallsState, a, b);
-  }
-}
-
-/**
- * Complete latest-value presence state for the projected user directory.
- *
- * @generated from message chatto.realtime.v1.RealtimePresencesState
- */
-export class RealtimePresencesState extends Message<RealtimePresencesState> {
-  /**
-   * Latest presence status keyed by visible user ID.
-   *
-   * @generated from field: map<string, chatto.api.v1.PresenceStatus> statuses = 1;
-   */
-  statuses: { [key: string]: PresenceStatus } = {};
-
-  constructor(data?: PartialMessage<RealtimePresencesState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimePresencesState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "statuses", kind: "map", K: 9 /* ScalarType.STRING */, V: {kind: "enum", T: proto3.getEnumType(PresenceStatus)} },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimePresencesState {
-    return new RealtimePresencesState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimePresencesState {
-    return new RealtimePresencesState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimePresencesState {
-    return new RealtimePresencesState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimePresencesState | PlainMessage<RealtimePresencesState> | undefined, b: RealtimePresencesState | PlainMessage<RealtimePresencesState> | undefined): boolean {
-    return proto3.util.equals(RealtimePresencesState, a, b);
-  }
-}
-
-/**
- * Complete current followed-thread viewer state.
- *
- * @generated from message chatto.realtime.v1.RealtimeThreadViewerStatesState
- */
-export class RealtimeThreadViewerStatesState extends Message<RealtimeThreadViewerStatesState> {
-  /**
-   * All current followed-thread viewer states.
-   *
-   * @generated from field: repeated chatto.realtime.v1.RealtimeThreadViewerState states = 1;
-   */
-  states: RealtimeThreadViewerState[] = [];
-
-  constructor(data?: PartialMessage<RealtimeThreadViewerStatesState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeThreadViewerStatesState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "states", kind: "message", T: RealtimeThreadViewerState, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeThreadViewerStatesState {
-    return new RealtimeThreadViewerStatesState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeThreadViewerStatesState {
-    return new RealtimeThreadViewerStatesState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeThreadViewerStatesState {
-    return new RealtimeThreadViewerStatesState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeThreadViewerStatesState | PlainMessage<RealtimeThreadViewerStatesState> | undefined, b: RealtimeThreadViewerStatesState | PlainMessage<RealtimeThreadViewerStatesState> | undefined): boolean {
-    return proto3.util.equals(RealtimeThreadViewerStatesState, a, b);
-  }
-}
-
-/**
- * Current viewer state for one followed thread root.
- *
- * @generated from message chatto.realtime.v1.RealtimeThreadViewerState
- */
-export class RealtimeThreadViewerState extends Message<RealtimeThreadViewerState> {
-  /**
-   * Room that contains the thread.
-   *
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * Stable message event ID of the thread root.
-   *
-   * @generated from field: string thread_root_event_id = 2;
-   */
-  threadRootEventId = "";
-
-  /**
-   * Current follow and unread state for the viewer.
-   *
-   * @generated from field: chatto.api.v1.ThreadViewerState viewer_state = 3;
-   */
-  viewerState?: ThreadViewerState;
-
-  constructor(data?: PartialMessage<RealtimeThreadViewerState>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeThreadViewerState";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "viewer_state", kind: "message", T: ThreadViewerState },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeThreadViewerState {
-    return new RealtimeThreadViewerState().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeThreadViewerState {
-    return new RealtimeThreadViewerState().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeThreadViewerState {
-    return new RealtimeThreadViewerState().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeThreadViewerState | PlainMessage<RealtimeThreadViewerState> | undefined, b: RealtimeThreadViewerState | PlainMessage<RealtimeThreadViewerState> | undefined): boolean {
-    return proto3.util.equals(RealtimeThreadViewerState, a, b);
   }
 }
 

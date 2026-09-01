@@ -30,7 +30,7 @@ function useServerEvent<Handler>(
   $effect(() => subscribe(selectServerId(), handler));
 }
 
-/** Subscribe to semantic events and canonical current-state items for one server. */
+/** Subscribe to canonical realtime events and snapshot resource updates for one server. */
 export function useProjectionEvent(
   handler: ProjectionHandler,
   getServerId?: ServerIdSelector

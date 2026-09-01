@@ -1,6 +1,6 @@
 ---
 title: Realtime Protocol Overview
-description: Receive canonical events, choose initial state, resume a short gap, and hydrate room state.
+description: Receive canonical events, apply resource snapshots, and resume a short gap.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -33,12 +33,11 @@ integration needs.
    you do not use a same-origin cookie.
 3. Wait for the server `hello`. Check that it accepts version `4`.
 4. Send `subscribe_events`. Select `SNAPSHOT` or `LIVE_ONLY` as the required
-   initial-state fallback. You can also include a safe resume cursor and the
-   IDs of room timelines that your projection retains.
+   initial-state fallback. You can also include a safe resume cursor.
 5. Read `subscribed.recovery_mode` to learn whether the server selected
    `SNAPSHOT`, `LIVE_ONLY`, or `RESUME`.
-6. Process events and state in order. The server sends `caught_up` when recovery
-   reaches the live boundary.
+6. Process resource snapshot chunks and events in order. The server sends
+   `caught_up` when recovery reaches the live boundary.
 7. Continue to process live events.
 
 The `subscribed` frame does not mean that recovery is complete. Treat the
@@ -51,12 +50,12 @@ ConnectRPC. If the cursor is absent or unusable, the server starts at a stated
 current boundary. It does not send old events or a state snapshot.
 
 Select `SNAPSHOT` for a client that keeps a server projection. If the cursor is
-absent or unusable, the server sends authorized current-state items before
+absent or unusable, the server sends authorized resource chunks before
 `caught_up`. The bundled frontend uses this mode.
 
 When a cursor is usable, both choices can result in `RESUME`. The server sends
-authorized durable events after that cursor, sends finite latest-value state,
-and then sends `caught_up`.
+current authorized resource chunks, authorized durable events after that
+cursor, and then `caught_up`.
 
 A cursor can become unusable because it is invalid, expired, too far behind,
 from another server history, or unsafe for current authorization. Fallback is
@@ -82,65 +81,48 @@ The canonical Event contains common metadata outside its event `oneof`:
 - source time;
 - a visible actor ID, when applicable.
 
-The `RealtimeEvent` transport wrapper contains the resume cursor for durable
-activity and optional current state. The canonical Event does not contain
+The `RealtimeEvent` transport wrapper contains only the canonical event and
+the resume cursor for durable activity. The canonical Event does not contain
 broker coordinates or a cursor.
 
 The server omits internal event variants and storage-only fields. It can add
 authorized delivery-only `_plaintext` fields. It never sends raw EVT bytes,
 ciphertext, credential data, subjects, or JetStream sequences.
 
-An event can also contain current `state` items. A bot can ignore this state
-and fetch resources through ConnectRPC. A projection client can apply it to
-converge without extra reads.
-
 Process one event as one unit:
 
 1. Decode the complete frame.
 2. Process the canonical variant that you understand.
-3. Apply any current-state items that your client uses.
-4. Save `resume_cursor` only after your processing succeeds.
+3. Save `resume_cursor` only after your processing succeeds.
 
 Delivery is at least once across reconnects. Use the stable event ID to
 deduplicate effects.
 
-New event and state variants are additive. You can ignore a variant that you
-do not use and still save the common cursor. If a complete top-level frame
-cannot be decoded, close the socket and keep the preceding cursor.
+New event variants are additive. You can ignore a variant that you do not use
+and still save the common cursor. If a complete top-level frame cannot be
+decoded, close the socket and keep the preceding cursor.
 
-## Apply snapshot state
+## Apply snapshot resources
 
 If `subscribed.recovery_mode` is `SNAPSHOT`, clear the state that the realtime
-projection owns. Then apply each standalone `state` frame until `caught_up`.
-These frames contain current resources, not historical events.
+projection owns. Then apply each standalone `snapshot` frame until
+`caught_up`. Each frame contains one `ServerSnapshotChunk`.
 
-Snapshot state can include the server, viewer, users, rooms, room groups,
-notifications, calls, presence, and retained room timelines. A state item can
-replace a finite set, upsert a resource, or report that a resource is absent.
+The chunk reuses an existing `chatto.api.v1` resource or response protobuf.
+The snapshot can contain the server profile, message of the day, runtime
+configuration, viewer, visible users, visible rooms, room-group layout,
+notification occurrences and counts, and active calls. A list chunk replaces
+that complete resource family. The room directory includes accessible empty
+DMs and identifies their members.
 
-Do not start parallel ConnectRPC refreshes for the same canonical state while
-you apply a snapshot. Use ConnectRPC for data that is not part of the snapshot,
-such as old history, searches, and command responses.
+The snapshot does not contain room or thread timelines. Read timeline pages
+through `RoomService` and `ThreadService`. Also use ConnectRPC for files, pins,
+searches, command results, and other large or lazy resources. Canonical events
+tell a projection client which loaded resource to refresh.
 
-## Retain room state only when needed
-
-The initial snapshot contains lightweight state for visible rooms. It does not
-contain every room member list or timeline. Send `hydrate_room` after
-`caught_up` when a client first needs a joined room's complete current member
-IDs and recent timeline.
-
-The server returns standalone `room` and `room_timeline` state frames. After
-you apply both, keep that room ID in your retained set and send the set in
-later subscriptions. One connection can retain at most 64 room timelines.
-
-Retained room IDs affect only current timeline state. They never filter
-canonical events. A bot receives an authorized message or reaction event even
-when it does not retain that room's timeline.
-
-Hydration admission errors are non-fatal. They identify the room and can
-include `retry_after_ms`. Retry that room after the delay. A
-`room_unavailable` result means that the room does not exist or the viewer
-cannot access it.
+Do not start a parallel ConnectRPC refresh for a resource family while you
+apply its snapshot chunk. A later event or read can refresh that family after
+the snapshot reaches `caught_up`.
 
 ## Detect a dead connection
 

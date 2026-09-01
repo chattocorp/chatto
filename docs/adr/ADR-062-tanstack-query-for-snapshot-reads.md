@@ -9,9 +9,9 @@ Accepted
 ## Context
 
 The frontend performs two materially different kinds of server-state work.
-The resumable realtime projection owns ordered, convergent state such as room
-summaries, retained timelines, notifications, presence, calls, and viewer
-permissions. Other screens issue independent ConnectRPC reads for bounded
+The resumable realtime projection owns ordered, convergent resource snapshots
+such as room summaries, notifications, presence, calls, and viewer
+permissions. Room and thread timelines and other screens use ConnectRPC reads for bounded
 snapshots such as filtered admin members, permission matrices, and event-log
 pages.
 
@@ -51,12 +51,12 @@ The cache has the following boundaries:
   Authentication, permission, invalid-argument, and not-found failures are not
   retried.
 
-TanStack Query does not own the server-scoped realtime projection, retained
-room or thread timelines, notifications and unread state, presence, active
-calls, message search, authentication, or expiring asset URLs. Those remain in
-their established per-server owners. Realtime reducers may explicitly update,
-invalidate, or remove a snapshot query, but a query must not become a second
-unordered copy of canonical projection state.
+TanStack Query does not own the server-scoped realtime resource snapshot,
+notifications and unread state, presence, active calls, room and thread
+timeline stores, message search, authentication, or expiring asset URLs. Those
+remain in their established per-server owners. Realtime reducers may
+explicitly update, invalidate, or remove a snapshot query, but a query must not
+become a second unordered copy of canonical projection state.
 
 The initial pilot applies this decision to admin member lists and details,
 permission matrices, and event-log lists and details. Other snapshot reads can

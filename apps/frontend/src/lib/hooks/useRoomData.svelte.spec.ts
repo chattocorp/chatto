@@ -34,26 +34,24 @@ function projectedRoom(
   return {
     memberUserIds: [roomId],
     room: {
-      room: {
-        id: roomId,
-        name: roomId,
-        description: '',
-        kind,
-        threadingMode,
-        archived: false,
-        universal: false
-      },
-      viewerState: {
-        isMember: true,
-        hasUnread: false,
-        permissions: [
-          { permission: 'message.post', granted: true },
-          { permission: 'message.post-in-thread', granted: true },
-          { permission: 'message.read', granted: true },
-          { permission: 'message.attach', granted: true },
-          { permission: 'message.react', granted: true }
-        ]
-      }
+      id: roomId,
+      name: roomId,
+      description: '',
+      kind,
+      threadingMode,
+      archived: false,
+      universal: false
+    },
+    viewerState: {
+      isMember: true,
+      hasUnread: false,
+      permissions: [
+        { permission: 'message.post', granted: true },
+        { permission: 'message.post-in-thread', granted: true },
+        { permission: 'message.read', granted: true },
+        { permission: 'message.attach', granted: true },
+        { permission: 'message.react', granted: true }
+      ]
     }
   };
 }

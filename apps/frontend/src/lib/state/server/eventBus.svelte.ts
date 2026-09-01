@@ -6,24 +6,22 @@
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type {
-  EventHandler,
-  ProjectionHandler,
-  EventBus,
-  RealtimeProjectionUpdate
+import {
+  RealtimeProjectionUpdate,
+  type EventHandler,
+  type ProjectionHandler,
+  type EventBus
 } from '$lib/eventBus.svelte';
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
   RealtimeClientHello,
-  RealtimeHydrateRoom,
   RealtimeInitialState,
   RealtimeRecoveryMode,
   RealtimeServerFrame,
   RealtimeSubscribeEvents,
-  type RealtimeEvent,
-  type RealtimeStateItem
+  type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
@@ -36,7 +34,6 @@ const RECONNECT_WAIT_MS = 5_000;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
-const HYDRATION_RETRY_FALLBACK_MS = 1_000;
 const FATAL_REALTIME_CLOSE_CODE = 4000;
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
@@ -69,7 +66,6 @@ type TransportController = {
   update(projectionSupported: boolean): void;
   setMode(mode: 'dormant' | 'live'): void;
   pollOnce(): Promise<boolean>;
-  hydrateRoom(roomId: string): void;
   cleanup(): void;
 };
 
@@ -102,24 +98,14 @@ function clientHelloFrame(token: string | null): Uint8Array {
   }).toBinary();
 }
 
-function subscribeEventsFrame(resumeCursor: string | null, retainedRoomIds: string[]): Uint8Array {
+function subscribeEventsFrame(resumeCursor: string | null): Uint8Array {
   return new RealtimeClientFrame({
     frame: {
       case: 'subscribeEvents',
       value: new RealtimeSubscribeEvents({
         resumeCursor: resumeCursor ?? undefined,
-        retainedRoomIds,
         initialState: RealtimeInitialState.SNAPSHOT
       })
-    }
-  }).toBinary();
-}
-
-function hydrateRoomFrame(roomId: string): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'hydrateRoom',
-      value: new RealtimeHydrateRoom({ roomId })
     }
   }).toBinary();
 }
@@ -188,9 +174,6 @@ class EventBusManager {
     let generation = 0;
     let socket: RealtimeSocket | null = null;
     let socketSubscribed = false;
-    let requestedRoomIds = new SvelteSet<string>();
-    let pendingHydrationRoomId: string | null = null;
-    let hydrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -213,43 +196,6 @@ class EventBusManager {
       reconnectTimer = null;
     };
 
-    const clearHydrationRetryTimer = () => {
-      if (!hydrationRetryTimer) return;
-      clearTimeout(hydrationRetryTimer);
-      hydrationRetryTimer = null;
-    };
-
-    const sendNextRoomHydration = () => {
-      if (!socketSubscribed || !socket || pendingHydrationRoomId || hydrationRetryTimer) return;
-      for (const roomId of sync.desiredRoomIds) {
-        if (requestedRoomIds.has(roomId)) continue;
-        requestedRoomIds.add(roomId);
-        pendingHydrationRoomId = roomId;
-        socket.send(hydrateRoomFrame(roomId));
-        return;
-      }
-    };
-
-    const finishRoomHydrationRequest = (roomId: string) => {
-      if (pendingHydrationRoomId !== roomId) return;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
-      sendNextRoomHydration();
-    };
-
-    const retryRoomHydration = (roomId: string, retryAfterMs: number | undefined) => {
-      if (pendingHydrationRoomId === roomId) pendingHydrationRoomId = null;
-      requestedRoomIds.delete(roomId);
-      clearHydrationRetryTimer();
-      hydrationRetryTimer = setTimeout(
-        () => {
-          hydrationRetryTimer = null;
-          sendNextRoomHydration();
-        },
-        Math.max(1, retryAfterMs ?? HYDRATION_RETRY_FALLBACK_MS)
-      );
-    };
-
     const resolvePoll = (caughtUp: boolean) => {
       if (pollTimeout) {
         clearTimeout(pollTimeout);
@@ -264,9 +210,6 @@ class EventBusManager {
       const current = socket;
       socket = null;
       socketSubscribed = false;
-      requestedRoomIds = new SvelteSet<string>();
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       if (!current) return;
       current.onopen = null;
       current.onmessage = null;
@@ -293,8 +236,6 @@ class EventBusManager {
       current.onclose = null;
       if (socket === current) socket = null;
       socketSubscribed = false;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       current.close(1000, 'authentication_required');
@@ -325,8 +266,6 @@ class EventBusManager {
       current.onclose = null;
       if (socket === current) socket = null;
       socketSubscribed = false;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       current.close(1000, 'session_renewal_required');
@@ -384,12 +323,8 @@ class EventBusManager {
       for (const handler of projectionHandlers) handler(update);
     };
 
-    const dispatchEventState = (event: RealtimeEvent) => {
-      dispatchProjectionUpdate({ event: event.event ?? null, state: event.state, reset: false });
-    };
-
-    const dispatchSnapshotState = (state: RealtimeStateItem) => {
-      dispatchProjectionUpdate({ event: null, state: [state], reset: false });
+    const dispatchCanonicalEvent = (event: RealtimeEvent) => {
+      dispatchProjectionUpdate(new RealtimeProjectionUpdate({ event: event.event ?? null }));
     };
 
     const connect = (reason: string) => {
@@ -436,21 +371,18 @@ class EventBusManager {
           lastEventAt = Date.now();
           switch (frame.frame.case) {
             case 'hello':
-              sync.takeTransportEvictions();
               heartbeatStallMs = heartbeatStallMsForInterval(
                 frame.frame.value.heartbeatIntervalSeconds
               );
-              requestedRoomIds = new SvelteSet(sync.retainedRoomIds);
-              nextSocket.send(subscribeEventsFrame(sync.resumeCursor, [...requestedRoomIds]));
+              nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
               return;
             case 'subscribed':
               socketSubscribed = true;
               reconnectAttempts = 0;
               if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT) {
-                dispatchProjectionUpdate({ event: null, state: [], reset: true });
+                dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
                 sync.acceptProjectionEvent(undefined, true);
               }
-              sendNextRoomHydration();
               if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration,
@@ -463,37 +395,25 @@ class EventBusManager {
             case 'event': {
               const event = realtimeEventToEventEnvelope(frame.frame.value);
               if (event) dispatchEvent(event);
-              if (frame.frame.value.resumeCursor || frame.frame.value.state.length > 0) {
-                try {
-                  dispatchEventState(frame.frame.value);
-                } catch (error) {
-                  console.error(`[eventBus:${serverId}] projection reducer failed`, error);
-                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
-                  return;
-                }
-                sync.acceptProjectionEvent(frame.frame.value.resumeCursor, false);
-                for (const state of frame.frame.value.state) {
-                  if (state.state.case === 'roomTimeline') {
-                    const roomId = state.state.value.roomId;
-                    sync.confirmRoom(roomId);
-                    finishRoomHydrationRequest(roomId);
-                  }
-                }
-              }
-              return;
-            }
-            case 'state':
               try {
-                dispatchSnapshotState(frame.frame.value);
+                dispatchCanonicalEvent(frame.frame.value);
               } catch (error) {
                 console.error(`[eventBus:${serverId}] projection reducer failed`, error);
                 nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
                 return;
               }
-              if (frame.frame.value.state.case === 'roomTimeline') {
-                const roomId = frame.frame.value.state.value.roomId;
-                sync.confirmRoom(roomId);
-                finishRoomHydrationRequest(roomId);
+              sync.acceptProjectionEvent(frame.frame.value.resumeCursor, false);
+              return;
+            }
+            case 'snapshot':
+              try {
+                dispatchProjectionUpdate(
+                  new RealtimeProjectionUpdate({ snapshot: frame.frame.value })
+                );
+              } catch (error) {
+                console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                return;
               }
               return;
             case 'caughtUp': {
@@ -526,19 +446,6 @@ class EventBusManager {
                 stopForUnsupportedProtocol(nextSocket);
                 return;
               }
-              if (frame.frame.value.code.startsWith('room_hydration_')) {
-                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
-                if (roomId) retryRoomHydration(roomId, frame.frame.value.retryAfterMs);
-                return;
-              }
-              if (
-                frame.frame.value.code === 'room_unavailable' ||
-                frame.frame.value.code === 'too_many_retained_rooms'
-              ) {
-                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
-                if (roomId) finishRoomHydrationRequest(roomId);
-                return;
-              }
               if (frame.frame.value.fatal) {
                 nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
               }
@@ -558,8 +465,6 @@ class EventBusManager {
               // Release socket-scoped hydration state before reconnecting so a
               // request whose response was lost can be sent on the replacement.
               socketSubscribed = false;
-              pendingHydrationRoomId = null;
-              clearHydrationRetryTimer();
               nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
               if (mode === 'live' && frame.frame.value.reconnect) {
                 scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
@@ -589,8 +494,6 @@ class EventBusManager {
         if (stopped || socket !== nextSocket) return;
         socket = null;
         socketSubscribed = false;
-        pendingHydrationRoomId = null;
-        clearHydrationRetryTimer();
         console.warn(`[eventBus:${serverId}] realtime socket closed`, {
           code: event.code,
           reason: event.reason,
@@ -678,20 +581,6 @@ class EventBusManager {
           connect('inactive server catch-up');
         });
       },
-      hydrateRoom(roomId) {
-        if (!roomId || stopped || !projectionSupported) return;
-        sync.retainRoom(roomId);
-        const evictedRoomIds = sync.takeTransportEvictions();
-        for (const evictedRoomId of evictedRoomIds) requestedRoomIds.delete(evictedRoomId);
-        if (evictedRoomIds.length > 0 && socket) {
-          detachSocket(true, 'room retention rollover');
-          connect('room retention rollover');
-          return;
-        }
-        if (socketSubscribed && socket && !requestedRoomIds.has(roomId)) {
-          sendNextRoomHydration();
-        }
-      },
       cleanup() {
         stopped = true;
         mode = 'dormant';
@@ -710,10 +599,6 @@ class EventBusManager {
   }
 
   /** Materialise one room timeline on the server's existing projection stream. */
-  hydrateRoom(serverId: string, roomId: string): void {
-    this.#controllers.get(serverId)?.hydrateRoom(roomId);
-  }
-
   /**
    * Reconcile all authenticated projections against the URL-active server.
    * This is the only application-level transport ownership entry point.

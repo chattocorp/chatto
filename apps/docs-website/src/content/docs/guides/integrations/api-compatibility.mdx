@@ -41,9 +41,9 @@ The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
 realtime protocol 4. Protocol 4 replaces earlier development protocols during
 the 0.5 alpha. It uses authorized canonical events, explicit `SNAPSHOT` or
-`LIVE_ONLY` startup, standalone
-current-state items, and bounded cursor resume. Regenerate clients and update
-the handshake and reducers together.
+`LIVE_ONLY` startup, canonical resource snapshot chunks, and bounded cursor
+resume. Normal event frames contain only a canonical Event and an opaque
+cursor. Regenerate clients and update the handshake and reducers together.
 
 The `chatto.realtime.v1` protobuf package name does not select behavioral
 protocol version 1. The `hello.protocol_version` field selects the complete

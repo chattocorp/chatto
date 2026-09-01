@@ -1,6 +1,5 @@
 <script lang="ts">
   import { usePresenceChange, useProjectionEvent } from '$lib/hooks/useEvent.svelte';
-  import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
@@ -14,22 +13,19 @@
     presenceCache.update({ serverId: serverScope.serverId, userId }, status);
   });
 
-  // Presence is transient rather than EVT-backed. Every subscription sends a
-  // complete latest-value reconciliation before caught_up so returning to a
-  // retained server cannot display transitions missed while it was dormant.
+  // User snapshot resources include each visible user's current presence.
   useProjectionEvent((event) => {
-    for (const stateItem of event.state) {
-      if (stateItem.state.case !== 'presences') continue;
-      presenceCache.replaceServer(
-        serverScope.serverId,
-        new Map(
-          Object.entries(stateItem.state.value.statuses).map(([userId, status]) => [
-            userId,
-            apiPresenceStatus(status)
-          ])
+    if (event.snapshot?.resource.case !== 'users') return;
+    presenceCache.replaceServer(
+      serverScope.serverId,
+      new Map(
+        event.snapshot.resource.value.users.flatMap((member) =>
+          member.user?.id && member.user.presenceStatus !== undefined
+            ? [[member.user.id, member.user.presenceStatus] as const]
+            : []
         )
-      );
-    }
+      )
+    );
   });
 </script>
 

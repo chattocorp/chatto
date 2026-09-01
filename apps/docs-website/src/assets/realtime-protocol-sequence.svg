@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" role="img" aria-labelledby="title desc" style="display:block;width:100%;height:auto;min-width:42rem;max-width:920px;margin-inline:auto">
   <title id="title">Chatto realtime protocol sequence</title>
-  <desc id="desc">A client opens a WebSocket, exchanges hello frames, subscribes, receives its selected recovery mode and state or events, reaches caught up, and then receives live events.</desc>
+  <desc id="desc">A client opens a WebSocket, exchanges hello frames, subscribes, receives its selected recovery mode and resource chunks or events, reaches caught up, and then receives live canonical events.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3, #64748b)"/>
@@ -27,7 +27,7 @@
   <text x="460" y="96" text-anchor="middle" class="text">Open GET /api/realtime</text>
 
   <line x1="170" y1="155" x2="748" y2="155" class="flow"/>
-  <text x="460" y="146" text-anchor="middle" class="text">hello · protocol 3 · bearer token if needed</text>
+  <text x="460" y="146" text-anchor="middle" class="text">hello · protocol 4 · bearer token if needed</text>
 
   <line x1="750" y1="205" x2="172" y2="205" class="flow"/>
   <text x="460" y="196" text-anchor="middle" class="text">hello · accepted version · heartbeat</text>
@@ -39,13 +39,13 @@
   <text x="460" y="296" text-anchor="middle" class="text">subscribed · selected recovery mode</text>
 
   <rect x="250" y="330" width="420" height="76" rx="12" class="pill"/>
-  <text x="460" y="357" text-anchor="middle" class="text">Snapshot: current state · Live-only: no prefix</text>
-  <text x="460" y="384" text-anchor="middle" class="text">Resume: ordered semantic events after cursor</text>
+  <text x="460" y="357" text-anchor="middle" class="text">Snapshot: resource chunks · Live-only: no prefix</text>
+  <text x="460" y="384" text-anchor="middle" class="text">Resume: resources + canonical events after cursor</text>
 
   <line x1="750" y1="435" x2="172" y2="435" class="flow durable"/>
   <text x="460" y="426" text-anchor="middle" class="text">caught_up · safe resume cursor</text>
 
   <line x1="750" y1="485" x2="172" y2="485" class="flow durable"/>
-  <text x="460" y="476" text-anchor="middle" class="text">live semantic events + optional current state</text>
+  <text x="460" y="476" text-anchor="middle" class="text">live authorized canonical events</text>
   <text x="460" y="535" text-anchor="middle" class="small">Process events in order. Save a cursor only after the complete event succeeds.</text>
 </svg>

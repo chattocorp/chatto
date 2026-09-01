@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -17,27 +16,24 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 const (
-	realtimePath                    = "/api/realtime"
-	realtimeProtocolVersion         = 4
-	realtimeReadLimitBytes          = 64 << 10
-	realtimeReadBufferBytes         = 256
-	realtimeWriteBufferBytes        = 512
-	realtimeCompressionMinBytes     = 1024
-	realtimeHandshakeTimeout        = 10 * time.Second
-	realtimeWriteTimeout            = 10 * time.Second
-	realtimeCredentialCheckInterval = time.Minute
-	// Bound snapshot construction as well as the long-lived per-socket
-	// projection. Each retained room can carry up to 50 decrypted timeline rows.
-	realtimeMaxRetainedRooms         = 64
-	realtimeMaxRoomIDBytes           = 256
+	realtimePath                     = "/api/realtime"
+	realtimeProtocolVersion          = 4
+	realtimeReadLimitBytes           = 64 << 10
+	realtimeReadBufferBytes          = 256
+	realtimeWriteBufferBytes         = 512
+	realtimeCompressionMinBytes      = 1024
+	realtimeHandshakeTimeout         = 10 * time.Second
+	realtimeWriteTimeout             = 10 * time.Second
+	realtimeCredentialCheckInterval  = time.Minute
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
 )
+
+var errRealtimeEventOmitted = errors.New("realtime event is not public")
 
 func (s *HTTPServer) setupRealtimeAPI() {
 	if s.metrics == nil {
@@ -128,18 +124,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			Error: &realtimev1.RealtimeError{Code: code, Message: message, Fatal: fatal},
 		}})
 	}
-	writeRoomError := func(code, message, roomID string, retryAfter time.Duration) {
-		realtimeError := &realtimev1.RealtimeError{
-			Code: code, Message: message, RoomId: proto.String(roomID),
-		}
-		if retryAfter > 0 {
-			realtimeError.RetryAfterMs = proto.Uint32(uint32(retryAfter.Milliseconds()))
-		}
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-			Error: realtimeError,
-		}})
-	}
-
 	hello, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
 	if err != nil {
 		writeError("bad_hello", "expected binary protobuf hello frame", true)
@@ -351,13 +335,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
-	retainedRooms, err := realtimeRetainedRoomSet(subscribeEvents.GetRetainedRoomIds())
-	if err != nil {
-		writeError("bad_subscribe", err.Error(), true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-
 	resumeCursor := strings.TrimSpace(subscribeEvents.GetResumeCursor())
 	cursorAtBoundary, err := s.core.RealtimeCursorAtCurrentBoundary(ctx, user.Id, resumeCursor)
 	if err != nil {
@@ -459,49 +436,25 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	hydrateRooms := make(chan string, 16)
-	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame, hydrateRooms)
-	var roomMarkerFence *uint64
-	if recoveryMode == realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		retainedRoomIDs := make([]string, 0, len(retainedRooms))
-		for roomID := range retainedRooms {
-			retainedRoomIDs = append(retainedRoomIDs, roomID)
-		}
-		slices.Sort(retainedRoomIDs)
-		revision, err := s.writeRealtimeProjectionSnapshot(catchUpCtx, user.Id, retainedRoomIDs, writeCatchUpFrame)
-		if err != nil {
+	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
+	if recoveryMode != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY {
+		if err := s.writeRealtimeSnapshot(catchUpCtx, user.Id, writeCatchUpFrame); err != nil {
 			failCatchUp("Realtime snapshot delivery failed", err)
 			return
 		}
-		roomMarkerFence = &revision
 	}
 	for _, event := range replayPlan.Events {
-		frame, handled, err := s.realtimeProjectionFrameForEventWithRooms(catchUpCtx, user.Id, event, retainedRooms)
+		frame, err := s.realtimeServerFrameForEvent(catchUpCtx, user.Id, event)
 		if err != nil {
-			failCatchUp("Realtime replay mapping failed", err)
-			return
-		}
-		if !handled {
-			s.logger.Warn("Realtime durable event has no public mapping", "event_id", event.ID())
-			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+			if errors.Is(err, errRealtimeEventOmitted) {
+				continue
+			}
+			failCatchUp("Realtime replay projection failed", err)
 			return
 		}
 		if err := writeCatchUpFrame(frame); err != nil {
 			handleCatchUpWriteError(err)
 			return
-		}
-	}
-	if recoveryMode != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY {
-		reconciliation, err := s.realtimeProjectionReconciliationFrames(catchUpCtx, user.Id, roomMarkerFence)
-		if err != nil {
-			failCatchUp("Realtime latest-value reconciliation failed", err)
-			return
-		}
-		for _, frame := range reconciliation {
-			if err := writeCatchUpFrame(frame); err != nil {
-				handleCatchUpWriteError(err)
-				return
-			}
 		}
 	}
 	// Release catch-up admission before the client can observe caught_up and
@@ -520,41 +473,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		select {
 		case <-ctx.Done():
 			return
-		case roomID := <-hydrateRooms:
-			if _, retained := retainedRooms[roomID]; retained {
-				continue
-			}
-			if len(retainedRooms) >= realtimeMaxRetainedRooms {
-				writeRoomError("too_many_retained_rooms", "too many retained room timelines", roomID, 0)
-				continue
-			}
-			releaseHydration, admissionErr := s.realtimeCatchUps.acquireHydration(user.Id)
-			if admissionErr != nil {
-				writeRoomError(admissionErr.code, "room hydration capacity is temporarily unavailable", roomID, admissionErr.retryAfter)
-				continue
-			}
-			// Retain the request even if authorization currently fails. If this
-			// viewer joins later on the same socket, that membership fact can
-			// atomically materialise the room without a second client mechanism.
-			retainedRooms[roomID] = struct{}{}
-			frames, hydrateErr := s.realtimeProjectionRoomFrames(ctx, user.Id, roomID)
-			releaseHydration()
-			if hydrateErr != nil {
-				if errors.Is(hydrateErr, core.ErrNotFound) || errors.Is(hydrateErr, core.ErrPermissionDenied) || errors.Is(hydrateErr, core.ErrNotRoomMember) {
-					writeRoomError("room_unavailable", "room timeline is unavailable", roomID, 0)
-					continue
-				}
-				s.logger.Warn("Realtime room hydration failed", "error", hydrateErr)
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: "room_hydration_failed", Message: "room timeline hydration failed", Reconnect: true},
-				}})
-				return
-			}
-			for _, frame := range frames {
-				if err := writeFrame(frame); err != nil {
-					return
-				}
-			}
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
@@ -565,18 +483,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			if event.DeliverySeq() > 0 && event.DeliverySeq() <= replayPlan.BoundarySequence {
 				continue
 			}
-			var frame *realtimev1.RealtimeServerFrame
-			var handled bool
-			var mapErr error
-			frame, handled, mapErr = s.realtimeProjectionFrameForEventWithRooms(ctx, user.Id, event, retainedRooms)
-			if mapErr == nil && !handled {
-				if event.DeliverySeq() > 0 {
-					mapErr = errors.New("durable event has no public realtime mapping")
-				} else {
-					frame, mapErr = s.realtimeServerFrameForEvent(ctx, user.Id, event)
-				}
-			}
+			frame, mapErr := s.realtimeServerFrameForEvent(ctx, user.Id, event)
 			if mapErr != nil {
+				if errors.Is(mapErr, errRealtimeEventOmitted) {
+					continue
+				}
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
 				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
@@ -743,7 +654,7 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	closeConnection()
 }
 
-func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error, hydrateRooms chan<- string) {
+func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
 	defer cancel()
 	for {
 		select {
@@ -773,19 +684,6 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Pong{
 				Pong: &realtimev1.RealtimePong{Nonce: payload.Ping.GetNonce()},
 			}})
-		case *realtimev1.RealtimeClientFrame_HydrateRoom:
-			roomID := strings.TrimSpace(payload.HydrateRoom.GetRoomId())
-			if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-					Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "invalid room hydration request", Fatal: true},
-				}})
-				return
-			}
-			select {
-			case hydrateRooms <- roomID:
-			case <-ctx.Done():
-				return
-			}
 		default:
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
 				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
@@ -793,21 +691,6 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			return
 		}
 	}
-}
-
-func realtimeRetainedRoomSet(roomIDs []string) (map[string]struct{}, error) {
-	if len(roomIDs) > realtimeMaxRetainedRooms {
-		return nil, errors.New("too many retained room timelines")
-	}
-	rooms := make(map[string]struct{}, len(roomIDs))
-	for _, rawRoomID := range roomIDs {
-		roomID := strings.TrimSpace(rawRoomID)
-		if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
-			return nil, errors.New("invalid retained room ID")
-		}
-		rooms[roomID] = struct{}{}
-	}
-	return rooms, nil
 }
 
 func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *evtv1.User, error) {
@@ -888,6 +771,9 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
+	if !isRealtimePublicEvent(canonical) {
+		return nil, errRealtimeEventOmitted
+	}
 	if typing := canonical.GetUserTypingSignal(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
@@ -913,72 +799,24 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 			return nil, core.ErrPermissionDenied
 		}
 	}
-	projected := projectRealtimeEvent(canonical)
+	deliverySource, ok := proto.Clone(canonical).(*evtv1.Event)
+	if !ok {
+		return nil, errors.New("clone canonical realtime event")
+	}
+	if err := s.core.PopulateEventPlaintext(ctx, deliverySource); err != nil {
+		return nil, fmt.Errorf("populate realtime event plaintext: %w", err)
+	}
+	projected := projectRealtimeEvent(deliverySource)
 	if projected == nil {
-		return nil, fmt.Errorf("unsupported realtime event %T", canonical.GetEvent())
+		return nil, fmt.Errorf("project public realtime event %T", canonical.GetEvent())
 	}
-	return &realtimev1.RealtimeEvent{Event: projected}, nil
-}
-
-func optionalRealtimeString(value string) *string {
-	if value == "" {
-		return nil
-	}
-	return proto.String(value)
-}
-
-func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, roomID string) string {
-	participants, err := s.core.GetRoomMembersList(ctx, core.KindDM, roomID)
-	if err != nil {
-		return "Direct Message"
-	}
-
-	names := make([]string, 0, len(participants))
-	for _, participant := range participants {
-		userID := participant.GetUserId()
-		if userID == "" || userID == viewerID {
-			continue
-		}
-		user, err := s.core.GetUser(ctx, userID)
+	envelope := &realtimev1.RealtimeEvent{Event: projected}
+	if sequence := event.DeliverySeq(); sequence > 0 {
+		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
 		if err != nil {
-			continue
+			return nil, err
 		}
-		if user.GetDisplayName() != "" {
-			names = append(names, user.GetDisplayName())
-		} else if user.GetLogin() != "" {
-			names = append(names, user.GetLogin())
-		}
+		envelope.ResumeCursor = &cursor
 	}
-	if len(names) == 0 {
-		return "Direct Message"
-	}
-	return strings.Join(names, ", ")
-}
-
-func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *evtv1.Room) bool {
-	if s == nil || s.core == nil || viewerID == "" || room == nil {
-		return false
-	}
-	kind := core.KindOfRoom(room)
-	if kind == core.KindDM {
-		ok, err := s.core.RoomMembershipExists(ctx, core.KindDM, viewerID, room.GetId())
-		return err == nil && ok
-	}
-	ok, err := s.core.CanSeeRoom(ctx, viewerID, kind, room.GetId())
-	return err == nil && ok
-}
-
-func apiPresenceStatus(status string) apiv1.PresenceStatus {
-	switch status {
-	case core.PresenceStatusOffline:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
-	case core.PresenceStatusOnline:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
-	case core.PresenceStatusAway:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
-	case core.PresenceStatusDoNotDisturb:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
-	default:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
-	}
+	return envelope, nil
 }

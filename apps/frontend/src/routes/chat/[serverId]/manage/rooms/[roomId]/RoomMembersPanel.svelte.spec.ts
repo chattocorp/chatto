@@ -1,17 +1,18 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  ListRoomsResponse,
+  RoomViewerState,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
+import { UserAccountDeletedEvent } from '@chatto/api-types/core/evt/v1/user_events_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import {
-  RealtimeStateItem,
-  RealtimeRoomState,
-  RealtimeRoomRemovedState,
-  RealtimeUserRemovedState
-} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
@@ -191,6 +192,28 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    snapshot: new ServerSnapshotChunk({
+      resource: {
+        case: 'rooms',
+        value: new ListRoomsResponse({ rooms: room ? [room] : [] })
+      }
+    })
+  });
+}
+
+function userRemoved(userId: string): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    event: new CanonicalEvent({
+      event: {
+        case: 'userAccountDeleted',
+        value: new UserAccountDeletedEvent({ userId })
+      }
+    })
+  });
+}
+
 describe('RoomMembersPanel', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -301,18 +324,7 @@ describe('RoomMembersPanel', () => {
     await settle();
     expect(container.textContent).toContain('Alice');
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionUpdate({
-        operations: [
-          new RealtimeStateItem({
-            state: {
-              case: 'roomRemoved',
-              value: new RealtimeRoomRemovedState({ roomId: 'room-1' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(roomSnapshot(null));
     flushSync();
 
     expect(container.textContent).not.toContain('Alice');
@@ -333,21 +345,12 @@ describe('RoomMembersPanel', () => {
     await settle();
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionUpdate({
-        operations: [
-          new RealtimeStateItem({
-            state: {
-              case: 'room',
-              value: new RealtimeRoomState({
-                room: new RoomWithViewerState({
-                  room: new Room({ id: 'room-1' }),
-                  viewerState: new RoomViewerState({ isMember: false })
-                })
-              })
-            }
-          })
-        ]
-      })
+      roomSnapshot(
+        new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ isMember: false })
+        })
+      )
     );
     await settle();
 
@@ -419,18 +422,7 @@ describe('RoomMembersPanel', () => {
     flushSync();
     expect(buttonByText(rendered.container, 'Add member').disabled).toBe(false);
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionUpdate({
-        operations: [
-          new RealtimeStateItem({
-            state: {
-              case: 'userRemoved',
-              value: new RealtimeUserRemovedState({ userId: 'bob' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(userRemoved('bob'));
     flushSync();
 
     expect(buttonByText(rendered.container, 'Add member').disabled).toBe(true);
@@ -446,18 +438,7 @@ describe('RoomMembersPanel', () => {
     flushSync();
     expect(document.querySelector('dialog')).not.toBeNull();
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionUpdate({
-        operations: [
-          new RealtimeStateItem({
-            state: {
-              case: 'userRemoved',
-              value: new RealtimeUserRemovedState({ userId: 'alice' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(userRemoved('alice'));
     flushSync();
 
     expect(document.querySelector('dialog')).toBeNull();

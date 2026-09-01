@@ -22,13 +22,18 @@ import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createMessageSearchAPI, type MessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
+import {
+  createRealtimeResourceAPI,
+  type RealtimeResourceAPI,
+  type RealtimeResourceFamily
+} from '$lib/api-client/realtimeResources';
 import { eventBusManager } from './eventBus.svelte';
-import type { ProjectionHandler, RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
@@ -45,27 +50,21 @@ import {
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
-  reconcileRegisteredAdminRoomQueries,
-  reconcileRegisteredFollowedThreadQueries,
-  invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
   resetRegisteredFollowedThreadQueries,
-  scrubRegisteredFollowedThreadMessage,
   scrubRegisteredFollowedThreadRoom,
   scrubRegisteredFollowedThreadUser,
   refreshRegisteredFollowedThreadQueries,
-  scrubRegisteredRoomMemberUser,
-  updateRegisteredFollowedThreadSummary
+  scrubRegisteredRoomMemberUser
 } from '$lib/query/cacheRegistry';
 
 /**
@@ -85,7 +84,7 @@ function viewerAuthorizationLost(
   if (!previous) return false;
   if (previous.user?.profile?.id !== current.user?.profile?.id) return true;
 
-  const currentGrants = new Set([
+  const currentGrants = new SvelteSet([
     ...(current.capabilities?.grants ?? [])
       .filter((grant) => grant.granted)
       .map((grant) => `capability:${grant.capability}`),
@@ -164,6 +163,9 @@ export class ServerStateStore {
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
+  readonly #realtimeResources: RealtimeResourceAPI;
+  readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
+  readonly #pendingResourceRefreshes = new SvelteSet<RealtimeResourceFamily>();
 
   constructor(
     registration: ServerRegistration,
@@ -189,6 +191,7 @@ export class ServerStateStore {
     const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
     const messageSearchAPI = serverConnection.getAPI(createMessageSearchAPI);
     this.#messageSearchAPI = messageSearchAPI;
+    this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.currentUser = new CurrentUserState(
@@ -233,7 +236,7 @@ export class ServerStateStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.awaitRoomProjection(roomId);
+    store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
     const page = this.projection.timelines.get(roomId);
     if (page) store.replaceRoomProjectionPage(roomId, page);
@@ -285,21 +288,13 @@ export class ServerStateStore {
 
   /** Restore the canonical latest window when a route selects this room. */
   restoreProjectedRoomWindow(roomId: string): void {
-    const evictedRoomId = this.realtimeSync.retainRoom(roomId);
-    if (evictedRoomId) this.evictRetainedRoom(evictedRoomId);
     const messages = this.messagesForRoom(roomId);
-    // Route entry and cleanup both supersede an in-flight historical jump,
-    // even when this room's first projection page has not arrived yet.
-    const page = this.projection.timelines.get(roomId);
-    if (page) messages.restoreRoomProjectionPage(roomId, page);
-    else {
-      messages.cancelPendingHistoricalJump();
-      eventBusManager.hydrateRoom(this.serverId, roomId);
-    }
+    messages.cancelPendingHistoricalJump();
+    void messages.refreshCurrentWindow();
   }
 
   private evictRetainedRoom(roomId: string): void {
-    const room = this.projection.rooms.get(roomId)?.room;
+    const room = this.projection.rooms.get(roomId);
     const clearMembership = room ? mapDirectoryRoom(room)?.kind !== RoomKind.DM : false;
     this.projection.evictRoomTimeline(roomId, clearMembership);
     this.#roomMessages[roomId]?.dispose();
@@ -395,31 +390,82 @@ export class ServerStateStore {
 
   private ingestProjectionEvent(update: RealtimeProjectionUpdate): void {
     const previousViewer = this.projection.viewer;
+    const previousUserIds = new SvelteSet(this.projection.users.keys());
+    const previousRoomIds = new SvelteSet(this.projection.rooms.keys());
     const sourceEvent = update.event;
-    const sourceEventId = sourceEvent?.id ?? '';
-    const isReaction =
-      sourceEvent?.event.case === 'reactionAdded' || sourceEvent?.event.case === 'reactionRemoved';
-    const resetsProjection = update.reset;
-    const existingTimelineRows = new SvelteSet<string>();
-    for (const stateItem of update.state) {
-      if (stateItem.state.case !== 'roomTimelineEvent') continue;
-      const timelineUpdate = stateItem.state.value;
-      if (
-        timelineUpdate.event &&
-        this.projection.timelines
-          .get(timelineUpdate.roomId)
-          ?.events.some((candidate) => candidate.id === timelineUpdate.event?.id)
-      ) {
-        existingTimelineRows.add(`${timelineUpdate.roomId}\u0000${timelineUpdate.event.id}`);
-      }
-    }
-    let adminRoomLayoutChanged = resetsProjection;
-    if (resetsProjection) {
+    let adminRoomLayoutChanged = update.reset;
+
+    if (update.reset) {
       resetRegisteredFollowedThreadQueries(this.serverId);
       this.resetProjectionMirrors();
       this.forEachMessageSearch((store) => store.clearResults());
     }
+
     this.projection.apply(update);
+    const snapshot = update.snapshot;
+    if (snapshot) {
+      switch (snapshot.resource.case) {
+        case 'server':
+          this.serverInfo.applyProjectionProfile(snapshot.resource.value);
+          break;
+        case 'motd':
+        case 'runtimeConfig':
+          if (this.projection.serverState) {
+            this.serverInfo.applyProjectionState(this.projection.serverState);
+          }
+          break;
+        case 'viewer': {
+          const response = snapshot.resource.value;
+          if (viewerAuthorizationLost(previousViewer, response)) {
+            removeRegisteredAdminQueries(this.serverId);
+          }
+          const viewer = viewerResponseToState(response);
+          this.currentUser.user = viewer.user;
+          this.currentUser.loading = false;
+          this.setPermissions(viewer);
+          this.roomUnread.acknowledgeViewerProjection();
+          break;
+        }
+        case 'users': {
+          const members = snapshot.resource.value.users.map(mapDirectoryMember);
+          notifyUserSummaries(this.serverId, members);
+          for (const userId of previousUserIds) {
+            if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
+          }
+          break;
+        }
+        case 'rooms':
+          for (const [roomId, room] of this.projection.rooms) {
+            this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
+            this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
+            if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
+            else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
+          }
+          for (const roomId of previousRoomIds) {
+            if (!this.projection.rooms.has(roomId)) this.scrubRemovedRoom(roomId);
+          }
+          adminRoomLayoutChanged = true;
+          break;
+        case 'roomGroups':
+          reconcileRegisteredAdminRoomGroupQueries(
+            this.serverId,
+            snapshot.resource.value.groups.map((group) => group.id)
+          );
+          adminRoomLayoutChanged = true;
+          break;
+        case 'notifications':
+          this.notifications.replaceOccurrenceProjection(
+            mapNotificationOccurrencePage(snapshot.resource.value)
+          );
+          break;
+        case 'activeCalls':
+          this.activeCallRooms.replaceProjection(snapshot.resource.value.calls);
+          break;
+        case undefined:
+          break;
+      }
+    }
+
     if (sourceEvent?.event.case === 'messagePinned') {
       const pin = sourceEvent.event.value;
       this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, true, sourceEvent.id);
@@ -427,261 +473,256 @@ export class ServerStateStore {
       const pin = sourceEvent.event.value;
       this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, false, sourceEvent.id);
     }
-    for (const stateItem of update.state) {
-      switch (stateItem.state.case) {
-        case 'server':
-          this.serverInfo.applyProjectionProfile(stateItem.state.value);
-          break;
-        case 'serverState':
-          this.serverInfo.applyProjectionState(stateItem.state.value);
-          this.forEachMessageSearch((store) => store.refreshRetainedResults());
-          break;
-        case 'viewer': {
-          if (viewerAuthorizationLost(previousViewer, stateItem.state.value)) {
-            removeRegisteredAdminQueries(this.serverId);
-          }
-          const viewer = viewerResponseToState(stateItem.state.value);
-          this.currentUser.user = viewer.user;
-          this.currentUser.loading = false;
-          this.setPermissions(viewer);
-          this.roomUnread.acknowledgeViewerProjection();
-          break;
+    if (sourceEvent) this.invalidateCanonicalEvent(sourceEvent);
+    if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+  }
+  private scrubRemovedUser(userId: string): void {
+    scrubRegisteredFollowedThreadUser(this.serverId);
+    scrubRegisteredRoomMemberUser(this.serverId, userId);
+    removeRegisteredAdminUserQueries(this.serverId, userId);
+    this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
+    removeUserSummaryCacheEntry(this.serverId, userId);
+    this.notifications.scrubUser(userId);
+    this.activeCallRooms.scrubUser(userId);
+    for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
+    for (const store of Object.values(this.#threadMessages)) store.scrubUserReferences(userId);
+  }
+
+  private scrubRemovedRoom(roomId: string): void {
+    this.roomDirectory.removeMembershipProjection(roomId);
+    this.roomUnread.removeRoomProjection(roomId);
+    this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
+    purgeRegisteredRoomMemberQueries(this.serverId, roomId);
+    this.clearRoomAccess(roomId, true);
+  }
+
+  private refreshRealtimeResource(family: RealtimeResourceFamily): void {
+    if (this.#resourceRefreshes.has(family)) {
+      this.#pendingResourceRefreshes.add(family);
+      return;
+    }
+    const refresh = this.#realtimeResources
+      .read(family)
+      .then((chunks) => {
+        for (const snapshot of chunks) {
+          this.ingestProjectionEvent(new RealtimeProjectionUpdate({ snapshot }));
         }
-        case 'user': {
-          const member = mapDirectoryMember(stateItem.state.value);
-          if (!member.id) break;
-          notifyUserSummaries(this.serverId, [member]);
-          break;
+      })
+      .catch((error) =>
+        console.error(`[server:${this.serverId}] resource refresh failed`, family, error)
+      )
+      .finally(() => {
+        this.#resourceRefreshes.delete(family);
+        if (!this.#pendingResourceRefreshes.delete(family)) return;
+        this.refreshRealtimeResource(family);
+      });
+    this.#resourceRefreshes.set(family, refresh);
+  }
+
+  private invalidateCanonicalEvent(event: Event): void {
+    const payload = event.event;
+    const rawValue = payload.value as
+      | { eventId?: string; messageEventId?: string; roomId?: string; userId?: string }
+      | undefined;
+    const roomId = rawValue?.roomId ?? '';
+
+    switch (payload.case) {
+      case 'userAccountDeleted':
+      case 'serverMemberDeleted':
+      case 'serverMemberDeletedSync': {
+        const userId = payload.value.userId;
+        this.projection.removeUser(userId);
+        this.scrubRemovedUser(userId);
+        this.refreshRealtimeResource('users');
+        return;
+      }
+      case 'roomDeleted':
+        this.projection.removeRoom(payload.value.roomId);
+        this.scrubRemovedRoom(payload.value.roomId);
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'userLeftRoom':
+      case 'roomMemberRemoved':
+      case 'roomMemberBanned':
+        if (
+          (!!rawValue?.userId && rawValue.userId === this.currentUser.user?.id) ||
+          (payload.case === 'userLeftRoom' && event.actorId === this.currentUser.user?.id)
+        ) {
+          if (roomId) this.clearRoomAccess(roomId);
         }
-        case 'userRemoved': {
-          const userId = stateItem.state.value.userId;
-          scrubRegisteredFollowedThreadUser(this.serverId);
-          scrubRegisteredRoomMemberUser(this.serverId, userId);
-          removeRegisteredAdminUserQueries(this.serverId, userId);
-          this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
-          removeUserSummaryCacheEntry(this.serverId, userId);
-          this.notifications.scrubUser(userId);
-          this.activeCallRooms.scrubUser(userId);
-          for (const store of Object.values(this.#roomMessages)) {
-            store.scrubUserReferences(userId);
-          }
-          for (const store of Object.values(this.#threadMessages)) {
-            store.scrubUserReferences(userId);
-          }
-          break;
-        }
-        case 'room': {
-          adminRoomLayoutChanged = true;
-          const roomId = stateItem.state.value.room?.room?.id;
-          if (!roomId) break;
-          reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
-          const viewerState = stateItem.state.value.room?.viewerState;
-          this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
-          this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
-          if (viewerState?.isMember === false) {
-            this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-            this.clearRoomAccess(roomId);
-          } else if (viewerState?.isMember === true) {
-            this.restoreRoomAccess(roomId);
-          }
-          invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
-          break;
-        }
-        case 'roomRemoved': {
-          adminRoomLayoutChanged = true;
-          const roomId = stateItem.state.value.roomId;
-          reconcileRegisteredAdminRoomQueries(this.serverId, roomId, true);
-          this.roomDirectory.removeMembershipProjection(roomId);
-          this.roomUnread.removeRoomProjection(roomId);
-          this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-          purgeRegisteredRoomMemberQueries(this.serverId, roomId);
-          this.clearRoomAccess(roomId, true);
-          break;
-        }
-        case 'roomGroups': {
-          adminRoomLayoutChanged = true;
-          reconcileRegisteredAdminRoomGroupQueries(
-            this.serverId,
-            stateItem.state.value.groups.map((group) => group.id)
-          );
-          break;
-        }
-        case 'roomTimeline': {
-          const replacement = stateItem.state.value;
-          this.forRoomMessageSearch(replacement.roomId, (store) =>
-            store.invalidateRoom(replacement.roomId)
-          );
-          if (replacement.page) {
-            this.#roomMessages[replacement.roomId]?.replaceRoomProjectionPage(
-              replacement.roomId,
-              replacement.page
-            );
-          }
-          break;
-        }
-        case 'roomTimelineEvent': {
-          const update = stateItem.state.value;
-          const projectedMessage =
-            update.event?.event.case === 'messagePosted' ? update.event.event.value.message : null;
-          if (update.event && projectedMessage?.deletedAt) {
-            scrubRegisteredFollowedThreadMessage(this.serverId, update.roomId, update.event.id);
-            this.#roomPins[update.roomId]?.applyMessageRetraction(update.event.id);
-          } else if (update.event && projectedMessage) {
-            this.#roomPins[update.roomId]?.applyMessageUpdate(update.event.id, projectedMessage);
-          }
-          const threadSummary = projectedMessage?.thread;
-          if (projectedMessage?.threadRootEventId) {
-            refreshRegisteredFollowedThreadQueries(this.serverId);
-          }
-          if (
-            update.event &&
-            projectedMessage &&
-            !projectedMessage.threadRootEventId &&
-            threadSummary
-          ) {
-            updateRegisteredFollowedThreadSummary(this.serverId, {
-              roomId: update.roomId,
-              threadRootEventId: update.event.id,
-              replyCount: threadSummary.replyCount,
-              lastReplyAt: threadSummary.lastReplyAt?.toDate().toISOString() ?? null,
-              hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies
-            });
-          }
-          if (update.event && !isReaction) {
-            const eventId = update.event.id;
-            this.forRoomMessageSearch(update.roomId, (store) =>
-              store.invalidateMessage(
-                update.roomId,
-                eventId,
-                existingTimelineRows.has(`${update.roomId}\u0000${eventId}`)
-              )
-            );
-          }
-          if (update.event) {
-            const retainedByProjection = Boolean(
-              this.projection.timelines
-                .get(update.roomId)
-                ?.events.some((candidate) => candidate.id === update.event?.id)
-            );
-            this.#roomMessages[update.roomId]?.upsertRoomProjectionEvent(
-              update.roomId,
-              update.event,
-              update.includes,
-              update.retainDeletedRow,
-              retainedByProjection
-            );
-            if (!isReaction) {
-              this.#roomFiles[update.roomId]?.applyTimelineEvent(
-                update.event,
-                sourceEventId || update.event.id
-              );
-            }
-            for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-              if (!key.startsWith(`${update.roomId}\u0000`)) continue;
-              threadStore.upsertRoomProjectionEvent(
-                update.roomId,
-                update.event,
-                update.includes,
-                update.retainDeletedRow
-              );
-            }
-          }
-          break;
-        }
-        case 'notifications': {
-          const replacement = stateItem.state.value;
-          if (replacement.occurrences) {
-            this.notifications.replaceOccurrenceProjection(
-              mapNotificationOccurrencePage(replacement.occurrences)
-            );
-          }
-          break;
-        }
-        case 'roomViewer': {
-          const replacement = stateItem.state.value;
-          this.roomDirectory.acknowledgeMembership(
-            replacement.roomId,
-            replacement.viewerState?.isMember
-          );
-          this.roomUnread.acknowledgeRoomProjection(
-            replacement.roomId,
-            replacement.viewerState?.hasUnread
-          );
-          if (replacement.viewerState?.isMember === false) {
-            this.forRoomMessageSearch(replacement.roomId, (store) =>
-              store.revokeRoom(replacement.roomId)
-            );
-            this.clearRoomAccess(replacement.roomId);
-          } else if (replacement.viewerState?.isMember === true) {
-            this.restoreRoomAccess(replacement.roomId);
-          }
-          break;
-        }
-        case 'roomViewerActivity': {
-          const replacement = stateItem.state.value;
-          this.roomUnread.acknowledgeRoomProjection(replacement.roomId, replacement.hasUnread);
-          break;
-        }
-        case 'activeCalls': {
-          const calls = stateItem.state.value.calls;
-          this.reconcileActiveCallTransition(sourceEvent, calls);
-          this.activeCallRooms.replaceProjection(calls);
-          break;
-        }
-        case 'presences': {
-          break;
-        }
-        case 'threadViewerStates': {
-          reconcileRegisteredFollowedThreadQueries(
-            this.serverId,
-            this.projection.threadViewerStates
-          );
-          // A reply updates this projection even when the room timeline is not
-          // retained. Refresh the feed so its preview, count, and activity order
-          // do not depend on an open room or thread pane.
-          if (!resetsProjection) refreshRegisteredFollowedThreadQueries(this.serverId);
-          for (const [roomId, page] of this.projection.timelines) {
-            for (const projectedEvent of page.events) {
-              if (
-                projectedEvent.event.case !== 'messagePosted' ||
-                !projectedEvent.event.value.message?.thread
-              ) {
-                continue;
-              }
-              this.#roomMessages[roomId]?.upsertRoomProjectionEvent(
-                roomId,
-                projectedEvent,
-                page.includes
-              );
-              for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-                if (!key.startsWith(`${roomId}\u0000`)) continue;
-                threadStore.upsertRoomProjectionEvent(roomId, projectedEvent, page.includes);
-              }
-            }
-          }
-          break;
-        }
-        case 'roomTimelineEventRemoved': {
-          const removal = stateItem.state.value;
-          scrubRegisteredFollowedThreadMessage(this.serverId, removal.roomId, removal.eventId);
-          this.forRoomMessageSearch(removal.roomId, (store) =>
-            store.invalidateMessage(removal.roomId, removal.eventId, true)
-          );
-          this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
-            removal.roomId,
-            removal.eventId
-          );
-          for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-            if (!key.startsWith(`${removal.roomId}\u0000`)) continue;
-            threadStore.removeRoomProjectionEvent(removal.roomId, removal.eventId);
-          }
-          break;
-        }
-        case undefined:
-          break;
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'messagePosted':
+      case 'messageEdited':
+      case 'messageRetracted':
+      case 'messageBody':
+      case 'reactionAdded':
+      case 'reactionRemoved':
+      case 'assetAttached':
+      case 'assetDeleted': {
+        const anchorEventId =
+          rawValue?.eventId ??
+          rawValue?.messageEventId ??
+          (payload.case === 'messagePosted' ? event.id : null);
+        this.refreshLoadedMessageWindows(roomId, anchorEventId);
+        this.refreshLoadedTimelineResources(roomId, {
+          files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
+          pins: payload.case !== 'messagePosted'
+        });
+        if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
+        else this.forEachMessageSearch((store) => store.clearResults());
+        if (payload.case === 'messagePosted') this.refreshRealtimeResource('rooms');
+        return;
+      }
+      case 'assetProcessingStarted':
+      case 'assetProcessingSucceeded':
+      case 'assetProcessingFailed':
+        this.refreshLoadedMessageWindows('', rawValue?.messageEventId ?? null);
+        this.refreshLoadedTimelineResources('', { files: true, pins: true });
+        return;
+      case 'voiceCallParticipantJoined':
+      case 'callParticipantJoinedSignal':
+        this.playCallTransitionSound(
+          event.id,
+          'join',
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallParticipantLeft':
+      case 'callParticipantLeftSignal':
+        this.playCallTransitionSound(
+          event.id,
+          'leave',
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null
+        );
+        this.voiceCall.handleParticipantLeftEvent(
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null,
+          this.currentUserId()
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallEnded':
+        this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallStarted':
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'notificationOccurrencesInvalidated':
+      case 'notificationUnreadChanged':
+      case 'mentionStatusClearedSync':
+        this.refreshRealtimeResource('notifications');
+        return;
+      case 'roomCreated':
+      case 'roomUpdated':
+      case 'roomArchived':
+      case 'roomUnarchived':
+      case 'roomUniversalChanged':
+      case 'roomSlowModeChanged':
+      case 'roomThreadingModeChanged':
+      case 'userJoinedRoom':
+      case 'roomMemberAdded':
+      case 'roomMemberUnbanned':
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'roomGroupCreated':
+      case 'roomGroupUpdated':
+      case 'roomGroupDeleted':
+      case 'roomAddedToGroup':
+      case 'roomRemovedFromGroup':
+      case 'roomsInGroupReordered':
+      case 'sidebarLinkAddedToGroup':
+      case 'sidebarLinkUpdated':
+      case 'sidebarLinkRemovedFromGroup':
+      case 'sidebarGroupEntriesReordered':
+      case 'roomGroupsReordered':
+      case 'roomGroupsUpdatedSync':
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'serverUpdatedSync':
+      case 'serverNameChanged':
+      case 'serverDescriptionChanged':
+      case 'serverWelcomeMessageChanged':
+      case 'serverLogoSet':
+      case 'serverLogoCleared':
+      case 'serverBannerSet':
+      case 'serverBannerCleared':
+        this.refreshRealtimeResource('server');
+        return;
+      case 'serverMotdChanged':
+        this.refreshRealtimeResource('serverState');
+        return;
+      case 'userCreatedSync':
+      case 'userProfileSync':
+      case 'userAccountCreated':
+      case 'userLoginChanged':
+      case 'userDisplayNameChanged':
+      case 'userAvatarSet':
+      case 'userAvatarCleared':
+      case 'userCustomStatusSet':
+      case 'userCustomStatusCleared':
+        this.refreshRealtimeResource('users');
+        return;
+      case 'serverUserPreferencesSync':
+      case 'userServerPreferencesChanged':
+      case 'rbacRoleAssigned':
+      case 'rbacRoleRevoked':
+      case 'rbacPermissionGranted':
+      case 'rbacPermissionDenied':
+      case 'rbacPermissionCleared':
+        this.refreshRealtimeResource('viewer');
+        this.refreshRealtimeResource('rooms');
+        return;
+      case 'roomMarkedAsReadSync':
+        this.refreshRealtimeResource('rooms');
+        return;
+      case 'threadFollowed':
+      case 'threadUnfollowed':
+      case 'threadFollowChangedSync':
+        refreshRegisteredFollowedThreadQueries(this.serverId);
+        return;
+      default:
+        return;
+    }
+  }
+
+  private refreshLoadedMessageWindows(roomId: string, anchorEventId: string | null): void {
+    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId && candidateRoomId !== roomId) continue;
+      void store.refreshCurrentWindow(anchorEventId);
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
+      void store.refreshCurrentWindow(anchorEventId);
+    }
+  }
+
+  private refreshLoadedTimelineResources(
+    roomId: string,
+    resources: { files: boolean; pins: boolean }
+  ): void {
+    if (resources.files) {
+      for (const [candidateRoomId, store] of Object.entries(this.#roomFiles)) {
+        if (roomId && candidateRoomId !== roomId) continue;
+        store.refreshRetained();
       }
     }
-    if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+    if (resources.pins) {
+      for (const [candidateRoomId, store] of Object.entries(this.#roomPins)) {
+        if (roomId && candidateRoomId !== roomId) continue;
+        store.retry();
+      }
+    }
   }
 
   get #adminRoomLayoutActive(): boolean {
@@ -757,7 +798,7 @@ export class ServerStateStore {
   /** Whether membership references are authoritative for this projected room. */
   hasCompleteProjectedRoomMembership(roomId: string): boolean {
     if (this.projection.timelines.has(roomId)) return true;
-    const room = this.projection.rooms.get(roomId)?.room;
+    const room = this.projection.rooms.get(roomId);
     return room ? mapDirectoryRoom(room)?.kind === RoomKind.DM : false;
   }
 
@@ -856,53 +897,6 @@ export class ServerStateStore {
     void playCallSound(kind);
   }
 
-  private reconcileActiveCallTransition(event: Event | null, calls: readonly ActiveCall[]): void {
-    const actorId = event?.actorId;
-    const previousActorCall = actorId ? this.activeCallRooms.findParticipantCall(actorId) : null;
-    const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;
-
-    if (!previousActorCall && nextActorCall) {
-      this.playCallTransitionSound(
-        event?.id ?? '',
-        'join',
-        nextActorCall.roomId,
-        nextActorCall.callId,
-        actorId ?? null
-      );
-    } else if (
-      previousActorCall &&
-      !nextActorCall &&
-      calls.some(
-        (call) =>
-          call.room?.id === previousActorCall.roomId &&
-          (call.callId || null) === previousActorCall.callId
-      )
-    ) {
-      this.playCallTransitionSound(
-        event?.id ?? '',
-        'leave',
-        previousActorCall.roomId,
-        previousActorCall.callId,
-        actorId ?? null
-      );
-      this.voiceCall.handleParticipantLeftEvent(
-        previousActorCall.roomId,
-        previousActorCall.callId,
-        actorId ?? null,
-        this.currentUserId()
-      );
-    }
-
-    const connectedRoomId = this.voiceCall.roomId;
-    if (!connectedRoomId) return;
-    const previousCallId = this.activeCallRooms.getCallId(connectedRoomId);
-    if (!previousCallId) return;
-    const nextCallId = calls.find((call) => call.room?.id === connectedRoomId)?.callId ?? null;
-    if (nextCallId !== previousCallId) {
-      this.voiceCall.handleCallEndedEvent(connectedRoomId, previousCallId);
-    }
-  }
-
   private rememberPlayedCallSoundEvent(eventId: string): void {
     this.#playedCallSoundEventIds.push(eventId);
     if (this.#playedCallSoundEventIds.length > 500) {
@@ -944,18 +938,4 @@ export class ServerStateStore {
     this.activeCallRooms.clear();
     this.messageSearch.reset();
   }
-}
-
-function projectedParticipantCall(
-  calls: readonly ActiveCall[],
-  userId: string
-): { roomId: string; callId: string | null } | null {
-  for (const call of calls) {
-    const roomId = call.room?.id;
-    if (!roomId) continue;
-    if (call.participants.some((participant) => participant.user?.id === userId)) {
-      return { roomId, callId: call.callId || null };
-    }
-  }
-  return null;
 }

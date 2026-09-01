@@ -17,7 +17,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-08-30 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-08-27 |
 | [FDR-007](FDR-007-direct-messages.md) | Direct Messages | Active | 2026-08-26 |
-| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-08-25 |
+| [FDR-008](FDR-008-file-attachments-and-video.md) | File Attachments & Video Processing | Active | 2026-09-01 |
 | [FDR-009](FDR-009-link-previews.md) | Link Previews | Active | 2026-08-27 |
 | [FDR-010](FDR-010-typing-indicators.md) | Typing Indicators | Active | 2026-08-25 |
 | [FDR-011](FDR-011-user-presence.md) | User Presence | Active | 2026-08-30 |
@@ -48,10 +48,10 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-08-30 |
 | [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-08-30 |
-| [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-08-30 |
+| [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-01 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |
 | [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-08-30 |
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
 | [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-08-30 |
-| [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-08-30 |
+| [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-09-01 |

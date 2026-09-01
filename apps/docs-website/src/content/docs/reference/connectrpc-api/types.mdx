@@ -679,6 +679,8 @@ viewer.
 | --- | --- | --- |
 | `room` | [`Room`](#chatto-api-v1-Room) | Public room metadata. |
 | `viewer_state` | [`RoomViewerState`](#chatto-api-v1-RoomViewerState) | State and permission decisions resolved for the current user. |
+| `member_user_ids` | `repeated string` | Complete participant user IDs for a DM. Empty for channel rooms. |
+| `has_message_history` | `optional bool` | Whether this DM has received a root message. Absent for channel rooms. |
 
 <a id="chatto-api-v1-SidebarLink"></a>
 
@@ -1115,6 +1117,51 @@ Authenticated server runtime settings used by clients.
 | `max_video_upload_size` | `int64` | Maximum video upload size in bytes. |
 | `message_edit_window_seconds` | `int32` | Message edit window in seconds. |
 
+<a id="chatto-api-v1-ActiveCall"></a>
+
+### ActiveCall
+
+Current active call snapshot for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the active call. |
+| `call_id` | `string` | Active call session ID. |
+| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
+
+<a id="chatto-api-v1-CallParticipant"></a>
+
+### CallParticipant
+
+User currently participating in a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Participant user. |
+| `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
+| `call_id` | `string` | Active call session ID. |
+
+<a id="chatto-api-v1-ServerSnapshotChunk"></a>
+
+### ServerSnapshotChunk
+
+One authorized resource family in a server snapshot.
+
+Each value is the same public resource or response that its ConnectRPC read
+returns. List values replace the complete client-side resource family.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `resource.server` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Current public server profile. |
+| `resource.motd` | [`GetMotdResponse`](/reference/connectrpc-api/server/#chatto-api-v1-GetMotdResponse) | Current authenticated message of the day. |
+| `resource.runtime_config` | [`GetRuntimeConfigResponse`](/reference/connectrpc-api/server/#chatto-api-v1-GetRuntimeConfigResponse) | Current authenticated runtime configuration. |
+| `resource.viewer` | [`GetViewerResponse`](/reference/connectrpc-api/viewer/#chatto-api-v1-GetViewerResponse) | Current authenticated viewer resource. |
+| `resource.users` | [`ListUsersResponse`](/reference/connectrpc-api/users/#chatto-api-v1-ListUsersResponse) | Complete visible user directory. |
+| `resource.rooms` | [`ListRoomsResponse`](/reference/connectrpc-api/room-directory/#chatto-api-v1-ListRoomsResponse) | Complete visible room directory. |
+| `resource.room_groups` | [`ListRoomGroupsResponse`](/reference/connectrpc-api/room-directory/#chatto-api-v1-ListRoomGroupsResponse) | Complete visible room-group layout. |
+| `resource.notifications` | [`ListNotificationOccurrencesResponse`](/reference/connectrpc-api/notifications/#chatto-api-v1-ListNotificationOccurrencesResponse) | Current bounded notification occurrence page and complete counts. |
+| `resource.active_calls` | [`ListActiveCallsResponse`](/reference/connectrpc-api/calls/#chatto-api-v1-ListActiveCallsResponse) | Complete visible active-call state. |
+
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread
@@ -1139,30 +1186,6 @@ Current follow state for one thread and viewer.
 | `room_id` | `string` | Room containing the thread. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `following` | `bool` | True when the current user follows the thread. |
-
-<a id="chatto-api-v1-ActiveCall"></a>
-
-### ActiveCall
-
-Current active call snapshot for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the active call. |
-| `call_id` | `string` | Active call session ID. |
-| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
-
-<a id="chatto-api-v1-CallParticipant"></a>
-
-### CallParticipant
-
-User currently participating in a room call.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Participant user. |
-| `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
-| `call_id` | `string` | Active call session ID. |
 
 <a id="chatto-admin-v1-AdminAccountInfo"></a>
 

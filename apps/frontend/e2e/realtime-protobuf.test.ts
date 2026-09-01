@@ -13,18 +13,17 @@ import {
   RealtimeClientFrame,
   RealtimeClientHello,
   RealtimeEvent,
-  RealtimeHydrateRoom,
   RealtimeInitialState,
   RealtimeRecoveryMode,
   RealtimeServerFrame,
-  RealtimeStateItem,
   RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 
 interface RealtimeConnectOptions {
   initialState?: RealtimeInitialState;
   resumeCursor?: string;
-  retainedRoomIds?: string[];
 }
 
 class RealtimeProtobufClient {
@@ -98,8 +97,7 @@ class RealtimeProtobufClient {
           case: 'subscribeEvents',
           value: new RealtimeSubscribeEvents({
             initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
-            resumeCursor: options.resumeCursor,
-            retainedRoomIds: options.retainedRoomIds ?? []
+            resumeCursor: options.resumeCursor
           })
         }
       })
@@ -131,12 +129,14 @@ class RealtimeProtobufClient {
     });
   }
 
-  waitForState(predicate: (state: RealtimeStateItem) => boolean): Promise<RealtimeStateItem> {
+  waitForSnapshot(
+    predicate: (snapshot: ServerSnapshotChunk) => boolean
+  ): Promise<ServerSnapshotChunk> {
     return this.waitForFrame((frame) => {
-      const state = frame.frame.case === 'state' ? frame.frame.value : null;
-      return state ? predicate(state) : false;
+      const snapshot = frame.frame.case === 'snapshot' ? frame.frame.value : null;
+      return snapshot ? predicate(snapshot) : false;
     }).then((frame) => {
-      if (frame.frame.case !== 'state') throw new Error('matched frame was not state');
+      if (frame.frame.case !== 'snapshot') throw new Error('matched frame was not a snapshot');
       return frame.frame.value;
     });
   }
@@ -160,8 +160,8 @@ class RealtimeProtobufClient {
             if (frame.frame.case === 'event') {
               return `event:${frame.frame.value.event?.event.case ?? 'unknown'}`;
             }
-            if (frame.frame.case === 'state') {
-              return `state:${frame.frame.value.state.case ?? 'unknown'}`;
+            if (frame.frame.case === 'snapshot') {
+              return `snapshot:${frame.frame.value.resource.case ?? 'unknown'}`;
             }
             return frame.frame.case ?? 'unknown';
           });
@@ -219,7 +219,7 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
-  test('materialises a cold room timeline through explicit snapshot state', async ({
+  test('sends canonical room resources in the initial snapshot', async ({
     page,
     chatPage,
     serverURL
@@ -227,29 +227,18 @@ test.describe('protobuf realtime stream', () => {
     const viewer = await createAndLoginTestUser(page);
     await chatPage.goto();
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
-    const messageId = await postMessageViaConnect(page, roomId, `lazy realtime ${Date.now()}`);
     const token = await loginForBearerToken(page, viewer);
     const realtime = await RealtimeProtobufClient.connect(serverURL, token);
 
     try {
       expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.SNAPSHOT);
+      const rooms = await realtime.waitForSnapshot(
+        (snapshot) =>
+          snapshot.resource.case === 'rooms' &&
+          snapshot.resource.value.rooms.some((room) => room.room?.id === roomId)
+      );
+      expect(rooms.resource.case).toBe('rooms');
       await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
-      realtime.send(
-        new RealtimeClientFrame({
-          frame: {
-            case: 'hydrateRoom',
-            value: new RealtimeHydrateRoom({ roomId })
-          }
-        })
-      );
-
-      const hydrated = await realtime.waitForState(
-        (state) =>
-          state.state.case === 'roomTimeline' &&
-          state.state.value.roomId === roomId &&
-          Boolean(state.state.value.page?.events.some((event) => event.id === messageId))
-      );
-      expect(hydrated.state.case).toBe('roomTimeline');
     } finally {
       realtime.close();
     }
@@ -278,7 +267,6 @@ test.describe('protobuf realtime stream', () => {
         (event) => event.event?.event.case === 'messagePosted' && event.event.id === messageId
       );
       expect(posted.resumeCursor).toBeTruthy();
-      expect(posted.state.some((state) => state.state.case === 'roomTimelineEvent')).toBe(false);
       realtime.close();
 
       await connectPost(page, 'chatto.api.v1.MessageService/AddReaction', {
@@ -321,7 +309,7 @@ test.describe('protobuf realtime stream', () => {
     }
   });
 
-  test('delivers mention and DM occurrence display payloads as event state', async ({
+  test('uses canonical events as notification resource refresh hints', async ({
     page,
     browser,
     serverURL
@@ -338,29 +326,36 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`@${viewer.login} protobuf mention ${Date.now()}`);
       });
 
-      const mentionEvent = await realtime.waitForEvent((event) =>
-        event.state.some(
-          (state) =>
-            state.state.case === 'notifications' &&
-            state.state.value.occurrences?.occurrences.some(
-              (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
-            )
-        )
+      await realtime.waitForEvent(
+        (event) => event.event?.event.case === 'messagePosted'
       );
-      const mentionReplacement = mentionEvent.state
-        .map((state) => (state.state.case === 'notifications' ? state.state.value : null))
-        .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const mention = mentionReplacement?.occurrences?.occurrences.find(
-        (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
-      );
-      expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
-      expect(mention?.actor?.id).toBeTruthy();
-      const mentionMessage =
-        mention?.signal?.kind.case === 'directMentionReceived'
-          ? mention.signal.kind.value.message
-          : null;
-      expect(mentionMessage?.room?.name).toBe('general');
-      expect(mentionMessage?.room?.id).toBeTruthy();
+      await expect
+        .poll(async () => {
+          const json = await connectPost<Record<string, unknown>>(
+            page,
+            'chatto.api.v1.NotificationService/ListNotificationOccurrences'
+          );
+          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const occurrence = response.occurrences.find(
+            (item) => item.signal?.kind.case === 'directMentionReceived'
+          );
+          const message =
+            occurrence?.signal?.kind.case === 'directMentionReceived'
+              ? occurrence.signal.kind.value.message
+              : undefined;
+          return {
+            actorId: occurrence?.actor?.id,
+            actorDisplayName: occurrence?.actor?.displayName,
+            roomId: message?.room?.id,
+            roomName: message?.room?.name
+          };
+        })
+        .toMatchObject({
+          actorId: expect.any(String),
+          actorDisplayName: mentionActorDisplayName,
+          roomId: expect.any(String),
+          roomName: 'general'
+        });
 
       let dmSenderDisplayName = '';
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
@@ -370,26 +365,34 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`protobuf dm ${Date.now()}`);
       });
 
-      const dmEvent = await realtime.waitForEvent((event) =>
-        event.state.some(
-          (state) =>
-            state.state.case === 'notifications' &&
-            state.state.value.occurrences?.occurrences.some(
-              (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
-            )
-        )
+      await realtime.waitForEvent(
+        (event) => event.event?.event.case === 'messagePosted'
       );
-      const dmReplacement = dmEvent.state
-        .map((state) => (state.state.case === 'notifications' ? state.state.value : null))
-        .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const dm = dmReplacement?.occurrences?.occurrences.find(
-        (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
-      );
-      expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
-      expect(dm?.actor?.id).toBeTruthy();
-      const dmMessage =
-        dm?.signal?.kind.case === 'directMessageReceived' ? dm.signal.kind.value.message : null;
-      expect(dmMessage?.room?.id).toBeTruthy();
+      await expect
+        .poll(async () => {
+          const json = await connectPost<Record<string, unknown>>(
+            page,
+            'chatto.api.v1.NotificationService/ListNotificationOccurrences'
+          );
+          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const occurrence = response.occurrences.find(
+            (item) => item.signal?.kind.case === 'directMessageReceived'
+          );
+          const message =
+            occurrence?.signal?.kind.case === 'directMessageReceived'
+              ? occurrence.signal.kind.value.message
+              : undefined;
+          return {
+            actorId: occurrence?.actor?.id,
+            actorDisplayName: occurrence?.actor?.displayName,
+            roomId: message?.room?.id
+          };
+        })
+        .toMatchObject({
+          actorId: expect.any(String),
+          actorDisplayName: dmSenderDisplayName,
+          roomId: expect.any(String)
+        });
     } finally {
       realtime.close();
     }

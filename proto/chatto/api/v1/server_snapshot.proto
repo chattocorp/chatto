@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "chatto/api/v1/notifications.proto";
+import "chatto/api/v1/room_directory.proto";
+import "chatto/api/v1/server.proto";
+import "chatto/api/v1/server_state.proto";
+import "chatto/api/v1/user_service.proto";
+import "chatto/api/v1/viewer.proto";
+import "chatto/api/v1/voice_calls.proto";
+
+// One authorized resource family in a server snapshot.
+//
+// Each value is the same public resource or response that its ConnectRPC read
+// returns. List values replace the complete client-side resource family.
+message ServerSnapshotChunk {
+  oneof resource {
+    // Current public server profile.
+    ServerPublicProfile server = 1;
+    // Current authenticated message of the day.
+    GetMotdResponse motd = 2;
+    // Current authenticated runtime configuration.
+    GetRuntimeConfigResponse runtime_config = 3;
+    // Current authenticated viewer resource.
+    GetViewerResponse viewer = 4;
+    // Complete visible user directory.
+    ListUsersResponse users = 5;
+    // Complete visible room directory.
+    ListRoomsResponse rooms = 6;
+    // Complete visible room-group layout.
+    ListRoomGroupsResponse room_groups = 7;
+    // Current bounded notification occurrence page and complete counts.
+    ListNotificationOccurrencesResponse notifications = 8;
+    // Complete visible active-call state.
+    ListActiveCallsResponse active_calls = 9;
+  }
+}

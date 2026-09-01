@@ -350,25 +350,16 @@
     });
   }
 
-  // Durable message rows arrive through semantic events with current state. Keep
-  // presence/read side effects and the independent paginated files read model
-  // aligned with those authoritative row replacements.
+  // Canonical message facts invalidate the explicit timeline read.
   useProjectionEvent((event) => {
-    for (const stateItem of event.state) {
-      if (stateItem.state.case !== 'roomTimelineEvent') continue;
-      const update = stateItem.state.value;
-      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
-      const message = update.event.event.value.message;
-      if (!message?.threadRootEventId) {
+    const semantic = event.event?.event;
+    if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
+    if (!semantic.value.inThread) {
         const actorId = event.event?.actorId;
         if (actorId) typingIndicator.removeTypingUser(actorId);
         if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-          // Projection envelopes for row replacements can be driven by an
-          // asset/reaction fact whose ID is not itself part of the room
-          // timeline. Anchor read state to the row being upserted.
-          unread.markRoomAsRead(roomId, update.event.id);
+          unread.markRoomAsRead(roomId, event.event?.id ?? '');
         }
-      }
     }
   });
 

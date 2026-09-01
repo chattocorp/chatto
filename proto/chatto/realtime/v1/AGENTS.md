@@ -25,10 +25,10 @@ protocol at `/api/realtime`.
   EVT coordinates internally but must never disclose NATS/JetStream identities,
   sequences, subjects, or other persistence details on the wire.
 - Resume cursors have a limited public lifetime (currently 24 hours). An
-  expired cursor must use an authorized current-state snapshot. Do not use a
+  expired cursor must use an authorized resource snapshot. Do not use a
   partly trusted replay position.
 - A client must never advance its resume cursor across an undecodable frame or
-  unknown top-level frame. Additive semantic event and state variants are
-  skippable because common event metadata and the cursor remain outside the
-  event `oneof`. Use a new behavioral protocol version when a new variant needs
+  unknown top-level frame. Additive semantic event variants are skippable
+  because common event metadata and the cursor remain outside the event
+  `oneof`. Use a new behavioral protocol version when a new variant needs
   required client behavior.

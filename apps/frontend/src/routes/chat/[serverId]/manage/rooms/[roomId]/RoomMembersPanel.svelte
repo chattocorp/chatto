@@ -185,24 +185,23 @@
   });
 
   useProjectionEvent((event) => {
-    for (const stateItem of event.state) {
-      switch (stateItem.state.case) {
-        case 'room':
-          if (stateItem.state.value.room?.room?.id === roomId) {
-            void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
-            return;
-          }
-          break;
-        case 'roomRemoved':
-          if (stateItem.state.value.roomId === roomId) {
-            privacyGeneration += 1;
-            clearLocalState();
-            purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
-            return;
-          }
-          break;
-        case 'userRemoved': {
-          const userId = stateItem.state.value.userId;
+    if (event.snapshot?.resource.case === 'rooms') {
+      if (event.snapshot.resource.value.rooms.some((room) => room.room?.id === roomId)) {
+        void invalidateRoomMemberQueries(serverId, serverScope.connection, roomId);
+      } else {
+        privacyGeneration += 1;
+        clearLocalState();
+        purgeRoomMemberQueries(serverId, serverScope.connection, roomId);
+      }
+      return;
+    }
+    const semantic = event.event?.event;
+    if (
+      semantic?.case === 'userAccountDeleted' ||
+      semantic?.case === 'serverMemberDeleted' ||
+      semantic?.case === 'serverMemberDeletedSync'
+    ) {
+          const userId = semantic.value.userId;
           const affectsSelection = selectedUser?.id === userId;
           const affectsRemoval = removeCandidate?.id === userId;
           const affectsMutation =
@@ -211,9 +210,6 @@
           if (affectsSelection || affectsRemoval || affectsMutation) privacyGeneration += 1;
           if (affectsSelection) clearSelectedUser();
           if (affectsRemoval) removeCandidate = null;
-          break;
-        }
-      }
     }
   });
 

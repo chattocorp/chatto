@@ -268,6 +268,26 @@ function rewriteRealtimeExternalLinks(section) {
   );
 }
 
+const snapshotResourceTypePages = new Map([
+  ['chatto-api-v1-GetMotdResponse', 'server'],
+  ['chatto-api-v1-GetRuntimeConfigResponse', 'server'],
+  ['chatto-api-v1-GetViewerResponse', 'viewer'],
+  ['chatto-api-v1-ListUsersResponse', 'users'],
+  ['chatto-api-v1-ListRoomsResponse', 'room-directory'],
+  ['chatto-api-v1-ListRoomGroupsResponse', 'room-directory'],
+  ['chatto-api-v1-ListNotificationOccurrencesResponse', 'notifications'],
+  ['chatto-api-v1-ListActiveCallsResponse', 'calls']
+]);
+
+function rewriteSnapshotResourceLinks(section) {
+  let content = section.content;
+  if (section.name !== 'ServerSnapshotChunk') return content;
+  for (const [anchor, page] of snapshotResourceTypePages) {
+    content = content.replaceAll(`](#${anchor})`, `](/reference/connectrpc-api/${page}/#${anchor})`);
+  }
+  return content;
+}
+
 function dedupeInlineMethodTypes(content) {
   const pattern = /<a id="([^"]+)"><\/a>\n\n(#{1,6}) ([^\n]+)\n/g;
   const matches = [...content.matchAll(pattern)];
@@ -552,7 +572,7 @@ function renderServicePage(service, serviceSections) {
 function renderTypesPage(typeSections, enumSections) {
   const normalTypes = [...typeSections.entries()]
     .filter(([, section]) => !isRealtimeType(section.name))
-    .map(([, section]) => section.content);
+    .map(([, section]) => rewriteSnapshotResourceLinks(section));
   const normalEnums = [...enumSections.entries()]
     .filter(([, section]) => !isRealtimeType(section.name))
     .map(([, section]) => section.content);

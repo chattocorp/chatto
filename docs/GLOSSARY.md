@@ -219,7 +219,13 @@ omits internal variants and storage-only fields and can add client-only
 plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
 numbers are not public API. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
-**Client Projection** — Authenticated, server-scoped current state that a client builds from an authorized realtime snapshot and maintains with Public Realtime Events. It is a convergence view rather than an audit log. It does not replace the resource-oriented `chatto.api.v1` API for explicit reads, commands, pagination, and history. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md).
+**Client Projection** — Authenticated, server-scoped current state that a client
+builds from authorized canonical public resource snapshot chunks and maintains
+with Public Realtime Events plus explicit resource reads. It is a convergence
+view rather than an audit log. It does not replace the resource-oriented
+`chatto.api.v1` API for explicit reads, commands, pagination, and history. See
+[ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md) and
+[ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Resume Cursor** — Opaque, viewer-bound token for bounded recovery after a recent realtime disconnect. It can identify an internal EVT position, but it does not expose that position and does not promise arbitrary history. When safe resume is not possible, Chatto uses the subscription's explicit snapshot or live-only fallback. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 

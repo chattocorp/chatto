@@ -2,11 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
-import {
-  RealtimeStateItem,
-  RealtimeRoomGroupsState
-} from '@chatto/api-types/realtime/v1/realtime_pb';
+import { ListRoomGroupsResponse, RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
+import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -107,16 +104,14 @@ function deferred<T>() {
 
 function dispatchGroups(groupIds: string[]): void {
   const event = new RealtimeProjectionUpdate({
-    operations: [
-      new RealtimeStateItem({
-        state: {
-          case: 'roomGroups',
-          value: new RealtimeRoomGroupsState({
-            groups: groupIds.map((id) => new RoomGroup({ id, name: id }))
-          })
-        }
-      })
-    ]
+    snapshot: new ServerSnapshotChunk({
+      resource: {
+        case: 'roomGroups',
+        value: new ListRoomGroupsResponse({
+          groups: groupIds.map((id) => new RoomGroup({ id, name: id }))
+        })
+      }
+    })
   });
   for (const handler of mocks.projectionHandlers) handler(event);
 }

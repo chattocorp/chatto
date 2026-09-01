@@ -4,14 +4,10 @@ import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { RoomMessagePosted, RoomTimelineEvent } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import {
-  RealtimeRoomTimelineEventState,
-  RealtimeStateItem
-} from '@chatto/api-types/realtime/v1/realtime_pb';
+import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
+import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore } from '$lib/state/room';
@@ -700,27 +696,14 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        id: 'asset-processing-succeeded-id',
-        actorId: 'system',
-        operations: [
-          new RealtimeStateItem({
-            state: {
-              case: 'roomTimelineEvent',
-              value: new RealtimeRoomTimelineEventState({
-                roomId: 'room-1',
-                event: new RoomTimelineEvent({
-                  id: 'message-event-id',
-                  event: {
-                    case: 'messagePosted',
-                    value: new RoomMessagePosted({
-                      message: new Message({ threadRootEventId: '' })
-                    })
-                  }
-                })
-              })
-            }
-          })
-        ]
+        event: new CanonicalEvent({
+          id: 'message-event-id',
+          actorId: 'system',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
+          }
+        })
       })
     );
 

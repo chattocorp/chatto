@@ -57,7 +57,7 @@ const (
 type RoomDirectoryServiceClient interface {
 	// Lists rooms visible to the current user. Channel rooms are non-archived
 	// rooms visible through membership or room.list. DM membership authorizes DM
-	// reads. Empty DMs are omitted. Results are returned as a finite navigation
+	// reads. Results are returned as a finite navigation
 	// snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current
@@ -179,7 +179,7 @@ func (c *roomDirectoryServiceClient) BatchGetRooms(ctx context.Context, req *con
 type RoomDirectoryServiceHandler interface {
 	// Lists rooms visible to the current user. Channel rooms are non-archived
 	// rooms visible through membership or room.list. DM membership authorizes DM
-	// reads. Empty DMs are omitted. Results are returned as a finite navigation
+	// reads. Results are returned as a finite navigation
 	// snapshot.
 	ListRooms(context.Context, *connect.Request[v1.ListRoomsRequest]) (*connect.Response[v1.ListRoomsResponse], error)
 	// Lists ordered channel room groups and sidebar items visible to the current

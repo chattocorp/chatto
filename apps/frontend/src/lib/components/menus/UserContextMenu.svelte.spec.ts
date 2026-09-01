@@ -202,7 +202,8 @@ describe('UserContextMenu', () => {
   it('keeps profile navigation available for an existing direct message without DM-create permission', () => {
     serverScopeMock.permissions.canStartDMs = false;
     serverScopeMock.projection.rooms.set('dm-1', {
-      room: { room: { kind: RoomKind.DM }, viewerState: { isMember: true } },
+      room: { kind: RoomKind.DM },
+      viewerState: { isMember: true },
       memberUserIds: ['viewer-1', 'user-1']
     });
     const onOpenProfile = vi.fn();

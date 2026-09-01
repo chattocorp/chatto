@@ -10,7 +10,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
-import type { RealtimeStateItem } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import {
   TransientEventKind,
@@ -20,27 +20,25 @@ import {
 } from '$lib/realtimeEvents';
 
 export type EventHandler = (event: TransientEventEnvelope) => void;
-/** One ordered update consumed by the bundled frontend projection. */
+/** One ordered event or resource snapshot consumed by the bundled frontend. */
 export class RealtimeProjectionUpdate {
-  /** Semantic source event. Snapshot state items do not have one. */
+  /** Semantic source event. Snapshot resources do not have one. */
   readonly event: Event | null;
-  /** Authorized current state to apply in order. */
-  readonly state: readonly RealtimeStateItem[];
+  /** Authorized canonical resource response, when this is a snapshot update. */
+  readonly snapshot: ServerSnapshotChunk | null;
   /** Clear the retained projection before applying this update. */
   readonly reset: boolean;
 
   constructor(
     init: {
       event?: Event | null;
-      state?: readonly RealtimeStateItem[];
-      /** Test and migration convenience for the former projection vocabulary. */
-      operations?: readonly RealtimeStateItem[];
+      snapshot?: ServerSnapshotChunk | null;
       reset?: boolean;
       id?: string;
       actorId?: string;
     } = {}
   ) {
-    this.state = init.state ?? init.operations ?? [];
+    this.snapshot = init.snapshot ?? null;
     this.reset = init.reset ?? false;
     this.event =
       init.event ??
@@ -58,7 +56,7 @@ function selectedBus(serverId: string): EventBus | undefined {
   return serverId ? eventBusManager.getBus(serverId) : undefined;
 }
 
-/** Register a handler for semantic events and canonical current-state items. */
+/** Register a handler for semantic events and canonical snapshot resources. */
 export function onProjectionEvent(serverId: string, handler: ProjectionHandler): () => void {
   const bus = selectedBus(serverId);
   if (!bus) return () => {};
