@@ -2483,6 +2483,27 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('treats authorization loss during authoritative restoration as expected', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('m1')))
+      .mockRejectedValueOnce(new ConnectError('permission denied', Code.PermissionDenied));
+    const store = new MessagesStore(
+      {} as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.setRoom('room-1');
+    await settle();
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+
+    expect(store.rootEvents).toEqual([]);
+    expect(consoleError).not.toHaveBeenCalled();
+    store.dispose();
+  });
+
   it('preserves the loaded room window when a latest soft-refresh adds newer events', async () => {
     const fake = new FakeQueryClient([
       roomEventsResult({

@@ -1322,7 +1322,12 @@ export class MessagesStore {
       return true;
     } catch (error: unknown) {
       if (this.isStale(thisLoad) || this.source !== source) return false;
-      console.error('MessagesStore: fetchCurrent failed:', error);
+      if (
+        !isConnectCode(error, Code.PermissionDenied) &&
+        !isConnectCode(error, Code.NotFound)
+      ) {
+        console.error('MessagesStore: fetchCurrent failed:', error);
+      }
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
       return false;
