@@ -31,9 +31,6 @@ var (
 	// ErrRealtimeCursorExpired means the cursor is older than its public
 	// lifetime or precedes retained EVT history.
 	ErrRealtimeCursorExpired = errors.New("realtime cursor expired")
-	// ErrRealtimeReplayLimitExceeded means the requested gap exceeds the
-	// bounded reconnect replay budget.
-	ErrRealtimeReplayLimitExceeded = errors.New("realtime replay limit exceeded")
 )
 
 type realtimeCursorPayload struct {

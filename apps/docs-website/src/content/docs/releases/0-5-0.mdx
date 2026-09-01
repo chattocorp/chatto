@@ -290,11 +290,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   until that first visit.
 - Realtime protocol 4 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
-  and a 0.5 server does not accept protocol 1 or protocol 2. Integrations that use
+  and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
   `/api/realtime` must regenerate their clients. Protocol 4 sends authorized canonical
   events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
-  bounded cursor resume. Retained room IDs affect current timeline state only. They do not
-  filter events.
+  bounded cursor resume. Resource snapshots reuse public API protobufs. Room and thread
+  timelines stay in the paginated ConnectRPC APIs; protocol 4 has no retained-room control.
+  `RoomWithViewerState` now contains DM participant IDs and optional message-history state,
+  and `ListRooms` returns accessible empty DMs. Hide an empty DM from navigation only when
+  `has_message_history` is explicitly false; absence means unknown for an older server.
 - Upgrade every Chatto server replica from 0.4 to 0.5 together rather than using a rolling
   server deployment. A 0.4 replica can accept a late message edit after another replica has
   deleted that message and can temporarily render its body again. Once every replica runs

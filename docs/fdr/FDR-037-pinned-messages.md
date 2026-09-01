@@ -1,7 +1,7 @@
 # FDR-037: Pinned Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -79,8 +79,8 @@ authorized pin view.
 **Why:** The event describes the domain change directly for bots and the
 frontend. Clients can ignore an event type they do not use and still advance
 the common cursor. See ADR-087.
-**Tradeoff:** A pin change causes the retained room pin store to refresh its
-canonical page rather than applying an untrusted partial message payload.
+**Tradeoff:** A pin change causes the loaded room pin store to refresh its
+canonical page rather than apply an untrusted partial message payload.
 
 ### 5. Keep unseen state local
 

@@ -78,7 +78,8 @@ Answer these questions before editing:
 5. What invariant does the OCC filter protect?
 6. Which projections must consume the event?
 7. Which projections must be current before the mutation returns?
-8. Does the write need to publish transient `LiveEvent`s, or will `EVT` republish through `live.evt.>` be enough?
+8. Does the write need to publish a transient canonical `Event` on
+   `live.sync.>`, or will `EVT` republish through `live.evt.>` be enough?
 9. What happens with multiple replicas racing the same write?
 10. What happens on forward deploy, mixed-version rolling deploy, and rollback?
 11. Which focused tests lock down the subject, replay, OCC, projection, and delivery behavior?
@@ -260,7 +261,8 @@ When adding or moving deliverable events:
   the authenticated viewer/resource scope. Invalid, foreign, or stale cursors
   must select a safe reset or documented public error without revealing the
   failed internal coordinate.
-- Transient `LiveEvent`s on `live.sync.>` are not replayed and are not projection input.
+- Transient canonical `Event` values on `live.sync.>` are not replayed and are
+  not projection input.
 
 ## Compatibility And Deployment
 

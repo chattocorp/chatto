@@ -516,8 +516,6 @@ func realtimeReplayError(err error) (code, message string) {
 		return "invalid_cursor", "the realtime resume cursor is invalid for this server history"
 	case errors.Is(err, core.ErrRealtimeCursorExpired):
 		return "cursor_expired", "the realtime resume cursor is no longer retained"
-	case errors.Is(err, core.ErrRealtimeReplayLimitExceeded):
-		return "replay_limit_exceeded", "the realtime gap is too large to replay; refresh projected state"
 	default:
 		return "replay_unavailable", "realtime replay is temporarily unavailable"
 	}

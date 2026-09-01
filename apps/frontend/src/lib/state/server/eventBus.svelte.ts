@@ -35,6 +35,7 @@ const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
 const FATAL_REALTIME_CLOSE_CODE = 4000;
+const REALTIME_PROTOCOL_VERSION = 4;
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -91,7 +92,7 @@ function clientHelloFrame(token: string | null): Uint8Array {
     frame: {
       case: 'hello',
       value: new RealtimeClientHello({
-        protocolVersion: 4,
+        protocolVersion: REALTIME_PROTOCOL_VERSION,
         bearerToken: token ?? undefined
       })
     }
@@ -371,6 +372,10 @@ class EventBusManager {
           lastEventAt = Date.now();
           switch (frame.frame.case) {
             case 'hello':
+              if (frame.frame.value.protocolVersion !== REALTIME_PROTOCOL_VERSION) {
+                stopForUnsupportedProtocol(nextSocket);
+                return;
+              }
               heartbeatStallMs = heartbeatStallMsForInterval(
                 frame.frame.value.heartbeatIntervalSeconds
               );

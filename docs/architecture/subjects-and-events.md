@@ -160,8 +160,8 @@ cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
 Canonical transient events remain live-only. Protocol 4 sends a censored,
-authorized copy of canonical durable and transient events with optional
-current-resource state. Fresh or
+authorized copy of canonical durable and transient events. Durable events can
+have an opaque resume cursor. Snapshot resources use separate frames. Fresh or
 unsafe subscriptions use the caller's explicit snapshot or live-only fallback.
 Subscriber overflow closes only that session.
 
@@ -183,7 +183,7 @@ and [ADR-088](../adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realt
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `evtv1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. Notification materialization derives exact-sequence output directly from existing source/lifecycle facts; it adds no notification-only EVT facts or prepared-work records. |
 | `NOTIFICATIONS`              | `notificationv1.NotificationEvent` | User occurrence | Bounded 90-day notification lifecycle log on four fixed subjects. A 24-hour broker cleanup grace follows the application expiry. Its projector owns the current list; the push worker consumes signalled facts directly. |
-| Live Sync                    | `evtv1.Event` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; transient activity becomes public realtime events, while invalidations produce canonical events with authoritative current state. |
+| Live Sync                    | `evtv1.Event` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them. Transient activity becomes public realtime events. Invalidation events tell clients which authoritative resource to refresh through ConnectRPC. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 

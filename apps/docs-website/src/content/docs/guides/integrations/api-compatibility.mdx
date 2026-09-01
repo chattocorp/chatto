@@ -50,6 +50,14 @@ protocol version 1. The `hello.protocol_version` field selects the complete
 required behavior. Chatto does not publish a separate capability matrix for
 required frame semantics.
 
+Chatto 0.5 adds `member_user_ids` and optional `has_message_history` fields to
+`RoomWithViewerState`. It also makes `RoomDirectoryService.ListRooms` return
+accessible empty DMs. An older client ignores the additive fields but can show
+an empty DM that it did not expect. Filter an empty DM from navigation only
+when `has_message_history` is explicitly false. A new client connected to an
+older server sees no empty DM rows, and it must treat an absent history value
+on a returned DM as unknown rather than false.
+
 The 0.5 authentication boundary also replaces sliding human bearer tokens with
 short-lived access tokens and rotating refresh credentials. A 0.5 server
 rejects bearer records issued before that change, so affected users sign in

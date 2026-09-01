@@ -519,6 +519,31 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
   });
 
+  it('does not subscribe when the server hello selects another protocol version', async () => {
+    vi.useFakeTimers();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection);
+    const socket = sockets[0];
+    socket.open();
+
+    await socket.receive(
+      serverFrame({
+        case: 'hello',
+        value: new RealtimeServerHello({
+          protocolVersion: 3,
+          serverVersion: 'old-server',
+          heartbeatIntervalSeconds: 10
+        })
+      })
+    );
+
+    expect(socket.sent).toHaveLength(1);
+    expect(fake.status).toBe('disconnected');
+    expect(socket.closeCalls.at(-1)?.reason).toBe('unsupported_protocol');
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(sockets).toHaveLength(1);
+  });
+
   it('does not reconnect when the realtime stream closes for authentication required', async () => {
     vi.useFakeTimers();
     const { fake, socket } = await startAndSubscribe();

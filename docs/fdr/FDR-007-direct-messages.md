@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -27,6 +27,10 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
+- `RoomDirectoryService.ListRooms` returns accessible empty DMs as authorized
+  room state. Each DM `RoomWithViewerState` contains its participant user IDs
+  and an optional `has_message_history` value. Navigation hides a DM only when
+  that value is explicitly false. An absent value is unknown and stays visible.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can read a DM only when they are a participant. `message.read` and
   `message.read-interactions` do not apply to DMs, and there is no `dm.*` read
@@ -125,5 +129,5 @@ viewer's effective permissions.
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-088 (one event vocabulary)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)
