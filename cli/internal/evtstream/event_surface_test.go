@@ -23,6 +23,19 @@ func TestValidateEventRejectsClientOnlyFields(t *testing.T) {
 	if !errors.Is(err, ErrInvalidEvent) || !strings.Contains(err.Error(), "login_plaintext") {
 		t.Fatalf("validateEvent() error = %v, want client-only field rejection", err)
 	}
+
+	bodyPlaintext := "public message"
+	messageEvent := &evtv1.Event{
+		Id: "message-id",
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId:        "room-id",
+			BodyPlaintext: &bodyPlaintext,
+		}},
+	}
+	err = validateEvent(messageEvent)
+	if !errors.Is(err, ErrInvalidEvent) || !strings.Contains(err.Error(), "body_plaintext") {
+		t.Fatalf("validateEvent() error = %v, want message plaintext rejection", err)
+	}
 }
 
 func TestValidateEventRejectsTransientVariants(t *testing.T) {

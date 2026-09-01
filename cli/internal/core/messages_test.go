@@ -60,6 +60,18 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	if fetchedBody != messageBody {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
+
+	// Authorized delivery fills a client-only companion without changing the
+	// persisted bodyless MessagePostedEvent.
+	require.Nil(t, roomEvent.GetMessagePosted().BodyPlaintext)
+	delivery := &evtv1.Event{
+		Id: roomEvent.Id,
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId: room.Id,
+		}},
+	}
+	require.NoError(t, core.PopulateEventPlaintext(ctx, delivery))
+	require.Equal(t, messageBody, delivery.GetMessagePosted().GetBodyPlaintext())
 }
 
 func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T) {

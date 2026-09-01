@@ -28,6 +28,14 @@ func (c *ChattoCore) PopulateEventPlaintext(ctx context.Context, event *evtv1.Ev
 	}
 
 	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_MessagePosted:
+		body, err := c.GetFullMessageBody(ctx, event.GetId())
+		if err != nil {
+			return fmt.Errorf("populate posted-message plaintext: %w", err)
+		}
+		if body != nil {
+			payload.MessagePosted.BodyPlaintext = &body.Body
+		}
 	case *evtv1.Event_UserAccountCreated:
 		userID := payload.UserAccountCreated.GetUserId()
 		if err := set(userID, evtstream.EventUserAccountCreated, "login", payload.UserAccountCreated.GetEncryptedLogin(), &payload.UserAccountCreated.LoginPlaintext); err != nil {

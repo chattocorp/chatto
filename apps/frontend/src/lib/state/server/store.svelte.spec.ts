@@ -867,6 +867,7 @@ describe('ServerStateStore unified realtime resources', () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     const hydrate = vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(true);
+    const ingest = vi.spyOn(messages, 'ingestEvent');
     const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
       hasOlder: false,
       hasNewer: false,
@@ -875,6 +876,7 @@ describe('ServerStateStore unified realtime resources', () => {
     });
     await flushPromises();
     hydrate.mockClear();
+    ingest.mockClear();
     refresh.mockClear();
 
     store.realtimeProjectionHandler(
@@ -883,12 +885,18 @@ describe('ServerStateStore unified realtime resources', () => {
           id: 'E-POST',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1' })
+            value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'new body' })
           }
         })
       })
     );
 
+    expect(ingest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'E-POST',
+        event: expect.objectContaining({ body: 'new body', roomId: 'R1' })
+      })
+    );
     expect(hydrate).toHaveBeenCalledWith('E-POST');
     expect(refresh).not.toHaveBeenCalled();
     await flushPromises();

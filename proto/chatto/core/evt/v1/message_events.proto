@@ -58,6 +58,10 @@ message MessagePostedEvent {
   // can therefore apply the correct policy without re-parsing message content
   // or consulting newer room state.
   repeated MessageMention mentions = 10 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+
+  // Decrypted message text for authorized realtime delivery. EVT rejects this
+  // client-only companion, so stored MessagePostedEvent bytes stay bodyless.
+  optional string body_plaintext = 11 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_CLIENT_ONLY];
 }
 
 message DirectUserMention {}

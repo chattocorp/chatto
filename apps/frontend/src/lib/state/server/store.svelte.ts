@@ -53,7 +53,7 @@ import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
@@ -602,6 +602,7 @@ export class ServerStateStore {
           payload.case === 'messagePosted' && payload.value.inThread
             ? payload.value.inThread
             : anchorEventId;
+        if (payload.case === 'messagePosted') this.ingestCanonicalMessagePost(event);
         this.refreshLoadedMessageWindows(
           roomId,
           anchorEventId,
@@ -776,6 +777,50 @@ export class ServerStateStore {
       }
       default:
         return;
+    }
+  }
+
+  /** Render an authorized canonical post while its resource hydration runs. */
+  private ingestCanonicalMessagePost(event: Event): void {
+    const posted = event.event.case === 'messagePosted' ? event.event.value : null;
+    if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
+    const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;
+    const timelineEvent: TimelineEventView = {
+      id: event.id,
+      createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
+      actorId: event.actorId || null,
+      actor: actorMember
+        ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember))
+        : null,
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: posted.roomId,
+        body: posted.bodyPlaintext,
+        attachments: [],
+        linkPreview: null,
+        reactions: [],
+        updatedAt: null,
+        inReplyTo: posted.inReplyTo || null,
+        threadRootEventId: posted.inThread || null,
+        echoOfEventId: posted.echoOfEventId || null,
+        echoFromThreadRootEventId: posted.echoFromThreadRootEventId || null,
+        channelEchoEventId: null,
+        deletedAt: null,
+        pinned: false,
+        threadExists: false,
+        replyCount: 0,
+        lastReplyAt: null,
+        threadParticipantCount: 0,
+        threadParticipants: [],
+        viewerIsFollowingThread: null,
+        viewerHasUnreadThread: null
+      }
+    };
+    for (const [roomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId === posted.roomId) store.ingestEvent(timelineEvent);
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (key.startsWith(`${posted.roomId}\u0000`)) store.ingestEvent(timelineEvent);
     }
   }
 

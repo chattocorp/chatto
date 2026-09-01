@@ -46,7 +46,10 @@ type MessagePostedEvent struct {
 	// a direct, role, presence-scoped, or room-wide mention. Derived consumers
 	// can therefore apply the correct policy without re-parsing message content
 	// or consulting newer room state.
-	Mentions      []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
+	Mentions []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
+	// Decrypted message text for authorized realtime delivery. EVT rejects this
+	// client-only companion, so stored MessagePostedEvent bytes stay bodyless.
+	BodyPlaintext *string `protobuf:"bytes,11,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,6 +131,13 @@ func (x *MessagePostedEvent) GetMentions() []*MessageMention {
 		return x.Mentions
 	}
 	return nil
+}
+
+func (x *MessagePostedEvent) GetBodyPlaintext() string {
+	if x != nil && x.BodyPlaintext != nil {
+		return *x.BodyPlaintext
+	}
+	return ""
 }
 
 type DirectUserMention struct {
@@ -879,7 +889,7 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\"chatto/core/event/v1/options.proto\"\xa1\x03\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\"chatto/core/event/v1/options.proto\"\xe6\x03\n" +
 	"\x12MessagePostedEvent\x12\x1d\n" +
 	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12$\n" +
 	"\vin_reply_to\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\tinReplyTo\x12!\n" +
@@ -888,7 +898,9 @@ const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\x10echo_of_event_id\x18\a \x01(\tB\x04\x88\xb5\x18\x01R\rechoOfEventId\x12G\n" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tB\x04\x88\xb5\x18\x01R\x19echoFromThreadRootEventId\x12D\n" +
 	"\bmentions\x18\n" +
-	" \x03(\v2\".chatto.core.evt.v1.MessageMentionB\x04\x88\xb5\x18\x01R\bmentionsJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	" \x03(\v2\".chatto.core.evt.v1.MessageMentionB\x04\x88\xb5\x18\x01R\bmentions\x120\n" +
+	"\x0ebody_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\rbodyPlaintext\x88\x01\x01B\x11\n" +
+	"\x0f_body_plaintextJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
 	"R\bspace_idR\x0fmessage_body_idR\x04body\"\x13\n" +
 	"\x11DirectUserMention\"7\n" +
 	"\x12RoleMessageMention\x12!\n" +
@@ -981,6 +993,7 @@ func file_chatto_core_evt_v1_message_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_models_proto_init()
+	file_chatto_core_evt_v1_message_events_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_message_events_proto_msgTypes[5].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),
 		(*MessageMention_Role)(nil),

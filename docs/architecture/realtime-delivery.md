@@ -66,6 +66,10 @@ storage-only, and client-only fields. Unspecified payload fields are denied by
 default. The copier does not retain unknown fields. Authorized delivery-only
 decrypted values use `_plaintext` fields. Public events do not expose raw EVT
 bytes, ciphertext, subjects, stream identities, or sequence numbers.
+An authorized message-post event carries `body_plaintext` for immediate
+display. EVT does not store this field. The frontend then reads the message
+resource in the background to reconcile attachments, reactions, thread
+metadata, and its timeline cursor.
 
 ## Snapshot resources
 

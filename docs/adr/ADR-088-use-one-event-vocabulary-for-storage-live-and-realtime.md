@@ -89,6 +89,11 @@ removed the key, the plaintext field stays absent. Ciphertext, nonces, password
 hashes, credential verifiers, provider subjects, and similar storage data do
 not cross the public boundary.
 
+`MessagePostedEvent.body_plaintext` lets an authorized client render a new
+message without a second transport shape or a blocking resource read. It is
+absent in EVT. The client can still read the canonical message resource to get
+attachments, reactions, thread metadata, and timeline cursors.
+
 ### Resume stays a transport concern
 
 The public cursor remains encrypted, authenticated, viewer-bound, and opaque.

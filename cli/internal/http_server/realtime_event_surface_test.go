@@ -49,6 +49,20 @@ func TestProjectRealtimeEventUsesFreshAuthorizedShape(t *testing.T) {
 	}
 }
 
+func TestProjectRealtimeEventCarriesClientOnlyMessagePlaintext(t *testing.T) {
+	bodyPlaintext := "public message"
+	projected := projectRealtimeEvent(&evtv1.Event{
+		Id: "message-id",
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId:        "room-id",
+			BodyPlaintext: &bodyPlaintext,
+		}},
+	})
+	if projected.GetMessagePosted().GetBodyPlaintext() != bodyPlaintext {
+		t.Fatalf("body_plaintext = %q, want authorized plaintext", projected.GetMessagePosted().GetBodyPlaintext())
+	}
+}
+
 func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 	event := &evtv1.Event{
 		Id: "event-id",

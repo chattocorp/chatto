@@ -69,6 +69,14 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
    */
   mentions: MessageMention[] = [];
 
+  /**
+   * Decrypted message text for authorized realtime delivery. EVT rejects this
+   * client-only companion, so stored MessagePostedEvent bytes stay bodyless.
+   *
+   * @generated from field: optional string body_plaintext = 11;
+   */
+  bodyPlaintext?: string;
+
   constructor(data?: PartialMessage<MessagePostedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -84,6 +92,7 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
     { no: 7, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 8, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "mentions", kind: "message", T: MessageMention, repeated: true },
+    { no: 11, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessagePostedEvent {

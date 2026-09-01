@@ -107,6 +107,8 @@ Durable domain changes need ordering and short-gap recovery.
 **Decision:** Realtime events carry enough authorized identity and context to
 describe a change. Clients use ConnectRPC when they need an explicit resource,
 large collection, history page, command response, or additional detail.
+An authorized message-post event can include its client-only plaintext body so
+the client can show the post before it reads the complete message resource.
 **Why:** Events should not become unbounded resource dumps. Complete public
 resource APIs also let simple bots avoid maintaining the complete frontend
 projection.
