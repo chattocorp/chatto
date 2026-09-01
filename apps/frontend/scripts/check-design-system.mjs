@@ -138,9 +138,9 @@ for (const file of await svelteFiles(sourceRoot)) {
   }
 
   const directModalImport = utilitySource.match(
-    /(?:from\s+|import\s*\(\s*)['"]\$lib\/ui\/(?:Dialog|FormDialog|ConfirmDialog)\.svelte['"]/
+    /(?:from\s+|import\s*\(\s*)['"][^'"]*\/(?:Dialog|FormDialog|ConfirmDialog)\.svelte['"]/
   );
-  if (directModalImport) {
+  if (directModalImport && !path.startsWith('src/lib/ui/')) {
     const line = utilitySource.slice(0, directModalImport.index).split('\n').length;
     failures.push(`${path}:${line}: import public modal primitives from $lib/ui`);
   }
