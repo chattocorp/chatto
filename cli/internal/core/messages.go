@@ -212,10 +212,8 @@ func (c *ChattoCore) threadCreatedExistsInStream(ctx context.Context, agg evtstr
 }
 
 type messageAppendAttempt struct {
-	roomFilter          string
-	roomSeq             uint64
-	authorizationFilter string
-	authorizationSeq    uint64
+	roomFilter string
+	roomSeq    uint64
 }
 
 // prepareMessageAssetBatchEntries adds one AssetAttached event per attachment
@@ -303,24 +301,10 @@ func (c *ChattoCore) waitForMessageAssetBatch(
 func (c *ChattoCore) prepareMessageAppendAttempt(
 	ctx context.Context,
 	agg evtstream.Aggregate,
-	actorID string,
 	authorize func(context.Context) error,
 ) (messageAppendAttempt, error) {
-	attempt := messageAppendAttempt{
-		roomFilter:          agg.AllEventsFilter(),
-		authorizationFilter: evtstream.AuthorizationSubjectFilter(),
-	}
+	attempt := messageAppendAttempt{roomFilter: agg.AllEventsFilter()}
 	var err error
-	if authorize != nil {
-		// Capture the authorization fence first. Every authorization-changing
-		// batch writes its domain facts before advancing this lane, so the
-		// projection tails read below include all facts represented by this
-		// boundary. A later authority change conflicts at append time.
-		attempt.authorizationSeq, err = c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return messageAppendAttempt{}, fmt.Errorf("read authorization OCC tail: %w", err)
-		}
-	}
 	attempt.roomSeq, err = c.EventPublisher.LastSubjectSeq(ctx, attempt.roomFilter)
 	if err != nil {
 		return messageAppendAttempt{}, fmt.Errorf("read room OCC tail: %w", err)
@@ -348,29 +332,7 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	if authorize == nil {
 		return attempt, nil
 	}
-	groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
-	if err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("read room-group authorization tail: %w", err)
-	}
-	rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
-	if err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("read RBAC authorization tail: %w", err)
-	}
-	userPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(actorID).AllEventsFilter())
-	if err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("read actor authorization tail: %w", err)
-	}
-
-	if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("wait for room-group authorization projection: %w", err)
-	}
-	if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("wait for RBAC authorization projection: %w", err)
-	}
-	if err := c.userModel.waitForUsers(ctx, userPosition); err != nil {
-		return messageAppendAttempt{}, fmt.Errorf("wait for actor authorization projection: %w", err)
-	}
-	if err := authorize(ctx); err != nil {
+	if err := c.authorizeAtStableInputs(ctx, func() error { return authorize(ctx) }); err != nil {
 		return messageAppendAttempt{}, err
 	}
 	return attempt, nil
@@ -418,7 +380,7 @@ func (c *ChattoCore) appendBodyAndMessage(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -436,11 +398,8 @@ func (c *ChattoCore) appendBodyAndMessage(
 				HasOCC:        true,
 			},
 			{
-				Subject:       messageSubject,
-				Event:         messageEvent,
-				ExpectedSeq:   guard.authorizationSeq,
-				FilterSubject: guard.authorizationFilter,
-				HasOCC:        authorize != nil,
+				Subject: messageSubject,
+				Event:   messageEvent,
 			},
 		}
 		baseEntries := len(entries)
@@ -482,7 +441,7 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -501,11 +460,8 @@ func (c *ChattoCore) appendRootMessageWithThread(ctx context.Context, agg evtstr
 				HasOCC:        true,
 			},
 			{
-				Subject:       messageSubject,
-				Event:         messageEvent,
-				ExpectedSeq:   guard.authorizationSeq,
-				FilterSubject: guard.authorizationFilter,
-				HasOCC:        authorize != nil,
+				Subject: messageSubject,
+				Event:   messageEvent,
 			},
 			{Subject: agg.SubjectFor(threadFollowedEvent), Event: threadFollowedEvent},
 			{Subject: agg.SubjectFor(threadCreatedEvent), Event: threadCreatedEvent},
@@ -793,7 +749,7 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, messageEvent.GetActorId(), authorize)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return 0, err
 		}
@@ -811,11 +767,8 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 				HasOCC:        true,
 			},
 			{
-				Subject:       bodySubject,
-				Event:         bodyEvent,
-				ExpectedSeq:   guard.authorizationSeq,
-				FilterSubject: guard.authorizationFilter,
-				HasOCC:        authorize != nil,
+				Subject: bodySubject,
+				Event:   bodyEvent,
 			},
 			{
 				Subject: messageSubject,
@@ -1827,7 +1780,7 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
 		mutationAttempts = attempt
-		guard, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, authorize)
+		guard, err := c.prepareMessageAppendAttempt(ctx, agg, authorize)
 		if err != nil {
 			return "", err
 		}
@@ -1868,10 +1821,10 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 				},
 			},
 		})
-		// JetStream evaluates each guard on its batch entry and commits the
-		// complete batch atomically. The room guard protects message state;
-		// the optional fence guard gives authorized edits strict revocation
-		// semantics without contending with unrelated EVT traffic.
+		// JetStream evaluates the room guard and commits the complete batch
+		// atomically. Authorization was evaluated from stable request-time
+		// inputs above; a later authorization change is concurrent with this
+		// command and does not cancel it.
 		entries := []evtstream.BatchEntry{
 			{
 				Subject:       bodySubject,
@@ -1881,11 +1834,8 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 				HasOCC:        true,
 			},
 			{
-				Subject:       editSubject,
-				Event:         event,
-				FilterSubject: guard.authorizationFilter,
-				ExpectedSeq:   guard.authorizationSeq,
-				HasOCC:        authorize != nil,
+				Subject: editSubject,
+				Event:   event,
 			},
 		}
 		echoBodyIndex := -1

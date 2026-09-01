@@ -2673,6 +2673,18 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 	}
 }
 
+func TestHistoricalAuthorizationFenceSubjectRemainsStable(t *testing.T) {
+	event := &evtv1.Event{Event: &evtv1.Event_AuthorizationFenceAdvanced{
+		AuthorizationFenceAdvanced: &evtv1.AuthorizationFenceAdvancedEvent{},
+	}}
+	if got := EventTypeOf(event); got != EventAuthorizationFenceAdvanced {
+		t.Fatalf("EventTypeOf = %q, want %q", got, EventAuthorizationFenceAdvanced)
+	}
+	if got := AuthorizationAggregate().SubjectFor(event); got != "evt.authorization.server.fence_advanced" {
+		t.Fatalf("historical authorization fence subject = %q", got)
+	}
+}
+
 func TestEventTypeOf_AssetAttached(t *testing.T) {
 	event := &evtv1.Event{Event: &evtv1.Event_AssetAttached{
 		AssetAttached: &evtv1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},

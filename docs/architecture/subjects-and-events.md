@@ -76,17 +76,23 @@ OCC, and atomic-batch headers. This boundary does not change the stored
 protobuf bytes, subjects, headers, or sequence semantics; previous binaries can
 read new records and current binaries can replay existing `EVT` history.
 
-Authorization-changing batches atomically append an
-`AuthorizationFenceAdvancedEvent` on `evt.authorization.server.fence_advanced`.
-RBAC, relevant user lifecycle, and room-group/layout mutations advance this
-narrow OCC lane. User-facing message posts capture it as an OCC guard without
-advancing it. Authorized message edits capture both the authorization-fence and
-room tails, catch the room, group, RBAC, and actor projections up to their
-relevant tails, and rerun the complete decision. One atomic batch guards the
-replacement body against the room aggregate and the semantic edit against the
-authorization fence; any edit-driven echo change shares that batch. A change
-to either boundary forces a retry, while unrelated EVT facts do not contend.
-Internal linked-message propagation and message retractions remain room-scoped.
+Authorization-sensitive commands use stable request-time authorization. They
+capture the current `evt.rbac.>`, `evt.group.>`, and `evt.user.>` input tails,
+wait for the related projections, evaluate the decision, and confirm that the
+tails did not change during that decision. Low-frequency role-assignment checks
+also stabilize `evt.room.>` because one role can contain decisions for many
+rooms. Ordinary room commands use the exact room aggregate instead.
+
+The final input validation is the authorization decision point. A later
+cross-aggregate revocation is concurrent with the command and does not cancel
+it. Domain events still use OCC for their owning aggregate or invariant. A
+target aggregate conflict repeats the complete command from its original
+intent.
+
+Current writers do not publish `AuthorizationFenceAdvancedEvent`. The event,
+protobuf field 830, event token, and
+`evt.authorization.server.fence_advanced` subject remain historical replay
+contracts.
 
 User-facing reaction add/remove uses request-time authorization and a room
 aggregate boundary. Each attempt waits the relevant room, reaction, group,
@@ -96,11 +102,11 @@ a complete retry. A cross-aggregate authorization change does not
 retroactively cancel an already-authorized, conflict-free reaction attempt;
 subsequent requests observe the changed authorization state.
 
-Pinned-message add/remove captures both the authorization-fence and full room
-aggregate tails, waits the owning projections, and reruns `room.manage` plus
-message lifecycle checks before an OCC append. Concurrent authorization or
-room changes force a complete retry. Pins reference the canonical message ID;
-Room Timeline removes an active association when that message is retracted.
+Pinned-message add/remove validates stable request-time authorization inputs,
+captures the full room aggregate tail, and reruns `room.manage` plus message
+lifecycle checks before a room-OCC append. A concurrent room change forces a
+complete retry. Pins reference the canonical message ID; Room Timeline removes
+an active association when that message is retracted.
 
 `MyEventsModel` sits behind the `ChattoCore.StreamMyEvents` facade. Its
 process-wide `MyEventsHub` subscribes once to each of `live.sync.>` and
@@ -113,22 +119,11 @@ RBAC projection and rebuild each connected user's shared effective-room cache
 before later events are considered. Role and permission changes can therefore
 revoke implicit universal-room visibility without reconnecting.
 
-Message-post authorization uses the singleton
-`evt.authorization.server.fence_advanced` OCC lane. Every RBAC change,
-room-group/layout change, and user lifecycle change that can alter effective
-authority advances this lane atomically with its domain facts. Before evaluating
-bounded scoped authority, writers wait the relevant RBAC, room directory,
-room-group layout, and user projections through the captured EVT boundary. A
-concurrent authorization change then conflicts and retries the complete
-authorization decision, while unrelated messages and reactions do not contend
-with that fence lane. Authorized message edits use the same fence alongside
-their room guard. Reactions do not check or advance it.
-The fence event carries no policy state; the owning domain projections remain
-authoritative.
-
-User-facing message batches independently guard the room aggregate tail and
-check the captured authorization-fence tail. Successful message posts and
-authorized edits do not advance the fence.
+User-facing message batches guard the room aggregate tail. Posting, editing,
+attachment removal, preview removal, and pinning validate stable request-time
+authorization inputs before the append. The room guard protects membership,
+lifecycle, message state, Slow Mode, Threading Mode, and other room-owned
+invariants. Traffic in other rooms does not cause a conflict.
 
 Slow Mode is checked during message preflight and again inside that guarded
 commit authorization. `RoomTimelineProjection` supplies the latest successful
@@ -197,7 +192,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
 | `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
-| `evt.authorization.server.fence_advanced`        | Singleton OCC fence for changes that can alter mutation authority               |
+| `evt.authorization.server.fence_advanced`        | Historical authorization-fence records; current writers do not publish them     |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `evt.invitation.{invitationId}.{eventType}`      | Invitation creation, redemption, and revocation facts                           |
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
@@ -351,7 +346,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
 | `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
 | `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
-| `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent`                  |
+| `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent` (historical replay only) |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
 | `evt.invitation.{invitationId}.created`                    | `InvitationCreatedEvent`                            |

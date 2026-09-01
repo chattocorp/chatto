@@ -625,8 +625,9 @@ func RBACScopedAggregate(scopeID string) Aggregate {
 	return Aggregate{Type: AggregateRBAC, ID: scopeID}
 }
 
-// AuthorizationAggregate is the singleton concurrency lane advanced by
-// authorization-changing facts and authorization-protected mutations.
+// AuthorizationAggregate identifies the retired authorization-fence lane.
+// Current writers do not publish to it. Keep this constructor so historical
+// EVT records retain their stable subject mapping.
 func AuthorizationAggregate() Aggregate {
 	return Aggregate{Type: AggregateAuthorization, ID: AuthorizationSingletonID}
 }
@@ -691,8 +692,9 @@ func AssetSubjectFilter() string { return SubjectRoot + AggregateAsset + ".>" }
 // Pattern: evt.rbac.>
 func RBACSubjectFilter() string { return SubjectRoot + AggregateRBAC + ".>" }
 
-// AuthorizationSubjectFilter returns the narrow concurrency boundary shared
-// by authorization-changing and authorization-protected writes.
+// AuthorizationSubjectFilter matches the retired authorization-fence lane.
+// Current writers do not publish to it. Historical EVT tools and compatibility
+// tests still use this filter.
 // Pattern: evt.authorization.>
 func AuthorizationSubjectFilter() string {
 	return SubjectRoot + AggregateAuthorization + ".>"

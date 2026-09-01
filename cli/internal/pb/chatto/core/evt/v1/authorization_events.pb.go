@@ -21,10 +21,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// AuthorizationFenceAdvancedEvent advances the durable concurrency boundary
-// shared by authorization-changing writes and mutations whose authority must
-// remain valid until commit. It intentionally carries no duplicated policy
-// state; the owning RBAC, user, room, and room-group events remain authoritative.
+// AuthorizationFenceAdvancedEvent is a legacy persisted event. Current writers
+// do not emit it. Keep this empty message and its Event oneof field so servers
+// can decode existing EVT history.
 type AuthorizationFenceAdvancedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

@@ -524,23 +524,12 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
 		t.Fatalf("grant manager bot.manage: %v", err)
 	}
-	fenceBefore, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence before reassignment: %v", err)
-	}
 	reassigned, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId())
 	if err != nil {
 		t.Fatalf("ReassignBotOwner: %v", err)
 	}
 	if reassigned.OwnerUserID != newOwner.GetId() || reassigned.User.GetBotOwnerUserId() != newOwner.GetId() {
 		t.Fatalf("reassigned bot = %+v, want owner %s", reassigned, newOwner.GetId())
-	}
-	fenceAfter, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence after reassignment: %v", err)
-	}
-	if fenceAfter <= fenceBefore {
-		t.Fatalf("authorization fence did not advance: before=%d after=%d", fenceBefore, fenceAfter)
 	}
 	if authenticated, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil || authenticated.GetId() != bot.User.GetId() {
 		t.Fatalf("existing bot key after reassignment = %v, %v", authenticated, err)
@@ -563,19 +552,8 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 		t.Fatalf("new owner-capped bot permission = %s, %v; want deny", effective, err)
 	}
 
-	fenceBeforeNoop, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence before no-op: %v", err)
-	}
 	if _, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId()); err != nil {
 		t.Fatalf("idempotent ReassignBotOwner: %v", err)
-	}
-	fenceAfterNoop, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence after no-op: %v", err)
-	}
-	if fenceAfterNoop != fenceBeforeNoop {
-		t.Fatalf("no-op reassignment advanced authorization fence: before=%d after=%d", fenceBeforeNoop, fenceAfterNoop)
 	}
 
 	otherBot, err := c.CreateBot(ctx, owner.GetId(), "recipient_bot", "Recipient Bot")

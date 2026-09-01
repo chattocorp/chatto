@@ -20,14 +20,6 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 	subject := evtstream.UserAggregate(userID).SubjectFor(event)
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
-		authorizationSeq := uint64(0)
-		if isAuthorizationInputUserEvent(event) {
-			var err error
-			authorizationSeq, err = c.authorizationFenceSeq(ctx)
-			if err != nil {
-				return 0, fmt.Errorf("read authorization fence seq: %w", err)
-			}
-		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -44,23 +36,7 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 			}
 		}
 
-		var seq uint64
-		if isAuthorizationInputUserEvent(event) {
-			entries := []evtstream.BatchEntry{{
-				Subject:       subject,
-				Event:         event,
-				HasOCC:        true,
-				ExpectedSeq:   filterSeq,
-				FilterSubject: filter,
-			}}
-			seqs, appendErr := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
-			err = appendErr
-			if appendErr == nil {
-				seq = seqs[0]
-			}
-		} else {
-			seq, err = c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
-		}
+		seq, err := c.EventPublisher.AppendAtFilter(ctx, subject, event, filter, filterSeq)
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq)); err != nil {
 				return 0, fmt.Errorf("wait for user projection: %w", err)
@@ -104,15 +80,6 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 	}
 
 	for attempt := 0; attempt < attempts; attempt++ {
-		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
-		if fencesAuthorization {
-			var err error
-			authorizationSeq, err = c.authorizationFenceSeq(ctx)
-			if err != nil {
-				return 0, fmt.Errorf("read authorization fence seq: %w", err)
-			}
-		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -134,12 +101,7 @@ func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string,
 		chunk[0].ExpectedSeq = filterSeq
 		chunk[0].FilterSubject = filter
 
-		var seqs []uint64
-		if fencesAuthorization {
-			seqs, err = c.appendAuthorizationFencedBatch(ctx, chunk[0].Event.GetActorId(), chunk, authorizationSeq)
-		} else {
-			seqs, err = c.EventPublisher.AppendBatch(ctx, chunk)
-		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {
 			lastDomainIndex := len(chunk) - 1
 			lastSeq := seqs[lastDomainIndex]
@@ -198,30 +160,6 @@ func isUserAuthEvent(event *evtv1.Event) bool {
 	}
 }
 
-func isAuthorizationInputUserEvent(event *evtv1.Event) bool {
-	if event == nil {
-		return false
-	}
-	switch event.GetEvent().(type) {
-	case *evtv1.Event_UserAccountCreated,
-		*evtv1.Event_UserVerifiedEmailAdded,
-		*evtv1.Event_UserAccountDeleted,
-		*evtv1.Event_BotOwnerReassigned:
-		return true
-	default:
-		return false
-	}
-}
-
-func containsAuthorizationInputUserEvent(entries []evtstream.BatchEntry) bool {
-	for _, entry := range entries {
-		if isAuthorizationInputUserEvent(entry.Event) {
-			return true
-		}
-	}
-	return false
-}
-
 func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error) (uint64, error) {
 	return c.appendUserBatchWithMentionableCheckAttempts(ctx, userID, entries, check, maxUserMutationRetries)
 }
@@ -237,15 +175,6 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 	filter := evtstream.EventSubjectFilter()
 
 	for attempt := 0; attempt < attempts; attempt++ {
-		authorizationSeq := uint64(0)
-		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
-		if fencesAuthorization {
-			var err error
-			authorizationSeq, err = c.authorizationFenceSeq(ctx)
-			if err != nil {
-				return 0, fmt.Errorf("read authorization fence seq: %w", err)
-			}
-		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return 0, fmt.Errorf("read mentionable OCC filter seq: %w", err)
@@ -275,12 +204,7 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Con
 		chunk[0].ExpectedSeq = filterSeq
 		chunk[0].FilterSubject = filter
 
-		var seqs []uint64
-		if fencesAuthorization {
-			seqs, err = c.appendAuthorizationFencedBatch(ctx, chunk[0].Event.GetActorId(), chunk, authorizationSeq)
-		} else {
-			seqs, err = c.EventPublisher.AppendBatch(ctx, chunk)
-		}
+		seqs, err := c.EventPublisher.AppendBatch(ctx, chunk)
 		if err == nil {
 			lastDomainIndex := len(chunk) - 1
 			lastSeq := seqs[lastDomainIndex]

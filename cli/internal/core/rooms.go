@@ -379,10 +379,6 @@ func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind 
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("read authorization fence before universal-room change: %w", err)
-		}
 		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, fmt.Errorf("read universal-room OCC tail: %w", err)
@@ -403,9 +399,9 @@ func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind 
 			RoomUniversalChanged: &evtv1.RoomUniversalChangedEvent{RoomId: roomID, Universal: universal},
 		}})
 		subject := agg.SubjectFor(event)
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
-		}}, authorizationSeq)
+		}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
@@ -455,8 +451,8 @@ func (c *ChattoCore) SetRoomSlowMode(ctx context.Context, actorID string, kind R
 }
 
 // SetRoomThreadingMode updates a channel room's threading policy. The room
-// aggregate and authorization fence are checked together so concurrent policy
-// changes cannot commit from stale state.
+// aggregate protects room state, while authorization is evaluated from stable
+// request-time inputs.
 // Authorization: Caller must verify room.manage before calling.
 func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, kind RoomKind, roomID string, mode evtv1.RoomThreadingMode) (*evtv1.Room, error) {
 	return c.setRoomThreadingMode(ctx, actorID, kind, roomID, mode, nil)
@@ -480,7 +476,7 @@ func (c *ChattoCore) setRoomThreadingMode(
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		prepared, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, func(attemptCtx context.Context) error {
+		prepared, err := c.prepareMessageAppendAttempt(ctx, agg, func(attemptCtx context.Context) error {
 			if authorize != nil {
 				return authorize(attemptCtx)
 			}
@@ -500,9 +496,9 @@ func (c *ChattoCore) setRoomThreadingMode(
 			RoomThreadingModeChanged: &evtv1.RoomThreadingModeChangedEvent{RoomId: roomID, ThreadingMode: mode},
 		}})
 		subject := agg.SubjectFor(event)
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
-		}}, prepared.authorizationSeq)
+		}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
@@ -706,10 +702,6 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 		if err != nil {
 			return fmt.Errorf("read stream OCC tail before room deletion: %w", err)
 		}
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return fmt.Errorf("read authorization fence before room deletion: %w", err)
-		}
 		roomPosition, err := c.EventPublisher.LastSubjectPosition(ctx, filter)
 		if err != nil {
 			return fmt.Errorf("read room deletion OCC tail: %w", err)
@@ -763,7 +755,7 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			entries[0].HasStreamOCC = true
 			entries[0].ExpectedStreamSeq = streamSeq
 		}
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if errors.Is(err, events.ErrConflict) {
 			select {
 			case <-ctx.Done():

@@ -72,8 +72,9 @@ server does not contact the advertised origins.
 and delete operations. Self-targeting is available to human and bot callers. A
 cross-human target requires `user.manage-accounts`. A cross-bot target permits
 the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
-another account. These operations use the target user aggregate and the global
-authorization fence, then return the ready user projection.
+another account. These operations validate stable request-time authorization
+inputs, use OCC on the target user aggregate, and then return the ready user
+projection.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named

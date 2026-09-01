@@ -31,7 +31,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-013](ADR-013-per-space-stream-sharding.md) | Per-Space JetStream Stream Sharding with Lazy Initialization | Superseded | 2026-03-01 |
 | [ADR-014](ADR-014-single-subscription-per-space.md) | Single GraphQL Subscription Per Space | Superseded | 2026-03-01 |
 | [ADR-015](ADR-015-dms-as-hidden-space.md) | Direct Messages as a Hidden Space | Superseded | 2026-03-01 |
-| [ADR-016](ADR-016-occ-for-message-publishing.md) | Optimistic Concurrency Control for Message Publishing | Accepted | 2026-03-01 |
+| [ADR-016](ADR-016-occ-for-message-publishing.md) | Optimistic Concurrency Control for Message Publishing | Partially superseded | 2026-03-01 |
 | [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) | Cookie-Session Authentication Propagated to WebSocket | Accepted | 2026-03-01 |
 | [ADR-018](ADR-018-sveltekit-spa-embedded-in-go.md) | SvelteKit SPA Embedded in Go Binary | Accepted | 2026-03-01 |
 | [ADR-019](ADR-019-dataloaders-http-only.md) | Dataloaders Scoped to HTTP Requests Only | Superseded | 2026-03-01 |
@@ -83,7 +83,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
 | [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
 | [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Partially superseded | 2026-08-08 |
-| [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Accepted | 2026-08-10 |
+| [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Partially superseded | 2026-08-10 |
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
 | [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
 | [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) | Identify Open OAuth Clients through CIMD | Accepted | 2026-08-11 |
@@ -102,3 +102,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
 | [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md) | Commit Room-Layout Structural Mutations Atomically | Accepted | 2026-08-30 |
+| [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md) | Use Request-Time Authorization with Aggregate OCC | Accepted | 2026-09-01 |

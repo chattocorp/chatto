@@ -165,6 +165,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Stop all old Chatto server processes and background workers before you start
+  this release. Do not use a rolling update for this cutover. The release stops
+  writing the legacy `AuthorizationFenceAdvancedEvent` but continues to replay
+  all stored events. You do not need to migrate or rewrite EVT data. A rollback
+  is safe after another full stop.
+
 - Regenerate custom API clients for Chatto 0.5.0-alpha.6. Avatar upload and
   deletion moved from `MyAccountService` to `UserService`, and each request now
   requires the target user ID. There are no compatibility aliases. Old clients

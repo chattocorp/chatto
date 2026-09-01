@@ -364,10 +364,6 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*evtv1.Event) error {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return fmt.Errorf("read authorization fence before room leave: %w", err)
-	}
 
 	leaveEvent := newEvent(userID, &evtv1.Event{
 		Event: &evtv1.Event_UserLeftRoom{
@@ -417,11 +413,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		entries = append(entries, entry)
 	}
 
-	// Leaving, removal, and ban are authorization-changing domain facts. Advance
-	// the existing generic fence in the same batch so a mutation with strict
-	// commit-time authorization (for example an authorized message edit) cannot
-	// commit from a membership decision that this leave has already invalidated.
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, userID, entries, authorizationSeq)
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 	if err != nil {
 		return fmt.Errorf("publish room leave batch: %w", err)
 	}

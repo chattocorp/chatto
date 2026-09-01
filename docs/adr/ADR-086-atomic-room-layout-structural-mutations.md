@@ -38,8 +38,9 @@ Commit each structural command as one atomic EVT batch:
 Each batch uses OCC for every projected state boundary used to build it. Room
 name claims use the `evt.room.>` tail. Group membership and lifecycle use the
 `evt.group.>` tail. Global group order uses the `evt.layout.>` tail. Commands
-through user-authorized group and layout entry points also guard the
-authorization fence and repeat their decision after an OCC conflict.
+through user-authorized group and layout entry points also validate stable
+request-time authorization inputs. They repeat the complete decision after a
+domain OCC conflict.
 
 Room moves guard the exact room-deletion subject in addition to the group
 membership tail. This prevents a move that loses a race with deletion from
