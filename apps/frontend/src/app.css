@@ -308,11 +308,7 @@
 }
 
 @utility button-content {
-  @apply block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
-
-  & > :where(.iconify):not(:last-child) {
-    margin-inline-end: --spacing(2);
-  }
+  @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
 /* Dialog actions form one stable row. Buttons can surrender label width in a
