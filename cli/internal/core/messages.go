@@ -294,10 +294,10 @@ func (c *ChattoCore) waitForMessageAssetBatch(
 	return nil
 }
 
-// prepareMessageAppendAttempt captures every event-log boundary used by a
-// message-write authorization decision, waits for the serving projections, and
-// reruns the authoritative check. The returned sequences must be attached to
-// the same atomic batch; otherwise the projection reads are not fenced.
+// prepareMessageAppendAttempt captures the target room OCC boundary, waits for
+// the serving room projections, and evaluates cross-aggregate authorization
+// from a stable request-time read. The returned room sequence must guard the
+// atomic domain batch.
 func (c *ChattoCore) prepareMessageAppendAttempt(
 	ctx context.Context,
 	agg evtstream.Aggregate,
@@ -317,8 +317,8 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	}
 	// Notification recipients for thread replies depend on the follow model.
 	// That projection deliberately consumes only sparse event-type subjects, so
-	// fence those exact tails instead of the broad room tail (which it cannot
-	// acknowledge for unrelated room facts).
+	// wait for those exact tails instead of the broad room tail, which it cannot
+	// acknowledge for unrelated room facts.
 	for _, eventType := range []string{evtstream.EventThreadFollowed, evtstream.EventThreadUnfollowed} {
 		subject := agg.Subject(eventType)
 		position, err := c.EventPublisher.LastSubjectPosition(ctx, subject)
@@ -338,11 +338,9 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 	return attempt, nil
 }
 
-// prepareMessageRetractionAttempt fences mutable message and room state against
-// the room aggregate, then checks the authorization state currently projected
-// by this replica. Global permission revocation is intentionally eventually
-// consistent for an already in-flight retraction; a room change still
-// conflicts at append time and causes the complete check to run again.
+// prepareMessageRetractionAttempt protects mutable message and room state with
+// room aggregate OCC. It evaluates cross-aggregate authorization from a stable
+// request-time read. A room conflict causes the complete check to run again.
 func (c *ChattoCore) prepareMessageRetractionAttempt(
 	ctx context.Context,
 	agg evtstream.Aggregate,
@@ -359,7 +357,7 @@ func (c *ChattoCore) prepareMessageRetractionAttempt(
 		}
 	}
 	if authorize != nil {
-		if err := authorize(ctx); err != nil {
+		if err := c.authorizeAtStableInputs(ctx, func() error { return authorize(ctx) }); err != nil {
 			return "", 0, err
 		}
 	}

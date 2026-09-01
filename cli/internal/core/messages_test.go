@@ -1058,7 +1058,7 @@ func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *te
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
-func TestDeleteMessageAllowsInFlightManageRevocation(t *testing.T) {
+func TestDeleteMessageRejectsManageRevocationDuringAuthorization(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-manage-author", "Delete Manage Author", "password123")
@@ -1085,11 +1085,11 @@ func TestDeleteMessageAllowsInFlightManageRevocation(t *testing.T) {
 			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermMessageManage)
 		}),
 	)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrPermissionDenied)
 	require.Equal(t, 1, checks)
 	retractions, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageRetracted))
 	require.NoError(t, err)
-	require.Len(t, retractions, 1)
+	require.Empty(t, retractions)
 }
 
 func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {

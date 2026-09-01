@@ -93,7 +93,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 }
 
 // CreatePinnedMessage adds a canonical message to a channel's current pin set.
-// The operation is idempotent and rechecks room.manage at the commit fence.
+// The operation is idempotent and rechecks room.manage in each OCC attempt.
 func (s *RoomCommandModel) CreatePinnedMessage(ctx context.Context, input PinnedMessageMutationInput) (PinnedMessageState, error) {
 	return s.mutatePinnedMessage(ctx, input, true)
 }
