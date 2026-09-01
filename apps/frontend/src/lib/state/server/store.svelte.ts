@@ -658,9 +658,12 @@ export class ServerStateStore {
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesInvalidated':
-      case 'notificationUnreadChanged':
       case 'mentionStatusClearedSync':
         this.refreshRealtimeResource('notifications');
+        return;
+      case 'notificationUnreadChanged':
+        this.refreshRealtimeResource('notifications');
+        this.refreshRealtimeResource('rooms');
         return;
       case 'roomCreated':
       case 'roomUpdated':

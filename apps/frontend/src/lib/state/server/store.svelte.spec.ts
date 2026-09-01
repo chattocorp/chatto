@@ -22,7 +22,10 @@ import {
   UserLeftRoomEvent
 } from '@chatto/api-types/core/evt/v1/room_events_pb';
 import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
-import { ThreadFollowChangedEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
+import {
+  NotificationUnreadChangedEvent,
+  ThreadFollowChangedEvent
+} from '@chatto/api-types/core/live/v1/live_events_pb';
 import {
   UserAccountDeletedEvent,
   UserDisplayNameChangedEvent
@@ -875,5 +878,24 @@ describe('ServerStateStore unified realtime resources', () => {
 
     expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
     expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls');
+  });
+
+  it('refreshes canonical rooms after a neutral unread invalidation', () => {
+    const store = makeStore(new FakeServerConnection([]));
+    apiMocks.readRealtimeResource.mockClear();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          event: {
+            case: 'notificationUnreadChanged',
+            value: new NotificationUnreadChangedEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms');
   });
 });

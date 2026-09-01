@@ -19,6 +19,7 @@ import type {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { Code, isConnectCode } from '$lib/api-client/connect';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
@@ -873,6 +874,12 @@ export class MessagesStore {
       return result;
     } catch (error) {
       if (this.isStale(thisLoad)) return skippedRefreshResult();
+      if (
+        isConnectCode(error, Code.PermissionDenied) ||
+        isConnectCode(error, Code.NotFound)
+      ) {
+        return skippedRefreshResult();
+      }
       console.error('MessagesStore: refreshCurrentWindow failed:', error);
       return skippedRefreshResult();
     }

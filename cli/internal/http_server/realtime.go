@@ -759,6 +759,20 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 			Heartbeat: &realtimev1.RealtimeHeartbeat{Id: event.ID(), CreatedAt: event.CreatedAt()},
 		}}, nil
 	}
+	if core.IsRBACEvent(event.CanonicalEvent()) {
+		// RBAC payloads are internal, but an RBAC fact can invalidate any
+		// authorization-dependent resource that the caller retained. Ask the
+		// client to reconnect without exposing that fact. Its cursor remains
+		// before this durable sequence, so replay selects an authorized snapshot.
+		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:         "projection_reset_required",
+				Message:      "realtime authorization changed",
+				Reconnect:    true,
+				RetryAfterMs: 0,
+			},
+		}}, nil
+	}
 	envelope, err := s.realtimeEventEnvelope(ctx, viewerID, event)
 	if err != nil {
 		return nil, err

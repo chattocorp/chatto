@@ -189,6 +189,28 @@ func TestRealtimeInternalDurableEventIsOmitted(t *testing.T) {
 	}
 }
 
+func TestRealtimeRBACEventRequestsAuthorizedSnapshotReconnect(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	event := &evtv1.Event{
+		Id: "rbac-change",
+		Event: &evtv1.Event_RbacPermissionDenied{
+			RbacPermissionDenied: &evtv1.RbacPermissionDeniedEvent{},
+		},
+	}
+	frame, err := env.httpServer.realtimeServerFrameForEvent(
+		env.ctx,
+		"viewer",
+		core.NewEVTEventEnvelopeWithDeliverySeq(event, 42),
+	)
+	if err != nil {
+		t.Fatalf("realtimeServerFrameForEvent() error = %v", err)
+	}
+	closeFrame := frame.GetClose()
+	if closeFrame == nil || closeFrame.GetCode() != "projection_reset_required" || !closeFrame.GetReconnect() {
+		t.Fatalf("realtimeServerFrameForEvent() = %+v, want authorization reconnect", frame)
+	}
+}
+
 func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "socket-user", "Socket User", "password123")

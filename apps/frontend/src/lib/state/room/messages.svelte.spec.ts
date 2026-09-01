@@ -13,6 +13,7 @@ import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
+import { Code, ConnectError } from '$lib/api-client/connect';
 
 class FakeQueryClient {
   reconnectCount = 0;
@@ -2458,6 +2459,27 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(result).toMatchObject({ refreshed: true, changed: false });
     expect(store.events).toBe(previousEvents);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2']);
+    store.dispose();
+  });
+
+  it('treats an authorization loss during soft refresh as an expected unavailable window', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(emptyPage())
+      .mockRejectedValueOnce(new ConnectError('permission denied', Code.PermissionDenied));
+    const store = new MessagesStore(
+      {} as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.setRoom('room-1');
+    await settle();
+    const result = await store.refreshCurrentWindow();
+
+    expect(result).toEqual({ hasOlder: false, hasNewer: false, refreshed: false, changed: false });
+    expect(consoleError).not.toHaveBeenCalled();
     store.dispose();
   });
 
