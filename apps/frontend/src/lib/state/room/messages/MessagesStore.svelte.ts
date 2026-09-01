@@ -256,6 +256,11 @@ export class MessagesStore {
     this.applyDeletion(messageEventId, new SvelteDate().toISOString());
   }
 
+  /** Fold a canonical retraction into every loaded original or echo row immediately. */
+  applyMessageRetraction(messageEventId: string, retractedAt: string): void {
+    this.applyDeletion(messageEventId, retractedAt);
+  }
+
   /**
    * Apply a provisional local reaction update. The returned handle can
    * reconcile the touched emoji from the RPC response or roll back if the
@@ -427,6 +432,15 @@ export class MessagesStore {
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
+  }
+
+  /** Restore the authoritative latest room window after crossing a route boundary. */
+  restoreLatestWindow(): Promise<boolean> {
+    if (this.scope !== 'room') return Promise.resolve(false);
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    return this.resetAndFetchLatest();
   }
 
   /** Restore this retained room's canonical latest projection at a route boundary. */
@@ -826,14 +840,20 @@ export class MessagesStore {
    * clearing the buffer. Used after tab wake / reconnect when the client may
    * have missed subscription events.
    */
-  async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
+  async refreshCurrentWindow(
+    anchorEventId?: string | null,
+    forward = false
+  ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
     if (!source) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     const anchor = anchorEventId ?? null;
-    const mode = anchor
+    const forwardCursor = forward && anchor ? (this.newestCursor ?? null) : null;
+    const mode = forwardCursor
+      ? 'forward'
+      : anchor
       ? source.scope === 'thread'
         ? 'thread-around'
         : 'around'
@@ -848,14 +868,18 @@ export class MessagesStore {
     });
 
     try {
-      const page = anchor
-        ? await source.fetchAround(anchor, PAGE_SIZE)
-        : await source.fetchPage({ limit: PAGE_SIZE });
+      const page = forwardCursor
+        ? await source.fetchPage({ limit: PAGE_SIZE, after: forwardCursor })
+        : anchor
+          ? await source.fetchAround(anchor, PAGE_SIZE)
+          : await source.fetchPage({ limit: PAGE_SIZE });
       if (this.isStale(thisLoad) || this.source !== source) return skippedRefreshResult();
       const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
         preserveExistingWindow:
           source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
-        latestSnapshot: anchor === null
+        latestSnapshot: anchor === null,
+        forwardSnapshot: forwardCursor !== null,
+        reconciledEventId: forwardCursor === null ? anchor : null
       });
       const result = {
         hasOlder: page.hasOlder,
@@ -1154,7 +1178,12 @@ export class MessagesStore {
       hasOlder?: boolean;
     },
     existingBeforeFetch: ReadonlyMap<string, string>,
-    options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
+    options: {
+      preserveExistingWindow?: boolean;
+      latestSnapshot?: boolean;
+      forwardSnapshot?: boolean;
+      reconciledEventId?: string | null;
+    } = {}
   ): boolean {
     const fetched = this.unmaskEvents(connection.events);
     const newSeen = new SvelteSet<string>();
@@ -1206,6 +1235,16 @@ export class MessagesStore {
       ) {
         continue;
       }
+      if (
+        options.reconciledEventId &&
+        existingBeforeFetch.has(e.id) &&
+        this.isLinkedToMessage(e, options.reconciledEventId)
+      ) {
+        // An around read is authoritative for its message family. If the
+        // projection no longer returns a linked echo, do not retain that echo
+        // merely because the rest of the scrolled window is merge-preserved.
+        continue;
+      }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       mergedIndexByID.set(e.id, merged.length);
@@ -1222,7 +1261,7 @@ export class MessagesStore {
 
     if (options.preserveExistingWindow && !discontinuousLatestSnapshot) {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
-      this.newestCursor = options.latestSnapshot
+      this.newestCursor = options.latestSnapshot || options.forwardSnapshot
         ? (connection.endCursor ?? previousNewestCursor ?? undefined)
         : (previousNewestCursor ?? connection.endCursor ?? undefined);
       this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
@@ -1241,6 +1280,15 @@ export class MessagesStore {
       hasReachedStart: this.hasReachedStart
     });
     return changed;
+  }
+
+  private isLinkedToMessage(event: TimelineEventView, eventId: string): boolean {
+    if (event.id === eventId) return true;
+    const payload = event.event;
+    return (
+      isMessagePostedPayload(payload) &&
+      (payload.echoOfEventId === eventId || payload.channelEchoEventId === eventId)
+    );
   }
 
   private resetAndFetchLatest(): Promise<boolean> {

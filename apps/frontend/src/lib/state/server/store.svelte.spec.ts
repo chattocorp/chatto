@@ -854,7 +854,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
 
     expect(refresh).toHaveBeenCalledWith('E-ROOT');
-    expect(refreshThread).toHaveBeenCalledWith('E-REPLY');
+    expect(refreshThread).toHaveBeenCalledWith('E-REPLY', true);
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 

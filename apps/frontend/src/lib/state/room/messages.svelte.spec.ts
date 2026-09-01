@@ -2621,6 +2621,84 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('pages forward for an unseen realtime event instead of reading around it', async () => {
+    const fake = new FakeQueryClient([
+      roomEventsResult({
+        events: [threadMessageEvent('m1'), threadMessageEvent('m2')],
+        startCursor: 'tl:cursor-1',
+        endCursor: 'tl:cursor-2',
+        hasOlder: false,
+        hasNewer: false
+      }),
+      roomEventsResult({
+        events: [threadMessageEvent('m3')],
+        startCursor: 'tl:cursor-3',
+        endCursor: 'tl:cursor-3',
+        hasOlder: true,
+        hasNewer: false
+      })
+    ]);
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    fake.queryMock.mockClear();
+
+    const result = await store.refreshCurrentWindow('m3', true);
+    await settle();
+
+    expect(result).toMatchObject({ refreshed: true, changed: true });
+    expect(fake.queryMock).toHaveBeenCalledWith(
+      'timeline:after',
+      { roomId: 'room-1', limit: 50, after: 'tl:cursor-2' },
+      { requestPolicy: 'network-only' }
+    );
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3']);
+    store.dispose();
+  });
+
+  it('reconciles a linked room echo as part of an anchored mutation refresh', async () => {
+    const original = threadMessageEvent('reply1', 'root1');
+    const echo = {
+      ...threadMessageEvent('echo1'),
+      event: { ...threadMessageEvent('echo1').event, echoOfEventId: 'reply1' }
+    };
+    const updatedEcho = {
+      ...echo,
+      event: {
+        ...echo.event,
+        reactions: [{ emoji: 'thumbsup', count: 1, hasReacted: true, users: [] }]
+      }
+    };
+    const around = vi
+      .fn()
+      .mockResolvedValueOnce(pageFromEvent(updatedEcho))
+      .mockResolvedValueOnce(emptyPage());
+    const timeline = fakeTimelineAPI({ getRoomEventsAround: around });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+    store.events = [echo as never];
+
+    expect(store.refreshAnchorForMessageMutation(original.id)).toBe(echo.id);
+    await store.refreshCurrentWindow(echo.id);
+    expect(reactionsOf(store.rootEvents[0])).toMatchObject([
+      { emoji: 'thumbsup', count: 1, hasReacted: true }
+    ]);
+
+    await store.refreshCurrentWindow(echo.id);
+    expect(store.rootEvents).toEqual([]);
+    store.dispose();
+  });
+
   it('keeps live events ordered when anchored refresh races forward pagination', async () => {
     let resolveAnchoredRefresh!: (value: unknown) => void;
     const anchoredRefresh = new Promise((resolve) => {

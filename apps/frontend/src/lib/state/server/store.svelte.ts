@@ -33,7 +33,7 @@ import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
-import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
@@ -168,7 +168,10 @@ export class ServerStateStore {
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
   readonly #pendingResourceRefreshes = new SvelteSet<RealtimeResourceFamily>();
   readonly #messageWindowRefreshes = new WeakMap<MessagesStore, Promise<void>>();
-  readonly #pendingMessageWindowRefreshes = new WeakMap<MessagesStore, string | null>();
+  readonly #pendingMessageWindowRefreshes = new WeakMap<
+    MessagesStore,
+    { anchorEventId: string | null; forward: boolean }
+  >();
 
   constructor(
     registration: ServerRegistration,
@@ -309,8 +312,7 @@ export class ServerStateStore {
   /** Restore the canonical latest window when a route selects this room. */
   restoreProjectedRoomWindow(roomId: string): void {
     const messages = this.messagesForRoom(roomId);
-    messages.cancelPendingHistoricalJump();
-    void messages.refreshCurrentWindow();
+    void messages.restoreLatestWindow();
   }
 
   private evictRetainedRoom(roomId: string): void {
@@ -600,7 +602,20 @@ export class ServerStateStore {
           payload.case === 'messagePosted' && payload.value.inThread
             ? payload.value.inThread
             : anchorEventId;
-        this.refreshLoadedMessageWindows(roomId, anchorEventId, roomAnchorEventId);
+        if (payload.case === 'messageRetracted') {
+          this.applyLoadedMessageRetraction(
+            roomId,
+            payload.value.eventId,
+            event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
+          );
+        }
+        this.refreshLoadedMessageWindows(
+          roomId,
+          anchorEventId,
+          roomAnchorEventId,
+          payload.case === 'messagePosted' && !payload.value.inThread,
+          payload.case === 'messagePosted' && !!payload.value.inThread
+        );
         this.refreshLoadedTimelineResources(roomId, {
           files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
           pins: payload.case !== 'messagePosted'
@@ -652,9 +667,11 @@ export class ServerStateStore {
         return;
       case 'voiceCallEnded':
         this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
+        this.refreshLoadedMessageWindows(payload.value.roomId, event.id || null, event.id || null, true);
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallStarted':
+        this.refreshLoadedMessageWindows(payload.value.roomId, event.id || null, event.id || null, true);
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesInvalidated':
@@ -764,33 +781,63 @@ export class ServerStateStore {
   private refreshLoadedMessageWindows(
     roomId: string,
     anchorEventId: string | null,
-    roomAnchorEventId: string | null = anchorEventId
+    roomAnchorEventId: string | null = anchorEventId,
+    roomForward = false,
+    threadForward = false
   ): void {
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
       if (roomId && candidateRoomId !== roomId) continue;
-      this.scheduleMessageWindowRefresh(store, roomAnchorEventId);
+      const visibleAnchor = roomAnchorEventId
+        ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
+        : null;
+      this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward);
     }
     for (const [key, store] of Object.entries(this.#threadMessages)) {
       if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
-      this.scheduleMessageWindowRefresh(store, anchorEventId);
+      const visibleAnchor = anchorEventId
+        ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
+        : null;
+      this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward);
+    }
+  }
+
+  private applyLoadedMessageRetraction(
+    roomId: string,
+    messageEventId: string,
+    retractedAt: string
+  ): void {
+    if (!messageEventId) return;
+    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId && candidateRoomId !== roomId) continue;
+      store.applyMessageRetraction(messageEventId, retractedAt);
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
+      store.applyMessageRetraction(messageEventId, retractedAt);
     }
   }
 
   /** Coalesce invalidations and run one follow-up read after an active read. */
-  private scheduleMessageWindowRefresh(store: MessagesStore, anchorEventId: string | null): void {
+  private scheduleMessageWindowRefresh(
+    store: MessagesStore,
+    anchorEventId: string | null,
+    forward = false
+  ): void {
     if (this.#messageWindowRefreshes.has(store)) {
-      this.#pendingMessageWindowRefreshes.set(store, anchorEventId);
+      this.#pendingMessageWindowRefreshes.set(store, { anchorEventId, forward });
       return;
     }
-    const refresh = store
-      .refreshCurrentWindow(anchorEventId)
+    const refresh = (forward
+      ? store.refreshCurrentWindow(anchorEventId, true)
+      : store.refreshCurrentWindow(anchorEventId)
+    )
       .then(() => undefined)
       .finally(() => {
         this.#messageWindowRefreshes.delete(store);
-        if (!this.#pendingMessageWindowRefreshes.has(store)) return;
-        const pendingAnchor = this.#pendingMessageWindowRefreshes.get(store) ?? null;
+        const pending = this.#pendingMessageWindowRefreshes.get(store);
+        if (!pending) return;
         this.#pendingMessageWindowRefreshes.delete(store);
-        this.scheduleMessageWindowRefresh(store, pendingAnchor);
+        this.scheduleMessageWindowRefresh(store, pending.anchorEventId, pending.forward);
       });
     this.#messageWindowRefreshes.set(store, refresh);
   }
