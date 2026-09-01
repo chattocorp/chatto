@@ -909,6 +909,33 @@ export class MessagesStore {
     }
   }
 
+  /**
+   * Read and ingest one newly posted message before the wider cursor window is
+   * reconciled. This keeps realtime delivery responsive without treating the
+   * canonical event as a second message-resource shape. The result reports
+   * whether this same timeline is still active and can be reconciled.
+   */
+  async refreshPostedMessage(eventId: string): Promise<boolean> {
+    const source = this.source;
+    if (!source || !eventId) return false;
+
+    try {
+      const event = await this.roomTimeline.getMessage({ roomId: source.roomId, eventId });
+      if (this.source !== source) return false;
+      if (event) this.ingestEvent(event);
+      return true;
+    } catch (error) {
+      if (
+        isConnectCode(error, Code.PermissionDenied) ||
+        isConnectCode(error, Code.NotFound)
+      ) {
+        return this.source === source;
+      }
+      console.error('MessagesStore: refreshPostedMessage failed:', error);
+      return this.source === source;
+    }
+  }
+
   private onMessagePosted(spaceEvent: TimelineEventView, eventData: MessagePostedPayload): void {
     if (this.scope === 'thread') {
       if (

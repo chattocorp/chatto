@@ -2682,6 +2682,47 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('hydrates one realtime post before its timeline window is reconciled', async () => {
+    const posted = threadMessageEvent('m3');
+    const getMessage = vi.fn(async () => posted);
+    const timeline = fakeTimelineAPI({ getMessage });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+
+    store.setRoom('room-1');
+    await settle();
+
+    expect(await store.refreshPostedMessage('m3')).toBe(true);
+    await settle();
+
+    expect(getMessage).toHaveBeenCalledWith({ roomId: 'room-1', eventId: 'm3' });
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['m3']);
+    store.dispose();
+  });
+
+  it('discards a posted-message read after the timeline route changes', async () => {
+    const pending = deferred<ReturnType<typeof threadMessageEvent>>();
+    const timeline = fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    const refreshing = store.refreshPostedMessage('m3');
+    store.setRoom('room-2');
+    pending.resolve(threadMessageEvent('m3'));
+
+    expect(await refreshing).toBe(false);
+    expect(store.events).toEqual([]);
+    store.dispose();
+  });
+
   it('reconciles a linked room echo as part of an anchored mutation refresh', async () => {
     const original = threadMessageEvent('reply1', 'root1');
     const echo = {

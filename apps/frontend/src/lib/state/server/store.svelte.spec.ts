@@ -818,6 +818,9 @@ describe('ServerStateStore unified realtime resources', () => {
       refreshed: true,
       changed: true
     });
+    const refreshPostedThread = vi
+      .spyOn(threadMessages, 'refreshPostedMessage')
+      .mockResolvedValue(true);
     const setThreadFollow = vi.spyOn(threadMessages, 'setThreadRootFollowState');
     await flushPromises();
     refresh.mockClear();
@@ -852,10 +855,44 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
+    await flushPromises();
 
     expect(refresh).toHaveBeenCalledWith('E-ROOT');
+    expect(refreshPostedThread).toHaveBeenCalledWith('E-REPLY');
     expect(refreshThread).toHaveBeenCalledWith('E-REPLY', true);
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
+  });
+
+  it('hydrates a new room post before advancing the retained window', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const hydrate = vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(true);
+    const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    await flushPromises();
+    hydrate.mockClear();
+    refresh.mockClear();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          id: 'E-POST',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+
+    expect(hydrate).toHaveBeenCalledWith('E-POST');
+    expect(refresh).not.toHaveBeenCalled();
+    await flushPromises();
+    expect(refresh).toHaveBeenCalledWith('E-POST', true);
   });
 
   it('drives call sounds from the canonical participant event', () => {

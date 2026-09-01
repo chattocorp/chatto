@@ -602,6 +602,14 @@ export class ServerStateStore {
           payload.case === 'messagePosted' && payload.value.inThread
             ? payload.value.inThread
             : anchorEventId;
+        this.refreshLoadedMessageWindows(
+          roomId,
+          anchorEventId,
+          roomAnchorEventId,
+          payload.case === 'messagePosted' && !payload.value.inThread,
+          payload.case === 'messagePosted' && !!payload.value.inThread,
+          payload.case === 'messagePosted'
+        );
         if (payload.case === 'messageRetracted') {
           this.applyLoadedMessageRetraction(
             roomId,
@@ -609,13 +617,6 @@ export class ServerStateStore {
             event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
           );
         }
-        this.refreshLoadedMessageWindows(
-          roomId,
-          anchorEventId,
-          roomAnchorEventId,
-          payload.case === 'messagePosted' && !payload.value.inThread,
-          payload.case === 'messagePosted' && !!payload.value.inThread
-        );
         this.refreshLoadedTimelineResources(roomId, {
           files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
           pins: payload.case !== 'messagePosted'
@@ -783,22 +784,47 @@ export class ServerStateStore {
     anchorEventId: string | null,
     roomAnchorEventId: string | null = anchorEventId,
     roomForward = false,
-    threadForward = false
+    threadForward = false,
+    hydratePostedMessage = false
   ): void {
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
       if (roomId && candidateRoomId !== roomId) continue;
       const visibleAnchor = roomAnchorEventId
         ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
         : null;
-      this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward);
+      if (hydratePostedMessage && roomForward) {
+        this.schedulePostedMessageRefresh(store, visibleAnchor);
+      } else {
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward);
+      }
     }
     for (const [key, store] of Object.entries(this.#threadMessages)) {
       if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
       const visibleAnchor = anchorEventId
         ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
         : null;
-      this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward);
+      if (hydratePostedMessage && threadForward) {
+        this.schedulePostedMessageRefresh(store, visibleAnchor);
+      } else {
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward);
+      }
     }
+  }
+
+  /** Hydrate a new post first, then advance its retained timeline window. */
+  private schedulePostedMessageRefresh(
+    store: MessagesStore,
+    anchorEventId: string | null
+  ): void {
+    if (!anchorEventId) {
+      this.scheduleMessageWindowRefresh(store, anchorEventId, true);
+      return;
+    }
+    void store
+      .refreshPostedMessage(anchorEventId)
+      .then((timelineIsCurrent) => {
+        if (timelineIsCurrent) this.scheduleMessageWindowRefresh(store, anchorEventId, true);
+      });
   }
 
   private applyLoadedMessageRetraction(
