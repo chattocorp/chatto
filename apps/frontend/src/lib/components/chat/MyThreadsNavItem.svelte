@@ -16,20 +16,16 @@
     notificationStore.unreadOccurrences.filter((notification) => {
       const target = notificationTarget(notification);
       if (!target.roomId || !target.threadRootId) return false;
-      return (
-        serverScope.store.projection.threadViewerStates.get(
-          `${target.roomId}\u0000${target.threadRootId}`
-        )?.isFollowing === true
-      );
+      // A loaded room timeline can prove that a thread is not followed. When
+      // the timeline is not loaded, trust the authoritative notification
+      // occurrence until the explicit thread read supplies that state.
+      return serverScope.store.loadedThreadFollowState(target.roomId, target.threadRootId) !== false;
     })
   );
   const hasNotification = $derived(threadNotifications.length > 0);
 
   const hasUnread = $derived(
-    hasNotification ||
-      [...serverScope.store.projection.threadViewerStates.values()].some(
-        (state) => state.isFollowing && state.hasUnreadReplies
-      )
+    hasNotification || serverScope.store.hasUnreadFollowedThreadInLoadedRooms()
   );
 
   const hasImportantAttention = $derived(

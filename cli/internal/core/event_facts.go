@@ -422,6 +422,14 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 	}
 }
 
+func isDeliverableLiveEVTServerConfigEvent(event *evtv1.Event) bool {
+	return event != nil && evtstream.EventTypeOf(event) == evtstream.EventServerMotdChanged
+}
+
+func isDeliverableLiveEVTServerConfigEventType(eventType string) bool {
+	return eventType == evtstream.EventServerMotdChanged
+}
+
 func eventNeedsReactionProjection(event *evtv1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *evtv1.Event_ReactionAdded, *evtv1.Event_ReactionRemoved:

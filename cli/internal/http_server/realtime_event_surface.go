@@ -146,6 +146,7 @@ func isRealtimePublicEvent(event *evtv1.Event) bool {
 		*evtv1.Event_UserAvatarSet,
 		*evtv1.Event_UserAvatarCleared,
 		*evtv1.Event_UserAccountDeleted,
+		*evtv1.Event_ServerMotdChanged,
 		*evtv1.Event_UserCreatedSync,
 		*evtv1.Event_UserProfileSync,
 		*evtv1.Event_ServerUserPreferencesSync,

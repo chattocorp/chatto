@@ -53,6 +53,7 @@ import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
   purgeRegisteredRoomMemberQueries,
@@ -166,6 +167,8 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
   readonly #pendingResourceRefreshes = new SvelteSet<RealtimeResourceFamily>();
+  readonly #messageWindowRefreshes = new WeakMap<MessagesStore, Promise<void>>();
+  readonly #pendingMessageWindowRefreshes = new WeakMap<MessagesStore, string | null>();
 
   constructor(
     registration: ServerRegistration,
@@ -238,9 +241,26 @@ export class ServerStateStore {
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
     store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
-    const page = this.projection.timelines.get(roomId);
-    if (page) store.replaceRoomProjectionPage(roomId, page);
     return store;
+  }
+
+  /** Return known follow state from a loaded canonical room timeline. */
+  loadedThreadFollowState(roomId: string, threadRootEventId: string): boolean | null {
+    const event = this.#roomMessages[roomId]?.getEventById(threadRootEventId);
+    if (event?.event.kind !== TimelineEventKind.MessagePosted) return null;
+    return event.event.viewerIsFollowingThread ?? null;
+  }
+
+  /** Check loaded canonical room timelines for one unread followed thread. */
+  hasUnreadFollowedThreadInLoadedRooms(): boolean {
+    return Object.values(this.#roomMessages).some((store) =>
+      store.rootEvents.some(
+        (event) =>
+          event.event.kind === TimelineEventKind.MessagePosted &&
+          event.event.viewerIsFollowingThread === true &&
+          event.event.viewerHasUnreadThread === true
+      )
+    );
   }
 
   /** Stable lazy file-list owner for one room on this server. */
@@ -294,9 +314,6 @@ export class ServerStateStore {
   }
 
   private evictRetainedRoom(roomId: string): void {
-    const room = this.projection.rooms.get(roomId);
-    const clearMembership = room ? mapDirectoryRoom(room)?.kind !== RoomKind.DM : false;
-    this.projection.evictRoomTimeline(roomId, clearMembership);
     this.#roomMessages[roomId]?.dispose();
     delete this.#roomMessages[roomId];
     this.#roomPins[roomId]?.dispose();
@@ -505,7 +522,7 @@ export class ServerStateStore {
       .read(family)
       .then((chunks) => {
         for (const snapshot of chunks) {
-          this.ingestProjectionEvent(new RealtimeProjectionUpdate({ snapshot }));
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ snapshot }));
         }
       })
       .catch((error) =>
@@ -517,6 +534,16 @@ export class ServerStateStore {
         this.refreshRealtimeResource(family);
       });
     this.#resourceRefreshes.set(family, refresh);
+  }
+
+  /** Apply a refreshed resource and notify every consumer of the server bus. */
+  private publishProjectionUpdate(update: RealtimeProjectionUpdate): void {
+    this.ingestProjectionEvent(update);
+    const bus = eventBusManager.getBus(this.serverId);
+    if (!bus) return;
+    for (const handler of bus.projectionHandlers) {
+      if (handler !== this.realtimeProjectionHandler) handler(update);
+    }
   }
 
   private invalidateCanonicalEvent(event: Event): void {
@@ -551,6 +578,9 @@ export class ServerStateStore {
         ) {
           if (roomId) this.clearRoomAccess(roomId);
         }
+        if (payload.case === 'userLeftRoom') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
@@ -566,14 +596,24 @@ export class ServerStateStore {
           rawValue?.eventId ??
           rawValue?.messageEventId ??
           (payload.case === 'messagePosted' ? event.id : null);
-        this.refreshLoadedMessageWindows(roomId, anchorEventId);
+        const roomAnchorEventId =
+          payload.case === 'messagePosted' && payload.value.inThread
+            ? payload.value.inThread
+            : anchorEventId;
+        this.refreshLoadedMessageWindows(roomId, anchorEventId, roomAnchorEventId);
         this.refreshLoadedTimelineResources(roomId, {
           files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
           pins: payload.case !== 'messagePosted'
         });
         if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
         else this.forEachMessageSearch((store) => store.clearResults());
-        if (payload.case === 'messagePosted') this.refreshRealtimeResource('rooms');
+        if (payload.case === 'messagePosted') {
+          this.refreshRealtimeResource('rooms');
+          if (payload.value.inThread) refreshRegisteredFollowedThreadQueries(this.serverId);
+        }
+        if (payload.case === 'messageRetracted') {
+          refreshRegisteredFollowedThreadQueries(this.serverId);
+        }
         return;
       }
       case 'assetProcessingStarted':
@@ -632,6 +672,12 @@ export class ServerStateStore {
       case 'userJoinedRoom':
       case 'roomMemberAdded':
       case 'roomMemberUnbanned':
+        if (payload.case === 'userJoinedRoom') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
+        if (payload.case === 'roomThreadingModeChanged') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
@@ -687,24 +733,78 @@ export class ServerStateStore {
         this.refreshRealtimeResource('rooms');
         return;
       case 'threadFollowed':
-      case 'threadUnfollowed':
-      case 'threadFollowChangedSync':
+      case 'threadUnfollowed': {
+        if (payload.value.userId === this.currentUser.user?.id) {
+          this.applyThreadFollowChange(
+            roomId,
+            payload.value.threadRootEventId,
+            payload.case === 'threadFollowed'
+          );
+        }
         refreshRegisteredFollowedThreadQueries(this.serverId);
         return;
+      }
+      case 'threadFollowChangedSync': {
+        this.applyThreadFollowChange(
+          roomId,
+          payload.value.threadRootEventId,
+          payload.value.isFollowing
+        );
+        refreshRegisteredFollowedThreadQueries(this.serverId);
+        return;
+      }
       default:
         return;
     }
   }
 
-  private refreshLoadedMessageWindows(roomId: string, anchorEventId: string | null): void {
+  private refreshLoadedMessageWindows(
+    roomId: string,
+    anchorEventId: string | null,
+    roomAnchorEventId: string | null = anchorEventId
+  ): void {
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
       if (roomId && candidateRoomId !== roomId) continue;
-      void store.refreshCurrentWindow(anchorEventId);
+      this.scheduleMessageWindowRefresh(store, roomAnchorEventId);
     }
     for (const [key, store] of Object.entries(this.#threadMessages)) {
       if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
-      void store.refreshCurrentWindow(anchorEventId);
+      this.scheduleMessageWindowRefresh(store, anchorEventId);
     }
+  }
+
+  /** Coalesce invalidations and run one follow-up read after an active read. */
+  private scheduleMessageWindowRefresh(store: MessagesStore, anchorEventId: string | null): void {
+    if (this.#messageWindowRefreshes.has(store)) {
+      this.#pendingMessageWindowRefreshes.set(store, anchorEventId);
+      return;
+    }
+    const refresh = store
+      .refreshCurrentWindow(anchorEventId)
+      .then(() => undefined)
+      .finally(() => {
+        this.#messageWindowRefreshes.delete(store);
+        if (!this.#pendingMessageWindowRefreshes.has(store)) return;
+        const pendingAnchor = this.#pendingMessageWindowRefreshes.get(store) ?? null;
+        this.#pendingMessageWindowRefreshes.delete(store);
+        this.scheduleMessageWindowRefresh(store, pendingAnchor);
+      });
+    this.#messageWindowRefreshes.set(store, refresh);
+  }
+
+  /** Apply user-scoped follow state without restarting an active thread read. */
+  private applyThreadFollowChange(
+    roomId: string,
+    threadRootEventId: string,
+    isFollowing: boolean
+  ): void {
+    if (!roomId || !threadRootEventId) return;
+    const roomStore = this.#roomMessages[roomId];
+    roomStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
+    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+
+    const threadStore = this.#threadMessages[`${roomId}\u0000${threadRootEventId}`];
+    threadStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
   }
 
   private refreshLoadedTimelineResources(
@@ -797,7 +897,6 @@ export class ServerStateStore {
 
   /** Whether membership references are authoritative for this projected room. */
   hasCompleteProjectedRoomMembership(roomId: string): boolean {
-    if (this.projection.timelines.has(roomId)) return true;
     const room = this.projection.rooms.get(roomId);
     return room ? mapDirectoryRoom(room)?.kind === RoomKind.DM : false;
   }

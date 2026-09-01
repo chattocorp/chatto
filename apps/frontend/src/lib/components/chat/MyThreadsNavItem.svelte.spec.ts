@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
     threadRootId: string | null;
     attentionLevel: number;
   }>,
-  threadViewerStates: new Map<string, { isFollowing?: boolean; hasUnreadReplies?: boolean }>()
+  threadFollowStates: new Map<string, boolean>(),
+  hasUnreadFollowedThread: false
 }));
 
 vi.mock('$app/paths', () => ({
@@ -28,7 +29,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
           return mocks.unreadOccurrences;
         }
       },
-      projection: { threadViewerStates: mocks.threadViewerStates }
+      loadedThreadFollowState: (roomId: string, threadRootEventId: string) =>
+        mocks.threadFollowStates.get(`${roomId}\u0000${threadRootEventId}`) ?? null,
+      hasUnreadFollowedThreadInLoadedRooms: () => mocks.hasUnreadFollowedThread
     }
   })
 }));
@@ -38,28 +41,23 @@ import MyThreadsNavItem from './MyThreadsNavItem.svelte';
 describe('MyThreadsNavItem', () => {
   beforeEach(async () => {
     mocks.unreadOccurrences = [];
-    mocks.threadViewerStates.clear();
+    mocks.threadFollowStates.clear();
+    mocks.hasUnreadFollowedThread = false;
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
 
-  it('uses a neutral dot for unread replies', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: true,
-      hasUnreadReplies: true
-    });
+  it('uses a neutral dot for unread replies', async () => {
+    mocks.hasUnreadFollowedThread = true;
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
+    const dot = await waitForDot(container);
     expect(dot?.classList).toContain('bg-neutral-action');
   });
 
-  it('uses notification orange when a notification occurrence also exists', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: true,
-      hasUnreadReplies: true
-    });
+  it('uses notification orange when a notification occurrence also exists', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', true);
     mocks.unreadOccurrences = [
       {
         room: { id: 'room-1' },
@@ -71,15 +69,12 @@ describe('MyThreadsNavItem', () => {
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
+    const dot = await waitForDot(container);
     expect(dot?.classList).toContain('bg-attention');
   });
 
-  it('uses a neutral dot for an Ambient notification occurrence', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: true,
-      hasUnreadReplies: false
-    });
+  it('uses a neutral dot for an Ambient notification occurrence', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', true);
     mocks.unreadOccurrences = [
       {
         room: { id: 'room-1' },
@@ -91,15 +86,12 @@ describe('MyThreadsNavItem', () => {
 
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
-    const dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
+    const dot = await waitForDot(container);
     expect(dot?.classList).toContain('bg-neutral-action');
   });
 
-  it('ignores notification attention for a thread that is not followed', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: false,
-      hasUnreadReplies: false
-    });
+  it('ignores notification attention for a thread that is not followed', async () => {
+    mocks.threadFollowStates.set('room-1\u0000root-1', false);
     mocks.unreadOccurrences = [
       {
         room: { id: 'room-1' },
@@ -114,12 +106,7 @@ describe('MyThreadsNavItem', () => {
     expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
   });
 
-  it('ignores unread reply state for a thread that is not followed', () => {
-    mocks.threadViewerStates.set('room-1\u0000root-1', {
-      isFollowing: false,
-      hasUnreadReplies: true
-    });
-
+  it('does not show unread reply state when no thread is followed', async () => {
     const { container } = render(MyThreadsNavItem, { props: { active: false } });
 
     expect(container.querySelector('[data-testid="my-threads-unread-dot"]')).toBeNull();
@@ -134,3 +121,12 @@ describe('MyThreadsNavItem', () => {
     expect(link?.classList.contains('bg-surface')).toBe(false);
   });
 });
+
+async function waitForDot(container: HTMLElement): Promise<Element> {
+  let dot: Element | null = null;
+  await vi.waitFor(() => {
+    dot = container.querySelector('[data-testid="my-threads-unread-dot"]');
+    expect(dot).not.toBeNull();
+  });
+  return dot!;
+}

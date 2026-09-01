@@ -451,13 +451,13 @@ export class MessagesStore {
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.#pendingAuthoritativeLoadId = null;
+    this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
 
-    // Thread detail is intentionally lazy and is not part of the snapshot.
-    // Reload an open thread through its existing read model.
-    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
+    // Timelines are explicit ConnectRPC resources and are not part of the
+    // realtime snapshot. Reload every mounted room or thread after a reset.
+    if (this.source) {
       void this.fetchCurrent(thisLoad);
     }
   }

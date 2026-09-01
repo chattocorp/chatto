@@ -405,6 +405,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
 		if roomSubject && !isDeliverableLiveEVTRoomEventType(eventType) {
 			h.prefiltered.Add(1)
 			return false
@@ -417,7 +418,11 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.prefiltered.Add(1)
 			return false
 		}
-		if !roomSubject && !assetSubject && !userSubject {
+		if serverConfigSubject && !isDeliverableLiveEVTServerConfigEventType(eventType) {
+			h.prefiltered.Add(1)
+			return false
+		}
+		if !roomSubject && !assetSubject && !userSubject && !serverConfigSubject {
 			h.prefiltered.Add(1)
 			return false
 		}
@@ -454,6 +459,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	eventType := liveEventType(msg.Subject)
 	roomID, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
+	serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
 
 	h.decoded.Add(1)
 	var event evtv1.Event
@@ -466,6 +472,19 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return true
 	}
 	bytes := int64(len(msg.Data))
+	if serverConfigSubject {
+		if !isDeliverableLiveEVTServerConfigEvent(&event) {
+			return true
+		}
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
+			h.model.core.logger.Warn("Live EVT server config projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			return true
+		}
+		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
+		return false
+	}
 
 	if roomSubject {
 		if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -515,6 +534,11 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
 	return false
+}
+
+func isLiveEVTServerConfigSubject(subject string) bool {
+	parts := strings.Split(subject, ".")
+	return len(parts) == 4 && parts[0] == "evt" && parts[1] == evtstream.AggregateConfig && parts[2] == evtstream.ConfigSingletonID
 }
 
 type roomProjectionFanoutCandidate struct {

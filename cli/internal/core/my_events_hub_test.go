@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"hmans.de/chatto/internal/evtstream"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -90,6 +91,40 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	event2 := receiveEVTEventByID(t, stream2, posted.Id)
 	if event1 != event2 {
 		t.Fatal("sessions received different decoded event pointers")
+	}
+}
+
+func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "motd-viewer", "MOTD Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	if err := core.configModel.SetServerConfig(ctx, SystemActorID, &configv1.ServerConfig{Motd: "Public MOTD"}); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope := <-stream:
+			event := envelope.EVTEvent()
+			if event == nil || event.GetServerMotdChanged() == nil {
+				continue
+			}
+			if got := event.GetServerMotdChanged().GetMotd(); got != "Public MOTD" {
+				t.Fatalf("MOTD = %q, want Public MOTD", got)
+			}
+			return
+		case <-timer.C:
+			t.Fatal("server MOTD event was not delivered")
+		}
 	}
 }
 

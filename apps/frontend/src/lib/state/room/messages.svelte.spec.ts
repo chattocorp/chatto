@@ -785,7 +785,12 @@ describe('MessagesStore — room lifecycle ownership', () => {
     const store = new MessagesStore(
       new FakeQueryClient() as unknown as ServerConnection,
       () => null,
-      fakeTimelineAPI({ getRoomEvents: vi.fn(() => older.promise) })
+      fakeTimelineAPI({
+        getRoomEvents: vi
+          .fn<RoomTimelineAPI['getRoomEvents']>()
+          .mockImplementationOnce(() => older.promise)
+          .mockResolvedValueOnce(emptyPage())
+      })
     );
     const current = projectedMessagePage('current');
     current.startCursor = 'before-current';
@@ -805,6 +810,55 @@ describe('MessagesStore — room lifecycle ownership', () => {
 
     expect(store.events).toEqual([]);
     expect(store.isLoadingMore).toBe(false);
+    store.dispose();
+  });
+
+  it('reloads a mounted room timeline after a projection reset', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('before-reset')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('after-reset')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    store.resetProjectionState();
+    await settle();
+
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['after-reset']);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    store.dispose();
+  });
+
+  it('lets a replacement refresh complete loading after a projection reset', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const resetRead = deferred<RoomPage>();
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('before-reset')))
+      .mockImplementationOnce(() => resetRead.promise)
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('replacement')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    store.resetProjectionState();
+    await store.refreshCurrentWindow();
+
+    expect(store.isInitialLoading).toBe(false);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
+
+    resetRead.resolve(pageFromEvent(threadMessageEvent('stale-reset')));
+    await settle();
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
     store.dispose();
   });
 

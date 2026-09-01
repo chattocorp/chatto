@@ -5,6 +5,7 @@ package chatto.core.evt.v1;
 import "chatto/core/evt/v1/models.proto";
 import "chatto/core/evt/v1/notification_policy.proto";
 import "chatto/core/evt/v1/user_preferences.proto";
+import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -32,7 +33,7 @@ message ServerWelcomeMessageChangedEvent {
 }
 
 message ServerMotdChangedEvent {
-  string motd = 1;
+  string motd = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
 }
 
 message ServerBlockedUsernamesChangedEvent {

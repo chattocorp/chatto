@@ -1,11 +1,9 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import type { ThreadViewerState } from '@chatto/api-types/api/v1/message_types_pb';
 import type {
   RoomGroup,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import type { RoomTimelinePage } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
@@ -27,11 +25,6 @@ export class ServerProjectionStore {
   rooms = new SvelteMap<string, RoomWithViewerState>();
   roomGroups = $state.raw<RoomGroup[]>([]);
   activeCalls = $state.raw<ActiveCall[]>([]);
-
-  // Timelines and followed-thread state come from explicit ConnectRPC reads.
-  // These maps remain as temporary selectors while their consumers migrate.
-  threadViewerStates = new SvelteMap<string, ThreadViewerState>();
-  timelines = new SvelteMap<string, RoomTimelinePage>();
 
   apply(update: RealtimeProjectionUpdate): void {
     if (update.reset) this.reset({ preserveViewer: true });
@@ -94,11 +87,6 @@ export class ServerProjectionStore {
     }
   }
 
-  /** Drop one legacy in-memory timeline selector. */
-  evictRoomTimeline(roomId: string, _clearMembership: boolean): void {
-    this.timelines.delete(roomId);
-  }
-
   reset({ preserveViewer = false }: { preserveViewer?: boolean } = {}): void {
     const viewer = preserveViewer ? this.viewer : null;
     this.server = null;
@@ -108,8 +96,6 @@ export class ServerProjectionStore {
     this.rooms.clear();
     this.roomGroups = [];
     this.activeCalls = [];
-    this.threadViewerStates.clear();
-    this.timelines.clear();
   }
 
   removeUser(userId: string): void {
@@ -130,7 +116,6 @@ export class ServerProjectionStore {
 
   removeRoom(roomId: string): void {
     this.rooms.delete(roomId);
-    this.timelines.delete(roomId);
     this.activeCalls = this.activeCalls.filter((call) => call.room?.id !== roomId);
   }
 

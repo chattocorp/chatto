@@ -13,12 +13,20 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import {
   CallParticipantJoinedEvent,
+  RoomThreadingModeChangedEvent,
+  UserJoinedRoomEvent,
   UserLeftRoomEvent
 } from '@chatto/api-types/core/evt/v1/room_events_pb';
-import { UserAccountDeletedEvent } from '@chatto/api-types/core/evt/v1/user_events_pb';
+import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
+import { ThreadFollowChangedEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
+import {
+  UserAccountDeletedEvent,
+  UserDisplayNameChangedEvent
+} from '@chatto/api-types/core/evt/v1/user_events_pb';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -381,9 +389,10 @@ function userDeleted(userId: string): RealtimeProjectionUpdate {
   });
 }
 
-function userLeftRoom(roomId: string, actorId: string): RealtimeProjectionUpdate {
+function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
     event: new Event({
+      id: eventId,
       actorId,
       event: { case: 'userLeftRoom', value: new UserLeftRoomEvent({ roomId }) }
     })
@@ -658,6 +667,53 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readRealtimeResource).toHaveBeenNthCalledWith(2, 'users');
   });
 
+  it('publishes refreshed canonical resources to every projection consumer', async () => {
+    const users = new ServerSnapshotChunk({
+      resource: {
+        case: 'users',
+        value: new ListUsersResponse({
+          users: [
+            new DirectoryMember({
+              user: new User({ id: 'U2', login: 'bob', displayName: 'Robert' })
+            })
+          ]
+        })
+      }
+    });
+    apiMocks.readRealtimeResource.mockResolvedValueOnce([users]);
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    eventBusManager.ensureBus(
+      store.serverId,
+      fake as unknown as ServerConnection,
+      true,
+      store.realtimeSync,
+      store.realtimeProjectionHandler
+    );
+    const observer = vi.fn();
+    eventBusManager.getBus(store.serverId)?.projectionHandlers.add(observer);
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          event: {
+            case: 'userDisplayNameChanged',
+            value: new UserDisplayNameChangedEvent({
+              userId: 'U2',
+              displayNamePlaintext: 'Robert'
+            })
+          }
+        })
+      })
+    );
+    await flushPromises();
+
+    expect(store.projection.users.get('U2')?.user?.displayName).toBe('Robert');
+    expect(observer).toHaveBeenCalledWith(
+      expect.objectContaining({ snapshot: users })
+    );
+  });
+
   it('does not revoke viewer room access when another user leaves', async () => {
     const store = makeStore(new FakeServerConnection([]));
     store.currentUser.user = { id: 'U1' } as typeof store.currentUser.user;
@@ -682,6 +738,121 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
 
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes a mounted room timeline for canonical membership rows', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    await flushPromises();
+    refresh.mockClear();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          id: 'E-JOIN',
+          actorId: 'U2',
+          event: {
+            case: 'userJoinedRoom',
+            value: new UserJoinedRoomEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'E-LEAVE'));
+    await flushPromises();
+
+    expect(refresh).toHaveBeenCalledWith('E-JOIN');
+    expect(refresh).toHaveBeenCalledWith('E-LEAVE');
+  });
+
+  it('refreshes a mounted room timeline for a threading-mode row', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    await flushPromises();
+    refresh.mockClear();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          id: 'E-THREADING-MODE',
+          event: {
+            case: 'roomThreadingModeChanged',
+            value: new RoomThreadingModeChangedEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+    await flushPromises();
+
+    expect(refresh).toHaveBeenCalledWith('E-THREADING-MODE');
+  });
+
+  it('refreshes thread reads for follow changes and replies', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const threadMessages = store.messagesForThread('R1', 'E-ROOT');
+    const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    const refreshThread = vi.spyOn(threadMessages, 'refreshCurrentWindow').mockResolvedValue({
+      hasOlder: false,
+      hasNewer: false,
+      refreshed: true,
+      changed: true
+    });
+    const setThreadFollow = vi.spyOn(threadMessages, 'setThreadRootFollowState');
+    await flushPromises();
+    refresh.mockClear();
+    refreshThread.mockClear();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          event: {
+            case: 'threadFollowChangedSync',
+            value: new ThreadFollowChangedEvent({
+              roomId: 'R1',
+              threadRootEventId: 'E-ROOT',
+              isFollowing: true
+            })
+          }
+        })
+      })
+    );
+
+    expect(setThreadFollow).toHaveBeenCalledWith('E-ROOT', true);
+    expect(refreshThread).not.toHaveBeenCalled();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          id: 'E-REPLY',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'R1', inThread: 'E-ROOT' })
+          }
+        })
+      })
+    );
+
+    expect(refresh).toHaveBeenCalledWith('E-ROOT');
+    expect(refreshThread).toHaveBeenCalledWith('E-REPLY');
+    expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
   it('drives call sounds from the canonical participant event', () => {

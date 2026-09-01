@@ -350,16 +350,47 @@
     });
   }
 
-  // Canonical message facts invalidate the explicit timeline read.
+  // Canonical facts invalidate the explicit reads that own this room's data.
   useProjectionEvent((event) => {
+    if (event.snapshot?.resource.case === 'users') {
+      if (!room.isDM) void roomMembersStore.refresh();
+      return;
+    }
     const semantic = event.event?.event;
-    if (semantic?.case !== 'messagePosted' || semantic.value.roomId !== roomId) return;
-    if (!semantic.value.inThread) {
-        const actorId = event.event?.actorId;
-        if (actorId) typingIndicator.removeTypingUser(actorId);
-        if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-          unread.markRoomAsRead(roomId, event.event?.id ?? '');
-        }
+    if (!semantic) return;
+    if (semantic.case === 'messagePosted' && semantic.value.roomId === roomId) {
+      if (semantic.value.inThread) return;
+      const actorId = event.event?.actorId;
+      if (actorId) typingIndicator.removeTypingUser(actorId);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        unread.markRoomAsRead(roomId, event.event?.id ?? '');
+      }
+      return;
+    }
+    if (room.isDM) return;
+    switch (semantic.case) {
+      case 'userJoinedRoom':
+      case 'userLeftRoom':
+      case 'roomMemberAdded':
+      case 'roomMemberRemoved':
+      case 'roomMemberBanned':
+      case 'roomMemberUnbanned':
+        if (semantic.value.roomId === roomId) void roomMembersStore.refresh();
+        return;
+      case 'userAccountDeleted':
+      case 'serverMemberDeleted':
+      case 'serverMemberDeletedSync':
+      case 'userCreatedSync':
+      case 'userProfileSync':
+      case 'userAccountCreated':
+      case 'userLoginChanged':
+      case 'userDisplayNameChanged':
+      case 'userAvatarSet':
+      case 'userAvatarCleared':
+      case 'userCustomStatusSet':
+      case 'userCustomStatusCleared':
+        void roomMembersStore.refresh();
+        return;
     }
   });
 
@@ -475,7 +506,7 @@
       if (hasCompleteMembership) {
         roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
       } else {
-        roomMembersStore.awaitProjection(selectedRoomId);
+        roomMembersStore.ensureLoaded();
       }
     });
   };

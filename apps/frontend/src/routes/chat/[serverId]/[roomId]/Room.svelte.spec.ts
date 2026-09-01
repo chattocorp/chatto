@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
@@ -8,9 +8,10 @@ import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
+import { UserJoinedRoomEvent } from '@chatto/api-types/core/evt/v1/room_events_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
-import { MessagesStore } from '$lib/state/room';
+import { MessagesStore, RoomMembersStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
@@ -460,6 +461,7 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
@@ -478,7 +480,43 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('Room interaction bundles', () => {
+  it('loads channel membership through the canonical member directory', async () => {
+    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
+    const ensureLoaded = vi
+      .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
+      .mockImplementation(() => {});
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
+  });
+
+  it('refreshes mounted channel membership after a canonical membership event', async () => {
+    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
+    vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
+    const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new CanonicalEvent({
+          event: {
+            case: 'userJoinedRoom',
+            value: new UserJoinedRoomEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
   it('restores projected windows through the store that mounted them', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
 
