@@ -105,7 +105,7 @@
       disabled || loading ? 'pointer-events-none opacity-60' : ''
     ]}
   >
-    {@render content()}
+    <span class="button-content">{@render content()}</span>
   </a>
   <!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
@@ -125,6 +125,6 @@
       fullWidth ? 'w-full' : ''
     ]}
   >
-    {@render content()}
+    <span class="button-content">{@render content()}</span>
   </button>
 {/if}

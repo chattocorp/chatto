@@ -157,7 +157,7 @@ describe('Dialog', () => {
   });
 
   describe('footer', () => {
-    it('owns the responsive end-aligned action layout', async () => {
+    it('owns the single-line end-aligned action layout', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>'),
@@ -165,11 +165,10 @@ describe('Dialog', () => {
       });
 
       const footer = q(container, `${WELL} > footer`);
-      await expect.element(footer).toHaveClass('flex');
-      await expect.element(footer).toHaveClass('flex-wrap');
-      await expect.element(footer).toHaveClass('justify-end');
-      await expect.element(footer).toHaveClass('gap-2');
+      await expect.element(footer).toHaveClass('dialog-actions');
+      await expect.element(footer).not.toHaveClass('flex-wrap');
       expect(footer?.querySelectorAll('button')).toHaveLength(1);
+      expect(getComputedStyle(footer!).flexWrap).toBe('nowrap');
     });
   });
 

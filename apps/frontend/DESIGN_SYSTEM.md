@@ -103,11 +103,12 @@ body scrolls when the content is long. Do not add a `Panel`, another work
 plane, or a footer divider inside this structure.
 
 Pass footer buttons directly to the `Dialog` footer snippet. `Dialog` owns the
-horizontal, end-aligned layout and wraps the buttons when the viewport is too
-narrow. Put Cancel first. Use `secondary` for Cancel, `action` for the
-recommended path, and a semantic tone such as `danger` only when the action
-has that meaning. Use an action-specific icon on the committing action. Do not
-add an icon to Cancel by default.
+horizontal, end-aligned layout. The actions always stay in one row. A button
+label truncates when the viewport cannot show the full label. Put Cancel
+first. Use `secondary` for Cancel, `action` for the recommended path, and a
+semantic tone such as `danger` only when the action has that meaning. Use an
+action-specific icon on the committing action. Do not add an icon to Cancel by
+default.
 
 Use the `sm` size for short confirmations, `md` for ordinary custom dialogs,
 and `lg` for dense content such as screen selection. Keep the standard

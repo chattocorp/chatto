@@ -118,13 +118,13 @@
 </Story>
 
 <Story
-  name="Narrow action wrapping"
+  name="Narrow action truncation"
   asChild
   parameters={{
     docs: {
       description: {
         story:
-          'Resize the canvas to a narrow viewport. The footer keeps every action visible and wraps the row from the inline start.'
+          'Resize the canvas to a narrow viewport. Actions stay in one row and long labels truncate before the row can wrap.'
       }
     }
   }}
@@ -137,11 +137,11 @@
     {#snippet footer()}
       <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>Cancel</Button>
       <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>
-        Post as New Message
+        Post as a Completely New Message
       </Button>
       <Button defaultAction onclick={() => (narrowDialogVisible = false)}>
         <span class="iconify icon-[uil--comment-alt-lines]"></span>
-        Continue in Thread
+        Continue in the Existing Thread
       </Button>
     {/snippet}
   </Dialog>

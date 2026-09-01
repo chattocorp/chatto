@@ -14,5 +14,8 @@ describe('Button', () => {
     const button = container.querySelector('button');
     await expect.element(button).toHaveClass('whitespace-nowrap');
     await expect.element(button).toHaveClass('shrink-0');
+    const content = button!.querySelector<HTMLElement>('.button-content');
+    await expect.element(content).toHaveTextContent('Schlüssel widerrufen');
+    await expect.element(content).toHaveClass('button-content');
   });
 });

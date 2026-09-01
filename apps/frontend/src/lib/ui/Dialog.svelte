@@ -5,7 +5,7 @@ The standard task-dialog shell. It owns the framed tray, inset work plane,
 fixed header and footer, scrollable body, focus behavior, and dismissal.
 
 Pass footer actions as direct children of the `footer` snippet. The dialog
-owns their responsive, end-aligned layout.
+owns their single-line, end-aligned layout and truncates labels when needed.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -214,7 +214,7 @@ owns their responsive, end-aligned layout.
         </div>
 
         {#if footer}
-          <footer class="mt-6 flex shrink-0 flex-wrap justify-end gap-2">
+          <footer class="dialog-actions">
             {@render footer()}
           </footer>
         {/if}
