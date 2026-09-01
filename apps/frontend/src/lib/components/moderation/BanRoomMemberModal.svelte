@@ -3,7 +3,7 @@
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { getLiveDisplayName, getLiveLogin } from '$lib/state/userProfiles.svelte';
-  import FormDialog from '$lib/ui/FormDialog.svelte';
+  import { FormDialog } from '$lib/ui';
   import { ExpirySelect, TextArea } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 

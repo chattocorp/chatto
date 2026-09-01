@@ -206,6 +206,14 @@ vi.mock('$lib/ui/Dialog.svelte', async () => {
   return { default: DialogMock };
 });
 
+vi.mock('$lib/ui', async () => {
+  const [{ default: ConfirmDialog }, { default: Dialog }] = await Promise.all([
+    import('./ModalContainerConfirmDialogMock.svelte'),
+    import('./ModalContainerDialogMock.svelte')
+  ]);
+  return { ConfirmDialog, Dialog };
+});
+
 vi.mock('$lib/ui/form', async () => {
   const { default: ButtonMock } = await import('./ModalContainerButtonMock.svelte');
   return { Button: ButtonMock };

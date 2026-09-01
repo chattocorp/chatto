@@ -1142,7 +1142,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if linkDialogVisible}
-  {#await Promise.all( [import('$lib/ui/FormDialog.svelte'), import('$lib/ui/form/TextInput.svelte')] ) then [FormDialogModule, TextInputModule]}
+  {#await Promise.all([
+    import('$lib/ui').then(({ FormDialog }) => ({ default: FormDialog })),
+    import('$lib/ui/form').then(({ TextInput }) => ({ default: TextInput }))
+  ]) then [FormDialogModule, TextInputModule]}
     <FormDialogModule.default
       bind:visible={linkDialogVisible}
       title={editingLinkId ? m('admin.rooms_admin.edit_link') : m('admin.rooms_admin.create_link')}
@@ -1169,7 +1172,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if deleteGroupDialogVisible && deleteGroupTarget}
-  {#await import('$lib/ui/ConfirmDialog.svelte') then ConfirmDialogModule}
+  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.delete_group')}
       actionLabel={m('admin.rooms_admin.delete_group')}
@@ -1187,7 +1190,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if deleteLinkDialogVisible && deleteLinkTarget?.type === 'link'}
-  {#await import('$lib/ui/ConfirmDialog.svelte') then ConfirmDialogModule}
+  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.delete_link')}
       actionLabel={m('admin.rooms_admin.delete_link')}
@@ -1205,7 +1208,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/if}
 
 {#if archiveRoomDialogVisible && archiveRoomTarget}
-  {#await import('$lib/ui/ConfirmDialog.svelte') then ConfirmDialogModule}
+  {#await import('$lib/ui').then(({ ConfirmDialog }) => ({ default: ConfirmDialog })) then ConfirmDialogModule}
     <ConfirmDialogModule.default
       title={m('admin.rooms_admin.archive_room')}
       actionLabel={m('admin.rooms_admin.archive_room')}

@@ -4,7 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { RoomMember } from '$lib/state/room';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { Dialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import type { MessageUserInteractionState } from './messageUserInteractions.svelte';

@@ -23,8 +23,8 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { ConfirmDialog, Dialog, Hint } from '$lib/ui';
-  import { Button, FormError, TextInput } from '$lib/ui/form';
+  import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
+  import { Button, TextInput } from '$lib/ui/form';
 
   let {
     currentUser,
@@ -468,49 +468,36 @@
 {/if}
 
 {#if disconnectFreshAuthTarget}
-  <Dialog
+  {@const freshAuthTarget = disconnectFreshAuthTarget}
+  <FormDialog
     visible
     title={m('settings.account.sso.disconnect_fresh_auth_modal.title')}
     size="sm"
+    submitLabel={m('settings.account.sso.disconnect_fresh_auth_modal.action')}
+    submitIcon="iconify icon-[uil--link-broken]"
+    loading={disconnectingSubjectHash === freshAuthTarget.subjectHash}
+    disabled={!disconnectCurrentPassword || disconnectingSubjectHash !== ''}
+    error={disconnectFreshAuthError}
+    onsubmit={confirmDisconnectFreshAuth}
     onclose={closeDisconnectFreshAuthDialog}
   >
-    <form class="flex flex-col gap-4" onsubmit={confirmDisconnectFreshAuth}>
-      <p class="text-sm text-muted">
+    {#snippet description()}
+      <p>
         {m('settings.account.sso.disconnect_fresh_auth_modal.body', {
-          provider: disconnectFreshAuthTarget.providerLabel
+          provider: freshAuthTarget.providerLabel
         })}
       </p>
-      <TextInput
-        id="sso-disconnect-current-password"
-        label={m('settings.account.password.current_label')}
-        type="password"
-        bind:value={disconnectCurrentPassword}
-        disabled={disconnectingSubjectHash !== ''}
-        autocomplete="current-password"
-      />
-      {#if disconnectFreshAuthError}
-        <FormError error={disconnectFreshAuthError} />
-      {/if}
-      <div class="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onclick={closeDisconnectFreshAuthDialog}
-          disabled={disconnectingSubjectHash !== ''}
-        >
-          {m('common.cancel')}
-        </Button>
-        <Button
-          type="submit"
-          loading={disconnectingSubjectHash === disconnectFreshAuthTarget.subjectHash}
-          disabled={!disconnectCurrentPassword || disconnectingSubjectHash !== ''}
-        >
-          <span class="iconify icon-[uil--link-broken]"></span>
-          {m('settings.account.sso.disconnect_fresh_auth_modal.action')}
-        </Button>
-      </div>
-    </form>
-  </Dialog>
+    {/snippet}
+
+    <TextInput
+      id="sso-disconnect-current-password"
+      label={m('settings.account.password.current_label')}
+      type="password"
+      bind:value={disconnectCurrentPassword}
+      disabled={disconnectingSubjectHash !== ''}
+      autocomplete="current-password"
+    />
+  </FormDialog>
 {/if}
 
 <Dialog
@@ -519,62 +506,48 @@
   size="sm"
   onclose={closeDisconnectBlockedModal}
 >
-  <div class="flex flex-col gap-4">
-    <Hint tone="warning">
-      {m('settings.account.sso.disconnect_blocked_modal.body', {
-        provider: blockedDisconnectProviderLabel
-      })}
-    </Hint>
-    <div class="flex justify-end">
-      <Button defaultAction variant="secondary" onclick={closeDisconnectBlockedModal}>
-        {m('ui.close')}
-      </Button>
-    </div>
-  </div>
+  <Hint tone="warning">
+    {m('settings.account.sso.disconnect_blocked_modal.body', {
+      provider: blockedDisconnectProviderLabel
+    })}
+  </Hint>
+
+  {#snippet footer()}
+    <Button defaultAction variant="secondary" onclick={closeDisconnectBlockedModal}>
+      {m('ui.close')}
+    </Button>
+  {/snippet}
 </Dialog>
 
 {#if linkFreshAuthProvider}
-  <Dialog
+  {@const freshAuthProvider = linkFreshAuthProvider}
+  <FormDialog
     visible
     title={m('settings.account.sso.fresh_auth_modal.title')}
     size="sm"
+    submitLabel={m('settings.account.sso.fresh_auth_modal.action')}
+    submitIcon="iconify icon-[uil--link]"
+    loading={linkingProviderId === freshAuthProvider.id}
+    disabled={!linkCurrentPassword || linkingProviderId !== ''}
+    error={linkFreshAuthError}
+    onsubmit={confirmLinkFreshAuth}
     onclose={closeLinkFreshAuthDialog}
   >
-    <form class="flex flex-col gap-4" onsubmit={confirmLinkFreshAuth}>
-      <p class="text-sm text-muted">
+    {#snippet description()}
+      <p>
         {m('settings.account.sso.fresh_auth_modal.body', {
-          provider: linkFreshAuthProvider.label
+          provider: freshAuthProvider.label
         })}
       </p>
-      <TextInput
-        id="sso-link-current-password"
-        label={m('settings.account.password.current_label')}
-        type="password"
-        bind:value={linkCurrentPassword}
-        disabled={linkingProviderId !== ''}
-        autocomplete="current-password"
-      />
-      {#if linkFreshAuthError}
-        <FormError error={linkFreshAuthError} />
-      {/if}
-      <div class="flex flex-wrap justify-end gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          onclick={closeLinkFreshAuthDialog}
-          disabled={linkingProviderId !== ''}
-        >
-          {m('common.cancel')}
-        </Button>
-        <Button
-          type="submit"
-          loading={linkingProviderId === linkFreshAuthProvider.id}
-          disabled={!linkCurrentPassword || linkingProviderId !== ''}
-        >
-          <span class="iconify icon-[uil--link]"></span>
-          {m('settings.account.sso.fresh_auth_modal.action')}
-        </Button>
-      </div>
-    </form>
-  </Dialog>
+    {/snippet}
+
+    <TextInput
+      id="sso-link-current-password"
+      label={m('settings.account.password.current_label')}
+      type="password"
+      bind:value={linkCurrentPassword}
+      disabled={linkingProviderId !== ''}
+      autocomplete="current-password"
+    />
+  </FormDialog>
 {/if}

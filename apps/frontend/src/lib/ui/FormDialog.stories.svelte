@@ -39,6 +39,12 @@
   let inviteWelcome = $state('');
   let inviteSendEmail = $state(true);
 
+  let validationErrorVisible = $state(false);
+  let validationEmail = $state('not-an-email');
+
+  let narrowVisible = $state(false);
+  let narrowName = $state('');
+
   function fakeSubmit() {
     loading = true;
     setTimeout(() => {
@@ -77,6 +83,66 @@
 
     <TextInput id="story-room-name" label="Room Name" bind:value={basicName} />
     <TextArea id="story-room-desc" label="Description (optional)" bind:value={basicDesc} rows={3} />
+  </FormDialog>
+</Story>
+
+<Story
+  name="Validation error"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'Submission errors stay with the form fields and above the fixed action footer.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (validationErrorVisible = true)}>Open invalid form</Button>
+
+  <FormDialog
+    bind:visible={validationErrorVisible}
+    title="Invite Member"
+    submitLabel="Send Invite"
+    error="Enter a complete email address."
+    onsubmit={() => undefined}
+    onclose={() => (validationErrorVisible = false)}
+  >
+    <TextInput
+      id="story-validation-email"
+      label="Email address"
+      type="email"
+      bind:value={validationEmail}
+    />
+  </FormDialog>
+</Story>
+
+<Story
+  name="Narrow layout"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Resize the canvas to 375 pixels. The dialog keeps its viewport gutter and visible footer actions.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (narrowVisible = true)}>Open narrow form</Button>
+
+  <FormDialog
+    bind:visible={narrowVisible}
+    title="Create a New Conversation Room"
+    submitLabel="Create Conversation Room"
+    disabled={!narrowName.trim()}
+    onsubmit={() => (narrowVisible = false)}
+    onclose={() => (narrowVisible = false)}
+  >
+    {#snippet description()}
+      Give the room a clear name that members can recognize on a narrow screen.
+    {/snippet}
+
+    <TextInput id="story-narrow-name" label="Room name" bind:value={narrowName} />
   </FormDialog>
 </Story>
 

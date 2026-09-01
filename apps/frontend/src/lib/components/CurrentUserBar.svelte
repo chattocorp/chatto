@@ -22,7 +22,7 @@ sidebar. Shows the avatar with presence and the live display name.
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { Dialog } from '$lib/ui';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
   import UserAvatar from './UserAvatar.svelte';
