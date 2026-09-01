@@ -161,6 +161,9 @@ For public API packages:
 - Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
 - Commit all generated Go/TypeScript bindings and docs-website ConnectRPC
   reference outputs.
+- `mise codegen-proto` does not remove stale generated Go files. When a symbol
+  moves to another protobuf source file, remove obsolete Go output files and
+  verify that the generated packages compile.
 - New public services also need generated docs grouping in
   `tools/split-connectrpc-docs.mjs`; the splitter fails codegen when a service
   is not assigned to a reference page.

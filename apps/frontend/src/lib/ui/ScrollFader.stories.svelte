@@ -165,19 +165,19 @@ fades use \`transition-opacity\` so the show/hide is animated.
 </Story>
 
 <Story
-  name="Short content (no fades)"
+  name="Intrinsic short content (no fades)"
   asChild
   parameters={{
     docs: {
       description: {
         story:
-          "When content fits without scrolling, both edges count as 'at edge' and both fades stay hidden — no visual noise."
+          "An intrinsic-height viewport grows up to its maximum height. When its content fits, both fades stay hidden. This is the linked-message preview layout."
       }
     }
   }}
 >
-  <div class="flex h-80 w-64 flex-col border border-border bg-background">
-    <ScrollFader top bottom>
+  <div class="w-64 border border-border bg-background">
+    <ScrollFader top bottom fill={false} scrollClass="max-h-52">
       <div class="flex flex-col gap-2 p-3">
         {#each Array(3) as _, i (i)}
           <div class="rounded-md bg-surface px-3 py-2 text-sm">Item {i + 1}</div>
