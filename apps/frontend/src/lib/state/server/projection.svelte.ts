@@ -1,9 +1,6 @@
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import type {
-  RoomGroup,
-  RoomWithViewerState
-} from '@chatto/api-types/api/v1/room_directory_pb';
+import type { RoomGroup, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { ServerRuntimeConfig } from '@chatto/api-types/api/v1/server_state_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
@@ -28,38 +25,42 @@ export class ServerProjectionStore {
 
   apply(update: RealtimeProjectionUpdate): void {
     if (update.reset) this.reset({ preserveViewer: true });
-    const chunk = update.snapshot;
+    const chunk = update.resource;
     if (chunk) {
-      switch (chunk.resource.case) {
+      switch (chunk.case) {
         case 'server':
-          this.server = chunk.resource.value;
+          this.server = chunk.value;
           break;
         case 'motd':
-          this.serverState = { ...this.serverState, motd: chunk.resource.value.motd };
+          this.serverState = { ...this.serverState, motd: chunk.value.motd };
           break;
         case 'runtimeConfig':
           this.serverState = {
             ...this.serverState,
-            runtime: chunk.resource.value.runtime
+            runtime: chunk.value.runtime
           };
           break;
         case 'viewer':
-          this.viewer = chunk.resource.value;
+          this.viewer = chunk.value;
           break;
         case 'users': {
+          if (update.replaceResource) this.users.clear();
           const nextIds = new SvelteSet<string>();
-          for (const member of chunk.resource.value.users) {
+          for (const member of chunk.value.users) {
             const userId = member.user?.id;
             if (!userId) continue;
             nextIds.add(userId);
             this.users.set(userId, member);
           }
-          for (const userId of this.users.keys()) if (!nextIds.has(userId)) this.removeUser(userId);
+          if (update.replaceResource) {
+            for (const userId of this.users.keys())
+              if (!nextIds.has(userId)) this.removeUser(userId);
+          }
           break;
         }
         case 'rooms': {
           const nextIds = new SvelteSet<string>();
-          for (const room of chunk.resource.value.rooms) {
+          for (const room of chunk.value.rooms) {
             const roomId = room.room?.id;
             if (!roomId) continue;
             nextIds.add(roomId);
@@ -69,12 +70,12 @@ export class ServerProjectionStore {
           break;
         }
         case 'roomGroups':
-          this.roomGroups = [...chunk.resource.value.groups];
+          this.roomGroups = [...chunk.value.groups];
           break;
         case 'notifications':
           break;
         case 'activeCalls':
-          this.activeCalls = [...chunk.resource.value.calls];
+          this.activeCalls = [...chunk.value.calls];
           break;
         case undefined:
           break;
@@ -109,7 +110,9 @@ export class ServerProjectionStore {
     this.activeCalls = this.activeCalls.map((call) => {
       if (!call.participants.some((participant) => participant.user?.id === userId)) return call;
       const next = call.clone();
-      next.participants = next.participants.filter((participant) => participant.user?.id !== userId);
+      next.participants = next.participants.filter(
+        (participant) => participant.user?.id !== userId
+      );
       return next;
     });
   }

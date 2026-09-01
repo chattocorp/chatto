@@ -46,7 +46,7 @@ type realtimeCursorPayload struct {
 // plan, buffers that stream while replay is sent, and discards buffered EVT
 // events through BoundarySequence before continuing live.
 type RealtimeReplayPlan struct {
-	// Reset requires a current-state snapshot before replay/live events.
+	// Reset requires current resource reads before replay/live events.
 	Reset bool
 	// StartCursor is the validated request cursor, or BoundaryCursor for a
 	// subscription that did not request history.
@@ -84,7 +84,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 	if err != nil {
 		// Invalid, expired, cross-user, and old-incarnation cursors all take the
 		// normal metered path. PlanRealtimeReplay will later turn them into a
-		// safe snapshot fallback.
+		// safe resource-read fallback.
 		return false, nil
 	}
 	identity, err := evtstream.Identity(c.storage.serverEvtStream)
@@ -99,6 +99,40 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 		return false, fmt.Errorf("read EVT stream info: %w", err)
 	}
 	return decoded.Sequence == info.State.LastSeq, nil
+}
+
+// WaitForRealtimeCursor validates one viewer-bound public cursor and waits
+// until this replica's projections include at least that EVT boundary.
+//
+// The projection wait intentionally captures each projection's current
+// relevant stream target. That target is at or after the validated cursor and
+// avoids treating an unrelated global EVT message as input to every projector.
+func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor string) error {
+	decoded, err := c.decodeRealtimeCursor(userID, strings.TrimSpace(cursor))
+	if err != nil {
+		return err
+	}
+	identity, err := evtstream.Identity(c.storage.serverEvtStream)
+	if err != nil {
+		return fmt.Errorf("read EVT stream identity: %w", err)
+	}
+	if decoded.StreamIdentity != identity {
+		return ErrRealtimeCursorInvalid
+	}
+	info, err := c.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("read EVT stream info: %w", err)
+	}
+	if decoded.Sequence > info.State.LastSeq {
+		return ErrRealtimeCursorInvalid
+	}
+	if info.State.FirstSeq > 0 && decoded.Sequence < info.State.FirstSeq-1 {
+		return ErrRealtimeCursorExpired
+	}
+	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
+		return fmt.Errorf("wait for realtime resource boundary: %w", err)
+	}
+	return nil
 }
 
 // PlanRealtimeReplay builds a caller-wide replay of public durable events after
@@ -124,7 +158,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return RealtimeReplayPlan{}, err
 	}
 	// The public cursor promises that every current-state read used to shape
-	// authorization or a snapshot fallback includes all durable facts through
+	// authorization or a resource-read fallback includes all durable facts through
 	// this boundary. Waiting here, before any reset early-return or membership
 	// capture, prevents a lagging replica from publishing stale plaintext or
 	// permissions and then discarding the durable facts that would correct it.
@@ -218,7 +252,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			}
 			if _, authorized := memberRooms[roomID]; !authorized {
 				// A caller that lost access during the gap must discard its old
-				// room state. A snapshot fallback is the only safe way to do that
+				// room state. A resource-read fallback is the only safe way to do that
 				// without disclosing rooms it never held.
 				if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true

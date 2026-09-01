@@ -5,6 +5,81 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { ServerPublicProfile } from "./server_pb.js";
+
+/**
+ * Request for the authenticated public server profile.
+ *
+ * @generated from message chatto.api.v1.GetServerProfileRequest
+ */
+export class GetServerProfileRequest extends Message<GetServerProfileRequest> {
+  constructor(data?: PartialMessage<GetServerProfileRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetServerProfileRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerProfileRequest {
+    return new GetServerProfileRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerProfileRequest {
+    return new GetServerProfileRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerProfileRequest {
+    return new GetServerProfileRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetServerProfileRequest | PlainMessage<GetServerProfileRequest> | undefined, b: GetServerProfileRequest | PlainMessage<GetServerProfileRequest> | undefined): boolean {
+    return proto3.util.equals(GetServerProfileRequest, a, b);
+  }
+}
+
+/**
+ * Authenticated public server profile response.
+ *
+ * @generated from message chatto.api.v1.GetServerProfileResponse
+ */
+export class GetServerProfileResponse extends Message<GetServerProfileResponse> {
+  /**
+   * Current public server profile.
+   *
+   * @generated from field: chatto.api.v1.ServerPublicProfile profile = 1;
+   */
+  profile?: ServerPublicProfile;
+
+  constructor(data?: PartialMessage<GetServerProfileResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetServerProfileResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerProfileResponse {
+    return new GetServerProfileResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetServerProfileResponse {
+    return new GetServerProfileResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetServerProfileResponse {
+    return new GetServerProfileResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetServerProfileResponse | PlainMessage<GetServerProfileResponse> | undefined, b: GetServerProfileResponse | PlainMessage<GetServerProfileResponse> | undefined): boolean {
+    return proto3.util.equals(GetServerProfileResponse, a, b);
+  }
+}
 
 /**
  * Request for the authenticated message of the day.

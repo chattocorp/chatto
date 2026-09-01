@@ -20,6 +20,17 @@ type serverService struct {
 	api *API
 }
 
+func (s *serverService) GetServerProfile(ctx context.Context, _ *connect.Request[apiv1.GetServerProfileRequest]) (*connect.Response[apiv1.GetServerProfileResponse], error) {
+	if _, err := requireCaller(ctx); err != nil {
+		return nil, err
+	}
+	profile, err := s.api.serverProfile(ctx, serverProfileOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.GetServerProfileResponse{Profile: profile}), nil
+}
+
 func (s *serverService) GetMotd(ctx context.Context, _ *connect.Request[apiv1.GetMotdRequest]) (*connect.Response[apiv1.GetMotdResponse], error) {
 	if _, err := requireCaller(ctx); err != nil {
 		return nil, err

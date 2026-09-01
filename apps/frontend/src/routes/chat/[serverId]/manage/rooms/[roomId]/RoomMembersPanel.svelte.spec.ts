@@ -6,7 +6,7 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { UserAccountDeletedEvent } from '@chatto/api-types/core/evt/v1/user_events_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -194,7 +194,7 @@ function deferred<T>() {
 
 function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    snapshot: new ServerSnapshotChunk({
+    resource: new RealtimeResourceUpdate({
       resource: {
         case: 'rooms',
         value: new ListRoomsResponse({ rooms: room ? [room] : [] })

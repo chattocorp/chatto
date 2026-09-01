@@ -204,11 +204,11 @@
   }
 
   useProjectionEvent((event) => {
-    if (event.snapshot?.resource.case === 'rooms') {
-      if (event.snapshot.resource.value.rooms.some((room) => room.room?.id === roomId)) {
-            snapshotGeneration += 1;
-            invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
-            return;
+    if (event.resource?.case === 'rooms') {
+      if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
+        snapshotGeneration += 1;
+        invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
+        return;
       }
       snapshotGeneration += 1;
       privacyGeneration += 1;
@@ -216,15 +216,15 @@
       return;
     }
     if (event.event?.event.case === 'roomDeleted' && event.event.event.value.roomId === roomId) {
-            snapshotGeneration += 1;
-            privacyGeneration += 1;
-            pendingMemberRevalidation = {
-              serverId: activeServerId,
-              queryScope: serverScope.connection.queryScope,
-              roomId
-            };
-            purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
-            return;
+      snapshotGeneration += 1;
+      privacyGeneration += 1;
+      pendingMemberRevalidation = {
+        serverId: activeServerId,
+        queryScope: serverScope.connection.queryScope,
+        roomId
+      };
+      purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
+      return;
     }
   });
 

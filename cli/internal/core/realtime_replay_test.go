@@ -10,9 +10,55 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+func TestWaitForRealtimeCursorBringsAnotherReplicaToTheResourceBoundary(t *testing.T) {
+	primary, nc := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := primary.CreateUser(ctx, SystemActorID, "cursor-replica-viewer", "Cursor Replica Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := primary.UpdateUserBio(ctx, viewer.GetId(), "visible at boundary E"); err != nil {
+		t.Fatalf("UpdateUserBio: %v", err)
+	}
+	plan, err := primary.PlanRealtimeReplay(ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+
+	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatalf("NewChattoCore replica: %v", err)
+	}
+	waited := make(chan error, 1)
+	go func() {
+		waited <- replica.WaitForRealtimeCursor(ctx, viewer.GetId(), plan.BoundaryCursor)
+	}()
+	select {
+	case err := <-waited:
+		t.Fatalf("WaitForRealtimeCursor returned before replica projections started: %v", err)
+	case <-time.After(25 * time.Millisecond):
+	}
+
+	startCoreServices(t, replica)
+	if err := <-waited; err != nil {
+		t.Fatalf("WaitForRealtimeCursor: %v", err)
+	}
+	user, err := replica.GetUser(ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("GetUser on serving replica: %v", err)
+	}
+	if user.GetBio() != "visible at boundary E" {
+		t.Fatalf("replica bio = %q, want state through E", user.GetBio())
+	}
+}
 
 func TestRealtimeCursorRoundTrip(t *testing.T) {
 	chatto, _ := setupTestCore(t)
@@ -191,7 +237,7 @@ func TestPlanRealtimeReplayResetsForExpiredPublicCursor(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("expired cursor plan = %+v, want snapshot fallback", plan)
+		t.Fatalf("expired cursor plan = %+v, want resource-read fallback", plan)
 	}
 }
 
@@ -244,7 +290,7 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 		t.Fatalf("outsider PlanRealtimeReplay: %v", err)
 	}
 	if !outsiderReplay.Reset || outsiderReplay.StartCursor != outsiderReplay.BoundaryCursor {
-		t.Fatalf("cross-user cursor plan = %+v, want snapshot fallback", outsiderReplay)
+		t.Fatalf("cross-user cursor plan = %+v, want resource-read fallback", outsiderReplay)
 	}
 	for _, event := range outsiderReplay.Events {
 		if event.EVTEvent().GetReactionAdded() != nil || event.EVTEvent().GetReactionRemoved() != nil {
@@ -387,7 +433,7 @@ func TestPlanRealtimeReplayResetsForDifferentStreamIncarnation(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want resource-read fallback", plan)
 	}
 }
 
@@ -427,7 +473,7 @@ func TestPlanRealtimeReplayResetsAfterUserKeyShredding(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want resource-read fallback", plan)
 	}
 }
 
@@ -449,7 +495,7 @@ func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want authorization snapshot fallback", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want authorization resource-read fallback", plan)
 	}
 }
 

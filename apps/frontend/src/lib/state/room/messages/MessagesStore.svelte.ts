@@ -460,7 +460,7 @@ export class MessagesStore {
     this.isInitialLoading = false;
   }
 
-  /** Purge retained rows without changing this store's identity for mounted consumers. */
+  /** Purge retained rows without starting a read outside a realtime boundary. */
   resetProjectionState(): void {
     const thisLoad = this.startLoad();
     this.#jumpId++;
@@ -469,12 +469,15 @@ export class MessagesStore {
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
+  }
 
-    // Timelines are explicit ConnectRPC resources and are not part of the
-    // realtime snapshot. Reload every mounted room or thread after a reset.
-    if (this.source) {
-      void this.fetchCurrent(thisLoad);
-    }
+  /** Reload this mounted timeline at the resource boundary for a reset. */
+  hydrateRealtimeProjection(minimumCursor: string, acceptResult: () => boolean): Promise<boolean> {
+    if (!this.source) return Promise.resolve(false);
+    const thisLoad = this.startLoad();
+    this.#pendingAuthoritativeLoadId = thisLoad;
+    this.isInitialLoading = true;
+    return this.fetchCurrent(thisLoad, minimumCursor, acceptResult);
   }
 
   /**
@@ -842,7 +845,9 @@ export class MessagesStore {
    */
   async refreshCurrentWindow(
     anchorEventId?: string | null,
-    forward = false
+    forward = false,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
   ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
     if (!source) return skippedRefreshResult();
@@ -854,12 +859,12 @@ export class MessagesStore {
     const mode = forwardCursor
       ? 'forward'
       : anchor
-      ? source.scope === 'thread'
-        ? 'thread-around'
-        : 'around'
-      : source.scope === 'thread'
-        ? 'thread-latest'
-        : 'latest';
+        ? source.scope === 'thread'
+          ? 'thread-around'
+          : 'around'
+        : source.scope === 'thread'
+          ? 'thread-latest'
+          : 'latest';
     console.debug('[room-refresh] store refresh started', {
       roomId: source.roomId,
       scope: source.scope,
@@ -869,11 +874,13 @@ export class MessagesStore {
 
     try {
       const page = forwardCursor
-        ? await source.fetchPage({ limit: PAGE_SIZE, after: forwardCursor })
+        ? await source.fetchPage({ limit: PAGE_SIZE, after: forwardCursor, minimumCursor })
         : anchor
-          ? await source.fetchAround(anchor, PAGE_SIZE)
-          : await source.fetchPage({ limit: PAGE_SIZE });
-      if (this.isStale(thisLoad) || this.source !== source) return skippedRefreshResult();
+          ? await source.fetchAround(anchor, PAGE_SIZE, undefined, minimumCursor)
+          : await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) {
+        return skippedRefreshResult();
+      }
       const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
         preserveExistingWindow:
           source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
@@ -897,14 +904,12 @@ export class MessagesStore {
       });
       return result;
     } catch (error) {
-      if (this.isStale(thisLoad)) return skippedRefreshResult();
-      if (
-        isConnectCode(error, Code.PermissionDenied) ||
-        isConnectCode(error, Code.NotFound)
-      ) {
+      if (this.isStale(thisLoad) || !acceptResult()) return skippedRefreshResult();
+      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
         return skippedRefreshResult();
       }
       console.error('MessagesStore: refreshCurrentWindow failed:', error);
+      if (minimumCursor) throw error;
       return skippedRefreshResult();
     }
   }
@@ -915,23 +920,30 @@ export class MessagesStore {
    * canonical event as a second message-resource shape. The result reports
    * whether this same timeline is still active and can be reconciled.
    */
-  async refreshPostedMessage(eventId: string): Promise<boolean> {
+  async refreshPostedMessage(
+    eventId: string,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
+  ): Promise<boolean> {
     const source = this.source;
     if (!source || !eventId) return false;
 
     try {
-      const event = await this.roomTimeline.getMessage({ roomId: source.roomId, eventId });
-      if (this.source !== source) return false;
+      const event = await this.roomTimeline.getMessage({
+        roomId: source.roomId,
+        eventId,
+        minimumCursor
+      });
+      if (this.source !== source || !acceptResult()) return false;
       if (event) this.ingestEvent(event);
       return true;
     } catch (error) {
-      if (
-        isConnectCode(error, Code.PermissionDenied) ||
-        isConnectCode(error, Code.NotFound)
-      ) {
+      if (!acceptResult()) return false;
+      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
         return this.source === source;
       }
       console.error('MessagesStore: refreshPostedMessage failed:', error);
+      if (minimumCursor) throw error;
       return this.source === source;
     }
   }
@@ -1288,9 +1300,10 @@ export class MessagesStore {
 
     if (options.preserveExistingWindow && !discontinuousLatestSnapshot) {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
-      this.newestCursor = options.latestSnapshot || options.forwardSnapshot
-        ? (connection.endCursor ?? previousNewestCursor ?? undefined)
-        : (previousNewestCursor ?? connection.endCursor ?? undefined);
+      this.newestCursor =
+        options.latestSnapshot || options.forwardSnapshot
+          ? (connection.endCursor ?? previousNewestCursor ?? undefined)
+          : (previousNewestCursor ?? connection.endCursor ?? undefined);
       this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
     } else {
       this.oldestCursor = connection.startCursor ?? undefined;
@@ -1326,37 +1339,45 @@ export class MessagesStore {
     return this.fetchCurrent(thisLoad);
   }
 
-  private async fetchCurrent(thisLoad: number): Promise<boolean> {
+  private async fetchCurrent(
+    thisLoad: number,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
+  ): Promise<boolean> {
     const source = this.source;
     if (!source) return false;
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
-      const page = await source.fetchPage({ limit: PAGE_SIZE });
-      if (this.isStale(thisLoad) || this.source !== source) return false;
+      const page = await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       if (source.scope === 'room') {
         this.replaceWithFetchedAndUpdateCursors(page);
         this.hasReachedStart = !page.hasOlder;
-        await this.backfillInitialRoomWindow(thisLoad);
+        if (!minimumCursor) await this.backfillInitialRoomWindow(thisLoad);
       } else {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
       }
-      if (this.isStale(thisLoad) || this.source !== source) return false;
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
       return true;
     } catch (error: unknown) {
-      if (this.isStale(thisLoad) || this.source !== source) return false;
-      if (
-        !isConnectCode(error, Code.PermissionDenied) &&
-        !isConnectCode(error, Code.NotFound)
-      ) {
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+      if (!isConnectCode(error, Code.PermissionDenied) && !isConnectCode(error, Code.NotFound)) {
         console.error('MessagesStore: fetchCurrent failed:', error);
       }
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
+      if (
+        minimumCursor &&
+        !isConnectCode(error, Code.PermissionDenied) &&
+        !isConnectCode(error, Code.NotFound)
+      ) {
+        throw error;
+      }
       return false;
     }
   }

@@ -21,7 +21,7 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 | --------------------- | ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                                   |
 | Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                                       |
-| Realtime WebSocket    | `/api/realtime`                                 | Canonical protobuf events, canonical resource snapshots, and bounded resume for authenticated clients.    |
+| Realtime WebSocket    | `/api/realtime`                                 | Canonical protobuf events, cursor-bounded ConnectRPC bootstrap, and bounded resume for authenticated clients. |
 | MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                                     |
 | Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                            |
 
@@ -72,10 +72,11 @@ namespace; 0.5 servers accept only behavioral protocol version 4. The stream
 sends authorized canonical events for messages, edits, reactions, rooms,
 membership, profiles, calls, and other public activity.
 
-A subscription selects a `SNAPSHOT` or `LIVE_ONLY` fallback. A bot can select
-`LIVE_ONLY` and use ConnectRPC for resource detail. The bundled frontend
-selects `SNAPSHOT` and uses canonical resource chunks to build its local
-projection. A valid cursor resumes a bounded recent gap before live delivery.
+A subscription selects a `RESOURCE_READS` or `LIVE_ONLY` fallback. A bot can
+select `LIVE_ONLY` and use ConnectRPC for resource detail. The bundled frontend
+selects `RESOURCE_READS` and binds its canonical ConnectRPC reads to the
+WebSocket start cursor. A valid cursor resumes a bounded recent gap before live
+delivery.
 
 Resume and timeline cursors are opaque. Clients must store and return them
 unchanged and must not infer persistence coordinates from them. The server

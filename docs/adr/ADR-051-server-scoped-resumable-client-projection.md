@@ -6,9 +6,9 @@
 and [ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 ADR-087 replaced frontend-shaped live projection operations with semantic
 public events. ADR-088 then replaced realtime-specific state items, retained
-timelines, and room hydration with canonical public resource snapshot chunks
-and explicit ConnectRPC reads. The text below records the former protocol 2
-design. It does not describe protocol 4.
+timelines, and room hydration with canonical public resource reads and an
+event-only WebSocket. The text below records the former protocol 2 design. It
+does not describe protocol 4.
 
 ## Context
 

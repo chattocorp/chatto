@@ -126,15 +126,15 @@ Use the normal `subscribe_events` realtime subscription. See the
 [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) for the
 connection and resume model, or follow the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to build a
-small client. Chatto sends the bot's visible notification occurrences in
-optional `notifications` state. Chatto does not use a bot-only realtime channel
-or a separate bot-interaction event. The same subscription sends semantic
-events for all authorized public activity, including messages, edits,
-reactions, rooms, membership, profiles, and calls. Select `LIVE_ONLY` when the
-bot does not need an initial state snapshot.
+small client. Chatto does not use a bot-only realtime channel or a separate
+bot-interaction event. The same subscription sends semantic events for all
+authorized public activity, including messages, edits, reactions, rooms,
+membership, profiles, and calls. Select `LIVE_ONLY` when the bot does not need
+cursor-bounded current-resource reads.
 
-Filter notification state by cause when the integration needs Chatto's
-attention policy instead of all visible activity:
+Read `NotificationService.ListNotificationOccurrences` and filter by cause when
+the integration needs Chatto's attention policy instead of all visible
+activity:
 
 | Cause                      | When Chatto creates it                                                     |
 | -------------------------- | -------------------------------------------------------------------------- |
@@ -143,7 +143,7 @@ attention policy instead of all visible activity:
 | `reply_received`           | Another account replies to a message from the bot.                         |
 | `followed_thread_activity` | Another account posts in a thread that the bot follows.                    |
 
-The state can also contain other notification causes that apply to the
+The response can also contain other notification causes that apply to the
 account. Ignore causes that the integration does not use.
 
 A delivered direct mention in a channel-room root or reply also attempts to
@@ -159,10 +159,9 @@ more than once. One message can create multiple causes. If the integration
 must act only once for each message, also deduplicate by the referenced
 `event_id`.
 
-The realtime replacement contains the newest finite page. After a disconnect,
-use `NotificationService.ListNotificationOccurrences` for longer recovery
-within the notification retention period. Then use the message reference with
-the normal message or thread API. For example, use
+The notification read contains the newest finite page. Read it again after a
+disconnect for recovery within the notification retention period. Then use the
+message reference with the normal message or thread API. For example, use
 `ThreadService.GetThreadEvents` to get the complete thread. The server returns
 content only when the bot has current membership, permission, and interaction
 access.

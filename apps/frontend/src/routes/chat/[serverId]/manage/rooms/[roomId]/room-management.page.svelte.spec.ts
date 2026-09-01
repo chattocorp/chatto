@@ -3,11 +3,8 @@ import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import {
-  ListRoomsResponse,
-  RoomWithViewerState
-} from '@chatto/api-types/api/v1/room_directory_pb';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { RoomDeletedEvent } from '@chatto/api-types/core/evt/v1/room_events_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
@@ -174,7 +171,7 @@ function dispatchProjection(event: RealtimeProjectionUpdate): void {
 
 function roomSnapshot(present = true): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    snapshot: new ServerSnapshotChunk({
+    resource: new RealtimeResourceUpdate({
       resource: {
         case: 'rooms',
         value: new ListRoomsResponse({
@@ -459,8 +456,7 @@ describe('room management page identity and realtime authority', () => {
     render(RoomManagementPage);
     await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
 
-    const removal = () =>
-      dispatchProjection(roomRemoved());
+    const removal = () => dispatchProjection(roomRemoved());
     removal();
     await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
     removal();

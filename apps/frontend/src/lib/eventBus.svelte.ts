@@ -10,8 +10,8 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
-import type { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
+import type { RealtimeResource, RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import {
   TransientEventKind,
   transientEventKind,
@@ -20,25 +20,32 @@ import {
 } from '$lib/realtimeEvents';
 
 export type EventHandler = (event: TransientEventEnvelope) => void;
-/** One ordered event or resource snapshot consumed by the bundled frontend. */
+/** One ordered event or canonical resource response consumed by the frontend. */
 export class RealtimeProjectionUpdate {
-  /** Semantic source event. Snapshot resources do not have one. */
+  /** Semantic source event. Resource responses do not have one. */
   readonly event: Event | null;
-  /** Authorized canonical resource response, when this is a snapshot update. */
-  readonly snapshot: ServerSnapshotChunk | null;
+  /** Authorized canonical resource response, when this is a resource update. */
+  readonly resource: RealtimeResource | null;
+  /** Whether this response replaces the complete resource family. */
+  readonly replaceResource: boolean;
+  /** Opaque minimum cursor for reads caused by this event. */
+  readonly cursor: string | null;
   /** Clear the retained projection before applying this update. */
   readonly reset: boolean;
 
   constructor(
     init: {
       event?: Event | null;
-      snapshot?: ServerSnapshotChunk | null;
+      resource?: RealtimeResourceUpdate | null;
+      cursor?: string | null;
       reset?: boolean;
       id?: string;
       actorId?: string;
     } = {}
   ) {
-    this.snapshot = init.snapshot ?? null;
+    this.resource = init.resource?.resource ?? null;
+    this.replaceResource = init.resource?.replace ?? false;
+    this.cursor = init.cursor ?? null;
     this.reset = init.reset ?? false;
     this.event =
       init.event ??
@@ -56,7 +63,7 @@ function selectedBus(serverId: string): EventBus | undefined {
   return serverId ? eventBusManager.getBus(serverId) : undefined;
 }
 
-/** Register a handler for semantic events and canonical snapshot resources. */
+/** Register a handler for semantic events and canonical resource responses. */
 export function onProjectionEvent(serverId: string, handler: ProjectionHandler): () => void {
   const bus = selectedBus(serverId);
   if (!bus) return () => {};

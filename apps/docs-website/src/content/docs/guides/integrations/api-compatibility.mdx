@@ -40,8 +40,8 @@ The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
 realtime protocol 4. Protocol 4 replaces earlier development protocols during
-the 0.5 alpha. It uses authorized canonical events, explicit `SNAPSHOT` or
-`LIVE_ONLY` startup, canonical resource snapshot chunks, and bounded cursor
+the 0.5 alpha. It uses authorized canonical events, explicit `RESOURCE_READS`
+or `LIVE_ONLY` startup, cursor-bounded ConnectRPC reads, and bounded cursor
 resume. Normal event frames contain only a canonical Event and an opaque
 cursor. Regenerate clients and update the handshake and reducers together.
 
@@ -175,13 +175,19 @@ ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or
 read-your-writes handling with assumptions about projection internals.
 
+Chatto 0.5 adds the authenticated `ServerService.GetServerProfile` method. This
+additive method returns the same public profile resource as server discovery,
+but it can participate in a viewer-bound realtime resource boundary. Public
+server discovery remains unauthenticated. An older server returns
+`Unimplemented` for the new authenticated method.
+
 Protocol 4 resume cursors are opaque, viewer-bound, and valid for up to 24
 hours. Retain a cursor only after the complete event succeeds, and replace it
 after each `caught_up` frame. A missing, expired, or unusable cursor selects the
-subscription's explicit fallback. A `SNAPSHOT` client receives current state.
-A `LIVE_ONLY` client starts at the current boundary. An integration that is
-offline for more than 24 hours cannot request every transition from that
-interval.
+subscription's explicit fallback. A `RESOURCE_READS` client receives a start
+cursor and reads its required current state through ConnectRPC. A `LIVE_ONLY`
+client starts at the current boundary. An integration that is offline for more
+than 24 hours cannot request every transition from that interval.
 
 ### Migrating from 0.5 development snapshots
 

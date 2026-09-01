@@ -6,7 +6,7 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
 ### ConnectRPC Resource API
 
 - Define one canonical public protobuf for each resource. Reuse that protobuf
-  across list, get, batch, mutation-response, and snapshot surfaces when the
+  across list, get, batch, and mutation-response surfaces when the
   authorization and lifecycle semantics are the same.
 - Keep services complete for their resource and scope. Add bounded batch reads
   when events or related resources commonly expose IDs that clients must
@@ -23,14 +23,14 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
   durable facts, transient signals, replay, and public delivery. Do not create
   parallel public payload messages for the same event.
 - Keep transport concerns in `chatto.realtime.v1` wrappers. Handshakes,
-  subscriptions, resource snapshots, cursors, heartbeats, errors, and close
+  subscriptions, catch-up, cursors, heartbeats, errors, and close
   guidance are not domain events.
 - Create a fresh authorized Event for each public delivery. Omit internal
   variants and storage-only fields. Never send stored bytes or mutate a stored
   event during redaction.
-- Use canonical public resource protobufs in snapshot chunks. Do not attach
-  resource sidecars to normal event frames. Use ConnectRPC reads when a client
-  needs complete or paginated resource state after an event.
+- Keep current resources in ConnectRPC. Let a resource client bind reads to an
+  opaque realtime start cursor, then close the interval with event catch-up.
+  Do not attach resource sidecars to normal event frames.
 - Keep public cursors opaque, confidential, integrity-protected, and bound to
   their viewer and scope. Do not expose NATS or JetStream coordinates.
 - Keep wire volume bounded. Resume must have sequence, event-count, time, and

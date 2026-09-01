@@ -11,6 +11,7 @@ import {
 import { TIMEOUTS } from './constants';
 import {
   RealtimeClientFrame,
+  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeEvent,
   RealtimeInitialState,
@@ -18,7 +19,6 @@ import {
   RealtimeServerFrame,
   RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import type { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
 import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 
 interface RealtimeConnectOptions {
@@ -36,6 +36,7 @@ class RealtimeProtobufClient {
     timer: ReturnType<typeof setTimeout>;
   }> = [];
   recoveryMode: RealtimeRecoveryMode;
+  startCursor?: string;
 
   private constructor(socket: WebSocket, recoveryMode: RealtimeRecoveryMode) {
     this.#socket = socket;
@@ -96,7 +97,7 @@ class RealtimeProtobufClient {
         frame: {
           case: 'subscribeEvents',
           value: new RealtimeSubscribeEvents({
-            initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
+            initialState: options.initialState ?? RealtimeInitialState.RESOURCE_READS,
             resumeCursor: options.resumeCursor
           })
         }
@@ -107,6 +108,10 @@ class RealtimeProtobufClient {
     );
     if (subscribed.frame.case !== 'subscribed') throw new Error('expected subscribed frame');
     pendingClient.recoveryMode = subscribed.frame.value.recoveryMode;
+    pendingClient.startCursor = subscribed.frame.value.startCursor;
+    if (pendingClient.recoveryMode !== RealtimeRecoveryMode.RESOURCE_READS) {
+      pendingClient.catchUp();
+    }
     return pendingClient;
   }
 
@@ -119,24 +124,20 @@ class RealtimeProtobufClient {
     this.#socket.send(frame.toBinary());
   }
 
+  catchUp(): void {
+    this.send(
+      new RealtimeClientFrame({
+        frame: { case: 'catchUp', value: new RealtimeCatchUp() }
+      })
+    );
+  }
+
   waitForEvent(predicate: (event: RealtimeEvent) => boolean): Promise<RealtimeEvent> {
     return this.waitForFrame((frame) => {
       const event = frame.frame.case === 'event' ? frame.frame.value : null;
       return event ? predicate(event) : false;
     }).then((frame) => {
       if (frame.frame.case !== 'event') throw new Error('matched frame was not an event');
-      return frame.frame.value;
-    });
-  }
-
-  waitForSnapshot(
-    predicate: (snapshot: ServerSnapshotChunk) => boolean
-  ): Promise<ServerSnapshotChunk> {
-    return this.waitForFrame((frame) => {
-      const snapshot = frame.frame.case === 'snapshot' ? frame.frame.value : null;
-      return snapshot ? predicate(snapshot) : false;
-    }).then((frame) => {
-      if (frame.frame.case !== 'snapshot') throw new Error('matched frame was not a snapshot');
       return frame.frame.value;
     });
   }
@@ -159,9 +160,6 @@ class RealtimeProtobufClient {
           const queued = this.#frames.map((frame) => {
             if (frame.frame.case === 'event') {
               return `event:${frame.frame.value.event?.event.case ?? 'unknown'}`;
-            }
-            if (frame.frame.case === 'snapshot') {
-              return `snapshot:${frame.frame.value.resource.case ?? 'unknown'}`;
             }
             return frame.frame.case ?? 'unknown';
           });
@@ -219,29 +217,84 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
-  test('sends canonical room resources in the initial snapshot', async ({
+  test('closes cursor-bounded resource reads with subsequent realtime events', async ({
     page,
-    chatPage,
     serverURL
   }) => {
     const viewer = await createAndLoginTestUser(page);
-    await chatPage.goto();
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
     const token = await loginForBearerToken(page, viewer);
-    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
 
-    try {
-      expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.SNAPSHOT);
-      const rooms = await realtime.waitForSnapshot(
-        (snapshot) =>
-          snapshot.resource.case === 'rooms' &&
-          snapshot.resource.value.rooms.some((room) => room.room?.id === roomId)
-      );
-      expect(rooms.resource.case).toBe('rooms');
-      await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
-    } finally {
-      realtime.close();
+    // Other parallel E2E workers can change global authorization or layout
+    // state during this interval. The protocol asks the client to restart with
+    // a new E when that happens, so exercise the same bounded retry here.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+      try {
+        expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.RESOURCE_READS);
+        expect(realtime.startCursor).toBeTruthy();
+
+        const response = await page.request.post(
+          '/api/connect/chatto.api.v1.RoomDirectoryService/ListRooms',
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'Connect-Protocol-Version': '1',
+              'Chatto-Realtime-Minimum-Cursor': realtime.startCursor!
+            },
+            data: {}
+          }
+        );
+        expect(response.ok()).toBeTruthy();
+        const rooms = (await response.json()) as {
+          rooms?: Array<{ room?: { id?: string } }>;
+        };
+        expect(rooms.rooms?.some((room) => room.room?.id === roomId)).toBe(true);
+
+        const messageId = await postMessageViaConnect(
+          page,
+          roomId,
+          `resource boundary ${Date.now()}-${attempt}`
+        );
+        realtime.catchUp();
+        const event = await realtime.waitForEvent((candidate) => candidate.event?.id === messageId);
+        const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+        expect(event.resumeCursor).toBeTruthy();
+        expect(caughtUp.frame.case).toBe('caughtUp');
+        if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
+        expect(caughtUp.frame.value.cursor).toBeTruthy();
+        expect(caughtUp.frame.value.cursor).not.toBe(realtime.startCursor);
+        return;
+      } catch (error) {
+        if (
+          attempt === 4 ||
+          !(error instanceof Error) ||
+          !error.message.includes('resource_resync_required')
+        ) {
+          throw error;
+        }
+      } finally {
+        realtime.close();
+      }
     }
+  });
+
+  test('bundled resource bootstrap does not list the complete user directory', async ({
+    page,
+    chatPage
+  }) => {
+    let fullUserDirectoryReads = 0;
+    page.on('request', (request) => {
+      if (request.url().includes('chatto.api.v1.UserService/ListUsers')) {
+        fullUserDirectoryReads++;
+      }
+    });
+    await createAndLoginTestUser(page);
+
+    await chatPage.goto();
+    await expect(chatPage.getRoomLink('general')).toBeVisible();
+
+    expect(fullUserDirectoryReads).toBe(0);
   });
 
   test('delivers unretained semantic events and resumes them from a cursor', async ({
@@ -320,7 +373,9 @@ test.describe('protobuf realtime stream', () => {
   }) => {
     const viewer = await createAndLoginTestUser(page);
     const token = await loginForBearerToken(page, viewer);
-    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token, {
+      initialState: RealtimeInitialState.LIVE_ONLY
+    });
 
     try {
       let mentionActorDisplayName = '';
@@ -330,9 +385,7 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`@${viewer.login} protobuf mention ${Date.now()}`);
       });
 
-      await realtime.waitForEvent(
-        (event) => event.event?.event.case === 'messagePosted'
-      );
+      await realtime.waitForEvent((event) => event.event?.event.case === 'messagePosted');
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(
@@ -369,9 +422,7 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`protobuf dm ${Date.now()}`);
       });
 
-      await realtime.waitForEvent(
-        (event) => event.event?.event.case === 'messagePosted'
-      );
+      await realtime.waitForEvent((event) => event.event?.event.case === 'messagePosted');
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(

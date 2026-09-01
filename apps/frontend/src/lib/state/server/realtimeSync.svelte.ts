@@ -1,4 +1,4 @@
-/** How current one server's client-side resource snapshot is. */
+/** How current one server's client-side resource view is. */
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
 
 /** Session-local resume state for one server event stream. */

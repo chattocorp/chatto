@@ -160,9 +160,9 @@
   }
 
   useProjectionEvent((event) => {
-    if (event.snapshot?.resource.case === 'roomGroups') {
+    if (event.resource?.case === 'roomGroups') {
       snapshotGeneration += 1;
-      if (event.snapshot.resource.value.groups.some((candidate) => candidate.id === groupId)) {
+      if (event.resource.value.groups.some((candidate) => candidate.id === groupId)) {
         invalidateAdminRoomLayoutQueries(
           activeServerId,
           serverScope.connection,

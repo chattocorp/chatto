@@ -12,7 +12,10 @@ import {
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import {
+  RealtimeResourceUpdate,
+  type RealtimeResourceFamily
+} from '$lib/api-client/realtimeResources';
 import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import {
@@ -54,7 +57,10 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     scrubRoomMemberUser: vi.fn()
   },
   apiMocks: {
-    readRealtimeResource: vi.fn(() => Promise.resolve([] as ServerSnapshotChunk[])),
+    readRealtimeResource: vi.fn<
+      (family: RealtimeResourceFamily, cursor?: string) => Promise<RealtimeResourceUpdate[]>
+    >(() => Promise.resolve([])),
+    readRealtimeUsers: vi.fn(() => Promise.resolve([] as RealtimeResourceUpdate[])),
     listRooms: vi.fn(() => Promise.resolve([])),
     listRoomGroups: vi.fn(() => Promise.resolve([])),
     listRoomMembers: vi.fn(() =>
@@ -227,9 +233,16 @@ vi.mock('$lib/api-client/roles', () => ({
   }))
 }));
 
-vi.mock('$lib/api-client/realtimeResources', () => ({
-  createRealtimeResourceAPI: vi.fn(() => ({ read: apiMocks.readRealtimeResource }))
-}));
+vi.mock('$lib/api-client/realtimeResources', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/realtimeResources')>();
+  return {
+    ...actual,
+    createRealtimeResourceAPI: vi.fn(() => ({
+      read: apiMocks.readRealtimeResource,
+      readUsers: apiMocks.readRealtimeUsers
+    }))
+  };
+});
 
 vi.mock('$lib/api-client/roomTimeline', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/roomTimeline')>();
@@ -372,14 +385,16 @@ async function flushPromises(times = 5): Promise<void> {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
-function roomSnapshot(rooms: RoomWithViewerState[]): ServerSnapshotChunk {
-  return new ServerSnapshotChunk({
+function roomResource(rooms: RoomWithViewerState[]): RealtimeResourceUpdate {
+  return new RealtimeResourceUpdate({
     resource: { case: 'rooms', value: new ListRoomsResponse({ rooms }) }
   });
 }
@@ -450,6 +465,8 @@ beforeEach(() => {
   });
   apiMocks.readRealtimeResource.mockReset();
   apiMocks.readRealtimeResource.mockResolvedValue([]);
+  apiMocks.readRealtimeUsers.mockReset();
+  apiMocks.readRealtimeUsers.mockResolvedValue([]);
   apiMocks.listRoomAttachments.mockReset();
   apiMocks.listRoomAttachments.mockResolvedValue({ items: [], totalCount: 0, hasMore: false });
   apiMocks.refreshAssetUrls.mockReset();
@@ -597,12 +614,12 @@ describe('ServerStateStore room search state', () => {
 });
 
 describe('ServerStateStore unified realtime resources', () => {
-  it('applies canonical room snapshots without a realtime-specific room shape', () => {
+  it('applies canonical room resources without a realtime-specific room shape', () => {
     const store = makeStore(new FakeServerConnection([]));
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        snapshot: roomSnapshot([
+        resource: roomResource([
           new RoomWithViewerState({
             room: new Room({ id: 'R1', name: 'General' }),
             viewerState: new RoomViewerState({ isMember: true }),
@@ -619,12 +636,12 @@ describe('ServerStateStore unified realtime resources', () => {
     });
   });
 
-  it('applies public server resources through the shared snapshot chunk', () => {
+  it('applies the canonical public server resource', () => {
     const store = makeStore(new FakeServerConnection([]));
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        snapshot: new ServerSnapshotChunk({
+        resource: new RealtimeResourceUpdate({
           resource: {
             case: 'server',
             value: new ServerPublicProfile({ name: 'Canonical Server', version: '0.5.0' })
@@ -638,8 +655,6 @@ describe('ServerStateStore unified realtime resources', () => {
   });
 
   it('scrubs a removed user before its authoritative resource refresh completes', () => {
-    const pending = deferred<ServerSnapshotChunk[]>();
-    apiMocks.readRealtimeResource.mockReturnValueOnce(pending.promise);
     const store = makeStore(new FakeServerConnection([]));
     store.projection.users.set(
       'U2',
@@ -653,25 +668,179 @@ describe('ServerStateStore unified realtime resources', () => {
   });
 
   it('runs one follow-up read when the same resource changes during an active refresh', async () => {
-    const first = deferred<ServerSnapshotChunk[]>();
-    apiMocks.readRealtimeResource
-      .mockReturnValueOnce(first.promise)
-      .mockResolvedValueOnce([]);
+    const first = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeUsers.mockReturnValueOnce(first.promise).mockResolvedValueOnce([]);
     const store = makeStore(new FakeServerConnection([]));
 
-    store.realtimeProjectionHandler(userDeleted('U2'));
-    store.realtimeProjectionHandler(userDeleted('U3'));
+    for (const userId of ['U2', 'U3']) {
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new Event({
+            event: {
+              case: 'userDisplayNameChanged',
+              value: new UserDisplayNameChangedEvent({ userId })
+            }
+          })
+        })
+      );
+    }
 
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(1);
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(1);
     first.resolve([]);
     await flushPromises();
 
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(2);
-    expect(apiMocks.readRealtimeResource).toHaveBeenNthCalledWith(2, 'users');
+    expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(2);
+    expect(apiMocks.readRealtimeUsers).toHaveBeenNthCalledWith(2, ['U3'], undefined);
+  });
+
+  it('converges after join, leave, and join overlap one room resource read', async () => {
+    const firstRooms = deferred<RealtimeResourceUpdate[]>();
+    const finalRooms = roomResource([
+      new RoomWithViewerState({
+        room: new Room({ id: 'R1' }),
+        memberUserIds: ['U1', 'U2']
+      })
+    ]);
+    let roomReads = 0;
+    apiMocks.readRealtimeResource.mockImplementation((family) => {
+      if (family !== 'rooms') return Promise.resolve([]);
+      roomReads++;
+      return roomReads === 1 ? firstRooms.promise : Promise.resolve([finalRooms]);
+    });
+    const store = makeStore(new FakeServerConnection([]));
+    const membership = (joined: boolean, cursor: string) =>
+      new RealtimeProjectionUpdate({
+        cursor,
+        event: joined
+          ? new Event({
+              actorId: 'U2',
+              event: {
+                case: 'userJoinedRoom',
+                value: new UserJoinedRoomEvent({ roomId: 'R1' })
+              }
+            })
+          : new Event({
+              actorId: 'U2',
+              event: {
+                case: 'userLeftRoom',
+                value: new UserLeftRoomEvent({ roomId: 'R1' })
+              }
+            })
+      });
+
+    store.realtimeProjectionHandler(membership(true, 'cursor-join-1'));
+    store.realtimeProjectionHandler(membership(false, 'cursor-leave'));
+    store.realtimeProjectionHandler(membership(true, 'cursor-join-2'));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        event: new Event({
+          event: {
+            case: 'notificationUnreadChanged',
+            value: new NotificationUnreadChangedEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+    firstRooms.resolve([]);
+    await store.completeRealtimeCatchUp('cursor-final');
+
+    const roomCalls = apiMocks.readRealtimeResource.mock.calls.filter(
+      ([family]) => family === 'rooms'
+    );
+    expect(roomCalls).toEqual([
+      ['rooms', 'cursor-join-1'],
+      ['rooms', 'cursor-join-2']
+    ]);
+    expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual(['U1', 'U2']);
+  });
+
+  it('discards resource responses from a superseded reset generation', async () => {
+    const oldServer = deferred<RealtimeResourceUpdate[]>();
+    const serverResource = (name: string) =>
+      new RealtimeResourceUpdate({
+        resource: { case: 'server', value: new ServerPublicProfile({ name }) }
+      });
+    apiMocks.readRealtimeResource.mockImplementation((family, cursor) => {
+      if (family !== 'server') return Promise.resolve([]);
+      return cursor === 'cursor-old'
+        ? oldServer.promise
+        : Promise.resolve([serverResource('Current Server')]);
+    });
+    const store = makeStore(new FakeServerConnection([]));
+
+    const obsoleteBootstrap = store.bootstrapRealtimeProjection('cursor-old');
+    await flushPromises();
+    await store.bootstrapRealtimeProjection('cursor-current');
+    expect(store.serverInfo.name).toBe('Current Server');
+
+    oldServer.resolve([serverResource('Obsolete Server')]);
+    await expect(obsoleteBootstrap).rejects.toThrow('superseded by a newer reset');
+    expect(store.serverInfo.name).toBe('Current Server');
+  });
+
+  it('includes mounted timelines in the cursor-bounded reset', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const timelineRead = deferred<boolean>();
+    const hydrate = vi
+      .spyOn(messages, 'hydrateRealtimeProjection')
+      .mockReturnValue(timelineRead.promise);
+    await flushPromises();
+
+    const bootstrap = store.bootstrapRealtimeProjection('opaque-reset-cursor');
+    await flushPromises();
+    expect(hydrate).toHaveBeenCalledWith('opaque-reset-cursor', expect.any(Function));
+
+    let completed = false;
+    void bootstrap.then(() => {
+      completed = true;
+    });
+    await flushPromises();
+    expect(completed).toBe(false);
+
+    timelineRead.resolve(true);
+    await bootstrap;
+  });
+
+  it('does not complete a durable cursor when message hydration fails', async () => {
+    const messageRead = deferred<boolean>();
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const hydrate = vi.spyOn(messages, 'refreshPostedMessage').mockReturnValue(messageRead.promise);
+    await flushPromises();
+
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'opaque-message-cursor',
+        event: new Event({
+          id: 'E-POST',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'new body' })
+          }
+        })
+      })
+    );
+    expect(hydrate).toHaveBeenCalledWith('E-POST', 'opaque-message-cursor', expect.any(Function));
+
+    const completion = store.completeRealtimeCatchUp('opaque-message-cursor');
+    let completed = false;
+    void completion.then(
+      () => {
+        completed = true;
+      },
+      () => undefined
+    );
+    await flushPromises();
+    expect(completed).toBe(false);
+
+    const failure = new Error('message read failed');
+    messageRead.reject(failure);
+    await expect(completion).rejects.toBe(failure);
   });
 
   it('publishes refreshed canonical resources to every projection consumer', async () => {
-    const users = new ServerSnapshotChunk({
+    const users = new RealtimeResourceUpdate({
       resource: {
         case: 'users',
         value: new ListUsersResponse({
@@ -683,7 +852,7 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       }
     });
-    apiMocks.readRealtimeResource.mockResolvedValueOnce([users]);
+    apiMocks.readRealtimeUsers.mockResolvedValueOnce([users]);
     const fake = new FakeServerConnection([]);
     const store = makeStore(fake);
     eventBusManager.ensureBus(
@@ -713,7 +882,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     expect(store.projection.users.get('U2')?.user?.displayName).toBe('Robert');
     expect(observer).toHaveBeenCalledWith(
-      expect.objectContaining({ snapshot: users })
+      expect.objectContaining({ resource: users.resource, replaceResource: true })
     );
   });
 
@@ -770,8 +939,8 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'E-LEAVE'));
     await flushPromises();
 
-    expect(refresh).toHaveBeenCalledWith('E-JOIN');
-    expect(refresh).toHaveBeenCalledWith('E-LEAVE');
+    expect(refresh).toHaveBeenCalledWith('E-JOIN', false, undefined, expect.any(Function));
+    expect(refresh).toHaveBeenCalledWith('E-LEAVE', false, undefined, expect.any(Function));
   });
 
   it('refreshes a mounted room timeline for a threading-mode row', async () => {
@@ -799,7 +968,12 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     await flushPromises();
 
-    expect(refresh).toHaveBeenCalledWith('E-THREADING-MODE');
+    expect(refresh).toHaveBeenCalledWith(
+      'E-THREADING-MODE',
+      false,
+      undefined,
+      expect.any(Function)
+    );
   });
 
   it('refreshes thread reads for follow changes and replies', async () => {
@@ -857,9 +1031,9 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     await flushPromises();
 
-    expect(refresh).toHaveBeenCalledWith('E-ROOT');
-    expect(refreshPostedThread).toHaveBeenCalledWith('E-REPLY');
-    expect(refreshThread).toHaveBeenCalledWith('E-REPLY', true);
+    expect(refresh).toHaveBeenCalledWith('E-ROOT', false, undefined, expect.any(Function));
+    expect(refreshPostedThread).toHaveBeenCalledWith('E-REPLY', undefined, expect.any(Function));
+    expect(refreshThread).toHaveBeenCalledWith('E-REPLY', true, undefined, expect.any(Function));
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
@@ -907,10 +1081,10 @@ describe('ServerStateStore unified realtime resources', () => {
         })
       })
     );
-    expect(hydrate).toHaveBeenCalledWith('E-POST');
+    expect(hydrate).toHaveBeenCalledWith('E-POST', undefined, expect.any(Function));
     expect(refresh).not.toHaveBeenCalled();
     await flushPromises();
-    expect(refresh).toHaveBeenCalledWith('E-POST', true);
+    expect(refresh).toHaveBeenCalledWith('E-POST', true, undefined, expect.any(Function));
   });
 
   it('drives call sounds from the canonical participant event', () => {
@@ -932,7 +1106,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
 
     expect(soundMocks.playCallSound).toHaveBeenCalledWith('join');
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('activeCalls', undefined);
   });
 
   it('refreshes canonical rooms after a neutral unread invalidation', () => {
@@ -950,7 +1124,7 @@ describe('ServerStateStore unified realtime resources', () => {
       })
     );
 
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications');
-    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('notifications', undefined);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', undefined);
   });
 });

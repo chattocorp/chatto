@@ -3,7 +3,7 @@ import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { ListRoomGroupsResponse, RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -104,7 +104,7 @@ function deferred<T>() {
 
 function dispatchGroups(groupIds: string[]): void {
   const event = new RealtimeProjectionUpdate({
-    snapshot: new ServerSnapshotChunk({
+    resource: new RealtimeResourceUpdate({
       resource: {
         case: 'roomGroups',
         value: new ListRoomGroupsResponse({

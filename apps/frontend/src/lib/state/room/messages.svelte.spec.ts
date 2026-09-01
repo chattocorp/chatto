@@ -828,6 +828,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
 
     store.resetProjectionState();
+    await store.hydrateRealtimeProjection('opaque-reset-cursor', () => true);
     await settle();
 
     expect(store.rootEvents.map((event) => event.id)).toEqual(['after-reset']);
@@ -852,12 +853,14 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
 
     store.resetProjectionState();
+    const hydration = store.hydrateRealtimeProjection('opaque-reset-cursor', () => true);
     await store.refreshCurrentWindow();
 
     expect(store.isInitialLoading).toBe(false);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
 
     resetRead.resolve(pageFromEvent(threadMessageEvent('stale-reset')));
+    await hydration;
     await settle();
     expect(store.rootEvents.map((event) => event.id)).toEqual(['replacement']);
     store.dispose();
@@ -2716,6 +2719,27 @@ describe('MessagesStore — room lifecycle ownership', () => {
     await settle();
     const refreshing = store.refreshPostedMessage('m3');
     store.setRoom('room-2');
+    pending.resolve(threadMessageEvent('m3'));
+
+    expect(await refreshing).toBe(false);
+    expect(store.events).toEqual([]);
+    store.dispose();
+  });
+
+  it('discards a posted-message read from a superseded projection generation', async () => {
+    const pending = deferred<ReturnType<typeof threadMessageEvent>>();
+    const timeline = fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    let current = true;
+
+    store.setRoom('room-1');
+    await settle();
+    const refreshing = store.refreshPostedMessage('m3', 'opaque-cursor', () => current);
+    current = false;
     pending.resolve(threadMessageEvent('m3'));
 
     expect(await refreshing).toBe(false);

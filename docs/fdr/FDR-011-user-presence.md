@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -67,7 +67,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 8. Delivery gaps force latest-value recovery
 
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
-**Why:** Presence is latest-value state. A realtime snapshot or catch-up reconciliation contains current presence, so reconnect repairs a missed transition without a separate user read. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-087.
+**Why:** Presence is latest-value state. Reconnect clears retained presence and cursor-bounded user or member reads return current presence for the users that the client shows. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-088.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
 
 ### 9. Presence display is immediate while member-list grouping settles

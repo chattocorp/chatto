@@ -10,8 +10,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	v11 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	v1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,7 +23,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Current-state behavior when a subscription cannot resume from its cursor.
+// Startup behavior when a subscription cannot resume from its cursor.
 type RealtimeInitialState int32
 
 const (
@@ -32,8 +31,8 @@ const (
 	RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED RealtimeInitialState = 0
 	// Start at the current event boundary without sending current resources.
 	RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY RealtimeInitialState = 1
-	// Send an authorized current-state snapshot before live delivery.
-	RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT RealtimeInitialState = 2
+	// Let the client read current resources through ConnectRPC before catch-up.
+	RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS RealtimeInitialState = 2
 )
 
 // Enum value maps for RealtimeInitialState.
@@ -41,12 +40,12 @@ var (
 	RealtimeInitialState_name = map[int32]string{
 		0: "REALTIME_INITIAL_STATE_UNSPECIFIED",
 		1: "REALTIME_INITIAL_STATE_LIVE_ONLY",
-		2: "REALTIME_INITIAL_STATE_SNAPSHOT",
+		2: "REALTIME_INITIAL_STATE_RESOURCE_READS",
 	}
 	RealtimeInitialState_value = map[string]int32{
-		"REALTIME_INITIAL_STATE_UNSPECIFIED": 0,
-		"REALTIME_INITIAL_STATE_LIVE_ONLY":   1,
-		"REALTIME_INITIAL_STATE_SNAPSHOT":    2,
+		"REALTIME_INITIAL_STATE_UNSPECIFIED":    0,
+		"REALTIME_INITIAL_STATE_LIVE_ONLY":      1,
+		"REALTIME_INITIAL_STATE_RESOURCE_READS": 2,
 	}
 )
 
@@ -83,11 +82,11 @@ type RealtimeRecoveryMode int32
 const (
 	// Invalid value.
 	RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_UNSPECIFIED RealtimeRecoveryMode = 0
-	// Delivery starts at the current boundary without a snapshot or history.
+	// Delivery starts at the current boundary without current resources or history.
 	RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY RealtimeRecoveryMode = 1
-	// Resource chunks replace the client's local snapshot.
-	RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT RealtimeRecoveryMode = 2
-	// Current resource chunks precede durable events after the supplied cursor.
+	// The client must replace its local state through ConnectRPC resource reads.
+	RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESOURCE_READS RealtimeRecoveryMode = 2
+	// Durable events resume after the supplied cursor.
 	RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESUME RealtimeRecoveryMode = 3
 )
 
@@ -96,14 +95,14 @@ var (
 	RealtimeRecoveryMode_name = map[int32]string{
 		0: "REALTIME_RECOVERY_MODE_UNSPECIFIED",
 		1: "REALTIME_RECOVERY_MODE_LIVE_ONLY",
-		2: "REALTIME_RECOVERY_MODE_SNAPSHOT",
+		2: "REALTIME_RECOVERY_MODE_RESOURCE_READS",
 		3: "REALTIME_RECOVERY_MODE_RESUME",
 	}
 	RealtimeRecoveryMode_value = map[string]int32{
-		"REALTIME_RECOVERY_MODE_UNSPECIFIED": 0,
-		"REALTIME_RECOVERY_MODE_LIVE_ONLY":   1,
-		"REALTIME_RECOVERY_MODE_SNAPSHOT":    2,
-		"REALTIME_RECOVERY_MODE_RESUME":      3,
+		"REALTIME_RECOVERY_MODE_UNSPECIFIED":    0,
+		"REALTIME_RECOVERY_MODE_LIVE_ONLY":      1,
+		"REALTIME_RECOVERY_MODE_RESOURCE_READS": 2,
+		"REALTIME_RECOVERY_MODE_RESUME":         3,
 	}
 )
 
@@ -146,6 +145,7 @@ type RealtimeClientFrame struct {
 	//	*RealtimeClientFrame_Hello
 	//	*RealtimeClientFrame_SubscribeEvents
 	//	*RealtimeClientFrame_Ping
+	//	*RealtimeClientFrame_CatchUp
 	Frame         isRealtimeClientFrame_Frame `protobuf_oneof:"frame"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -215,6 +215,15 @@ func (x *RealtimeClientFrame) GetPing() *RealtimePing {
 	return nil
 }
 
+func (x *RealtimeClientFrame) GetCatchUp() *RealtimeCatchUp {
+	if x != nil {
+		if x, ok := x.Frame.(*RealtimeClientFrame_CatchUp); ok {
+			return x.CatchUp
+		}
+	}
+	return nil
+}
+
 type isRealtimeClientFrame_Frame interface {
 	isRealtimeClientFrame_Frame()
 }
@@ -234,11 +243,18 @@ type RealtimeClientFrame_Ping struct {
 	Ping *RealtimePing `protobuf:"bytes,3,opt,name=ping,proto3,oneof"`
 }
 
+type RealtimeClientFrame_CatchUp struct {
+	// Confirms that the client finished its required current-resource reads.
+	CatchUp *RealtimeCatchUp `protobuf:"bytes,5,opt,name=catch_up,json=catchUp,proto3,oneof"`
+}
+
 func (*RealtimeClientFrame_Hello) isRealtimeClientFrame_Frame() {}
 
 func (*RealtimeClientFrame_SubscribeEvents) isRealtimeClientFrame_Frame() {}
 
 func (*RealtimeClientFrame_Ping) isRealtimeClientFrame_Frame() {}
+
+func (*RealtimeClientFrame_CatchUp) isRealtimeClientFrame_Frame() {}
 
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 type RealtimeServerFrame struct {
@@ -253,7 +269,6 @@ type RealtimeServerFrame struct {
 	//	*RealtimeServerFrame_Close
 	//	*RealtimeServerFrame_Pong
 	//	*RealtimeServerFrame_CaughtUp
-	//	*RealtimeServerFrame_Snapshot
 	Frame         isRealtimeServerFrame_Frame `protobuf_oneof:"frame"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -368,15 +383,6 @@ func (x *RealtimeServerFrame) GetCaughtUp() *RealtimeCaughtUp {
 	return nil
 }
 
-func (x *RealtimeServerFrame) GetSnapshot() *v1.ServerSnapshotChunk {
-	if x != nil {
-		if x, ok := x.Frame.(*RealtimeServerFrame_Snapshot); ok {
-			return x.Snapshot
-		}
-	}
-	return nil
-}
-
 type isRealtimeServerFrame_Frame interface {
 	isRealtimeServerFrame_Frame()
 }
@@ -421,11 +427,6 @@ type RealtimeServerFrame_CaughtUp struct {
 	CaughtUp *RealtimeCaughtUp `protobuf:"bytes,8,opt,name=caught_up,json=caughtUp,proto3,oneof"`
 }
 
-type RealtimeServerFrame_Snapshot struct {
-	// One authorized resource family during snapshot or reconciliation.
-	Snapshot *v1.ServerSnapshotChunk `protobuf:"bytes,9,opt,name=snapshot,proto3,oneof"`
-}
-
 func (*RealtimeServerFrame_Hello) isRealtimeServerFrame_Frame() {}
 
 func (*RealtimeServerFrame_Subscribed) isRealtimeServerFrame_Frame() {}
@@ -441,8 +442,6 @@ func (*RealtimeServerFrame_Close) isRealtimeServerFrame_Frame() {}
 func (*RealtimeServerFrame_Pong) isRealtimeServerFrame_Frame() {}
 
 func (*RealtimeServerFrame_CaughtUp) isRealtimeServerFrame_Frame() {}
-
-func (*RealtimeServerFrame_Snapshot) isRealtimeServerFrame_Frame() {}
 
 // Initial client hello.
 type RealtimeClientHello struct {
@@ -676,10 +675,51 @@ func (x *RealtimeSubscribed) GetRecoveryMode() RealtimeRecoveryMode {
 	return RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_UNSPECIFIED
 }
 
+// Requests delivery through a stable current event boundary.
+//
+// A client in `RESOURCE_READS` recovery sends this frame after its required
+// ConnectRPC reads succeed. Those reads use `start_cursor` as their minimum
+// consistency cursor. A live-only or resume client can send it immediately.
+type RealtimeCatchUp struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RealtimeCatchUp) Reset() {
+	*x = RealtimeCatchUp{}
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RealtimeCatchUp) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RealtimeCatchUp) ProtoMessage() {}
+
+func (x *RealtimeCatchUp) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RealtimeCatchUp.ProtoReflect.Descriptor instead.
+func (*RealtimeCatchUp) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{6}
+}
+
 // Confirms that recovery is complete and live delivery has begun.
 //
-// Clients can retain `cursor` after they apply every preceding event and
-// resource chunk. Transient events are never replayed.
+// Clients can retain `cursor` after they apply every preceding event.
+// Transient events are never replayed.
 type RealtimeCaughtUp struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque cursor at the recovery-to-live handoff boundary.
@@ -690,7 +730,7 @@ type RealtimeCaughtUp struct {
 
 func (x *RealtimeCaughtUp) Reset() {
 	*x = RealtimeCaughtUp{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[6]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -702,7 +742,7 @@ func (x *RealtimeCaughtUp) String() string {
 func (*RealtimeCaughtUp) ProtoMessage() {}
 
 func (x *RealtimeCaughtUp) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[6]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -715,7 +755,7 @@ func (x *RealtimeCaughtUp) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeCaughtUp.ProtoReflect.Descriptor instead.
 func (*RealtimeCaughtUp) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{6}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RealtimeCaughtUp) GetCursor() string {
@@ -734,7 +774,7 @@ func (x *RealtimeCaughtUp) GetCursor() string {
 type RealtimeEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Authorized canonical event. The server never sends raw stored bytes.
-	Event *v11.Event `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	Event *v1.Event `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
 	// Opaque cursor safe to retain after this complete event is accepted.
 	ResumeCursor  *string `protobuf:"bytes,2,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -743,7 +783,7 @@ type RealtimeEvent struct {
 
 func (x *RealtimeEvent) Reset() {
 	*x = RealtimeEvent{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[7]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +795,7 @@ func (x *RealtimeEvent) String() string {
 func (*RealtimeEvent) ProtoMessage() {}
 
 func (x *RealtimeEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[7]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,10 +808,10 @@ func (x *RealtimeEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeEvent.ProtoReflect.Descriptor instead.
 func (*RealtimeEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{7}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RealtimeEvent) GetEvent() *v11.Event {
+func (x *RealtimeEvent) GetEvent() *v1.Event {
 	if x != nil {
 		return x.Event
 	}
@@ -796,7 +836,7 @@ type RealtimePing struct {
 
 func (x *RealtimePing) Reset() {
 	*x = RealtimePing{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[8]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -808,7 +848,7 @@ func (x *RealtimePing) String() string {
 func (*RealtimePing) ProtoMessage() {}
 
 func (x *RealtimePing) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[8]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +861,7 @@ func (x *RealtimePing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimePing.ProtoReflect.Descriptor instead.
 func (*RealtimePing) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{8}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RealtimePing) GetNonce() string {
@@ -842,7 +882,7 @@ type RealtimePong struct {
 
 func (x *RealtimePong) Reset() {
 	*x = RealtimePong{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +894,7 @@ func (x *RealtimePong) String() string {
 func (*RealtimePong) ProtoMessage() {}
 
 func (x *RealtimePong) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +907,7 @@ func (x *RealtimePong) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimePong.ProtoReflect.Descriptor instead.
 func (*RealtimePong) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{9}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RealtimePong) GetNonce() string {
@@ -890,7 +930,7 @@ type RealtimeHeartbeat struct {
 
 func (x *RealtimeHeartbeat) Reset() {
 	*x = RealtimeHeartbeat{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -902,7 +942,7 @@ func (x *RealtimeHeartbeat) String() string {
 func (*RealtimeHeartbeat) ProtoMessage() {}
 
 func (x *RealtimeHeartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -915,7 +955,7 @@ func (x *RealtimeHeartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeHeartbeat.ProtoReflect.Descriptor instead.
 func (*RealtimeHeartbeat) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{10}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RealtimeHeartbeat) GetId() string {
@@ -951,7 +991,7 @@ type RealtimeError struct {
 
 func (x *RealtimeError) Reset() {
 	*x = RealtimeError{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -963,7 +1003,7 @@ func (x *RealtimeError) String() string {
 func (*RealtimeError) ProtoMessage() {}
 
 func (x *RealtimeError) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -976,7 +1016,7 @@ func (x *RealtimeError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeError.ProtoReflect.Descriptor instead.
 func (*RealtimeError) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{11}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RealtimeError) GetCode() string {
@@ -1031,7 +1071,7 @@ type RealtimeClose struct {
 
 func (x *RealtimeClose) Reset() {
 	*x = RealtimeClose{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1043,7 +1083,7 @@ func (x *RealtimeClose) String() string {
 func (*RealtimeClose) ProtoMessage() {}
 
 func (x *RealtimeClose) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1056,7 +1096,7 @@ func (x *RealtimeClose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeClose.ProtoReflect.Descriptor instead.
 func (*RealtimeClose) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{12}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RealtimeClose) GetCode() string {
@@ -1091,12 +1131,13 @@ var File_chatto_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a#chatto/api/v1/server_snapshot.proto\x1a\x1echatto/core/evt/v1/event.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\x02\n" +
+	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a\x1echatto/core/evt/v1/event.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcc\x02\n" +
 	"\x13RealtimeClientFrame\x12?\n" +
 	"\x05hello\x18\x01 \x01(\v2'.chatto.realtime.v1.RealtimeClientHelloH\x00R\x05hello\x12X\n" +
 	"\x10subscribe_events\x18\x02 \x01(\v2+.chatto.realtime.v1.RealtimeSubscribeEventsH\x00R\x0fsubscribeEvents\x126\n" +
-	"\x04ping\x18\x03 \x01(\v2 .chatto.realtime.v1.RealtimePingH\x00R\x04pingB\a\n" +
-	"\x05frameJ\x04\b\x04\x10\x05R\x03ackR\fhydrate_room\"\xe0\x04\n" +
+	"\x04ping\x18\x03 \x01(\v2 .chatto.realtime.v1.RealtimePingH\x00R\x04ping\x12@\n" +
+	"\bcatch_up\x18\x05 \x01(\v2#.chatto.realtime.v1.RealtimeCatchUpH\x00R\acatchUpB\a\n" +
+	"\x05frameJ\x04\b\x04\x10\x05R\x03ackR\fhydrate_room\"\xae\x04\n" +
 	"\x13RealtimeServerFrame\x12?\n" +
 	"\x05hello\x18\x01 \x01(\v2'.chatto.realtime.v1.RealtimeServerHelloH\x00R\x05hello\x12H\n" +
 	"\n" +
@@ -1107,9 +1148,9 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x05error\x18\x05 \x01(\v2!.chatto.realtime.v1.RealtimeErrorH\x00R\x05error\x129\n" +
 	"\x05close\x18\x06 \x01(\v2!.chatto.realtime.v1.RealtimeCloseH\x00R\x05close\x126\n" +
 	"\x04pong\x18\a \x01(\v2 .chatto.realtime.v1.RealtimePongH\x00R\x04pong\x12C\n" +
-	"\tcaught_up\x18\b \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUp\x12@\n" +
-	"\bsnapshot\x18\t \x01(\v2\".chatto.api.v1.ServerSnapshotChunkH\x00R\bsnapshotB\a\n" +
-	"\x05frame\"\x8e\x01\n" +
+	"\tcaught_up\x18\b \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUpB\a\n" +
+	"\x05frameJ\x04\b\t\x10\n" +
+	"R\bsnapshot\"\x8e\x01\n" +
 	"\x13RealtimeClientHello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
 	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01B\x0f\n" +
@@ -1125,7 +1166,8 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x12RealtimeSubscribed\x12&\n" +
 	"\fstart_cursor\x18\x02 \x01(\tH\x00R\vstartCursor\x88\x01\x01\x12M\n" +
 	"\rrecovery_mode\x18\x03 \x01(\x0e2(.chatto.realtime.v1.RealtimeRecoveryModeR\frecoveryModeB\x0f\n" +
-	"\r_start_cursorJ\x04\b\x01\x10\x02R\x06cursor\"*\n" +
+	"\r_start_cursorJ\x04\b\x01\x10\x02R\x06cursor\"\x11\n" +
+	"\x0fRealtimeCatchUp\"*\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\"\x89\x01\n" +
 	"\rRealtimeEvent\x12/\n" +
@@ -1153,15 +1195,15 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x04code\x18\x01 \x01(\tR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
 	"\treconnect\x18\x03 \x01(\bR\treconnect\x12$\n" +
-	"\x0eretry_after_ms\x18\x04 \x01(\rR\fretryAfterMs*\x89\x01\n" +
+	"\x0eretry_after_ms\x18\x04 \x01(\rR\fretryAfterMs*\x8f\x01\n" +
 	"\x14RealtimeInitialState\x12&\n" +
 	"\"REALTIME_INITIAL_STATE_UNSPECIFIED\x10\x00\x12$\n" +
-	" REALTIME_INITIAL_STATE_LIVE_ONLY\x10\x01\x12#\n" +
-	"\x1fREALTIME_INITIAL_STATE_SNAPSHOT\x10\x02*\xac\x01\n" +
+	" REALTIME_INITIAL_STATE_LIVE_ONLY\x10\x01\x12)\n" +
+	"%REALTIME_INITIAL_STATE_RESOURCE_READS\x10\x02*\xb2\x01\n" +
 	"\x14RealtimeRecoveryMode\x12&\n" +
 	"\"REALTIME_RECOVERY_MODE_UNSPECIFIED\x10\x00\x12$\n" +
-	" REALTIME_RECOVERY_MODE_LIVE_ONLY\x10\x01\x12#\n" +
-	"\x1fREALTIME_RECOVERY_MODE_SNAPSHOT\x10\x02\x12!\n" +
+	" REALTIME_RECOVERY_MODE_LIVE_ONLY\x10\x01\x12)\n" +
+	"%REALTIME_RECOVERY_MODE_RESOURCE_READS\x10\x02\x12!\n" +
 	"\x1dREALTIME_RECOVERY_MODE_RESUME\x10\x03B\xcc\x01\n" +
 	"\x16com.chatto.realtime.v1B\rRealtimeProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/realtime/v1;realtimev1\xa2\x02\x03CRX\xaa\x02\x12Chatto.Realtime.V1\xca\x02\x12Chatto\\Realtime\\V1\xe2\x02\x1eChatto\\Realtime\\V1\\GPBMetadata\xea\x02\x14Chatto::Realtime::V1b\x06proto3"
 
@@ -1178,7 +1220,7 @@ func file_chatto_realtime_v1_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_realtime_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
+var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(RealtimeInitialState)(0),       // 0: chatto.realtime.v1.RealtimeInitialState
 	(RealtimeRecoveryMode)(0),       // 1: chatto.realtime.v1.RealtimeRecoveryMode
@@ -1188,30 +1230,30 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RealtimeServerHello)(nil),     // 5: chatto.realtime.v1.RealtimeServerHello
 	(*RealtimeSubscribeEvents)(nil), // 6: chatto.realtime.v1.RealtimeSubscribeEvents
 	(*RealtimeSubscribed)(nil),      // 7: chatto.realtime.v1.RealtimeSubscribed
-	(*RealtimeCaughtUp)(nil),        // 8: chatto.realtime.v1.RealtimeCaughtUp
-	(*RealtimeEvent)(nil),           // 9: chatto.realtime.v1.RealtimeEvent
-	(*RealtimePing)(nil),            // 10: chatto.realtime.v1.RealtimePing
-	(*RealtimePong)(nil),            // 11: chatto.realtime.v1.RealtimePong
-	(*RealtimeHeartbeat)(nil),       // 12: chatto.realtime.v1.RealtimeHeartbeat
-	(*RealtimeError)(nil),           // 13: chatto.realtime.v1.RealtimeError
-	(*RealtimeClose)(nil),           // 14: chatto.realtime.v1.RealtimeClose
-	(*v1.ServerSnapshotChunk)(nil),  // 15: chatto.api.v1.ServerSnapshotChunk
-	(*v11.Event)(nil),               // 16: chatto.core.evt.v1.Event
+	(*RealtimeCatchUp)(nil),         // 8: chatto.realtime.v1.RealtimeCatchUp
+	(*RealtimeCaughtUp)(nil),        // 9: chatto.realtime.v1.RealtimeCaughtUp
+	(*RealtimeEvent)(nil),           // 10: chatto.realtime.v1.RealtimeEvent
+	(*RealtimePing)(nil),            // 11: chatto.realtime.v1.RealtimePing
+	(*RealtimePong)(nil),            // 12: chatto.realtime.v1.RealtimePong
+	(*RealtimeHeartbeat)(nil),       // 13: chatto.realtime.v1.RealtimeHeartbeat
+	(*RealtimeError)(nil),           // 14: chatto.realtime.v1.RealtimeError
+	(*RealtimeClose)(nil),           // 15: chatto.realtime.v1.RealtimeClose
+	(*v1.Event)(nil),                // 16: chatto.core.evt.v1.Event
 	(*timestamppb.Timestamp)(nil),   // 17: google.protobuf.Timestamp
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	4,  // 0: chatto.realtime.v1.RealtimeClientFrame.hello:type_name -> chatto.realtime.v1.RealtimeClientHello
 	6,  // 1: chatto.realtime.v1.RealtimeClientFrame.subscribe_events:type_name -> chatto.realtime.v1.RealtimeSubscribeEvents
-	10, // 2: chatto.realtime.v1.RealtimeClientFrame.ping:type_name -> chatto.realtime.v1.RealtimePing
-	5,  // 3: chatto.realtime.v1.RealtimeServerFrame.hello:type_name -> chatto.realtime.v1.RealtimeServerHello
-	7,  // 4: chatto.realtime.v1.RealtimeServerFrame.subscribed:type_name -> chatto.realtime.v1.RealtimeSubscribed
-	9,  // 5: chatto.realtime.v1.RealtimeServerFrame.event:type_name -> chatto.realtime.v1.RealtimeEvent
-	12, // 6: chatto.realtime.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.realtime.v1.RealtimeHeartbeat
-	13, // 7: chatto.realtime.v1.RealtimeServerFrame.error:type_name -> chatto.realtime.v1.RealtimeError
-	14, // 8: chatto.realtime.v1.RealtimeServerFrame.close:type_name -> chatto.realtime.v1.RealtimeClose
-	11, // 9: chatto.realtime.v1.RealtimeServerFrame.pong:type_name -> chatto.realtime.v1.RealtimePong
-	8,  // 10: chatto.realtime.v1.RealtimeServerFrame.caught_up:type_name -> chatto.realtime.v1.RealtimeCaughtUp
-	15, // 11: chatto.realtime.v1.RealtimeServerFrame.snapshot:type_name -> chatto.api.v1.ServerSnapshotChunk
+	11, // 2: chatto.realtime.v1.RealtimeClientFrame.ping:type_name -> chatto.realtime.v1.RealtimePing
+	8,  // 3: chatto.realtime.v1.RealtimeClientFrame.catch_up:type_name -> chatto.realtime.v1.RealtimeCatchUp
+	5,  // 4: chatto.realtime.v1.RealtimeServerFrame.hello:type_name -> chatto.realtime.v1.RealtimeServerHello
+	7,  // 5: chatto.realtime.v1.RealtimeServerFrame.subscribed:type_name -> chatto.realtime.v1.RealtimeSubscribed
+	10, // 6: chatto.realtime.v1.RealtimeServerFrame.event:type_name -> chatto.realtime.v1.RealtimeEvent
+	13, // 7: chatto.realtime.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.realtime.v1.RealtimeHeartbeat
+	14, // 8: chatto.realtime.v1.RealtimeServerFrame.error:type_name -> chatto.realtime.v1.RealtimeError
+	15, // 9: chatto.realtime.v1.RealtimeServerFrame.close:type_name -> chatto.realtime.v1.RealtimeClose
+	12, // 10: chatto.realtime.v1.RealtimeServerFrame.pong:type_name -> chatto.realtime.v1.RealtimePong
+	9,  // 11: chatto.realtime.v1.RealtimeServerFrame.caught_up:type_name -> chatto.realtime.v1.RealtimeCaughtUp
 	0,  // 12: chatto.realtime.v1.RealtimeSubscribeEvents.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
 	1,  // 13: chatto.realtime.v1.RealtimeSubscribed.recovery_mode:type_name -> chatto.realtime.v1.RealtimeRecoveryMode
 	16, // 14: chatto.realtime.v1.RealtimeEvent.event:type_name -> chatto.core.evt.v1.Event
@@ -1232,6 +1274,7 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeClientFrame_Hello)(nil),
 		(*RealtimeClientFrame_SubscribeEvents)(nil),
 		(*RealtimeClientFrame_Ping)(nil),
+		(*RealtimeClientFrame_CatchUp)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[1].OneofWrappers = []any{
 		(*RealtimeServerFrame_Hello)(nil),
@@ -1242,20 +1285,19 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeServerFrame_Close)(nil),
 		(*RealtimeServerFrame_Pong)(nil),
 		(*RealtimeServerFrame_CaughtUp)(nil),
-		(*RealtimeServerFrame_Snapshot)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
-	file_chatto_realtime_v1_realtime_proto_msgTypes[7].OneofWrappers = []any{}
-	file_chatto_realtime_v1_realtime_proto_msgTypes[11].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[8].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_realtime_v1_realtime_proto_rawDesc), len(file_chatto_realtime_v1_realtime_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   13,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

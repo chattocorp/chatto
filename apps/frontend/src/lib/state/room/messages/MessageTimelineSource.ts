@@ -68,6 +68,7 @@ export class MessageTimelineSource {
     limit: number;
     before?: string;
     after?: string;
+    minimumCursor?: string;
   }): Promise<EventConnectionPage> {
     return this.threadRootEventId !== null
       ? this.api.getThreadEvents({
@@ -81,16 +82,18 @@ export class MessageTimelineSource {
   fetchAround(
     eventId: string,
     limit: number,
-    threadRootEventId: string | null = this.threadRootEventId
+    threadRootEventId: string | null = this.threadRootEventId,
+    minimumCursor?: string
   ): Promise<EventConnectionPage> {
     return threadRootEventId !== null
       ? this.api.getThreadEventsAround({
           roomId: this.roomId,
           threadRootEventId,
           eventId,
-          limit
+          limit,
+          minimumCursor
         })
-      : this.api.getRoomEventsAround({ roomId: this.roomId, eventId, limit });
+      : this.api.getRoomEventsAround({ roomId: this.roomId, eventId, limit, minimumCursor });
   }
 
   isContinuityEvent(event: TimelineEventView): boolean {

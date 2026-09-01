@@ -65,7 +65,7 @@ func newRealtimeCatchUpAdmissionWithLimits(maxConcurrent, burst int, refillInter
 
 // acquire admits at most one catch-up per authenticated user on this replica
 // and reserves one global slot. Metered stale-cursor replay attempts consume a
-// per-user replay token. Cursorless snapshots cannot request history,
+// per-user replay token. Cursorless resource reads cannot request history,
 // and a cursor already at the current EVT boundary cannot request replay work,
 // so both use a separate, more permissive general catch-up token bucket. The
 // returned release function is idempotent.

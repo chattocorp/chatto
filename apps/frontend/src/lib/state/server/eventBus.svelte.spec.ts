@@ -1,7 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
-import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { TransientEventKind } from '$lib/realtimeEvents';
 import {
   RealtimeEvent,
@@ -54,12 +52,12 @@ class FakeRealtimeSocket {
 
   async receive(frame: RealtimeServerFrame): Promise<void> {
     this.onmessage?.({ data: frame.toBinary() });
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
   }
 
   async receiveBytes(data: Uint8Array): Promise<void> {
     this.onmessage?.({ data });
-    await Promise.resolve();
+    for (let index = 0; index < 8; index++) await Promise.resolve();
   }
 
   serverClose(code = 1006, reason = 'closed'): void {
@@ -137,10 +135,13 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   });
 }
 
-function subscribedFrame(recoveryMode = RealtimeRecoveryMode.RESUME): RealtimeServerFrame {
+function subscribedFrame(
+  recoveryMode = RealtimeRecoveryMode.RESUME,
+  startCursor?: string
+): RealtimeServerFrame {
   return serverFrame({
     case: 'subscribed',
-    value: new RealtimeSubscribed({ recoveryMode })
+    value: new RealtimeSubscribed({ recoveryMode, startCursor })
   });
 }
 
@@ -150,18 +151,6 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
     value: new RealtimeEvent({
       resumeCursor: cursor,
       event: new CanonicalEvent()
-    })
-  });
-}
-
-function snapshotFrame(): RealtimeServerFrame {
-  return serverFrame({
-    case: 'snapshot',
-    value: new ServerSnapshotChunk({
-      resource: {
-        case: 'server',
-        value: new ServerPublicProfile({ name: 'Test' })
-      }
     })
   });
 }
@@ -260,6 +249,10 @@ describe('eventBusManager realtime transport', () => {
     await sockets[0].receive(helloFrame());
     expect(sockets[0].sent).toHaveLength(2);
     await sockets[0].receive(subscribedFrame());
+    expect(fake.status).toBe('connecting');
+    await sockets[0].receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'ready' }) })
+    );
     expect(fake.status).toBe('connected');
   });
 
@@ -322,25 +315,36 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
-  it('accepts a snapshot when a retained resume cursor is no longer usable', async () => {
+  it('reads cursor-bounded resources when a retained resume cursor is no longer usable', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-expired');
     const fake = new FakeServerConnection();
-    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const bootstrapProjection = vi.fn().mockResolvedValue(undefined);
+    const completeProjectionCatchUp = vi.fn().mockResolvedValue(undefined);
+    eventBusManager.startBus(
+      TEST_SERVER,
+      fake as unknown as ServerConnection,
+      true,
+      sync,
+      bootstrapProjection,
+      completeProjectionCatchUp
+    );
     const socket = sockets[0];
     socket.open();
     await socket.receive(helloFrame());
     eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
-    await socket.receive(subscribedFrame(RealtimeRecoveryMode.SNAPSHOT));
+    await socket.receive(
+      subscribedFrame(RealtimeRecoveryMode.RESOURCE_READS, 'cursor-resource-boundary')
+    );
 
     expect(sync.phase).toBe('hydrating');
-    // Snapshot frames are deliberately cursorless. Until the complete reset
-    // reaches caught_up, reconnecting must retry the old cursor and receive a
-    // fresh reset rather than resume from a partially rebuilt projection.
+    expect(bootstrapProjection).toHaveBeenCalledWith('cursor-resource-boundary');
+    const catchUp = RealtimeClientFrame.fromBinary(socket.sent.at(-1)!);
+    expect(catchUp.frame.case).toBe('catchUp');
+    // Until catch-up completes, reconnecting must retry the old cursor and
+    // start a fresh resource bootstrap instead of using partial state.
     expect(sync.resumeCursor).toBe('cursor-expired');
 
-    await socket.receive(snapshotFrame());
-    expect(sync.resumeCursor).toBe('cursor-expired');
     await socket.receive(
       serverFrame({
         case: 'caughtUp',
@@ -350,6 +354,8 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sync.phase).toBe('ready');
     expect(sync.resumeCursor).toBe('cursor-reset-caught-up');
+    expect(completeProjectionCatchUp).toHaveBeenCalledWith('cursor-reset-caught-up');
+    expect(fake.status).toBe('connected');
   });
 
   it('does not advance the cursor when no projection reducer is registered', async () => {
@@ -363,6 +369,35 @@ describe('eventBusManager realtime transport', () => {
       `[eventBus:${TEST_SERVER}] projection reducer failed`,
       expect.any(Error)
     );
+  });
+
+  it('retains the last complete cursor when event resource reconciliation fails', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('cursor-before-failure');
+    const fake = new FakeServerConnection();
+    const completeProjectionCatchUp = vi.fn((cursor: string) =>
+      cursor === 'cursor-failed'
+        ? Promise.reject(new Error('resource read failed'))
+        : Promise.resolve()
+    );
+    eventBusManager.startBus(
+      TEST_SERVER,
+      fake as unknown as ServerConnection,
+      true,
+      sync,
+      undefined,
+      completeProjectionCatchUp
+    );
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(subscribedFrame());
+
+    await socket.receive(projectionFrame('cursor-failed'));
+
+    expect(socket.closeCalls.at(-1)?.reason).toBe('resource reconciliation failed');
+    expect(sync.resumeCursor).toBe('cursor-before-failure');
   });
 
   it('closes and reconnects without advancing after an undecodable frame', async () => {
@@ -818,7 +853,7 @@ describe('eventBusManager realtime transport', () => {
     await pollingSocket.receive(subscribedFrame());
 
     eventBusManager.synchronizeAuthenticatedServers(registrations, 'promoted-server');
-    expect(promotedConnection.status).toBe('connected');
+    expect(promotedConnection.status).toBe('connecting');
     pollingSocket.serverClose();
     await vi.advanceTimersByTimeAsync(0);
     const replacement = sockets.at(-1)!;
@@ -826,6 +861,9 @@ describe('eventBusManager realtime transport', () => {
     replacement.open();
     await replacement.receive(helloFrame(100));
     await replacement.receive(subscribedFrame());
+    await replacement.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'promoted-ready' }) })
+    );
 
     await vi.advanceTimersByTimeAsync(30_000);
     expect(replacement.closeCalls).toHaveLength(0);

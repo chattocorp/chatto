@@ -1,6 +1,6 @@
 ---
 title: Realtime Protocol Overview
-description: Receive canonical events, apply resource snapshots, and resume a short gap.
+description: Receive canonical events, bind resource reads to one boundary, and resume a short gap.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -20,7 +20,7 @@ integration needs.
 | React to a message, edit, reaction, membership change, or other activity | Realtime event    |
 | Create, update, or delete a resource                                     | ConnectRPC        |
 | Read one resource or a paginated list                                    | ConnectRPC        |
-| Build the bundled frontend's initial local view                          | Realtime snapshot |
+| Build a complete current local view                                     | Cursor-bounded ConnectRPC reads |
 | Repair a short connection gap                                            | Realtime resume   |
 
 ## Connection lifecycle
@@ -32,30 +32,34 @@ integration needs.
    with `hello`. Request protocol version `4`. Include a bearer credential when
    you do not use a same-origin cookie.
 3. Wait for the server `hello`. Check that it accepts version `4`.
-4. Send `subscribe_events`. Select `SNAPSHOT` or `LIVE_ONLY` as the required
+4. Send `subscribe_events`. Select `RESOURCE_READS` or `LIVE_ONLY` as the required
    initial-state fallback. You can also include a safe resume cursor.
 5. Read `subscribed.recovery_mode` to learn whether the server selected
-   `SNAPSHOT`, `LIVE_ONLY`, or `RESUME`.
-6. Process resource snapshot chunks and events in order. The server sends
+   `RESOURCE_READS`, `LIVE_ONLY`, or `RESUME`.
+6. For `RESOURCE_READS`, read the resources that you need through ConnectRPC.
+   Add `Chatto-Realtime-Minimum-Cursor` with `subscribed.start_cursor` to each
+   request.
+7. Send `catch_up`. Process the later events in order. The server sends
    `caught_up` when recovery reaches the live boundary.
-7. Continue to process live events.
+8. Continue to process live events.
 
 The `subscribed` frame does not mean that recovery is complete. Treat the
 stream as live only after `caught_up`.
 
-## Choose snapshot or live-only startup
+## Choose resource reads or live-only startup
 
 Select `LIVE_ONLY` for a bot that wants new events and reads resources through
 ConnectRPC. If the cursor is absent or unusable, the server starts at a stated
-current boundary. It does not send old events or a state snapshot.
+current boundary. It does not send old events or current resources.
 
-Select `SNAPSHOT` for a client that keeps a server projection. If the cursor is
-absent or unusable, the server sends authorized resource chunks before
-`caught_up`. The bundled frontend uses this mode.
+Select `RESOURCE_READS` for a client that keeps a server projection. If the
+cursor is absent or unusable, the server returns an opaque start cursor `E`.
+Read the canonical resources that your client needs with `E` as the minimum
+cursor. Then send `catch_up`. The bundled frontend uses this mode.
 
-When a cursor is usable, both choices can result in `RESUME`. The server sends
-current authorized resource chunks, authorized durable events after that
-cursor, and then `caught_up`.
+When a cursor is usable, both choices can result in `RESUME`. Send `catch_up`
+immediately. The server sends authorized durable events after that cursor and
+then sends `caught_up`.
 
 A cursor can become unusable because it is invalid, expired, too far behind,
 from another server history, or unsafe for current authorization. Fallback is
@@ -114,27 +118,35 @@ New event variants are additive. You can ignore a variant that you do not use
 and still save the common cursor. If a complete top-level frame cannot be
 decoded, close the socket and keep the preceding cursor.
 
-## Apply snapshot resources
+## Read current resources at `E`
 
-If `subscribed.recovery_mode` is `SNAPSHOT`, clear the state that the realtime
-projection owns. Then apply each standalone `snapshot` frame until
-`caught_up`. Each frame contains one `ServerSnapshotChunk`.
+If `subscribed.recovery_mode` is `RESOURCE_READS`, clear the state that your
+client projection owns. Read each required resource through its normal
+ConnectRPC method. Set this request header on each read:
 
-The chunk reuses an existing `chatto.api.v1` resource or response protobuf.
-The snapshot can contain the server profile, message of the day, runtime
-configuration, viewer, visible users, visible rooms, room-group layout,
-notification occurrences and counts, and active calls. A list chunk replaces
-that complete resource family. The room directory includes accessible empty
-DMs and identifies their members.
+```http
+Chatto-Realtime-Minimum-Cursor: <subscribed.start_cursor>
+```
 
-The snapshot does not contain room or thread timelines. Read timeline pages
-through `RoomService` and `ThreadService`. Also use ConnectRPC for files, pins,
-searches, command results, and other large or lazy resources. Canonical events
-tell a projection client which loaded resource to refresh.
+The serving replica validates the viewer-bound cursor and waits until its
+local projections include `E`. Requests can use different replicas without
+returning state older than the WebSocket boundary.
 
-Do not start a parallel ConnectRPC refresh for a resource family while you
-apply its snapshot chunk. A later event or read can refresh that family after
-the snapshot reaches `caught_up`.
+Read only the resources that your client keeps. Do not list the complete user
+directory unless your integration needs it. Use bounded batch reads for users
+that rooms or events reference. Read room and thread timelines through
+`RoomService` and `ThreadService` only when needed. A client that retains a
+mounted timeline reads it at `E`. If a durable event causes a resource read,
+use that event's cursor in the minimum-cursor header.
+
+After all required reads succeed, send `catch_up`. The server sends authorized
+events after `E` through `F`, then sends `caught_up(F)`. Save an event cursor
+only after the event and its required resource reads succeed.
+
+Give cursor-bounded reads a finite deadline. Reconnect without cursor advance
+when a required read cannot complete. If a new `RESOURCE_READS` recovery starts,
+discard late responses from the earlier recovery so that they cannot replace
+newer state.
 
 ## Detect a dead connection
 

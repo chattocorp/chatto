@@ -352,7 +352,7 @@
 
   // Canonical facts invalidate the explicit reads that own this room's data.
   useProjectionEvent((event) => {
-    if (event.snapshot?.resource.case === 'users') {
+    if (event.resource?.case === 'users') {
       if (!room.isDM) void roomMembersStore.refresh();
       return;
     }

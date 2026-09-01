@@ -276,9 +276,10 @@ and Storybook.
   responses cannot restore deleted or superseded data.
 - Keep a realtime resume cursor RAM-only and owned by the exact per-server
   projection it advances. Socket teardown must not discard either one, and a
-  recreated projection must resume without a cursor so it receives a snapshot.
+  recreated projection must resume without a cursor so it performs new
+  cursor-bounded resource reads.
 - Treat undecodable realtime frames and unknown top-level frames as fatal for
-  that socket. Protocol 3 makes additive semantic event and state variants
+  that socket. Protocol 4 makes additive semantic event variants
   skippable because the common cursor stays outside the event `oneof`.
 - Treat authorization loss, message deletion, key shredding, and account
   deletion as asynchronous privacy boundaries. Clearing current render state

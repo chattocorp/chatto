@@ -16,6 +16,7 @@ import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEv
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
+  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeInitialState,
   RealtimeRecoveryMode,
@@ -59,6 +60,10 @@ export type RealtimeServerRegistration = {
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler?: ProjectionHandler;
+  /** Replace retained state through cursor-bounded ConnectRPC resource reads. */
+  bootstrapProjection?: (startCursor: string) => Promise<void>;
+  /** Wait until event-triggered resource reconciliation has settled. */
+  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
 };
 
 type TransportController = {
@@ -105,9 +110,15 @@ function subscribeEventsFrame(resumeCursor: string | null): Uint8Array {
       case: 'subscribeEvents',
       value: new RealtimeSubscribeEvents({
         resumeCursor: resumeCursor ?? undefined,
-        initialState: RealtimeInitialState.SNAPSHOT
+        initialState: RealtimeInitialState.RESOURCE_READS
       })
     }
+  }).toBinary();
+}
+
+function catchUpFrame(): Uint8Array {
+  return new RealtimeClientFrame({
+    frame: { case: 'catchUp', value: new RealtimeCatchUp() }
   }).toBinary();
 }
 
@@ -133,13 +144,18 @@ class EventBusManager {
     serverId: string,
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState()
+    sync = new RealtimeProjectionSyncState(),
+    bootstrapProjection?: (startCursor: string) => Promise<void>,
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>
   ): () => void {
     const controller = this.ensureBus(
       serverId,
       serverConnection,
       realtimeProjectionSupported,
-      sync
+      sync,
+      undefined,
+      bootstrapProjection,
+      completeProjectionCatchUp
     );
     if (realtimeProjectionSupported) controller.setMode('live');
     return () => this.stopBus(serverId);
@@ -151,7 +167,9 @@ class EventBusManager {
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
-    projectionHandler?: ProjectionHandler
+    projectionHandler?: ProjectionHandler,
+    bootstrapProjection?: (startCursor: string) => Promise<void>,
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>
   ): TransportController {
     const existing = this.#controllers.get(serverId);
     if (existing) {
@@ -325,7 +343,12 @@ class EventBusManager {
     };
 
     const dispatchCanonicalEvent = (event: RealtimeEvent) => {
-      dispatchProjectionUpdate(new RealtimeProjectionUpdate({ event: event.event ?? null }));
+      dispatchProjectionUpdate(
+        new RealtimeProjectionUpdate({
+          event: event.event ?? null,
+          cursor: event.resumeCursor ?? null
+        })
+      );
     };
 
     const connect = (reason: string) => {
@@ -345,9 +368,33 @@ class EventBusManager {
       });
 
       const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
+      let frameProcessing = Promise.resolve();
+      let cursorReconciliation = Promise.resolve();
+      let reconciliationFailed = false;
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
+
+      const failReconciliation = (error: unknown) => {
+        if (reconciliationFailed) return;
+        reconciliationFailed = true;
+        console.error(`[eventBus:${serverId}] resource reconciliation failed`, error);
+        nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource reconciliation failed');
+      };
+
+      const commitEventCursor = (cursor: string | undefined) => {
+        if (!cursor) return;
+        if (!completeProjectionCatchUp) {
+          sync.acceptProjectionEvent(cursor, false);
+          return;
+        }
+        cursorReconciliation = cursorReconciliation.then(async () => {
+          await completeProjectionCatchUp(cursor);
+          if (stopped || socket !== nextSocket) return;
+          sync.acceptProjectionEvent(cursor, false);
+        });
+        void cursorReconciliation.catch(failReconciliation);
+      };
 
       nextSocket.onopen = () => {
         if (stopped || socket !== nextSocket) return;
@@ -355,140 +402,154 @@ class EventBusManager {
       };
 
       nextSocket.onmessage = (message) => {
-        void (async () => {
-          if (stopped || socket !== nextSocket) return;
-          let frame: RealtimeServerFrame;
-          try {
-            frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
-          } catch (error) {
-            console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
-            // Never continue past a frame we could not understand: a later
-            // caught_up boundary would otherwise make the missing mutation
-            // permanent in the retained projection.
-            nextSocket.close(1003, 'invalid realtime frame');
-            return;
-          }
+        frameProcessing = frameProcessing
+          .then(async () => {
+            if (stopped || socket !== nextSocket) return;
+            let frame: RealtimeServerFrame;
+            try {
+              frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
+            } catch (error) {
+              console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
+              // Never continue past a frame we could not understand: a later
+              // caught_up boundary would otherwise make the missing mutation
+              // permanent in the retained projection.
+              nextSocket.close(1003, 'invalid realtime frame');
+              return;
+            }
 
-          lastEventAt = Date.now();
-          switch (frame.frame.case) {
-            case 'hello':
-              if (frame.frame.value.protocolVersion !== REALTIME_PROTOCOL_VERSION) {
-                stopForUnsupportedProtocol(nextSocket);
-                return;
-              }
-              heartbeatStallMs = heartbeatStallMsForInterval(
-                frame.frame.value.heartbeatIntervalSeconds
-              );
-              nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
-              return;
-            case 'subscribed':
-              socketSubscribed = true;
-              reconnectAttempts = 0;
-              if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT) {
-                dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
-                sync.acceptProjectionEvent(undefined, true);
-              }
-              if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
-              console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
-                generation: socketGeneration,
-                mode
-              });
-              return;
-            case 'heartbeat':
-              heartbeatCount++;
-              return;
-            case 'event': {
-              const event = realtimeEventToEventEnvelope(frame.frame.value);
-              if (event) dispatchEvent(event);
-              try {
-                dispatchCanonicalEvent(frame.frame.value);
-              } catch (error) {
-                console.error(`[eventBus:${serverId}] projection reducer failed`, error);
-                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
-                return;
-              }
-              sync.acceptProjectionEvent(frame.frame.value.resumeCursor, false);
-              return;
-            }
-            case 'snapshot':
-              try {
-                dispatchProjectionUpdate(
-                  new RealtimeProjectionUpdate({ snapshot: frame.frame.value })
+            lastEventAt = Date.now();
+            switch (frame.frame.case) {
+              case 'hello':
+                if (frame.frame.value.protocolVersion !== REALTIME_PROTOCOL_VERSION) {
+                  stopForUnsupportedProtocol(nextSocket);
+                  return;
+                }
+                heartbeatStallMs = heartbeatStallMsForInterval(
+                  frame.frame.value.heartbeatIntervalSeconds
                 );
-              } catch (error) {
-                console.error(`[eventBus:${serverId}] projection reducer failed`, error);
-                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
+                return;
+              case 'subscribed':
+                socketSubscribed = true;
+                reconnectAttempts = 0;
+                if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.RESOURCE_READS) {
+                  const startCursor = frame.frame.value.startCursor;
+                  if (!startCursor || !bootstrapProjection) {
+                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource bootstrap unavailable');
+                    return;
+                  }
+                  dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
+                  sync.acceptProjectionEvent(undefined, true);
+                  try {
+                    await bootstrapProjection(startCursor);
+                  } catch (error) {
+                    console.error(`[eventBus:${serverId}] resource bootstrap failed`, error);
+                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource bootstrap failed');
+                    return;
+                  }
+                }
+                if (stopped || socket !== nextSocket) return;
+                nextSocket.send(catchUpFrame());
+                console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
+                  generation: socketGeneration,
+                  mode
+                });
+                return;
+              case 'heartbeat':
+                heartbeatCount++;
+                return;
+              case 'event': {
+                const event = realtimeEventToEventEnvelope(frame.frame.value);
+                if (event) dispatchEvent(event);
+                try {
+                  dispatchCanonicalEvent(frame.frame.value);
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                  return;
+                }
+                commitEventCursor(frame.frame.value.resumeCursor);
                 return;
               }
-              return;
-            case 'caughtUp': {
-              sync.markCaughtUp(frame.frame.value.cursor);
-              const completedPoll = pollResolution !== null;
-              resolvePoll(true);
-              if (mode === 'polling') {
-                mode = 'dormant';
-                detachSocket(true, 'caught_up');
-                // The projection is usable, but the closed transport means
-                // absence stops being authoritative immediately.
-                sync.markStale();
-                serverConnection.setRealtimeConnectionStatus('dormant');
-              } else if (completedPoll && mode === 'live') {
-                serverConnection.setRealtimeConnectionStatus('connected');
-              }
-              return;
-            }
-            case 'error':
-              console.error(`[eventBus:${serverId}] realtime error`, {
-                code: frame.frame.value.code,
-                message: frame.frame.value.message,
-                fatal: frame.frame.value.fatal
-              });
-              if (frame.frame.value.code === 'authentication_required') {
-                void recoverFromAuthenticationRequired(nextSocket, 'error frame');
-                return;
-              }
-              if (frame.frame.value.code === 'unsupported_protocol') {
-                stopForUnsupportedProtocol(nextSocket);
-                return;
-              }
-              if (frame.frame.value.fatal) {
-                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
-              }
-              return;
-            case 'close':
-              if (frame.frame.value.code === 'authentication_required') {
-                void recoverFromAuthenticationRequired(nextSocket, 'close frame');
-                return;
-              }
-              if (frame.frame.value.code === 'session_renewal_required') {
-                void renewBrowserSession(nextSocket);
-                return;
-              }
-              nextSocket.onclose = null;
-              if (socket === nextSocket) socket = null;
-              // The close frame bypasses the socket's normal onclose handler.
-              // Release socket-scoped hydration state before reconnecting so a
-              // request whose response was lost can be sent on the replacement.
-              socketSubscribed = false;
-              nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
-              if (mode === 'live' && frame.frame.value.reconnect) {
-                scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
-              } else {
-                resolvePoll(false);
+              case 'caughtUp': {
+                try {
+                  await cursorReconciliation;
+                  await completeProjectionCatchUp?.(frame.frame.value.cursor);
+                } catch (error) {
+                  failReconciliation(error);
+                  return;
+                }
+                if (stopped || socket !== nextSocket) return;
+                sync.markCaughtUp(frame.frame.value.cursor);
+                resolvePoll(true);
                 if (mode === 'polling') {
                   mode = 'dormant';
-                  serverConnection.setRealtimeConnectionStatus('disconnected');
+                  detachSocket(true, 'caught_up');
+                  // The projection is usable, but the closed transport means
+                  // absence stops being authoritative immediately.
+                  sync.markStale();
+                  serverConnection.setRealtimeConnectionStatus('dormant');
+                } else if (mode === 'live') {
+                  serverConnection.setRealtimeConnectionStatus('connected');
                 }
+                return;
               }
-              return;
-            case 'pong':
-              return;
-            case undefined:
-              console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
-              nextSocket.close(1003, 'unsupported realtime frame');
-              return;
-          }
-        })();
+              case 'error':
+                console.error(`[eventBus:${serverId}] realtime error`, {
+                  code: frame.frame.value.code,
+                  message: frame.frame.value.message,
+                  fatal: frame.frame.value.fatal
+                });
+                if (frame.frame.value.code === 'authentication_required') {
+                  void recoverFromAuthenticationRequired(nextSocket, 'error frame');
+                  return;
+                }
+                if (frame.frame.value.code === 'unsupported_protocol') {
+                  stopForUnsupportedProtocol(nextSocket);
+                  return;
+                }
+                if (frame.frame.value.fatal) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
+                }
+                return;
+              case 'close':
+                if (frame.frame.value.code === 'authentication_required') {
+                  void recoverFromAuthenticationRequired(nextSocket, 'close frame');
+                  return;
+                }
+                if (frame.frame.value.code === 'session_renewal_required') {
+                  void renewBrowserSession(nextSocket);
+                  return;
+                }
+                nextSocket.onclose = null;
+                if (socket === nextSocket) socket = null;
+                // The close frame bypasses the socket's normal onclose handler.
+                // Release socket-scoped hydration state before reconnecting so a
+                // request whose response was lost can be sent on the replacement.
+                socketSubscribed = false;
+                nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
+                if (mode === 'live' && frame.frame.value.reconnect) {
+                  scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
+                } else {
+                  resolvePoll(false);
+                  if (mode === 'polling') {
+                    mode = 'dormant';
+                    serverConnection.setRealtimeConnectionStatus('disconnected');
+                  }
+                }
+                return;
+              case 'pong':
+                return;
+              case undefined:
+                console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
+                nextSocket.close(1003, 'unsupported realtime frame');
+                return;
+            }
+          })
+          .catch((error) => {
+            console.error(`[eventBus:${serverId}] realtime frame processing failed`, error);
+            nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'frame processing failed');
+          });
       };
 
       nextSocket.onerror = (event) => {
@@ -568,7 +629,9 @@ class EventBusManager {
         // demote this active controller or close a replacement socket.
         resolvePoll(false);
         mode = 'live';
-        serverConnection.setRealtimeConnectionStatus(socketSubscribed ? 'connected' : 'connecting');
+        serverConnection.setRealtimeConnectionStatus(
+          socketSubscribed && sync.phase === 'ready' ? 'connected' : 'connecting'
+        );
         connect('server became active');
       },
       pollOnce() {
@@ -625,7 +688,9 @@ class EventBusManager {
         registration.connection,
         registration.projectionSupported,
         registration.sync,
-        registration.projectionHandler
+        registration.projectionHandler,
+        registration.bootstrapProjection,
+        registration.completeProjectionCatchUp
       );
     }
     // Close the previous live transport before opening the next one so a

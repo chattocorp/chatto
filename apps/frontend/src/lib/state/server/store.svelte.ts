@@ -165,13 +165,24 @@ export class ServerStateStore {
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #realtimeResources: RealtimeResourceAPI;
+  #realtimeProjectionGeneration = 0;
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
-  readonly #pendingResourceRefreshes = new SvelteSet<RealtimeResourceFamily>();
+  readonly #pendingResourceRefreshes = new SvelteMap<
+    RealtimeResourceFamily,
+    { minimumCursor?: string; generation: number }
+  >();
+  #currentEventMinimumCursor: string | undefined;
+  #userRefresh: Promise<void> | null = null;
+  readonly #pendingUserRefreshIds = new SvelteSet<string>();
+  #pendingUserRefreshCursor: string | undefined;
+  #pendingUserRefreshGeneration = 0;
+  #reconciliationError: unknown = null;
   readonly #messageWindowRefreshes = new WeakMap<MessagesStore, Promise<void>>();
   readonly #pendingMessageWindowRefreshes = new WeakMap<
     MessagesStore,
-    { anchorEventId: string | null; forward: boolean }
+    { anchorEventId: string | null; forward: boolean; minimumCursor?: string; generation: number }
   >();
+  readonly #projectionReconciliations = new SvelteSet<Promise<void>>();
 
   constructor(
     registration: ServerRegistration,
@@ -235,6 +246,70 @@ export class ServerStateStore {
         };
       });
     });
+  }
+
+  /** Replace retained server state through ConnectRPC reads bounded by `E`. */
+  async bootstrapRealtimeProjection(startCursor: string): Promise<void> {
+    const generation = ++this.#realtimeProjectionGeneration;
+    this.#reconciliationError = null;
+    this.#pendingResourceRefreshes.clear();
+    this.#pendingUserRefreshIds.clear();
+    this.#pendingUserRefreshCursor = undefined;
+    this.#pendingUserRefreshGeneration = generation;
+    const families: RealtimeResourceFamily[] = [
+      'server',
+      'serverState',
+      'viewer',
+      'rooms',
+      'roomGroups',
+      'notifications',
+      'activeCalls'
+    ];
+    const batches = await Promise.all(
+      families.map((family) => this.#realtimeResources.read(family, startCursor))
+    );
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of batches.flat()) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+    await Promise.all([
+      this.hydrateProjectedDMUsers(startCursor, generation),
+      ...[...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
+        (store) =>
+          store.hydrateRealtimeProjection(
+            startCursor,
+            () => generation === this.#realtimeProjectionGeneration
+          )
+      )
+    ]);
+    this.requireCurrentRealtimeProjection(generation);
+  }
+
+  /** Reject work whose resource boundary was superseded by a newer reset. */
+  private requireCurrentRealtimeProjection(generation: number): void {
+    if (generation !== this.#realtimeProjectionGeneration) {
+      throw new Error('realtime projection read was superseded by a newer reset');
+    }
+  }
+
+  /** Wait until every resource invalidation before `F` has reconciled. */
+  async completeRealtimeCatchUp(_cursor: string): Promise<void> {
+    while (
+      this.#resourceRefreshes.size > 0 ||
+      this.#userRefresh ||
+      this.#projectionReconciliations.size > 0
+    ) {
+      await Promise.all([
+        ...this.#resourceRefreshes.values(),
+        ...(this.#userRefresh ? [this.#userRefresh] : []),
+        ...this.#projectionReconciliations
+      ]);
+    }
+    if (this.#reconciliationError) {
+      const error = this.#reconciliationError;
+      this.#reconciliationError = null;
+      throw error;
+    }
   }
 
   /** Stable room timeline owner used by routes as a rendering selector. */
@@ -421,11 +496,11 @@ export class ServerStateStore {
     }
 
     this.projection.apply(update);
-    const snapshot = update.snapshot;
-    if (snapshot) {
-      switch (snapshot.resource.case) {
+    const resource = update.resource;
+    if (resource) {
+      switch (resource.case) {
         case 'server':
-          this.serverInfo.applyProjectionProfile(snapshot.resource.value);
+          this.serverInfo.applyProjectionProfile(resource.value);
           break;
         case 'motd':
         case 'runtimeConfig':
@@ -434,7 +509,7 @@ export class ServerStateStore {
           }
           break;
         case 'viewer': {
-          const response = snapshot.resource.value;
+          const response = resource.value;
           if (viewerAuthorizationLost(previousViewer, response)) {
             removeRegisteredAdminQueries(this.serverId);
           }
@@ -446,7 +521,7 @@ export class ServerStateStore {
           break;
         }
         case 'users': {
-          const members = snapshot.resource.value.users.map(mapDirectoryMember);
+          const members = resource.value.users.map(mapDirectoryMember);
           notifyUserSummaries(this.serverId, members);
           for (const userId of previousUserIds) {
             if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
@@ -468,17 +543,17 @@ export class ServerStateStore {
         case 'roomGroups':
           reconcileRegisteredAdminRoomGroupQueries(
             this.serverId,
-            snapshot.resource.value.groups.map((group) => group.id)
+            resource.value.groups.map((group) => group.id)
           );
           adminRoomLayoutChanged = true;
           break;
         case 'notifications':
           this.notifications.replaceOccurrenceProjection(
-            mapNotificationOccurrencePage(snapshot.resource.value)
+            mapNotificationOccurrencePage(resource.value)
           );
           break;
         case 'activeCalls':
-          this.activeCallRooms.replaceProjection(snapshot.resource.value.calls);
+          this.activeCallRooms.replaceProjection(resource.value.calls);
           break;
         case undefined:
           break;
@@ -492,7 +567,14 @@ export class ServerStateStore {
       const pin = sourceEvent.event.value;
       this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, false, sourceEvent.id);
     }
-    if (sourceEvent) this.invalidateCanonicalEvent(sourceEvent);
+    if (sourceEvent) {
+      this.#currentEventMinimumCursor = update.cursor ?? undefined;
+      try {
+        this.invalidateCanonicalEvent(sourceEvent);
+      } finally {
+        this.#currentEventMinimumCursor = undefined;
+      }
+    }
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
   }
   private scrubRemovedUser(userId: string): void {
@@ -515,27 +597,97 @@ export class ServerStateStore {
     this.clearRoomAccess(roomId, true);
   }
 
-  private refreshRealtimeResource(family: RealtimeResourceFamily): void {
+  private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {
+    minimumCursor ??= this.#currentEventMinimumCursor;
+    const generation = this.#realtimeProjectionGeneration;
     if (this.#resourceRefreshes.has(family)) {
-      this.#pendingResourceRefreshes.add(family);
+      const pending = this.#pendingResourceRefreshes.get(family);
+      this.#pendingResourceRefreshes.set(family, {
+        minimumCursor:
+          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
+        generation
+      });
       return;
     }
     const refresh = this.#realtimeResources
-      .read(family)
-      .then((chunks) => {
-        for (const snapshot of chunks) {
-          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ snapshot }));
+      .read(family, minimumCursor)
+      .then(async (resources) => {
+        this.requireCurrentRealtimeProjection(generation);
+        for (const resource of resources) {
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+        }
+        if (family === 'rooms') {
+          await this.hydrateProjectedDMUsers(minimumCursor, generation);
         }
       })
-      .catch((error) =>
-        console.error(`[server:${this.serverId}] resource refresh failed`, family, error)
-      )
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+        console.error(`[server:${this.serverId}] resource refresh failed`, family, error);
+      })
       .finally(() => {
         this.#resourceRefreshes.delete(family);
-        if (!this.#pendingResourceRefreshes.delete(family)) return;
-        this.refreshRealtimeResource(family);
+        const pending = this.#pendingResourceRefreshes.get(family);
+        if (!pending) return;
+        this.#pendingResourceRefreshes.delete(family);
+        if (pending.generation !== this.#realtimeProjectionGeneration) return;
+        this.refreshRealtimeResource(family, pending.minimumCursor);
       });
     this.#resourceRefreshes.set(family, refresh);
+  }
+
+  private async hydrateProjectedDMUsers(
+    minimumCursor?: string,
+    generation = this.#realtimeProjectionGeneration
+  ): Promise<void> {
+    this.requireCurrentRealtimeProjection(generation);
+    const userIds = [...this.projection.rooms.values()].flatMap((room) => room.memberUserIds);
+    const missingIds = userIds.filter((userId) => !this.projection.users.has(userId));
+    const resources = await this.#realtimeResources.readUsers(missingIds, minimumCursor);
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of resources) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+  }
+
+  private refreshRealtimeUsers(userIds: Iterable<string>, minimumCursor?: string): void {
+    for (const userId of userIds) if (userId) this.#pendingUserRefreshIds.add(userId);
+    if (this.#pendingUserRefreshIds.size === 0) return;
+    const nextCursor = minimumCursor ?? this.#currentEventMinimumCursor;
+    const generation = this.#realtimeProjectionGeneration;
+    if (this.#pendingUserRefreshGeneration !== generation) {
+      this.#pendingUserRefreshCursor = undefined;
+    }
+    this.#pendingUserRefreshGeneration = generation;
+    if (nextCursor || !this.#pendingUserRefreshCursor) {
+      this.#pendingUserRefreshCursor = nextCursor;
+    }
+    if (this.#userRefresh) return;
+    let failedGeneration = generation;
+    this.#userRefresh = (async () => {
+      while (this.#pendingUserRefreshIds.size > 0) {
+        const ids = [...this.#pendingUserRefreshIds];
+        this.#pendingUserRefreshIds.clear();
+        const cursor = this.#pendingUserRefreshCursor;
+        const readGeneration = this.#pendingUserRefreshGeneration;
+        this.#pendingUserRefreshCursor = undefined;
+        failedGeneration = readGeneration;
+        const resources = await this.#realtimeResources.readUsers(ids, cursor);
+        this.requireCurrentRealtimeProjection(readGeneration);
+        for (const resource of resources) {
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+        }
+      }
+    })()
+      .catch((error) => {
+        if (failedGeneration !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+        console.error(`[server:${this.serverId}] user resource refresh failed`, error);
+      })
+      .finally(() => {
+        this.#userRefresh = null;
+        if (this.#pendingUserRefreshIds.size > 0) this.refreshRealtimeUsers([]);
+      });
   }
 
   /** Apply a refreshed resource and notify every consumer of the server bus. */
@@ -551,8 +703,7 @@ export class ServerStateStore {
   private invalidateCanonicalEvent(event: Event): void {
     const payload = event.event;
     const rawValue = payload.value as
-      | { eventId?: string; messageEventId?: string; roomId?: string; userId?: string }
-      | undefined;
+      { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
     const roomId = rawValue?.roomId ?? '';
 
     switch (payload.case) {
@@ -562,7 +713,6 @@ export class ServerStateStore {
         const userId = payload.value.userId;
         this.projection.removeUser(userId);
         this.scrubRemovedUser(userId);
-        this.refreshRealtimeResource('users');
         return;
       }
       case 'roomDeleted':
@@ -669,11 +819,21 @@ export class ServerStateStore {
         return;
       case 'voiceCallEnded':
         this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
-        this.refreshLoadedMessageWindows(payload.value.roomId, event.id || null, event.id || null, true);
+        this.refreshLoadedMessageWindows(
+          payload.value.roomId,
+          event.id || null,
+          event.id || null,
+          true
+        );
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallStarted':
-        this.refreshLoadedMessageWindows(payload.value.roomId, event.id || null, event.id || null, true);
+        this.refreshLoadedMessageWindows(
+          payload.value.roomId,
+          event.id || null,
+          event.id || null,
+          true
+        );
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesInvalidated':
@@ -739,7 +899,7 @@ export class ServerStateStore {
       case 'userAvatarCleared':
       case 'userCustomStatusSet':
       case 'userCustomStatusCleared':
-        this.refreshRealtimeResource('users');
+        if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         return;
       case 'serverUserPreferencesSync':
       case 'userServerPreferencesChanged':
@@ -789,9 +949,7 @@ export class ServerStateStore {
       id: event.id,
       createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
       actorId: event.actorId || null,
-      actor: actorMember
-        ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember))
-        : null,
+      actor: actorMember ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember)) : null,
       event: {
         kind: TimelineEventKind.MessagePosted,
         roomId: posted.roomId,
@@ -830,7 +988,8 @@ export class ServerStateStore {
     roomAnchorEventId: string | null = anchorEventId,
     roomForward = false,
     threadForward = false,
-    hydratePostedMessage = false
+    hydratePostedMessage = false,
+    minimumCursor = this.#currentEventMinimumCursor
   ): void {
     for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
       if (roomId && candidateRoomId !== roomId) continue;
@@ -838,9 +997,9 @@ export class ServerStateStore {
         ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
         : null;
       if (hydratePostedMessage && roomForward) {
-        this.schedulePostedMessageRefresh(store, visibleAnchor);
+        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
       } else {
-        this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward);
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward, minimumCursor);
       }
     }
     for (const [key, store] of Object.entries(this.#threadMessages)) {
@@ -849,9 +1008,9 @@ export class ServerStateStore {
         ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
         : null;
       if (hydratePostedMessage && threadForward) {
-        this.schedulePostedMessageRefresh(store, visibleAnchor);
+        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
       } else {
-        this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward);
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
       }
     }
   }
@@ -859,17 +1018,26 @@ export class ServerStateStore {
   /** Hydrate a new post first, then advance its retained timeline window. */
   private schedulePostedMessageRefresh(
     store: MessagesStore,
-    anchorEventId: string | null
+    anchorEventId: string | null,
+    minimumCursor?: string
   ): void {
     if (!anchorEventId) {
-      this.scheduleMessageWindowRefresh(store, anchorEventId, true);
+      this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
       return;
     }
-    void store
-      .refreshPostedMessage(anchorEventId)
+    const generation = this.#realtimeProjectionGeneration;
+    const refresh = store
+      .refreshPostedMessage(
+        anchorEventId,
+        minimumCursor,
+        () => generation === this.#realtimeProjectionGeneration
+      )
       .then((timelineIsCurrent) => {
-        if (timelineIsCurrent) this.scheduleMessageWindowRefresh(store, anchorEventId, true);
+        if (timelineIsCurrent && generation === this.#realtimeProjectionGeneration) {
+          this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
+        }
       });
+    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
   }
 
   private applyLoadedMessageRetraction(
@@ -892,25 +1060,67 @@ export class ServerStateStore {
   private scheduleMessageWindowRefresh(
     store: MessagesStore,
     anchorEventId: string | null,
-    forward = false
+    forward = false,
+    minimumCursor?: string
   ): void {
+    const generation = this.#realtimeProjectionGeneration;
     if (this.#messageWindowRefreshes.has(store)) {
-      this.#pendingMessageWindowRefreshes.set(store, { anchorEventId, forward });
+      const pending = this.#pendingMessageWindowRefreshes.get(store);
+      this.#pendingMessageWindowRefreshes.set(store, {
+        anchorEventId,
+        forward,
+        minimumCursor:
+          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
+        generation
+      });
       return;
     }
-    const refresh = (forward
-      ? store.refreshCurrentWindow(anchorEventId, true)
-      : store.refreshCurrentWindow(anchorEventId)
-    )
+    const refresh = store
+      .refreshCurrentWindow(
+        anchorEventId,
+        forward,
+        minimumCursor,
+        () => generation === this.#realtimeProjectionGeneration
+      )
       .then(() => undefined)
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+      })
       .finally(() => {
         this.#messageWindowRefreshes.delete(store);
         const pending = this.#pendingMessageWindowRefreshes.get(store);
         if (!pending) return;
         this.#pendingMessageWindowRefreshes.delete(store);
-        this.scheduleMessageWindowRefresh(store, pending.anchorEventId, pending.forward);
+        if (pending.generation !== this.#realtimeProjectionGeneration) return;
+        this.scheduleMessageWindowRefresh(
+          store,
+          pending.anchorEventId,
+          pending.forward,
+          pending.minimumCursor
+        );
       });
     this.#messageWindowRefreshes.set(store, refresh);
+    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
+  }
+
+  /** Keep the durable cursor behind every ConnectRPC read caused by its event. */
+  private trackProjectionReconciliation(
+    refresh: Promise<unknown>,
+    minimumCursor: string | undefined,
+    generation: number
+  ): void {
+    if (!minimumCursor) return;
+    const tracked = refresh
+      .then(() => undefined)
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+      })
+      .finally(() => {
+        this.#projectionReconciliations.delete(tracked);
+      });
+    this.#projectionReconciliations.add(tracked);
   }
 
   /** Apply user-scoped follow state without restarting an active thread read. */

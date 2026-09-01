@@ -3,10 +3,10 @@
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
-- [`server_snapshot.proto`](../../proto/chatto/api/v1/server_snapshot.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
-- [`server_snapshot.go`](../../cli/internal/connectapi/server_snapshot.go)
+- [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
 - [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
+- [`realtimeResources.ts`](../../apps/frontend/src/lib/api-client/realtimeResources.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
@@ -26,22 +26,22 @@ version, and heartbeat interval. The protocol does not have a capability
 matrix.
 
 The second client frame is `subscribe_events`. It contains an optional opaque
-resume cursor and a required `SNAPSHOT` or `LIVE_ONLY` initial-state choice.
+resume cursor and a required `RESOURCE_READS` or `LIVE_ONLY` initial-state choice.
 The server replies with `subscribed` and selects one recovery mode:
 
-- `SNAPSHOT`: send current authorized resource chunks;
-- `LIVE_ONLY`: start at the current boundary without resource chunks or old
+- `RESOURCE_READS`: let the client read current resources at `start_cursor`;
+- `LIVE_ONLY`: start at the current boundary without resource reads or old
   events; or
-- `RESUME`: send current authorized resource chunks and then send authorized
-  durable events after the cursor.
+- `RESUME`: send authorized durable events after the supplied cursor.
 
-The server sends `caught_up` with the live handoff cursor after the selected
-recovery phase. The client can consider the subscription current only after
-this frame.
+The client sends `catch_up` after its required resource reads succeed. A
+live-only or resume client sends it immediately. The server then sends events
+through a stable boundary and sends `caught_up` with that boundary cursor. The
+client can consider the subscription current only after this frame.
 
-Client control frames after subscription contain application-level `ping`
-only. The server returns the nonce in `pong`. Room hydration and retained-room
-controls are not part of protocol 4.
+Client control frames after subscription contain one `catch_up` frame and
+application-level `ping` frames. The server returns the ping nonce in `pong`.
+Room hydration and retained-room controls are not part of protocol 4.
 
 ## Canonical events
 
@@ -78,40 +78,49 @@ timeline row from the event ID, actor, time, reply references, and plaintext
 body. Values that belong only to the complete message resource start empty.
 These values include attachments, link previews, reactions, pin state, thread
 counts, thread participants, and the timeline cursor. A background `GetMessage`
-read replaces the temporary row with the authoritative resource. A wider
-timeline-window refresh then reconciles ordering and pagination cursors.
+read uses the event cursor as its minimum boundary and replaces the temporary
+row with the authoritative resource. A wider cursor-bounded timeline-window
+refresh then reconciles ordering and pagination cursors. The client does not
+save the event cursor if either read fails.
 
-## Snapshot resources
+## Cursor-bounded resource reads
 
-A snapshot frame contains one `chatto.api.v1.ServerSnapshotChunk`. Each chunk
-reuses a canonical public protobuf:
+`subscribed.start_cursor` gives a resource client the opaque boundary `E`.
+Each required ConnectRPC request sets
+`Chatto-Realtime-Minimum-Cursor: E`. The common public API interceptor validates
+the viewer-bound cursor and waits until the serving replica's projections are
+current. The handler then returns its normal canonical response.
 
-| Resource case | Canonical public protobuf | Client meaning |
+The bundled frontend reads these resource families at `E`:
+
+| Resource | ConnectRPC response | Client meaning |
 | --- | --- | --- |
-| `server` | `ServerPublicProfile` | Current public server profile |
-| `motd` | `GetMotdResponse` | Current authenticated message of the day |
-| `runtime_config` | `GetRuntimeConfigResponse` | Current authenticated runtime configuration |
-| `viewer` | `GetViewerResponse` | Current viewer identity and capabilities |
-| `users` | `ListUsersResponse` | Complete visible user directory |
-| `rooms` | `ListRoomsResponse` | Complete visible room directory |
-| `room_groups` | `ListRoomGroupsResponse` | Complete visible room-group layout |
-| `notifications` | `ListNotificationOccurrencesResponse` | Bounded occurrence page and complete counts |
-| `active_calls` | `ListActiveCallsResponse` | Complete visible active-call state |
+| Server profile | `GetServerProfileResponse` | Current public server profile |
+| Server state | `GetMotdResponse`, `GetRuntimeConfigResponse` | Current authenticated server configuration |
+| Viewer | `GetViewerResponse` | Current viewer identity and capabilities |
+| Rooms | `ListRoomsResponse` | Complete visible room directory |
+| Room groups | `ListRoomGroupsResponse` | Complete visible room-group layout |
+| Notifications | `ListNotificationOccurrencesResponse` | Bounded occurrence page and complete counts |
+| Active calls | `ListActiveCallsResponse` | Complete visible active-call state |
 
-A list chunk replaces that complete client resource family. The room directory
-includes empty DMs that the caller can access. Each DM resource contains its
-complete member IDs and states whether it has message history. Channel
-resources leave these DM fields empty.
+The frontend does not read `ListUsers`. A complete user directory can be large
+and is not necessary for most clients. The frontend uses `BatchGetUsers` in
+batches of at most 100 IDs for direct-message participants and users named by
+later events. These responses merge into the local user map.
 
-Snapshot chunks are current resources. They are not synthetic events and do
-not have event cursors. The server assembles them with the same authorization
-and public resource code as ConnectRPC reads. Deleted or crypto-shredded
-plaintext does not return during recovery.
+Room and thread timelines are not unconditional bootstrap families. The
+frontend reloads each mounted timeline at `E` through `RoomService` or
+`ThreadService`. A read caused by a later durable event uses that event's cursor
+as its minimum boundary. Files, pins, search, and other large or lazy data keep
+their independent ConnectRPC reads. They are not part of the retained realtime
+projection or its cursor. Canonical events act as refresh hints for resources
+that the client already uses.
 
-Room and thread timelines are not snapshot resources. The frontend reads
-timeline pages through `RoomService` and `ThreadService`. Files, pins, search,
-and other large or lazy data also keep their explicit ConnectRPC reads.
-Canonical events act as refresh hints for loaded resources.
+The bundled frontend gives each cursor-bounded ConnectRPC call a 10-second
+deadline. A timeout fails reconciliation and closes the socket without cursor
+advance. A new resource reset also starts a new local projection generation.
+Late bootstrap, user, resource, and timeline responses from an older generation
+cannot change the newer projection.
 
 ## Bounded resume
 
@@ -120,15 +129,15 @@ contains an EVT stream identity, sequence, and issue time inside the sealed
 value. It expires after 24 hours. NATS and JetStream coordinates are never
 public API data.
 
-Resume uses this handoff:
+Resource bootstrap and resume use this handoff:
 
 1. Subscribe the connection to the process-wide live hub.
-2. Capture a stable EVT boundary.
-3. Wait for registered projections through that boundary.
-4. Read the bounded EVT sequence range with JetStream point reads.
-5. Send current authorized snapshot resources.
+2. Capture a stable EVT boundary `E` and return its opaque cursor.
+3. For `RESOURCE_READS`, wait while the client reads resources at `E`.
+4. Accept `catch_up` and capture a second stable boundary `F`.
+5. Read the bounded EVT range through `F` with JetStream point reads.
 6. Apply current authorization and censor each replayed canonical event.
-7. Send `caught_up`, discard buffered duplicates through the boundary, and
+7. Send `caught_up(F)`, discard buffered durable duplicates through `F`, and
    continue with live delivery.
 
 The direct-read path creates no JetStream consumer. It scans at most 10,000 EVT
@@ -141,10 +150,10 @@ capacity claims. Production measurements can change them without changing the
 protocol or cursor shape.
 
 A missing, invalid, expired, foreign-stream, oversized, or
-authorization-unsafe cursor selects the requested fallback. A `SNAPSHOT`
-client receives current resources. A `LIVE_ONLY` client starts at the current
-boundary and receives no old events. The server never sends a partial replay
-and then silently skips to live delivery.
+authorization-unsafe cursor selects the requested fallback. A
+`RESOURCE_READS` client receives `E` and performs a new current-state
+bootstrap. A `LIVE_ONLY` client starts at `E` and receives no old events. The
+server never sends a partial replay and then silently skips to live delivery.
 
 Incremental replay and fallback share one process-local admission guard. Each
 replica admits at most eight catch-ups at once and one at a time for each user.
@@ -155,8 +164,8 @@ timed-out, and rejected catch-ups.
 
 ## Authorization and projection readiness
 
-Live delivery, resume, and snapshots use current authorization. Message and
-asset events require room membership. A channel viewer also needs
+Live delivery, resume, and resource reads use current authorization. Message
+and asset events require room membership. A channel viewer also needs
 `message.read`, or `message.read-interactions` with a relationship to the
 canonical thread root. DM membership authorizes the read. Typing follows the
 same message-read boundary.
@@ -172,10 +181,10 @@ current authorization. The frontend also scrubs known private resources
 synchronously when a canonical event shows a direct authorization loss. It
 then uses the authoritative resource read to converge.
 
-A durable mapping or snapshot failure closes the connection before the cursor
-advances. Reconnect retries the fact or uses a safe fallback. Unknown canonical
-event variants are additive and can be ignored while the transport cursor
-advances.
+A durable mapping or resource-reconciliation failure closes the connection
+before the cursor advances. Reconnect retries the fact or uses a safe fallback.
+Unknown canonical event variants are additive and can be ignored while the
+transport cursor advances.
 
 ## Process-wide live ingress
 
@@ -191,7 +200,7 @@ Transient `live.sync.>` messages and durable `live.evt.>` messages use
 During a rolling replacement from an older envelope, old and new replicas
 drop each other's transient signals. This is safe because these signals have
 no replay contract. Durable facts continue through `live.evt.>`, and reconnect
-snapshots restore current resource state.
+resource reads restore current resource state.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after
@@ -200,24 +209,24 @@ that exceeds its queue count or byte limit closes independently.
 
 ## Bundled frontend
 
-The bundled frontend selects `SNAPSHOT`. It resets its server projection when
-`subscribed.recovery_mode` is `SNAPSHOT`, applies resource chunks, and then
-applies canonical events. It saves an event cursor only after its reducer
-accepts the complete event.
+The bundled frontend selects `RESOURCE_READS`. It resets its server projection
+when `subscribed.recovery_mode` is `RESOURCE_READS`, reads its canonical
+resources at `start_cursor`, then sends `catch_up`. It saves an event cursor
+only after its reducer and all event-triggered resource reads succeed.
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events start
 coalesced ConnectRPC reads. If another event reaches the same resource family
-during a read, the frontend runs one follow-up read. Timeline-derived stores
-refresh their current ConnectRPC windows. A failed refresh does not make the
-transport cursor unsafe because a later snapshot restores current resources.
+during a read, the frontend runs one follow-up read at the newest event cursor.
+Timeline-derived stores refresh their current ConnectRPC windows. A failed
+refresh closes the socket without saving that event cursor.
 
-The browser keeps one in-memory resource snapshot and cursor for each
+The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.
 Inactive servers use bounded periodic catch-up sockets. A page reload starts
-without a cursor and receives a new snapshot.
+without a cursor and performs new resource reads.
 
-The frontend keeps its snapshot during access-token rotation, cookie-session
+The frontend keeps its resource view during access-token rotation, cookie-session
 renewal, server switches, network reconnects, and tab wake. It replaces the
 socket and sends the same cursor. Human bearer credentials close at
 access-token expiry. Cookie connections close at the renewal boundary. The
@@ -234,7 +243,7 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 authorized canonical events, canonical snapshot resources, and bounded resume |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 authorized canonical events, cursor-bounded ConnectRPC bootstrap, and bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and

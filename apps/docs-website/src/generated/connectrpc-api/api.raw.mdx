@@ -3244,6 +3244,34 @@ Result of sending a test Web Push notification.
 
 Provides authenticated server-wide reads.
 
+<a id="chatto-api-v1-ServerService-GetServerProfile"></a>
+
+### GetServerProfile
+
+Returns the current public server profile to an authenticated caller.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetServerProfile
+```
+
+<a id="chatto-api-v1-GetServerProfileRequest"></a>
+
+#### Input: GetServerProfileRequest
+
+Request for the authenticated public server profile.
+
+
+<a id="chatto-api-v1-GetServerProfileResponse"></a>
+
+#### Result: GetServerProfileResponse
+
+Authenticated public server profile response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Current public server profile. |
+
+
 <a id="chatto-api-v1-ServerService-GetMotd"></a>
 
 ### GetMotd
@@ -3298,6 +3326,253 @@ Authenticated server runtime configuration response.
 | Field | Type | Description |
 | --- | --- | --- |
 | `runtime` | [`ServerRuntimeConfig`](#chatto-api-v1-ServerRuntimeConfig) | Authenticated runtime settings used by clients. |
+
+
+<a id="chatto-api-v1-ThreadService"></a>
+
+## ThreadService
+
+Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
+
+### ListFollowedThreads
+
+Returns followed threads in rooms where the current user is a member.
+Channel-room threads also require message.read or an active relationship
+with message.read-interactions. Historical DM threads use DM membership.
+The result includes enough root and latest-reply data for clients to render
+the list without extra per-thread fetches.
+Activity can reorder the live result between offset pages. After a thread
+activity update, clients must restart paging at offset zero.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
+```
+
+<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
+
+#### Input: ListFollowedThreadsRequest
+
+Request for a page of followed threads for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
+
+#### Result: ListFollowedThreadsResponse
+
+Response containing one followed-thread page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
+| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-ThreadService-FollowThread"></a>
+
+### FollowThread
+
+Follows a thread for the current user. Room membership plus message.read or
+an active relationship with message.read-interactions are required. DMs do
+not support current thread actions.
+Followed threads can be surfaced in clients and can participate in thread
+notification behavior.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/FollowThread
+```
+
+<a id="chatto-api-v1-FollowThreadRequest"></a>
+
+#### Input: FollowThreadRequest
+
+Request to follow one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-FollowThreadResponse"></a>
+
+#### Result: FollowThreadResponse
+
+Result of following a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
+
+### UnfollowThread
+
+Stops following a thread for the current user. Room membership plus
+message.read or an active relationship with message.read-interactions are
+required. DMs do not support current thread actions. The response reports
+the resulting follow state so clients can update local UI immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
+```
+
+<a id="chatto-api-v1-UnfollowThreadRequest"></a>
+
+#### Input: UnfollowThreadRequest
+
+Request to stop following one message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+
+
+<a id="chatto-api-v1-UnfollowThreadResponse"></a>
+
+#### Result: UnfollowThreadResponse
+
+Result of unfollowing a thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `following` | `bool` | True when the current user follows the thread after the operation. |
+| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
+
+### GetThreadEvents
+
+Returns one page of events in a message thread. Room membership is
+required. Channel-room reads also require message.read or an active
+relationship with message.read-interactions. Historical DM threads use DM
+membership. Initial pages include the thread root message; cursor pages
+return replies in the requested direction.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
+```
+
+<a id="chatto-api-v1-GetThreadEventsRequest"></a>
+
+#### Input: GetThreadEventsRequest
+
+Request for a page of events in one thread.
+
+Omit the cursor to load the latest visible part of the thread, including the
+root message. Set before to a previously returned start_cursor to page toward
+older replies, or after to a previously returned end_cursor to page toward
+newer replies without repeating the root message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
+| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsResponse"></a>
+
+#### Result: GetThreadEventsResponse
+
+Response containing one thread timeline page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+
+
+<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
+
+### GetThreadEventsAround
+
+Returns a thread timeline window centered around a specific event. Use this
+to open a reply from a notification or search result in context. Returns
+NOT_FOUND when the thread root or anchor event is missing or hidden.
+Returns PERMISSION_DENIED when room membership is missing, both read modes
+are missing, or an interaction-scoped account has no relationship with the
+thread. Historical DM threads use DM membership.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
+```
+
+<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
+
+#### Input: GetThreadEventsAroundRequest
+
+Request for thread events around a specific event.
+
+Use this when a client needs to jump to a known reply and render surrounding
+thread context.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
+| `limit` | `int32` | Maximum number of events to return around the anchor. |
+
+
+<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
+
+#### Result: GetThreadEventsAroundResponse
+
+Response containing a thread timeline window around a specific event.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
+| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
+
+
+<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
+
+### MarkThreadAsRead
+
+Marks a thread timeline as read through the supplied event without changing
+the room-level read marker. Room membership plus message.read or an active
+relationship with message.read-interactions are required. DMs do not
+support current thread actions.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
+```
+
+<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
+
+#### Input: MarkThreadAsReadRequest
+
+Request to mark a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
+| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
+
+
+<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
+
+#### Result: MarkThreadAsReadResponse
+
+Result of marking a message thread as read.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
 
 
 <a id="chatto-api-v1-UserService"></a>
@@ -3772,253 +4047,6 @@ Response from recording a leave intent.
 | Field | Type | Description |
 | --- | --- | --- |
 | `left` | `bool` | True when a leave fact was recorded. |
-
-
-<a id="chatto-api-v1-ThreadService"></a>
-
-## ThreadService
-
-Manages thread follow state for the current user.
-
-<a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
-
-### ListFollowedThreads
-
-Returns followed threads in rooms where the current user is a member.
-Channel-room threads also require message.read or an active relationship
-with message.read-interactions. Historical DM threads use DM membership.
-The result includes enough root and latest-reply data for clients to render
-the list without extra per-thread fetches.
-Activity can reorder the live result between offset pages. After a thread
-activity update, clients must restart paging at offset zero.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
-```
-
-<a id="chatto-api-v1-ListFollowedThreadsRequest"></a>
-
-#### Input: ListFollowedThreadsRequest
-
-Request for a page of followed threads for the current user.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListFollowedThreadsResponse"></a>
-
-#### Result: ListFollowedThreadsResponse
-
-Response containing one followed-thread page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `threads` | repeated [`FollowedThread`](#chatto-api-v1-FollowedThread) | Followed threads in newest-activity-first order. |
-| `includes` | [`RoomTimelineIncludes`](#chatto-api-v1-RoomTimelineIncludes) | Hot-path related entities needed to render this feed page without per-thread hydration. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
-<a id="chatto-api-v1-ThreadService-FollowThread"></a>
-
-### FollowThread
-
-Follows a thread for the current user. Room membership plus message.read or
-an active relationship with message.read-interactions are required. DMs do
-not support current thread actions.
-Followed threads can be surfaced in clients and can participate in thread
-notification behavior.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/FollowThread
-```
-
-<a id="chatto-api-v1-FollowThreadRequest"></a>
-
-#### Input: FollowThreadRequest
-
-Request to follow one message thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-
-
-<a id="chatto-api-v1-FollowThreadResponse"></a>
-
-#### Result: FollowThreadResponse
-
-Result of following a thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `following` | `bool` | True when the current user follows the thread after the operation. |
-| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
-
-
-<a id="chatto-api-v1-ThreadService-UnfollowThread"></a>
-
-### UnfollowThread
-
-Stops following a thread for the current user. Room membership plus
-message.read or an active relationship with message.read-interactions are
-required. DMs do not support current thread actions. The response reports
-the resulting follow state so clients can update local UI immediately.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
-```
-
-<a id="chatto-api-v1-UnfollowThreadRequest"></a>
-
-#### Input: UnfollowThreadRequest
-
-Request to stop following one message thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-
-
-<a id="chatto-api-v1-UnfollowThreadResponse"></a>
-
-#### Result: UnfollowThreadResponse
-
-Result of unfollowing a thread.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `following` | `bool` | True when the current user follows the thread after the operation. |
-| `state` | [`ThreadFollowState`](#chatto-api-v1-ThreadFollowState) | Current follow state after the operation. |
-
-
-<a id="chatto-api-v1-ThreadService-GetThreadEvents"></a>
-
-### GetThreadEvents
-
-Returns one page of events in a message thread. Room membership is
-required. Channel-room reads also require message.read or an active
-relationship with message.read-interactions. Historical DM threads use DM
-membership. Initial pages include the thread root message; cursor pages
-return replies in the requested direction.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
-```
-
-<a id="chatto-api-v1-GetThreadEventsRequest"></a>
-
-#### Input: GetThreadEventsRequest
-
-Request for a page of events in one thread.
-
-Omit the cursor to load the latest visible part of the thread, including the
-root message. Set before to a previously returned start_cursor to page toward
-older replies, or after to a previously returned end_cursor to page toward
-newer replies without repeating the root message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
-| `cursor.before` | `string` | Return thread events older than this opaque cursor. |
-| `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsResponse"></a>
-
-#### Result: GetThreadEventsResponse
-
-Response containing one thread timeline page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-
-
-<a id="chatto-api-v1-ThreadService-GetThreadEventsAround"></a>
-
-### GetThreadEventsAround
-
-Returns a thread timeline window centered around a specific event. Use this
-to open a reply from a notification or search result in context. Returns
-NOT_FOUND when the thread root or anchor event is missing or hidden.
-Returns PERMISSION_DENIED when room membership is missing, both read modes
-are missing, or an interaction-scoped account has no relationship with the
-thread. Historical DM threads use DM membership.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
-```
-
-<a id="chatto-api-v1-GetThreadEventsAroundRequest"></a>
-
-#### Input: GetThreadEventsAroundRequest
-
-Request for thread events around a specific event.
-
-Use this when a client needs to jump to a known reply and render surrounding
-thread context.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
-
-
-<a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
-
-#### Result: GetThreadEventsAroundResponse
-
-Response containing a thread timeline window around a specific event.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`RoomTimelinePage`](#chatto-api-v1-RoomTimelinePage) | Loaded timeline page. |
-| `target_index` | `int32` | Zero-based index of the anchor event within page.events. |
-
-
-<a id="chatto-api-v1-ThreadService-MarkThreadAsRead"></a>
-
-### MarkThreadAsRead
-
-Marks a thread timeline as read through the supplied event without changing
-the room-level read marker. Room membership plus message.read or an active
-relationship with message.read-interactions are required. DMs do not
-support current thread actions.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
-```
-
-<a id="chatto-api-v1-MarkThreadAsReadRequest"></a>
-
-#### Input: MarkThreadAsReadRequest
-
-Request to mark a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `up_to_event_id` | `string` | Highest thread event ID the current user has read. The event should belong to the thread identified by thread_root_event_id. |
-
-
-<a id="chatto-api-v1-MarkThreadAsReadResponse"></a>
-
-#### Result: MarkThreadAsReadResponse
-
-Result of marking a message thread as read.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
 
 
 
@@ -5262,57 +5290,6 @@ Authenticated server runtime settings used by clients.
 
 
 
-<a id="chatto-api-v1-ActiveCall"></a>
-
-### ActiveCall
-
-Current active call snapshot for one room.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the active call. |
-| `call_id` | `string` | Active call session ID. |
-| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
-
-
-
-<a id="chatto-api-v1-CallParticipant"></a>
-
-### CallParticipant
-
-User currently participating in a room call.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user` | [`User`](#chatto-api-v1-User) | Participant user. |
-| `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
-| `call_id` | `string` | Active call session ID. |
-
-
-
-<a id="chatto-api-v1-ServerSnapshotChunk"></a>
-
-### ServerSnapshotChunk
-
-One authorized resource family in a server snapshot.
-
-Each value is the same public resource or response that its ConnectRPC read
-returns. List values replace the complete client-side resource family.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `resource.server` | [`ServerPublicProfile`](#chatto-api-v1-ServerPublicProfile) | Current public server profile. |
-| `resource.motd` | [`GetMotdResponse`](#chatto-api-v1-GetMotdResponse) | Current authenticated message of the day. |
-| `resource.runtime_config` | [`GetRuntimeConfigResponse`](#chatto-api-v1-GetRuntimeConfigResponse) | Current authenticated runtime configuration. |
-| `resource.viewer` | [`GetViewerResponse`](#chatto-api-v1-GetViewerResponse) | Current authenticated viewer resource. |
-| `resource.users` | [`ListUsersResponse`](#chatto-api-v1-ListUsersResponse) | Complete visible user directory. |
-| `resource.rooms` | [`ListRoomsResponse`](#chatto-api-v1-ListRoomsResponse) | Complete visible room directory. |
-| `resource.room_groups` | [`ListRoomGroupsResponse`](#chatto-api-v1-ListRoomGroupsResponse) | Complete visible room-group layout. |
-| `resource.notifications` | [`ListNotificationOccurrencesResponse`](#chatto-api-v1-ListNotificationOccurrencesResponse) | Current bounded notification occurrence page and complete counts. |
-| `resource.active_calls` | [`ListActiveCallsResponse`](#chatto-api-v1-ListActiveCallsResponse) | Complete visible active-call state. |
-
-
-
 <a id="chatto-api-v1-FollowedThread"></a>
 
 ### FollowedThread
@@ -5339,6 +5316,34 @@ Current follow state for one thread and viewer.
 | `room_id` | `string` | Room containing the thread. |
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `following` | `bool` | True when the current user follows the thread. |
+
+
+
+<a id="chatto-api-v1-ActiveCall"></a>
+
+### ActiveCall
+
+Current active call snapshot for one room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the active call. |
+| `call_id` | `string` | Active call session ID. |
+| `participants` | repeated [`CallParticipant`](#chatto-api-v1-CallParticipant) | Participants currently projected for this call. |
+
+
+
+<a id="chatto-api-v1-CallParticipant"></a>
+
+### CallParticipant
+
+User currently participating in a room call.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Participant user. |
+| `joined_at` | `google.protobuf.Timestamp` | When the user joined this call. |
+| `call_id` | `string` | Active call session ID. |
 
 
 

@@ -10,10 +10,10 @@ import {
   LinkCard,
 } from "@astrojs/starlight/components";
 
-This tutorial builds a small browser-based event client. It starts without a
-snapshot, processes semantic events in order, and reconnects with its last safe
-cursor. The same pattern works for a bot runtime that provides a WebSocket
-implementation.
+This tutorial builds a small browser-based event client. It starts without
+current-resource reads, processes semantic events in order, and reconnects with
+its last safe cursor. The same pattern works for a bot runtime that provides a
+WebSocket implementation.
 
 <Aside type="caution">
   Chatto's public API is experimental before 1.0. Generate bindings from the
@@ -96,6 +96,7 @@ Create `src/realtime.ts`:
 ```ts
 import {
   RealtimeClientFrame,
+  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeEvent,
   RealtimeInitialState,
@@ -228,6 +229,11 @@ export class ChattoRealtimeClient {
           "Realtime recovery mode",
           RealtimeRecoveryMode[frame.frame.value.recoveryMode],
         );
+        this.#send(
+          new RealtimeClientFrame({
+            frame: { case: "catchUp", value: new RealtimeCatchUp() },
+          }),
+        );
         return;
 
       case "event": {
@@ -244,11 +250,6 @@ export class ChattoRealtimeClient {
         }
         return;
       }
-
-      case "snapshot":
-        // A live-only bot can ignore snapshot resources. A projection client
-        // applies the ServerSnapshotChunk resource oneof here.
-        return;
 
       case "caughtUp":
         this.#resumeCursor = frame.frame.value.cursor;
@@ -353,12 +354,20 @@ indefinite durable queue.
 
 ## Build a projection client
 
-A projection client selects `RealtimeInitialState.SNAPSHOT`. When
-`subscribed.recoveryMode` is `SNAPSHOT`, clear realtime-owned state. Apply each
-standalone `snapshot` frame until `caught_up`. Each frame contains a
-`ServerSnapshotChunk` whose oneof value is an existing public resource or
-ConnectRPC response protobuf. List chunks replace their complete resource
-family.
+A projection client selects `RealtimeInitialState.RESOURCE_READS`. When
+`subscribed.recoveryMode` is `RESOURCE_READS`, clear realtime-owned state. Read
+each required resource through ConnectRPC and set
+`Chatto-Realtime-Minimum-Cursor` to `subscribed.startCursor`. Send `catch_up`
+only after all required reads succeed. The server then sends later events and
+closes the interval with `caught_up`.
+
+Read only the resource families that the client keeps. For example, the
+bundled frontend does not list the complete user directory. It uses bounded
+batch reads for users referenced by direct messages or later events.
+
+Use a finite deadline for every cursor-bounded call. Associate each recovery
+with a local generation or abort signal. When a newer recovery starts, discard
+responses from the earlier generation.
 
 Do not infer old history from the realtime stream. Use ConnectRPC for commands,
 explicit reads, room or thread history, paginated lists, files, pins, and
@@ -369,12 +378,12 @@ client has loaded.
   <LinkCard
     title="Realtime Overview"
     href="/guides/integrations/realtime-protocol/"
-    description="Review event, resource snapshot, cursor, and reconnect semantics."
+    description="Review event, resource-read boundary, cursor, and reconnect semantics."
   />
   <LinkCard
     title="Realtime Frame Reference"
     href="/reference/connectrpc-api/realtime/"
-    description="Read every protobuf frame, event wrapper, snapshot chunk, and enum."
+    description="Read every protobuf frame, event wrapper, control message, and enum."
   />
   <LinkCard
     title="Integrating With Chatto"

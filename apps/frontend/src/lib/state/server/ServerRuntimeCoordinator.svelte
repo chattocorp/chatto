@@ -45,7 +45,9 @@
               connection: serverConnectionManager.getClient(server.id),
               projectionSupported: store.serverInfo.supportsRealtimeProjection,
               sync: store.realtimeSync,
-              projectionHandler: store.realtimeProjectionHandler
+              projectionHandler: store.realtimeProjectionHandler,
+              bootstrapProjection: (cursor: string) => store.bootstrapRealtimeProjection(cursor),
+              completeProjectionCatchUp: (cursor: string) => store.completeRealtimeCatchUp(cursor)
             }
           ]
         : [];
@@ -57,9 +59,7 @@
   // The registration carries each store's canonical reducer, allowing the bus
   // to install it before a newly opened socket can deliver its first snapshot.
   const registrations = $derived.by(realtimeRegistrations);
-  const activeServerId = $derived(
-    page.route.id?.startsWith('/chat') ? getActiveServer() : ''
-  );
+  const activeServerId = $derived(page.route.id?.startsWith('/chat') ? getActiveServer() : '');
 
   $effect(() => {
     const nextRegistrations = registrations;

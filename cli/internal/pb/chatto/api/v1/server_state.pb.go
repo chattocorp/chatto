@@ -21,6 +21,89 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Request for the authenticated public server profile.
+type GetServerProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerProfileRequest) Reset() {
+	*x = GetServerProfileRequest{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerProfileRequest) ProtoMessage() {}
+
+func (x *GetServerProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerProfileRequest.ProtoReflect.Descriptor instead.
+func (*GetServerProfileRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{0}
+}
+
+// Authenticated public server profile response.
+type GetServerProfileResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current public server profile.
+	Profile       *ServerPublicProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetServerProfileResponse) Reset() {
+	*x = GetServerProfileResponse{}
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetServerProfileResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetServerProfileResponse) ProtoMessage() {}
+
+func (x *GetServerProfileResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetServerProfileResponse.ProtoReflect.Descriptor instead.
+func (*GetServerProfileResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetServerProfileResponse) GetProfile() *ServerPublicProfile {
+	if x != nil {
+		return x.Profile
+	}
+	return nil
+}
+
 // Request for the authenticated message of the day.
 type GetMotdRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -30,7 +113,7 @@ type GetMotdRequest struct {
 
 func (x *GetMotdRequest) Reset() {
 	*x = GetMotdRequest{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -42,7 +125,7 @@ func (x *GetMotdRequest) String() string {
 func (*GetMotdRequest) ProtoMessage() {}
 
 func (x *GetMotdRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -55,7 +138,7 @@ func (x *GetMotdRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMotdRequest.ProtoReflect.Descriptor instead.
 func (*GetMotdRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
 }
 
 // Authenticated message of the day response.
@@ -69,7 +152,7 @@ type GetMotdResponse struct {
 
 func (x *GetMotdResponse) Reset() {
 	*x = GetMotdResponse{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -81,7 +164,7 @@ func (x *GetMotdResponse) String() string {
 func (*GetMotdResponse) ProtoMessage() {}
 
 func (x *GetMotdResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -94,7 +177,7 @@ func (x *GetMotdResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMotdResponse.ProtoReflect.Descriptor instead.
 func (*GetMotdResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetMotdResponse) GetMotd() string {
@@ -127,7 +210,7 @@ type ServerRuntimeConfig struct {
 
 func (x *ServerRuntimeConfig) Reset() {
 	*x = ServerRuntimeConfig{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -139,7 +222,7 @@ func (x *ServerRuntimeConfig) String() string {
 func (*ServerRuntimeConfig) ProtoMessage() {}
 
 func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -152,7 +235,7 @@ func (x *ServerRuntimeConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerRuntimeConfig.ProtoReflect.Descriptor instead.
 func (*ServerRuntimeConfig) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ServerRuntimeConfig) GetPushNotificationsEnabled() bool {
@@ -213,7 +296,7 @@ type GetRuntimeConfigRequest struct {
 
 func (x *GetRuntimeConfigRequest) Reset() {
 	*x = GetRuntimeConfigRequest{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -225,7 +308,7 @@ func (x *GetRuntimeConfigRequest) String() string {
 func (*GetRuntimeConfigRequest) ProtoMessage() {}
 
 func (x *GetRuntimeConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -238,7 +321,7 @@ func (x *GetRuntimeConfigRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRuntimeConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetRuntimeConfigRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{5}
 }
 
 // Authenticated server runtime configuration response.
@@ -252,7 +335,7 @@ type GetRuntimeConfigResponse struct {
 
 func (x *GetRuntimeConfigResponse) Reset() {
 	*x = GetRuntimeConfigResponse{}
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -264,7 +347,7 @@ func (x *GetRuntimeConfigResponse) String() string {
 func (*GetRuntimeConfigResponse) ProtoMessage() {}
 
 func (x *GetRuntimeConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_server_state_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_server_state_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -277,7 +360,7 @@ func (x *GetRuntimeConfigResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRuntimeConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetRuntimeConfigResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_server_state_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *GetRuntimeConfigResponse) GetRuntime() *ServerRuntimeConfig {
@@ -291,7 +374,10 @@ var File_chatto_api_v1_server_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\n" +
-	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\"\x10\n" +
+	" chatto/api/v1/server_state.proto\x12\rchatto.api.v1\x1a\x1achatto/api/v1/server.proto\"\x19\n" +
+	"\x17GetServerProfileRequest\"X\n" +
+	"\x18GetServerProfileResponse\x12<\n" +
+	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\"\x10\n" +
 	"\x0eGetMotdRequest\"3\n" +
 	"\x0fGetMotdResponse\x12\x17\n" +
 	"\x04motd\x18\x01 \x01(\tH\x00R\x04motd\x88\x01\x01B\a\n" +
@@ -309,8 +395,9 @@ const file_chatto_api_v1_server_state_proto_rawDesc = "" +
 	"\f_livekit_urlJ\x04\b\x04\x10\x05R\x1bdirect_registration_enabled\"\x19\n" +
 	"\x17GetRuntimeConfigRequest\"X\n" +
 	"\x18GetRuntimeConfigResponse\x12<\n" +
-	"\aruntime\x18\x01 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\xbe\x01\n" +
-	"\rServerService\x12H\n" +
+	"\aruntime\x18\x01 \x01(\v2\".chatto.api.v1.ServerRuntimeConfigR\aruntime2\xa3\x02\n" +
+	"\rServerService\x12c\n" +
+	"\x10GetServerProfile\x12&.chatto.api.v1.GetServerProfileRequest\x1a'.chatto.api.v1.GetServerProfileResponse\x12H\n" +
 	"\aGetMotd\x12\x1d.chatto.api.v1.GetMotdRequest\x1a\x1e.chatto.api.v1.GetMotdResponse\x12c\n" +
 	"\x10GetRuntimeConfig\x12&.chatto.api.v1.GetRuntimeConfigRequest\x1a'.chatto.api.v1.GetRuntimeConfigResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10ServerStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -327,25 +414,31 @@ func file_chatto_api_v1_server_state_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_server_state_proto_rawDescData
 }
 
-var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_chatto_api_v1_server_state_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_api_v1_server_state_proto_goTypes = []any{
-	(*GetMotdRequest)(nil),           // 0: chatto.api.v1.GetMotdRequest
-	(*GetMotdResponse)(nil),          // 1: chatto.api.v1.GetMotdResponse
-	(*ServerRuntimeConfig)(nil),      // 2: chatto.api.v1.ServerRuntimeConfig
-	(*GetRuntimeConfigRequest)(nil),  // 3: chatto.api.v1.GetRuntimeConfigRequest
-	(*GetRuntimeConfigResponse)(nil), // 4: chatto.api.v1.GetRuntimeConfigResponse
+	(*GetServerProfileRequest)(nil),  // 0: chatto.api.v1.GetServerProfileRequest
+	(*GetServerProfileResponse)(nil), // 1: chatto.api.v1.GetServerProfileResponse
+	(*GetMotdRequest)(nil),           // 2: chatto.api.v1.GetMotdRequest
+	(*GetMotdResponse)(nil),          // 3: chatto.api.v1.GetMotdResponse
+	(*ServerRuntimeConfig)(nil),      // 4: chatto.api.v1.ServerRuntimeConfig
+	(*GetRuntimeConfigRequest)(nil),  // 5: chatto.api.v1.GetRuntimeConfigRequest
+	(*GetRuntimeConfigResponse)(nil), // 6: chatto.api.v1.GetRuntimeConfigResponse
+	(*ServerPublicProfile)(nil),      // 7: chatto.api.v1.ServerPublicProfile
 }
 var file_chatto_api_v1_server_state_proto_depIdxs = []int32{
-	2, // 0: chatto.api.v1.GetRuntimeConfigResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
-	0, // 1: chatto.api.v1.ServerService.GetMotd:input_type -> chatto.api.v1.GetMotdRequest
-	3, // 2: chatto.api.v1.ServerService.GetRuntimeConfig:input_type -> chatto.api.v1.GetRuntimeConfigRequest
-	1, // 3: chatto.api.v1.ServerService.GetMotd:output_type -> chatto.api.v1.GetMotdResponse
-	4, // 4: chatto.api.v1.ServerService.GetRuntimeConfig:output_type -> chatto.api.v1.GetRuntimeConfigResponse
-	3, // [3:5] is the sub-list for method output_type
-	1, // [1:3] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7, // 0: chatto.api.v1.GetServerProfileResponse.profile:type_name -> chatto.api.v1.ServerPublicProfile
+	4, // 1: chatto.api.v1.GetRuntimeConfigResponse.runtime:type_name -> chatto.api.v1.ServerRuntimeConfig
+	0, // 2: chatto.api.v1.ServerService.GetServerProfile:input_type -> chatto.api.v1.GetServerProfileRequest
+	2, // 3: chatto.api.v1.ServerService.GetMotd:input_type -> chatto.api.v1.GetMotdRequest
+	5, // 4: chatto.api.v1.ServerService.GetRuntimeConfig:input_type -> chatto.api.v1.GetRuntimeConfigRequest
+	1, // 5: chatto.api.v1.ServerService.GetServerProfile:output_type -> chatto.api.v1.GetServerProfileResponse
+	3, // 6: chatto.api.v1.ServerService.GetMotd:output_type -> chatto.api.v1.GetMotdResponse
+	6, // 7: chatto.api.v1.ServerService.GetRuntimeConfig:output_type -> chatto.api.v1.GetRuntimeConfigResponse
+	5, // [5:8] is the sub-list for method output_type
+	2, // [2:5] is the sub-list for method input_type
+	2, // [2:2] is the sub-list for extension type_name
+	2, // [2:2] is the sub-list for extension extendee
+	0, // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_server_state_proto_init() }
@@ -353,15 +446,16 @@ func file_chatto_api_v1_server_state_proto_init() {
 	if File_chatto_api_v1_server_state_proto != nil {
 		return
 	}
-	file_chatto_api_v1_server_state_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_api_v1_server_state_proto_msgTypes[2].OneofWrappers = []any{}
+	file_chatto_api_v1_server_proto_init()
+	file_chatto_api_v1_server_state_proto_msgTypes[3].OneofWrappers = []any{}
+	file_chatto_api_v1_server_state_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_server_state_proto_rawDesc), len(file_chatto_api_v1_server_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

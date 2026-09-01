@@ -268,26 +268,6 @@ function rewriteRealtimeExternalLinks(section) {
   );
 }
 
-const snapshotResourceTypePages = new Map([
-  ['chatto-api-v1-GetMotdResponse', 'server'],
-  ['chatto-api-v1-GetRuntimeConfigResponse', 'server'],
-  ['chatto-api-v1-GetViewerResponse', 'viewer'],
-  ['chatto-api-v1-ListUsersResponse', 'users'],
-  ['chatto-api-v1-ListRoomsResponse', 'room-directory'],
-  ['chatto-api-v1-ListRoomGroupsResponse', 'room-directory'],
-  ['chatto-api-v1-ListNotificationOccurrencesResponse', 'notifications'],
-  ['chatto-api-v1-ListActiveCallsResponse', 'calls']
-]);
-
-function rewriteSnapshotResourceLinks(section) {
-  let content = section.content;
-  if (section.name !== 'ServerSnapshotChunk') return content;
-  for (const [anchor, page] of snapshotResourceTypePages) {
-    content = content.replaceAll(`](#${anchor})`, `](/reference/connectrpc-api/${page}/#${anchor})`);
-  }
-  return content;
-}
-
 function dedupeInlineMethodTypes(content) {
   const pattern = /<a id="([^"]+)"><\/a>\n\n(#{1,6}) ([^\n]+)\n/g;
   const matches = [...content.matchAll(pattern)];
@@ -572,7 +552,7 @@ function renderServicePage(service, serviceSections) {
 function renderTypesPage(typeSections, enumSections) {
   const normalTypes = [...typeSections.entries()]
     .filter(([, section]) => !isRealtimeType(section.name))
-    .map(([, section]) => rewriteSnapshotResourceLinks(section));
+    .map(([, section]) => section.content);
   const normalEnums = [...enumSections.entries()]
     .filter(([, section]) => !isRealtimeType(section.name))
     .map(([, section]) => section.content);
@@ -607,7 +587,7 @@ function renderRealtimePage(typeSections, enumSections) {
   const body = [
     'Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.',
     '',
-    'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, projection reducer, room hydration, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
+    'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, cursor-bounded resource reads, event processing, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
     '',
     'This page is the field-level reference. Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',

@@ -167,6 +167,9 @@ func subscribeRealtime(
 	if !ok || frame.GetSubscribed() == nil {
 		t.Fatalf("subscribe response = %+v, want subscribed", frame)
 	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_CatchUp{
+		CatchUp: &realtimev1.RealtimeCatchUp{},
+	}})
 	return frame.GetSubscribed()
 }
 
@@ -193,30 +196,6 @@ func readCanonicalRealtimeEvent(t testing.TB, conn *websocket.Conn) *realtimev1.
 		if event := frame.GetEvent(); event != nil {
 			return event
 		}
-	}
-}
-
-func TestRealtimeSnapshotFramesReuseCanonicalAPIResponses(t *testing.T) {
-	env := setupWebSocketTestServer(t)
-	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "snapshot-user", "Snapshot User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-
-	frames, err := env.httpServer.realtimeSnapshotFrames(env.ctx, viewer.Id)
-	if err != nil {
-		t.Fatalf("realtimeSnapshotFrames: %v", err)
-	}
-	if len(frames) != 9 {
-		t.Fatalf("snapshot frame count = %d, want 9", len(frames))
-	}
-	for index, frame := range frames {
-		if frame.GetSnapshot() == nil {
-			t.Fatalf("frame %d = %T, want snapshot", index, frame.GetFrame())
-		}
-	}
-	if frames[4].GetSnapshot().GetUsers() == nil || frames[5].GetSnapshot().GetRooms() == nil {
-		t.Fatal("snapshot did not reuse user and room directory responses")
 	}
 }
 
@@ -271,7 +250,7 @@ func TestRealtimeInternalDurableEventIsOmitted(t *testing.T) {
 	}
 }
 
-func TestRealtimeRBACEventRequestsAuthorizedSnapshotReconnect(t *testing.T) {
+func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	event := &evtv1.Event{
 		Id: "rbac-change",
@@ -293,7 +272,7 @@ func TestRealtimeRBACEventRequestsAuthorizedSnapshotReconnect(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
+func TestRealtimeWebSocketResourceReadLifecycleAndPing(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "socket-user", "Socket User", "password123")
 	if err != nil {
@@ -311,26 +290,134 @@ func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
 		t.Fatalf("hello response = %+v", frame)
 	}
 	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS},
 	}})
-	seenSnapshot := false
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSubscribed().GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESOURCE_READS || frame.GetSubscribed().GetStartCursor() == "" {
+		t.Fatalf("subscribed = %+v, want resource reads with start cursor", frame)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_CatchUp{
+		CatchUp: &realtimev1.RealtimeCatchUp{},
+	}})
+	readRealtimeCaughtUp(t, conn)
+	if err := realtimePingRoundTrip(conn, "nonce"); err != nil {
+		t.Fatalf("ping round trip: %v", err)
+	}
+}
+
+func TestRealtimeWebSocketCatchUpClosesEventsAfterResourceBoundary(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "resource-gap-user", "Resource Gap User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatalf("hello response = %+v", frame)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSubscribed().GetStartCursor() == "" {
+		t.Fatalf("subscribed = %+v, want start cursor", frame)
+	}
+	startCursor := frame.GetSubscribed().GetStartCursor()
+	if _, err := env.core.UpdateUserBio(env.ctx, viewer.Id, "changed during resource reads"); err != nil {
+		t.Fatalf("UpdateUserBio: %v", err)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_CatchUp{
+		CatchUp: &realtimev1.RealtimeCatchUp{},
+	}})
+
+	seenChange := false
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
-			t.Fatal("snapshot catch-up timed out")
+			t.Fatal("timed out waiting for E-to-F catch-up")
 		}
-		if frame.GetSnapshot() != nil {
-			seenSnapshot = true
+		if event := frame.GetEvent(); event.GetEvent().GetUserBioChanged() != nil {
+			seenChange = true
+			if event.GetResumeCursor() == "" {
+				t.Fatal("durable gap event omitted resume cursor")
+			}
 		}
-		if frame.GetCaughtUp() != nil {
+		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+			if !seenChange {
+				t.Fatal("caught_up arrived before the event committed after E")
+			}
+			if caughtUp.GetCursor() == "" || caughtUp.GetCursor() == startCursor {
+				t.Fatalf("caught_up cursor = %q, want boundary after E", caughtUp.GetCursor())
+			}
 			break
 		}
 	}
-	if !seenSnapshot {
-		t.Fatal("snapshot lifecycle omitted resource chunks")
+}
+
+func TestRealtimeWebSocketRequiresExactlyOneCatchUpRequest(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "catch-up-control-user", "Catch Up Control User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
 	}
-	if err := realtimePingRoundTrip(conn, "nonce"); err != nil {
-		t.Fatalf("ping round trip: %v", err)
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_CatchUp{
+		CatchUp: &realtimev1.RealtimeCatchUp{},
+	}})
+
+	for {
+		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for duplicate catch_up rejection")
+		}
+		if realtimeErr := frame.GetError(); realtimeErr != nil {
+			if realtimeErr.GetCode() != "bad_frame" || !realtimeErr.GetFatal() {
+				t.Fatalf("duplicate catch_up error = %+v, want fatal bad_frame", realtimeErr)
+			}
+			return
+		}
+	}
+}
+
+func TestRealtimeWebSocketTimesOutBeforeCatchUpRequest(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.realtimeCatchUps.timeout = 50 * time.Millisecond
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "catch-up-timeout-user", "Catch Up Timeout User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
+		t.Fatalf("hello response = %+v, want hello", frame)
+	}
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
+		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS},
+	}})
+	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetSubscribed() == nil {
+		t.Fatalf("subscribe response = %+v, want subscribed", frame)
+	}
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "catch_up_timeout" || !frame.GetClose().GetReconnect() {
+		t.Fatalf("catch-up timeout response = %+v, want reconnecting catch_up_timeout", frame)
 	}
 }
 
@@ -611,7 +698,7 @@ func TestRealtimeWebSocketDeliversCanonicalTransientEvent(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
+func TestRealtimeWebSocketExpiredCursorUsesResourceReadFallback(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-expired", "RT Expired", "password123")
 	if err != nil {
@@ -652,9 +739,9 @@ func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
 	}
 
 	conn := env.dialRealtime(t)
-	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, expired)
-	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetRecoveryMode())
+	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS, expired)
+	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESOURCE_READS {
+		t.Fatalf("recovery mode = %v, want resource reads", subscribed.GetRecoveryMode())
 	}
 	readRealtimeCaughtUp(t, conn)
 }

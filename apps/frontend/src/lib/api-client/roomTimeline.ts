@@ -42,41 +42,72 @@ export type EventConnectionPage = {
   hasNewer: boolean;
 };
 
+const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
+const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
+
+type RealtimeBoundedRead = {
+  /** Opaque realtime cursor that the serving replica must include. */
+  minimumCursor?: string;
+};
+
 export type RoomTimelineAPI = {
-  getRoomEvents(input: {
-    roomId: string;
-    limit: number;
-    before?: string;
-    after?: string;
-  }): Promise<EventConnectionPage>;
-  getRoomEventsAround(input: {
-    roomId: string;
-    eventId: string;
-    limit: number;
-  }): Promise<EventConnectionPage>;
-  getMessage(input: { roomId: string; eventId: string }): Promise<TimelineEventView | null>;
-  getThreadEvents(input: {
-    roomId: string;
-    threadRootEventId: string;
-    limit: number;
-    before?: string;
-    after?: string;
-  }): Promise<EventConnectionPage>;
-  getThreadEventsAround(input: {
-    roomId: string;
-    threadRootEventId: string;
-    eventId: string;
-    limit: number;
-  }): Promise<EventConnectionPage>;
+  getRoomEvents(
+    input: {
+      roomId: string;
+      limit: number;
+      before?: string;
+      after?: string;
+    } & RealtimeBoundedRead
+  ): Promise<EventConnectionPage>;
+  getRoomEventsAround(
+    input: {
+      roomId: string;
+      eventId: string;
+      limit: number;
+    } & RealtimeBoundedRead
+  ): Promise<EventConnectionPage>;
+  getMessage(
+    input: {
+      roomId: string;
+      eventId: string;
+    } & RealtimeBoundedRead
+  ): Promise<TimelineEventView | null>;
+  getThreadEvents(
+    input: {
+      roomId: string;
+      threadRootEventId: string;
+      limit: number;
+      before?: string;
+      after?: string;
+    } & RealtimeBoundedRead
+  ): Promise<EventConnectionPage>;
+  getThreadEventsAround(
+    input: {
+      roomId: string;
+      threadRootEventId: string;
+      eventId: string;
+      limit: number;
+    } & RealtimeBoundedRead
+  ): Promise<EventConnectionPage>;
 };
 
 export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimelineAPI {
   const messages = createChattoClient(MessageService, config);
   const rooms = createChattoClient(RoomService, config);
   const threads = createChattoClient(ThreadService, config);
-  const headers = () => authHeaders(config);
+  const headers = (minimumCursor?: string) => {
+    const base = authHeaders(config);
+    if (!minimumCursor) return base;
+    const result = new Headers(base);
+    result.set(REALTIME_MINIMUM_CURSOR_HEADER, minimumCursor);
+    return result;
+  };
+  const options = (minimumCursor?: string) => ({
+    headers: headers(minimumCursor),
+    ...(minimumCursor ? { timeoutMs: REALTIME_RESOURCE_TIMEOUT_MS } : {})
+  });
   return {
-    async getRoomEvents({ roomId, limit, before, after }) {
+    async getRoomEvents({ roomId, limit, before, after, minimumCursor }) {
       try {
         const response = await rooms.getRoomEvents(
           {
@@ -88,7 +119,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 ? { case: 'after', value: after }
                 : { case: undefined }
           },
-          { headers: headers() }
+          options(minimumCursor)
         );
         primeTimelineUserIncludes(config, response.page?.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
@@ -96,11 +127,11 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
         return handleAuthError(config, err);
       }
     },
-    async getRoomEventsAround({ roomId, eventId, limit }) {
+    async getRoomEventsAround({ roomId, eventId, limit, minimumCursor }) {
       try {
         const response = await rooms.getRoomEventsAround(
           { roomId, eventId, limit },
-          { headers: headers() }
+          options(minimumCursor)
         );
         if (!response.page) return emptyEventConnectionPage();
         primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
@@ -109,19 +140,20 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
         return handleAuthError(config, err);
       }
     },
-    async getMessage({ roomId, eventId }) {
+    async getMessage({ roomId, eventId, minimumCursor }) {
       try {
-        const response = await messages.getMessage({ roomId, eventId }, { headers: headers() });
+        const response = await messages.getMessage({ roomId, eventId }, options(minimumCursor));
         const users = await timelineUsersForMessages(
           config,
-          response.message ? [response.message] : []
+          response.message ? [response.message] : [],
+          minimumCursor
         );
         return response.message ? messageToTimelineEvent(response.message, users) : null;
       } catch (err) {
         return handleAuthError(config, err);
       }
     },
-    async getThreadEvents({ roomId, threadRootEventId, limit, before, after }) {
+    async getThreadEvents({ roomId, threadRootEventId, limit, before, after, minimumCursor }) {
       try {
         const response = await threads.getThreadEvents(
           {
@@ -134,7 +166,7 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
                 ? { case: 'after', value: after }
                 : { case: undefined }
           },
-          { headers: headers() }
+          options(minimumCursor)
         );
         primeTimelineUserIncludes(config, response.page?.includes?.users ?? {});
         return roomTimelinePageToEventConnectionPage(response.page ?? new RoomTimelinePage());
@@ -142,11 +174,11 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
         return handleAuthError(config, err);
       }
     },
-    async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit }) {
+    async getThreadEventsAround({ roomId, threadRootEventId, eventId, limit, minimumCursor }) {
       try {
         const response = await threads.getThreadEventsAround(
           { roomId, threadRootEventId, eventId, limit },
-          { headers: headers() }
+          options(minimumCursor)
         );
         if (!response.page) return emptyEventConnectionPage();
         primeTimelineUserIncludes(config, response.page.includes?.users ?? {});
@@ -168,20 +200,22 @@ export async function timelineUsersForEvents(
 
 export async function timelineUsersForMessages(
   config: RoomTimelineAPIConfig,
-  messages: Message[]
+  messages: Message[],
+  minimumCursor?: string
 ): Promise<Record<string, User>> {
   const userIds = messageUserIds(messages);
-  return batchTimelineUsers(config, userIds);
+  return batchTimelineUsers(config, userIds, minimumCursor);
 }
 
 async function batchTimelineUsers(
   config: RoomTimelineAPIConfig,
-  userIds: string[]
+  userIds: string[],
+  minimumCursor?: string
 ): Promise<Record<string, User>> {
   if (userIds.length === 0) return {};
 
   try {
-    const summaries = await createUserAPI(config).batchGetUsers(userIds);
+    const summaries = await createUserAPI(config).batchGetUsers(userIds, minimumCursor);
     const users: Record<string, User> = {};
     for (const summary of summaries) {
       // The view helpers read generated `User` values; the only difference
@@ -197,7 +231,8 @@ async function batchTimelineUsers(
     }
     notifyUserSummaries(config.serverId, summaries, config.onUserSummaries);
     return users;
-  } catch {
+  } catch (error) {
+    if (minimumCursor) throw error;
     return {};
   }
 }

@@ -13,10 +13,10 @@ the stream to build and maintain its local server projection.
 ## Behavior
 
 - A client opens one authenticated realtime subscription for a server.
-- A subscription selects `SNAPSHOT` or `LIVE_ONLY` initial state. Snapshot
-  clients receive authorized current state when resume is not possible.
-  Live-only clients start at a stated current boundary without historical
-  events.
+- A subscription selects `RESOURCE_READS` or `LIVE_ONLY` initial state.
+  Resource clients read the current state that they need through ConnectRPC
+  when resume is not possible. Live-only clients start at a stated current
+  boundary without historical events.
 - The stream sends authorized copies of canonical events for durable activity,
   including messages, edits, retractions, reactions, membership, rooms,
   profiles, calls, and other public domain changes.
@@ -27,16 +27,19 @@ the stream to build and maintain its local server projection.
 - A client can ignore an event type that it does not use and still retain the
   event cursor.
 - Typing, presence transitions, and other transient activity are live-only.
-  A snapshot supplies current latest-value state when clients need it.
+  ConnectRPC supplies current latest-value state when clients need it.
 - A recently disconnected client can reconnect with its last safe cursor. The
-  server sends current resource chunks and later authorized durable events
-  before it continues live.
+  server sends authorized durable events after that cursor before it continues
+  live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
-- Resume and snapshot delivery use the caller's current authorization. Deleted,
-  retracted, or erased data does not return in its old form.
+- Resume and cursor-bounded resource reads use the caller's current
+  authorization. Deleted, retracted, or erased data does not return in its old
+  form.
 - A client must tolerate duplicate events and use the stable event ID for
   deduplication.
+- A client that starts a new resource reset must discard responses from the
+  earlier reset. It must not let a late response replace newer state.
 - The stream does not guarantee every intermediate transition after a client
   is offline beyond the bounded resume window.
 - ConnectRPC remains the normal API for commands, explicit resource reads,
@@ -63,16 +66,15 @@ separate authorized shape.
 
 ### 2. Initial state is explicit
 
-**Decision:** A subscription selects `SNAPSHOT` or `LIVE_ONLY`. The bundled
-frontend selects `SNAPSHOT` and applies later semantic events to that local
-projection. An event-only bot selects `LIVE_ONLY` and uses ConnectRPC when it
-needs current resources.
-**Why:** A full ConnectRPC bootstrap would require many reads and would make it
-harder to define one ordered state boundary. The snapshot keeps startup and
-reconnect efficient for projection clients without forcing a large bootstrap
-on every integration.
-**Tradeoff:** Clients must choose whether current-state bootstrap is part of
-their subscription.
+**Decision:** A subscription selects `RESOURCE_READS` or `LIVE_ONLY`. The
+bundled frontend selects `RESOURCE_READS` and reads only the canonical
+resources that it keeps. An event-only bot selects `LIVE_ONLY` and uses
+ConnectRPC only when it needs current resources.
+**Why:** One explicit choice tells the server whether the client needs a safe
+current-state boundary. It does not force a large bootstrap on integrations
+that need only events.
+**Tradeoff:** A resource client must make several ConnectRPC calls before it
+asks the WebSocket to catch up.
 
 ### 3. Resume repairs recent connection gaps
 
@@ -81,27 +83,39 @@ expensive cursor selects the subscription's requested safe fallback.
 **Why:** Short replay prevents visible state jumps during ordinary network and
 credential reconnects. Strict bounds protect the server and keep realtime
 separate from event-log export.
-**Tradeoff:** A long-offline snapshot client can recover current state but can
+**Tradeoff:** A long-offline resource client can recover current state but can
 miss intermediate transitions. A live-only client must fetch any required
 current state through ConnectRPC.
 
-### 4. Snapshots use resource chunks
+### 4. ConnectRPC reads and events close one state interval
 
-**Decision:** Snapshot frames contain authorized current resources. The
-subscription acknowledgement tells the client to replace local state, resource
-chunks carry the snapshot, and `caught_up` marks its complete boundary.
-Each chunk reuses the public resource or response protobuf from ConnectRPC.
-Snapshots do not contain synthetic domain events. Normal event frames contain
-only the canonical event and optional cursor.
-**Why:** Resource chunks let the frontend bootstrap incrementally without
-turning current state into fake history or exposing frontend cache operations.
-**Tradeoff:** Snapshot clients need a separate reducer for current-state chunks
-and must use ConnectRPC for timelines and other large or lazy reads.
+**Decision:** The server gives a resource client an opaque boundary `E`. The
+client clears its retained state and reads the required canonical resources
+through ConnectRPC with `E` as the minimum cursor. The client then requests
+catch-up. The server sends events after `E` through `F`, then sends
+`caught_up(F)`. Each serving replica waits until its local projections include
+`E` before it answers a bounded read.
+**Why:** This closes races between replicas without putting resource shapes in
+the WebSocket protocol. Each resource has one public API and one compatibility
+contract.
+**Tradeoff:** The server must validate cursor-bound read headers and hold a
+bounded subscriber queue while the client reads resources.
+
+Clients must give cursor-bounded reads finite deadlines. A projection that
+cannot reach the requested cursor must cause reconnect or safe fallback. It
+must not stop the client at one boundary for an unlimited time.
+
+The bundled frontend does not read the complete user directory. It reads the
+viewer, rooms, room groups, notification page, active calls, and server state.
+It uses bounded user batch reads only for users referenced by direct messages
+or later events. It also reloads each mounted room or thread timeline at the
+same boundary. Unmounted timelines remain lazy.
 
 ### 5. Durable and transient activity have different recovery
 
 **Decision:** Public durable events can resume from EVT. Transient activity is
-live-only, and current latest-value values are reconciled through snapshots.
+live-only, and current latest-value values are reconciled through resource
+reads.
 **Why:** Typing and presence transitions have no useful historical meaning.
 Durable domain changes need ordering and short-gap recovery.
 **Tradeoff:** A reconnect does not recreate transient presentation effects.

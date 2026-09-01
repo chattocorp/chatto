@@ -10,7 +10,7 @@ Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf fra
 
 
 
-Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, projection reducer, room hydration, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.
+Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, cursor-bounded resource reads, event processing, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.
 
 
 
@@ -22,14 +22,24 @@ This page is the field-level reference. Realtime frames are documented separatel
 
 
 
+<a id="chatto-realtime-v1-RealtimeCatchUp"></a>
+
+### RealtimeCatchUp
+
+Requests delivery through a stable current event boundary.
+
+A client in `RESOURCE_READS` recovery sends this frame after its required
+ConnectRPC reads succeed. Those reads use `start_cursor` as their minimum
+consistency cursor. A live-only or resume client can send it immediately.
+
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
 ### RealtimeCaughtUp
 
 Confirms that recovery is complete and live delivery has begun.
 
-Clients can retain `cursor` after they apply every preceding event and
-resource chunk. Transient events are never replayed.
+Clients can retain `cursor` after they apply every preceding event.
+Transient events are never replayed.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -50,6 +60,7 @@ be `hello`. After the server replies with `hello`, clients send
 | `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
 | `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized canonical event stream. |
 | `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
+| `frame.catch_up` | [`RealtimeCatchUp`](#chatto-realtime-v1-RealtimeCatchUp) | Confirms that the client finished its required current-resource reads. |
 
 <a id="chatto-realtime-v1-RealtimeClientHello"></a>
 
@@ -152,7 +163,6 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 | `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
 | `frame.pong` | [`RealtimePong`](#chatto-realtime-v1-RealtimePong) | Reply to a client ping. |
 | `frame.caught_up` | [`RealtimeCaughtUp`](#chatto-realtime-v1-RealtimeCaughtUp) | Confirms that recovery reached the live-stream boundary. |
-| `frame.snapshot` | `chatto.api.v1.ServerSnapshotChunk` | One authorized resource family during snapshot or reconciliation. |
 
 <a id="chatto-realtime-v1-RealtimeServerHello"></a>
 
@@ -198,13 +208,13 @@ Confirms that event streaming has started.
 
 ### RealtimeInitialState
 
-Current-state behavior when a subscription cannot resume from its cursor.
+Startup behavior when a subscription cannot resume from its cursor.
 
 | Name | Number | Description |
 | --- | --- | --- |
 | `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
 | `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
-| `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an authorized current-state snapshot before live delivery. |
+| `REALTIME_INITIAL_STATE_RESOURCE_READS` | `2` | Let the client read current resources through ConnectRPC before catch-up. |
 
 <a id="chatto-realtime-v1-RealtimeRecoveryMode"></a>
 
@@ -215,6 +225,6 @@ Recovery path selected for one subscription.
 | Name | Number | Description |
 | --- | --- | --- |
 | `REALTIME_RECOVERY_MODE_UNSPECIFIED` | `0` | Invalid value. |
-| `REALTIME_RECOVERY_MODE_LIVE_ONLY` | `1` | Delivery starts at the current boundary without a snapshot or history. |
-| `REALTIME_RECOVERY_MODE_SNAPSHOT` | `2` | Resource chunks replace the client's local snapshot. |
-| `REALTIME_RECOVERY_MODE_RESUME` | `3` | Current resource chunks precede durable events after the supplied cursor. |
+| `REALTIME_RECOVERY_MODE_LIVE_ONLY` | `1` | Delivery starts at the current boundary without current resources or history. |
+| `REALTIME_RECOVERY_MODE_RESOURCE_READS` | `2` | The client must replace its local state through ConnectRPC resource reads. |
+| `REALTIME_RECOVERY_MODE_RESUME` | `3` | Durable events resume after the supplied cursor. |

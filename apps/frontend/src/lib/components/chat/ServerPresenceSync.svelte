@@ -13,19 +13,27 @@
     presenceCache.update({ serverId: serverScope.serverId, userId }, status);
   });
 
-  // User snapshot resources include each visible user's current presence.
+  // Cursor-bounded user reads include current presence for each returned user.
   useProjectionEvent((event) => {
-    if (event.snapshot?.resource.case !== 'users') return;
-    presenceCache.replaceServer(
-      serverScope.serverId,
-      new Map(
-        event.snapshot.resource.value.users.flatMap((member) =>
-          member.user?.id && member.user.presenceStatus !== undefined
-            ? [[member.user.id, member.user.presenceStatus] as const]
-            : []
-        )
+    if (event.reset) {
+      presenceCache.replaceServer(serverScope.serverId, new Map());
+      return;
+    }
+    if (event.resource?.case !== 'users') return;
+    const statuses = new Map(
+      event.resource.value.users.flatMap((member) =>
+        member.user?.id && member.user.presenceStatus !== undefined
+          ? [[member.user.id, member.user.presenceStatus] as const]
+          : []
       )
     );
+    if (event.replaceResource) {
+      presenceCache.replaceServer(serverScope.serverId, statuses);
+      return;
+    }
+    for (const [userId, status] of statuses) {
+      presenceCache.update({ serverId: serverScope.serverId, userId }, status);
+    }
   });
 </script>
 

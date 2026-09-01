@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import { ServerSnapshotChunk } from '@chatto/api-types/api/v1/server_snapshot_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
@@ -8,13 +8,13 @@ import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events
 import { ServerProjectionStore } from './projection.svelte';
 
 describe('ServerProjectionStore', () => {
-  it('applies canonical room response snapshots as complete replacements', () => {
+  it('applies canonical room responses as complete replacements', () => {
     const store = new ServerProjectionStore();
     store.rooms.set('removed', new RoomWithViewerState({ room: new Room({ id: 'removed' }) }));
 
     store.apply(
       new RealtimeProjectionUpdate({
-        snapshot: new ServerSnapshotChunk({
+        resource: new RealtimeResourceUpdate({
           resource: {
             case: 'rooms',
             value: new ListRoomsResponse({

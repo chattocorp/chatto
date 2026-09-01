@@ -105,8 +105,8 @@
     useProjectionEvent(
       (event) => {
         if (event.reset) rootProfileCache.clear();
-        if (event.snapshot?.resource.case === 'users') {
-          for (const entry of event.snapshot.resource.value.users) {
+        if (event.resource?.case === 'users') {
+          for (const entry of event.resource.value.users) {
             const member = mapDirectoryMember(entry);
             if (!member.id) continue;
             rootProfileCache.update(
@@ -118,17 +118,17 @@
               { bio: member.bio ?? null, timezone: member.timezone ?? null }
             );
           }
-        } else if (event.snapshot?.resource.case === 'viewer') {
-            const viewer = viewerResponseToState(event.snapshot.resource.value);
-            session.currentUser.user = viewer.user;
-            rootProfileCache.update(
-              viewer.user.id,
-              viewer.user.displayName,
-              viewer.user.avatarUrl ?? null,
-              viewer.user.login,
-              viewer.user.customStatus ?? null,
-              { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
-            );
+        } else if (event.resource?.case === 'viewer') {
+          const viewer = viewerResponseToState(event.resource.value);
+          session.currentUser.user = viewer.user;
+          rootProfileCache.update(
+            viewer.user.id,
+            viewer.user.displayName,
+            viewer.user.avatarUrl ?? null,
+            viewer.user.login,
+            viewer.user.customStatus ?? null,
+            { bio: viewer.user.bio ?? null, timezone: viewer.user.publicTimezone ?? null }
+          );
         }
         const semantic = event.event?.event;
         if (
