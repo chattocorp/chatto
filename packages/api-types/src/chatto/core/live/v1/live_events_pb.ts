@@ -848,9 +848,10 @@ export class MentionStatusClearedEvent extends Message<MentionStatusClearedEvent
 }
 
 /**
- * Notifies clients that the channel-room groups (their ordering, names,
- * or membership) were updated. Clients should refetch `Server.roomGroups`.
- * Published as a live server event (not stored in JetStream).
+ * RoomGroupsUpdatedEvent is a projection-derived invalidation after a durable
+ * room-group or layout fact. It is published as a transient server event and
+ * is not stored in EVT. Resource clients can read the current room-group
+ * collection through RoomDirectoryService.ListRoomGroups.
  *
  * @generated from message chatto.core.live.v1.RoomGroupsUpdatedEvent
  */

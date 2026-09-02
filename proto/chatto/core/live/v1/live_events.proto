@@ -218,12 +218,13 @@ message MentionStatusClearedEvent {
 }
 
 // ============================================================================
-// ROOM LAYOUT EVENTS (server-scoped — KV bucket is source of truth)
+// ROOM LAYOUT INVALIDATION (server-scoped)
 // ============================================================================
 
-// Notifies clients that the channel-room groups (their ordering, names,
-// or membership) were updated. Clients should refetch `Server.roomGroups`.
-// Published as a live server event (not stored in JetStream).
+// RoomGroupsUpdatedEvent is a projection-derived invalidation after a durable
+// room-group or layout fact. It is published as a transient server event and
+// is not stored in EVT. Resource clients can read the current room-group
+// collection through RoomDirectoryService.ListRoomGroups.
 message RoomGroupsUpdatedEvent {
   reserved 1;
   reserved "space_id";
