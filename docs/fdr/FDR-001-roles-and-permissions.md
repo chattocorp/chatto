@@ -123,7 +123,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — configure role definitions and the permissions attached to them.
 - `role.assign` — assign or revoke roles, bounded for non-owners by the target role's explicit scoped permission decisions.
-- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
+- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, clear login cooldowns, and bypass the holder's own login cooldown.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.read` — read message content and message-specific metadata in
