@@ -95,10 +95,10 @@ func componentIncrementReducer(model *componentTestModel, failOn int) EventReduc
 	})
 }
 
-func TestComponentProjectionPreparationFailureIsAtomic(t *testing.T) {
+func TestComponentizedProjectionPreparationFailureIsAtomic(t *testing.T) {
 	first := &componentTestModel{}
 	second := &componentTestModel{}
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"},
 		"cohort-v1",
 		NewProjectionComponent("first", first, componentIncrementReducer(first, -1)),
@@ -125,10 +125,10 @@ func TestComponentProjectionPreparationFailureIsAtomic(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionRoutesEventsByComponentSubject(t *testing.T) {
+func TestComponentizedProjectionRoutesEventsByComponentSubject(t *testing.T) {
 	rooms := &componentTestModel{subject: "evt.room.>"}
 	users := &componentTestModel{subject: "evt.user.>"}
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("rooms", rooms, componentIncrementReducer(rooms, -1)),
 		NewProjectionComponent("users", users, componentIncrementReducer(users, -1)),
@@ -143,12 +143,12 @@ func TestComponentProjectionRoutesEventsByComponentSubject(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionCommitAndReadShareBarrier(t *testing.T) {
+func TestComponentizedProjectionCommitAndReadShareBarrier(t *testing.T) {
 	first := &componentTestModel{}
 	second := &componentTestModel{}
 	prepared := make(chan struct{})
 	release := make(chan struct{})
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("first", first, EventReducerFunc[int](func(event int, _ uint64) (PreparedMutation, error) {
 			return PreparedMutationFunc(func() {
@@ -200,10 +200,10 @@ func TestComponentProjectionCommitAndReadShareBarrier(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionRestoreRollsBackCompleteView(t *testing.T) {
+func TestComponentizedProjectionRestoreRollsBackCompleteView(t *testing.T) {
 	first := &componentTestModel{value: 1}
 	second := &componentTestModel{value: 2, restoreFail: true}
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("first", first, componentIncrementReducer(first, -1)),
 		NewProjectionComponent("second", second, componentIncrementReducer(second, -1)),
@@ -220,10 +220,10 @@ func TestComponentProjectionRestoreRollsBackCompleteView(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionSnapshotCaptureUsesOneBarrier(t *testing.T) {
+func TestComponentizedProjectionSnapshotCaptureUsesOneBarrier(t *testing.T) {
 	first := &componentTestModel{value: 4}
 	second := &componentTestModel{value: 5}
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("first", first, componentIncrementReducer(first, -1)),
 		NewProjectionComponent("second", second, componentIncrementReducer(second, -1)),
@@ -238,7 +238,7 @@ func TestComponentProjectionSnapshotCaptureUsesOneBarrier(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionRestoreUsesReadBarrier(t *testing.T) {
+func TestComponentizedProjectionRestoreUsesReadBarrier(t *testing.T) {
 	connection := startTestNATS(t)
 	js, err := jetstream.New(connection)
 	if err != nil {
@@ -254,7 +254,7 @@ func TestComponentProjectionRestoreUsesReadBarrier(t *testing.T) {
 	model := &blockingRestoreComponentModel{
 		componentTestModel: base, started: make(chan struct{}), release: make(chan struct{}),
 	}
-	projection := NewComponentProjection(
+	projection := NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("state", model, componentIncrementReducer(base, -1)),
 	)
@@ -270,7 +270,7 @@ func TestComponentProjectionRestoreUsesReadBarrier(t *testing.T) {
 			Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("9")}},
 		}},
 	}}
-	if err := projector.ConfigureComponentSnapshots("component", source, func(*jetstream.StreamInfo) (string, error) {
+	if err := projector.ConfigureSnapshotCohorts("component", source, func(*jetstream.StreamInfo) (string, error) {
 		return "stream", nil
 	}); err != nil {
 		t.Fatal(err)
@@ -300,15 +300,15 @@ func TestComponentProjectionRestoreUsesReadBarrier(t *testing.T) {
 	}
 }
 
-func TestComponentProjectionRejectsDuplicateComponentKeys(t *testing.T) {
+func TestComponentizedProjectionRejectsDuplicateComponentKeys(t *testing.T) {
 	model := &componentTestModel{}
 	other := &componentTestModel{}
 	defer func() {
 		if recover() == nil {
-			t.Fatal("NewComponentProjection accepted duplicate component keys")
+			t.Fatal("NewComponentizedProjection accepted duplicate component keys")
 		}
 	}()
-	NewComponentProjection(
+	NewComponentizedProjection(
 		[]string{"evt.>"}, "cohort-v1",
 		NewProjectionComponent("same", model, componentIncrementReducer(model, -1)),
 		NewProjectionComponent("same", other, componentIncrementReducer(other, -1)),

@@ -17,10 +17,11 @@ import (
 const serverContentViewSnapshotSemantics = "v1"
 
 // ServerContentView is the sequence-consistent process-local view of
-// client-readable EVT state. Focused models keep their own read APIs, but this
-// view owns their ordered apply, readiness, failure, and snapshot lifecycle.
+// client-readable EVT state. Focused models keep their own read APIs. The
+// bound projector owns their ordered apply, readiness, failure, and snapshot
+// lifecycle.
 type ServerContentView struct {
-	components *events.ComponentProjection[*evtv1.Event]
+	components *events.ComponentizedProjection[*evtv1.Event]
 	projector  *events.Projector
 }
 
@@ -35,7 +36,7 @@ func newServerContentView(components ...serverContentComponent) *ServerContentVi
 	}
 	sum := sha256.Sum256([]byte(contract.String()))
 	contractID := serverContentViewSnapshotSemantics + "-" + hex.EncodeToString(sum[:8])
-	return &ServerContentView{components: events.NewComponentProjection(
+	return &ServerContentView{components: events.NewComponentizedProjection(
 		[]string{"evt.>"}, contractID, registrations...,
 	)}
 }

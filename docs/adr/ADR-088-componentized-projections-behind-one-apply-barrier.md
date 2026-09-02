@@ -29,36 +29,40 @@ retention or time-based storage.
 Separate three projection responsibilities in the Loom framework:
 
 1. A **projector** owns event-log consumption, decoding, replay, readiness,
-   failure, waits, and process lifecycle.
-2. A **projection coordinator** owns one ordered apply barrier and the exact
+   failure, waits, process lifecycle, one ordered apply barrier, and the exact
    event-log sequence represented behind that barrier.
+2. A **componentized projection** combines related projection components. It
+   routes events, prepares one complete mutation, and exposes their snapshot
+   state as one projection.
 3. **Projection components** own focused reducers, read models, and optional
-   persistence codecs.
+   persistence codecs. They do not own independent consumers or sequence
+   frontiers while they are part of a componentized projection.
 
-These are architectural roles. The implementation can select concise Go API
-names that preserve these boundaries.
+The exported framework API uses these terms. Application-specific code can
+give a componentized projection a domain name, such as `ServerContentView`.
 
 ### Ordered application
 
-One projector delivers each decoded event to one projection coordinator. The
-coordinator prepares and commits the event while it holds the exclusive apply
-barrier.
+One projector delivers each decoded event to one componentized projection.
+The projector holds its exclusive apply barrier while the componentized
+projection prepares and commits the event.
 
 Each applicable component first prepares an immutable mutation. Preparation
 can validate input, decrypt data, clone retained messages, and calculate
 changes. It must not change live component state. If any preparation fails,
-the coordinator discards all prepared mutations, leaves component state and
-the applied sequence unchanged, and marks the projector as failed.
+the projector discards all prepared mutations, leaves component state and the
+applied sequence unchanged, and marks itself as failed.
 
-After every applicable component prepares successfully, the coordinator
-commits the prepared mutations in a fixed order. Commit must not return an
-error, perform external I/O, or call an external outcome. The coordinator then
-advances its applied sequence before it releases the barrier. State changes
-and the sequence are therefore one atomic change for projection readers.
+After every applicable component prepares successfully, the projector commits
+the prepared mutations in a fixed order. Commit must not return an error,
+perform external I/O, or call an external outcome. The projector then advances
+its applied sequence before it releases the barrier. State changes and the
+sequence are therefore one atomic change for projection readers.
 
-An event that does not change a component still advances the coordinator after
-preparation completes. The sequence then means that the coordinator has
-examined every retained source-log record through that position.
+An event that does not change a component still advances the projector after
+preparation completes. The sequence then means that the componentized
+projection has examined every retained source-log record through that
+position.
 
 A component must reduce events deterministically and can update only state
 owned by the materialization. A component whose reduction cannot fail can use
@@ -71,8 +75,9 @@ aggregate OCC.
 
 ### Consistent capture
 
-The coordinator supplies one capture operation. The operation obtains
-canonical component payloads and the applied sequence under the same barrier.
+The projector supplies one capture operation. The operation obtains canonical
+component payloads from the componentized projection and the applied sequence
+under the same barrier.
 The initial component codecs serialize their state during this operation.
 Compression, encryption, and storage I/O occur after the barrier is released.
 A later codec can add a detached capture handle when large-component copy time
@@ -82,10 +87,10 @@ A capture therefore represents all included components at exactly one source
 sequence. A caller must not claim this contract after it reads live component
 getters separately.
 
-### Component snapshot cohorts
+### Projection snapshot cohorts
 
-A coordinator can opt in to a component snapshot cohort. Each persistent
-component declares:
+A componentized projection can opt in to a projection snapshot cohort. Each
+persistent component declares:
 
 - a stable component key;
 - an opaque component contract ID;
@@ -93,7 +98,7 @@ component declares:
 - one or more stable part keys when its state needs bounded storage parts.
 
 One authenticated and encrypted cohort manifest binds the source-log name and
-incarnation, the shared cutoff, the projection-coordinator contract, and the
+incarnation, the shared cutoff, the componentized-projection contract, and the
 required component keys, contract IDs, part keys, checksums, sizes, and
 immutable object references. Component parts are stored independently. Every
 manifest and component object must use authenticated encryption. The
@@ -105,10 +110,11 @@ semantics token with the reachable protobuf schema fingerprint from ADR-050.
 A protobuf package or full-name change therefore selects a new component
 contract as described by ADR-084.
 
-The coordinator configuration defines the exact required component set. Each
-component contract defines its maximum part count and maximum encoded,
-compressed, encrypted, and decompressed size. The coordinator calculates the
-cumulative cohort limits from those registered maxima with checked arithmetic.
+The componentized projection configuration defines the exact required
+component set. Each component contract defines its maximum part count and
+maximum encoded, compressed, encrypted, and decompressed size. The repository
+calculates the cumulative cohort limits from those registered maxima with
+checked arithmetic.
 A loader rejects extra components, missing components, extra parts, and sizes
 outside these limits before it allocates or downloads component state. It
 loads and validates bounded parts one at a time instead of retaining every
@@ -118,7 +124,7 @@ Chatto initially permits one part for each `ServerContentView` component and
 keeps ADR-050's current payload, encrypted-object, and decompression limits for
 that part. A later message-history decision can give the timeline component a
 larger bounded part count and more specific part-key rules without changing
-the coordinator contract.
+the componentized-projection contract.
 
 Restore accepts only one complete cohort. It validates every required
 component before it installs a new component graph under the apply barrier. A
@@ -147,9 +153,10 @@ Applications still own encryption, key management, storage selection,
 publication, cleanup, size limits, and privacy approval. A process lease can
 reduce duplicate publication work, but it is not a correctness boundary.
 
-A component that is not safe to persist cannot join a coordinator that starts
-after a restored cohort cutoff. The application must keep that component in a
-separate cold-replayed projection or define a later selective-replay design.
+A component that is not safe to persist cannot join a componentized projection
+whose projector starts after a restored cohort cutoff. The application must
+keep that component in a separate cold-replayed projection or define a later
+selective-replay design.
 
 ### Framework compatibility
 
@@ -180,9 +187,10 @@ privacy, and application-boundary rules remain in effect.
 - Persistence can split large materializations into bounded component parts
   without losing the shared cutoff.
 - One component contract change rejects the current cohort and causes a cold
-  replay of the complete coordinator. The first design favors a simple exact
-  sequence over partial restore.
-- One slow or failed component delays or fails the complete coordinator.
+  replay of the complete componentized projection. The first design favors a
+  simple exact sequence over partial restore.
+- One slow or failed component delays or fails the complete componentized
+  projection.
   Purpose-specific and security-sensitive materializations should remain
   independent when they need failure isolation.
 - Shared repositories retain revision OCC, cutoff non-regression,

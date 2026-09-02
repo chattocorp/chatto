@@ -330,7 +330,7 @@ func configureProjectionSnapshots(
 		componentized := registration.key == projectionsnapshot.ProjectionServerContentViewKey
 		if componentized {
 			source := projectionSnapshotCohortSource{repository: infra.snapshotRepository}
-			if err := registration.projector.ConfigureComponentSnapshots(
+			if err := registration.projector.ConfigureSnapshotCohorts(
 				registration.key, source, registration.identityResolver,
 			); err != nil {
 				return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)

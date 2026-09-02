@@ -203,7 +203,7 @@ complete content view. Chatto does not combine restored and replayed content
 components. Credential-bearing user state is owned by `UserAuthProjection` and
 cold-replays from focused user event families.
 
-The projector framework atomically captures a component snapshot cohort and
+The projector framework atomically captures a projection snapshot cohort and
 its applied EVT sequence. Each component serializes its own explicit protobuf
 state as one independent encrypted object. One encrypted manifest binds the
 required component keys, contracts, object references, EVT stream identity,
@@ -267,7 +267,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
-| Server Content View | `v1` coordinator contract plus component contracts | `PROJECTION_SNAPSHOTS` or configured S3; one manifest and one object for each initial component | One encrypted `server_content_view` pointer in `RUNTIME_STATE` with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
+| Server Content View | `v1` componentized-projection contract plus component contracts | `PROJECTION_SNAPSHOTS` or configured S3; one manifest and one object for each initial component | One encrypted `server_content_view` pointer in `RUNTIME_STATE` with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Notification Decisions | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Notifications | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Binds snapshots to the independent `NOTIFICATIONS` stream identity and sequence |
 
@@ -289,9 +289,9 @@ read models, but only their parent projector is started by `ChattoCore.Run`.
 Independent projectors isolate snapshot availability, replay cost, status,
 lag, failure, and read-your-writes waiters for state outside the content view.
 `ServerContentView.Subjects()` declares `evt.>` as its readiness contract.
-Each component has a focused subject declaration. The coordinator sends an EVT
-record only to matching components, then advances the shared sequence after
-all matching component mutations commit.
+Each component has a focused subject declaration. The componentized projection
+prepares an EVT record only for matching components. The projector advances
+the shared sequence after all matching component mutations commit.
 
 Permission resolution and permission explanation run inside one
 `ServerContentView` read transaction. Account state, bot ownership, room

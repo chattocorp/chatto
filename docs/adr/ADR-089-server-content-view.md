@@ -31,14 +31,15 @@ lifecycle contracts.
 
 ## Decision
 
-Create one process-local projection coordinator named `ServerContentView`.
+Create one process-local componentized projection named `ServerContentView`.
 It is Chatto's coherent view of client-readable content derived from the
-primary `EVT` stream.
+primary `EVT` stream. One projector owns its consumer, apply barrier,
+readiness, failure state, and applied EVT sequence.
 
 `ServerContentView` uses the componentized projection capability from ADR-088.
-It owns one ordered `evt.>` consumer, one apply barrier, one readiness state,
-and one applied global EVT sequence. Focused component models remain separate
-behind that barrier.
+Its projector owns one ordered `evt.>` consumer, one apply barrier, one
+readiness state, and one applied global EVT sequence. Focused component models
+remain separate behind that barrier.
 
 ### Included components
 
@@ -148,7 +149,7 @@ original intent as required by ADR-087.
 
 ### Persistence
 
-Portable persistence stores `ServerContentView` as one component snapshot
+Portable persistence stores `ServerContentView` as one projection snapshot
 cohort. Each included component has its own key, contract ID, and one or more
 bounded parts, but all parts share one EVT cutoff and stream incarnation.
 

@@ -45,7 +45,7 @@ type CohortComponentContract struct {
 	MaxParts   int
 }
 
-// SaveCohortInput describes one complete component snapshot generation.
+// SaveCohortInput describes one complete projection snapshot cohort.
 type SaveCohortInput struct {
 	ProjectionKey  string
 	ContractID     string
@@ -57,7 +57,7 @@ type SaveCohortInput struct {
 	ClockSkew      time.Duration
 }
 
-// LoadedCohort is one complete compatible component snapshot generation.
+// LoadedCohort is one complete compatible projection snapshot cohort.
 type LoadedCohort struct {
 	GenerationID    string
 	CutoffSequence  uint64

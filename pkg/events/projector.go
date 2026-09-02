@@ -579,7 +579,7 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 		return fmt.Errorf("projection %q already uses a local checkpoint", key)
 	}
 	if p.snapshotCohortSource != nil {
-		return fmt.Errorf("projection %q already uses component snapshots", key)
+		return fmt.Errorf("projection %q already uses snapshot cohorts", key)
 	}
 	p.snapshotKey = key
 	p.snapshotContractID = contractID
@@ -590,16 +590,16 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	return nil
 }
 
-// ConfigureComponentSnapshots enables best-effort bootstrap restore for a
+// ConfigureSnapshotCohorts enables best-effort bootstrap restore for a
 // componentized projection. The source must return one complete cohort whose
 // parts share the requested event-log cutoff. A load or restore failure falls
 // back to a complete cold replay.
-func (p *Projector) ConfigureComponentSnapshots(key string, source ProjectionSnapshotCohortSource, resolveStreamIdentity StreamIdentityResolver) error {
+func (p *Projector) ConfigureSnapshotCohorts(key string, source ProjectionSnapshotCohortSource, resolveStreamIdentity StreamIdentityResolver) error {
 	if key == "" {
 		return fmt.Errorf("projection snapshot key is required")
 	}
 	if source == nil {
-		return fmt.Errorf("projection component snapshot source is nil")
+		return fmt.Errorf("projection snapshot cohort source is nil")
 	}
 	if resolveStreamIdentity == nil {
 		return fmt.Errorf("projection snapshot stream identity resolver is required")
@@ -608,13 +608,13 @@ func (p *Projector) ConfigureComponentSnapshots(key string, source ProjectionSna
 	if err != nil {
 		return fmt.Errorf("resolve projection snapshot stream identity: %w", err)
 	}
-	projection, ok := p.proj.(componentSnapshotProjectionState)
+	projection, ok := p.proj.(snapshotCohortProjectionState)
 	if !ok {
-		return fmt.Errorf("projection %q does not declare component snapshots", key)
+		return fmt.Errorf("projection %q does not declare snapshot cohorts", key)
 	}
 	contractID := projection.SnapshotCohortContractID()
 	if contractID == "" {
-		return fmt.Errorf("projection %q does not declare a component snapshot contract", key)
+		return fmt.Errorf("projection %q does not declare a snapshot cohort contract", key)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -667,10 +667,10 @@ func (p *Projector) CaptureSnapshotCohort(ctx context.Context) (ProjectionSnapsh
 	var components []ProjectionSnapshotComponent
 	var seq uint64
 	p.applyMu.Lock()
-	projection, ok := p.proj.(componentSnapshotProjectionState)
+	projection, ok := p.proj.(snapshotCohortProjectionState)
 	if !ok {
 		p.applyMu.Unlock()
-		return ProjectionSnapshotCohort{}, fmt.Errorf("projection does not support component snapshots")
+		return ProjectionSnapshotCohort{}, fmt.Errorf("projection does not support snapshot cohorts")
 	}
 	var err error
 	components, err = projection.SnapshotComponents()
@@ -1501,7 +1501,7 @@ func (p *Projector) setStartupTarget(seq uint64) {
 
 func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	coldRestore := func() error {
-		if projection, ok := p.proj.(componentSnapshotProjectionState); ok {
+		if projection, ok := p.proj.(snapshotCohortProjectionState); ok {
 			if err := projection.ResetComponents(); err != nil {
 				return fmt.Errorf("restore empty projection components: %w", err)
 			}
@@ -1531,7 +1531,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		return p.restoreCheckpointForRun(ctx, targetSeq)
 	}
 	if cohortSource != nil {
-		return p.restoreComponentSnapshotForRun(ctx, targetSeq, coldRestore)
+		return p.restoreSnapshotCohortForRun(ctx, targetSeq, coldRestore)
 	}
 	if source == nil {
 		return coldRestore()
@@ -1642,10 +1642,10 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	return nil
 }
 
-func (p *Projector) restoreComponentSnapshotForRun(ctx context.Context, targetSeq uint64, coldRestore func() error) error {
-	projection, ok := p.proj.(componentSnapshotProjectionState)
+func (p *Projector) restoreSnapshotCohortForRun(ctx context.Context, targetSeq uint64, coldRestore func() error) error {
+	projection, ok := p.proj.(snapshotCohortProjectionState)
 	if !ok {
-		return fmt.Errorf("projection does not support component snapshots")
+		return fmt.Errorf("projection does not support snapshot cohorts")
 	}
 	p.mu.Lock()
 	source := p.snapshotCohortSource
@@ -1687,33 +1687,33 @@ func (p *Projector) restoreComponentSnapshotForRun(ctx context.Context, targetSe
 		Components: projection.SnapshotComponentContracts(),
 	})
 	if err != nil {
-		p.logger.Info("Projection component snapshot unavailable; replaying event log",
+		p.logger.Info("Projection snapshot cohort unavailable; replaying event log",
 			"projection", key, "stage", "restore", "error", err)
 		return coldRestore()
 	}
 	if cohort.ContractID != contractID || cohort.StreamName != info.Config.Name || cohort.StreamIdentity != streamIdentity {
-		p.logger.Warn("Projection component snapshot binding rejected; replaying event log",
+		p.logger.Warn("Projection snapshot cohort binding rejected; replaying event log",
 			"projection", key, "stage", "restore_validate", "generation_id", cohort.GenerationID)
 		return coldRestore()
 	}
 	currentIdentity, err := p.resolveCurrentStreamIdentity(loadCtx, resolveStreamIdentity)
 	if err != nil {
-		return fmt.Errorf("recheck projection component snapshot stream identity: %w", err)
+		return fmt.Errorf("recheck projection snapshot cohort stream identity: %w", err)
 	}
 	if currentIdentity != streamIdentity {
-		return fmt.Errorf("projection component snapshot stream identity changed while loading")
+		return fmt.Errorf("projection snapshot cohort stream identity changed while loading")
 	}
 	if cohort.CutoffSequence > targetSeq {
-		p.logger.Warn("Projection component snapshot cutoff rejected; replaying event log",
+		p.logger.Warn("Projection snapshot cohort cutoff rejected; replaying event log",
 			"projection", key, "stage", "restore_validate", "generation_id", cohort.GenerationID,
 			"cutoff_seq", cohort.CutoffSequence, "target_seq", targetSeq)
 		return coldRestore()
 	}
 	if err := projection.RestoreComponents(cohort.Components); err != nil {
-		p.logger.Warn("Projection component snapshot restore failed; replaying event log",
+		p.logger.Warn("Projection snapshot cohort restore failed; replaying event log",
 			"projection", key, "stage", "restore_apply", "generation_id", cohort.GenerationID, "error", err)
 		if resetErr := coldRestore(); resetErr != nil {
-			return errors.Join(fmt.Errorf("restore projection component snapshot: %w", err), resetErr)
+			return errors.Join(fmt.Errorf("restore projection snapshot cohort: %w", err), resetErr)
 		}
 		return nil
 	}
@@ -1725,7 +1725,7 @@ func (p *Projector) restoreComponentSnapshotForRun(ctx context.Context, targetSe
 	p.latestSnapshotAt = cohort.CreatedAt
 	p.mu.Unlock()
 	p.advance(cohort.CutoffSequence)
-	p.logger.Info("Projection component snapshot restored",
+	p.logger.Info("Projection snapshot cohort restored",
 		"projection", key, "stage", "restore_apply", "generation_id", cohort.GenerationID,
 		"cutoff_seq", cohort.CutoffSequence, "target_seq", targetSeq, "components", len(cohort.Components))
 	return nil

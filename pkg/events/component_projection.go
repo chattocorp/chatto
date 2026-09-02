@@ -88,7 +88,7 @@ type ProjectionSnapshotCohort struct {
 }
 
 // ProjectionSnapshotCohortLoadRequest contains the repository constraints for
-// one component snapshot cohort.
+// one projection snapshot cohort.
 type ProjectionSnapshotCohortLoadRequest struct {
 	ProjectionKey  string
 	ContractID     string
@@ -98,13 +98,13 @@ type ProjectionSnapshotCohortLoadRequest struct {
 	Components     []ProjectionSnapshotComponentContract
 }
 
-// ProjectionSnapshotCohortSource loads one complete component cohort. It must
-// not return a partial generation.
+// ProjectionSnapshotCohortSource loads one complete projection snapshot
+// cohort. It must not return a partial generation.
 type ProjectionSnapshotCohortSource interface {
 	LoadProjectionSnapshotCohort(context.Context, ProjectionSnapshotCohortLoadRequest) (ProjectionSnapshotCohort, error)
 }
 
-type componentSnapshotProjectionState interface {
+type snapshotCohortProjectionState interface {
 	SnapshotComponents() ([]ProjectionSnapshotComponent, error)
 	RestoreComponents([]ProjectionSnapshotComponent) error
 	ResetComponents() error
@@ -114,7 +114,8 @@ type componentSnapshotProjectionState interface {
 
 // SnapshotComponentModel is a focused projection model with an independent
 // snapshot contract. Its Subjects declaration remains available to focused
-// application diagnostics even when one ComponentProjection owns replay.
+// application diagnostics even when one Projector owns replay for the
+// componentized projection.
 type SnapshotComponentModel interface {
 	SubjectProjection
 	Snapshot() ([]byte, error)
@@ -123,8 +124,9 @@ type SnapshotComponentModel interface {
 }
 
 // ProjectionComponent binds one focused reducer/model to its stable snapshot
-// key. The model remains directly available to application read code, but the
-// ComponentProjection owns its ordered mutation and restore lifecycle.
+// key. The model remains directly available to application read code. The
+// componentized projection includes it in one combined mutation and snapshot
+// shape, while the Projector owns the ordered lifecycle.
 type ProjectionComponent[E any] struct {
 	key     string
 	model   SnapshotComponentModel
@@ -154,27 +156,27 @@ func NewProjectionComponent[E any](key string, model SnapshotComponentModel, red
 	}
 }
 
-// ComponentProjection coordinates focused reducers and snapshot models behind
-// one ordered apply barrier owned by Projector.
-type ComponentProjection[E any] struct {
+// ComponentizedProjection combines focused reducers and snapshot models into
+// one projection. Its Projector owns the ordered apply barrier and sequence.
+type ComponentizedProjection[E any] struct {
 	subjects   []string
 	components []ProjectionComponent[E]
 	contractID string
 }
 
-// NewComponentProjection constructs one componentized projection. contractID
-// is the restore-equivalence contract for the registered component set and
-// ordering. Subjects is the logical wait and replay contract for the complete
-// view.
-func NewComponentProjection[E any](subjects []string, contractID string, components ...ProjectionComponent[E]) *ComponentProjection[E] {
+// NewComponentizedProjection constructs one componentized projection.
+// contractID is the restore-equivalence contract for the registered component
+// set and ordering. Subjects is the logical wait and replay contract for the
+// complete view.
+func NewComponentizedProjection[E any](subjects []string, contractID string, components ...ProjectionComponent[E]) *ComponentizedProjection[E] {
 	if len(subjects) == 0 {
-		panic("events: component projection requires subjects")
+		panic("events: componentized projection requires subjects")
 	}
 	if contractID == "" {
-		panic("events: component projection contract is required")
+		panic("events: componentized projection contract is required")
 	}
 	if len(components) == 0 {
-		panic("events: component projection requires components")
+		panic("events: componentized projection requires components")
 	}
 	seen := make(map[string]struct{}, len(components))
 	for _, component := range components {
@@ -183,7 +185,7 @@ func NewComponentProjection[E any](subjects []string, contractID string, compone
 		}
 		seen[component.key] = struct{}{}
 	}
-	return &ComponentProjection[E]{
+	return &ComponentizedProjection[E]{
 		subjects:   slices.Clone(subjects),
 		components: slices.Clone(components),
 		contractID: contractID,
@@ -191,24 +193,24 @@ func NewComponentProjection[E any](subjects []string, contractID string, compone
 }
 
 // Subjects returns the complete projection's logical subject filters.
-func (p *ComponentProjection[E]) Subjects() []string {
+func (p *ComponentizedProjection[E]) Subjects() []string {
 	return slices.Clone(p.subjects)
 }
 
 // Prepare asks every reducer to prepare before it commits any component. A
 // preparation error leaves every component unchanged.
-func (p *ComponentProjection[E]) Prepare(event E, sequence uint64) (PreparedMutation, error) {
+func (p *ComponentizedProjection[E]) Prepare(event E, sequence uint64) (PreparedMutation, error) {
 	return p.prepareComponents(event, "", sequence)
 }
 
 // PrepareSubject prepares only components whose logical subject filters match
 // the delivered record. The parent projection still advances its global
 // sequence for every record in its own subject contract.
-func (p *ComponentProjection[E]) PrepareSubject(event E, subject string, sequence uint64) (PreparedMutation, error) {
+func (p *ComponentizedProjection[E]) PrepareSubject(event E, subject string, sequence uint64) (PreparedMutation, error) {
 	return p.prepareComponents(event, subject, sequence)
 }
 
-func (p *ComponentProjection[E]) prepareComponents(event E, subject string, sequence uint64) (PreparedMutation, error) {
+func (p *ComponentizedProjection[E]) prepareComponents(event E, subject string, sequence uint64) (PreparedMutation, error) {
 	mutations := make([]PreparedMutation, 0, len(p.components))
 	for _, component := range p.components {
 		if subject != "" && !matchesAnySubject(component.filters, subject) {
@@ -240,7 +242,7 @@ func matchesAnySubject(filters []compiledSubjectFilter, subject string) bool {
 
 // OwnsProjection reports whether model is one of the registered focused
 // models. Projector uses this to create typed handles that share its frontier.
-func (p *ComponentProjection[E]) OwnsProjection(model SubjectProjection) bool {
+func (p *ComponentizedProjection[E]) OwnsProjection(model SubjectProjection) bool {
 	if isNilProjection(model) {
 		return false
 	}
@@ -253,13 +255,13 @@ func (p *ComponentProjection[E]) OwnsProjection(model SubjectProjection) bool {
 }
 
 // SnapshotCohortContractID returns the contract for the component set.
-func (p *ComponentProjection[E]) SnapshotCohortContractID() string {
+func (p *ComponentizedProjection[E]) SnapshotCohortContractID() string {
 	return p.contractID
 }
 
 // SnapshotComponentContracts returns the exact component set that a snapshot
 // source must validate before it loads payload parts.
-func (p *ComponentProjection[E]) SnapshotComponentContracts() []ProjectionSnapshotComponentContract {
+func (p *ComponentizedProjection[E]) SnapshotComponentContracts() []ProjectionSnapshotComponentContract {
 	contracts := make([]ProjectionSnapshotComponentContract, 0, len(p.components))
 	for _, component := range p.components {
 		contracts = append(contracts, ProjectionSnapshotComponentContract{
@@ -270,7 +272,7 @@ func (p *ComponentProjection[E]) SnapshotComponentContracts() []ProjectionSnapsh
 }
 
 // SnapshotComponents serializes every component in registration order.
-func (p *ComponentProjection[E]) SnapshotComponents() ([]ProjectionSnapshotComponent, error) {
+func (p *ComponentizedProjection[E]) SnapshotComponents() ([]ProjectionSnapshotComponent, error) {
 	components := make([]ProjectionSnapshotComponent, 0, len(p.components))
 	for _, component := range p.components {
 		payload, err := component.model.Snapshot()
@@ -288,7 +290,7 @@ func (p *ComponentProjection[E]) SnapshotComponents() ([]ProjectionSnapshotCompo
 
 // RestoreComponents installs a complete compatible component set. It restores
 // the prior state if any component rejects its payload.
-func (p *ComponentProjection[E]) RestoreComponents(stored []ProjectionSnapshotComponent) error {
+func (p *ComponentizedProjection[E]) RestoreComponents(stored []ProjectionSnapshotComponent) error {
 	if len(stored) != len(p.components) {
 		return fmt.Errorf("projection component count is %d, want %d", len(stored), len(p.components))
 	}
@@ -337,7 +339,7 @@ func (p *ComponentProjection[E]) RestoreComponents(stored []ProjectionSnapshotCo
 
 // ResetComponents installs every component's canonical empty state as one
 // transaction.
-func (p *ComponentProjection[E]) ResetComponents() error {
+func (p *ComponentizedProjection[E]) ResetComponents() error {
 	stored := make([]ProjectionSnapshotComponent, 0, len(p.components))
 	for _, component := range p.components {
 		stored = append(stored, ProjectionSnapshotComponent{
@@ -350,7 +352,7 @@ func (p *ComponentProjection[E]) ResetComponents() error {
 
 // CompleteStartupReplay forwards the lifecycle boundary to every component
 // that retains replay-only compatibility state.
-func (p *ComponentProjection[E]) CompleteStartupReplay() {
+func (p *ComponentizedProjection[E]) CompleteStartupReplay() {
 	for _, component := range p.components {
 		if completer, ok := component.model.(StartupReplayCompleter); ok {
 			completer.CompleteStartupReplay()
