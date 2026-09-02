@@ -487,6 +487,48 @@ func TestChattoCore_UpdateUserLogin(t *testing.T) {
 		}
 	})
 
+	t.Run("account manager bypasses own cooldown without advancing it", func(t *testing.T) {
+		core2, _ := setupTestCore(t)
+		ctx2 := testContext(t)
+		u, _ := core2.CreateUser(ctx2, SystemActorID, "managercooldown", "Manager", "password123")
+
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "managerfirst"); err != nil {
+			t.Fatalf("First login change failed: %v", err)
+		}
+		firstTimestamp, err := core2.GetLastLoginChange(ctx2, u.Id)
+		if err != nil {
+			t.Fatalf("GetLastLoginChange failed: %v", err)
+		}
+		if firstTimestamp.IsZero() {
+			t.Fatal("Expected first login change to record a timestamp")
+		}
+
+		if err := core2.GrantUserPermission(ctx2, SystemActorID, u.Id, PermUserManageAccounts); err != nil {
+			t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+		}
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "managersecond"); err != nil {
+			t.Fatalf("Account manager second login change failed: %v", err)
+		}
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "managerthird"); err != nil {
+			t.Fatalf("Account manager third login change failed: %v", err)
+		}
+
+		bypassTimestamp, err := core2.GetLastLoginChange(ctx2, u.Id)
+		if err != nil {
+			t.Fatalf("GetLastLoginChange after bypass failed: %v", err)
+		}
+		if !bypassTimestamp.Equal(firstTimestamp) {
+			t.Fatalf("Bypassed change advanced cooldown timestamp: was %v, now %v", firstTimestamp, bypassTimestamp)
+		}
+
+		if err := core2.DenyUserPermission(ctx2, SystemActorID, u.Id, PermUserManageAccounts); err != nil {
+			t.Fatalf("DenyUserPermission user.manage-accounts: %v", err)
+		}
+		if _, err := core2.UpdateUserLogin(ctx2, u.Id, "managerblocked"); err != ErrLoginChangeCooldown {
+			t.Fatalf("Login change after permission revocation error = %v, want ErrLoginChangeCooldown", err)
+		}
+	})
+
 	t.Run("admin update bypasses cooldown and does not advance the user clock", func(t *testing.T) {
 		core2, _ := setupTestCore(t)
 		ctx2 := testContext(t)

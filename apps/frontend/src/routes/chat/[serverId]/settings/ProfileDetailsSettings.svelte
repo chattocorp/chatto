@@ -43,7 +43,10 @@
   const bioModified = $derived((bio || '') !== (currentUser.user?.bio ?? ''));
   const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
-  const canChangeLogin = $derived(cooldownRemaining === 0);
+  const canBypassLoginCooldown = $derived(
+    serverScope.store.permissions.canAdminManageAccounts
+  );
+  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
 
   function clearMessages() {
     error = '';
@@ -126,7 +129,7 @@
       });
 
       if (currentUser.user) {
-        const lastLoginChange = normalizedLogin
+        const lastLoginChange = normalizedLogin && !canBypassLoginCooldown
           ? new Date().toISOString()
           : currentUser.user.lastLoginChange;
         currentUser.user = {
@@ -142,7 +145,7 @@
       login = updated.login;
       bio = updated.bio ?? '';
 
-      if (normalizedLogin) {
+      if (normalizedLogin && !canBypassLoginCooldown) {
         localLastLoginChange = new Date();
       }
 
@@ -220,5 +223,7 @@
   <p>
     {m('settings.profile.username.confirm_prompt', { login: pendingLogin ?? '' })}
   </p>
-  <p class="mt-3">{m('settings.profile.username.confirm_cooldown')}</p>
+  {#if !canBypassLoginCooldown}
+    <p class="mt-3">{m('settings.profile.username.confirm_cooldown')}</p>
+  {/if}
 </ConfirmDialog>
