@@ -105,3 +105,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md) | Use Request-Time Authorization with Aggregate OCC | Accepted | 2026-09-01 |
 | [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
 | [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Accepted | 2026-09-02 |
+| [ADR-090](ADR-090-cached-time-buckets-for-room-timelines.md) | Reconstruct Room Timelines in Cached Time Buckets | Accepted | 2026-09-02 |

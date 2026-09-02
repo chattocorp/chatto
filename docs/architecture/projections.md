@@ -59,6 +59,15 @@ and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit
 membership so they remain distinct from policy-derived Universal-room access.
 
+Room Timeline keeps an always-resident directory of exact EVT sequences in
+per-room time buckets. The default interval is one week. The current bucket and
+buckets that overlap the default four-week pinned period are loaded before core
+readiness. Other buckets load from EVT when a read needs their encrypted body
+data. A process-local cache evicts an unpinned bucket after the configured idle
+timeout, which is 15 minutes by default. Concurrent reads share one bucket
+load. A revision check prevents a loader from installing state over a newer
+projection apply.
+
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
 loop returns. Readiness and provider status therefore cannot remain
@@ -172,7 +181,7 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v3`, user profile uses `v4`, and Room Timeline
-uses `v7`.
+uses `v8`.
 
 The 0.5 internal protobuf package split changes full protobuf names and selects
 new snapshot contract IDs. A server ignores older snapshots, cold-replays EVT,
@@ -195,6 +204,12 @@ contract. Its current schema also stores active pinned-message associations by r
 Those associations reference canonical timeline messages instead of copying
 message content; retraction removes the association during projection.
 
+Room Timeline `v8` stores the bucket interval, exact room-event sequence
+recipes, message locators, body sequence references, pending body references,
+and attachment locators. It does not store encrypted message bodies. A bucket
+interval mismatch rejects the complete `ServerContentView` snapshot cohort and
+causes a cold EVT replay.
+
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A
 missing, invalid, or unavailable scalar snapshot cold-replays only its owning
@@ -211,10 +226,10 @@ and shared cutoff. The repository publishes one pointer only after all objects
 are durable. It retains current and previous complete cohorts and uses KV
 revision OCC for publication.
 
-Room Timeline retains one body-state entry per message: the current encrypted
-envelope and EVT sequence are inline, while a sequence slice is allocated only
-after an edit. Its component codec preserves the complete body-event sequence
-history.
+Room Timeline retains compact body sequence state for each message. Encrypted
+body envelopes live only in pinned or recently used process-local buckets. Its
+component codec preserves the body-event sequence history without copying the
+body payload into projection snapshots.
 
 Mentionables retains encrypted login source events and wrapped DEK records
 rather than plaintext handles or lookup digests. The Users codec retains

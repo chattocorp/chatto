@@ -212,6 +212,14 @@ func (m *RoomModel) hasTimeline() bool {
 	return m != nil && m.timeline.Projection() != nil
 }
 
+func (m *RoomModel) warmPinnedTimelineBuckets(ctx context.Context) error {
+	return m.timeline.Projection().WarmPinned(ctx)
+}
+
+func (m *RoomModel) runTimelineBucketCache(ctx context.Context) error {
+	return m.timeline.Projection().RunBucketCache(ctx)
+}
+
 func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().Get(eventID)
 }
@@ -220,8 +228,16 @@ func (m *RoomModel) latestBody(eventID string) (*evtv1.MessageBody, bool, bool) 
 	return m.timeline.Projection().LatestBody(eventID)
 }
 
+func (m *RoomModel) latestBodyContext(ctx context.Context, eventID string) (*evtv1.MessageBody, bool, bool, error) {
+	return m.timeline.Projection().LatestBodyContext(ctx, eventID)
+}
+
 func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
 	return m.timeline.Projection().CurrentRoomAttachmentMessages(roomID)
+}
+
+func (m *RoomModel) currentRoomAttachmentMessagesContext(ctx context.Context, roomID string) ([]projectedRoomAttachmentMessage, error) {
+	return m.timeline.Projection().CurrentRoomAttachmentMessagesContext(ctx, roomID)
 }
 
 func (m *RoomModel) isEcho(eventID string) bool {

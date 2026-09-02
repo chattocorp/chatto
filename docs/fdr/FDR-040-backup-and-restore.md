@@ -89,6 +89,7 @@ product limits rather than an unbounded override.
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual
-  asset storage), ADR-036 (runtime state), ADR-050 (projection snapshots)
+  asset storage), ADR-036 (runtime state), ADR-050 (projection snapshots),
+  ADR-090 (cached timeline buckets)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice
   Calls), FDR-018 (Account Lifecycle), FDR-033 (Message Search)

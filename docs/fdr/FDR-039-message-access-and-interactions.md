@@ -179,7 +179,8 @@ DM membership, not a message-read permission, authorizes DM reads.
 - **ADRs:** ADR-031 (room-group permission scopes), ADR-037 (DM access through
   membership), ADR-040 (permission-only RBAC with owner override), ADR-045
   (public API stability), ADR-051 (resumable client projection), ADR-080
-  (`message.read`), ADR-082 (derived interaction relationships)
+  (`message.read`), ADR-082 (derived interaction relationships), ADR-090
+  (cached timeline buckets)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-004
   (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions),
   FDR-007 (Direct Messages), FDR-008 (File Attachments & Video Processing),

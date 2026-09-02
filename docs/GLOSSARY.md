@@ -202,6 +202,10 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
+**Timeline bucket** — Process-local materialization of one room's timeline data for one UTC time interval. Chatto reconstructs it from exact EVT sequence references and removes it from RAM after an idle period. Timeline bucket data is not part of a projection snapshot. See [ADR-090](adr/ADR-090-cached-time-buckets-for-room-timelines.md).
+
+**Timeline bucket directory** — Always-resident timeline projection metadata that maps rooms, intervals, message IDs, and current derived state to exact EVT sequence references. Its snapshot is part of the `ServerContentView` projection snapshot cohort. See [ADR-090](adr/ADR-090-cached-time-buckets-for-room-timelines.md).
+
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
 **Notification Occurrence** — Projected current state of one exact recipient-specific notification signal. It is Unread or Read until deletion or expiry removes it; minimal lifecycle facts prevent dismissed activity from being recreated. Identity is deterministic per recipient, source event, and signal kind. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).

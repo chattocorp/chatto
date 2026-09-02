@@ -163,6 +163,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.WaitForProjectionsCurrent(gctx); err != nil {
 			return fmt.Errorf("wait for projections current: %w", err)
 		}
+		if err := c.roomModel.warmPinnedTimelineBuckets(gctx); err != nil {
+			return fmt.Errorf("warm pinned room timeline buckets: %w", err)
+		}
 		if err := c.readStateModel.WaitReady(gctx); err != nil {
 			return fmt.Errorf("wait for read state index: %w", err)
 		}
@@ -208,6 +211,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
+	g.Go(func() error { return c.roomModel.runTimelineBucketCache(gctx) })
 	g.Go(func() error { return c.credentialUsage.Run(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
@@ -354,7 +358,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, err
 	}
-	projections, err := initializeCoreProjections(ctx, infra, logger)
+	projections, err := initializeCoreProjections(ctx, infra, cfg, logger)
 	if err != nil {
 		return nil, err
 	}

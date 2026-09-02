@@ -1,7 +1,9 @@
 package core
 
 import (
+	"context"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -1037,7 +1039,7 @@ func TestRoomTimeline_NonRoomEventsSkipped(t *testing.T) {
 	}
 }
 
-func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
+func TestRoomTimeline_NonTimelineRoomEventsOnlyEnterBucketDirectory(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	ignored := []*evtv1.Event{
 		{
@@ -1057,14 +1059,245 @@ func TestRoomTimeline_IgnoredRoomEventsDoNotRetainIdempotencyIDs(t *testing.T) {
 	}
 
 	applyAll(t, p, ignored)
-	if got := len(p.replayGuard.retainedEventIDs()); got != 0 {
-		t.Fatalf("appliedEventIDs after ignored events = %d, want 0", got)
+	if got := len(p.replayGuard.retainedEventIDs()); got != 2 {
+		t.Fatalf("appliedEventIDs after indexed room events = %d, want 2", got)
 	}
 	if got := p.RoomEventCount("R1"); got != 0 {
 		t.Fatalf("RoomEventCount after ignored events = %d, want 0", got)
 	}
 	if got := len(p.byEventID); got != 0 {
 		t.Fatalf("byEventID after ignored events = %d, want 0", got)
+	}
+}
+
+type timelineTestEventSource map[uint64]*evtstream.SubjectEvent
+
+func (s timelineTestEventSource) EventAt(_ context.Context, sequence uint64) (*evtstream.SubjectEvent, error) {
+	return s[sequence], nil
+}
+
+type blockingTimelineEventSource struct {
+	mu      sync.Mutex
+	records timelineTestEventSource
+	calls   int
+	once    sync.Once
+	started chan struct{}
+	release chan struct{}
+}
+
+func (s *blockingTimelineEventSource) EventAt(ctx context.Context, sequence uint64) (*evtstream.SubjectEvent, error) {
+	s.mu.Lock()
+	s.calls++
+	s.mu.Unlock()
+	s.once.Do(func() {
+		close(s.started)
+		select {
+		case <-s.release:
+		case <-ctx.Done():
+		}
+	})
+	return s.records[sequence], ctx.Err()
+}
+
+func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	key := projection.messageBuckets["MESSAGE"]
+	if got := projection.buckets[key].sequences; !slices.Equal(got, []uint64{1, 2}) {
+		t.Fatalf("original bucket sequences = %v, want [1 2]", got)
+	}
+	if body, _, _ := projection.LatestBody("MESSAGE"); body != nil {
+		t.Fatal("historical body remained materialized after replay")
+	}
+	body, retracted, ok, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || !ok || retracted || string(body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("LatestBodyContext() = (%v, %v, %v, %v)", body, retracted, ok, err)
+	}
+	projection.evictIdleBuckets(now.Add(2 * time.Minute))
+	if body, _, _ := projection.LatestBody("MESSAGE"); body != nil {
+		t.Fatal("idle historical body remained materialized")
+	}
+	delete(source, 1)
+	if _, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE"); err == nil {
+		t.Fatal("incomplete bucket reconstruction succeeded")
+	}
+	if projection.cache[key] != nil {
+		t.Fatal("failed reconstruction installed a partial bucket")
+	}
+	source[1] = &evtstream.SubjectEvent{Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent}
+
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	if err := restored.Restore(payload); err != nil {
+		t.Fatal(err)
+	}
+	if body, _, _ := restored.LatestBody("MESSAGE"); body != nil {
+		t.Fatal("snapshot restored an encrypted body payload")
+	}
+	body, _, _, err = restored.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || string(body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("restored LatestBodyContext() = (%v, %v)", body, err)
+	}
+	retractedEvent := &evtv1.Event{Id: "RETRACT", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessageRetracted{MessageRetracted: &evtv1.MessageRetractedEvent{RoomId: "R1", EventId: "MESSAGE"}}}
+	if err := restored.Apply(retractedEvent, 3); err != nil {
+		t.Fatal(err)
+	}
+	for _, cached := range restored.cache {
+		if cached.events[1] != nil {
+			t.Fatal("retracted encrypted body remained in a materialized bucket")
+		}
+	}
+	mismatch := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{EventSource: source, Interval: 24 * time.Hour})
+	if err := mismatch.Restore(payload); err == nil {
+		t.Fatal("snapshot with a different bucket interval restored successfully")
+	}
+}
+
+func TestRoomTimeline_LateMutationRoutesToOriginalAndOccurrenceBuckets(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	originalTime := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	body := func(id, ciphertext string, at time.Time) *evtv1.Event {
+		return &evtv1.Event{Id: id, CreatedAt: timestamppb.New(at), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: id, EncryptedBody: []byte(ciphertext)}}}}
+	}
+	originalBody := body("BODY-1", "first", originalTime)
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(originalTime), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	editedBody := body("BODY-2", "second", now)
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: originalBody},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		3: {Subject: "evt.room.R1.message_body", Sequence: 3, Event: editedBody},
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	for sequence, event := range []*evtv1.Event{originalBody, posted, editedBody} {
+		if err := projection.Apply(event, uint64(sequence+1)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	originalKey := projection.messageBuckets["MESSAGE"]
+	if got := projection.buckets[originalKey].sequences; !slices.Equal(got, []uint64{1, 2, 3}) {
+		t.Fatalf("original bucket sequences = %v, want [1 2 3]", got)
+	}
+	occurrenceKey := projection.bucketKeyLocked("R1", now)
+	if occurrenceKey == originalKey {
+		t.Fatal("late mutation selected the original occurrence bucket")
+	}
+	if got := projection.buckets[occurrenceKey].sequences; !slices.Equal(got, []uint64{3}) {
+		t.Fatalf("mutation occurrence bucket sequences = %v, want [3]", got)
+	}
+	latest, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || string(latest.GetEncryptedBody()) != "second" {
+		t.Fatalf("LatestBodyContext() = (%v, %v)", latest, err)
+	}
+}
+
+func TestRoomTimeline_ConcurrentHistoricalReadsShareOneLoad(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := &blockingTimelineEventSource{
+		records: timelineTestEventSource{
+			1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+			2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		},
+		started: make(chan struct{}), release: make(chan struct{}),
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	errors := make(chan error, 2)
+	for range 2 {
+		go func() {
+			_, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+			errors <- err
+		}()
+	}
+	<-source.started
+	close(source.release)
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatal(err)
+		}
+	}
+	source.mu.Lock()
+	calls := source.calls
+	source.mu.Unlock()
+	if calls != 2 {
+		t.Fatalf("EVT reads = %d, want one two-record bucket load", calls)
+	}
+}
+
+func TestRoomTimeline_SnapshotPreservesBodyReferenceBeforePost(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+	}
+	options := RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	}
+	projection := NewRoomTimelineProjectionWithOptions(options)
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewRoomTimelineProjectionWithOptions(options)
+	if err := restored.Restore(payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := restored.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	key, ok := restored.messageBuckets["MESSAGE"]
+	var got []uint64
+	if restored.buckets[key] != nil {
+		got = restored.buckets[key].sequences
+	}
+	if !ok || !slices.Equal(got, []uint64{1, 2}) {
+		t.Fatalf("restored body/post recipe = %v, want [1 2]", got)
+	}
+	body, _, _, err := restored.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || string(body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("LatestBodyContext() = (%v, %v)", body, err)
 	}
 }
 

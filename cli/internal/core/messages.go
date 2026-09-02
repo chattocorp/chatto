@@ -1383,7 +1383,10 @@ func (c *ChattoCore) validateMessageMutationIdentity(
 	if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
 		return nil, ErrMessageNotFound
 	}
-	current, retracted, _ := c.roomModel.latestBody(eventID)
+	current, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return nil, fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if retracted || current == nil {
 		return nil, ErrMessageNotFound
 	}
@@ -1430,7 +1433,10 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if isEcho && c.roomModel.isHiddenEcho(eventID) {
 		return nil
 	}
-	body, retracted, _ := c.roomModel.latestBody(eventID)
+	body, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+	if err != nil {
+		return fmt.Errorf("load message timeline bucket: %w", err)
+	}
 	if retracted {
 		// Already tombstoned.
 		return nil
@@ -1797,7 +1803,10 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
 			return "", ErrMessageNotFound
 		}
-		current, retracted, _ := c.roomModel.latestBody(eventID)
+		current, retracted, _, err := c.roomModel.latestBodyContext(ctx, eventID)
+		if err != nil {
+			return "", fmt.Errorf("load message timeline bucket: %w", err)
+		}
 		if retracted || current == nil {
 			return "", ErrMessageNotFound
 		}

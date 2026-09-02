@@ -160,7 +160,10 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 		if !ok {
 			continue
 		}
-		body, retracted, bodyKnown := s.core.roomModel.latestBody(hit.MessageID)
+		body, retracted, bodyKnown, err := s.core.roomModel.latestBodyContext(ctx, hit.MessageID)
+		if err != nil {
+			return nil, err
+		}
 		if !bodyKnown || retracted || body == nil || body.GetBodyEventId() != hit.BodyEventID {
 			continue
 		}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/log"
 
+	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
@@ -162,6 +163,7 @@ func bindContentProjection[T any, P evtstream.ProjectionPointer[T]](
 func initializeCoreProjections(
 	ctx context.Context,
 	infra *coreInfrastructure,
+	cfg config.CoreConfig,
 	logger *log.Logger,
 ) (*coreProjections, error) {
 	registrar := &projectionRegistrar{ctx: ctx, infra: infra, logger: logger}
@@ -170,7 +172,12 @@ func initializeCoreProjections(
 	roomDirectory := NewRoomDirectoryProjection()
 	serverConfig := NewConfigProjection()
 	roomGroupLayout := NewRoomGroupLayoutProjection()
-	roomTimeline := NewRoomTimelineProjection()
+	roomTimeline := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource:  infra.eventPublisher,
+		Interval:     cfg.TimelineBucketIntervalOrDefault(),
+		PinnedPeriod: cfg.TimelineBucketPinnedPeriodOrDefault(),
+		IdleTimeout:  cfg.TimelineBucketIdleTimeoutOrDefault(),
+	})
 	callState := NewCallStateProjection()
 	assets := NewAssetProjection()
 	threads := NewThreadProjection()
