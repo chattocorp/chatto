@@ -178,9 +178,10 @@ Resume uses the existing handoff pattern:
 7. Drop buffered duplicates through the boundary and continue live.
 
 Realtime resume does not create a JetStream consumer for the client. Age,
-sequence-span, event-count, byte, concurrency, and time limits are operational
+sequence-span, event-count, concurrency, and time limits are operational
 policy. Crossing a limit selects the requested safe fallback instead of an
-unbounded scan.
+unbounded scan. A cumulative byte limit remains a measured follow-up because
+the current sequence, event-count, and time limits already bound initial work.
 
 Transient events, such as typing and presence transitions, are live-only.
 Current latest-value state appears in the snapshot or a targeted ConnectRPC

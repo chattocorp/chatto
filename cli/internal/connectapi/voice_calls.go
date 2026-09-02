@@ -264,6 +264,10 @@ func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[a
 }
 
 func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.ActiveCall, error) {
+	return activeCallWithRuntimePresence(ctx, api, actorID, roomID, true)
+}
+
+func activeCallWithRuntimePresence(ctx context.Context, api *API, actorID, roomID string, includeRuntimePresence bool) (*apiv1.ActiveCall, error) {
 	room, _, err := api.core.VoiceCallRoomForMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
@@ -281,7 +285,7 @@ func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.A
 
 	responseParticipants := make([]*apiv1.CallParticipant, 0, len(snapshot.Participants))
 	for _, participant := range snapshot.Participants {
-		mapped, err := callParticipant(ctx, api, participant)
+		mapped, err := callParticipantWithRuntimePresence(ctx, api, participant, includeRuntimePresence)
 		if err != nil {
 			return nil, err
 		}
@@ -297,6 +301,10 @@ func activeCall(ctx context.Context, api *API, actorID, roomID string) (*apiv1.A
 }
 
 func callParticipant(ctx context.Context, api *API, participant core.CallParticipant) (*apiv1.CallParticipant, error) {
+	return callParticipantWithRuntimePresence(ctx, api, participant, true)
+}
+
+func callParticipantWithRuntimePresence(ctx context.Context, api *API, participant core.CallParticipant, includeRuntimePresence bool) (*apiv1.CallParticipant, error) {
 	user, err := api.core.GetUser(ctx, participant.UserID)
 	if err != nil {
 		if errors.Is(err, core.ErrNotFound) {
@@ -305,11 +313,19 @@ func callParticipant(ctx context.Context, api *API, participant core.CallPartici
 		return nil, connectError(err)
 	}
 	avatarSize := 96
-	apiUser, err := userSummary(ctx, api, user, &apiv1.ImageTransformOptions{
+	avatar := &apiv1.ImageTransformOptions{
 		Width:  int32(avatarSize),
 		Height: int32(avatarSize),
 		Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
-	})
+	}
+	var apiUser *apiv1.User
+	if includeRuntimePresence {
+		apiUser, err = userSummary(ctx, api, user, avatar)
+	} else {
+		// Presence is outside ServerContentView. Snapshot callers must not do a
+		// KV-backed singular presence read while the exact content barrier is held.
+		apiUser, err = userSummaryWithoutPresence(ctx, api, user, avatar)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -438,8 +438,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.model.core.logger.Warn("Failed to unmarshal live RBAC event", "subject", msg.Subject, "error", err)
 			return true
 		}
-		// Protocol v2 turns this durable fact into a projection reset while
-		// legacy clients ignore the unsupported internal payload and stay live.
+		// The protocol mapper turns this internal durable fact into a projection
+		// reset without exposing the RBAC payload.
 		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), int64(len(msg.Data)))
 		return false
 	}

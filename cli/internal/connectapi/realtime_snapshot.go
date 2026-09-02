@@ -99,11 +99,20 @@ func (a *API) BuildRealtimeSnapshot(ctx context.Context, userID string) (*Realti
 			if err != nil {
 				return fmt.Errorf("assemble referenced user roles: %w", err)
 			}
-			member, err := directoryMemberWithPresence(readCtx, a, user, roles, "")
+			avatarSize := 96
+			apiUser, err := userSummaryWithoutPresence(readCtx, a, user, &apiv1.ImageTransformOptions{
+				Width:  int32(avatarSize),
+				Height: int32(avatarSize),
+				Fit:    apiv1.ImageFitMode_IMAGE_FIT_MODE_COVER,
+			})
 			if err != nil {
 				return fmt.Errorf("assemble referenced user profile: %w", err)
 			}
-			members = append(members, member)
+			members = append(members, &apiv1.DirectoryMember{
+				User:      apiUser,
+				Roles:     append([]string(nil), roles...),
+				CreatedAt: user.GetCreatedAt(),
+			})
 		}
 		result.Users = &apiv1.BatchGetUsersResponse{Users: members}
 		return nil
@@ -124,7 +133,7 @@ func (a *API) realtimeSnapshotActiveCalls(ctx context.Context, userID string) ([
 	}
 	calls := make([]*apiv1.ActiveCall, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		call, err := activeCall(ctx, a, userID, roomID)
+		call, err := activeCallWithRuntimePresence(ctx, a, userID, roomID, false)
 		if err != nil {
 			if errors.Is(err, core.ErrNotFound) || errors.Is(err, core.ErrPermissionDenied) || errors.Is(err, core.ErrNotRoomMember) {
 				continue
