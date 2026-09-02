@@ -291,8 +291,12 @@ func (w *projectionSnapshotWorker) generateComponentJob(ctx context.Context, job
 	}
 	components := make([]projectionsnapshot.CohortComponent, 0, len(captured.Components))
 	for _, component := range captured.Components {
+		parts := make([]projectionsnapshot.CohortPart, 0, len(component.Parts))
+		for _, part := range component.Parts {
+			parts = append(parts, projectionsnapshot.CohortPart{Key: part.Key, Payload: part.Payload})
+		}
 		components = append(components, projectionsnapshot.CohortComponent{
-			Key: component.Key, ContractID: component.ContractID, Parts: component.Parts,
+			Key: component.Key, ContractID: component.ContractID, Parts: parts,
 		})
 	}
 	loaded, err := job.repository.SaveCohort(ctx, projectionsnapshot.SaveCohortInput{

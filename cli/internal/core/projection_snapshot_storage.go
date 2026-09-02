@@ -40,8 +40,12 @@ func (s projectionSnapshotCohortSource) LoadProjectionSnapshotCohort(ctx context
 	}
 	components := make([]events.ProjectionSnapshotComponent, 0, len(loaded.Components))
 	for _, component := range loaded.Components {
+		parts := make([]events.ProjectionSnapshotPart, 0, len(component.Parts))
+		for _, part := range component.Parts {
+			parts = append(parts, events.ProjectionSnapshotPart{Key: part.Key, Payload: part.Payload})
+		}
 		components = append(components, events.ProjectionSnapshotComponent{
-			Key: component.Key, ContractID: component.ContractID, Parts: component.Parts,
+			Key: component.Key, ContractID: component.ContractID, Parts: parts,
 		})
 	}
 	return events.ProjectionSnapshotCohort{

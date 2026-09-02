@@ -431,8 +431,8 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 		timeline := NewRoomTimelineProjection()
 		threads := NewThreadProjection()
 		view := newServerContentView(
-			newServerContentComponent("room_timeline", timeline),
-			newServerContentComponent("threads", threads),
+			newInfallibleServerContentComponent("room_timeline", timeline, timeline.Apply),
+			newInfallibleServerContentComponent("threads", threads, threads.Apply),
 		)
 		return []projectionBenchmarkTarget{{
 			projection: view,

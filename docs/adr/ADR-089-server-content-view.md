@@ -83,12 +83,14 @@ ordered replay. The notification occurrence projection keeps its independent
 examined all EVT records through global sequence `N`, and a capture at that
 barrier contains no state from after `N`.
 
-A broad API or realtime operation obtains detached component state and the
-sequence through one capture. It can perform authorization checks, decryption,
-DTO assembly, and network writes after it releases the apply barrier. A normal
-focused API read can use a focused component method through
-`ServerContentView` when it does not claim one combined sequence. Chatto does
-not expose component pointers that bypass the view barrier and health state.
+A broad API or realtime operation obtains component state and the sequence
+through one capture. It can perform DTO assembly and network writes after it
+releases the apply barrier. A focused component getter remains concurrency
+safe through its component lock, but it does not claim one combined sequence.
+A decision that combines components or depends on projection health uses a
+`ServerContentView` read transaction. Internal focused handles share the view
+projector's wait, readiness, and failure lifecycle; they do not own independent
+replay frontiers.
 
 Writers use the content-view projector for read-your-writes waits when the
 response or next decision reads included state. The wait does not replace the

@@ -52,12 +52,19 @@ type PreparedEventProjection[E any] interface {
 	EventReducer[E]
 }
 
+// ProjectionSnapshotPart is one stable, independently stored part of a
+// projection component snapshot.
+type ProjectionSnapshotPart struct {
+	Key     string
+	Payload []byte
+}
+
 // ProjectionSnapshotComponent is one independently serialized component in a
-// projection snapshot cohort. Parts are ordered and form one component state.
+// projection snapshot cohort. Part keys are stable within its contract.
 type ProjectionSnapshotComponent struct {
 	Key        string
 	ContractID string
-	Parts      [][]byte
+	Parts      []ProjectionSnapshotPart
 }
 
 // ProjectionSnapshotComponentContract identifies one required component and
@@ -273,7 +280,7 @@ func (p *ComponentProjection[E]) SnapshotComponents() ([]ProjectionSnapshotCompo
 		components = append(components, ProjectionSnapshotComponent{
 			Key:        component.key,
 			ContractID: component.model.SnapshotContractID(),
-			Parts:      [][]byte{payload},
+			Parts:      []ProjectionSnapshotPart{{Key: "state", Payload: payload}},
 		})
 	}
 	return components, nil
@@ -302,7 +309,7 @@ func (p *ComponentProjection[E]) RestoreComponents(stored []ProjectionSnapshotCo
 		if storedComponent.ContractID != component.model.SnapshotContractID() {
 			return fmt.Errorf("projection component %q contract does not match", component.key)
 		}
-		if len(storedComponent.Parts) != 1 {
+		if len(storedComponent.Parts) != 1 || storedComponent.Parts[0].Key != "state" {
 			return fmt.Errorf("projection component %q has %d parts, want 1", component.key, len(storedComponent.Parts))
 		}
 		payload, err := component.model.Snapshot()
@@ -313,7 +320,7 @@ func (p *ComponentProjection[E]) RestoreComponents(stored []ProjectionSnapshotCo
 	}
 
 	for i, component := range p.components {
-		if err := component.model.Restore(byKey[component.key].Parts[0]); err != nil {
+		if err := component.model.Restore(byKey[component.key].Parts[0].Payload); err != nil {
 			restoreErr := fmt.Errorf("restore projection component %q: %w", component.key, err)
 			var rollbackErrs []error
 			for rollbackIndex := 0; rollbackIndex <= i; rollbackIndex++ {
@@ -334,7 +341,8 @@ func (p *ComponentProjection[E]) ResetComponents() error {
 	stored := make([]ProjectionSnapshotComponent, 0, len(p.components))
 	for _, component := range p.components {
 		stored = append(stored, ProjectionSnapshotComponent{
-			Key: component.key, ContractID: component.model.SnapshotContractID(), Parts: [][]byte{nil},
+			Key: component.key, ContractID: component.model.SnapshotContractID(),
+			Parts: []ProjectionSnapshotPart{{Key: "state"}},
 		})
 	}
 	return p.RestoreComponents(stored)

@@ -102,13 +102,20 @@ func (c *ChattoCore) isServerOwner(userID string) bool {
 }
 
 func (c *ChattoCore) readContentBool(read func() bool) (bool, error) {
-	if c.contentView == nil {
+	return c.readContentDecision(func() (bool, error) {
 		return read(), nil
+	})
+}
+
+func (c *ChattoCore) readContentDecision(read func() (bool, error)) (bool, error) {
+	if c.contentView == nil {
+		return read()
 	}
 	var result bool
 	err := c.contentView.Read(func(uint64) error {
-		result = read()
-		return nil
+		var readErr error
+		result, readErr = read()
+		return readErr
 	})
 	return result, err
 }

@@ -36,6 +36,12 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 // member who is currently eligible to join the room. Explicit memberships
 // remain the durable state; universal membership is derived at read time.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.roomMembershipExists(ctx, kind, user_id, room_id)
+	})
+}
+
+func (c *ChattoCore) roomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 		return true, nil
 	}
@@ -49,7 +55,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 	if !room.GetUniversal() {
 		return false, nil
 	}
-	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
+	return c.canJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
 // JoinRoom creates a room membership for a user.

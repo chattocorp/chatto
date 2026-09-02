@@ -21,8 +21,8 @@ func testCohortInput(sequence uint64, suffix string) SaveCohortInput {
 		ProjectionKey: "server_content_view", ContractID: "view-v1", StreamName: "EVT",
 		StreamIdentity: testStreamIdentity, CutoffSequence: sequence,
 		Components: []CohortComponent{
-			{Key: "rooms", ContractID: "rooms-v1", Parts: [][]byte{[]byte("rooms-" + suffix)}},
-			{Key: "messages", ContractID: "messages-v1", Parts: [][]byte{[]byte("messages-" + suffix)}},
+			{Key: "rooms", ContractID: "rooms-v1", Parts: []CohortPart{{Key: "state", Payload: []byte("rooms-" + suffix)}}},
+			{Key: "messages", ContractID: "messages-v1", Parts: []CohortPart{{Key: "state", Payload: []byte("messages-" + suffix)}}},
 		},
 	}
 }
@@ -42,8 +42,9 @@ func TestRepositoryCohortRoundTripStoresComponentsIndividually(t *testing.T) {
 	if loaded.GenerationID != saved.GenerationID || loaded.CutoffSequence != 42 || len(loaded.Components) != 2 {
 		t.Fatalf("loaded cohort = %#v", loaded)
 	}
-	if !bytes.Equal(loaded.Components[0].Parts[0], input.Components[0].Parts[0]) ||
-		!bytes.Equal(loaded.Components[1].Parts[0], input.Components[1].Parts[0]) {
+	if loaded.Components[0].Parts[0].Key != "state" ||
+		!bytes.Equal(loaded.Components[0].Parts[0].Payload, input.Components[0].Parts[0].Payload) ||
+		!bytes.Equal(loaded.Components[1].Parts[0].Payload, input.Components[1].Parts[0].Payload) {
 		t.Fatalf("loaded component payloads = %#v", loaded.Components)
 	}
 	if len(blobs.objects) != 3 {
@@ -53,6 +54,45 @@ func TestRepositoryCohortRoundTripStoresComponentsIndividually(t *testing.T) {
 		if bytes.Contains(data, []byte("rooms-current")) || bytes.Contains(data, []byte("messages-current")) {
 			t.Fatalf("snapshot payload leaked through encrypted object %q", key)
 		}
+	}
+}
+
+func TestRepositoryCohortPreservesStablePartKeys(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	input := testCohortInput(42, "bucketed")
+	input.Components[1].Parts = []CohortPart{
+		{Key: "month_2026_08", Payload: []byte("august")},
+		{Key: "month_2026_09", Payload: []byte("september")},
+	}
+	if _, err := repository.SaveCohort(t.Context(), input); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := repository.LoadCohort(t.Context(), input.ProjectionKey, input.ContractID, input.StreamName, input.StreamIdentity, 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parts := loaded.Components[1].Parts
+	if len(parts) != 2 || parts[0].Key != "month_2026_08" || parts[1].Key != "month_2026_09" {
+		t.Fatalf("loaded stable parts = %#v", parts)
+	}
+}
+
+func TestRepositoryCohortRejectsDuplicatePartKeys(t *testing.T) {
+	repository := newTestRepository(t, newMemoryBlobStore(), testSecret)
+	input := testCohortInput(42, "duplicate")
+	input.Components[0].Parts = append(input.Components[0].Parts, input.Components[0].Parts[0])
+	if _, err := repository.SaveCohort(t.Context(), input); err == nil {
+		t.Fatal("SaveCohort accepted duplicate component part keys")
+	}
+}
+
+func TestRepositoryCohortUsesConfiguredPartPayloadLimit(t *testing.T) {
+	repository := newTestRepository(t, newMemoryBlobStore(), testSecret)
+	repository.maxPayloadSize = 4
+	input := testCohortInput(42, "oversized")
+	if _, err := repository.SaveCohort(t.Context(), input); err == nil {
+		t.Fatal("SaveCohort accepted a component part above the repository limit")
 	}
 }
 
@@ -79,14 +119,14 @@ func TestRepositoryCohortFallsBackWhenCurrentPartIsMissing(t *testing.T) {
 	part := manifest.GetComponents()[0]
 	delete(blobs.objects, repository.generationObjectKey(
 		cohortPartProjectionKey("server_content_view", part.GetComponentKey()),
-		part.GetContractId(), part.GetPartGenerationIds()[0],
+		part.GetContractId(), part.GetParts()[0].GetGenerationId(),
 	))
 
 	loaded, err := repository.LoadCohort(t.Context(), "server_content_view", "view-v1", "EVT", testStreamIdentity, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if loaded.CutoffSequence != 10 || string(loaded.Components[0].Parts[0]) != "rooms-previous" {
+	if loaded.CutoffSequence != 10 || string(loaded.Components[0].Parts[0].Payload) != "rooms-previous" {
 		t.Fatalf("fallback cohort = %#v", loaded)
 	}
 }
@@ -112,6 +152,48 @@ func TestRepositoryCohortRejectsUnexpectedComponentBeforeLoadingParts(t *testing
 	)
 	if err == nil {
 		t.Fatal("LoadCohortForComponents accepted an unexpected component")
+	}
+	if objectReads != 1 {
+		t.Fatalf("snapshot object reads = %d, want manifest only", objectReads)
+	}
+}
+
+func TestRepositoryCohortValidatesAllPartKeysBeforeLoadingParts(t *testing.T) {
+	blobs := newMemoryBlobStore()
+	repository := newTestRepository(t, blobs, testSecret)
+	manifest := &projectionv1.ProjectionSnapshotCohortManifest{Components: []*projectionv1.ProjectionSnapshotCohortComponent{
+		{ComponentKey: "rooms", ContractId: "rooms-v1", Parts: []*projectionv1.ProjectionSnapshotCohortPart{
+			{PartKey: "state", GenerationId: "rooms-generation"},
+		}},
+		{ComponentKey: "messages", ContractId: "messages-v1", Parts: []*projectionv1.ProjectionSnapshotCohortPart{
+			{PartKey: "same", GenerationId: "messages-one"},
+			{PartKey: "same", GenerationId: "messages-two"},
+		}},
+	}}
+	payload, err := proto.Marshal(manifest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	generation, _, _, err := repository.writeUnpublishedGeneration(t.Context(), SaveInput{
+		ProjectionKey: "server_content_view", ContractID: "view-v1", StreamName: "EVT",
+		StreamIdentity: testStreamIdentity, CutoffSequence: 42, Payload: payload,
+	}, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	objectReads := 0
+	blobs.failGet = func(key string) bool {
+		if strings.HasPrefix(key, objectRootPrefix) {
+			objectReads++
+		}
+		return false
+	}
+	_, err = repository.loadCohortGeneration(
+		t.Context(), generation.GenerationID, "server_content_view", "view-v1",
+		"EVT", testStreamIdentity, 42, nil,
+	)
+	if err == nil {
+		t.Fatal("loadCohortGeneration accepted duplicate part keys")
 	}
 	if objectReads != 1 {
 		t.Fatalf("snapshot object reads = %d, want manifest only", objectReads)
@@ -218,7 +300,7 @@ func TestRepositoryCohortRepairsInvalidFreshGeneration(t *testing.T) {
 	component := manifest.GetComponents()[0]
 	delete(blobs.objects, repository.generationObjectKey(
 		cohortPartProjectionKey(input.ProjectionKey, component.GetComponentKey()),
-		component.GetContractId(), component.GetPartGenerationIds()[0],
+		component.GetContractId(), component.GetParts()[0].GetGenerationId(),
 	))
 
 	repaired, err := repository.SaveCohort(t.Context(), input)

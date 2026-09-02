@@ -173,6 +173,13 @@ func (p *UserProjection) Prepare(event *evtv1.Event, seq uint64) (events.Prepare
 	}
 	prepared := preparedUserContentEvent{}
 	p.RLock()
+	replayGuard := p.replayGuard
+	if replayGuard.seen(event, seq) {
+		p.RUnlock()
+		return events.PreparedMutationFunc(func() {
+			p.applyPreparedContentEvent(event, seq, prepared)
+		}), nil
+	}
 	var err error
 	switch value := event.GetEvent().(type) {
 	case *evtv1.Event_UserAccountCreated:

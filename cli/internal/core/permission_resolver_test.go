@@ -1324,6 +1324,18 @@ func TestContentAuthorizationReadsOneServerContentViewGeneration(t *testing.T) {
 			_, err := core.HasAnyAdminPermission(ctx, SystemActorID)
 			return err
 		},
+		"effective membership check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.RoomMembershipExists(ctx, KindDM, SystemActorID, "missing-room")
+			return err
+		},
+		"room ban and RBAC check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.CanJoinRoomAt(ctx, SystemActorID, KindChannel, "missing-room")
+			return err
+		},
+		"message and interaction check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.CanReadMessage(ctx, SystemActorID, KindChannel, "missing-room", "missing-message")
+			return err
+		},
 	}
 	for name, check := range tests {
 		t.Run(name, func(t *testing.T) {

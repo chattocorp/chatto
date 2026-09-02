@@ -5,11 +5,14 @@
 package events
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
 )
 
 type componentTestModel struct {
@@ -17,6 +20,28 @@ type componentTestModel struct {
 	value       int
 	restoreFail bool
 	subject     string
+}
+
+type blockingRestoreComponentModel struct {
+	*componentTestModel
+	started chan struct{}
+	release chan struct{}
+}
+
+func (m *blockingRestoreComponentModel) Restore(payload []byte) error {
+	if string(payload) == "9" {
+		close(m.started)
+		<-m.release
+	}
+	return m.componentTestModel.Restore(payload)
+}
+
+type fixedComponentCohortSource struct {
+	cohort ProjectionSnapshotCohort
+}
+
+func (s fixedComponentCohortSource) LoadProjectionSnapshotCohort(context.Context, ProjectionSnapshotCohortLoadRequest) (ProjectionSnapshotCohort, error) {
+	return s.cohort, nil
 }
 
 func (m *componentTestModel) Subjects() []string {
@@ -184,8 +209,8 @@ func TestComponentProjectionRestoreRollsBackCompleteView(t *testing.T) {
 		NewProjectionComponent("second", second, componentIncrementReducer(second, -1)),
 	)
 	err := projection.RestoreComponents([]ProjectionSnapshotComponent{
-		{Key: "first", ContractID: "component-test-v1", Parts: [][]byte{[]byte("10")}},
-		{Key: "second", ContractID: "component-test-v1", Parts: [][]byte{[]byte("99")}},
+		{Key: "first", ContractID: "component-test-v1", Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("10")}}},
+		{Key: "second", ContractID: "component-test-v1", Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("99")}}},
 	})
 	if err == nil {
 		t.Fatal("RestoreComponents succeeded despite component restore failure")
@@ -207,8 +232,71 @@ func TestComponentProjectionSnapshotCaptureUsesOneBarrier(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(components) != 2 || string(components[0].Parts[0]) != "4" || string(components[1].Parts[0]) != "5" {
+	if len(components) != 2 || components[0].Parts[0].Key != "state" ||
+		string(components[0].Parts[0].Payload) != "4" || string(components[1].Parts[0].Payload) != "5" {
 		t.Fatalf("snapshot components = %#v", components)
+	}
+}
+
+func TestComponentProjectionRestoreUsesReadBarrier(t *testing.T) {
+	connection := startTestNATS(t)
+	js, err := jetstream.New(connection)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, err := js.CreateOrUpdateStream(t.Context(), jetstream.StreamConfig{
+		Name: "COMPONENT_RESTORE_TEST", Subjects: []string{"evt.>"}, Storage: jetstream.MemoryStorage,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := &componentTestModel{}
+	model := &blockingRestoreComponentModel{
+		componentTestModel: base, started: make(chan struct{}), release: make(chan struct{}),
+	}
+	projection := NewComponentProjection(
+		[]string{"evt.>"}, "cohort-v1",
+		NewProjectionComponent("state", model, componentIncrementReducer(base, -1)),
+	)
+	projector := NewDecodedPreparedProjector(
+		js, stream, projection,
+		func([]byte) (DecodedEvent[int], error) { return DecodedEvent[int]{}, nil },
+		discardLogger{},
+	)
+	source := fixedComponentCohortSource{cohort: ProjectionSnapshotCohort{
+		GenerationID: "generation", ContractID: "cohort-v1", StreamName: "COMPONENT_RESTORE_TEST",
+		StreamIdentity: "stream", Components: []ProjectionSnapshotComponent{{
+			Key: "state", ContractID: "component-test-v1",
+			Parts: []ProjectionSnapshotPart{{Key: "state", Payload: []byte("9")}},
+		}},
+	}}
+	if err := projector.ConfigureComponentSnapshots("component", source, func(*jetstream.StreamInfo) (string, error) {
+		return "stream", nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	runContext, cancelRun := context.WithCancel(t.Context())
+	defer cancelRun()
+	runDone := make(chan error, 1)
+	go func() { runDone <- projector.Run(runContext) }()
+	<-model.started
+
+	readDone := make(chan error, 1)
+	go func() {
+		readDone <- projector.WithReadBarrier(func(uint64) error { return nil })
+	}()
+	select {
+	case err := <-readDone:
+		t.Fatalf("read crossed an in-progress component restore: %v", err)
+	case <-time.After(10 * time.Millisecond):
+	}
+	close(model.release)
+	if err := <-readDone; err != nil {
+		t.Fatal(err)
+	}
+	cancelRun()
+	if err := <-runDone; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v, want context cancellation", err)
 	}
 }
 

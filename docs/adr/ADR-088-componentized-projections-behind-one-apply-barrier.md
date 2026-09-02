@@ -72,9 +72,11 @@ aggregate OCC.
 ### Consistent capture
 
 The coordinator supplies one capture operation. The operation obtains
-detached component state or immutable component capture handles and the
-applied sequence under the same barrier. Serialization, compression,
-encryption, and storage I/O occur after the barrier is released.
+canonical component payloads and the applied sequence under the same barrier.
+The initial component codecs serialize their state during this operation.
+Compression, encryption, and storage I/O occur after the barrier is released.
+A later codec can add a detached capture handle when large-component copy time
+must be shorter than serialization time.
 
 A capture therefore represents all included components at exactly one source
 sequence. A caller must not claim this contract after it reads live component
@@ -187,9 +189,9 @@ privacy, and application-boundary rules remain in effect.
   current/previous fallback, authenticated encryption, and orphan cleanup.
 - A broad consumer can deliver more records to one process path, but it avoids
   duplicate broker delivery and decoding across related components.
-- Capture must clone enough state to release the apply barrier before slow
-  encoding or storage work. Large captures can therefore need temporary
-  memory.
+- The initial component codecs serialize under the apply barrier. Large
+  captures can delay event application. A later detached-capture API can move
+  serialization outside the barrier at the cost of temporary memory.
 - Existing single-component Authling projections can keep their current
   lifecycle. Shared API changes still require Authling verification because
   Authling consumes `pkg/events` directly.

@@ -58,12 +58,19 @@ message ProjectionSnapshotCohortManifest {
   repeated ProjectionSnapshotCohortComponent components = 1;
 }
 
-// ProjectionSnapshotCohortComponent identifies the ordered stored parts for
-// one focused model in a componentized projection.
+// ProjectionSnapshotCohortComponent identifies the stored parts for one
+// focused model in a componentized projection.
 message ProjectionSnapshotCohortComponent {
   string component_key = 1;
   string contract_id = 2;
-  repeated string part_generation_ids = 3;
+  repeated ProjectionSnapshotCohortPart parts = 3;
+}
+
+// ProjectionSnapshotCohortPart binds one stable component-local part key to
+// its immutable stored generation.
+message ProjectionSnapshotCohortPart {
+  string part_key = 1;
+  string generation_id = 2;
 }
 
 // ThreadProjectionSnapshot is the canonical restorable state for the

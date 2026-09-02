@@ -1244,8 +1244,11 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	if err != nil {
 		return fmt.Errorf("read projection startup target: %w", err)
 	}
-	if err := p.restoreForRun(ctx, target.seq); err != nil {
-		return err
+	p.applyMu.Lock()
+	restoreErr := p.restoreForRun(ctx, target.seq)
+	p.applyMu.Unlock()
+	if restoreErr != nil {
+		return restoreErr
 	}
 	p.setStartupTarget(target.seq)
 
@@ -1457,9 +1460,11 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 	p.mu.Unlock()
 
 	if shouldCompleteReplay {
+		p.applyMu.Lock()
 		if projection, ok := p.proj.(StartupReplayCompleter); ok {
 			projection.CompleteStartupReplay()
 		}
+		p.applyMu.Unlock()
 		close(p.startupCh)
 	}
 

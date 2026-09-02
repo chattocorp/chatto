@@ -24,11 +24,17 @@ const (
 	maxCohortPayloadSize = 1 << 30
 )
 
-// CohortComponent contains the ordered payload parts for one projection model.
+// CohortPart is one stable, independently stored part of a component.
+type CohortPart struct {
+	Key     string
+	Payload []byte
+}
+
+// CohortComponent contains the payload parts for one projection model.
 type CohortComponent struct {
 	Key        string
 	ContractID string
-	Parts      [][]byte
+	Parts      []CohortPart
 }
 
 // CohortComponentContract identifies one required component and bounds the
@@ -64,7 +70,7 @@ type LoadedCohort struct {
 // SaveCohort stores each component part independently and publishes one
 // encrypted manifest pointer after every part is durable.
 func (r *Repository) SaveCohort(ctx context.Context, input SaveCohortInput) (LoadedCohort, error) {
-	if err := validateCohortInput(input); err != nil {
+	if err := validateCohortInput(input, r.maxPayloadSize); err != nil {
 		return LoadedCohort{}, err
 	}
 	pointer, pointerRevision, err := r.loadPointerAtRevision(ctx, input.ProjectionKey, input.ContractID)
@@ -117,18 +123,20 @@ func (r *Repository) SaveCohort(ctx context.Context, input SaveCohortInput) (Loa
 			ComponentKey: component.Key, ContractId: component.ContractID,
 		}
 		partProjectionKey := cohortPartProjectionKey(input.ProjectionKey, component.Key)
-		for _, payload := range component.Parts {
+		for _, part := range component.Parts {
 			loaded, objectKey, _, err := r.writeUnpublishedGeneration(ctx, SaveInput{
 				ProjectionKey: partProjectionKey, ContractID: component.ContractID,
 				StreamName: input.StreamName, StreamIdentity: input.StreamIdentity,
-				CutoffSequence: input.CutoffSequence, Payload: payload,
+				CutoffSequence: input.CutoffSequence, Payload: part.Payload,
 			}, createdAt)
 			if err != nil {
 				cleanupWritten()
 				return LoadedCohort{}, fmt.Errorf("store component %q: %w", component.Key, err)
 			}
 			writtenKeys = append(writtenKeys, objectKey)
-			manifestComponent.PartGenerationIds = append(manifestComponent.PartGenerationIds, loaded.GenerationID)
+			manifestComponent.Parts = append(manifestComponent.Parts, &projectionv1.ProjectionSnapshotCohortPart{
+				PartKey: part.Key, GenerationId: loaded.GenerationID,
+			})
 		}
 		manifest.Components = append(manifest.Components, manifestComponent)
 	}
@@ -251,8 +259,8 @@ func (r *Repository) loadCohortGeneration(
 		maxTotalPayload = 0
 		for _, contract := range contracts {
 			expected[contract.Key] = contract
-			componentLimit := int64(contract.MaxParts) * int64(r.maxPayloadSize)
-			if componentLimit > int64(maxCohortPayloadSize)-maxTotalPayload {
+			componentLimit, ok := checkedPayloadLimit(contract.MaxParts, r.maxPayloadSize)
+			if !ok || componentLimit > int64(maxCohortPayloadSize)-maxTotalPayload {
 				return LoadedCohort{}, fmt.Errorf("snapshot cohort registered payload limit exceeds %d bytes", maxCohortPayloadSize)
 			}
 			maxTotalPayload += componentLimit
@@ -260,7 +268,6 @@ func (r *Repository) loadCohortGeneration(
 	}
 	components := make([]CohortComponent, 0, len(manifest.GetComponents()))
 	seen := make(map[string]struct{}, len(manifest.GetComponents()))
-	totalPayloadBytes := int64(0)
 	for _, component := range manifest.GetComponents() {
 		if !validProjectionKey(component.GetComponentKey()) || !validContractID(component.GetContractId()) {
 			return LoadedCohort{}, fmt.Errorf("snapshot cohort component identity is invalid")
@@ -277,15 +284,32 @@ func (r *Repository) loadCohortGeneration(
 			}
 			maxParts = contract.MaxParts
 		}
-		if len(component.GetPartGenerationIds()) == 0 || len(component.GetPartGenerationIds()) > maxParts {
+		if len(component.GetParts()) == 0 || len(component.GetParts()) > maxParts {
 			return LoadedCohort{}, fmt.Errorf("snapshot cohort component %q part count is invalid", component.GetComponentKey())
 		}
-		loadedComponent := CohortComponent{Key: component.GetComponentKey(), ContractID: component.GetContractId()}
+		seenParts := make(map[string]struct{}, len(component.GetParts()))
+		for _, manifestPart := range component.GetParts() {
+			if manifestPart == nil || !validProjectionKey(manifestPart.GetPartKey()) || manifestPart.GetGenerationId() == "" {
+				return LoadedCohort{}, fmt.Errorf("snapshot cohort component %q part identity is invalid", component.GetComponentKey())
+			}
+			if _, ok := seenParts[manifestPart.GetPartKey()]; ok {
+				return LoadedCohort{}, fmt.Errorf("snapshot cohort component %q part %q is duplicated", component.GetComponentKey(), manifestPart.GetPartKey())
+			}
+			seenParts[manifestPart.GetPartKey()] = struct{}{}
+		}
+		components = append(components, CohortComponent{Key: component.GetComponentKey(), ContractID: component.GetContractId()})
+	}
+
+	// The complete manifest is valid before any component object is read. This
+	// prevents malformed later entries from causing unnecessary allocations or
+	// object-store reads.
+	totalPayloadBytes := int64(0)
+	for componentIndex, component := range manifest.GetComponents() {
 		partProjectionKey := cohortPartProjectionKey(projectionKey, component.GetComponentKey())
-		for _, partID := range component.GetPartGenerationIds() {
-			part, err := r.loadGeneration(ctx, partID, partProjectionKey, component.GetContractId(), streamName, streamIdentity, manifestGeneration.CutoffSequence)
+		for _, manifestPart := range component.GetParts() {
+			part, err := r.loadGeneration(ctx, manifestPart.GetGenerationId(), partProjectionKey, component.GetContractId(), streamName, streamIdentity, manifestGeneration.CutoffSequence)
 			if err != nil {
-				return LoadedCohort{}, fmt.Errorf("load component %q part: %w", component.GetComponentKey(), err)
+				return LoadedCohort{}, fmt.Errorf("load component %q part %q: %w", component.GetComponentKey(), manifestPart.GetPartKey(), err)
 			}
 			if part.CutoffSequence != manifestGeneration.CutoffSequence {
 				return LoadedCohort{}, fmt.Errorf("component %q cutoff does not match cohort", component.GetComponentKey())
@@ -294,9 +318,10 @@ func (r *Repository) loadCohortGeneration(
 				return LoadedCohort{}, fmt.Errorf("snapshot cohort payload exceeds %d bytes", maxTotalPayload)
 			}
 			totalPayloadBytes += int64(len(part.Payload))
-			loadedComponent.Parts = append(loadedComponent.Parts, bytes.Clone(part.Payload))
+			components[componentIndex].Parts = append(components[componentIndex].Parts, CohortPart{
+				Key: manifestPart.GetPartKey(), Payload: bytes.Clone(part.Payload),
+			})
 		}
-		components = append(components, loadedComponent)
 	}
 	return LoadedCohort{
 		GenerationID: manifestGeneration.GenerationID, CutoffSequence: manifestGeneration.CutoffSequence,
@@ -364,8 +389,8 @@ func (r *Repository) deleteCohortGeneration(ctx context.Context, projectionKey, 
 	}
 	for _, component := range manifest.GetComponents() {
 		partProjectionKey := cohortPartProjectionKey(projectionKey, component.GetComponentKey())
-		for _, partID := range component.GetPartGenerationIds() {
-			if err := r.blobs.Delete(ctx, r.generationObjectKey(partProjectionKey, component.GetContractId(), partID)); err != nil && !errors.Is(err, ErrBlobNotFound) {
+		for _, part := range component.GetParts() {
+			if err := r.blobs.Delete(ctx, r.generationObjectKey(partProjectionKey, component.GetContractId(), part.GetGenerationId())); err != nil && !errors.Is(err, ErrBlobNotFound) {
 				r.logWarn("Projection snapshot component cleanup failed", projectionKey, "cleanup", err)
 			}
 		}
@@ -375,14 +400,14 @@ func (r *Repository) deleteCohortGeneration(ctx context.Context, projectionKey, 
 	}
 }
 
-func validateCohortInput(input SaveCohortInput) error {
+func validateCohortInput(input SaveCohortInput, partPayloadLimit int) error {
 	if !validProjectionKey(input.ProjectionKey) || !validContractID(input.ContractID) || input.StreamName == "" {
 		return fmt.Errorf("snapshot projection key, contract id, and stream name are required")
 	}
 	if input.StreamIdentity == "" {
 		return fmt.Errorf("snapshot stream identity is required")
 	}
-	if len(input.Components) == 0 || len(input.Components) > maxCohortComponents {
+	if len(input.Components) == 0 || len(input.Components) > maxCohortComponents || partPayloadLimit <= 0 {
 		return fmt.Errorf("snapshot cohort component count is invalid")
 	}
 	seen := make(map[string]struct{}, len(input.Components))
@@ -398,17 +423,37 @@ func validateCohortInput(input SaveCohortInput) error {
 		if len(component.Parts) == 0 || len(component.Parts) > maxPartsPerComponent {
 			return fmt.Errorf("snapshot cohort component %q part count is invalid", component.Key)
 		}
+		seenParts := make(map[string]struct{}, len(component.Parts))
 		for _, part := range component.Parts {
-			if len(part) > maxPayloadSize {
-				return fmt.Errorf("snapshot cohort component %q part exceeds %d bytes", component.Key, maxPayloadSize)
+			if !validProjectionKey(part.Key) {
+				return fmt.Errorf("snapshot cohort component %q part key is invalid", component.Key)
 			}
-			if int64(len(part)) > maxCohortPayloadSize-total {
+			if _, ok := seenParts[part.Key]; ok {
+				return fmt.Errorf("snapshot cohort component %q part %q is duplicated", component.Key, part.Key)
+			}
+			seenParts[part.Key] = struct{}{}
+			if len(part.Payload) > partPayloadLimit {
+				return fmt.Errorf("snapshot cohort component %q part exceeds %d bytes", component.Key, partPayloadLimit)
+			}
+			if int64(len(part.Payload)) > maxCohortPayloadSize-total {
 				return fmt.Errorf("snapshot cohort payload exceeds %d bytes", maxCohortPayloadSize)
 			}
-			total += int64(len(part))
+			total += int64(len(part.Payload))
 		}
 	}
 	return nil
+}
+
+func checkedPayloadLimit(parts, partPayloadLimit int) (int64, bool) {
+	if parts <= 0 || partPayloadLimit <= 0 {
+		return 0, false
+	}
+	left := int64(parts)
+	right := int64(partPayloadLimit)
+	if left > int64(maxCohortPayloadSize)/right {
+		return 0, false
+	}
+	return left * right, true
 }
 
 func validateCohortContracts(contracts []CohortComponentContract, partPayloadLimit int) error {
@@ -451,7 +496,7 @@ func cloneCohortComponents(components []CohortComponent) []CohortComponent {
 	for i, component := range components {
 		cloned[i] = CohortComponent{Key: component.Key, ContractID: component.ContractID}
 		for _, part := range component.Parts {
-			cloned[i].Parts = append(cloned[i].Parts, bytes.Clone(part))
+			cloned[i].Parts = append(cloned[i].Parts, CohortPart{Key: part.Key, Payload: bytes.Clone(part.Payload)})
 		}
 	}
 	return cloned

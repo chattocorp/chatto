@@ -46,21 +46,27 @@ type serverContentComponent struct {
 	reducer events.EventReducer[*evtv1.Event]
 }
 
-func newServerContentComponent(key string, model events.SnapshotComponentModel) serverContentComponent {
-	if reducer, ok := model.(events.EventReducer[*evtv1.Event]); ok {
-		return serverContentComponent{key: key, model: model, reducer: reducer}
-	}
-	projection, ok := model.(interface {
-		Apply(*evtv1.Event, uint64) error
-	})
-	if !ok {
-		panic(fmt.Sprintf("core: server content component %q cannot apply EVT events", key))
-	}
+func newServerContentComponent(
+	key string,
+	model events.SnapshotComponentModel,
+	reducer events.EventReducer[*evtv1.Event],
+) serverContentComponent {
+	return serverContentComponent{key: key, model: model, reducer: reducer}
+}
+
+// newInfallibleServerContentComponent is an explicit adapter for an existing
+// projection whose Apply implementation has no error paths. A component with
+// fallible work must supply its own EventReducer instead.
+func newInfallibleServerContentComponent(
+	key string,
+	model events.SnapshotComponentModel,
+	apply func(*evtv1.Event, uint64) error,
+) serverContentComponent {
 	return serverContentComponent{
 		key: key, model: model,
 		reducer: events.EventReducerFunc[*evtv1.Event](func(event *evtv1.Event, sequence uint64) (events.PreparedMutation, error) {
 			return events.PreparedMutationFunc(func() {
-				if err := projection.Apply(event, sequence); err != nil {
+				if err := apply(event, sequence); err != nil {
 					panic(fmt.Sprintf("core: prepared server content component %q failed to commit: %v", key, err))
 				}
 			}), nil
