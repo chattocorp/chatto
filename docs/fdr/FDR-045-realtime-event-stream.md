@@ -13,10 +13,10 @@ the stream to build and maintain its local server projection.
 ## Behavior
 
 - A client opens one authenticated realtime subscription for a server.
-- A subscription selects `RESOURCE_READS` or `LIVE_ONLY` initial state.
-  Resource clients read the current state that they need through ConnectRPC
-  when resume is not possible. Live-only clients start at a stated current
-  boundary without historical events.
+- A subscription selects `SNAPSHOT` or `LIVE_ONLY` initial state. Snapshot
+  clients receive current canonical resources through the WebSocket when
+  resume is not possible. Live-only clients start at a stated current boundary
+  without historical events.
 - The stream sends authorized copies of canonical events for durable activity,
   including messages, edits, retractions, reactions, membership, rooms,
   profiles, calls, and other public domain changes.
@@ -33,13 +33,14 @@ the stream to build and maintain its local server projection.
   live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
-- Resume and cursor-bounded resource reads use the caller's current
+- Resume, snapshots, and cursor-bounded resource reads use the caller's current
   authorization. Deleted, retracted, or erased data does not return in its old
   form.
 - A client must tolerate duplicate events and use the stable event ID for
   deduplication.
-- A client that starts a new resource reset must discard responses from the
-  earlier reset. It must not let a late response replace newer state.
+- A client must discard an incomplete snapshot. A new snapshot also starts a
+  new local projection generation. Late reads from an earlier generation must
+  not replace newer state.
 - The stream does not guarantee every intermediate transition after a client
   is offline beyond the bounded resume window.
 - ConnectRPC remains the normal API for commands, explicit resource reads,
@@ -66,15 +67,15 @@ separate authorized shape.
 
 ### 2. Initial state is explicit
 
-**Decision:** A subscription selects `RESOURCE_READS` or `LIVE_ONLY`. The
-bundled frontend selects `RESOURCE_READS` and reads only the canonical
-resources that it keeps. An event-only bot selects `LIVE_ONLY` and uses
-ConnectRPC only when it needs current resources.
-**Why:** One explicit choice tells the server whether the client needs a safe
-current-state boundary. It does not force a large bootstrap on integrations
-that need only events.
-**Tradeoff:** A resource client must make several ConnectRPC calls before it
-asks the WebSocket to catch up.
+**Decision:** A subscription selects `SNAPSHOT` or `LIVE_ONLY`. The bundled
+frontend selects `SNAPSHOT`. The server sends an exact authorized snapshot of
+`ServerContentView` before events after the same boundary. An event-only bot
+selects `LIVE_ONLY` and uses ConnectRPC only when it needs a resource.
+**Why:** One WebSocket replica can capture the content snapshot and event
+boundary together. Clients do not have to coordinate a bootstrap across
+replicas. Integrations that need only events do not receive the snapshot.
+**Tradeoff:** The WebSocket protocol contains a small snapshot wrapper. The
+snapshot must stay bounded and must not become a second resource hierarchy.
 
 ### 3. Resume repairs recent connection gaps
 
@@ -83,40 +84,40 @@ expensive cursor selects the subscription's requested safe fallback.
 **Why:** Short replay prevents visible state jumps during ordinary network and
 credential reconnects. Strict bounds protect the server and keep realtime
 separate from event-log export.
-**Tradeoff:** A long-offline resource client can recover current state but can
+**Tradeoff:** A long-offline snapshot client can recover current state but can
 miss intermediate transitions. A live-only client must fetch any required
 current state through ConnectRPC.
 
-### 4. ConnectRPC reads and events close one state interval
+### 4. One exact snapshot and one event boundary close the startup interval
 
-**Decision:** The server gives a resource client an opaque boundary `E`. The
-client clears its retained state and reads the required canonical resources
-through ConnectRPC with `E` as the minimum cursor. The client then requests
-catch-up. The server sends events after `E` through `F`, then sends
-`caught_up(F)`. Each serving replica waits until its local projections include
-`E` before it answers a bounded read.
+**Decision:** The WebSocket replica registers for live delivery and captures
+an exact snapshot at EVT boundary `E`. It sends `subscribed(SNAPSHOT)`, one
+snapshot frame for each bounded resource family, and then `caught_up(E)`.
+Buffered durable events after `E` follow in order. The snapshot reuses
+canonical `chatto.api.v1` resource messages.
 
-`E` is a minimum boundary, not an exact snapshot revision. A resource read can
-include later events. Catch-up can then deliver an event that the resource
-response already includes. Clients must use idempotent event reducers or use
-events as hints to replace authoritative resources. Both approaches must
-converge when resource reads and catch-up contain the same change.
+The snapshot contains the public server profile, complete visible room
+directory, complete visible room-group layout, complete visible active-call
+state, the viewer, and users referenced by snapshot resources. It does not
+contain the complete user directory, timelines, search results, files, pins,
+notifications, presence, read markers, or account-security state.
 
-**Why:** This closes races between replicas without putting resource shapes in
-the WebSocket protocol. Each resource has one public API and one compatibility
-contract.
-**Tradeoff:** The server must validate cursor-bound read headers and hold a
-bounded subscriber queue while the client reads resources.
+**Why:** The same replica owns the snapshot and event handoff. This removes the
+cross-replica bootstrap race and the client-driven second catch-up interval.
+Reused resource messages prevent a second state schema.
+**Tradeoff:** Snapshot framing is part of the WebSocket protocol. State that is
+not in the bounded content view still needs explicit ConnectRPC reads.
 
-Clients must give cursor-bounded reads finite deadlines. A projection that
-cannot reach the requested cursor must cause reconnect or safe fallback. It
-must not stop the client at one boundary for an unlimited time.
+After an event, a targeted ConnectRPC read can use that event cursor as its
+minimum boundary. Each serving replica validates the cursor and waits until
+its content view includes that boundary. Clients must give these reads finite
+deadlines and must not retain the event cursor until required reconciliation
+succeeds.
 
-The bundled frontend does not read the complete user directory. It reads the
-viewer, rooms, room groups, notification page, active calls, and server state.
-It uses bounded user batch reads only for users referenced by direct messages
-or later events. It also reloads each mounted room or thread timeline at the
-same boundary. Unmounted timelines remain lazy.
+The bundled frontend reads notifications and other auxiliary state after the
+snapshot. It reloads only mounted room or thread timelines. Unmounted
+timelines remain lazy. A new snapshot invalidates any late response from an
+earlier projection generation.
 
 ### 5. Durable and transient activity have different recovery
 
@@ -171,7 +172,7 @@ that must process every transition after a long outage.
 
 - Define whether reliable long-offline automation first uses outgoing
   webhooks or a paged public activity API.
-- Validate the 24-hour cursor lifetime, 10,000-position scan cap, 2,000-event
+- Validate the 15-minute cursor lifetime, 10,000-position scan cap, 2,000-event
   delivery cap, and 30-second catch-up limit against production measurements.
   Add a byte cap if event-size measurements show that event count is not a
   sufficient transport bound.

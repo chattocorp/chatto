@@ -102,36 +102,40 @@ attachments, reactions, thread metadata, and timeline cursors. A read caused by
 a durable event uses that event's cursor as its minimum boundary. The client
 does not save the event cursor until the required read succeeds.
 
-### Resource reads and resume share one boundary
+### Exact snapshots and resume share one boundary
 
-The public cursor remains encrypted, authenticated, viewer-bound, and opaque.
-It can contain an EVT sequence internally. The canonical Event never contains
-a JetStream sequence, subject, stream identity, or cursor.
+The public resume cursor is a signed, viewer-bound JWT. Its public `p` claim is
+an HMAC of the EVT stream identity, viewer, subscription scope, and sequence.
+The server compares `p` with at most 10,000 candidate positions in the retained
+replay window. The canonical Event never contains a JetStream sequence,
+subject, stream identity, or cursor.
 
-The WebSocket does not send current-resource frames. When a client needs a
-complete current view, the server first returns an opaque start cursor `E`.
-The client reads the canonical resources that it needs through ConnectRPC. It
-adds `Chatto-Realtime-Minimum-Cursor: E` to each read. The serving replica
-validates that `E` belongs to the caller and waits until its projections
-include at least that boundary.
+When a client needs a complete current content view, it selects `SNAPSHOT` as
+its fallback. The WebSocket replica registers for live events, captures an
+exact `ServerContentView` snapshot at boundary `E`, and sends canonical public
+resource messages. The snapshot contains the public server profile, visible
+rooms, visible room groups, visible active calls, the viewer, and only users
+that these resources reference. It does not contain the complete user
+directory or large and paginated resources.
 
-After the resource reads succeed, the client sends `catch_up`. The server sends
-authorized durable events after `E` through a new boundary `F`, then sends
-`caught_up(F)`. Live event ingress starts before the resource reads and remains
-in the existing bounded subscriber queue. This closes the read-to-event race
-without a WebSocket resource protocol or replica affinity for ConnectRPC.
-
-A client that does not need current resources selects `LIVE_ONLY` and sends
-`catch_up` immediately. A client with a usable cursor also sends `catch_up`
-immediately and receives bounded replay. An invalid, expired, or unsafe cursor
-uses the selected `RESOURCE_READS` or `LIVE_ONLY` fallback.
+The server then sends `caught_up(E)`, drops buffered durable duplicates through
+`E`, and continues live delivery. The client does not send a second catch-up
+request. A client that does not need current resources selects `LIVE_ONLY`. A
+client with a usable cursor receives bounded replay. An invalid, expired, or
+unsafe cursor uses the selected `SNAPSHOT` or `LIVE_ONLY` fallback.
 
 Normal event frames do not contain resource sidecars. Clients use ConnectRPC
 to refresh a resource after an event when they need more than the semantic
 payload. The client retains an event cursor only after these reads succeed.
 This rule makes a failed read safe to retry after reconnect.
 
-Room and thread history does not use realtime current-state messages. Clients
+After an event, the client can set `Chatto-Realtime-Minimum-Cursor` to that
+event's cursor on a targeted resource read. The serving replica validates the
+viewer-bound token and waits until its content view includes at least that
+boundary. This prevents a later read from another replica from returning older
+content.
+
+Room and thread history does not use realtime snapshot messages. Clients
 read timelines through the paginated ConnectRPC services. This keeps large and
 lazy data out of the WebSocket protocol.
 
@@ -162,10 +166,11 @@ not affected.
 - Chatto has one semantic event vocabulary for durable facts, transient
   signals, resume, bots, and the bundled frontend.
 - Adding an event no longer requires a second public event payload.
-- Current-state bootstrap uses canonical ConnectRPC resources instead of a
-  parallel WebSocket state hierarchy.
-- Cursor-bounded reads can use any replica without accepting state older than
-  the WebSocket boundary.
+- Current-state bootstrap reuses canonical ConnectRPC resource messages in a
+  small WebSocket snapshot wrapper instead of a parallel state hierarchy.
+- The WebSocket replica captures the snapshot and event boundary together.
+  Targeted cursor-bounded reads can use any replica without accepting content
+  older than an event boundary.
 - EVT compatibility strengthens the public event contract.
 - Authorization and field projection remain explicit server work. Sharing a
   protobuf does not make every event or field public.

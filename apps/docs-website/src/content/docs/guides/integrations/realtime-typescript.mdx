@@ -10,10 +10,10 @@ import {
   LinkCard,
 } from "@astrojs/starlight/components";
 
-This tutorial builds a small browser-based event client. It starts without
-current-resource reads, processes semantic events in order, and reconnects with
-its last safe cursor. The same pattern works for a bot runtime that provides a
-WebSocket implementation.
+This tutorial builds a small browser-based event client. It processes semantic
+events in order and reconnects with its last safe cursor. It also shows how a
+projection client can apply an exact resource snapshot. The same pattern works
+for a bot runtime that provides a WebSocket implementation.
 
 <Aside type="caution">
   Chatto's public API is experimental before 1.0. Generate bindings from the
@@ -96,12 +96,12 @@ Create `src/realtime.ts`:
 ```ts
 import {
   RealtimeClientFrame,
-  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeEvent,
   RealtimeInitialState,
   RealtimeRecoveryMode,
   RealtimeServerFrame,
+  RealtimeSnapshot,
   RealtimeSubscribeEvents,
 } from "./gen/chatto/realtime/v1/realtime_pb.js";
 
@@ -111,8 +111,10 @@ const MAX_RECONNECT_MS = 30_000;
 
 type ChattoRealtimeClientOptions = {
   initialState?: RealtimeInitialState;
-  replaceCurrentResources?: (
-    minimumCursor: string,
+  beginSnapshot?: () => void | Promise<void>;
+  applySnapshot?: (snapshot: RealtimeSnapshot) => void | Promise<void>;
+  completeSnapshot?: (
+    cursor: string,
     signal: AbortSignal,
   ) => Promise<void>;
 };
@@ -129,6 +131,7 @@ export class ChattoRealtimeClient {
   #processing = Promise.resolve();
   #seenEventIds = new Set<string>();
   #connectionAbort?: AbortController;
+  #snapshotInProgress = false;
 
   constructor(
     private readonly serverUrl: string,
@@ -249,26 +252,23 @@ export class ChattoRealtimeClient {
           "Realtime recovery mode",
           RealtimeRecoveryMode[subscribed.recoveryMode],
         );
-        if (subscribed.recoveryMode === RealtimeRecoveryMode.RESOURCE_READS) {
-          if (
-            !subscribed.startCursor ||
-            !this.options.replaceCurrentResources
-          ) {
-            throw new Error(
-              "Resource recovery needs a cursor and resource loader",
-            );
-          }
-          await this.options.replaceCurrentResources(
-            subscribed.startCursor,
-            connectionSignal,
-          );
+        this.#snapshotInProgress =
+          subscribed.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
+        if (this.#snapshotInProgress) {
+          // A partial snapshot can never be a safe resume base.
+          this.#resumeCursor = undefined;
+          await this.options.beginSnapshot?.();
           connectionSignal.throwIfAborted();
         }
-        this.#send(
-          new RealtimeClientFrame({
-            frame: { case: "catchUp", value: new RealtimeCatchUp() },
-          }),
-        );
+        return;
+      }
+
+      case "snapshot": {
+        if (!this.#snapshotInProgress || !this.options.applySnapshot) {
+          throw new Error("Unexpected realtime snapshot");
+        }
+        await this.options.applySnapshot(frame.frame.value);
+        connectionSignal.throwIfAborted();
         return;
       }
 
@@ -287,12 +287,24 @@ export class ChattoRealtimeClient {
         return;
       }
 
-      case "caughtUp":
-        this.#resumeCursor = frame.frame.value.cursor;
+      case "caughtUp": {
+        const cursor = frame.frame.value.cursor;
+        if (this.#snapshotInProgress) {
+          await this.options.completeSnapshot?.(cursor, connectionSignal);
+          connectionSignal.throwIfAborted();
+          this.#snapshotInProgress = false;
+        }
+        this.#resumeCursor = cursor;
         this.#reconnectAttempt = 0;
         return;
+      }
 
-      case "heartbeat":
+      case "heartbeat": {
+        const cursor = frame.frame.value.resumeCursor;
+        if (cursor !== undefined) this.#resumeCursor = cursor;
+        return;
+      }
+
       case "pong":
         return;
 
@@ -390,14 +402,12 @@ indefinite durable queue.
 
 ## Build a projection client
 
-A projection client selects `RealtimeInitialState.RESOURCE_READS`. When
-`subscribed.recoveryMode` is `RESOURCE_READS`, clear realtime-owned state. Read
-each required resource through ConnectRPC and set
-`Chatto-Realtime-Minimum-Cursor` to `subscribed.startCursor`. Send `catch_up`
-only after all required reads succeed. The server then sends later events and
-closes the interval with `caught_up`.
+A projection client selects `RealtimeInitialState.SNAPSHOT`. When
+`subscribed.recoveryMode` is `SNAPSHOT`, clear realtime-owned state. Apply each
+snapshot frame as a complete replacement for that resource family. The server
+closes the exact snapshot boundary with `caught_up` and then sends later events.
 
-Pass a resource replacement function when you create the client:
+Pass snapshot lifecycle functions when you create the client:
 
 ```ts
 import { RealtimeInitialState } from "./gen/chatto/realtime/v1/realtime_pb.js";
@@ -407,49 +417,44 @@ const projectionClient = new ChattoRealtimeClient(
   accessToken,
   applyOrReconcileEvent,
   {
-    initialState: RealtimeInitialState.RESOURCE_READS,
-    replaceCurrentResources: async (minimumCursor, signal) => {
-      const headers = { "Chatto-Realtime-Minimum-Cursor": minimumCursor };
-
-      const [profile, runtime, viewer, rooms, groups, notifications, calls] =
-        await Promise.all([
-          serverClient.getServerProfile(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-          serverClient.getRuntimeConfig(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-          viewerClient.getViewer({}, { headers, signal, timeoutMs: 10_000 }),
-          roomDirectoryClient.listRooms(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-          roomDirectoryClient.listRoomGroups(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-          notificationClient.listNotificationOccurrences(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-          voiceCallClient.listActiveCalls(
-            {},
-            { headers, signal, timeoutMs: 10_000 },
-          ),
-        ]);
-
+    initialState: RealtimeInitialState.SNAPSHOT,
+    beginSnapshot: () => resetProjection(),
+    applySnapshot: (snapshot) => {
+      switch (snapshot.resource.case) {
+        case "server":
+          replaceServerProfile(snapshot.resource.value);
+          break;
+        case "rooms":
+          replaceRooms(snapshot.resource.value.rooms);
+          break;
+        case "roomGroups":
+          replaceRoomGroups(snapshot.resource.value.groups);
+          break;
+        case "users":
+          replaceReferencedUsers(snapshot.resource.value.users);
+          break;
+        case "activeCalls":
+          replaceActiveCalls(snapshot.resource.value.calls);
+          break;
+        case undefined:
+          throw new Error("Unknown snapshot resource");
+      }
+    },
+    completeSnapshot: async (cursor, signal) => {
+      const headers = { "Chatto-Realtime-Minimum-Cursor": cursor };
+      const [runtime, viewer, notifications] = await Promise.all([
+        serverClient.getRuntimeConfig(
+          {},
+          { headers, signal, timeoutMs: 10_000 },
+        ),
+        viewerClient.getViewer({}, { headers, signal, timeoutMs: 10_000 }),
+        notificationClient.listNotificationOccurrences(
+          {},
+          { headers, signal, timeoutMs: 10_000 },
+        ),
+      ]);
       signal.throwIfAborted();
-      replaceProjection({
-        profile,
-        runtime,
-        viewer,
-        rooms,
-        groups,
-        notifications,
-        calls,
-      });
+      replaceAuxiliaryState({ runtime, viewer, notifications });
     },
   },
 );
@@ -457,24 +462,22 @@ const projectionClient = new ChattoRealtimeClient(
 projectionClient.start();
 ```
 
-This example assumes generated ConnectRPC clients and an atomic
-`replaceProjection` function. Use the method request fields and pagination that
-your client needs. Load referenced users with bounded `BatchGetUsers` calls
-instead of listing the complete user directory.
+This example assumes generated ConnectRPC clients and replacement functions
+for the local projection. The users snapshot contains the viewer and users
+that snapshot resources reference. It is not the complete user directory.
+Load other users with bounded `BatchGetUsers` calls when later events reference
+them.
 
-Read only the resource families that the client keeps. For example, the
-bundled frontend does not list the complete user directory. It uses bounded
-batch reads for users referenced by direct messages or later events.
+Notifications, runtime settings, and some viewer state are not part of the
+exact content snapshot. The example reads them after `caught_up` with the same
+cursor as a minimum boundary. Use a finite deadline for every cursor-bounded
+call. Associate each snapshot with a local generation or abort signal. When a
+newer snapshot starts, discard responses from the earlier generation.
 
-Use a finite deadline for every cursor-bounded call. Associate each recovery
-with a local generation or abort signal. When a newer recovery starts, discard
-responses from the earlier generation.
-
-The minimum cursor is a lower bound. A response can already contain changes
-after that cursor, and catch-up can repeat those changes as events. Make direct
-reducers idempotent, or use the event to read and replace the affected
-resource. Do not assume that every catch-up event is absent from the resource
-responses that you just received.
+A targeted ConnectRPC response can include changes after its minimum cursor.
+Make direct reducers idempotent, or use the event to read and replace the
+affected resource. Save an event cursor only after every required read
+succeeds.
 
 Do not infer old history from the realtime stream. Use ConnectRPC for commands,
 explicit reads, room or thread history, paginated lists, files, pins, and
@@ -485,7 +488,7 @@ client has loaded.
   <LinkCard
     title="Realtime Overview"
     href="/guides/integrations/realtime-protocol/"
-    description="Review event, resource-read boundary, cursor, and reconnect semantics."
+    description="Review snapshot, event boundary, cursor, and reconnect semantics."
   />
   <LinkCard
     title="Realtime Frame Reference"

@@ -21,7 +21,10 @@ export class RealtimeProjectionSyncState {
 
   /** Advance only after every resource and event reducer accepted the frame. */
   acceptProjectionEvent(cursor: string | undefined, reset: boolean): void {
-    if (reset) this.phase = 'hydrating';
+    if (reset) {
+      this.phase = 'hydrating';
+      this.#resumeCursor = null;
+    }
     if (cursor) this.#resumeCursor = cursor;
   }
 

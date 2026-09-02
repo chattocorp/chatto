@@ -16,7 +16,6 @@ import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEv
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
-  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeInitialState,
   RealtimeRecoveryMode,
@@ -24,6 +23,7 @@ import {
   RealtimeSubscribeEvents,
   type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
@@ -60,8 +60,6 @@ export type RealtimeServerRegistration = {
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler?: ProjectionHandler;
-  /** Replace retained state through cursor-bounded ConnectRPC resource reads. */
-  bootstrapProjection?: (startCursor: string) => Promise<void>;
   /** Wait until event-triggered resource reconciliation has settled. */
   completeProjectionCatchUp?: (cursor: string) => Promise<void>;
 };
@@ -110,15 +108,9 @@ function subscribeEventsFrame(resumeCursor: string | null): Uint8Array {
       case: 'subscribeEvents',
       value: new RealtimeSubscribeEvents({
         resumeCursor: resumeCursor ?? undefined,
-        initialState: RealtimeInitialState.RESOURCE_READS
+        initialState: RealtimeInitialState.SNAPSHOT
       })
     }
-  }).toBinary();
-}
-
-function catchUpFrame(): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: { case: 'catchUp', value: new RealtimeCatchUp() }
   }).toBinary();
 }
 
@@ -145,7 +137,6 @@ class EventBusManager {
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
-    bootstrapProjection?: (startCursor: string) => Promise<void>,
     completeProjectionCatchUp?: (cursor: string) => Promise<void>
   ): () => void {
     const controller = this.ensureBus(
@@ -154,7 +145,6 @@ class EventBusManager {
       realtimeProjectionSupported,
       sync,
       undefined,
-      bootstrapProjection,
       completeProjectionCatchUp
     );
     if (realtimeProjectionSupported) controller.setMode('live');
@@ -168,7 +158,6 @@ class EventBusManager {
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
     projectionHandler?: ProjectionHandler,
-    bootstrapProjection?: (startCursor: string) => Promise<void>,
     completeProjectionCatchUp?: (cursor: string) => Promise<void>
   ): TransportController {
     const existing = this.#controllers.get(serverId);
@@ -432,24 +421,10 @@ class EventBusManager {
               case 'subscribed':
                 socketSubscribed = true;
                 reconnectAttempts = 0;
-                if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.RESOURCE_READS) {
-                  const startCursor = frame.frame.value.startCursor;
-                  if (!startCursor || !bootstrapProjection) {
-                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource bootstrap unavailable');
-                    return;
-                  }
+                if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT) {
                   dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
                   sync.acceptProjectionEvent(undefined, true);
-                  try {
-                    await bootstrapProjection(startCursor);
-                  } catch (error) {
-                    console.error(`[eventBus:${serverId}] resource bootstrap failed`, error);
-                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource bootstrap failed');
-                    return;
-                  }
                 }
-                if (stopped || socket !== nextSocket) return;
-                nextSocket.send(catchUpFrame());
                 console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                   generation: socketGeneration,
                   mode
@@ -457,6 +432,26 @@ class EventBusManager {
                 return;
               case 'heartbeat':
                 heartbeatCount++;
+                commitEventCursor(frame.frame.value.resumeCursor);
+                return;
+              case 'snapshot':
+                if (!frame.frame.value.resource.case) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'empty snapshot frame');
+                  return;
+                }
+                try {
+                  dispatchProjectionUpdate(
+                    new RealtimeProjectionUpdate({
+                      resource: new RealtimeResourceUpdate({
+                        resource: frame.frame.value.resource,
+                        replace: true
+                      })
+                    })
+                  );
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
+                }
                 return;
               case 'event': {
                 const event = realtimeEventToEventEnvelope(frame.frame.value);
@@ -689,7 +684,6 @@ class EventBusManager {
         registration.projectionSupported,
         registration.sync,
         registration.projectionHandler,
-        registration.bootstrapProjection,
         registration.completeProjectionCatchUp
       );
     }

@@ -10,9 +10,11 @@ import {
   RealtimeHeartbeat,
   RealtimeServerFrame,
   RealtimeServerHello,
+  RealtimeSnapshot,
   RealtimeSubscribed,
   RealtimeRecoveryMode
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
 import {
@@ -120,6 +122,18 @@ class FakeServerConnection {
 const TEST_SERVER = 'test-server-bus';
 let sockets: FakeRealtimeSocket[];
 
+function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+async function flushPromises(): Promise<void> {
+  for (let index = 0; index < 8; index++) await Promise.resolve();
+}
+
 function serverFrame(frame: RealtimeServerFrame['frame']): RealtimeServerFrame {
   return new RealtimeServerFrame({ frame });
 }
@@ -135,13 +149,19 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
   });
 }
 
-function subscribedFrame(
-  recoveryMode = RealtimeRecoveryMode.RESUME,
-  startCursor?: string
-): RealtimeServerFrame {
+function subscribedFrame(recoveryMode = RealtimeRecoveryMode.RESUME): RealtimeServerFrame {
   return serverFrame({
     case: 'subscribed',
-    value: new RealtimeSubscribed({ recoveryMode, startCursor })
+    value: new RealtimeSubscribed({ recoveryMode })
+  });
+}
+
+function snapshotFrame(): RealtimeServerFrame {
+  return serverFrame({
+    case: 'snapshot',
+    value: new RealtimeSnapshot({
+      resource: { case: 'server', value: new ServerPublicProfile({ name: 'Snapshot Server' }) }
+    })
   });
 }
 
@@ -172,10 +192,14 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   });
 }
 
-function heartbeatFrame(): RealtimeServerFrame {
+function heartbeatFrame(resumeCursor?: string): RealtimeServerFrame {
   return serverFrame({
     case: 'heartbeat',
-    value: new RealtimeHeartbeat({ id: 'heartbeat-1', createdAt: Timestamp.now() })
+    value: new RealtimeHeartbeat({
+      id: 'heartbeat-1',
+      createdAt: Timestamp.now(),
+      resumeCursor
+    })
   });
 }
 
@@ -315,18 +339,16 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
-  it('reads cursor-bounded resources when a retained resume cursor is no longer usable', async () => {
+  it('replaces retained state when a resume cursor falls back to a snapshot', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-expired');
     const fake = new FakeServerConnection();
-    const bootstrapProjection = vi.fn().mockResolvedValue(undefined);
     const completeProjectionCatchUp = vi.fn().mockResolvedValue(undefined);
     eventBusManager.startBus(
       TEST_SERVER,
       fake as unknown as ServerConnection,
       true,
       sync,
-      bootstrapProjection,
       completeProjectionCatchUp
     );
     const socket = sockets[0];
@@ -334,16 +356,12 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(helloFrame());
     eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
     await socket.receive(
-      subscribedFrame(RealtimeRecoveryMode.RESOURCE_READS, 'cursor-resource-boundary')
+      subscribedFrame(RealtimeRecoveryMode.SNAPSHOT)
     );
 
     expect(sync.phase).toBe('hydrating');
-    expect(bootstrapProjection).toHaveBeenCalledWith('cursor-resource-boundary');
-    const catchUp = RealtimeClientFrame.fromBinary(socket.sent.at(-1)!);
-    expect(catchUp.frame.case).toBe('catchUp');
-    // Until catch-up completes, reconnecting must retry the old cursor and
-    // start a fresh resource bootstrap instead of using partial state.
-    expect(sync.resumeCursor).toBe('cursor-expired');
+    expect(sync.resumeCursor).toBeNull();
+    await socket.receive(snapshotFrame());
 
     await socket.receive(
       serverFrame({
@@ -385,7 +403,6 @@ describe('eventBusManager realtime transport', () => {
       fake as unknown as ServerConnection,
       true,
       sync,
-      undefined,
       completeProjectionCatchUp
     );
     const socket = sockets[0];
@@ -691,6 +708,34 @@ describe('eventBusManager realtime transport', () => {
     await socket.receive(heartbeatFrame());
 
     expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('retains a heartbeat cursor only after earlier reconciliation completes', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('before-heartbeat');
+    const reconciliation = deferred<void>();
+    const completeProjectionCatchUp = vi.fn((cursor: string) =>
+      cursor === 'heartbeat-cursor' ? reconciliation.promise : Promise.resolve()
+    );
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(
+      TEST_SERVER,
+      fake as unknown as ServerConnection,
+      true,
+      sync,
+      completeProjectionCatchUp
+    );
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(subscribedFrame());
+    await socket.receive(heartbeatFrame('heartbeat-cursor'));
+
+    expect(sync.resumeCursor).toBe('before-heartbeat');
+    reconciliation.resolve();
+    await flushPromises();
+    expect(sync.resumeCursor).toBe('heartbeat-cursor');
   });
 
   it('does NOT reconnect when stopBus is called', async () => {

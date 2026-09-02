@@ -5,6 +5,10 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { ServerPublicProfile } from "../../api/v1/server_pb.js";
+import { ListRoomGroupsResponse, ListRoomsResponse } from "../../api/v1/room_directory_pb.js";
+import { BatchGetUsersResponse } from "../../api/v1/user_service_pb.js";
+import { ListActiveCallsResponse } from "../../api/v1/voice_calls_pb.js";
 import { Event } from "../../core/evt/v1/event_pb.js";
 
 /**
@@ -28,17 +32,17 @@ export enum RealtimeInitialState {
   LIVE_ONLY = 1,
 
   /**
-   * Let the client read current resources through ConnectRPC before catch-up.
+   * Send an exact authorized snapshot before later canonical events.
    *
-   * @generated from enum value: REALTIME_INITIAL_STATE_RESOURCE_READS = 2;
+   * @generated from enum value: REALTIME_INITIAL_STATE_SNAPSHOT = 2;
    */
-  RESOURCE_READS = 2,
+  SNAPSHOT = 2,
 }
 // Retrieve enum metadata with: proto3.getEnumType(RealtimeInitialState)
 proto3.util.setEnumType(RealtimeInitialState, "chatto.realtime.v1.RealtimeInitialState", [
   { no: 0, name: "REALTIME_INITIAL_STATE_UNSPECIFIED" },
   { no: 1, name: "REALTIME_INITIAL_STATE_LIVE_ONLY" },
-  { no: 2, name: "REALTIME_INITIAL_STATE_RESOURCE_READS" },
+  { no: 2, name: "REALTIME_INITIAL_STATE_SNAPSHOT" },
 ]);
 
 /**
@@ -62,11 +66,11 @@ export enum RealtimeRecoveryMode {
   LIVE_ONLY = 1,
 
   /**
-   * The client must replace its local state through ConnectRPC resource reads.
+   * The server sends an exact authorized snapshot before later events.
    *
-   * @generated from enum value: REALTIME_RECOVERY_MODE_RESOURCE_READS = 2;
+   * @generated from enum value: REALTIME_RECOVERY_MODE_SNAPSHOT = 2;
    */
-  RESOURCE_READS = 2,
+  SNAPSHOT = 2,
 
   /**
    * Durable events resume after the supplied cursor.
@@ -79,7 +83,7 @@ export enum RealtimeRecoveryMode {
 proto3.util.setEnumType(RealtimeRecoveryMode, "chatto.realtime.v1.RealtimeRecoveryMode", [
   { no: 0, name: "REALTIME_RECOVERY_MODE_UNSPECIFIED" },
   { no: 1, name: "REALTIME_RECOVERY_MODE_LIVE_ONLY" },
-  { no: 2, name: "REALTIME_RECOVERY_MODE_RESOURCE_READS" },
+  { no: 2, name: "REALTIME_RECOVERY_MODE_SNAPSHOT" },
   { no: 3, name: "REALTIME_RECOVERY_MODE_RESUME" },
 ]);
 
@@ -120,14 +124,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
      */
     value: RealtimePing;
     case: "ping";
-  } | {
-    /**
-     * Confirms that the client finished its required current-resource reads.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeCatchUp catch_up = 5;
-     */
-    value: RealtimeCatchUp;
-    case: "catchUp";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeClientFrame>) {
@@ -141,7 +137,6 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     { no: 1, name: "hello", kind: "message", T: RealtimeClientHello, oneof: "frame" },
     { no: 2, name: "subscribe_events", kind: "message", T: RealtimeSubscribeEvents, oneof: "frame" },
     { no: 3, name: "ping", kind: "message", T: RealtimePing, oneof: "frame" },
-    { no: 5, name: "catch_up", kind: "message", T: RealtimeCatchUp, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientFrame {
@@ -234,6 +229,14 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
      */
     value: RealtimeCaughtUp;
     case: "caughtUp";
+  } | {
+    /**
+     * One canonical resource family in an exact server-content snapshot.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeSnapshot snapshot = 9;
+     */
+    value: RealtimeSnapshot;
+    case: "snapshot";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeServerFrame>) {
@@ -252,6 +255,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     { no: 6, name: "close", kind: "message", T: RealtimeClose, oneof: "frame" },
     { no: 7, name: "pong", kind: "message", T: RealtimePong, oneof: "frame" },
     { no: 8, name: "caught_up", kind: "message", T: RealtimeCaughtUp, oneof: "frame" },
+    { no: 9, name: "snapshot", kind: "message", T: RealtimeSnapshot, oneof: "frame" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerFrame {
@@ -387,7 +391,7 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   /**
    * Opaque cursor from a previously received durable event or `caught_up`
    * frame. A usable cursor receives bounded authorized durable events after
-   * that position. Cursors expire 24 hours after issue.
+   * that position. Cursors expire 15 minutes after issue.
    *
    * @generated from field: optional string resume_cursor = 1;
    */
@@ -436,13 +440,6 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
  */
 export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   /**
-   * Opaque boundary from which this subscription starts.
-   *
-   * @generated from field: optional string start_cursor = 2;
-   */
-  startCursor?: string;
-
-  /**
    * Recovery path selected after cursor validation and admission checks.
    *
    * @generated from field: chatto.realtime.v1.RealtimeRecoveryMode recovery_mode = 3;
@@ -457,7 +454,6 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeSubscribed";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "start_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "recovery_mode", kind: "enum", T: proto3.getEnumType(RealtimeRecoveryMode) },
   ]);
 
@@ -479,39 +475,91 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
 }
 
 /**
- * Requests delivery through a stable current event boundary.
+ * One resource family from an authorized snapshot of `ServerContentView`.
  *
- * A client in `RESOURCE_READS` recovery sends this frame after its required
- * ConnectRPC reads succeed. Those reads use `start_cursor` as their minimum
- * consistency cursor. A live-only or resume client can send it immediately.
+ * The server sends all snapshot frames between `subscribed(SNAPSHOT)` and
+ * `caught_up`. The client must discard an incomplete snapshot if the socket
+ * closes before `caught_up`. List values replace the complete local family.
+ * Large and paginated resources, such as message history, are not part of the
+ * snapshot and remain available through ConnectRPC.
  *
- * @generated from message chatto.realtime.v1.RealtimeCatchUp
+ * @generated from message chatto.realtime.v1.RealtimeSnapshot
  */
-export class RealtimeCatchUp extends Message<RealtimeCatchUp> {
-  constructor(data?: PartialMessage<RealtimeCatchUp>) {
+export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
+  /**
+   * @generated from oneof chatto.realtime.v1.RealtimeSnapshot.resource
+   */
+  resource: {
+    /**
+     * Current public server profile.
+     *
+     * @generated from field: chatto.api.v1.ServerPublicProfile server = 1;
+     */
+    value: ServerPublicProfile;
+    case: "server";
+  } | {
+    /**
+     * Complete visible room directory.
+     *
+     * @generated from field: chatto.api.v1.ListRoomsResponse rooms = 2;
+     */
+    value: ListRoomsResponse;
+    case: "rooms";
+  } | {
+    /**
+     * Complete visible room-group layout.
+     *
+     * @generated from field: chatto.api.v1.ListRoomGroupsResponse room_groups = 3;
+     */
+    value: ListRoomGroupsResponse;
+    case: "roomGroups";
+  } | {
+    /**
+     * Users referenced by this snapshot. This is not the server directory.
+     *
+     * @generated from field: chatto.api.v1.BatchGetUsersResponse users = 4;
+     */
+    value: BatchGetUsersResponse;
+    case: "users";
+  } | {
+    /**
+     * Complete visible active-call state.
+     *
+     * @generated from field: chatto.api.v1.ListActiveCallsResponse active_calls = 5;
+     */
+    value: ListActiveCallsResponse;
+    case: "activeCalls";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<RealtimeSnapshot>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeCatchUp";
+  static readonly typeName = "chatto.realtime.v1.RealtimeSnapshot";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "server", kind: "message", T: ServerPublicProfile, oneof: "resource" },
+    { no: 2, name: "rooms", kind: "message", T: ListRoomsResponse, oneof: "resource" },
+    { no: 3, name: "room_groups", kind: "message", T: ListRoomGroupsResponse, oneof: "resource" },
+    { no: 4, name: "users", kind: "message", T: BatchGetUsersResponse, oneof: "resource" },
+    { no: 5, name: "active_calls", kind: "message", T: ListActiveCallsResponse, oneof: "resource" },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeCatchUp {
-    return new RealtimeCatchUp().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSnapshot {
+    return new RealtimeSnapshot().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeCatchUp {
-    return new RealtimeCatchUp().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeSnapshot {
+    return new RealtimeSnapshot().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeCatchUp {
-    return new RealtimeCatchUp().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeSnapshot {
+    return new RealtimeSnapshot().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RealtimeCatchUp | PlainMessage<RealtimeCatchUp> | undefined, b: RealtimeCatchUp | PlainMessage<RealtimeCatchUp> | undefined): boolean {
-    return proto3.util.equals(RealtimeCatchUp, a, b);
+  static equals(a: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined, b: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined): boolean {
+    return proto3.util.equals(RealtimeSnapshot, a, b);
   }
 }
 
@@ -715,6 +763,15 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
    */
   createdAt?: Timestamp;
 
+  /**
+   * Fresh resume cursor for the latest durable boundary delivered on this
+   * socket. A client can retain it only after all earlier frames have been
+   * applied.
+   *
+   * @generated from field: optional string resume_cursor = 3;
+   */
+  resumeCursor?: string;
+
   constructor(data?: PartialMessage<RealtimeHeartbeat>) {
     super();
     proto3.util.initPartial(data, this);
@@ -725,6 +782,7 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
+    { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeHeartbeat {

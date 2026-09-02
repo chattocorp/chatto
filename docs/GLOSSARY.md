@@ -231,20 +231,27 @@ plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
 numbers are not public API. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Client Projection** — Authenticated, server-scoped current state that a client
-builds from cursor-bounded canonical ConnectRPC reads and maintains with Public
-Realtime Events plus later resource reads. It is a convergence view rather
-than an audit log. It does not replace the resource-oriented `chatto.api.v1`
-API for explicit reads, commands, pagination, and history. See
+builds from an exact realtime snapshot and maintains with Public Realtime
+Events plus targeted resource reads. It is a convergence view, not an audit
+log. It does not replace the resource-oriented `chatto.api.v1` API for
+explicit reads, commands, pagination, and history. See
 [ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
 [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
-**Realtime Resource Boundary** — Opaque viewer-bound cursor `E` that a client
-uses as the minimum consistency cursor for ConnectRPC resource reads. After
-the reads, realtime catch-up sends later authorized events through boundary
-`F`. This gives the client one complete current view even when requests use
-different replicas. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+**Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
+realtime snapshot. The server sends later authorized Events only after that
+snapshot. A client can also use the opaque Resume Cursor for `E` as the
+minimum consistency token for a targeted ConnectRPC read. See
+[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
-**Resume Cursor** — Opaque, viewer-bound token for bounded recovery after a recent realtime disconnect. It can identify an internal EVT position, but it does not expose that position and does not promise arbitrary history. When safe resume is not possible, Chatto uses the subscription's explicit resource-read or live-only fallback. See [ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
+**Resume Cursor** — Signed, viewer-bound JWT for bounded recovery after a
+recent realtime disconnect. Its opaque `p` claim is an HMAC of the internal
+stream incarnation, viewer, subscription scope, and EVT sequence. It does not
+expose that position and does not promise arbitrary history. It expires after
+15 minutes. When safe resume is not possible, Chatto uses the subscription's
+snapshot or live-only fallback. See
+[ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
+[FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 

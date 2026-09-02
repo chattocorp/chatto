@@ -46,7 +46,6 @@
               projectionSupported: store.serverInfo.supportsRealtimeProjection,
               sync: store.realtimeSync,
               projectionHandler: store.realtimeProjectionHandler,
-              bootstrapProjection: (cursor: string) => store.bootstrapRealtimeProjection(cursor),
               completeProjectionCatchUp: (cursor: string) => store.completeRealtimeCatchUp(cursor)
             }
           ]

@@ -21,9 +21,9 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 	}
 	var room *evtv1.Room
 	var kind RoomKind
-	err := c.contentView.Read(func(uint64) error {
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
-		room, kind, readErr = c.requireRoomMemberInView(ctx, actorID, roomID)
+		room, kind, readErr = c.requireRoomMemberInView(readCtx, actorID, roomID)
 		return readErr
 	})
 	return room, kind, err
@@ -62,9 +62,9 @@ func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, room
 	}
 	var room *evtv1.Room
 	var kind RoomKind
-	err := c.contentView.Read(func(uint64) error {
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
-		room, kind, readErr = c.requireRoomMessageReaderInView(ctx, actorID, roomID)
+		room, kind, readErr = c.requireRoomMessageReaderInView(readCtx, actorID, roomID)
 		return readErr
 	})
 	return room, kind, err
@@ -91,9 +91,9 @@ func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, ro
 	}
 	var room *evtv1.Room
 	var kind RoomKind
-	err := c.contentView.Read(func(uint64) error {
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
-		room, kind, readErr = c.requireThreadMessageReaderInView(ctx, actorID, roomID, threadRootEventID)
+		room, kind, readErr = c.requireThreadMessageReaderInView(readCtx, actorID, roomID, threadRootEventID)
 		return readErr
 	})
 	return room, kind, err
@@ -120,9 +120,9 @@ func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, 
 	}
 	var room *evtv1.Room
 	var kind RoomKind
-	err := c.contentView.Read(func(uint64) error {
+	err := c.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var readErr error
-		room, kind, readErr = c.requireMessageReaderInView(ctx, actorID, roomID, messageEventID)
+		room, kind, readErr = c.requireMessageReaderInView(readCtx, actorID, roomID, messageEventID)
 		return readErr
 	})
 	return room, kind, err

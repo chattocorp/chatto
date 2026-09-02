@@ -11,7 +11,6 @@ import {
 import { TIMEOUTS } from './constants';
 import {
   RealtimeClientFrame,
-  RealtimeCatchUp,
   RealtimeClientHello,
   RealtimeEvent,
   RealtimeInitialState,
@@ -36,7 +35,6 @@ class RealtimeProtobufClient {
     timer: ReturnType<typeof setTimeout>;
   }> = [];
   recoveryMode: RealtimeRecoveryMode;
-  startCursor?: string;
 
   private constructor(socket: WebSocket, recoveryMode: RealtimeRecoveryMode) {
     this.#socket = socket;
@@ -97,7 +95,7 @@ class RealtimeProtobufClient {
         frame: {
           case: 'subscribeEvents',
           value: new RealtimeSubscribeEvents({
-            initialState: options.initialState ?? RealtimeInitialState.RESOURCE_READS,
+            initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
             resumeCursor: options.resumeCursor
           })
         }
@@ -108,10 +106,6 @@ class RealtimeProtobufClient {
     );
     if (subscribed.frame.case !== 'subscribed') throw new Error('expected subscribed frame');
     pendingClient.recoveryMode = subscribed.frame.value.recoveryMode;
-    pendingClient.startCursor = subscribed.frame.value.startCursor;
-    if (pendingClient.recoveryMode !== RealtimeRecoveryMode.RESOURCE_READS) {
-      pendingClient.catchUp();
-    }
     return pendingClient;
   }
 
@@ -122,14 +116,6 @@ class RealtimeProtobufClient {
 
   send(frame: RealtimeClientFrame): void {
     this.#socket.send(frame.toBinary());
-  }
-
-  catchUp(): void {
-    this.send(
-      new RealtimeClientFrame({
-        frame: { case: 'catchUp', value: new RealtimeCatchUp() }
-      })
-    );
   }
 
   waitForEvent(predicate: (event: RealtimeEvent) => boolean): Promise<RealtimeEvent> {
@@ -217,65 +203,77 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
-  test('closes cursor-bounded resource reads with subsequent realtime events', async ({
+  test('hands an exact bounded snapshot to subsequent realtime events', async ({
     page,
+    browser,
     serverURL
   }) => {
     const viewer = await createAndLoginTestUser(page);
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
     const token = await loginForBearerToken(page, viewer);
+    let unrelatedUserId: string | undefined;
+    await withServerUser(browser!, serverURL, async ({ user }) => {
+      unrelatedUserId = user.id;
+    });
 
-    // Other parallel E2E workers can change global authorization or layout
-    // state during this interval. The protocol asks the client to restart with
-    // a new E when that happens, so exercise the same bounded retry here.
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const realtime = await RealtimeProtobufClient.connect(serverURL, token);
-      try {
-        expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.RESOURCE_READS);
-        expect(realtime.startCursor).toBeTruthy();
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+    try {
+      expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.SNAPSHOT);
 
-        const response = await page.request.post(
-          '/api/connect/chatto.api.v1.RoomDirectoryService/ListRooms',
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              'Connect-Protocol-Version': '1',
-              'Chatto-Realtime-Minimum-Cursor': realtime.startCursor!
-            },
-            data: {}
-          }
-        );
-        expect(response.ok()).toBeTruthy();
-        const rooms = (await response.json()) as {
-          rooms?: Array<{ room?: { id?: string } }>;
-        };
-        expect(rooms.rooms?.some((room) => room.room?.id === roomId)).toBe(true);
+      // The snapshot boundary is already captured when subscribed arrives.
+      // This message must therefore arrive after caught_up, even if the
+      // snapshot frames are still in flight.
+      const messageId = await postMessageViaConnect(
+        page,
+        roomId,
+        `snapshot boundary ${Date.now()}`
+      );
 
-        const messageId = await postMessageViaConnect(
-          page,
-          roomId,
-          `resource boundary ${Date.now()}-${attempt}`
-        );
-        realtime.catchUp();
-        const event = await realtime.waitForEvent((candidate) => candidate.event?.id === messageId);
-        const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
-        expect(event.resumeCursor).toBeTruthy();
-        expect(caughtUp.frame.case).toBe('caughtUp');
-        if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
-        expect(caughtUp.frame.value.cursor).toBeTruthy();
-        expect(caughtUp.frame.value.cursor).not.toBe(realtime.startCursor);
-        return;
-      } catch (error) {
-        if (
-          attempt === 4 ||
-          !(error instanceof Error) ||
-          !error.message.includes('resource_resync_required')
-        ) {
-          throw error;
-        }
-      } finally {
-        realtime.close();
+      const server = await realtime.waitForFrame(
+        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'server'
+      );
+      expect(server.frame.case).toBe('snapshot');
+
+      const rooms = await realtime.waitForFrame(
+        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'rooms'
+      );
+      if (rooms.frame.case !== 'snapshot' || rooms.frame.value.resource.case !== 'rooms') {
+        throw new Error('expected rooms snapshot');
       }
+      expect(
+        rooms.frame.value.resource.value.rooms.some((room) => room.room?.id === roomId)
+      ).toBe(true);
+
+      await realtime.waitForFrame(
+        (frame) =>
+          frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'roomGroups'
+      );
+      const users = await realtime.waitForFrame(
+        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'users'
+      );
+      if (users.frame.case !== 'snapshot' || users.frame.value.resource.case !== 'users') {
+        throw new Error('expected users snapshot');
+      }
+      expect(users.frame.value.resource.value.users.some((user) => user.user?.id === viewer.id)).toBe(
+        true
+      );
+      expect(
+        users.frame.value.resource.value.users.some((user) => user.user?.id === unrelatedUserId)
+      ).toBe(false);
+
+      await realtime.waitForFrame(
+        (frame) =>
+          frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'activeCalls'
+      );
+      const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+      if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
+      expect(caughtUp.frame.value.cursor).toBeTruthy();
+
+      const event = await realtime.waitForEvent((candidate) => candidate.event?.id === messageId);
+      expect(event.resumeCursor).toBeTruthy();
+      expect(event.resumeCursor).not.toBe(caughtUp.frame.value.cursor);
+    } finally {
+      realtime.close();
     }
   });
 

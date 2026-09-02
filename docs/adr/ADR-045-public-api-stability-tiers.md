@@ -118,9 +118,10 @@ semantics for deployed clients, and documents any intentional skew boundary.
 
 The realtime protocol is versioned by protocol behavior, not by its protobuf
 package suffix. The `chatto.realtime.v1` namespace currently accepts only
-protocol version 4 and provides authorized canonical events, cursor-bound
-ConnectRPC resource reads, and bounded resume. Public cursors are encrypted,
-authenticated capabilities and never expose NATS or JetStream coordinates.
+protocol version 4 and provides exact canonical-resource snapshots, authorized
+canonical events, cursor-bound targeted ConnectRPC reads, and bounded resume.
+Realtime resume cursors are signed, viewer-bound JWTs. Their position claim is
+an HMAC and does not expose NATS or JetStream coordinates.
 Future frame additions must be additive where possible. New required client
 behavior uses a new protocol version instead of a capability matrix.
 

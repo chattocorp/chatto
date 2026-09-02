@@ -26,22 +26,21 @@ version, and heartbeat interval. The protocol does not have a capability
 matrix.
 
 The second client frame is `subscribe_events`. It contains an optional opaque
-resume cursor and a required `RESOURCE_READS` or `LIVE_ONLY` initial-state choice.
-The server replies with `subscribed` and selects one recovery mode:
+resume cursor and a required `SNAPSHOT` or `LIVE_ONLY` fallback choice. The
+server replies with `subscribed` and selects one recovery mode:
 
-- `RESOURCE_READS`: let the client read current resources at `start_cursor`;
-- `LIVE_ONLY`: start at the current boundary without resource reads or old
+- `SNAPSHOT`: send an exact authorized content snapshot;
+- `LIVE_ONLY`: start at the current boundary without current state or old
   events; or
 - `RESUME`: send authorized durable events after the supplied cursor.
 
-The client sends `catch_up` after its required resource reads succeed. A
-live-only or resume client sends it immediately. The server then sends events
-through a stable boundary and sends `caught_up` with that boundary cursor. The
-client can consider the subscription current only after this frame.
+The server sends the selected snapshot or replay without another client
+request. It then sends `caught_up` with the handoff cursor. The client can
+consider the subscription current only after it applies all earlier frames
+and this marker.
 
-Client control frames after subscription contain one `catch_up` frame and
-application-level `ping` frames. The server returns the ping nonce in `pong`.
-Room hydration and retained-room controls are not part of protocol 4.
+Client control frames after subscription contain application-level `ping`
+frames. The server returns the ping nonce in `pong`.
 
 ## Canonical events
 
@@ -83,30 +82,41 @@ row with the authoritative resource. A wider cursor-bounded timeline-window
 refresh then reconciles ordering and pagination cursors. The client does not
 save the event cursor if either read fails.
 
-## Cursor-bounded resource reads
+## Exact snapshot and targeted resource reads
 
-`subscribed.start_cursor` gives a resource client the opaque boundary `E`.
-Each required ConnectRPC request sets
-`Chatto-Realtime-Minimum-Cursor: E`. The common public API interceptor validates
-the viewer-bound cursor and waits until the serving replica's projections are
-current. The handler then returns its normal canonical response.
+`ServerContentView` supplies one exact EVT boundary `E`. The server captures
+the complete visible room directory, room-group layout, active calls, public
+server profile, and users that these resources reference while the view is at
+that boundary. It releases the read barrier before protobuf encoding or
+WebSocket writes.
 
-The bundled frontend reads these resource families at `E`:
+Each `snapshot` frame contains one canonical `chatto.api.v1` resource shape.
+The resource families are:
 
-| Resource | ConnectRPC response | Client meaning |
+| Resource | Protobuf value | Client meaning |
 | --- | --- | --- |
-| Server profile | `GetServerProfileResponse` | Current public server profile |
-| Server state | `GetMotdResponse`, `GetRuntimeConfigResponse` | Current authenticated server configuration |
-| Viewer | `GetViewerResponse` | Current viewer identity and capabilities |
-| Rooms | `ListRoomsResponse` | Complete visible room directory |
-| Room groups | `ListRoomGroupsResponse` | Complete visible room-group layout |
-| Notifications | `ListNotificationOccurrencesResponse` | Bounded occurrence page and complete counts |
-| Active calls | `ListActiveCallsResponse` | Complete visible active-call state |
+| Server profile | `ServerPublicProfile` | Public server profile at `E` |
+| Rooms | `ListRoomsResponse` | Complete visible room directory at `E` |
+| Room groups | `ListRoomGroupsResponse` | Complete visible room-group layout at `E` |
+| Users | `BatchGetUsersResponse` | Only the viewer and users referenced by visible snapshot resources |
+| Active calls | `ListActiveCallsResponse` | Complete visible active-call state at `E` |
 
-The frontend does not read `ListUsers`. A complete user directory can be large
-and is not necessary for most clients. The frontend uses `BatchGetUsers` in
-batches of at most 100 IDs for direct-message participants and users named by
-later events. These responses merge into the local user map.
+The snapshot does not contain the complete user directory. It also excludes
+message and thread timelines, search results, files, pins, and other large or
+paginated resources. The client reads those resources through ConnectRPC when
+it needs them.
+
+Notifications, presence, read markers, account-security state, and process
+runtime configuration do not use the EVT boundary owned by
+`ServerContentView`. The bundled frontend reads its required auxiliary state
+through ConnectRPC before it accepts `caught_up`. These reads do not redefine
+the EVT snapshot boundary.
+
+After a durable event, a targeted ConnectRPC request can set
+`Chatto-Realtime-Minimum-Cursor` to that event's resume cursor. The common API
+interceptor validates the viewer-bound token and waits until the serving
+replica includes at least that content boundary. The handler then returns its
+normal canonical response.
 
 Room and thread timelines are not unconditional bootstrap families. The
 frontend reloads each mounted timeline at `E` through `RoomService` or
@@ -124,20 +134,21 @@ cannot change the newer projection.
 
 ## Bounded resume
 
-The resume cursor is encrypted, authenticated, and bound to the viewer. It
-contains an EVT stream identity, sequence, and issue time inside the sealed
-value. It expires after 24 hours. NATS and JetStream coordinates are never
-public API data.
+The resume cursor is a signed, viewer-bound JWT. Its public claims are `sub`,
+`aud`, `p`, `iat`, `exp`, and `v`. The `p` claim is an HMAC of the stream
+incarnation, viewer, subscription scope, and EVT sequence. The server recovers
+the sequence by comparing at most 10,000 candidates in the retained replay
+window. The token expires after 15 minutes. NATS and JetStream coordinates are
+never public API data.
 
-Resource bootstrap and resume use this handoff:
+Snapshot and resume use this handoff:
 
 1. Subscribe the connection to the process-wide live hub.
-2. Capture a stable EVT boundary `E` and return its opaque cursor.
-3. For `RESOURCE_READS`, wait while the client reads resources at `E`.
-4. Accept `catch_up` and capture a second stable boundary `F`.
-5. Read the bounded EVT range through `F` with JetStream point reads.
-6. Apply current authorization and censor each replayed canonical event.
-7. Send `caught_up(F)`, discard buffered durable duplicates through `F`, and
+2. Validate the optional cursor and capture a stable EVT boundary `E`.
+3. Send either an exact snapshot at `E` or authorized durable events through
+   `E`.
+4. Apply current authorization and censor each replayed canonical event.
+5. Send `caught_up(E)`, discard buffered durable duplicates through `E`, and
    continue with live delivery.
 
 The direct-read path creates no JetStream consumer. It scans at most 10,000 EVT
@@ -150,9 +161,9 @@ capacity claims. Production measurements can change them without changing the
 protocol or cursor shape.
 
 A missing, invalid, expired, foreign-stream, oversized, or
-authorization-unsafe cursor selects the requested fallback. A
-`RESOURCE_READS` client receives `E` and performs a new current-state
-bootstrap. A `LIVE_ONLY` client starts at `E` and receives no old events. The
+authorization-unsafe cursor selects the requested fallback. A `SNAPSHOT`
+client receives a new current-state snapshot. A `LIVE_ONLY` client starts at
+`E` and receives no old events. The
 server never sends a partial replay and then silently skips to live delivery.
 
 Incremental replay and fallback share one process-local admission guard. Each
@@ -184,11 +195,11 @@ visibility cache. Its stable admission boundary includes room creation,
 deletion, Universal changes, joins, leaves, member additions, member removals,
 bans, and unbans. Facts for a room that a caller never saw are suppressed.
 
-RBAC facts can revoke access without a room fact. The server closes affected
-connections with `projection_reset_required`. The next subscription uses
-current authorization. The frontend also scrubs known private resources
-synchronously when a canonical event shows a direct authorization loss. It
-then uses the authoritative resource read to converge.
+RBAC facts can revoke access without a public room fact. The server closes
+affected connections with `projection_reset_required`. The next subscription
+uses current authorization and normally receives a snapshot. A replay can
+send a viewer's own leave, removal, or ban fact even when current membership
+is false. This closing fact removes state that the client could have retained.
 
 A durable mapping or resource-reconciliation failure closes the connection
 before the cursor advances. Reconnect retries the fact or uses a safe fallback.
@@ -209,8 +220,8 @@ Transient `live.sync.>` messages and durable `live.evt.>` messages use
 29999. The transient wire contains no second envelope or compatibility tag.
 During a rolling replacement from an older envelope, old and new replicas
 drop each other's transient signals. This is safe because these signals have
-no replay contract. Durable facts continue through `live.evt.>`, and reconnect
-resource reads restore current resource state.
+no replay contract. Durable facts continue through `live.evt.>`, and a
+reconnect snapshot restores current content state.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after
@@ -219,10 +230,12 @@ that exceeds its queue count or byte limit closes independently.
 
 ## Bundled frontend
 
-The bundled frontend selects `RESOURCE_READS`. It resets its server projection
-when `subscribed.recovery_mode` is `RESOURCE_READS`, reads its canonical
-resources at `start_cursor`, then sends `catch_up`. It saves an event cursor
-only after its reducer and all event-triggered resource reads succeed.
+The bundled frontend selects `SNAPSHOT`. It resets its server projection when
+`subscribed.recovery_mode` is `SNAPSHOT` and applies each snapshot resource.
+It saves the `caught_up` cursor only after the snapshot, auxiliary reads, lazy
+timeline refreshes, and all earlier event-triggered resource reads succeed.
+If the socket closes during a snapshot, the client has no resume cursor and
+requests a new snapshot.
 
 The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events start
@@ -243,7 +256,9 @@ access-token expiry. Cookie connections close at the renewal boundary. The
 server revalidates the accepted credential before subscription and once per
 minute.
 
-The browser resets its liveness timer on every server frame. It replaces a
+The browser resets its liveness timer on every server frame. A heartbeat can
+carry a fresh cursor for the last durable sequence that this socket has
+delivered. The client retains it only after earlier reconciliation succeeds. It replaces a
 socket after a heartbeat stall. An undecodable or unknown top-level frame
 causes a reconnect without cursor advancement. WebSocket connections use small
 buffers and a shared write-buffer pool. When compression is enabled, the
@@ -253,7 +268,7 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 authorized canonical events, cursor-bounded ConnectRPC bootstrap, and bounded resume |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized canonical events, and 15-minute bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and

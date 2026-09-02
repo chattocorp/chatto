@@ -25,8 +25,8 @@ type PermissionExplanation struct {
 // ExplainServerPermission resolves a server-only permission (no room
 // context) and returns the full decision trace.
 func (r *PermissionResolver) ExplainServerPermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
-	return r.explainInContentView(func() (PermissionExplanation, error) {
-		return r.explainServerPermission(ctx, userID, perm)
+	return r.explainInContentView(ctx, func(readCtx context.Context) (PermissionExplanation, error) {
+		return r.explainServerPermission(readCtx, userID, perm)
 	})
 }
 
@@ -44,8 +44,8 @@ func (r *PermissionResolver) explainServerPermission(ctx context.Context, userID
 // ExplainServerKindPermission is the kind-aware server-scope explainer used by
 // the inspector UI to apply DM boundary rules for DM-kind callers.
 func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
-	return r.explainInContentView(func() (PermissionExplanation, error) {
-		return r.explainServerKindPermission(ctx, userID, kind, perm)
+	return r.explainInContentView(ctx, func(readCtx context.Context) (PermissionExplanation, error) {
+		return r.explainServerKindPermission(readCtx, userID, kind, perm)
 	})
 }
 
@@ -65,8 +65,8 @@ func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, us
 // ExplainRoomPermission resolves a permission with a room context and returns
 // the full decision trace.
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
-	return r.explainInContentView(func() (PermissionExplanation, error) {
-		return r.explainRoomPermission(ctx, userID, kind, roomID, perm)
+	return r.explainInContentView(ctx, func(readCtx context.Context) (PermissionExplanation, error) {
+		return r.explainRoomPermission(readCtx, userID, kind, roomID, perm)
 	})
 }
 
@@ -261,9 +261,9 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 		return r.explainAllPermissions(ctx, userID, kind, roomID)
 	}
 	var explanations []PermissionExplanation
-	err := r.core.contentView.Read(func(uint64) error {
+	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var explainErr error
-		explanations, explainErr = r.explainAllPermissions(ctx, userID, kind, roomID)
+		explanations, explainErr = r.explainAllPermissions(readCtx, userID, kind, roomID)
 		return explainErr
 	})
 	return explanations, err
@@ -303,14 +303,14 @@ func (r *PermissionResolver) explainAllPermissions(ctx context.Context, userID s
 	return results, nil
 }
 
-func (r *PermissionResolver) explainInContentView(explain func() (PermissionExplanation, error)) (PermissionExplanation, error) {
+func (r *PermissionResolver) explainInContentView(ctx context.Context, explain func(context.Context) (PermissionExplanation, error)) (PermissionExplanation, error) {
 	if r.core.contentView == nil {
-		return explain()
+		return explain(ctx)
 	}
 	var explanation PermissionExplanation
-	err := r.core.contentView.Read(func(uint64) error {
+	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var explainErr error
-		explanation, explainErr = explain()
+		explanation, explainErr = explain(readCtx)
 		return explainErr
 	})
 	return explanation, err

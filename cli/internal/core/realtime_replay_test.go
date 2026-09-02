@@ -69,24 +69,32 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursor: %v", err)
 	}
-	decoded, err := chatto.decodeRealtimeCursorAt(userID, cursor, now)
+	decoded, err := chatto.parseRealtimeCursorAt(userID, cursor, now)
 	if err != nil {
 		t.Fatalf("decodeRealtimeCursor: %v", err)
 	}
-	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.UserID != userID || decoded.IssuedAtUnix != now.Unix() {
+	if decoded.Version != realtimeCursorVersion || decoded.Subject != userID || decoded.IssuedAt == nil || decoded.IssuedAt.Time.Unix() != now.Unix() {
 		t.Fatalf("decoded cursor = %+v", decoded)
 	}
-	if _, err := chatto.decodeRealtimeCursor(userID, "not-a-cursor"); !errors.Is(err, ErrRealtimeCursorInvalid) {
+	sequence, err := chatto.resolveRealtimeCursorAt(userID, cursor, identity, 0, 100, now)
+	if err != nil || sequence != 42 {
+		t.Fatalf("resolved cursor = %d, %v; want 42", sequence, err)
+	}
+	if _, err := chatto.parseRealtimeCursorAt(userID, "not-a-cursor", now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("invalid cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
-	if _, err := chatto.decodeRealtimeCursor("another-user", cursor); !errors.Is(err, ErrRealtimeCursorInvalid) {
+	if _, err := chatto.parseRealtimeCursorAt("another-user", cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("cross-user cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
-	raw, err := base64.RawURLEncoding.DecodeString(cursor)
+	parts := strings.Split(cursor, ".")
+	if len(parts) != 3 {
+		t.Fatalf("cursor is not a compact JWT: %q", cursor)
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		t.Fatalf("decode cursor envelope: %v", err)
 	}
-	for _, secret := range []string{identity, userID} {
+	for _, secret := range []string{identity, `"s":42`, `"sequence":42`} {
 		if strings.Contains(string(raw), secret) {
 			t.Fatalf("cursor envelope exposes internal payload %q", secret)
 		}
@@ -95,12 +103,14 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode second cursor: %v", err)
 	}
-	if second == cursor {
-		t.Fatal("identical cursor payloads produced identical ciphertext")
+	if second != cursor {
+		t.Fatal("identical cursor claims did not produce a stable signed token")
 	}
-	tampered := []byte(cursor)
-	tampered[len(tampered)-1] ^= 1
-	if _, err := chatto.decodeRealtimeCursor(userID, string(tampered)); !errors.Is(err, ErrRealtimeCursorInvalid) {
+	tamperedParts := strings.Split(cursor, ".")
+	tamperedSignature := []byte(tamperedParts[2])
+	tamperedSignature[0] ^= 1
+	tampered := strings.Join([]string{tamperedParts[0], tamperedParts[1], string(tamperedSignature)}, ".")
+	if _, err := chatto.parseRealtimeCursorAt(userID, tampered, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("tampered cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
 }
@@ -114,10 +124,10 @@ func TestRealtimeCursorExpiresAfterPublicLifetime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursorAt: %v", err)
 	}
-	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime)); err != nil {
-		t.Fatalf("cursor expired at inclusive lifetime: %v", err)
+	if _, err := chatto.parseRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime-time.Second)); err != nil {
+		t.Fatalf("cursor expired before its lifetime: %v", err)
 	}
-	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime+time.Second)); !errors.Is(err, ErrRealtimeCursorExpired) {
+	if _, err := chatto.parseRealtimeCursorAt(userID, cursor, issuedAt.Add(realtimeCursorLifetime)); !errors.Is(err, ErrRealtimeCursorExpired) {
 		t.Fatalf("expired cursor error = %v, want ErrRealtimeCursorExpired", err)
 	}
 }
@@ -131,7 +141,7 @@ func TestRealtimeCursorRejectsImplausibleFutureIssueTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursorAt: %v", err)
 	}
-	if _, err := chatto.decodeRealtimeCursorAt(userID, cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
+	if _, err := chatto.parseRealtimeCursorAt(userID, cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("future cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
 }
@@ -477,7 +487,7 @@ func TestPlanRealtimeReplayResetsAfterUserKeyShredding(t *testing.T) {
 	}
 }
 
-func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
+func TestPlanRealtimeReplayDeliversViewerLeaveAfterVisibilityCloses(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, room, _ := setupReactionTest(t, chatto, ctx)
@@ -494,8 +504,36 @@ func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
-	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want authorization resource-read fallback", plan)
+	if plan.Reset || len(plan.Events) != 1 || plan.Events[0].CanonicalEvent().GetUserLeftRoom() == nil {
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want one closing user_left_room event", plan)
+	}
+}
+
+func TestPlanRealtimeReplayResetsForRoomCreationWithoutCurrentMembership(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "replay-room-create-viewer", "Replay Room Create Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	owner, err := chatto.CreateUser(ctx, SystemActorID, "replay-room-create-owner", "Replay Room Create Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if _, err := chatto.CreateRoom(ctx, owner.Id, KindChannel, "", "replay-unseen-room", ""); err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, boundary.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if !plan.Reset || len(plan.Events) != 0 {
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
 	}
 }
 

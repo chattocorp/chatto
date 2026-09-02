@@ -3,9 +3,9 @@
 **Status:** Partially superseded by
 [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 ADR-091 replaces the separate public event schema and selects protocol 4. The
-newer decision also replaces WebSocket snapshot frames with cursor-bounded
-ConnectRPC resource reads. The authorization, bounded-resume, and transport
-rules that this ADR introduced remain active.
+current protocol reuses this ADR's exact WebSocket snapshot model with the
+single canonical event vocabulary. The authorization, bounded-resume, and
+transport rules that this ADR introduced remain active.
 
 **Date:** 2026-08-30
 
@@ -155,9 +155,10 @@ cursor resumes a recent connection gap in global EVT order and then joins live
 delivery. Resume is not arbitrary historical playback and is not a public
 audit log.
 
-The cursor remains encrypted, authenticated, and bound to the viewer. It can
-contain the EVT stream identity and global sequence internally. It must not
-expose NATS or JetStream coordinates.
+The cursor is a signed JWT that is bound to the viewer. Its public `p` claim is
+an HMAC of the EVT stream identity, viewer, subscription scope, and global
+sequence. It does not expose the sequence or other NATS and JetStream
+coordinates. The server resolves `p` only within the bounded replay window.
 
 The server applies current authorization, deletion, and erasure state during
 resume. When the cursor is missing, invalid, expired, from another stream
@@ -173,7 +174,7 @@ Resume uses the existing handoff pattern:
 3. Wait for the required projections through that boundary.
 4. Read the bounded EVT sequence range directly with point reads.
 5. Map authorized public events and send them in order.
-6. Reconcile current latest-value state and mark the boundary as caught up.
+6. Mark the boundary as caught up.
 7. Drop buffered duplicates through the boundary and continue live.
 
 Realtime resume does not create a JetStream consumer for the client. Age,
@@ -182,8 +183,8 @@ policy. Crossing a limit selects the requested safe fallback instead of an
 unbounded scan.
 
 Transient events, such as typing and presence transitions, are live-only.
-Current latest-value state appears in the snapshot or catch-up reconciliation
-when clients need convergence.
+Current latest-value state appears in the snapshot or a targeted ConnectRPC
+read when clients need convergence.
 
 ### Stronger automation delivery is separate
 

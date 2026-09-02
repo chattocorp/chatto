@@ -26,7 +26,7 @@ The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the can
 
 ## Durable variants
 
-Durable variants can have a resume cursor and can appear during catch-up.
+Durable variants can have a resume cursor and can appear during bounded replay.
 
 | Event oneof field | Number | Payload | Recovery |
 | --- | --- | --- | --- |
@@ -73,7 +73,7 @@ Durable variants can have a resume cursor and can appear during catch-up.
 
 ## Transient variants
 
-Transient variants are live-only. They do not have a resume cursor and do not appear during catch-up.
+Transient variants are live-only. They do not have a resume cursor and do not appear during bounded replay.
 
 | Event oneof field | Number | Payload | Recovery |
 | --- | --- | --- | --- |

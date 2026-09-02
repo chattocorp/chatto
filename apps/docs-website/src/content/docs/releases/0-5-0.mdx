@@ -298,11 +298,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
   `/api/realtime` must regenerate their clients. Protocol 4 sends authorized canonical
-  events for bots and clients, requires an explicit `RESOURCE_READS` or `LIVE_ONLY` startup choice, and supports
-  bounded cursor resume. Resource clients use cursor-bounded ConnectRPC reads. Room and thread
-  timelines stay in the paginated ConnectRPC APIs; protocol 4 has no retained-room control.
-  The additive authenticated `ServerService.GetServerProfile` method lets a resource client
-  read the public server profile at the same boundary. Public server discovery stays unauthenticated.
+  events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
+  15-minute bounded cursor resume. Snapshot clients receive exact canonical resource shapes
+  through the WebSocket. Room and thread timelines stay in the paginated ConnectRPC APIs;
+  protocol 4 has no retained-room control. The additive authenticated
+  `ServerService.GetServerProfile` method remains available for explicit reads. Public server
+  discovery stays unauthenticated.
   `RoomWithViewerState` now contains DM participant IDs and optional message-history state,
   and `ListRooms` returns accessible empty DMs. Hide an empty DM from navigation only when
   `has_message_history` is explicitly false; absence means unknown for an older server.

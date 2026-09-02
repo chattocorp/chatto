@@ -1,6 +1,6 @@
 ---
 title: Realtime Protocol Overview
-description: Receive canonical events, bind resource reads to one boundary, and resume a short gap.
+description: Receive an exact resource snapshot, canonical events, and short-gap resume.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -20,7 +20,7 @@ integration needs.
 | React to a message, edit, reaction, membership change, or other activity | Realtime event                  |
 | Create, update, or delete a resource                                     | ConnectRPC                      |
 | Read one resource or a paginated list                                    | ConnectRPC                      |
-| Build a complete current local view                                      | Cursor-bounded ConnectRPC reads |
+| Build a current local content view                                       | Realtime snapshot               |
 | Repair a short connection gap                                            | Realtime resume                 |
 
 ## Connection lifecycle
@@ -32,34 +32,34 @@ integration needs.
    with `hello`. Request protocol version `4`. Include a bearer credential when
    you do not use a same-origin cookie.
 3. Wait for the server `hello`. Check that it accepts version `4`.
-4. Send `subscribe_events`. Select `RESOURCE_READS` or `LIVE_ONLY` as the required
+4. Send `subscribe_events`. Select `SNAPSHOT` or `LIVE_ONLY` as the required
    initial-state fallback. You can also include a safe resume cursor.
 5. Read `subscribed.recovery_mode` to learn whether the server selected
-   `RESOURCE_READS`, `LIVE_ONLY`, or `RESUME`.
-6. For `RESOURCE_READS`, read the resources that you need through ConnectRPC.
-   Add `Chatto-Realtime-Minimum-Cursor` with `subscribed.start_cursor` to each
-   request.
-7. Send `catch_up`. Process the later events in order. The server sends
-   `caught_up` when recovery reaches the live boundary.
-8. Continue to process live events.
+   `SNAPSHOT`, `LIVE_ONLY`, or `RESUME`.
+6. For `SNAPSHOT`, apply each snapshot resource as a complete replacement for
+   that resource family.
+7. Process replayed events, if any. The server sends `caught_up` when recovery
+   reaches the live boundary.
+8. Save the `caught_up` cursor after all earlier work succeeds. Continue to
+   process live events.
 
 The `subscribed` frame does not mean that recovery is complete. Treat the
 stream as live only after `caught_up`.
 
-## Choose resource reads or live-only startup
+## Choose snapshot or live-only startup
 
 Select `LIVE_ONLY` for a bot that wants new events and reads resources through
 ConnectRPC. If the cursor is absent or unusable, the server starts at a stated
 current boundary. It does not send old events or current resources.
 
-Select `RESOURCE_READS` for a client that keeps a server projection. If the
-cursor is absent or unusable, the server returns an opaque start cursor `E`.
-Read the canonical resources that your client needs with `E` as the minimum
-cursor. Then send `catch_up`. The bundled frontend uses this mode.
+Select `SNAPSHOT` for a client that keeps a server projection. If the cursor is
+absent or unusable, the server sends an exact authorized content snapshot at
+boundary `E`. It then sends `caught_up(E)`. The bundled frontend uses this
+mode.
 
-When a cursor is usable, both choices can result in `RESUME`. Send `catch_up`
-immediately. The server sends authorized durable events after that cursor and
-then sends `caught_up`.
+When a cursor is usable, both choices can result in `RESUME`. The server sends
+authorized durable events after that cursor and then sends `caught_up`. The
+client does not send a separate catch-up command.
 
 A cursor can become unusable because it is invalid, expired, too far behind,
 from another server history, or unsafe for current authorization. Fallback is
@@ -67,8 +67,8 @@ normal recovery behavior. The server does not send a partial replay.
 
 <Aside type="caution">
   Keep a resume cursor with the client state that it describes. Do not apply a
-  cursor to an unrelated projection. A cursor is valid for up to 24 hours, and
-  the server binds it to the authenticated viewer.
+  cursor to an unrelated projection. A cursor is valid for 15 minutes, and the
+  server binds it to the authenticated viewer.
 </Aside>
 
 ## Handle canonical events
@@ -119,42 +119,46 @@ New event variants are additive. You can ignore a variant that you do not use
 and still save the common cursor. If a complete top-level frame cannot be
 decoded, close the socket and keep the preceding cursor.
 
-## Read current resources at `E`
+## Apply the exact snapshot at `E`
 
-If `subscribed.recovery_mode` is `RESOURCE_READS`, clear the state that your
-client projection owns. Read each required resource through its normal
-ConnectRPC method. Set this request header on each read:
+If `subscribed.recovery_mode` is `SNAPSHOT`, clear the state that your client
+projection owns. The server sends these canonical resource families before
+`caught_up(E)`:
+
+| Snapshot value | Meaning |
+| --- | --- |
+| `ServerPublicProfile` | Current public server profile |
+| `ListRoomsResponse` | Complete visible room directory |
+| `ListRoomGroupsResponse` | Complete visible room-group layout |
+| `BatchGetUsersResponse` | The viewer and users referenced by snapshot resources |
+| `ListActiveCallsResponse` | Complete visible active-call state |
+
+The snapshot does not contain the complete user directory. It also excludes
+message and thread history, search results, files, pins, notifications,
+presence, read markers, and account-security state. Read these resources
+through ConnectRPC only when your integration needs them.
+
+Treat each snapshot list as a complete replacement. Do not expose the partial
+state as current before `caught_up`. If the socket closes first, discard the
+incomplete snapshot and reconnect without its cursor. Events after `E` follow
+the snapshot in order, so no client-driven second replay is required.
+
+## Bind a targeted resource read to an event
+
+Some events contain enough data for immediate use but not a complete resource.
+When a durable event causes a follow-up ConnectRPC read, set this header:
 
 ```http
-Chatto-Realtime-Minimum-Cursor: <subscribed.start_cursor>
+Chatto-Realtime-Minimum-Cursor: <event.resume_cursor>
 ```
 
 The serving replica validates the viewer-bound cursor and waits until its
-local projections include `E`. Requests can use different replicas without
-returning state older than the WebSocket boundary.
+content view includes that event boundary. This prevents a request that reaches
+another replica from returning older content. Give each bounded read a finite
+deadline. Save the event cursor only after the required read succeeds.
 
-`E` is a minimum boundary, not an exact snapshot revision. A resource response
-can already include changes after `E`. Catch-up can then describe a change that
-the resource response already includes. Apply event reducers idempotently, or
-use an event as a hint to read and replace the affected authoritative resource.
-Both approaches must converge when the same change is observed through a
-resource response and then through catch-up.
-
-Read only the resources that your client keeps. Do not list the complete user
-directory unless your integration needs it. Use bounded batch reads for users
-that rooms or events reference. Read room and thread timelines through
-`RoomService` and `ThreadService` only when needed. A client that retains a
-mounted timeline reads it at `E`. If a durable event causes a resource read,
-use that event's cursor in the minimum-cursor header.
-
-After all required reads succeed, send `catch_up`. The server sends authorized
-events after `E` through `F`, then sends `caught_up(F)`. Save an event cursor
-only after the event and its required resource reads succeed.
-
-Give cursor-bounded reads a finite deadline. Reconnect without cursor advance
-when a required read cannot complete. If a new `RESOURCE_READS` recovery starts,
-discard late responses from the earlier recovery so that they cannot replace
-newer state.
+If a new snapshot starts, discard late reads from the earlier local projection
+generation. They must not replace newer state.
 
 ## Detect a dead connection
 
@@ -164,6 +168,10 @@ arrives for several expected heartbeat intervals.
 
 You can send `ping` with an opaque nonce. The server returns the same nonce in
 `pong`. WebSocket control pings do not replace the application heartbeat.
+
+A heartbeat can contain a fresh resume cursor for the last durable boundary
+that this socket delivered. Save it only after all earlier events and resource
+work succeed.
 
 ## Handle errors and reconnects
 

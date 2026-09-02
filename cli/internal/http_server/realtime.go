@@ -322,6 +322,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
 		return
 	}
+	if subscribeEvents.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY &&
+		subscribeEvents.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
+		writeError("bad_subscribe", "unsupported initial_state", true)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
+		return
+	}
 	if err := s.revalidateRealtimeCredential(ctx); err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
 			writeError("authentication_required", "authentication required", true)
@@ -341,7 +347,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
 		return
 	}
-	// A cursorless resource-read or live-only start cannot request history.
+	// A cursorless snapshot or live-only start cannot request history.
 	// Bound it by catch-up concurrency and timeout. Reserve the per-user rate
 	// budget for explicit stale-cursor replay attempts, including cursor reuse.
 	meteredReplay := resumeCursor != "" && !cursorAtBoundary
@@ -421,14 +427,28 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 
 	recoveryMode := realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESUME
+	boundaryCursor := replayPlan.BoundaryCursor
+	boundarySequence := replayPlan.BoundarySequence
+	var snapshotFrames []*realtimev1.RealtimeServerFrame
 	if replayPlan.Reset {
-		if subscribeEvents.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_RESOURCE_READS {
-			recoveryMode = realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESOURCE_READS
+		if subscribeEvents.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
+			recoveryMode = realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT
+			var snapshotErr error
+			boundarySequence, snapshotFrames, snapshotErr = s.realtimeSnapshotFrames(catchUpCtx, user.Id)
+			if snapshotErr != nil {
+				failCatchUp("Realtime snapshot capture failed", snapshotErr)
+				return
+			}
+			boundaryCursor, snapshotErr = s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
+			if snapshotErr != nil {
+				failCatchUp("Realtime snapshot cursor creation failed", snapshotErr)
+				return
+			}
 		} else {
 			recoveryMode = realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY
 		}
 	}
-	subscribed := &realtimev1.RealtimeSubscribed{StartCursor: &replayPlan.StartCursor, RecoveryMode: recoveryMode}
+	subscribed := &realtimev1.RealtimeSubscribed{RecoveryMode: recoveryMode}
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
 		Subscribed: subscribed,
 	}}); err != nil {
@@ -436,31 +456,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	catchUpRequested := make(chan struct{}, 1)
-	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame, catchUpRequested)
-	select {
-	case <-catchUpRequested:
-	case <-ctx.Done():
-		return
-	case <-catchUpCtx.Done():
-		failCatchUp("Realtime catch-up request timed out", catchUpCtx.Err())
-		return
-	}
-
-	// The first plan establishes E and decides whether the previous projection
-	// can resume. Resource reads use E as their lower bound. After the client
-	// finishes those reads, a second bounded plan closes the E-to-F interval.
-	// The per-subscriber hub queue holds live ingress during this phase.
-	tailPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, replayPlan.BoundaryCursor)
-	if err != nil {
-		failCatchUp("Realtime catch-up planning failed", err)
-		return
-	}
-	if tailPlan.Reset {
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: "resource_resync_required", Message: "server state changed during resource synchronization", Reconnect: true},
-		}})
-		return
+	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
+	for _, frame := range snapshotFrames {
+		if err := writeCatchUpFrame(frame); err != nil {
+			handleCatchUpWriteError(err)
+			return
+		}
 	}
 	for _, event := range replayPlan.Events {
 		frame, err := s.realtimeServerFrameForEvent(catchUpCtx, user.Id, event)
@@ -476,26 +477,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		}
 	}
-	for _, event := range tailPlan.Events {
-		frame, err := s.realtimeServerFrameForEvent(catchUpCtx, user.Id, event)
-		if err != nil {
-			if errors.Is(err, errRealtimeEventOmitted) {
-				continue
-			}
-			failCatchUp("Realtime catch-up projection failed", err)
-			return
-		}
-		if err := writeCatchUpFrame(frame); err != nil {
-			handleCatchUpWriteError(err)
-			return
-		}
-	}
 	// Release catch-up admission before the client can observe caught_up and
 	// immediately reconnect with its new cursor. The final marker contains no
 	// authorization work, and finishCatchUp is idempotent on write failure.
 	finishCatchUp()
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
-		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: tailPlan.BoundaryCursor},
+		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor},
 	}}); err != nil {
 		handleCatchUpWriteError(err)
 		return
@@ -513,12 +500,18 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}})
 				return
 			}
-			if event.DeliverySeq() > 0 && event.DeliverySeq() <= tailPlan.BoundarySequence {
+			if event.DeliverySeq() > 0 && event.DeliverySeq() <= boundarySequence {
 				continue
 			}
 			frame, mapErr := s.realtimeServerFrameForEvent(ctx, user.Id, event)
 			if mapErr != nil {
 				if errors.Is(mapErr, errRealtimeEventOmitted) {
+					// The viewer has safely processed this global boundary even
+					// though it produced no public frame. Let a later heartbeat
+					// move resume past the omitted fact.
+					if event.DeliverySeq() > boundarySequence {
+						boundarySequence = event.DeliverySeq()
+					}
 					continue
 				}
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
@@ -530,8 +523,19 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				}
 				continue
 			}
+			if heartbeat := frame.GetHeartbeat(); heartbeat != nil {
+				cursor, cursorErr := s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
+				if cursorErr != nil {
+					s.logger.Warn("Failed to refresh realtime heartbeat cursor", "error", cursorErr)
+					return
+				}
+				heartbeat.ResumeCursor = &cursor
+			}
 			if err := writeFrame(frame); err != nil {
 				return
+			}
+			if event.DeliverySeq() > boundarySequence {
+				boundarySequence = event.DeliverySeq()
 			}
 			if frame.GetClose() != nil {
 				return
@@ -685,9 +689,8 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	closeConnection()
 }
 
-func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error, catchUpRequested chan<- struct{}) {
+func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
 	defer cancel()
-	catchUpAccepted := false
 	for {
 		select {
 		case <-ctx.Done():
@@ -716,19 +719,6 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Pong{
 				Pong: &realtimev1.RealtimePong{Nonce: payload.Ping.GetNonce()},
 			}})
-		case *realtimev1.RealtimeClientFrame_CatchUp:
-			if catchUpAccepted {
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-					Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "catch_up was already requested", Fatal: true},
-				}})
-				return
-			}
-			catchUpAccepted = true
-			select {
-			case catchUpRequested <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
 		default:
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
 				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
@@ -808,7 +798,7 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 		// RBAC payloads are internal, but an RBAC fact can invalidate any
 		// authorization-dependent resource that the caller retained. Ask the
 		// client to reconnect without exposing that fact. Its cursor remains
-		// before this durable sequence, so replay selects authorized resource reads.
+		// before this durable sequence, so replay selects the authorized fallback.
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 			Close: &realtimev1.RealtimeClose{
 				Code:         "projection_reset_required",

@@ -17,18 +17,6 @@ Use this reference when building clients against Chatto's public ConnectRPC API.
 
 ## Supporting Types
 
-<a id="chatto-realtime-v1-RealtimeCatchUp"></a>
-
-### RealtimeCatchUp
-
-Requests delivery through a stable current event boundary.
-
-A client in `RESOURCE_READS` recovery sends this frame after its required
-ConnectRPC reads succeed. Those reads use `start_cursor` as their minimum
-consistency cursor. A live-only or resume client can send it immediately.
-
-
-
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
 ### RealtimeCaughtUp
@@ -59,7 +47,6 @@ be `hello`. After the server replies with `hello`, clients send
 | `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
 | `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized canonical event stream. |
 | `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
-| `frame.catch_up` | [`RealtimeCatchUp`](#chatto-realtime-v1-RealtimeCatchUp) | Confirms that the client finished its required current-resource reads. |
 
 
 
@@ -135,6 +122,7 @@ Application-level heartbeat.
 | --- | --- | --- |
 | `id` | `string` | Stable heartbeat event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time the server created the heartbeat. |
+| `resume_cursor` | `optional string` | Fresh resume cursor for the latest durable boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
 
 
 
@@ -178,6 +166,7 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 | `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
 | `frame.pong` | [`RealtimePong`](#chatto-realtime-v1-RealtimePong) | Reply to a client ping. |
 | `frame.caught_up` | [`RealtimeCaughtUp`](#chatto-realtime-v1-RealtimeCaughtUp) | Confirms that recovery reached the live-stream boundary. |
+| `frame.snapshot` | [`RealtimeSnapshot`](#chatto-realtime-v1-RealtimeSnapshot) | One canonical resource family in an exact server-content snapshot. |
 
 
 
@@ -195,6 +184,28 @@ Initial server hello.
 
 
 
+<a id="chatto-realtime-v1-RealtimeSnapshot"></a>
+
+### RealtimeSnapshot
+
+One resource family from an authorized snapshot of `ServerContentView`.
+
+The server sends all snapshot frames between `subscribed(SNAPSHOT)` and
+`caught_up`. The client must discard an incomplete snapshot if the socket
+closes before `caught_up`. List values replace the complete local family.
+Large and paginated resources, such as message history, are not part of the
+snapshot and remain available through ConnectRPC.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `resource.server` | `chatto.api.v1.ServerPublicProfile` | Current public server profile. |
+| `resource.rooms` | `chatto.api.v1.ListRoomsResponse` | Complete visible room directory. |
+| `resource.room_groups` | `chatto.api.v1.ListRoomGroupsResponse` | Complete visible room-group layout. |
+| `resource.users` | `chatto.api.v1.BatchGetUsersResponse` | Users referenced by this snapshot. This is not the server directory. |
+| `resource.active_calls` | `chatto.api.v1.ListActiveCallsResponse` | Complete visible active-call state. |
+
+
+
 <a id="chatto-realtime-v1-RealtimeSubscribeEvents"></a>
 
 ### RealtimeSubscribeEvents
@@ -203,7 +214,7 @@ Request to start the caller's authorized canonical event stream.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 24 hours after issue. |
+| `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 15 minutes after issue. |
 | `initial_state` | [`RealtimeInitialState`](#chatto-realtime-v1-RealtimeInitialState) | Required fallback when the cursor is absent or cannot resume safely. |
 
 
@@ -216,7 +227,6 @@ Confirms that event streaming has started.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `start_cursor` | `optional string` | Opaque boundary from which this subscription starts. |
 | `recovery_mode` | [`RealtimeRecoveryMode`](#chatto-realtime-v1-RealtimeRecoveryMode) | Recovery path selected after cursor validation and admission checks. |
 
 
@@ -249,7 +259,7 @@ Startup behavior when a subscription cannot resume from its cursor.
 | --- | --- | --- |
 | `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
 | `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
-| `REALTIME_INITIAL_STATE_RESOURCE_READS` | `2` | Let the client read current resources through ConnectRPC before catch-up. |
+| `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an exact authorized snapshot before later canonical events. |
 
 
 <a id="chatto-realtime-v1-RealtimeRecoveryMode"></a>
@@ -262,5 +272,5 @@ Recovery path selected for one subscription.
 | --- | --- | --- |
 | `REALTIME_RECOVERY_MODE_UNSPECIFIED` | `0` | Invalid value. |
 | `REALTIME_RECOVERY_MODE_LIVE_ONLY` | `1` | Delivery starts at the current boundary without current resources or history. |
-| `REALTIME_RECOVERY_MODE_RESOURCE_READS` | `2` | The client must replace its local state through ConnectRPC resource reads. |
+| `REALTIME_RECOVERY_MODE_SNAPSHOT` | `2` | The server sends an exact authorized snapshot before later events. |
 | `REALTIME_RECOVERY_MODE_RESUME` | `3` | Durable events resume after the supplied cursor. |

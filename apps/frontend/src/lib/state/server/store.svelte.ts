@@ -166,6 +166,7 @@ export class ServerStateStore {
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
+  #realtimeSnapshotPending = false;
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
   readonly #pendingResourceRefreshes = new SvelteMap<
     RealtimeResourceFamily,
@@ -248,43 +249,6 @@ export class ServerStateStore {
     });
   }
 
-  /** Replace retained server state through ConnectRPC reads bounded by `E`. */
-  async bootstrapRealtimeProjection(startCursor: string): Promise<void> {
-    const generation = ++this.#realtimeProjectionGeneration;
-    this.#reconciliationError = null;
-    this.#pendingResourceRefreshes.clear();
-    this.#pendingUserRefreshIds.clear();
-    this.#pendingUserRefreshCursor = undefined;
-    this.#pendingUserRefreshGeneration = generation;
-    const families: RealtimeResourceFamily[] = [
-      'server',
-      'serverState',
-      'viewer',
-      'rooms',
-      'roomGroups',
-      'notifications',
-      'activeCalls'
-    ];
-    const batches = await Promise.all(
-      families.map((family) => this.#realtimeResources.read(family, startCursor))
-    );
-    this.requireCurrentRealtimeProjection(generation);
-    for (const resource of batches.flat()) {
-      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
-    }
-    await Promise.all([
-      this.hydrateProjectedDMUsers(startCursor, generation),
-      ...[...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
-        (store) =>
-          store.hydrateRealtimeProjection(
-            startCursor,
-            () => generation === this.#realtimeProjectionGeneration
-          )
-      )
-    ]);
-    this.requireCurrentRealtimeProjection(generation);
-  }
-
   /** Reject work whose resource boundary was superseded by a newer reset. */
   private requireCurrentRealtimeProjection(generation: number): void {
     if (generation !== this.#realtimeProjectionGeneration) {
@@ -292,8 +256,30 @@ export class ServerStateStore {
     }
   }
 
-  /** Wait until every resource invalidation before `F` has reconciled. */
-  async completeRealtimeCatchUp(_cursor: string): Promise<void> {
+  /** Complete auxiliary reads and event reconciliation through `cursor`. */
+  async completeRealtimeCatchUp(cursor: string): Promise<void> {
+    if (this.#realtimeSnapshotPending) {
+      const generation = this.#realtimeProjectionGeneration;
+      const batches = await Promise.all(
+        (['serverState', 'viewer', 'notifications'] as RealtimeResourceFamily[]).map((family) =>
+          this.#realtimeResources.read(family, cursor)
+        )
+      );
+      this.requireCurrentRealtimeProjection(generation);
+      for (const resource of batches.flat()) {
+        this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+      }
+      await Promise.all(
+        [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map((store) =>
+          store.hydrateRealtimeProjection(
+            cursor,
+            () => generation === this.#realtimeProjectionGeneration
+          )
+        )
+      );
+      this.requireCurrentRealtimeProjection(generation);
+      this.#realtimeSnapshotPending = false;
+    }
     while (
       this.#resourceRefreshes.size > 0 ||
       this.#userRefresh ||
@@ -490,6 +476,13 @@ export class ServerStateStore {
     let adminRoomLayoutChanged = update.reset;
 
     if (update.reset) {
+      const generation = ++this.#realtimeProjectionGeneration;
+      this.#realtimeSnapshotPending = true;
+      this.#reconciliationError = null;
+      this.#pendingResourceRefreshes.clear();
+      this.#pendingUserRefreshIds.clear();
+      this.#pendingUserRefreshCursor = undefined;
+      this.#pendingUserRefreshGeneration = generation;
       resetRegisteredFollowedThreadQueries(this.serverId);
       this.resetProjectionMirrors();
       this.forEachMessageSearch((store) => store.clearResults());

@@ -3,6 +3,10 @@ syntax = "proto3";
 package chatto.realtime.v1;
 
 import "chatto/core/evt/v1/event.proto";
+import "chatto/api/v1/room_directory.proto";
+import "chatto/api/v1/server.proto";
+import "chatto/api/v1/user_service.proto";
+import "chatto/api/v1/voice_calls.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -11,8 +15,8 @@ import "google/protobuf/timestamp.proto";
 // be `hello`. After the server replies with `hello`, clients send
 // `subscribe_events` to start one authorized canonical event stream.
 message RealtimeClientFrame {
-  reserved 4;
-  reserved "ack", "hydrate_room";
+  reserved 4, 5;
+  reserved "ack", "hydrate_room", "catch_up";
 
   oneof frame {
     // Opens the protocol session and optionally carries a bearer token.
@@ -21,16 +25,11 @@ message RealtimeClientFrame {
     RealtimeSubscribeEvents subscribe_events = 2;
     // Application-level ping. The server replies with `pong`.
     RealtimePing ping = 3;
-    // Confirms that the client finished its required current-resource reads.
-    RealtimeCatchUp catch_up = 5;
   }
 }
 
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 message RealtimeServerFrame {
-  reserved 9;
-  reserved "snapshot";
-
   oneof frame {
     // Confirms protocol and server versions.
     RealtimeServerHello hello = 1;
@@ -48,6 +47,8 @@ message RealtimeServerFrame {
     RealtimePong pong = 7;
     // Confirms that recovery reached the live-stream boundary.
     RealtimeCaughtUp caught_up = 8;
+    // One canonical resource family in an exact server-content snapshot.
+    RealtimeSnapshot snapshot = 9;
   }
 }
 
@@ -82,8 +83,8 @@ enum RealtimeInitialState {
   REALTIME_INITIAL_STATE_UNSPECIFIED = 0;
   // Start at the current event boundary without sending current resources.
   REALTIME_INITIAL_STATE_LIVE_ONLY = 1;
-  // Let the client read current resources through ConnectRPC before catch-up.
-  REALTIME_INITIAL_STATE_RESOURCE_READS = 2;
+  // Send an exact authorized snapshot before later canonical events.
+  REALTIME_INITIAL_STATE_SNAPSHOT = 2;
 }
 
 // Recovery path selected for one subscription.
@@ -92,8 +93,8 @@ enum RealtimeRecoveryMode {
   REALTIME_RECOVERY_MODE_UNSPECIFIED = 0;
   // Delivery starts at the current boundary without current resources or history.
   REALTIME_RECOVERY_MODE_LIVE_ONLY = 1;
-  // The client must replace its local state through ConnectRPC resource reads.
-  REALTIME_RECOVERY_MODE_RESOURCE_READS = 2;
+  // The server sends an exact authorized snapshot before later events.
+  REALTIME_RECOVERY_MODE_SNAPSHOT = 2;
   // Durable events resume after the supplied cursor.
   REALTIME_RECOVERY_MODE_RESUME = 3;
 }
@@ -105,7 +106,7 @@ message RealtimeSubscribeEvents {
 
   // Opaque cursor from a previously received durable event or `caught_up`
   // frame. A usable cursor receives bounded authorized durable events after
-  // that position. Cursors expire 24 hours after issue.
+  // that position. Cursors expire 15 minutes after issue.
   optional string resume_cursor = 1;
   // Required fallback when the cursor is absent or cannot resume safely.
   RealtimeInitialState initial_state = 3;
@@ -113,21 +114,34 @@ message RealtimeSubscribeEvents {
 
 // Confirms that event streaming has started.
 message RealtimeSubscribed {
-  reserved 1;
-  reserved "cursor";
+  reserved 1, 2;
+  reserved "cursor", "start_cursor";
 
-  // Opaque boundary from which this subscription starts.
-  optional string start_cursor = 2;
   // Recovery path selected after cursor validation and admission checks.
   RealtimeRecoveryMode recovery_mode = 3;
 }
 
-// Requests delivery through a stable current event boundary.
+// One resource family from an authorized snapshot of `ServerContentView`.
 //
-// A client in `RESOURCE_READS` recovery sends this frame after its required
-// ConnectRPC reads succeed. Those reads use `start_cursor` as their minimum
-// consistency cursor. A live-only or resume client can send it immediately.
-message RealtimeCatchUp {}
+// The server sends all snapshot frames between `subscribed(SNAPSHOT)` and
+// `caught_up`. The client must discard an incomplete snapshot if the socket
+// closes before `caught_up`. List values replace the complete local family.
+// Large and paginated resources, such as message history, are not part of the
+// snapshot and remain available through ConnectRPC.
+message RealtimeSnapshot {
+  oneof resource {
+    // Current public server profile.
+    chatto.api.v1.ServerPublicProfile server = 1;
+    // Complete visible room directory.
+    chatto.api.v1.ListRoomsResponse rooms = 2;
+    // Complete visible room-group layout.
+    chatto.api.v1.ListRoomGroupsResponse room_groups = 3;
+    // Users referenced by this snapshot. This is not the server directory.
+    chatto.api.v1.BatchGetUsersResponse users = 4;
+    // Complete visible active-call state.
+    chatto.api.v1.ListActiveCallsResponse active_calls = 5;
+  }
+}
 
 // Confirms that recovery is complete and live delivery has begun.
 //
@@ -172,6 +186,10 @@ message RealtimeHeartbeat {
   string id = 1;
   // Time the server created the heartbeat.
   google.protobuf.Timestamp created_at = 2;
+  // Fresh resume cursor for the latest durable boundary delivered on this
+  // socket. A client can retain it only after all earlier frames have been
+  // applied.
+  optional string resume_cursor = 3;
 }
 
 // Protocol error.
