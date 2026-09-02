@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-09-02
 
 ## Overview
 
@@ -21,7 +21,13 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
 - The main-room composer never shows the echo checkbox — the action only makes sense from inside a thread.
-- During the normal edit window, editing a thread reply shows the same "Also send to channel" checkbox. Saving with it checked creates or keeps the channel echo; saving with it unchecked hides the existing echo from the room timeline while keeping the thread reply readable. A Disabled room cannot gain a new echo from a historical reply, but an existing echo can still be removed.
+- Editing a thread reply shows the same "Also send to channel" checkbox while
+  the author can edit the reply. Effective `message.manage` keeps this action
+  available after the normal edit window. Saving with the checkbox selected
+  creates or keeps the channel echo. Saving with it cleared hides the existing
+  echo from the room timeline and keeps the thread reply readable. A Disabled
+  room cannot gain a new echo from a historical reply, but an existing echo can
+  still be removed.
 
 ## Design Decisions
 
@@ -60,9 +66,14 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 **Decision:** `alsoSendToChannel` is only valid when posting inside a thread. Sending a plain room message with the flag is rejected.
 **Why:** The feature exists to bridge thread visibility back to the room. The reverse (a room message that also shows in some thread) doesn't have a well-defined target.
 
-### 7. Echo state is editable during the edit window
+### 7. Echo state follows author edit permission
 
-**Decision:** The ConnectRPC `MessageService.UpdateMessage` API can optionally reconcile a thread reply's channel echo state during the author's normal edit window through the shared core message model. Omitting the field preserves current echo state for clients that do not intend to change it and for moderation edits.
+**Decision:** The ConnectRPC `MessageService.UpdateMessage` API can optionally
+reconcile a thread reply's channel echo state when the author can edit the
+message through the shared core message model. Effective `message.manage`
+bypasses the normal author edit window. Omitting the field preserves current
+echo state for clients that do not intend to change it and for edits by other
+users.
 **Why:** Users often realize shortly after posting in a thread that the reply should have been visible in the room. Treating the checkbox as edit-time message state keeps the interaction aligned with the composer.
 **Tradeoff:** Echo reconciliation is not a new persisted event type; adding an echo appends the existing echo-shaped `MessagePostedEvent`, and removing one appends a normal `MessageRetractedEvent` for the echo artifact.
 
