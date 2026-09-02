@@ -111,6 +111,78 @@ func (p *MentionablesProjection) Apply(event *evtv1.Event, _ uint64) error {
 	return nil
 }
 
+type preparedMentionablesEvent struct {
+	login string
+	ready bool
+}
+
+// Prepare resolves encrypted user handles before the content view commits any
+// component mutation.
+func (p *MentionablesProjection) Prepare(event *evtv1.Event, _ uint64) (events.PreparedMutation, error) {
+	if event == nil {
+		return nil, nil
+	}
+	prepared := preparedMentionablesEvent{}
+	p.RLock()
+	var err error
+	switch value := event.GetEvent().(type) {
+	case *evtv1.Event_UserAccountCreated:
+		created := value.UserAccountCreated
+		if created != nil && created.GetUserId() != "" {
+			prepared.login, prepared.ready, err = p.userPIIString(
+				event.GetId(), created.GetUserId(), evtstream.EventUserAccountCreated, "login", created.GetEncryptedLogin(),
+			)
+		}
+	case *evtv1.Event_UserLoginChanged:
+		changed := value.UserLoginChanged
+		if changed != nil && changed.GetUserId() != "" {
+			prepared.login, prepared.ready, err = p.userPIIString(
+				event.GetId(), changed.GetUserId(), evtstream.EventUserLoginChanged, "login", changed.GetEncryptedLogin(),
+			)
+		}
+	}
+	p.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+	return events.PreparedMutationFunc(func() {
+		p.applyPreparedMentionablesEvent(event, prepared)
+	}), nil
+}
+
+func (p *MentionablesProjection) applyPreparedMentionablesEvent(event *evtv1.Event, prepared preparedMentionablesEvent) {
+	p.Lock()
+	defer p.Unlock()
+	switch value := event.GetEvent().(type) {
+	case *evtv1.Event_UserDekGenerated:
+		p.applyDEKGenerated(value.UserDekGenerated)
+	case *evtv1.Event_UserAccountCreated:
+		if prepared.ready && prepared.login != "" {
+			p.setUserLogin(value.UserAccountCreated.GetUserId(), prepared.login)
+			p.userLoginSources[value.UserAccountCreated.GetUserId()] = proto.Clone(event).(*evtv1.Event)
+		}
+	case *evtv1.Event_UserLoginChanged:
+		if prepared.ready && prepared.login != "" {
+			p.setUserLogin(value.UserLoginChanged.GetUserId(), prepared.login)
+			p.userLoginSources[value.UserLoginChanged.GetUserId()] = proto.Clone(event).(*evtv1.Event)
+		}
+	case *evtv1.Event_UserAccountDeleted:
+		p.applyUserAccountDeleted(value.UserAccountDeleted)
+		delete(p.userLoginSources, value.UserAccountDeleted.GetUserId())
+	case *evtv1.Event_UserKeyShreddingRequested:
+		p.applyUserKeyShredded(value.UserKeyShreddingRequested.GetUserId())
+		delete(p.userLoginSources, value.UserKeyShreddingRequested.GetUserId())
+	case *evtv1.Event_UserKeyShredded:
+		p.applyUserKeyShredded(value.UserKeyShredded.GetUserId())
+		delete(p.userLoginSources, value.UserKeyShredded.GetUserId())
+	case *evtv1.Event_RbacRoleCreated:
+		p.addOwner(value.RbacRoleCreated.GetRoleName(), mentionableOwner{kind: mentionableOwnerRole, id: strings.ToLower(value.RbacRoleCreated.GetRoleName())})
+	case *evtv1.Event_RbacRoleDeleted:
+		roleName := strings.ToLower(value.RbacRoleDeleted.GetRoleName())
+		p.removeOwner(roleName, mentionableOwner{kind: mentionableOwnerRole, id: roleName})
+	}
+}
+
 func (p *MentionablesProjection) applyDEKGenerated(e *evtv1.UserDEKGeneratedEvent) {
 	if e == nil || e.GetUserId() == "" || e.GetEpoch() <= 0 || e.GetContentKeyRef() == "" {
 		return

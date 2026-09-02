@@ -25,6 +25,12 @@ type PermissionExplanation struct {
 // ExplainServerPermission resolves a server-only permission (no room
 // context) and returns the full decision trace.
 func (r *PermissionResolver) ExplainServerPermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
+	return r.explainInContentView(func() (PermissionExplanation, error) {
+		return r.explainServerPermission(ctx, userID, perm)
+	})
+}
+
+func (r *PermissionResolver) explainServerPermission(ctx context.Context, userID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known && !permissionMetadataHasScope(meta, ScopeServer) {
@@ -38,6 +44,12 @@ func (r *PermissionResolver) ExplainServerPermission(ctx context.Context, userID
 // ExplainServerKindPermission is the kind-aware server-scope explainer used by
 // the inspector UI to apply DM boundary rules for DM-kind callers.
 func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
+	return r.explainInContentView(func() (PermissionExplanation, error) {
+		return r.explainServerKindPermission(ctx, userID, kind, perm)
+	})
+}
+
+func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
@@ -53,6 +65,12 @@ func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, us
 // ExplainRoomPermission resolves a permission with a room context and returns
 // the full decision trace.
 func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
+	return r.explainInContentView(func() (PermissionExplanation, error) {
+		return r.explainRoomPermission(ctx, userID, kind, roomID, perm)
+	})
+}
+
+func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
@@ -76,11 +94,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	}
 
 	if _, known := GetPermissionMetadata(perm); known {
-		isOwner, err := r.core.IsServerOwner(ctx, userID)
-		if err != nil {
-			return err
-		}
-		if isOwner {
+		if r.core.isServerOwner(userID) {
 			exp.State = DecisionAllow
 			exp.DecidedAt = LevelServer
 			exp.DecidedByRole = RoleOwner
@@ -243,6 +257,19 @@ func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID s
 //
 // roomID without kind is invalid and returns an error.
 func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID string, kind RoomKind, roomID string) ([]PermissionExplanation, error) {
+	if r.core.contentView == nil {
+		return r.explainAllPermissions(ctx, userID, kind, roomID)
+	}
+	var explanations []PermissionExplanation
+	err := r.core.contentView.Read(func(uint64) error {
+		var explainErr error
+		explanations, explainErr = r.explainAllPermissions(ctx, userID, kind, roomID)
+		return explainErr
+	})
+	return explanations, err
+}
+
+func (r *PermissionResolver) explainAllPermissions(ctx context.Context, userID string, kind RoomKind, roomID string) ([]PermissionExplanation, error) {
 	if roomID != "" && kind == "" {
 		return nil, fmt.Errorf("roomID requires kind")
 	}
@@ -261,11 +288,11 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 		)
 		switch {
 		case roomID != "":
-			exp, err = r.ExplainRoomPermission(ctx, userID, kind, roomID, meta.Permission)
+			exp, err = r.explainRoomPermission(ctx, userID, kind, roomID, meta.Permission)
 		case kind != "":
-			exp, err = r.ExplainServerKindPermission(ctx, userID, kind, meta.Permission)
+			exp, err = r.explainServerKindPermission(ctx, userID, kind, meta.Permission)
 		default:
-			exp, err = r.ExplainServerPermission(ctx, userID, meta.Permission)
+			exp, err = r.explainServerPermission(ctx, userID, meta.Permission)
 		}
 		if err != nil {
 			return nil, fmt.Errorf("explain %s: %w", meta.Permission, err)
@@ -274,6 +301,19 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 	}
 
 	return results, nil
+}
+
+func (r *PermissionResolver) explainInContentView(explain func() (PermissionExplanation, error)) (PermissionExplanation, error) {
+	if r.core.contentView == nil {
+		return explain()
+	}
+	var explanation PermissionExplanation
+	err := r.core.contentView.Read(func(uint64) error {
+		var explainErr error
+		explanation, explainErr = explain()
+		return explainErr
+	})
+	return explanation, err
 }
 
 // applyDMBoundaryDeny fills in the explanation for a permission that is

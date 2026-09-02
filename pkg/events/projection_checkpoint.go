@@ -72,7 +72,7 @@ func (p *Projector) ConfigureCheckpoint(key string, resolveStreamIdentity Stream
 	if p.started {
 		return fmt.Errorf("configure projection checkpoint after projector start")
 	}
-	if p.snapshotSource != nil {
+	if p.snapshotSource != nil || p.snapshotCohortSource != nil {
 		return fmt.Errorf("projection %q already uses snapshot restore", key)
 	}
 	if p.checkpointKey != "" {
@@ -98,7 +98,7 @@ func (p *Projector) restoreCheckpointForRun(ctx context.Context, targetSeq uint6
 		return fmt.Errorf("projection %q no longer supports local checkpoints", key)
 	}
 
-	info, err := p.stream.Info(ctx)
+	info, err := p.freshStreamInfo(ctx)
 	if err != nil {
 		return fmt.Errorf("read EVT stream info for projection checkpoint: %w", err)
 	}

@@ -223,15 +223,15 @@ any other unusable cursor. The client clears and rebuilds the retained
 projection through normal operations, then marks it ready only at `caught_up`.
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
-captures an EVT cutoff, waits until every registered projection is current
-before reading membership, applicable message-read permissions, interaction
+captures an EVT cutoff, waits until `ServerContentView` reaches that cutoff
+before it reads membership, applicable message-read permissions, interaction
 relationships, or compacted state, and performs bounded JetStream point reads
 for the sequences after the cursor. It
 does not create a JetStream consumer. Each
-deliverable room, asset, or user fact waits for its owning projection and is
-converted to current public resource operations. The handler sends `caught_up`
-at the cutoff, discards buffered live duplicates through that sequence, and
-continues with the hub stream.
+deliverable room, asset, or user fact uses that same content-view readiness
+boundary and is converted to current public resource operations. The handler
+sends `caught_up` at the cutoff, discards buffered live duplicates through
+that sequence, and continues with the hub stream.
 
 The connection retains only a set of hydrated room IDs. Projection mapping
 omits room-timeline assembly for every other room, avoiding message-body
@@ -433,8 +433,8 @@ still receive the reset.
 
 `MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
 `live.evt.>` per Chatto process. It classifies subjects before decoding, waits
-for projections once, and fans immutable decoded events into count- and
-byte-bounded session queues. Sessions for one user share room-visibility state.
+for `ServerContentView` once for content facts, and fans immutable decoded
+events into count- and byte-bounded session queues. Sessions for one user share room-visibility state.
 There are no per-client NATS or JetStream consumers.
 
 Transient `live.sync.>` payloads use `chatto.core.live.v1.LiveEvent`. Durable

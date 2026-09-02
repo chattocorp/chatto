@@ -2,7 +2,12 @@
 
 **Date:** 2026-07-13
 
-**Updated:** 2026-08-19
+**Updated:** 2026-09-02
+
+ADR-088 and ADR-089 partially supersede the one-payload-per-projector and
+independent-frontier rules for `ServerContentView`. Its components use one
+complete snapshot cohort and one shared cutoff. The encryption, optional
+recovery, stream-identity, publication OCC, and privacy rules remain in effect.
 
 ## Context
 

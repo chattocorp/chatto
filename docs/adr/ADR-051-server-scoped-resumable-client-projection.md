@@ -2,6 +2,12 @@
 
 **Date:** 2026-07-16
 
+**Updated:** 2026-09-02
+
+ADR-089 supersedes the server-side multi-projection readiness and capture
+mechanism with `ServerContentView`. This ADR's public realtime protocol,
+cursor, privacy, authorization, and convergence decisions remain in effect.
+
 ## Context
 
 The bundled client previously loaded only the room being rendered. It combined

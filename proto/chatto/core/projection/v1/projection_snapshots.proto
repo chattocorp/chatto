@@ -52,6 +52,20 @@ message ProjectionSnapshotPointer {
   google.protobuf.Timestamp previous_created_at = 10;
 }
 
+// ProjectionSnapshotCohortManifest binds independently stored component parts
+// to one projection generation and one event-stream cutoff.
+message ProjectionSnapshotCohortManifest {
+  repeated ProjectionSnapshotCohortComponent components = 1;
+}
+
+// ProjectionSnapshotCohortComponent identifies the ordered stored parts for
+// one focused model in a componentized projection.
+message ProjectionSnapshotCohortComponent {
+  string component_key = 1;
+  string contract_id = 2;
+  repeated string part_generation_ids = 3;
+}
+
 // ThreadProjectionSnapshot is the canonical restorable state for the
 // Threads projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.

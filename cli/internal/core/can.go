@@ -88,6 +88,19 @@ func (c *ChattoCore) CanManageBots(ctx context.Context, userID string) (bool, er
 // keeps global suspension roles effective without requiring a default
 // server-scope message.post allow.
 func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error) {
+	if c.contentView == nil {
+		return c.canStartDM(ctx, userID)
+	}
+	var allowed bool
+	err := c.contentView.Read(func(uint64) error {
+		var checkErr error
+		allowed, checkErr = c.canStartDM(ctx, userID)
+		return checkErr
+	})
+	return allowed, err
+}
+
+func (c *ChattoCore) canStartDM(ctx context.Context, userID string) (bool, error) {
 	isBot, _, accountExists := c.userModel.isBotAndOwner(userID)
 	if !accountExists {
 		return false, ErrNotFound
@@ -95,7 +108,7 @@ func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error
 	if isBot {
 		return false, nil
 	}
-	decision, err := c.ResolveUserPermission(ctx, userID, KindDM, "", PermMessagePost)
+	decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, KindDM, "", "", PermMessagePost)
 	if err != nil {
 		return false, err
 	}
@@ -138,12 +151,25 @@ var adminPermissions = []Permission{
 // HasAnyAdminPermission checks if a user has any admin-level permission.
 // Used to determine whether the server admin link should be visible.
 func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
+	if c.contentView == nil {
+		return c.hasAnyAdminPermission(ctx, userID)
+	}
+	var allowed bool
+	err := c.contentView.Read(func(uint64) error {
+		var checkErr error
+		allowed, checkErr = c.hasAnyAdminPermission(ctx, userID)
+		return checkErr
+	})
+	return allowed, err
+}
+
+func (c *ChattoCore) hasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
 	for _, perm := range adminPermissions {
-		has, err := c.hasServerPermission(ctx, userID, perm)
+		decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, KindChannel, "", "", perm)
 		if err != nil {
 			return false, err
 		}
-		if has {
+		if decision == DecisionAllow {
 			return true, nil
 		}
 	}

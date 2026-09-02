@@ -33,6 +33,7 @@ type ChattoCore struct {
 	config                    config.CoreConfig
 	encryption                *encryptionManager
 	dekResolver               *unwrappedDEKResolver
+	contentView               *ServerContentView
 	configModel               *ConfigModel
 	roomModel                 *RoomModel
 	roomCommands              *RoomCommandModel
@@ -353,7 +354,7 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	if err != nil {
 		return nil, err
 	}
-	projections, err := initializeCoreProjections(infra, logger)
+	projections, err := initializeCoreProjections(ctx, infra, logger)
 	if err != nil {
 		return nil, err
 	}

@@ -88,12 +88,12 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 	if secondIdentity != firstIdentity {
 		t.Fatalf("EVT identity changed across process restart: %q != %q", secondIdentity, firstIdentity)
 	}
-	status := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
+	status := registeredProjector(t, second, projectionsnapshot.ProjectionServerContentViewKey).Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 || status.SnapshotGenerationID == "" {
-		t.Fatalf("Thread projector did not restore snapshot: %#v", status)
+		t.Fatalf("ServerContentView projector did not restore snapshot: %#v", status)
 	}
 	if status.StartupMessages != 0 {
-		t.Fatalf("Thread projector replayed %d messages after current snapshot restore", status.StartupMessages)
+		t.Fatalf("ServerContentView projector replayed %d messages after current snapshot restore", status.StartupMessages)
 	}
 	for _, registration := range second.projections {
 		if !registration.snapshotEnabled {
@@ -160,10 +160,10 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("initial snapshot worker did not finish")
 	}
-	firstStatus := registeredProjector(t, first, projectionsnapshot.ProjectionThreadsKey).Status()
-	firstThreadObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, first), "threads")
-	if len(firstThreadObjects) != 1 || firstStatus.LatestSnapshotAt.IsZero() {
-		t.Fatalf("initial Threads snapshot state = %#v, objects=%v", firstStatus, firstThreadObjects)
+	firstStatus := registeredProjector(t, first, projectionsnapshot.ProjectionServerContentViewKey).Status()
+	firstViewObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, first), projectionsnapshot.ProjectionServerContentViewKey)
+	if len(firstViewObjects) < 2 || firstStatus.LatestSnapshotAt.IsZero() {
+		t.Fatalf("initial ServerContentView snapshot state = %#v, objects=%v", firstStatus, firstViewObjects)
 	}
 	stopFirst()
 
@@ -183,26 +183,26 @@ func TestRestoredProjectionWithReplayDeltaPublishesAfterBoot(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("delta snapshot worker did not finish")
 	}
-	secondStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
+	secondStatus := registeredProjector(t, second, projectionsnapshot.ProjectionServerContentViewKey).Status()
 	if !secondStatus.SnapshotRestored || secondStatus.StartupMessages == 0 {
-		t.Fatalf("Threads did not restore and replay its delta: %#v", secondStatus)
+		t.Fatalf("ServerContentView did not restore and replay its delta: %#v", secondStatus)
 	}
 	if secondStatus.LatestSnapshotSeq != secondStatus.LastSeq || !secondStatus.LatestSnapshotAt.After(firstStatus.LatestSnapshotAt) {
-		t.Fatalf("Threads did not publish its replayed delta: before=%#v after=%#v", firstStatus, secondStatus)
+		t.Fatalf("ServerContentView did not publish its replayed delta: before=%#v after=%#v", firstStatus, secondStatus)
 	}
-	secondThreadObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, second), "threads")
-	if len(secondThreadObjects) != 2 {
-		t.Fatalf("Threads generations after delta publication = %v, want current and previous", secondThreadObjects)
+	secondViewObjects := snapshotObjectsForProjection(projectionSnapshotObjectNames(t, ctx, second), projectionsnapshot.ProjectionServerContentViewKey)
+	if len(secondViewObjects) != 2*len(firstViewObjects) {
+		t.Fatalf("ServerContentView objects after delta publication = %d, want %d", len(secondViewObjects), 2*len(firstViewObjects))
 	}
 }
 
 func snapshotObjectsForProjection(objects []string, projection string) []string {
 	return slices.DeleteFunc(slices.Clone(objects), func(object string) bool {
-		return !strings.Contains(object, "/"+projection+"/")
+		return !strings.Contains(object, "/"+projection)
 	})
 }
 
-func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
+func TestMissingProjectionComponentColdReplaysCompleteView(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	ctx := testContext(t)
 	cfg := config.CoreConfig{
@@ -233,7 +233,7 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 	store := projectionSnapshotObjectStore(t, ctx, first)
 	deleted := 0
 	for _, name := range projectionSnapshotObjectNames(t, ctx, first) {
-		if !strings.Contains(name, "/threads/") {
+		if !strings.Contains(name, "/server_content_view_threads_part/") {
 			continue
 		}
 		if err := store.Delete(ctx, name); err != nil {
@@ -242,7 +242,7 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 		deleted++
 	}
 	if deleted == 0 {
-		t.Fatal("initial worker did not publish a Threads snapshot")
+		t.Fatal("initial worker did not publish a Threads component snapshot")
 	}
 	stopFirst()
 
@@ -252,13 +252,9 @@ func TestMissingProjectionSnapshotColdReplaysOnlyItsOwner(t *testing.T) {
 	}
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
-	threadsStatus := registeredProjector(t, second, projectionsnapshot.ProjectionThreadsKey).Status()
-	if threadsStatus.SnapshotRestored || threadsStatus.StartupMessages == 0 {
-		t.Fatalf("Threads did not cold replay after its snapshot was removed: %#v", threadsStatus)
-	}
-	roomDirectoryStatus := registeredProjector(t, second, projectionsnapshot.ProjectionRoomDirectoryKey).Status()
-	if !roomDirectoryStatus.SnapshotRestored || roomDirectoryStatus.StartupMessages != 0 {
-		t.Fatalf("Room Directory did not restore independently: %#v", roomDirectoryStatus)
+	viewStatus := registeredProjector(t, second, projectionsnapshot.ProjectionServerContentViewKey).Status()
+	if viewStatus.SnapshotRestored || viewStatus.StartupMessages == 0 {
+		t.Fatalf("ServerContentView did not cold replay after one component was removed: %#v", viewStatus)
 	}
 }
 
@@ -308,9 +304,9 @@ func TestUserProfileSnapshotRestoresWhileAuthenticationColdReplays(t *testing.T)
 	stopSecond := startSnapshotTestCore(t, second)
 	t.Cleanup(stopSecond)
 
-	profileStatus := registeredProjector(t, second, projectionsnapshot.ProjectionUsersKey).Status()
+	profileStatus := registeredProjector(t, second, projectionsnapshot.ProjectionServerContentViewKey).Status()
 	if !profileStatus.SnapshotRestored || profileStatus.SnapshotCutoffSeq == 0 {
-		t.Fatalf("user profile projector did not restore snapshot: %#v", profileStatus)
+		t.Fatalf("ServerContentView projector did not restore user profile snapshot: %#v", profileStatus)
 	}
 	authStatus := registeredProjector(t, second, "user_auth").Status()
 	if authStatus.SnapshotRestored {
@@ -387,7 +383,7 @@ func TestProjectionSnapshotsRejectRecreatedEVTHistory(t *testing.T) {
 	}
 	stopRecreated := startSnapshotTestCore(t, recreated)
 	defer stopRecreated()
-	status := registeredProjector(t, recreated, projectionsnapshot.ProjectionThreadsKey).Status()
+	status := registeredProjector(t, recreated, projectionsnapshot.ProjectionServerContentViewKey).Status()
 	if status.SnapshotRestored {
 		t.Fatalf("Thread projector restored snapshot from deleted EVT history: %#v", status)
 	}
@@ -452,7 +448,7 @@ func TestProjectionSnapshotsPublishIdentityBoundToRecreatedEVT(t *testing.T) {
 	}
 	stopVerifier := startSnapshotTestCore(t, verifier)
 	defer stopVerifier()
-	status := registeredProjector(t, verifier, projectionsnapshot.ProjectionThreadsKey).Status()
+	status := registeredProjector(t, verifier, projectionsnapshot.ProjectionServerContentViewKey).Status()
 	if !status.SnapshotRestored || status.SnapshotCutoffSeq == 0 {
 		t.Fatalf("Thread projector did not restore recreated-stream snapshot: %#v", status)
 	}
