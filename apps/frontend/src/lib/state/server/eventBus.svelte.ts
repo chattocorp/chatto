@@ -361,6 +361,7 @@ class EventBusManager {
       let cursorReconciliation = Promise.resolve();
       let reconciliationFailed = false;
       let snapshotRecovery = false;
+      const snapshotResourcesSeen = new SvelteSet<string>();
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
@@ -425,6 +426,7 @@ class EventBusManager {
                 snapshotRecovery =
                   frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
                 if (snapshotRecovery) {
+                  snapshotResourcesSeen.clear();
                   try {
                     dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
                     sync.acceptProjectionEvent(undefined, true);
@@ -452,6 +454,7 @@ class EventBusManager {
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'empty snapshot frame');
                   return;
                 }
+                snapshotResourcesSeen.add(frame.frame.value.resource.case);
                 try {
                   dispatchProjectionUpdate(
                     new RealtimeProjectionUpdate({
@@ -480,6 +483,15 @@ class EventBusManager {
                 return;
               }
               case 'caughtUp': {
+                if (
+                  snapshotRecovery &&
+                  ['server', 'rooms', 'roomGroups', 'users', 'activeCalls'].some(
+                    (resource) => !snapshotResourcesSeen.has(resource)
+                  )
+                ) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'incomplete snapshot');
+                  return;
+                }
                 try {
                   await cursorReconciliation;
                   await completeProjectionCatchUp?.(frame.frame.value.cursor);

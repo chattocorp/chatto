@@ -15,6 +15,12 @@ import {
   RealtimeRecoveryMode
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
+import {
+  ListRoomGroupsResponse,
+  ListRoomsResponse
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { BatchGetUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
+import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
 import {
@@ -163,6 +169,36 @@ function snapshotFrame(): RealtimeServerFrame {
       resource: { case: 'server', value: new ServerPublicProfile({ name: 'Snapshot Server' }) }
     })
   });
+}
+
+function completeSnapshotFrames(): RealtimeServerFrame[] {
+  return [
+    snapshotFrame(),
+    serverFrame({
+      case: 'snapshot',
+      value: new RealtimeSnapshot({
+        resource: { case: 'rooms', value: new ListRoomsResponse() }
+      })
+    }),
+    serverFrame({
+      case: 'snapshot',
+      value: new RealtimeSnapshot({
+        resource: { case: 'roomGroups', value: new ListRoomGroupsResponse() }
+      })
+    }),
+    serverFrame({
+      case: 'snapshot',
+      value: new RealtimeSnapshot({
+        resource: { case: 'users', value: new BatchGetUsersResponse() }
+      })
+    }),
+    serverFrame({
+      case: 'snapshot',
+      value: new RealtimeSnapshot({
+        resource: { case: 'activeCalls', value: new ListActiveCallsResponse() }
+      })
+    })
+  ];
 }
 
 function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
@@ -361,7 +397,7 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sync.phase).toBe('hydrating');
     expect(sync.resumeCursor).toBeNull();
-    await socket.receive(snapshotFrame());
+    for (const frame of completeSnapshotFrames()) await socket.receive(frame);
 
     await socket.receive(
       serverFrame({
@@ -384,6 +420,30 @@ describe('eventBusManager realtime transport', () => {
 
     expect(socket.closeCalls.at(-1)?.code).toBe(4000);
     expect(socket.closeCalls.at(-1)?.reason).toBe('unexpected snapshot frame');
+  });
+
+  it('rejects caught_up before every required snapshot resource arrives', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(subscribedFrame(RealtimeRecoveryMode.SNAPSHOT));
+    await socket.receive(snapshotFrame());
+
+    await socket.receive(
+      serverFrame({
+        case: 'caughtUp',
+        value: new RealtimeCaughtUp({ cursor: 'cursor-incomplete' })
+      })
+    );
+
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
+    expect(socket.closeCalls.at(-1)?.reason).toBe('incomplete snapshot');
+    expect(sync.phase).toBe('hydrating');
+    expect(sync.resumeCursor).toBeNull();
   });
 
   it('rejects snapshot recovery before a projection reducer is registered', async () => {
