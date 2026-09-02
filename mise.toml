@@ -455,25 +455,21 @@ env = {
 }
 run = '''
 set -eu
-project_dir=$(pwd -P)
 chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 livekit_url=$(portless get "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 chatto_url=${chatto_url/http:/https:}
 authling_url=${authling_url/http:/https:}
 livekit_url=${livekit_url/http:/https:}
-data_root="$project_dir/cli/data"
-mkdir -p cli/internal/http_server/.client "$data_root/nats" "$data_root/search"
+mkdir -p cli/internal/http_server/.client
 touch cli/internal/http_server/.client/.gitkeep
 cd cli
 go build -trimpath -tags 'bootstrap nomsgpack' -ldflags "-X main.Version=$CHATTO_DEVELOPMENT_VERSION" -o bin/chatto-dev .
 export CHATTO_WEBSERVER_URL="$chatto_url"
-export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
 export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="$authling_url"
 export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="$chatto_url/oauth/client-metadata.json"
 export CHATTO_LIVEKIT_URL="${livekit_url/https:/wss:}"
 export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit"
-export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
 exec bin/chatto-dev start
 '''
 

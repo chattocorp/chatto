@@ -89,6 +89,27 @@ bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
 `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
 CLI arguments after the task name, for example `mise chatto version`.
 
+### Local Chatto Data
+
+The local `cli/chatto.toml` file is the source for local data paths. It keeps
+embedded NATS data in `cli/data/nats/` and the search index in
+`cli/data/search/`. The `mise dev` and `mise chatto` tasks use these paths.
+
+Older worktrees can have embedded NATS data in `cli/data/jetstream/`. Stop all
+Chatto processes before you migrate this data. If
+`cli/data/nats/jetstream/` does not exist, preserve the old store and copy it
+to the new location:
+
+```sh
+mkdir -p cli/data/nats
+cp -a cli/data/jetstream cli/data/nats/
+```
+
+Start Chatto and check the data before you remove the old
+`cli/data/jetstream/` directory. If both JetStream directories already contain
+data, do not merge them. Preserve both directories and select the store that
+contains the data that you need.
+
 ## Local Bootstrap Users
 
 Local development instances are bootstrapped from `cli/chatto.toml` when the server is otherwise empty.
