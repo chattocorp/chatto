@@ -675,6 +675,7 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 		p.removeCachedEventSequenceLocked(sequence)
 	}
 	state.body = nil
+	state.hasAttachments = false
 	p.bodyStates[eventID] = state
 }
 

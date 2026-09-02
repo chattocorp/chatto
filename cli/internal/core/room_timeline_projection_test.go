@@ -574,6 +574,9 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.bodyStates["ENV-M1"].body; got != nil {
 		t.Fatal("late body ciphertext remained projected after retraction")
 	}
+	if p.bodyStates["ENV-M1"].hasAttachments {
+		t.Fatal("retracted body retained attachment metadata")
+	}
 	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
 		t.Fatalf("CurrentRoomAttachmentMessages after late body = %v, want empty", got)
 	}
