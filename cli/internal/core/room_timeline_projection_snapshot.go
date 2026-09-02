@@ -131,10 +131,12 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		IdleTimeout: p.idleTimeout, Now: p.now,
 	})
 	restored.replayGuard = guard
+	var lastEntrySequence uint64
 	for _, row := range snapshot.GetEntries() {
-		if row.GetStreamSequence() == 0 || row.GetEvent().GetId() == "" {
+		if row.GetStreamSequence() == 0 || row.GetStreamSequence() <= lastEntrySequence || row.GetEvent().GetId() == "" {
 			return fmt.Errorf("room timeline snapshot has invalid timeline entry")
 		}
+		lastEntrySequence = row.GetStreamSequence()
 		event := proto.Clone(row.GetEvent()).(*evtv1.Event)
 		index := restored.appendEntryLocked(row.GetStreamSequence(), event)
 		if _, duplicate := restored.byEventID[event.GetId()]; duplicate {
@@ -172,8 +174,13 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			return fmt.Errorf("room timeline snapshot repeats body %q", id)
 		}
 		sequences := row.GetBodyEventSequences()
-		if len(sequences) == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
+		if len(sequences) == 0 || sequences[0] == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent sequence history", id)
+		}
+		for index := 1; index < len(sequences); index++ {
+			if sequences[index] <= sequences[index-1] {
+				return fmt.Errorf("room timeline snapshot body %q has unordered sequence history", id)
+			}
 		}
 		restored.bodyStates[id] = timelineBodyState{
 			currentSequence:     row.GetCurrentBodySequence(),
@@ -183,8 +190,11 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 	for _, row := range snapshot.GetBuckets() {
 		key := timelineBucketKey{roomID: row.GetRoomId(), startUnixNs: row.GetStartUnixNanoseconds(), undated: row.GetUndated()}
-		if key.roomID == "" || (!key.undated && key.startUnixNs == 0) || row.GetRevision() != uint64(len(row.GetEventSequences())) || len(row.GetEventSequences()) == 0 {
+		if key.roomID == "" || (key.undated && key.startUnixNs != 0) || row.GetRevision() != uint64(len(row.GetEventSequences())) || len(row.GetEventSequences()) == 0 {
 			return fmt.Errorf("room timeline snapshot has invalid bucket")
+		}
+		if !key.undated && restored.bucketKeyLocked(key.roomID, time.Unix(0, key.startUnixNs)) != key {
+			return fmt.Errorf("room timeline snapshot has an unaligned bucket for room %q", key.roomID)
 		}
 		for index := 1; index < len(row.GetEventSequences()); index++ {
 			if row.GetEventSequences()[index] <= row.GetEventSequences()[index-1] {
@@ -198,7 +208,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 	for _, row := range snapshot.GetMessageBuckets() {
 		key := timelineBucketKey{roomID: row.GetRoomId(), startUnixNs: row.GetStartUnixNanoseconds(), undated: row.GetUndated()}
-		if row.GetMessageEventId() == "" || key.roomID == "" || restored.buckets[key] == nil {
+		entry, entryExists := restored.entryByEventIDLocked(row.GetMessageEventId())
+		if row.GetMessageEventId() == "" || key.roomID == "" || restored.buckets[key] == nil || !entryExists || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != key.roomID || restored.bucketKeyLocked(key.roomID, eventCreatedAt(entry.Event)) != key {
 			return fmt.Errorf("room timeline snapshot has invalid message bucket")
 		}
 		if _, duplicate := restored.messageBuckets[row.GetMessageEventId()]; duplicate {
@@ -215,6 +226,14 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	for _, row := range snapshot.GetPendingBodyReferences() {
 		if row.GetMessageEventId() == "" || len(row.GetEventSequences()) == 0 {
 			return fmt.Errorf("room timeline snapshot has invalid pending body reference")
+		}
+		if _, duplicate := restored.pendingBodySequences[row.GetMessageEventId()]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats pending body reference %q", row.GetMessageEventId())
+		}
+		for index, sequence := range row.GetEventSequences() {
+			if sequence == 0 || (index > 0 && sequence <= row.GetEventSequences()[index-1]) {
+				return fmt.Errorf("room timeline snapshot has invalid pending body sequence")
+			}
 		}
 		restored.pendingBodySequences[row.GetMessageEventId()] = append([]uint64(nil), row.GetEventSequences()...)
 	}
@@ -310,7 +329,8 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			return fmt.Errorf("room timeline snapshot repeats attachment room %q", row.GetRoomId())
 		}
 		for _, messageID := range row.GetMessageEventIds() {
-			if messageID == "" || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
+			state := restored.bodyStates[messageID]
+			if messageID == "" || !state.hasAttachments || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
 				return fmt.Errorf("room timeline snapshot has invalid attachment message")
 			}
 			restored.attachmentMessageIDsByRoom[row.GetRoomId()] = append(restored.attachmentMessageIDsByRoom[row.GetRoomId()], messageID)
