@@ -213,8 +213,8 @@ func (c *ChattoCore) CanManageRoomGroup(ctx context.Context, userID, groupID str
 // DM-sensitive: for KindDM this returns false. DM rooms aren't surfaced
 // through the channel room-list API; they use their own listing path.
 func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canSeeRoom(ctx, userID, kind, roomID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canSeeRoom(readCtx, userID, kind, roomID)
 	})
 }
 
@@ -279,8 +279,8 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // members are exactly the users for whom this returns true. Active room bans
 // deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canJoinRoomAt(ctx, userID, kind, roomID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canJoinRoomAt(readCtx, userID, kind, roomID)
 	})
 }
 
@@ -301,8 +301,8 @@ func (c *ChattoCore) canJoinRoomAt(ctx context.Context, userID string, kind Room
 // message.read decisions do not restrict DM participants. Callers must enforce
 // room membership for both room kinds.
 func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canReadMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canReadMessages(readCtx, userID, kind, roomID)
 	})
 }
 
@@ -322,8 +322,8 @@ func (c *ChattoCore) canReadMessages(ctx context.Context, userID string, kind Ro
 // membership remains the complete DM read boundary. Callers must enforce
 // current room membership separately.
 func (c *ChattoCore) CanReadMessageInteractions(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canReadMessageInteractions(ctx, userID, kind, roomID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canReadMessageInteractions(readCtx, userID, kind, roomID)
 	})
 }
 
@@ -342,8 +342,8 @@ func (c *ChattoCore) canReadMessageInteractions(ctx context.Context, userID stri
 // one configured read mode. A positive interaction result does not imply that
 // any specific thread relationship exists.
 func (c *ChattoCore) CanAccessRoomMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canAccessRoomMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canAccessRoomMessages(readCtx, userID, kind, roomID)
 	})
 }
 
@@ -358,8 +358,8 @@ func (c *ChattoCore) canAccessRoomMessages(ctx context.Context, userID string, k
 // CanReadThreadMessages reports whether the account can read one complete
 // thread. Callers must enforce current room membership separately.
 func (c *ChattoCore) CanReadThreadMessages(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canReadThreadMessages(ctx, userID, kind, roomID, threadRootEventID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canReadThreadMessages(readCtx, userID, kind, roomID, threadRootEventID)
 	})
 }
 
@@ -379,8 +379,8 @@ func (c *ChattoCore) canReadThreadMessages(ctx context.Context, userID string, k
 // message. Roots, replies, and channel echoes use their canonical thread root.
 // Callers must enforce current room membership separately.
 func (c *ChattoCore) CanReadMessage(ctx context.Context, userID string, kind RoomKind, roomID, messageEventID string) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canReadMessage(ctx, userID, kind, roomID, messageEventID)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canReadMessage(readCtx, userID, kind, roomID, messageEventID)
 	})
 }
 
@@ -400,8 +400,8 @@ func (c *ChattoCore) canReadMessage(ctx context.Context, userID string, kind Roo
 // CanReadMessageEvent reports whether the account can receive one durable
 // message-derived fact. Callers must enforce current room membership.
 func (c *ChattoCore) CanReadMessageEvent(ctx context.Context, userID string, kind RoomKind, roomID string, event *evtv1.Event) (bool, error) {
-	return c.readContentDecision(ctx, func() (bool, error) {
-		return c.canReadMessageEvent(ctx, userID, kind, roomID, event)
+	return c.readContentDecision(ctx, func(readCtx context.Context) (bool, error) {
+		return c.canReadMessageEvent(readCtx, userID, kind, roomID, event)
 	})
 }
 
