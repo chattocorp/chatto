@@ -1296,6 +1296,99 @@ func TestRoomTimeline_ConcurrentHistoricalReadsShareOneLoad(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_HistoricalLoadRetriesAfterConcurrentEdit(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	originalBody := &evtv1.Event{Id: "BODY-1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY-1", EncryptedBody: []byte("first")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	editedBody := &evtv1.Event{Id: "BODY-2", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY-2", EncryptedBody: []byte("second")}}}}
+	source := &blockingTimelineEventSource{
+		records: timelineTestEventSource{
+			1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: originalBody},
+			2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+			3: {Subject: "evt.room.R1.message_body", Sequence: 3, Event: editedBody},
+		},
+		started: make(chan struct{}), release: make(chan struct{}),
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(originalBody, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	result := make(chan *evtv1.MessageBody, 1)
+	errors := make(chan error, 1)
+	go func() {
+		body, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+		result <- body
+		errors <- err
+	}()
+	<-source.started
+	if err := projection.Apply(editedBody, 3); err != nil {
+		t.Fatal(err)
+	}
+	close(source.release)
+	if err := <-errors; err != nil {
+		t.Fatal(err)
+	}
+	if got := string((<-result).GetEncryptedBody()); got != "second" {
+		t.Fatalf("body after concurrent edit = %q, want second", got)
+	}
+}
+
+func TestRoomTimeline_HistoricalLoadFiltersConcurrentKeyShred(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := &blockingTimelineEventSource{
+		records: timelineTestEventSource{
+			1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+			2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		},
+		started: make(chan struct{}), release: make(chan struct{}),
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+		done <- err
+	}()
+	<-source.started
+	shredded := &evtv1.Event{Id: "SHRED", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_UserKeyShredded{UserKeyShredded: &evtv1.UserKeyShreddedEvent{UserId: "U1"}}}
+	if err := projection.Apply(shredded, 3); err != nil {
+		t.Fatal(err)
+	}
+	close(source.release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	body, retracted, ok := projection.LatestBody("MESSAGE")
+	if body != nil || !retracted || !ok {
+		t.Fatalf("LatestBody after concurrent shred = (%v, %v, %v), want unavailable", body, retracted, ok)
+	}
+	for _, cached := range projection.cache {
+		if cached.events[1] != nil {
+			t.Fatal("concurrent key shred left ciphertext in the cache")
+		}
+	}
+}
+
 func TestRoomTimeline_SnapshotPreservesBodyReferenceBeforePost(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
