@@ -87,7 +87,7 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 - `role.manage` — create, edit, delete roles and the permissions attached to them.
 - `role.assign` — assign roles to users.
-- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns.
+- `user.manage-accounts` — create users, edit account identity, reset passwords, attach verified emails, clear login cooldowns, and bypass the holder's own login cooldown.
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; announcement rooms add a room-level `everyone` deny.

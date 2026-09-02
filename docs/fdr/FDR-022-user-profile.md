@@ -1,7 +1,7 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-07-12
+**Last reviewed:** 2026-09-02
 
 ## Overview
 
@@ -10,7 +10,7 @@ A user's profile carries the public identity they present to the rest of the ser
 ## Behavior
 
 - **Display name** — freely editable by the user. Shown in messages, member lists, mention autocomplete, etc.
-- **Login (username)** — editable by the user with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
+- **Login (username)** — editable by the user with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
 - **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
 - **Custom status** — users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
@@ -24,7 +24,7 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 1. 30-day login change cooldown
 
-**Decision:** A user can change their login only once every 30 days.
+**Decision:** A user can change their login only once every 30 days. A user with `user.manage-accounts` can bypass this limit for their own login. A bypassed change does not clear or advance the existing cooldown timestamp.
 **Why:** Logins are the basis for `@mentions`, search results, and recognition across the server. Frequent changes are an impersonation/confusion risk — `@alice` today might be a different person tomorrow. A 30-day cooldown discourages rapid churn while still allowing occasional rename for legitimate reasons. Case-only changes are exempt because they don't change identity.
 **Tradeoff:** A user who legitimately needs to change twice in 30 days (e.g., picked a typo'd name) is stuck. The admin clear-cooldown affordance handles those cases.
 
@@ -34,11 +34,11 @@ A user's profile carries the public identity they present to the rest of the ser
 **Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
 **Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 
-### 3. Admin path doesn't advance the cooldown timestamp
+### 3. Privileged changes do not advance the cooldown timestamp
 
-**Decision:** When an admin changes a user's login, the user's cooldown clock isn't reset. The user can still wait out their own cooldown and change to a different login.
-**Why:** The cooldown is about the *user's* identity stability, not the admin's. An admin-driven correction shouldn't reset the user's own quota.
-**Tradeoff:** A user who keeps getting admin-renamed has a slightly confusing experience around when their next self-change is allowed. Acceptable; uncommon edge case.
+**Decision:** A login change does not reset the cooldown clock when an account manager changes another user's login or bypasses their own cooldown. The previous self-service cooldown timestamp stays in effect.
+**Why:** A privileged correction does not use the user's normal login-change allowance.
+**Tradeoff:** A user can see a cooldown that started before a privileged login change. This case is uncommon.
 
 ### 4. Avatars are WebP-only, capped at 256×256
 
@@ -84,7 +84,7 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Permissions
 
-- Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; only authentication. `user.manage-accounts` bypasses the holder's own login cooldown.
 - Cross-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
 
