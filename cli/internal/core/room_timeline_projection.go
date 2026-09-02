@@ -652,7 +652,11 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *evtv
 		state.body = body
 		if cached := p.cache[key]; ok && cached != nil {
 			if cachedEvent := cached.events[sequence]; cachedEvent != nil && cachedEvent.GetMessageBody().GetBody() != nil {
-				state.body = cachedEvent.GetMessageBody().GetBody()
+				cachedBody := cachedEvent.GetMessageBody().GetBody()
+				if cachedBody.GetBodyEventId() == "" {
+					cachedBody.BodyEventId = body.GetBodyEventId()
+				}
+				state.body = cachedBody
 			}
 		}
 	} else {
@@ -857,7 +861,11 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				if record == nil || record.Event == nil || record.Sequence != sequence || roomIDOfEvent(record.Event) != key.roomID {
 					return nil, fmt.Errorf("EVT sequence %d does not match room timeline bucket %q", sequence, key.roomID)
 				}
-				eventsBySequence[sequence] = record.Event
+				cachedEvent := proto.Clone(record.Event).(*evtv1.Event)
+				if bodyEvent := cachedEvent.GetMessageBody(); bodyEvent != nil && bodyEvent.GetBody() != nil && bodyEvent.GetBody().GetBodyEventId() == "" {
+					bodyEvent.GetBody().BodyEventId = cachedEvent.GetId()
+				}
+				eventsBySequence[sequence] = cachedEvent
 			}
 
 			p.Lock()

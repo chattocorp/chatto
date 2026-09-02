@@ -1175,6 +1175,40 @@ func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_CacheNormalizesLegacyBodyEventID(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	if got := bodyEvent.GetMessageBody().GetBody().GetBodyEventId(); got != "" {
+		t.Fatalf("input body event ID = %q, want unchanged empty value", got)
+	}
+
+	body, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || body.GetBodyEventId() != "BODY" {
+		t.Fatalf("cached body event ID = %q, error = %v", body.GetBodyEventId(), err)
+	}
+	projection.evictIdleBuckets(now.Add(2 * time.Minute))
+	body, _, _, err = projection.LatestBodyContext(context.Background(), "MESSAGE")
+	if err != nil || body.GetBodyEventId() != "BODY" {
+		t.Fatalf("reconstructed body event ID = %q, error = %v", body.GetBodyEventId(), err)
+	}
+}
+
 func TestRoomTimeline_LateMutationRoutesToOriginalAndOccurrenceBuckets(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	originalTime := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
