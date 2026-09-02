@@ -159,6 +159,114 @@ func (p *UserProjection) Apply(event *evtv1.Event, seq uint64) error {
 	return nil
 }
 
+type preparedUserContentEvent struct {
+	lookupValue string
+	lookupReady bool
+}
+
+// Prepare performs the only fallible content-view work before any component
+// commits. It resolves login and verified-email lookup values without keeping
+// plaintext in projected state.
+func (p *UserProjection) Prepare(event *evtv1.Event, seq uint64) (events.PreparedMutation, error) {
+	if event == nil {
+		return nil, nil
+	}
+	prepared := preparedUserContentEvent{}
+	p.RLock()
+	replayGuard := p.replayGuard
+	if replayGuard.seen(event, seq) {
+		p.RUnlock()
+		return events.PreparedMutationFunc(func() {
+			p.applyPreparedContentEvent(event, seq, prepared)
+		}), nil
+	}
+	var err error
+	switch value := event.GetEvent().(type) {
+	case *evtv1.Event_UserAccountCreated:
+		created := value.UserAccountCreated
+		if created != nil && created.GetUserId() != "" && created.GetEncryptedLogin() != nil && created.GetEncryptedDisplayName() != nil {
+			prepared.lookupValue, prepared.lookupReady, err = p.userPIIStringLocked(
+				context.Background(), event.GetId(), created.GetUserId(), evtstream.EventUserAccountCreated, "login", created.GetEncryptedLogin(),
+			)
+		}
+	case *evtv1.Event_UserLoginChanged:
+		changed := value.UserLoginChanged
+		if changed != nil && changed.GetUserId() != "" && changed.GetEncryptedLogin() != nil {
+			prepared.lookupValue, prepared.lookupReady, err = p.userPIIStringLocked(
+				context.Background(), event.GetId(), changed.GetUserId(), evtstream.EventUserLoginChanged, "login", changed.GetEncryptedLogin(),
+			)
+		}
+	case *evtv1.Event_UserVerifiedEmailAdded:
+		added := value.UserVerifiedEmailAdded
+		if added != nil && added.GetUserId() != "" && added.GetEncryptedEmail() != nil {
+			prepared.lookupValue, prepared.lookupReady, err = p.userPIIStringLocked(
+				context.Background(), event.GetId(), added.GetUserId(), evtstream.EventUserVerifiedEmailAdded, "email", added.GetEncryptedEmail(),
+			)
+		}
+	}
+	p.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+	return events.PreparedMutationFunc(func() {
+		p.applyPreparedContentEvent(event, seq, prepared)
+	}), nil
+}
+
+func (p *UserProjection) applyPreparedContentEvent(event *evtv1.Event, seq uint64, prepared preparedUserContentEvent) {
+	p.Lock()
+	defer p.Unlock()
+	if p.replayGuard.seenOrMark(event, seq) {
+		return
+	}
+	switch value := event.GetEvent().(type) {
+	case *evtv1.Event_UserDekGenerated:
+		p.applyDEKGenerated(value.UserDekGenerated)
+	case *evtv1.Event_UserAccountCreated:
+		if prepared.lookupReady && prepared.lookupValue != "" {
+			p.applyAccountCreatedWithLogin(event.GetId(), value.UserAccountCreated, event.GetCreatedAt(), prepared.lookupValue)
+		}
+	case *evtv1.Event_BotOwnerReassigned:
+		p.applyBotOwnerReassigned(value.BotOwnerReassigned)
+	case *evtv1.Event_UserLoginChanged:
+		if prepared.lookupReady && prepared.lookupValue != "" {
+			p.applyLoginChangedWithLogin(event.GetId(), value.UserLoginChanged, event.GetCreatedAt(), prepared.lookupValue)
+		}
+	case *evtv1.Event_UserDisplayNameChanged:
+		p.applyDisplayNameChanged(event.GetId(), value.UserDisplayNameChanged)
+	case *evtv1.Event_UserBioChanged:
+		p.applyBioChanged(event.GetId(), value.UserBioChanged)
+	case *evtv1.Event_UserAvatarSet:
+		p.applyAvatarSet(value.UserAvatarSet)
+	case *evtv1.Event_UserAvatarCleared:
+		p.applyAvatarCleared(value.UserAvatarCleared)
+	case *evtv1.Event_AssetCreated:
+		p.applyAssetCreated(value.AssetCreated)
+	case *evtv1.Event_AssetDeleted:
+		p.applyAssetDeleted(value.AssetDeleted)
+	case *evtv1.Event_UserVerifiedEmailAdded:
+		if prepared.lookupReady && prepared.lookupValue != "" {
+			p.applyVerifiedEmailAddedWithEmail(event.GetId(), value.UserVerifiedEmailAdded, event.GetCreatedAt(), prepared.lookupValue)
+		}
+	case *evtv1.Event_UserServerPreferencesChanged:
+		p.applyServerPreferencesChanged(value.UserServerPreferencesChanged)
+	case *evtv1.Event_UserLoginCooldownStarted:
+		p.applyLoginCooldownStarted(value.UserLoginCooldownStarted, event.GetCreatedAt())
+	case *evtv1.Event_UserLoginCooldownCleared:
+		p.applyLoginCooldownCleared(value.UserLoginCooldownCleared)
+	case *evtv1.Event_UserCustomStatusSet:
+		p.applyCustomStatusSet(value.UserCustomStatusSet)
+	case *evtv1.Event_UserCustomStatusCleared:
+		p.applyCustomStatusCleared(value.UserCustomStatusCleared)
+	case *evtv1.Event_UserAccountDeleted:
+		p.applyAccountDeleted(value.UserAccountDeleted)
+	case *evtv1.Event_UserKeyShreddingRequested:
+		p.applyKeyShredded(value.UserKeyShreddingRequested.GetUserId())
+	case *evtv1.Event_UserKeyShredded:
+		p.applyKeyShredded(value.UserKeyShredded.GetUserId())
+	}
+}
+
 func (p *UserProjection) CompleteStartupReplay() {
 	p.Lock()
 	defer p.Unlock()
@@ -209,6 +317,11 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *evtv1.UserAccoun
 	if !ok || login == "" {
 		return nil
 	}
+	p.applyAccountCreatedWithLogin(eventID, e, envelopeCreatedAt, login)
+	return nil
+}
+
+func (p *UserProjection) applyAccountCreatedWithLogin(eventID string, e *evtv1.UserAccountCreatedEvent, envelopeCreatedAt *timestamppb.Timestamp, login string) {
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	isBot := e.GetIsBot()
@@ -230,7 +343,6 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *evtv1.UserAccoun
 	u.deleted = false
 	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
-	return nil
 }
 
 func (p *UserProjection) applyBotOwnerReassigned(e *evtv1.BotOwnerReassignedEvent) {
@@ -260,6 +372,11 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *evtv1.UserLoginCha
 	if !ok || login == "" {
 		return nil
 	}
+	p.applyLoginChangedWithLogin(eventID, e, envelopeCreatedAt, login)
+	return nil
+}
+
+func (p *UserProjection) applyLoginChangedWithLogin(eventID string, e *evtv1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp, login string) {
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
 	if u.user == nil {
@@ -271,7 +388,6 @@ func (p *UserProjection) applyLoginChanged(eventID string, e *evtv1.UserLoginCha
 	u.login = newProjectedUserPII(eventID, evtstream.EventUserLoginChanged, "login", e.GetEncryptedLogin())
 	u.loginHash = loginHash
 	p.loginIndex[loginHash] = e.GetUserId()
-	return nil
 }
 
 func (p *UserProjection) applyDisplayNameChanged(eventID string, e *evtv1.UserDisplayNameChangedEvent) {
@@ -344,6 +460,11 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *evtv1.UserVe
 	if !ok || email == "" {
 		return nil
 	}
+	p.applyVerifiedEmailAddedWithEmail(eventID, e, envelopeCreatedAt, email)
+	return nil
+}
+
+func (p *UserProjection) applyVerifiedEmailAddedWithEmail(eventID string, e *evtv1.UserVerifiedEmailAddedEvent, envelopeCreatedAt *timestamppb.Timestamp, email string) {
 	hash := emailHash(email)
 	u := p.ensureUserLocked(e.GetUserId())
 	verifiedAt := time.Now()
@@ -355,7 +476,6 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *evtv1.UserVe
 		verifiedAt: verifiedAt,
 	}
 	p.emailIndex[hash] = e.GetUserId()
-	return nil
 }
 
 func (p *UserProjection) applyServerPreferencesChanged(e *evtv1.UserServerPreferencesChangedEvent) {

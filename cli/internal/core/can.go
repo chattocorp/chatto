@@ -88,6 +88,19 @@ func (c *ChattoCore) CanManageBots(ctx context.Context, userID string) (bool, er
 // keeps global suspension roles effective without requiring a default
 // server-scope message.post allow.
 func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error) {
+	if c.contentView == nil {
+		return c.canStartDM(ctx, userID)
+	}
+	var allowed bool
+	err := c.contentView.Read(func(uint64) error {
+		var checkErr error
+		allowed, checkErr = c.canStartDM(ctx, userID)
+		return checkErr
+	})
+	return allowed, err
+}
+
+func (c *ChattoCore) canStartDM(ctx context.Context, userID string) (bool, error) {
 	isBot, _, accountExists := c.userModel.isBotAndOwner(userID)
 	if !accountExists {
 		return false, ErrNotFound
@@ -95,7 +108,7 @@ func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error
 	if isBot {
 		return false, nil
 	}
-	decision, err := c.ResolveUserPermission(ctx, userID, KindDM, "", PermMessagePost)
+	decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, KindDM, "", "", PermMessagePost)
 	if err != nil {
 		return false, err
 	}
@@ -138,12 +151,25 @@ var adminPermissions = []Permission{
 // HasAnyAdminPermission checks if a user has any admin-level permission.
 // Used to determine whether the server admin link should be visible.
 func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
+	if c.contentView == nil {
+		return c.hasAnyAdminPermission(ctx, userID)
+	}
+	var allowed bool
+	err := c.contentView.Read(func(uint64) error {
+		var checkErr error
+		allowed, checkErr = c.hasAnyAdminPermission(ctx, userID)
+		return checkErr
+	})
+	return allowed, err
+}
+
+func (c *ChattoCore) hasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
 	for _, perm := range adminPermissions {
-		has, err := c.hasServerPermission(ctx, userID, perm)
+		decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, KindChannel, "", "", perm)
 		if err != nil {
 			return false, err
 		}
-		if has {
+		if decision == DecisionAllow {
 			return true, nil
 		}
 	}
@@ -187,17 +213,36 @@ func (c *ChattoCore) CanManageRoomGroup(ctx context.Context, userID, groupID str
 // DM-sensitive: for KindDM this returns false. DM rooms aren't surfaced
 // through the channel room-list API; they use their own listing path.
 func (c *ChattoCore) CanSeeRoom(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.canSeeRoom(ctx, userID, kind, roomID)
+	})
+}
+
+func (c *ChattoCore) canSeeRoom(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	if kind == KindDM {
 		return false, nil
 	}
-	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
+	if c.roomModel.hasExplicitRoomMembership(roomID, userID) {
+		return true, nil
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
 	if err != nil {
 		return false, err
 	}
-	if isMember {
+	if room.GetUniversal() {
+		canJoin, joinErr := c.canJoinRoomAt(ctx, userID, kind, roomID)
+		if joinErr != nil || canJoin {
+			return canJoin, joinErr
+		}
+	}
+	allowed, err := c.permissionResolver.resolveWithGroup(ctx, userID, kind, roomID, "", PermRoomList)
+	if err != nil {
+		return false, err
+	}
+	if allowed == DecisionAllow {
 		return true, nil
 	}
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomList)
+	return false, nil
 }
 
 // CanCreateRoom checks if a user can create new rooms. When groupID is
@@ -234,10 +279,17 @@ func (c *ChattoCore) CanJoinRoom(ctx context.Context, userID string, kind RoomKi
 // members are exactly the users for whom this returns true. Active room bans
 // deny joins even when RBAC would otherwise allow them.
 func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.canJoinRoomAt(ctx, userID, kind, roomID)
+	})
+}
+
+func (c *ChattoCore) canJoinRoomAt(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	if kind == KindChannel && c.roomModel.isRoomBanActive(roomID, userID, time.Now()) {
 		return false, nil
 	}
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermRoomJoin)
+	decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, kind, roomID, "", PermRoomJoin)
+	return decision == DecisionAllow, err
 }
 
 // ============================================================================
@@ -249,13 +301,20 @@ func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind Room
 // message.read decisions do not restrict DM participants. Callers must enforce
 // room membership for both room kinds.
 func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.canReadMessages(ctx, userID, kind, roomID)
+	})
+}
+
+func (c *ChattoCore) canReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	if kind == KindDM {
 		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageRead)
+	decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, kind, roomID, "", PermMessageRead)
+	return decision == DecisionAllow, err
 }
 
 // CanReadMessageInteractions checks the RBAC gate for interaction-scoped
@@ -263,34 +322,53 @@ func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind Ro
 // membership remains the complete DM read boundary. Callers must enforce
 // current room membership separately.
 func (c *ChattoCore) CanReadMessageInteractions(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.canReadMessageInteractions(ctx, userID, kind, roomID)
+	})
+}
+
+func (c *ChattoCore) canReadMessageInteractions(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	if kind == KindDM {
 		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
 			return false, err
 		}
 		return true, nil
 	}
-	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageReadInteractions)
+	decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, kind, roomID, "", PermMessageReadInteractions)
+	return decision == DecisionAllow, err
 }
 
 // CanAccessRoomMessages reports whether a channel-room account has at least
 // one configured read mode. A positive interaction result does not imply that
 // any specific thread relationship exists.
 func (c *ChattoCore) CanAccessRoomMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
-	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(func() (bool, error) {
+		return c.canAccessRoomMessages(ctx, userID, kind, roomID)
+	})
+}
+
+func (c *ChattoCore) canAccessRoomMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	broad, err := c.canReadMessages(ctx, userID, kind, roomID)
 	if err != nil || broad || kind == KindDM {
 		return broad, err
 	}
-	return c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+	return c.canReadMessageInteractions(ctx, userID, kind, roomID)
 }
 
 // CanReadThreadMessages reports whether the account can read one complete
 // thread. Callers must enforce current room membership separately.
 func (c *ChattoCore) CanReadThreadMessages(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string) (bool, error) {
-	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(func() (bool, error) {
+		return c.canReadThreadMessages(ctx, userID, kind, roomID, threadRootEventID)
+	})
+}
+
+func (c *ChattoCore) canReadThreadMessages(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string) (bool, error) {
+	broad, err := c.canReadMessages(ctx, userID, kind, roomID)
 	if err != nil || broad || kind == KindDM {
 		return broad, err
 	}
-	interactions, err := c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+	interactions, err := c.canReadMessageInteractions(ctx, userID, kind, roomID)
 	if err != nil || !interactions {
 		return false, err
 	}
@@ -301,11 +379,17 @@ func (c *ChattoCore) CanReadThreadMessages(ctx context.Context, userID string, k
 // message. Roots, replies, and channel echoes use their canonical thread root.
 // Callers must enforce current room membership separately.
 func (c *ChattoCore) CanReadMessage(ctx context.Context, userID string, kind RoomKind, roomID, messageEventID string) (bool, error) {
-	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(func() (bool, error) {
+		return c.canReadMessage(ctx, userID, kind, roomID, messageEventID)
+	})
+}
+
+func (c *ChattoCore) canReadMessage(ctx context.Context, userID string, kind RoomKind, roomID, messageEventID string) (bool, error) {
+	broad, err := c.canReadMessages(ctx, userID, kind, roomID)
 	if err != nil || broad || kind == KindDM {
 		return broad, err
 	}
-	interactions, err := c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+	interactions, err := c.canReadMessageInteractions(ctx, userID, kind, roomID)
 	if err != nil || !interactions {
 		return false, err
 	}
@@ -316,11 +400,17 @@ func (c *ChattoCore) CanReadMessage(ctx context.Context, userID string, kind Roo
 // CanReadMessageEvent reports whether the account can receive one durable
 // message-derived fact. Callers must enforce current room membership.
 func (c *ChattoCore) CanReadMessageEvent(ctx context.Context, userID string, kind RoomKind, roomID string, event *evtv1.Event) (bool, error) {
-	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
+	return c.readContentDecision(func() (bool, error) {
+		return c.canReadMessageEvent(ctx, userID, kind, roomID, event)
+	})
+}
+
+func (c *ChattoCore) canReadMessageEvent(ctx context.Context, userID string, kind RoomKind, roomID string, event *evtv1.Event) (bool, error) {
+	broad, err := c.canReadMessages(ctx, userID, kind, roomID)
 	if err != nil || broad || kind == KindDM {
 		return broad, err
 	}
-	interactions, err := c.CanReadMessageInteractions(ctx, userID, kind, roomID)
+	interactions, err := c.canReadMessageInteractions(ctx, userID, kind, roomID)
 	if err != nil || !interactions {
 		return false, err
 	}

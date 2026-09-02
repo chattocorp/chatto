@@ -52,6 +52,7 @@ func assembleCore(
 		config:           cfg,
 		encryption:       infra.encryption,
 		dekResolver:      infra.dekResolver,
+		contentView:      projections.contentView,
 		configModel:      configModel,
 		roomModel:        roomModel,
 		userModel:        userModel,

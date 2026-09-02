@@ -188,9 +188,19 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Event** — Durable domain fact stored on `EVT` using the `evtv1.Event` wrapper. Contrast with *Live Event*.
 
+**Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
+
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
-**Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
+**Projector** — Runtime engine that consumes events and owns replay, readiness, failure, one apply barrier, and the applied sequence frontier for one projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Componentized projection** — Projection that combines related projection components behind one projector, apply barrier, and sequence frontier. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Projection component** — Focused reducer, read model, and optional snapshot codec inside a componentized projection. It does not own an independent consumer or sequence frontier while it is part of that projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Server Content View** — Chatto's named componentized projection for process-local, sequence-consistent client-readable state derived from `EVT`. It includes focused room, timeline, call, asset, thread, reaction, configuration, user-profile, content-key, RBAC, and mentionable components. Authentication, presence, read markers, notifications, invitations, OAuth clients, and search remain outside the view. See [ADR-089](adr/ADR-089-server-content-view.md).
+
+**Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 

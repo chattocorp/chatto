@@ -25,6 +25,17 @@ type ProjectionPointer[T any] interface {
 	*T
 }
 
+// PreparedProjection is Chatto's specialization of the prepared projection
+// contract.
+type PreparedProjection = events.PreparedEventProjection[*evtv1.Event]
+
+// PreparedProjectionPointer constrains prepared Chatto projection
+// construction to pointers.
+type PreparedProjectionPointer[T any] interface {
+	PreparedProjection
+	*T
+}
+
 // SequencedEvent pairs one decoded EVT event with its stable stream sequence.
 type SequencedEvent = events.SequencedEventOf[*evtv1.Event]
 
@@ -52,6 +63,17 @@ func NewProjectionHandle[T any, P ProjectionPointer[T]](
 	logger events.Logger,
 ) events.ProjectionHandle[P] {
 	return events.NewDecodedProjectionHandle(js, stream, projection, decodeEvent, logger)
+}
+
+// NewPreparedProjectionHandle constructs a typed prepared projection handle
+// and its owning projector.
+func NewPreparedProjectionHandle[T any, P PreparedProjectionPointer[T]](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	projection P,
+	logger events.Logger,
+) events.ProjectionHandle[P] {
+	return events.NewDecodedPreparedProjectionHandle(js, stream, projection, decodeEvent, logger)
 }
 
 // BindProjectionHandle joins a Chatto projection to an already-configured

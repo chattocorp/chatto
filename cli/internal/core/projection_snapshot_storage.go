@@ -20,6 +20,42 @@ type projectionSnapshotSource struct {
 	repository *projectionsnapshot.Repository
 }
 
+type projectionSnapshotCohortSource struct {
+	repository *projectionsnapshot.Repository
+}
+
+func (s projectionSnapshotCohortSource) LoadProjectionSnapshotCohort(ctx context.Context, request events.ProjectionSnapshotCohortLoadRequest) (events.ProjectionSnapshotCohort, error) {
+	contracts := make([]projectionsnapshot.CohortComponentContract, 0, len(request.Components))
+	for _, component := range request.Components {
+		contracts = append(contracts, projectionsnapshot.CohortComponentContract{
+			Key: component.Key, ContractID: component.ContractID, MaxParts: component.MaxParts,
+		})
+	}
+	loaded, err := s.repository.LoadCohortForComponents(
+		ctx, request.ProjectionKey, request.ContractID, request.StreamName,
+		request.StreamIdentity, request.MaxCutoff, contracts,
+	)
+	if err != nil {
+		return events.ProjectionSnapshotCohort{}, err
+	}
+	components := make([]events.ProjectionSnapshotComponent, 0, len(loaded.Components))
+	for _, component := range loaded.Components {
+		parts := make([]events.ProjectionSnapshotPart, 0, len(component.Parts))
+		for _, part := range component.Parts {
+			parts = append(parts, events.ProjectionSnapshotPart{Key: part.Key, Payload: part.Payload})
+		}
+		components = append(components, events.ProjectionSnapshotComponent{
+			Key: component.Key, ContractID: component.ContractID, Parts: parts,
+		})
+	}
+	return events.ProjectionSnapshotCohort{
+		GenerationID: loaded.GenerationID, ContractID: request.ContractID,
+		StreamName: request.StreamName, CutoffSequence: loaded.CutoffSequence,
+		StreamIdentity: loaded.StreamIdentity, CreatedAt: loaded.CreatedAt,
+		Components: components,
+	}, nil
+}
+
 type natsSnapshotPointerStore struct {
 	kv jetstream.KeyValue
 }

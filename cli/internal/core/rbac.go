@@ -82,7 +82,9 @@ func (c *ChattoCore) HasServerPermission(ctx context.Context, userID string, per
 // IsServerAdmin checks if a user has the admin role via RBAC.
 // Does NOT check config fallback (owners.emails) - caller should check that separately.
 func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, error) {
-	return c.rbacModel.hasRole(userID, RoleAdmin), nil
+	return c.readContentBool(func() bool {
+		return c.rbacModel.hasRole(userID, RoleAdmin)
+	})
 }
 
 // IsServerOwner checks whether a user has the durable owner role. Configured
@@ -90,7 +92,32 @@ func (c *ChattoCore) IsServerAdmin(ctx context.Context, userID string) (bool, er
 // durable notification-effects worker after email verification, so live and
 // event-time authorization cannot diverge.
 func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, error) {
-	return c.rbacModel.hasRole(userID, RoleOwner), nil
+	return c.readContentBool(func() bool {
+		return c.isServerOwner(userID)
+	})
+}
+
+func (c *ChattoCore) isServerOwner(userID string) bool {
+	return c.rbacModel.hasRole(userID, RoleOwner)
+}
+
+func (c *ChattoCore) readContentBool(read func() bool) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return read(), nil
+	})
+}
+
+func (c *ChattoCore) readContentDecision(read func() (bool, error)) (bool, error) {
+	if c.contentView == nil {
+		return read()
+	}
+	var result bool
+	err := c.contentView.Read(func(uint64) error {
+		var readErr error
+		result, readErr = read()
+		return readErr
+	})
+	return result, err
 }
 
 func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {

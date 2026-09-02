@@ -80,13 +80,30 @@ type TraceEntry struct {
 //     deny only when it is at least as specific; named denies always win.
 //  5. Apply explicit permission inclusion to effective allows.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
-	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
+	return r.resolveInContentView(func() (DecisionKind, error) {
+		return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
+	})
 }
 
 // ResolveGroup is like Resolve but for group-scope checks (no room context).
 // Used by CanCreateRoom and other group-scoped capability gates.
 func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, kind RoomKind, groupID string, perm Permission) (DecisionKind, error) {
-	return r.resolveWithGroup(ctx, userID, kind, "", groupID, perm)
+	return r.resolveInContentView(func() (DecisionKind, error) {
+		return r.resolveWithGroup(ctx, userID, kind, "", groupID, perm)
+	})
+}
+
+func (r *PermissionResolver) resolveInContentView(resolve func() (DecisionKind, error)) (DecisionKind, error) {
+	if r.core.contentView == nil {
+		return resolve()
+	}
+	decision := DecisionNone
+	err := r.core.contentView.Read(func(uint64) error {
+		var resolveErr error
+		decision, resolveErr = resolve()
+		return resolveErr
+	})
+	return decision, err
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
@@ -99,11 +116,7 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 
 func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	if _, known := GetPermissionMetadata(perm); known {
-		isOwner, err := r.core.IsServerOwner(ctx, userID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if isOwner {
+		if r.core.isServerOwner(userID) {
 			return DecisionAllow, nil
 		}
 	}

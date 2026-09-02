@@ -74,6 +74,13 @@ type EventProjectionPointer[T, E any] interface {
 	*T
 }
 
+// PreparedEventProjectionPointer constrains prepared projection construction
+// to pointers so the projector and read side share one projection instance.
+type PreparedEventProjectionPointer[T, E any] interface {
+	PreparedEventProjection[E]
+	*T
+}
+
 // NewDecodedProjectionHandle constructs a typed projection handle using an
 // application-supplied event decoder.
 func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
@@ -92,6 +99,24 @@ func NewDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](
 	}
 }
 
+// NewDecodedPreparedProjectionHandle constructs a typed prepared projection
+// handle using an application-supplied event decoder.
+func NewDecodedPreparedProjectionHandle[T, E any, P PreparedEventProjectionPointer[T, E]](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	projection P,
+	decoder EventDecoder[E],
+	logger Logger,
+) ProjectionHandle[P] {
+	if projection == nil {
+		panic("events: decoded prepared projection handle requires a non-nil projection")
+	}
+	return ProjectionHandle[P]{
+		projection: projection,
+		projector:  NewDecodedPreparedProjector(js, stream, projection, decoder, logger),
+	}
+}
+
 // BindDecodedProjectionHandle joins a decoded event projection to an
 // already-constructed Projector. It rejects a projector that owns a different
 // projection. Prefer NewDecodedProjectionHandle when constructing a new
@@ -104,8 +129,7 @@ func BindDecodedProjectionHandle[T, E any, P EventProjectionPointer[T, E]](proje
 	if projector == nil {
 		return ProjectionHandle[P]{}, fmt.Errorf("projection projector is nil")
 	}
-	owned, ok := projector.proj.(P)
-	if !ok || owned != projection {
+	if !projector.ownsProjection(projection) {
 		return ProjectionHandle[P]{}, fmt.Errorf("projector owns a different projection")
 	}
 	return ProjectionHandle[P]{projection: projection, projector: projector}, nil
@@ -305,6 +329,7 @@ type Projector struct {
 	applyMu           sync.Mutex
 	decode            func([]byte) (decodedEvent, error)
 	apply             func(decodedEvent, uint64) error
+	prepare           func(decodedEvent, string, uint64) (PreparedMutation, error)
 	applyStartupBatch func([]sequencedDecodedEvent) error
 
 	subjects        []string
@@ -341,6 +366,8 @@ type Projector struct {
 	snapshotConfiguredID      string
 	snapshotRunStreamIdentity string
 	snapshotLoadTimeout       time.Duration
+	snapshotCohortSource      ProjectionSnapshotCohortSource
+	snapshotCohortContractID  string
 	restoredSeq               uint64
 	restoredGenerationID      string
 	snapshotRestored          bool
@@ -452,6 +479,58 @@ func NewDecodedProjector[E any](
 	}
 }
 
+// NewDecodedPreparedProjector binds a prepared projection and decoder to one
+// ordered projector lifecycle. The projector prepares the event while it holds
+// the apply barrier, commits only after preparation succeeds, and then advances
+// the applied sequence before it releases the barrier.
+func NewDecodedPreparedProjector[E any](
+	js jetstream.JetStream,
+	stream jetstream.Stream,
+	proj PreparedEventProjection[E],
+	decoder EventDecoder[E],
+	logger Logger,
+) *Projector {
+	if isNilProjection(proj) {
+		panic("events: projector requires a non-nil projection")
+	}
+	if reflect.ValueOf(proj).Kind() != reflect.Pointer {
+		panic("events: projector requires a pointer projection")
+	}
+	if decoder == nil {
+		panic("events: projector requires a non-nil event decoder")
+	}
+	logger = normalizeLogger(logger)
+	subjects := append([]string(nil), proj.Subjects()...)
+	replaySubjects := append([]string(nil), projectionReplaySubjects(proj, subjects)...)
+	return &Projector{
+		js:     js,
+		stream: stream,
+		proj:   proj,
+		logger: logger,
+		decode: func(data []byte) (decodedEvent, error) {
+			event, err := decoder(data)
+			if err != nil {
+				return nil, err
+			}
+			return typedDecodedEvent[E]{event: event.Event, id: event.ID}, nil
+		},
+		prepare: func(event decodedEvent, subject string, seq uint64) (PreparedMutation, error) {
+			typedEvent := event.(typedDecodedEvent[E]).event
+			if projection, ok := proj.(interface {
+				PrepareSubject(E, string, uint64) (PreparedMutation, error)
+			}); ok {
+				return projection.PrepareSubject(typedEvent, subject, seq)
+			}
+			return proj.Prepare(typedEvent, seq)
+		},
+		subjects:        subjects,
+		replaySubjects:  replaySubjects,
+		subjectMatchers: compileSubjectFilters(subjects),
+		failedCh:        make(chan struct{}),
+		startupCh:       make(chan struct{}),
+	}
+}
+
 func isNilProjection(projection SubjectProjection) bool {
 	if projection == nil {
 		return true
@@ -499,9 +578,58 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 	if p.checkpointKey != "" {
 		return fmt.Errorf("projection %q already uses a local checkpoint", key)
 	}
+	if p.snapshotCohortSource != nil {
+		return fmt.Errorf("projection %q already uses snapshot cohorts", key)
+	}
 	p.snapshotKey = key
 	p.snapshotContractID = contractID
 	p.snapshotSource = source
+	p.snapshotIdentityResolver = resolveStreamIdentity
+	p.snapshotConfiguredID = configuredStreamIdentity
+	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
+	return nil
+}
+
+// ConfigureSnapshotCohorts enables best-effort bootstrap restore for a
+// componentized projection. The source must return one complete cohort whose
+// parts share the requested event-log cutoff. A load or restore failure falls
+// back to a complete cold replay.
+func (p *Projector) ConfigureSnapshotCohorts(key string, source ProjectionSnapshotCohortSource, resolveStreamIdentity StreamIdentityResolver) error {
+	if key == "" {
+		return fmt.Errorf("projection snapshot key is required")
+	}
+	if source == nil {
+		return fmt.Errorf("projection snapshot cohort source is nil")
+	}
+	if resolveStreamIdentity == nil {
+		return fmt.Errorf("projection snapshot stream identity resolver is required")
+	}
+	configuredStreamIdentity, err := resolveProjectionStreamIdentity(p.stream.CachedInfo(), resolveStreamIdentity)
+	if err != nil {
+		return fmt.Errorf("resolve projection snapshot stream identity: %w", err)
+	}
+	projection, ok := p.proj.(snapshotCohortProjectionState)
+	if !ok {
+		return fmt.Errorf("projection %q does not declare snapshot cohorts", key)
+	}
+	contractID := projection.SnapshotCohortContractID()
+	if contractID == "" {
+		return fmt.Errorf("projection %q does not declare a snapshot cohort contract", key)
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.started {
+		return fmt.Errorf("configure projection snapshots after projector start")
+	}
+	if p.checkpointKey != "" {
+		return fmt.Errorf("projection %q already uses a local checkpoint", key)
+	}
+	if p.snapshotSource != nil {
+		return fmt.Errorf("projection %q already uses single-payload snapshots", key)
+	}
+	p.snapshotKey = key
+	p.snapshotCohortContractID = contractID
+	p.snapshotCohortSource = source
 	p.snapshotIdentityResolver = resolveStreamIdentity
 	p.snapshotConfiguredID = configuredStreamIdentity
 	p.snapshotLoadTimeout = projectionSnapshotLoadTimeout
@@ -513,7 +641,65 @@ func (p *Projector) ConfigureSnapshots(key string, source ProjectionSnapshotSour
 func (p *Projector) SnapshotContractID() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+	if p.snapshotCohortContractID != "" {
+		return p.snapshotCohortContractID
+	}
 	return p.snapshotContractID
+}
+
+// CaptureSnapshotCohort serializes every registered component and the common
+// applied sequence under one apply barrier.
+func (p *Projector) CaptureSnapshotCohort(ctx context.Context) (ProjectionSnapshotCohort, error) {
+	p.mu.Lock()
+	resolveStreamIdentity := p.snapshotIdentityResolver
+	streamIdentity := p.snapshotRunStreamIdentity
+	p.mu.Unlock()
+	if resolveStreamIdentity != nil {
+		currentIdentity, err := p.resolveCurrentStreamIdentity(ctx, resolveStreamIdentity)
+		if err != nil {
+			return ProjectionSnapshotCohort{}, fmt.Errorf("resolve stream identity before snapshot capture: %w", err)
+		}
+		if streamIdentity == "" || currentIdentity != streamIdentity {
+			return ProjectionSnapshotCohort{}, fmt.Errorf("stream identity changed during projector run")
+		}
+	}
+
+	var components []ProjectionSnapshotComponent
+	var seq uint64
+	p.applyMu.Lock()
+	projection, ok := p.proj.(snapshotCohortProjectionState)
+	if !ok {
+		p.applyMu.Unlock()
+		return ProjectionSnapshotCohort{}, fmt.Errorf("projection does not support snapshot cohorts")
+	}
+	var err error
+	components, err = projection.SnapshotComponents()
+	if err == nil {
+		p.mu.Lock()
+		seq = p.lastSeq
+		p.mu.Unlock()
+	}
+	p.applyMu.Unlock()
+	if err != nil {
+		return ProjectionSnapshotCohort{}, err
+	}
+
+	if resolveStreamIdentity != nil {
+		currentIdentity, err := p.resolveCurrentStreamIdentity(ctx, resolveStreamIdentity)
+		if err != nil {
+			return ProjectionSnapshotCohort{}, fmt.Errorf("resolve stream identity after snapshot capture: %w", err)
+		}
+		if currentIdentity != streamIdentity {
+			return ProjectionSnapshotCohort{}, fmt.Errorf("stream identity changed during projector run")
+		}
+	}
+	p.mu.Lock()
+	contractID := p.snapshotCohortContractID
+	p.mu.Unlock()
+	return ProjectionSnapshotCohort{
+		ContractID: contractID, StreamName: p.stream.CachedInfo().Config.Name,
+		CutoffSequence: seq, StreamIdentity: streamIdentity, Components: components,
+	}, nil
 }
 
 // CaptureSnapshot serializes projection state, the corresponding applied event
@@ -578,11 +764,23 @@ func (p *Projector) CaptureSnapshot(ctx context.Context) (ProjectionSnapshot, er
 }
 
 func (p *Projector) resolveCurrentStreamIdentity(ctx context.Context, resolve StreamIdentityResolver) (string, error) {
-	info, err := p.stream.Info(ctx)
+	info, err := p.freshStreamInfo(ctx)
 	if err != nil {
 		return "", err
 	}
 	return resolveProjectionStreamIdentity(info, resolve)
+}
+
+// freshStreamInfo reads current stream metadata through a short-lived handle.
+// The NATS client mutates a stream handle's cached info during Info. Projector
+// reads can run concurrently, so they must not share that mutation.
+func (p *Projector) freshStreamInfo(ctx context.Context) (*jetstream.StreamInfo, error) {
+	streamName := p.stream.CachedInfo().Config.Name
+	stream, err := p.js.Stream(ctx, streamName)
+	if err != nil {
+		return nil, err
+	}
+	return stream.CachedInfo(), nil
 }
 
 // Status returns the projector's current lifecycle state. Safe to call from
@@ -646,6 +844,36 @@ func (p *Projector) Err() error {
 // has applied. Safe to call from any goroutine.
 func (p *Projector) LastSeq() uint64 {
 	return p.Status().LastSeq
+}
+
+// WithReadBarrier runs read while event application is paused. sequence is the
+// exact event-log sequence represented by every model owned by this projector.
+// The callback must do only bounded in-memory work and must not call this
+// method recursively.
+func (p *Projector) WithReadBarrier(read func(sequence uint64) error) error {
+	if read == nil {
+		return fmt.Errorf("projection read callback is nil")
+	}
+	p.applyMu.Lock()
+	defer p.applyMu.Unlock()
+	p.mu.Lock()
+	sequence := p.lastSeq
+	failedErr := p.failedErr
+	p.mu.Unlock()
+	if failedErr != nil {
+		return failedErr
+	}
+	return read(sequence)
+}
+
+func (p *Projector) ownsProjection(projection SubjectProjection) bool {
+	if sameProjection(p.proj, projection) {
+		return true
+	}
+	owner, ok := p.proj.(interface {
+		OwnsProjection(SubjectProjection) bool
+	})
+	return ok && owner.OwnsProjection(projection)
 }
 
 // Started reports whether Run has entered its body — i.e. whether
@@ -1016,8 +1244,11 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	if err != nil {
 		return fmt.Errorf("read projection startup target: %w", err)
 	}
-	if err := p.restoreForRun(ctx, target.seq); err != nil {
-		return err
+	p.applyMu.Lock()
+	restoreErr := p.restoreForRun(ctx, target.seq)
+	p.applyMu.Unlock()
+	if restoreErr != nil {
+		return restoreErr
 	}
 	p.setStartupTarget(target.seq)
 
@@ -1108,7 +1339,7 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 		return
 	}
 
-	failureSeq, err := p.applyEvent(event, seq)
+	failureSeq, err := p.applyEvent(event, msg.Subject(), seq)
 	if err != nil {
 		p.logger.Error("Projection Apply failed",
 			"subject", msg.Subject(),
@@ -1122,10 +1353,22 @@ func (p *Projector) handleMessage(msg jetstream.Msg) {
 	p.maybeCompleteStartup(time.Now())
 }
 
-func (p *Projector) applyEvent(event decodedEvent, seq uint64) (uint64, error) {
+func (p *Projector) applyEvent(event decodedEvent, subject string, seq uint64) (uint64, error) {
 	p.applyMu.Lock()
 	defer p.applyMu.Unlock()
 	if p.shouldSkipRestored(seq) {
+		return 0, nil
+	}
+	if p.prepare != nil {
+		mutation, err := p.prepare(event, subject, seq)
+		if err != nil {
+			return seq, err
+		}
+		if mutation != nil {
+			mutation.Commit()
+		}
+		p.countStartupMessages(1)
+		p.advance(seq)
 		return 0, nil
 	}
 	if p.applyStartupBatch != nil && p.shouldBatchStartup(seq) {
@@ -1217,9 +1460,11 @@ func (p *Projector) maybeCompleteStartup(now time.Time) {
 	p.mu.Unlock()
 
 	if shouldCompleteReplay {
+		p.applyMu.Lock()
 		if projection, ok := p.proj.(StartupReplayCompleter); ok {
 			projection.CompleteStartupReplay()
 		}
+		p.applyMu.Unlock()
 		close(p.startupCh)
 	}
 
@@ -1256,6 +1501,13 @@ func (p *Projector) setStartupTarget(seq uint64) {
 
 func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	coldRestore := func() error {
+		if projection, ok := p.proj.(snapshotCohortProjectionState); ok {
+			if err := projection.ResetComponents(); err != nil {
+				return fmt.Errorf("restore empty projection components: %w", err)
+			}
+			p.resetRestoreState()
+			return nil
+		}
 		if projection, ok := p.proj.(snapshotProjectionState); ok {
 			if err := projection.Restore(nil); err != nil {
 				return fmt.Errorf("restore empty projection: %w", err)
@@ -1267,6 +1519,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 
 	p.mu.Lock()
 	source := p.snapshotSource
+	cohortSource := p.snapshotCohortSource
 	checkpointKey := p.checkpointKey
 	key := p.snapshotKey
 	contractID := p.snapshotContractID
@@ -1277,6 +1530,9 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	if checkpointKey != "" {
 		return p.restoreCheckpointForRun(ctx, targetSeq)
 	}
+	if cohortSource != nil {
+		return p.restoreSnapshotCohortForRun(ctx, targetSeq, coldRestore)
+	}
 	if source == nil {
 		return coldRestore()
 	}
@@ -1285,7 +1541,7 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 	}
 	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
 	defer cancelLoad()
-	info, err := p.stream.Info(loadCtx)
+	info, err := p.freshStreamInfo(loadCtx)
 	if err != nil {
 		p.mu.Lock()
 		p.snapshotRunStreamIdentity = configuredStreamIdentity
@@ -1383,6 +1639,95 @@ func (p *Projector) restoreForRun(ctx context.Context, targetSeq uint64) error {
 		"cutoff_seq", snapshot.CutoffSequence,
 		"target_seq", targetSeq,
 		"payload_bytes", len(snapshot.Payload))
+	return nil
+}
+
+func (p *Projector) restoreSnapshotCohortForRun(ctx context.Context, targetSeq uint64, coldRestore func() error) error {
+	projection, ok := p.proj.(snapshotCohortProjectionState)
+	if !ok {
+		return fmt.Errorf("projection does not support snapshot cohorts")
+	}
+	p.mu.Lock()
+	source := p.snapshotCohortSource
+	key := p.snapshotKey
+	contractID := p.snapshotCohortContractID
+	resolveStreamIdentity := p.snapshotIdentityResolver
+	configuredStreamIdentity := p.snapshotConfiguredID
+	loadTimeout := p.snapshotLoadTimeout
+	p.mu.Unlock()
+	if loadTimeout <= 0 {
+		loadTimeout = projectionSnapshotLoadTimeout
+	}
+	loadCtx, cancelLoad := context.WithTimeout(ctx, loadTimeout)
+	defer cancelLoad()
+	info, err := p.freshStreamInfo(loadCtx)
+	if err != nil {
+		p.mu.Lock()
+		p.snapshotRunStreamIdentity = configuredStreamIdentity
+		p.mu.Unlock()
+		p.logger.Info("Projection snapshot stream info unavailable; replaying event log",
+			"projection", key, "stage", "restore_stream_info", "error", err)
+		return coldRestore()
+	}
+	streamIdentity, err := resolveProjectionStreamIdentity(info, resolveStreamIdentity)
+	if err != nil {
+		p.mu.Lock()
+		p.snapshotRunStreamIdentity = configuredStreamIdentity
+		p.mu.Unlock()
+		p.logger.Info("Projection snapshot stream identity unavailable; replaying event log",
+			"projection", key, "stage", "restore_stream_identity", "error", err)
+		return coldRestore()
+	}
+	p.mu.Lock()
+	p.snapshotRunStreamIdentity = streamIdentity
+	p.mu.Unlock()
+	cohort, err := source.LoadProjectionSnapshotCohort(loadCtx, ProjectionSnapshotCohortLoadRequest{
+		ProjectionKey: key, ContractID: contractID, StreamName: info.Config.Name,
+		StreamIdentity: streamIdentity, MaxCutoff: targetSeq,
+		Components: projection.SnapshotComponentContracts(),
+	})
+	if err != nil {
+		p.logger.Info("Projection snapshot cohort unavailable; replaying event log",
+			"projection", key, "stage", "restore", "error", err)
+		return coldRestore()
+	}
+	if cohort.ContractID != contractID || cohort.StreamName != info.Config.Name || cohort.StreamIdentity != streamIdentity {
+		p.logger.Warn("Projection snapshot cohort binding rejected; replaying event log",
+			"projection", key, "stage", "restore_validate", "generation_id", cohort.GenerationID)
+		return coldRestore()
+	}
+	currentIdentity, err := p.resolveCurrentStreamIdentity(loadCtx, resolveStreamIdentity)
+	if err != nil {
+		return fmt.Errorf("recheck projection snapshot cohort stream identity: %w", err)
+	}
+	if currentIdentity != streamIdentity {
+		return fmt.Errorf("projection snapshot cohort stream identity changed while loading")
+	}
+	if cohort.CutoffSequence > targetSeq {
+		p.logger.Warn("Projection snapshot cohort cutoff rejected; replaying event log",
+			"projection", key, "stage", "restore_validate", "generation_id", cohort.GenerationID,
+			"cutoff_seq", cohort.CutoffSequence, "target_seq", targetSeq)
+		return coldRestore()
+	}
+	if err := projection.RestoreComponents(cohort.Components); err != nil {
+		p.logger.Warn("Projection snapshot cohort restore failed; replaying event log",
+			"projection", key, "stage", "restore_apply", "generation_id", cohort.GenerationID, "error", err)
+		if resetErr := coldRestore(); resetErr != nil {
+			return errors.Join(fmt.Errorf("restore projection snapshot cohort: %w", err), resetErr)
+		}
+		return nil
+	}
+	p.mu.Lock()
+	p.restoredSeq = cohort.CutoffSequence
+	p.restoredGenerationID = cohort.GenerationID
+	p.snapshotRestored = true
+	p.latestSnapshotSeq = cohort.CutoffSequence
+	p.latestSnapshotAt = cohort.CreatedAt
+	p.mu.Unlock()
+	p.advance(cohort.CutoffSequence)
+	p.logger.Info("Projection snapshot cohort restored",
+		"projection", key, "stage", "restore_apply", "generation_id", cohort.GenerationID,
+		"cutoff_seq", cohort.CutoffSequence, "target_seq", targetSeq, "components", len(cohort.Components))
 	return nil
 }
 

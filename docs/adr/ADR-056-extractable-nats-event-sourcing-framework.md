@@ -2,7 +2,11 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-08-27
+**Updated:** 2026-09-02
+
+ADR-088 extends the shared framework with prepared reducers, coordinated
+components, one apply barrier, and projection snapshot cohorts. The framework
+remains application-neutral and independently versioned.
 
 ## Context
 

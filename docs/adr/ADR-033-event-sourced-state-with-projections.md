@@ -2,7 +2,11 @@
 
 **Date:** 2026-05-24
 
-**Updated:** 2026-08-19
+**Updated:** 2026-09-02
+
+ADR-088 and ADR-089 partially supersede this ADR's one-projector-per-read-model
+structure for related Chatto content models. The event authority, process-local
+ownership, ordered replay, and aggregate OCC decisions remain in effect.
 
 ## Context
 

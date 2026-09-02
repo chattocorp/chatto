@@ -2,7 +2,12 @@
 
 **Date:** 2026-07-20
 
-**Updated:** 2026-08-19
+**Updated:** 2026-09-02
+
+ADR-088 partially supersedes this ADR's one-state-payload restore shape. A
+componentized projection can restore one complete cohort of focused component
+payloads. Persistence remains optional and event-log replay remains the
+recovery authority.
 
 ## Context
 

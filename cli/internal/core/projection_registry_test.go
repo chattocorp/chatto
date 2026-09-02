@@ -25,8 +25,8 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 17 {
-		t.Fatalf("registered projections = %d, want 17", len(core.projections))
+	if len(core.projections) != 6 {
+		t.Fatalf("registered projections = %d, want 6", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -66,32 +66,14 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		registryKeys[projection.key] = projection.name
 	}
 
-	if got, ok := registryKeys["content_keys"]; !ok || got != "Content Keys" {
-		t.Fatalf("content_keys projection registration = %q, %v; want Content Keys, true", got, ok)
-	}
-	if _, ok := registryNames["Content Keys"]; !ok {
-		t.Fatal("Content Keys projection is not registered")
-	}
-	if _, ok := registryNames["Room Directory"]; !ok {
-		t.Fatal("Room Directory projection is not registered")
-	}
-	if _, ok := registryNames["Room Group Layout"]; !ok {
-		t.Fatal("Room Group Layout projection is not registered")
+	if got, ok := registryKeys[projectionsnapshot.ProjectionServerContentViewKey]; !ok || got != "Server Content View" {
+		t.Fatalf("server content view registration = %q, %v; want Server Content View, true", got, ok)
 	}
 	if _, ok := registryNames["Notification Decisions"]; !ok {
 		t.Fatal("Notification Decisions projection is not registered")
 	}
 	if _, ok := registryNames["Notifications"]; !ok {
 		t.Fatal("Notifications projection is not registered")
-	}
-	if _, ok := registryNames["Call State"]; !ok {
-		t.Fatal("Call State projection is not registered")
-	}
-	if _, ok := registryNames["Assets"]; !ok {
-		t.Fatal("Assets projection is not registered")
-	}
-	if _, ok := registryNames["Mentionables"]; !ok {
-		t.Fatal("Mentionables projection is not registered")
 	}
 	if _, ok := registryNames["User Auth"]; !ok {
 		t.Fatal("User Auth projection is not registered")
@@ -149,20 +131,9 @@ func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	wantEligible := map[string]struct{}{
-		projectionsnapshot.ProjectionThreadsKey:               {},
-		projectionsnapshot.ProjectionRoomDirectoryKey:         {},
+		projectionsnapshot.ProjectionServerContentViewKey:     {},
 		projectionsnapshot.ProjectionNotificationDecisionsKey: {},
 		projectionsnapshot.ProjectionNotificationsKey:         {},
-		projectionsnapshot.ProjectionServerConfigKey:          {},
-		projectionsnapshot.ProjectionRoomGroupLayoutKey:       {},
-		projectionsnapshot.ProjectionRoomTimelineKey:          {},
-		projectionsnapshot.ProjectionCallStateKey:             {},
-		projectionsnapshot.ProjectionAssetsKey:                {},
-		projectionsnapshot.ProjectionReactionsKey:             {},
-		projectionsnapshot.ProjectionContentKeysKey:           {},
-		projectionsnapshot.ProjectionRBACKey:                  {},
-		projectionsnapshot.ProjectionMentionablesKey:          {},
-		projectionsnapshot.ProjectionUsersKey:                 {},
 	}
 
 	for _, registration := range core.projections {
