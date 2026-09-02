@@ -88,6 +88,42 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 	}
 }
 
+func TestCredentialUsageRecorderKeepsObservationDuringPersistedHandoff(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	kv := &staleFirstGetCredentialUsageKV{
+		KeyValue: c.storage.runtimeStateKV,
+		started:  make(chan struct{}),
+		release:  make(chan struct{}),
+	}
+	recorder := newCredentialUsageRecorder(kv, nil, nil)
+	botID := NewUserID()
+	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
+	usedAt := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	recorder.Record(botID, credentialKey, usedAt)
+
+	type lastUsedResult struct {
+		lastUsed  map[string]time.Time
+		available bool
+	}
+	result := make(chan lastUsedResult, 1)
+	go func() {
+		lastUsed, available := recorder.LastUsed(ctx, botID)
+		result <- lastUsedResult{lastUsed: lastUsed, available: available}
+	}()
+	<-kv.started
+
+	// Persist and remove the process-local observation after LastUsed has
+	// started with a stale KV read.
+	recorder.flushDue(ctx, usedAt)
+	close(kv.release)
+	got := <-result
+
+	if !got.available || !got.lastUsed[credentialKey].Equal(usedAt) {
+		t.Fatalf("LastUsed during persisted handoff = %v, %v", got.lastUsed, got.available)
+	}
+}
+
 func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -301,6 +337,27 @@ type blockingCreateCredentialUsageKV struct {
 	started chan struct{}
 	release chan struct{}
 	once    sync.Once
+}
+
+type staleFirstGetCredentialUsageKV struct {
+	jetstream.KeyValue
+	started chan struct{}
+	release chan struct{}
+	mu      sync.Mutex
+	claimed bool
+}
+
+func (kv *staleFirstGetCredentialUsageKV) Get(ctx context.Context, key string) (jetstream.KeyValueEntry, error) {
+	entry, err := kv.KeyValue.Get(ctx, key)
+	kv.mu.Lock()
+	block := !kv.claimed
+	kv.claimed = true
+	kv.mu.Unlock()
+	if block {
+		close(kv.started)
+		<-kv.release
+	}
+	return entry, err
 }
 
 func (kv *blockingCreateCredentialUsageKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
