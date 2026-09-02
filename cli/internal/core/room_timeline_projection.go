@@ -274,7 +274,7 @@ func (p *RoomTimelineProjection) bucketPinnedLocked(key timelineBucketKey, now t
 	start := time.Unix(0, key.startUnixNs).UTC()
 	end := start.Add(p.bucketInterval)
 	current := p.bucketKeyLocked(key.roomID, now)
-	return key == current || end.After(now.Add(-p.pinnedPeriod))
+	return key == current || (start.Before(now) && end.After(now.Add(-p.pinnedPeriod)))
 }
 
 func (p *RoomTimelineProjection) addBucketSequenceLocked(key timelineBucketKey, sequence uint64) {

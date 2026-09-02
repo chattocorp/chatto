@@ -1337,6 +1337,19 @@ func TestRoomTimeline_BucketGetsFullIdlePeriodAfterPinningEnds(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_FutureBucketIsNotPinned(t *testing.T) {
+	now := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: timelineTestEventSource{}, Interval: 7 * 24 * time.Hour,
+		PinnedPeriod: 4 * 7 * 24 * time.Hour, Now: func() time.Time { return now },
+	})
+
+	key := projection.bucketKeyLocked("R1", now.Add(8*7*24*time.Hour))
+	if projection.bucketPinnedLocked(key, now) {
+		t.Fatal("future bucket was pinned")
+	}
+}
+
 func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	event := &evtv1.Event{

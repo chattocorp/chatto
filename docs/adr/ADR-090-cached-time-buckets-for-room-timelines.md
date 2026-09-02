@@ -176,9 +176,9 @@ period, normal idle tracking and eviction begin.
 
 Request-time authorization continues to use current state from
 `ServerContentView` as defined by ADR-087 and ADR-089. Authorization evaluation
-occurs in one content-view read transaction. The final subject-tail validation
-from ADR-087 remains the authorization decision point. The read performs
-bucket I/O only after it releases the content-view barrier.
+uses the stable content-view procedure. The final subject-tail validation from
+ADR-087 remains the authorization decision point. Bucket reconstruction is
+message-data hydration. It occurs outside a content-view read transaction.
 
 A later authorization change does not cancel a decision that already passed
 the stable request-time authorization procedure. A concurrent timeline apply
