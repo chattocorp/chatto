@@ -203,8 +203,7 @@ func (c *ChattoCore) DeleteNeighbor(ctx context.Context, actorID, neighborID, re
 }
 
 type preparedNeighborMutation struct {
-	configPosition   events.StreamPosition
-	authorizationSeq uint64
+	configPosition events.StreamPosition
 }
 
 func (c *ChattoCore) prepareNeighborRead(ctx context.Context, actorID string) error {
@@ -233,29 +232,20 @@ func (c *ChattoCore) prepareNeighborMutation(ctx context.Context, actorID string
 	if err := c.ConfigModel().waitFor(ctx, position); err != nil {
 		return preparedNeighborMutation{}, fmt.Errorf("wait for Neighbor directory: %w", err)
 	}
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return preparedNeighborMutation{}, fmt.Errorf("read authorization fence: %w", err)
-	}
-	rbacPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
-	if err != nil {
-		return preparedNeighborMutation{}, fmt.Errorf("read RBAC position: %w", err)
-	}
-	if err := c.rbacModel.waitFor(ctx, rbacPosition); err != nil {
-		return preparedNeighborMutation{}, fmt.Errorf("wait for RBAC projection: %w", err)
-	}
-	if err := c.requireServerPermission(ctx, actorID, PermServerManageNeighbors); err != nil {
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		return c.requireServerPermission(ctx, actorID, PermServerManageNeighbors)
+	}); err != nil {
 		return preparedNeighborMutation{}, err
 	}
-	return preparedNeighborMutation{configPosition: position, authorizationSeq: authorizationSeq}, nil
+	return preparedNeighborMutation{configPosition: position}, nil
 }
 
 func (c *ChattoCore) appendNeighborMutation(ctx context.Context, event *evtv1.Event, prepared preparedNeighborMutation) error {
 	aggregate := evtstream.ConfigSubjectAggregate(ConfigSubjectServer)
 	subject := aggregate.SubjectFor(event)
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), []evtstream.BatchEntry{{
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.configPosition.Seq, FilterSubject: aggregate.AllEventsFilter(),
-	}}, prepared.authorizationSeq)
+	}})
 	if err != nil {
 		return err
 	}

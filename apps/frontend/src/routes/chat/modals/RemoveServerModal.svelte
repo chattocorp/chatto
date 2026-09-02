@@ -8,7 +8,7 @@
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { m } from '$lib/i18n/messages';
   import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
 
   let {

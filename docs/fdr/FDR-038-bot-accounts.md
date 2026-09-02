@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -246,7 +246,9 @@ revocation for that key.
 **Decision:** A human with `bot.manage` can reassign a bot directly to another
 active human account. Reassignment keeps the configured permission allowlist
 and active API keys, while immediately applying the new owner's permission
-ceiling. Deleting a human still cascades to bots they own at deletion time.
+ceiling. User-family OCC serializes reassignment with deletion of the previous
+or new owner. Deleting a human still cascades to bots they own at deletion
+time.
 **Why:** Operational handoffs need a recovery path before an owner leaves, but
 do not require a two-party invitation protocol. Keeping credential revocation
 separate avoids unnecessary integration downtime; an operator can create a
@@ -284,7 +286,7 @@ the DM.
 **Decision:** Bots receive every authorized public realtime event type through
 the normal client stream. Notification occurrences remain a separate current
 state and triage feature. They do not limit which message, reaction, room,
-membership, profile, or call changes a bot can observe. See ADR-087 and
+membership, profile, or call changes a bot can observe. See ADR-090 and
 FDR-045.
 
 **Why:** A bot author should react to what happened in Chatto instead of
@@ -399,7 +401,9 @@ service, and send the target user ID.
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
   permissions), ADR-083 (action-limited bot incoming webhooks), ADR-085
-  (user-scoped MCP integration), ADR-087 (semantic realtime events)
+  (user-scoped MCP integration), ADR-087 (request-time authorization with
+  aggregate OCC), ADR-089 (server content view), ADR-090 (semantic realtime
+  events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &

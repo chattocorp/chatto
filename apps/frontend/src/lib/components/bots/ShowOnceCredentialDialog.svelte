@@ -52,8 +52,9 @@
         {m('common.copy_to_clipboard')}
       </Button>
     </div>
-    <div class="flex justify-end">
-      <Button defaultAction onclick={close}>{m('common.got_it')}</Button>
-    </div>
   </div>
+
+  {#snippet footer()}
+    <Button defaultAction onclick={close}>{m('common.got_it')}</Button>
+  {/snippet}
 </Dialog>

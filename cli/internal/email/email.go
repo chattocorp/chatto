@@ -79,6 +79,9 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 
 	// Build client options
 	opts := mailOptions(m.config)
+	if !messageRequiresSMTPUTF8(message) {
+		opts = append(opts, mail.WithoutSMTPUTF8())
+	}
 
 	// Add authentication if credentials provided
 	if m.config.Username != "" && m.config.Password != "" {
@@ -100,6 +103,42 @@ func (m *Mailer) SendContext(ctx context.Context, msg Message) error {
 	}
 
 	return nil
+}
+
+// messageRequiresSMTPUTF8 reports whether the SMTP envelope or a stored message
+// header contains non-ASCII data. UTF-8 MIME body content does not require the
+// SMTPUTF8 extension.
+func messageRequiresSMTPUTF8(message *mail.Msg) bool {
+	sender, err := message.GetSender(false)
+	if err != nil || !isASCII(sender) {
+		return true
+	}
+
+	recipients, err := message.GetRecipients()
+	if err != nil {
+		return true
+	}
+	for _, recipient := range recipients {
+		if !isASCII(recipient) {
+			return true
+		}
+	}
+
+	for _, subject := range message.GetGenHeader(mail.HeaderSubject) {
+		if !isASCII(subject) {
+			return true
+		}
+	}
+	return false
+}
+
+func isASCII(value string) bool {
+	for i := 0; i < len(value); i++ {
+		if value[i] >= 0x80 {
+			return false
+		}
+	}
+	return true
 }
 
 // IsEnabled returns whether SMTP is configured and enabled.

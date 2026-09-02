@@ -68,7 +68,7 @@ uses current snapshot state for retained data.
 **Why:** Bots and alternate clients need the exact reaction transition, while
 the frontend needs current aggregate reaction state. One semantic event can
 provide the transition and the authorized resource context without exposing a
-frontend-only upsert operation. See ADR-087 and FDR-045.
+frontend-only upsert operation. See ADR-090 and FDR-045.
 **Tradeoff:** A snapshot restores current reaction state but does not recreate
 every add and remove transition from a long offline interval. Reactions on
 older messages remain available through normal timeline pagination.
@@ -107,8 +107,8 @@ decisions.
 
 **Tradeoff:** A revocation can commit immediately before a previously
 authorized reaction commits. Subsequent attempts observe the new authorization
-state. Operations that require revocation to win this in-flight race must opt
-into a narrow commit-time authorization fence instead.
+state. A command with a genuine stream-wide invariant must select and document
+a stronger OCC boundary explicitly.
 
 ## Permissions
 
@@ -121,5 +121,5 @@ into a narrow commit-time authorization fence instead.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (semantic realtime events)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-090 (semantic realtime events)
 - **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)

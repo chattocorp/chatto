@@ -3,7 +3,7 @@
   import type { AccountAPI } from '$lib/api-client/account';
   import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
-  import { Dialog, Hint } from '$lib/ui';
+  import { ConfirmDialog, Hint } from '$lib/ui';
   import { Button, Form, TextArea, TextInput } from '$lib/ui/form';
   import {
     formatCooldownRemaining,
@@ -43,7 +43,10 @@
   const bioModified = $derived((bio || '') !== (currentUser.user?.bio ?? ''));
   const isModified = $derived(displayNameModified || loginModified || bioModified);
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
-  const canChangeLogin = $derived(cooldownRemaining === 0);
+  const canBypassLoginCooldown = $derived(
+    serverScope.store.permissions.canAdminManageAccounts
+  );
+  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
 
   function clearMessages() {
     error = '';
@@ -126,7 +129,7 @@
       });
 
       if (currentUser.user) {
-        const lastLoginChange = normalizedLogin
+        const lastLoginChange = normalizedLogin && !canBypassLoginCooldown
           ? new Date().toISOString()
           : currentUser.user.lastLoginChange;
         currentUser.user = {
@@ -142,7 +145,7 @@
       login = updated.login;
       bio = updated.bio ?? '';
 
-      if (normalizedLogin) {
+      if (normalizedLogin && !canBypassLoginCooldown) {
         localLastLoginChange = new Date();
       }
 
@@ -208,24 +211,19 @@
   </Form>
 </Panel>
 
-<Dialog
+<ConfirmDialog
   bind:visible={showLoginConfirm}
   title={m('settings.profile.username.confirm_title')}
-  size="sm"
+  tone="info"
+  actionLabel={m('settings.profile.username.confirm_button')}
+  actionIcon="iconify icon-[uil--check]"
+  onconfirm={confirmLoginChange}
+  onclose={() => (showLoginConfirm = false)}
 >
-  <p class="mb-2">
+  <p>
     {m('settings.profile.username.confirm_prompt', { login: pendingLogin ?? '' })}
   </p>
-  <p class="mb-4 text-muted">{m('settings.profile.username.confirm_cooldown')}</p>
-
-  <div class="flex items-center gap-3">
-    <Button defaultAction onclick={confirmLoginChange}>
-      <span class="iconify icon-[uil--check]"></span>
-      {m('settings.profile.username.confirm_button')}
-    </Button>
-    <Button variant="ghost" onclick={() => (showLoginConfirm = false)}>
-      <span class="iconify icon-[uil--times]"></span>
-      {m('common.cancel')}
-    </Button>
-  </div>
-</Dialog>
+  {#if !canBypassLoginCooldown}
+    <p class="mt-3">{m('settings.profile.username.confirm_cooldown')}</p>
+  {/if}
+</ConfirmDialog>

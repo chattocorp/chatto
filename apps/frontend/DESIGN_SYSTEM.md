@@ -89,6 +89,36 @@ inside the icon. Do not add a side stripe or a shadow for navigation selection.
 Use the square check indicator for an independent boolean setting. Use the
 circular radio indicator for one choice in a group.
 
+## Standard Dialogs
+
+Use the standard dialog family for focused tasks:
+
+- Use `ConfirmDialog` when a user must confirm one command.
+- Use `FormDialog` when a dialog collects input and submits one form.
+- Use `Dialog` for information, custom content, or two or more action paths.
+
+All three components use the same structure. A `surface` tray frames one
+inset `background` work plane. The header and footer stay visible. Only the
+body scrolls when the content is long. Do not add a `Panel`, another work
+plane, or a footer divider inside this structure.
+
+Pass footer buttons directly to the `Dialog` footer snippet. `Dialog` owns the
+horizontal, end-aligned layout. The actions always stay in one row. A button
+label truncates when the viewport cannot show the full label. Put Cancel
+first. Use `secondary` for Cancel, `action` for the recommended path, and a
+semantic tone such as `danger` only when the action has that meaning. Use an
+action-specific icon on the committing action. Do not add an icon to Cancel by
+default.
+
+Use the `sm` size for short confirmations, `md` for ordinary custom dialogs,
+and `lg` for dense content such as screen selection. Keep the standard
+viewport gutter. Do not add a feature-specific width to a task dialog.
+
+`ImageModal`, fullscreen video, `QuickSwitcher`, popovers, and `BottomSheet`
+are specialized overlays. They can use their own geometry because they do not
+represent a standard task dialog. Keep each exception local and do not copy
+its layout into a task dialog.
+
 ## Standard Pane Pages
 
 Use the pane-page composition for primary application pages such as search,

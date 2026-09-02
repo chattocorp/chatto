@@ -154,16 +154,16 @@ func TestMetricsServerUsesProjectionAndModelKeys(t *testing.T) {
 	}
 	text := string(body)
 
-	if !strings.Contains(text, `chatto_projection_lag_events{projection="content_keys"}`) {
-		t.Fatalf("metrics body missing content_keys projection label\n%s", text)
+	if !strings.Contains(text, `chatto_projection_lag_events{projection="server_content_view"}`) {
+		t.Fatalf("metrics body missing server_content_view projection label\n%s", text)
 	}
-	if !strings.Contains(text, `chatto_projection_startup_duration_seconds{projection="content_keys"}`) {
-		t.Fatalf("metrics body missing content_keys startup duration metric\n%s", text)
+	if !strings.Contains(text, `chatto_projection_startup_duration_seconds{projection="server_content_view"}`) {
+		t.Fatalf("metrics body missing server_content_view startup duration metric\n%s", text)
 	}
-	if !strings.Contains(text, `chatto_projection_startup_messages{projection="content_keys"}`) {
-		t.Fatalf("metrics body missing content_keys startup messages metric\n%s", text)
+	if !strings.Contains(text, `chatto_projection_startup_messages{projection="server_content_view"}`) {
+		t.Fatalf("metrics body missing server_content_view startup messages metric\n%s", text)
 	}
-	if strings.Contains(text, `projection="Content Keys"`) {
+	if strings.Contains(text, `projection="Server Content View"`) {
 		t.Fatalf("metrics body used human projection name as label\n%s", text)
 	}
 	if !strings.Contains(text, `chatto_model_info{model="config_model"} 1`) {

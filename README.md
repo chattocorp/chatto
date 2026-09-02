@@ -57,14 +57,19 @@ Create an Authling account, read its verification code in Mailpit, then choose
 login. The stack also creates Chatto owner `alice` and member `bob`; both use
 the development-only password `foobar123`.
 
-Chatto uses Authling as its development OIDC provider. Chatto data is in
-`cli/data/`; Authling identity data is in
+Chatto uses Authling as its development OIDC provider. Chatto stores embedded
+NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling
+identity data is in
 `.context/dev-portless/<workspace>/nested/authling/`.
 
 These credentials and accounts are for local development only. Stop `mise dev`
 to stop the services and unregister the routes. With the stack stopped, remove
-either data directory to reset that service. A new Conductor workspace name
-also creates a new Authling issuer and state directory.
+`cli/data/` to reset Chatto, or remove the Authling identity directory to reset
+Authling. A new Conductor workspace name also creates a new Authling issuer and
+state directory.
+
+If a worktree has NATS data in the former `cli/data/jetstream/` location, use
+the migration steps in [CONTRIBUTING.md](CONTRIBUTING.md#local-chatto-data).
 
 Portless creates and trusts a development CA on its first run. If macOS cannot
 show its authorization prompt, run this command once in an interactive terminal:

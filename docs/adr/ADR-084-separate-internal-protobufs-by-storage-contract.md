@@ -1,8 +1,8 @@
 # ADR-084: Separate Internal Protobufs by Storage Contract
 
 **Status:** Partially superseded by
-[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-The storage-owned package split remains active. ADR-088 replaces the separate
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+The storage-owned package split remains active. ADR-091 replaces the separate
 durable and transient envelope rule.
 **Date:** 2026-08-28
 

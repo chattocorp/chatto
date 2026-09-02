@@ -26,6 +26,9 @@
   let smallDialogVisible = $state(false);
   let largeDialogVisible = $state(false);
   let dialogWithFooterVisible = $state(false);
+  let referenceDialogVisible = $state(false);
+  let longDialogVisible = $state(false);
+  let narrowDialogVisible = $state(false);
 </script>
 
 <Story
@@ -46,6 +49,101 @@
     <p class="mt-2">
       Click outside the dialog to dismiss it. The dialog uses a blurred background overlay.
     </p>
+  </Dialog>
+</Story>
+
+<Story
+  name="Reference multi-action dialog"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'The standard framed tray, inset work plane, semantic actions, and action-specific icons match the canonical modal direction.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (referenceDialogVisible = true)}>Open sign-out dialog</Button>
+
+  <Dialog bind:visible={referenceDialogVisible} title="Sign Out" size="md">
+    <p class="text-muted">
+      Sign out of only the selected server, or disconnect every server from this client.
+    </p>
+
+    {#snippet footer()}
+      <Button variant="secondary" onclick={() => (referenceDialogVisible = false)}>Cancel</Button>
+      <Button defaultAction onclick={() => (referenceDialogVisible = false)}>
+        <span class="iconify icon-[uil--sign-out-alt]"></span>
+        Current Server
+      </Button>
+      <Button variant="danger" onclick={() => (referenceDialogVisible = false)}>
+        <span class="iconify icon-[uil--signout]"></span>
+        All Servers
+      </Button>
+    {/snippet}
+  </Dialog>
+</Story>
+
+<Story
+  name="Long scrolling content"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story: 'The title and actions remain visible while only the dialog body scrolls.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (longDialogVisible = true)}>Open long dialog</Button>
+
+  <Dialog bind:visible={longDialogVisible} title="Review Changes" size="md">
+    <div class="flex flex-col gap-4 text-muted">
+      {#each Array(14) as _, index (index)}
+        <p>
+          Change {index + 1}: Review this item before you apply the configuration to the server.
+        </p>
+      {/each}
+    </div>
+
+    {#snippet footer()}
+      <Button variant="secondary" onclick={() => (longDialogVisible = false)}>Cancel</Button>
+      <Button defaultAction onclick={() => (longDialogVisible = false)}>
+        <span class="iconify icon-[uil--check]"></span>
+        Apply Changes
+      </Button>
+    {/snippet}
+  </Dialog>
+</Story>
+
+<Story
+  name="Narrow action truncation"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Resize the canvas to a narrow viewport. Actions stay in one row and long labels truncate before the row can wrap.'
+      }
+    }
+  }}
+>
+  <Button onclick={() => (narrowDialogVisible = true)}>Open narrow dialog</Button>
+
+  <Dialog bind:visible={narrowDialogVisible} title="Choose Destination" size="md">
+    <p class="text-muted">Choose where Chatto should post this message.</p>
+
+    {#snippet footer()}
+      <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>Cancel</Button>
+      <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>
+        Post as a Completely New Message
+      </Button>
+      <Button defaultAction onclick={() => (narrowDialogVisible = false)}>
+        <span class="iconify icon-[uil--comment-alt-lines]"></span>
+        Continue in the Existing Thread
+      </Button>
+    {/snippet}
   </Dialog>
 </Story>
 
@@ -124,18 +222,16 @@
     </p>
 
     {#snippet footer()}
-      <div class="flex justify-end gap-2">
-        <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
-          Cancel
-        </Button>
-        <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
-          Post as new message
-        </Button>
-        <Button defaultAction onclick={() => (dialogWithFooterVisible = false)}>
-          <span class="iconify icon-[uil--comment-alt-lines]"></span>
-          Continue in thread
-        </Button>
-      </div>
+      <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
+        Cancel
+      </Button>
+      <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
+        Post as new message
+      </Button>
+      <Button defaultAction onclick={() => (dialogWithFooterVisible = false)}>
+        <span class="iconify icon-[uil--comment-alt-lines]"></span>
+        Continue in thread
+      </Button>
     {/snippet}
   </Dialog>
 </Story>

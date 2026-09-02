@@ -67,7 +67,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 8. Delivery gaps force latest-value recovery
 
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
-**Why:** Presence is latest-value state. Reconnect clears retained presence and cursor-bounded user or member reads return current presence for the users that the client shows. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-088.
+**Why:** Presence is latest-value state. Reconnect clears retained presence and cursor-bounded user or member reads return current presence for the users that the client shows. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-091.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
 
 ### 9. Presence display is immediate while member-list grouping settles
@@ -82,5 +82,5 @@ Presence status is public. Any authenticated user can see any other authenticate
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-087 (semantic realtime events)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-090 (semantic realtime events)
 - **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile), FDR-045 (Realtime Event Stream)

@@ -33,6 +33,7 @@ type projectionSnapshotJob struct {
 	repository       *projectionsnapshot.Repository
 	projectionKey    string
 	streamName       string
+	componentized    bool
 	allowPublication func(cutoff uint64) bool
 }
 
@@ -212,6 +213,9 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 			"refresh_age", projectionSnapshotRefreshAge)
 		return nil
 	}
+	if job.componentized {
+		return w.generateComponentJob(ctx, job, started)
+	}
 	captured, err := job.projector.CaptureSnapshot(ctx)
 	if err != nil {
 		return fmt.Errorf("capture projection snapshot: %w", err)
@@ -265,6 +269,57 @@ func (w *projectionSnapshotWorker) generateJob(ctx context.Context, job projecti
 		"cutoff_seq", loaded.CutoffSequence,
 		"payload_bytes", len(loaded.Payload),
 		"duration", now().Sub(started))
+	return nil
+}
+
+func (w *projectionSnapshotWorker) generateComponentJob(ctx context.Context, job projectionSnapshotJob, started time.Time) error {
+	now := w.now
+	if now == nil {
+		now = time.Now
+	}
+	captured, err := job.projector.CaptureSnapshotCohort(ctx)
+	if err != nil {
+		return fmt.Errorf("capture projection snapshot cohort: %w", err)
+	}
+	if job.allowPublication != nil && !job.allowPublication(captured.CutoffSequence) {
+		w.logger.Debug("Projection snapshot generation deferred behind a durable worker boundary",
+			"projection", job.projectionKey, "stage", "generate_skip", "cutoff_seq", captured.CutoffSequence)
+		return nil
+	}
+	if err := w.lease.CheckOwnership(ctx); err != nil {
+		return fmt.Errorf("recheck snapshot lease before publish: %w", err)
+	}
+	components := make([]projectionsnapshot.CohortComponent, 0, len(captured.Components))
+	for _, component := range captured.Components {
+		parts := make([]projectionsnapshot.CohortPart, 0, len(component.Parts))
+		for _, part := range component.Parts {
+			parts = append(parts, projectionsnapshot.CohortPart{Key: part.Key, Payload: part.Payload})
+		}
+		components = append(components, projectionsnapshot.CohortComponent{
+			Key: component.Key, ContractID: component.ContractID, Parts: parts,
+		})
+	}
+	loaded, err := job.repository.SaveCohort(ctx, projectionsnapshot.SaveCohortInput{
+		ProjectionKey: job.projectionKey, ContractID: job.projector.SnapshotContractID(),
+		StreamName: job.streamName, StreamIdentity: captured.StreamIdentity,
+		CutoffSequence: captured.CutoffSequence, Components: components,
+		RefreshAge: projectionSnapshotRefreshAge, ClockSkew: projectionSnapshotClockSkewTolerance,
+	})
+	if errors.Is(err, projectionsnapshot.ErrSnapshotFresh) {
+		job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+		return nil
+	}
+	if errors.Is(err, projectionsnapshot.ErrSnapshotRegressed) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	job.projector.RecordSnapshotPublication(loaded.CutoffSequence, loaded.CreatedAt)
+	w.logger.Info("Projection snapshot cohort generation complete",
+		"projection", job.projectionKey, "backend", job.repository.Backend(), "stage", "generate",
+		"generation_id", loaded.GenerationID, "cutoff_seq", loaded.CutoffSequence,
+		"components", len(loaded.Components), "duration", now().Sub(started))
 	return nil
 }
 

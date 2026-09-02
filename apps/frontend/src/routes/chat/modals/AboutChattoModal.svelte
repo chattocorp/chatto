@@ -12,7 +12,7 @@
 <script lang="ts">
   import { version } from '$app/environment';
   import { m } from '$lib/i18n/messages';
-  import Dialog from '$lib/ui/Dialog.svelte';
+  import { Dialog } from '$lib/ui';
 
   let {
     onclose

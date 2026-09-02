@@ -36,6 +36,12 @@ func (c *ChattoCore) GetRoomMembership(ctx context.Context, kind RoomKind, user_
 // member who is currently eligible to join the room. Explicit memberships
 // remain the durable state; universal membership is derived at read time.
 func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
+	return c.readContentDecision(func() (bool, error) {
+		return c.roomMembershipExists(ctx, kind, user_id, room_id)
+	})
+}
+
+func (c *ChattoCore) roomMembershipExists(ctx context.Context, kind RoomKind, user_id, room_id string) (bool, error) {
 	if c.roomModel.hasExplicitRoomMembership(room_id, user_id) {
 		return true, nil
 	}
@@ -49,7 +55,7 @@ func (c *ChattoCore) RoomMembershipExists(ctx context.Context, kind RoomKind, us
 	if !room.GetUniversal() {
 		return false, nil
 	}
-	return c.CanJoinRoomAt(ctx, user_id, kind, room_id)
+	return c.canJoinRoomAt(ctx, user_id, kind, room_id)
 }
 
 // JoinRoom creates a room membership for a user.
@@ -364,10 +370,6 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*evtv1.Event) error {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return fmt.Errorf("read authorization fence before room leave: %w", err)
-	}
 
 	leaveEvent := newEvent(userID, &evtv1.Event{
 		Event: &evtv1.Event_UserLeftRoom{
@@ -417,11 +419,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		entries = append(entries, entry)
 	}
 
-	// Leaving, removal, and ban are authorization-changing domain facts. Advance
-	// the existing generic fence in the same batch so a mutation with strict
-	// commit-time authorization (for example an authorized message edit) cannot
-	// commit from a membership decision that this leave has already invalidated.
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, userID, entries, authorizationSeq)
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 	if err != nil {
 		return fmt.Errorf("publish room leave batch: %w", err)
 	}

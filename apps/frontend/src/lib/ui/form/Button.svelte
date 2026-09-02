@@ -105,7 +105,9 @@
       disabled || loading ? 'pointer-events-none opacity-60' : ''
     ]}
   >
-    {@render content()}
+    <span class="button-content inline-flex items-center gap-2 [&>.iconify]:shrink-0">
+      {@render content()}
+    </span>
   </a>
   <!-- eslint-enable svelte/no-navigation-without-resolve -->
 {:else}
@@ -125,6 +127,8 @@
       fullWidth ? 'w-full' : ''
     ]}
   >
-    {@render content()}
+    <span class="button-content inline-flex items-center gap-2 [&>.iconify]:shrink-0">
+      {@render content()}
+    </span>
   </button>
 {/if}

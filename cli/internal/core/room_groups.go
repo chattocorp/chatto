@@ -90,8 +90,7 @@ func (c *ChattoCore) createRoomGroup(ctx context.Context, actorID, name, descrip
 		}
 		orderedGroupIDs = append(orderedGroupIDs, group.GetId())
 
-		authorizationSeq, err := c.prepareAuthorizationFencedMutation(ctx, authorize)
-		if err != nil {
+		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
 			return nil, err
 		}
 		createdEvent := newEvent(actorID, &evtv1.Event{
@@ -124,7 +123,7 @@ func (c *ChattoCore) createRoomGroup(ctx context.Context, actorID, name, descrip
 				FilterSubject: evtstream.LayoutSubjectFilter(),
 			},
 		}
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(entries[1].Subject, seqs[1])); err != nil {
 				return nil, fmt.Errorf("wait for created room group and layout: %w", err)
@@ -319,8 +318,7 @@ func sidebarLinkFromGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarL
 }
 
 func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstream.Aggregate, event *evtv1.Event, expectedSeq uint64, check func() error) (events.StreamPosition, error) {
-	authorizationSeq, err := c.prepareAuthorizationFencedMutation(ctx, check)
-	if err != nil {
+	if err := c.authorizeAtStableInputs(ctx, check); err != nil {
 		return events.StreamPosition{}, err
 	}
 	subject := agg.SubjectFor(event)
@@ -335,7 +333,7 @@ func (c *ChattoCore) appendGroupLayoutAtFilter(ctx context.Context, agg evtstrea
 		ExpectedSeq:   expectedSeq,
 		FilterSubject: filter,
 	}}
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, event.GetActorId(), entries, authorizationSeq)
+	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
@@ -483,8 +481,7 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 				orderedGroupIDs = append(orderedGroupIDs, group.GetId())
 			}
 		}
-		authorizationSeq, err := c.prepareAuthorizationFencedMutation(ctx, authorize)
-		if err != nil {
+		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
 			return err
 		}
 		deletedEvent := newEvent(actorID, &evtv1.Event{
@@ -515,7 +512,7 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 				FilterSubject: evtstream.LayoutSubjectFilter(),
 			},
 		}
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err != nil {
 			if errors.Is(err, events.ErrConflict) {
 				if err := c.waitForGroupLayoutRetry(ctx, attempt, "wait for room-group layout after deletion OCC conflict"); err != nil {
@@ -606,8 +603,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 		if authorize != nil {
 			authorizationCheck = func() error { return authorize(sourceGroupID, targetGroupID) }
 		}
-		authorizationSeq, err := c.prepareAuthorizationFencedMutation(ctx, authorizationCheck)
-		if err != nil {
+		if err := c.authorizeAtStableInputs(ctx, authorizationCheck); err != nil {
 			return err
 		}
 
@@ -674,7 +670,7 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			entries[0].FilterSubject = occFilter
 		}
 
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			// Wait on the final seq — the projector applies in stream order
 			// so reaching the last batch entry's seq implies every earlier
@@ -1039,10 +1035,6 @@ func (c *ChattoCore) MoveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 
 func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, linkID, sourceGroupID, targetGroupID string, authorize func(sourceGroupID, targetGroupID string) error) error {
 	for attempt := 0; attempt < maxMoveRoomToGroupRetries; attempt++ {
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return fmt.Errorf("read authorization fence seq: %w", err)
-		}
 		snapshot := c.roomModel.sidebarLinkMoveSnapshot(linkID, targetGroupID)
 		if !snapshot.TargetExists {
 			if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
@@ -1069,7 +1061,9 @@ func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 			return nil
 		}
 		if authorize != nil {
-			if err := authorize(snapshot.SourceGroupID, targetGroupID); err != nil {
+			if err := c.authorizeAtStableInputs(ctx, func() error {
+				return authorize(snapshot.SourceGroupID, targetGroupID)
+			}); err != nil {
 				return err
 			}
 		}
@@ -1105,7 +1099,7 @@ func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 				Event:   added,
 			},
 		}
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			lastDomainIndex := len(entries) - 1
 			lastSubject := entries[lastDomainIndex].Subject
@@ -1165,7 +1159,9 @@ func (c *ChattoCore) placeSidebarItem(
 		if snapshot.SourceGroup == nil {
 			return ErrSidebarItemNotFound
 		}
-		if err := authorize(snapshot.SourceGroupID, targetGroupID); err != nil {
+		if err := c.authorizeAtStableInputs(ctx, func() error {
+			return authorize(snapshot.SourceGroupID, targetGroupID)
+		}); err != nil {
 			return err
 		}
 
@@ -1198,10 +1194,6 @@ func (c *ChattoCore) placeSidebarItem(
 			return nil
 		}
 
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return fmt.Errorf("read authorization fence seq: %w", err)
-		}
 		entries, err := sidebarItemMoveEvents(actorID, snapshot, item, targetGroupID, targetEntries)
 		if err != nil {
 			return err
@@ -1209,7 +1201,7 @@ func (c *ChattoCore) placeSidebarItem(
 		entries[0].HasOCC = true
 		entries[0].ExpectedSeq = snapshot.Seq
 		entries[0].FilterSubject = evtstream.GroupSubjectFilter()
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, entries, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
 			last := len(entries) - 1
 			if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(entries[last].Subject, seqs[last])); err != nil {

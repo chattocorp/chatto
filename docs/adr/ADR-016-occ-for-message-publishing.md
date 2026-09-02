@@ -2,6 +2,12 @@
 
 **Date:** 2026-03-01
 
+**Status:** Partially superseded
+
+> **Partially superseded by [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md).**
+> Room aggregate OCC and atomic message batches remain current. ADR-087 replaces
+> the authorization-fence guard with stable request-time authorization.
+
 ## Context
 
 When multiple users post messages simultaneously in the same room (or the same thread), the events must be ordered consistently. JetStream assigns sequence numbers to stream entries, but concurrent publishes to the same subject can race. Without coordination, two messages could claim the same logical position.

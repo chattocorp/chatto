@@ -1,8 +1,8 @@
 # ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
 **Status:** Partially superseded by
-[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-The single durable stream remains active. ADR-088 replaces the separate
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+The single durable stream remains active. ADR-091 replaces the separate
 transient envelope.
 
 **Date:** 2026-05-24

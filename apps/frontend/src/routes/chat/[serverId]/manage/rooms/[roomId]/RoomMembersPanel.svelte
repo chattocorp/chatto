@@ -7,7 +7,7 @@
   import DataTable from '$lib/ui/DataTable.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
-  import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import { ConfirmDialog } from '$lib/ui';
   import Hint from '$lib/ui/Hint.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import { useProjectionEvent } from '$lib/hooks';

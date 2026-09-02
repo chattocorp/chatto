@@ -139,6 +139,32 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	if user := profileResp.Msg.GetUser(); user.GetId() != env.viewer.Id || user.GetDisplayName() != "Connect Profile" || user.GetLogin() != "connect-profile" || user.GetBio() != "Connect profile bio" {
 		t.Fatalf("updated profile = %+v, want renamed viewer", user)
 	}
+	firstLoginChange, err := env.core.GetLastLoginChange(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("GetLastLoginChange: %v", err)
+	}
+	if firstLoginChange.IsZero() {
+		t.Fatal("first profile login change did not start the cooldown")
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageAccounts); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
+	}
+	bypassResp, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+		Login: stringPtr("connect-profile-bypass"),
+	}))
+	if err != nil {
+		t.Fatalf("UpdateProfile with own cooldown bypass: %v", err)
+	}
+	if got := bypassResp.Msg.GetUser().GetLogin(); got != "connect-profile-bypass" {
+		t.Fatalf("bypassed profile login = %q, want connect-profile-bypass", got)
+	}
+	bypassLoginChange, err := env.core.GetLastLoginChange(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("GetLastLoginChange after bypass: %v", err)
+	}
+	if !bypassLoginChange.Equal(firstLoginChange) {
+		t.Fatalf("bypassed profile update advanced cooldown timestamp: was %v, now %v", firstLoginChange, bypassLoginChange)
+	}
 
 	tz := "Europe/Berlin"
 	settingsResp, err := env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{

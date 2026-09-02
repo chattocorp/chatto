@@ -49,6 +49,7 @@ const (
 	ProjectionRBACKey                  = "rbac"
 	ProjectionMentionablesKey          = "mentionables"
 	ProjectionUsersKey                 = "users"
+	ProjectionServerContentViewKey     = "server_content_view"
 )
 
 var (

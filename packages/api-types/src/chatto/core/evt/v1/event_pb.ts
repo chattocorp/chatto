@@ -765,9 +765,10 @@ export class Event extends Message<Event> {
     case: "rbacRolePingableChanged";
   } | {
     /**
-     * ----- Authorization concurrency fence (830-839, durable) -----
+     * ----- Legacy authorization concurrency fence (830-839, durable) -----
      *
-     * @generated from field: chatto.core.evt.v1.AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830;
+     * @generated from field: chatto.core.evt.v1.AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830 [deprecated = true];
+     * @deprecated
      */
     value: AuthorizationFenceAdvancedEvent;
     case: "authorizationFenceAdvanced";

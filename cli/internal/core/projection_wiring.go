@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ import (
 type coreProjections struct {
 	registrations []projectionRegistration
 	snapshotJobs  []projectionSnapshotJob
+	contentView   *ServerContentView
 
 	roomDirectory         events.ProjectionHandle[*RoomDirectoryProjection]
 	notificationDecisions events.ProjectionHandle[*NotificationDecisionProjection]
@@ -49,6 +51,7 @@ const (
 // projectionRegistrar keeps projector construction and diagnostic
 // registration atomic so those inventories cannot drift apart.
 type projectionRegistrar struct {
+	ctx           context.Context
 	infra         *coreInfrastructure
 	logger        *log.Logger
 	registrations []projectionRegistration
@@ -85,11 +88,16 @@ func registerProjection[T any, P evtstream.ProjectionPointer[T]](
 	name string,
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
-) events.ProjectionHandle[P] {
+) (events.ProjectionHandle[P], error) {
 	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
+	streamName := r.infra.storage.serverEvtStream.CachedInfo().Config.Name
+	stream, err := r.infra.js.Stream(r.ctx, streamName)
+	if err != nil {
+		return events.ProjectionHandle[P]{}, fmt.Errorf("open EVT stream for %s: %w", name, err)
+	}
 	handle := evtstream.NewProjectionHandle(
 		r.infra.js,
-		r.infra.storage.serverEvtStream,
+		stream,
 		projection,
 		r.logger.WithPrefix("core."+loggerName),
 	)
@@ -99,180 +107,182 @@ func registerProjection[T any, P evtstream.ProjectionPointer[T]](
 		projection,
 		key,
 		name,
-		r.infra.storage.serverEvtStream.CachedInfo().Config.Name,
+		streamName,
 		evtstream.IdentityFromInfo,
 		estimate,
 		snapshotPolicy,
+	), nil
+}
+
+func registerPreparedProjection[T any, P evtstream.PreparedProjectionPointer[T]](
+	r *projectionRegistrar,
+	projection P,
+	key string,
+	name string,
+	estimate func() (int64, int64, []ProjectionAdminMetric),
+	snapshotPolicy projectionSnapshotPolicy,
+) (events.ProjectionHandle[P], error) {
+	loggerName := strings.ReplaceAll(name, " ", "") + "Projector"
+	streamName := r.infra.storage.serverEvtStream.CachedInfo().Config.Name
+	stream, err := r.infra.js.Stream(r.ctx, streamName)
+	if err != nil {
+		return events.ProjectionHandle[P]{}, fmt.Errorf("open EVT stream for %s: %w", name, err)
+	}
+	handle := evtstream.NewPreparedProjectionHandle(
+		r.infra.js,
+		stream,
+		projection,
+		r.logger.WithPrefix("core."+loggerName),
 	)
+	return registerProjectionHandle(
+		r,
+		handle,
+		projection,
+		key,
+		name,
+		streamName,
+		evtstream.IdentityFromInfo,
+		estimate,
+		snapshotPolicy,
+	), nil
+}
+
+func bindContentProjection[T any, P evtstream.ProjectionPointer[T]](
+	view *ServerContentView,
+	projection P,
+	name string,
+) (events.ProjectionHandle[P], error) {
+	handle, err := evtstream.BindProjectionHandle(projection, view.projector)
+	if err != nil {
+		return events.ProjectionHandle[P]{}, fmt.Errorf("bind %s to ServerContentView: %w", name, err)
+	}
+	return handle, nil
 }
 
 func initializeCoreProjections(
+	ctx context.Context,
 	infra *coreInfrastructure,
 	logger *log.Logger,
 ) (*coreProjections, error) {
-	registrar := &projectionRegistrar{infra: infra, logger: logger}
+	registrar := &projectionRegistrar{ctx: ctx, infra: infra, logger: logger}
 	projections := &coreProjections{}
 
 	roomDirectory := NewRoomDirectoryProjection()
-	projections.roomDirectory = registerProjection(
-		registrar,
-		roomDirectory,
-		projectionsnapshot.ProjectionRoomDirectoryKey,
-		"Room Directory",
-		roomDirectory.adminProjectionEstimate,
+	serverConfig := NewConfigProjection()
+	roomGroupLayout := NewRoomGroupLayoutProjection()
+	roomTimeline := NewRoomTimelineProjection()
+	callState := NewCallStateProjection()
+	assets := NewAssetProjection()
+	threads := NewThreadProjection()
+	reactions := NewReactionProjection()
+	users := newUserProjectionWithDEKResolver(infra.dekResolver)
+	userAuth := users.AuthProjection()
+	contentKeys := NewContentKeyProjection()
+	rbac := NewRBACProjection()
+	mentionables := newMentionablesProjectionWithDEKResolver(infra.dekResolver)
+	contentComponents := []events.SnapshotComponentModel{
+		roomDirectory, serverConfig, roomGroupLayout, roomTimeline, callState,
+		assets, threads, reactions, users, contentKeys, rbac, mentionables,
+	}
+	contentView := newServerContentView(
+		newServerContentComponent(projectionsnapshot.ProjectionRoomDirectoryKey, roomDirectory, roomDirectory),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionServerConfigKey, serverConfig, serverConfig.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionRoomGroupLayoutKey, roomGroupLayout, roomGroupLayout.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionRoomTimelineKey, roomTimeline, roomTimeline.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionCallStateKey, callState, callState.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionAssetsKey, assets, assets.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionThreadsKey, threads, threads.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionReactionsKey, reactions, reactions.Apply),
+		newServerContentComponent(projectionsnapshot.ProjectionUsersKey, users, users),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionContentKeysKey, contentKeys, contentKeys.Apply),
+		newInfallibleServerContentComponent(projectionsnapshot.ProjectionRBACKey, rbac, rbac.Apply),
+		newServerContentComponent(projectionsnapshot.ProjectionMentionablesKey, mentionables, mentionables),
+	)
+	contentHandle, err := registerPreparedProjection(
+		registrar, contentView, projectionsnapshot.ProjectionServerContentViewKey,
+		"Server Content View",
+		func() (int64, int64, []ProjectionAdminMetric) {
+			return contentView.adminProjectionEstimate(contentComponents...)
+		},
 		sharedSnapshots,
 	)
+	if err != nil {
+		return nil, err
+	}
+	contentView.bindProjector(contentHandle.Projector())
+	projections.contentView = contentView
+
+	if projections.roomDirectory, err = bindContentProjection(contentView, roomDirectory, "room directory"); err != nil {
+		return nil, err
+	}
+	if projections.serverConfig, err = bindContentProjection(contentView, serverConfig, "server config"); err != nil {
+		return nil, err
+	}
+	if projections.roomGroupLayout, err = bindContentProjection(contentView, roomGroupLayout, "room group layout"); err != nil {
+		return nil, err
+	}
+	if projections.roomTimeline, err = bindContentProjection(contentView, roomTimeline, "room timeline"); err != nil {
+		return nil, err
+	}
+	if projections.callState, err = bindContentProjection(contentView, callState, "call state"); err != nil {
+		return nil, err
+	}
+	if projections.assets, err = bindContentProjection(contentView, assets, "assets"); err != nil {
+		return nil, err
+	}
+	if projections.threads, err = bindContentProjection(contentView, threads, "threads"); err != nil {
+		return nil, err
+	}
+	if projections.reactions, err = bindContentProjection(contentView, reactions, "reactions"); err != nil {
+		return nil, err
+	}
+	if projections.users, err = bindContentProjection(contentView, users, "users"); err != nil {
+		return nil, err
+	}
+	if projections.contentKeys, err = bindContentProjection(contentView, contentKeys, "content keys"); err != nil {
+		return nil, err
+	}
+	if projections.rbac, err = bindContentProjection(contentView, rbac, "RBAC"); err != nil {
+		return nil, err
+	}
+	if projections.mentionables, err = bindContentProjection(contentView, mentionables, "mentionables"); err != nil {
+		return nil, err
+	}
 
 	notificationDecisions := NewNotificationDecisionProjection()
-	projections.notificationDecisions = registerProjection(
-		registrar,
-		notificationDecisions,
-		projectionsnapshot.ProjectionNotificationDecisionsKey,
-		"Notification Decisions",
-		notificationDecisions.adminProjectionEstimate,
-		sharedSnapshots,
+	projections.notificationDecisions, err = registerProjection(
+		registrar, notificationDecisions, projectionsnapshot.ProjectionNotificationDecisionsKey,
+		"Notification Decisions", notificationDecisions.adminProjectionEstimate, sharedSnapshots,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	notifications := NewNotificationProjection()
+	notificationStreamName := infra.storage.notificationStream.CachedInfo().Config.Name
+	notificationProjectionStream, err := infra.js.Stream(ctx, notificationStreamName)
+	if err != nil {
+		return nil, fmt.Errorf("open notification stream for projection: %w", err)
+	}
 	notificationHandle := notificationstream.NewProjectionHandle(
-		infra.js,
-		infra.storage.notificationStream,
-		notifications,
+		infra.js, notificationProjectionStream, notifications,
 		logger.WithPrefix("core.NotificationsProjector"),
 	)
 	projections.notifications = registerProjectionHandle(
-		registrar,
-		notificationHandle,
-		notifications,
-		projectionsnapshot.ProjectionNotificationsKey,
-		"Notifications",
-		infra.storage.notificationStream.CachedInfo().Config.Name,
-		notificationstream.IdentityFromInfo,
-		notifications.adminProjectionEstimate,
-		sharedSnapshots,
+		registrar, notificationHandle, notifications, projectionsnapshot.ProjectionNotificationsKey,
+		"Notifications", notificationStreamName,
+		notificationstream.IdentityFromInfo, notifications.adminProjectionEstimate, sharedSnapshots,
 	)
 
-	serverConfig := NewConfigProjection()
-	projections.serverConfig = registerProjection(
-		registrar,
-		serverConfig,
-		projectionsnapshot.ProjectionServerConfigKey,
-		"Server Config",
-		serverConfig.adminProjectionEstimate,
-		sharedSnapshots,
+	projections.userAuth, err = registerProjection(
+		registrar, userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate, coldReplayOnly,
 	)
-
-	roomGroupLayout := NewRoomGroupLayoutProjection()
-	projections.roomGroupLayout = registerProjection(
-		registrar,
-		roomGroupLayout,
-		projectionsnapshot.ProjectionRoomGroupLayoutKey,
-		"Room Group Layout",
-		roomGroupLayout.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	roomTimeline := NewRoomTimelineProjection()
-	projections.roomTimeline = registerProjection(
-		registrar,
-		roomTimeline,
-		projectionsnapshot.ProjectionRoomTimelineKey,
-		"Room Timeline",
-		roomTimeline.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	callState := NewCallStateProjection()
-	projections.callState = registerProjection(
-		registrar,
-		callState,
-		projectionsnapshot.ProjectionCallStateKey,
-		"Call State",
-		callState.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	assets := NewAssetProjection()
-	projections.assets = registerProjection(
-		registrar,
-		assets,
-		projectionsnapshot.ProjectionAssetsKey,
-		"Assets",
-		assets.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	threads := NewThreadProjection()
-	projections.threads = registerProjection(
-		registrar,
-		threads,
-		projectionsnapshot.ProjectionThreadsKey,
-		"Threads",
-		threads.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	reactions := NewReactionProjection()
-	projections.reactions = registerProjection(
-		registrar,
-		reactions,
-		projectionsnapshot.ProjectionReactionsKey,
-		"Reactions",
-		reactions.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	users := newUserProjectionWithDEKResolver(infra.dekResolver)
-	projections.users = registerProjection(
-		registrar,
-		users,
-		projectionsnapshot.ProjectionUsersKey,
-		"Users",
-		users.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-	userAuth := users.AuthProjection()
-	projections.userAuth = registerProjection(
-		registrar,
-		userAuth,
-		"user_auth",
-		"User Auth",
-		userAuth.adminProjectionEstimate,
-		coldReplayOnly,
-	)
-
-	contentKeys := NewContentKeyProjection()
-	projections.contentKeys = registerProjection(
-		registrar,
-		contentKeys,
-		projectionsnapshot.ProjectionContentKeysKey,
-		"Content Keys",
-		contentKeys.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	rbac := NewRBACProjection()
-	projections.rbac = registerProjection(
-		registrar,
-		rbac,
-		projectionsnapshot.ProjectionRBACKey,
-		"RBAC",
-		rbac.adminProjectionEstimate,
-		sharedSnapshots,
-	)
-
-	mentionables := newMentionablesProjectionWithDEKResolver(infra.dekResolver)
-	projections.mentionables = registerProjection(
-		registrar,
-		mentionables,
-		projectionsnapshot.ProjectionMentionablesKey,
-		"Mentionables",
-		mentionables.adminProjectionEstimate,
-		sharedSnapshots,
-	)
+	if err != nil {
+		return nil, err
+	}
 
 	invitations := NewInvitationProjection()
-	projections.invitations = registerProjection(
+	projections.invitations, err = registerProjection(
 		registrar,
 		invitations,
 		"invitations",
@@ -280,9 +290,12 @@ func initializeCoreProjections(
 		invitations.adminProjectionEstimate,
 		coldReplayOnly,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	oauthClients := NewOAuthClientProjection()
-	projections.oauthClients = registerProjection(
+	projections.oauthClients, err = registerProjection(
 		registrar,
 		oauthClients,
 		"oauth_clients",
@@ -290,6 +303,9 @@ func initializeCoreProjections(
 		oauthClients.adminProjectionEstimate,
 		coldReplayOnly,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	projections.registrations = registrar.registrations
 	if err := configureProjectionSnapshots(infra, projections); err != nil {
@@ -309,6 +325,22 @@ func configureProjectionSnapshots(
 	for i := range projections.registrations {
 		registration := &projections.registrations[i]
 		if registration.snapshotPolicy == coldReplayOnly {
+			continue
+		}
+		componentized := registration.key == projectionsnapshot.ProjectionServerContentViewKey
+		if componentized {
+			source := projectionSnapshotCohortSource{repository: infra.snapshotRepository}
+			if err := registration.projector.ConfigureSnapshotCohorts(
+				registration.key, source, registration.identityResolver,
+			); err != nil {
+				return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)
+			}
+			projections.snapshotJobs = append(projections.snapshotJobs, projectionSnapshotJob{
+				projector: registration.projector, repository: infra.snapshotRepository,
+				projectionKey: registration.key, streamName: registration.streamName,
+				componentized: true,
+			})
+			registration.snapshotEnabled = true
 			continue
 		}
 		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})

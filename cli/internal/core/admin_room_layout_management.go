@@ -154,8 +154,8 @@ func (c *ChattoCore) AdminReorderSidebarItemsInGroup(ctx context.Context, actorI
 }
 
 // AdminMoveSidebarItem places one room or sidebar link in a destination group.
-// Both source and destination authorization decisions are fenced through the
-// complete OCC retry.
+// Each OCC attempt validates the source and destination authorization inputs
+// with a stable request-time read.
 func (c *ChattoCore) AdminMoveSidebarItem(ctx context.Context, actorID string, item *evtv1.SidebarGroupEntry, targetGroupID string, before *evtv1.SidebarGroupEntry) (*evtv1.RoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err

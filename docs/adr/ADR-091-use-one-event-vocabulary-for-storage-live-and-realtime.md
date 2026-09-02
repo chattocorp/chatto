@@ -1,10 +1,10 @@
-# ADR-088: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
+# ADR-091: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
 
 **Status:** Accepted
 **Date:** 2026-08-31
 
 **Supersedes:** The separate-public-schema rule in
-[ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md), and the
+[ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md), and the
 separate durable and transient envelope rule in
 [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md). It also
 supersedes the two-envelope part of
@@ -182,4 +182,4 @@ not affected.
 - [ADR-045](ADR-045-public-api-stability-tiers.md)
 - [ADR-049](ADR-049-process-wide-realtime-event-hub.md)
 - [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md)
-- [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md)
+- [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md)

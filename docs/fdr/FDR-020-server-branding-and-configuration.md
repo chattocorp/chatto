@@ -84,5 +84,5 @@ with rich structure can be visually noisy in the compact banner.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-087 (semantic realtime events)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-090 (semantic realtime events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-021 (Admin Dashboard & System Monitoring), FDR-045 (Realtime Event Stream)

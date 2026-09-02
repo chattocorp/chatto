@@ -33,8 +33,10 @@ type projectionBenchmarkWireEvent struct {
 }
 
 type projectionBenchmarkTarget struct {
-	projection evtstream.Projection
+	projection any
 	subjects   []string
+	apply      func(*evtv1.Event, string, uint64) error
+	complete   func()
 }
 
 // BenchmarkProjectionReplay measures the complete decode-and-apply startup
@@ -43,7 +45,7 @@ type projectionBenchmarkTarget struct {
 func BenchmarkProjectionReplay(b *testing.B) {
 	for _, logicalMessages := range []int{1_000, 10_000} {
 		fixture := newProjectionBenchmarkFixture(b, logicalMessages)
-		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads"} {
+		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads", "content_view_timeline_and_threads"} {
 			b.Run(fmt.Sprintf("%s/%s/messages_%d", projectionBenchmarkFixtureVersion, scope, logicalMessages), func(b *testing.B) {
 				b.ReportAllocs()
 				b.SetBytes(int64(projectionBenchmarkWireBytes(fixture)))
@@ -118,7 +120,7 @@ func BenchmarkProjectionRetainedHeap(b *testing.B) {
 	}
 
 	for _, logicalMessages := range []int{10_000, 50_000} {
-		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads"} {
+		for _, scope := range []string{"room_timeline", "threads", "timeline_and_threads", "content_view_timeline_and_threads"} {
 			b.Run(fmt.Sprintf("%s/%s/messages_%d", projectionBenchmarkFixtureVersion, scope, logicalMessages), func(b *testing.B) {
 				if b.N != 1 {
 					b.Skip("run with -benchtime=1x")
@@ -389,22 +391,31 @@ func replayProjectionBenchmarkFixture(fixture []projectionBenchmarkWireEvent, sc
 			if !projectionBenchmarkMatchesAnySubject(target.subjects, wireEvent.subject) {
 				continue
 			}
-			if err := target.projection.Apply(&event, uint64(i+1)); err != nil {
+			if err := target.apply(&event, wireEvent.subject, uint64(i+1)); err != nil {
 				return nil, fmt.Errorf("apply event %d to %T: %w", i, target.projection, err)
 			}
 		}
 	}
 	for _, target := range targets {
-		if projection, ok := target.projection.(events.StartupReplayCompleter); ok {
-			projection.CompleteStartupReplay()
-		}
+		target.complete()
 	}
 	return targets, nil
 }
 
 func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, error) {
 	newTarget := func(projection evtstream.Projection) projectionBenchmarkTarget {
-		return projectionBenchmarkTarget{projection: projection, subjects: projection.Subjects()}
+		return projectionBenchmarkTarget{
+			projection: projection,
+			subjects:   projection.Subjects(),
+			apply: func(event *evtv1.Event, _ string, sequence uint64) error {
+				return projection.Apply(event, sequence)
+			},
+			complete: func() {
+				if completer, ok := projection.(events.StartupReplayCompleter); ok {
+					completer.CompleteStartupReplay()
+				}
+			},
+		}
 	}
 	switch scope {
 	case "room_timeline":
@@ -416,6 +427,26 @@ func newProjectionBenchmarkTargets(scope string) ([]projectionBenchmarkTarget, e
 			newTarget(NewRoomTimelineProjection()),
 			newTarget(NewThreadProjection()),
 		}, nil
+	case "content_view_timeline_and_threads":
+		timeline := NewRoomTimelineProjection()
+		threads := NewThreadProjection()
+		view := newServerContentView(
+			newInfallibleServerContentComponent("room_timeline", timeline, timeline.Apply),
+			newInfallibleServerContentComponent("threads", threads, threads.Apply),
+		)
+		return []projectionBenchmarkTarget{{
+			projection: view,
+			subjects:   view.Subjects(),
+			apply: func(event *evtv1.Event, subject string, sequence uint64) error {
+				mutation, err := view.PrepareSubject(event, subject, sequence)
+				if err != nil {
+					return err
+				}
+				mutation.Commit()
+				return nil
+			},
+			complete: view.CompleteStartupReplay,
+		}}, nil
 	default:
 		return nil, fmt.Errorf("unknown projection benchmark scope %q", scope)
 	}

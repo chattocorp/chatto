@@ -10,8 +10,8 @@ Key files:
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
-[ADR-087](../adr/ADR-087-semantic-realtime-events-with-bounded-resume.md),
-and [ADR-088](../adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-090](../adr/ADR-090-semantic-realtime-events-with-bounded-resume.md),
+and [ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 ## Public protocol
 
@@ -164,8 +164,17 @@ timed-out, and rejected catch-ups.
 
 ## Authorization and projection readiness
 
-Live delivery, resume, and resource reads use current authorization. Message
-and asset events require room membership. A channel viewer also needs
+For a valid short gap, the handler subscribes to the process-wide live hub,
+captures an EVT cutoff, waits until `ServerContentView` reaches that cutoff
+before it reads membership, applicable message-read permissions, interaction
+relationships, or compacted state, and performs bounded JetStream point reads
+for the sequences after the cursor. It does not create a JetStream consumer. Each
+deliverable room, asset, or user fact uses that same content-view readiness
+boundary and is converted to a fresh authorized canonical public event. The handler
+sends `caught_up` at the cutoff, discards buffered live duplicates through
+that sequence, and continues with the hub stream.
+
+Message and asset events require room membership. A channel viewer also needs
 `message.read`, or `message.read-interactions` with a relationship to the
 canonical thread root. DM membership authorizes the read. Typing follows the
 same message-read boundary.
@@ -189,10 +198,11 @@ transport cursor advances.
 ## Process-wide live ingress
 
 `MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
-`live.evt.>` for each Chatto process. It classifies and decodes messages once,
-waits for projections once, and fans immutable envelopes to bounded
-per-session queues. Sessions for one user share room-visibility state. There
-are no per-client NATS subscriptions or JetStream consumers.
+`live.evt.>` per Chatto process. It classifies subjects before decoding, waits
+for `ServerContentView` once for content facts, and fans immutable decoded
+events into count- and byte-bounded session queues. Sessions for one user
+share room-visibility state. There are no per-client NATS or JetStream
+consumers.
 
 Transient `live.sync.>` messages and durable `live.evt.>` messages use
 `chatto.core.evt.v1.Event`. Transient variants use oneof tags 20000 through

@@ -72,8 +72,9 @@ server does not contact the advertised origins.
 and delete operations. Self-targeting is available to human and bot callers. A
 cross-human target requires `user.manage-accounts`. A cross-bot target permits
 the bot owner, `user.manage-accounts`, or `bot.manage`. A bot cannot target
-another account. These operations use the target user aggregate and the global
-authorization fence, then return the ready user projection.
+another account. These operations validate stable request-time authorization
+inputs, use OCC on the target user aggregate, and then return the ready user
+projection.
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named
@@ -84,6 +85,10 @@ manage their own bots; `bot.manage` allows global management. A human with
 `user.manage-accounts` can list and read all bots for avatar administration,
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
+
+Owner reassignment validates stable request-time authorization inputs and uses
+user-family OCC. This boundary serializes reassignment with deletion of the bot
+or either human owner.
 
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group

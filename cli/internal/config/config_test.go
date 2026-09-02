@@ -11,6 +11,20 @@ import (
 	"hmans.de/chatto/pkg/natsauth"
 )
 
+func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
+	cfg, err := ReadConfig(filepath.Join("..", "..", "chatto.toml"))
+	if err != nil {
+		t.Fatalf("ReadConfig() failed for local development config: %v", err)
+	}
+
+	if got := cfg.NATS.Embedded.DataDir; got != "./data/nats" {
+		t.Errorf("embedded NATS data directory = %q, want %q", got, "./data/nats")
+	}
+	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./data/search" {
+		t.Errorf("search provider directory = %q, want %q", got, "./data/search")
+	}
+}
+
 func TestReadConfig_WithoutConfigFile(t *testing.T) {
 	// Create a temp directory with no config file
 	tmpDir := t.TempDir()

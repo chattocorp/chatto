@@ -1,8 +1,8 @@
-# ADR-087: Use Semantic Realtime Events with Bounded Resume
+# ADR-090: Use Semantic Realtime Events with Bounded Resume
 
 **Status:** Partially superseded by
-[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-088 replaces the separate public event schema and selects protocol 4. The
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+ADR-091 replaces the separate public event schema and selects protocol 4. The
 newer decision also replaces WebSocket snapshot frames with cursor-bounded
 ConnectRPC resource reads. The authorization, bounded-resume, and transport
 rules that this ADR introduced remain active.
@@ -88,7 +88,7 @@ The implementation and future protocol changes must preserve these invariants:
     a capability matrix to restate required frame semantics. A change that
     requires every client to behave differently uses a new behavioral protocol
     version.
-13. **Public delivery does not expose stored bytes.** Per ADR-088, public
+13. **Public delivery does not expose stored bytes.** Per ADR-091, public
     delivery uses the canonical Event schema. The server still creates a fresh
     authorized copy and removes internal variants and storage-only fields.
 14. **Long-offline reliable automation is separate.** If Chatto later promises

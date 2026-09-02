@@ -60,14 +60,13 @@ second content copy and makes edits immediately visible.
 **Tradeoff:** Reading a pin page hydrates the canonical message and its normal
 render dependencies.
 
-### 3. Fence authorization and room state together
+### 3. Validate authorization and guard room state
 
-**Decision:** Mutations capture both the authorization fence and full room
-aggregate tail, rerun `room.manage`, and append through OCC with bounded
-retries.
-**Why:** Separate replicas must not commit a pin after concurrent permission,
-room lifecycle, message retraction, or pin-state changes invalidate the
-decision.
+**Decision:** Mutations validate stable request-time authorization inputs,
+capture the full room aggregate tail, rerun `room.manage`, and append through
+room OCC with bounded retries.
+**Why:** Stable authorization validation prevents a torn decision. Room OCC
+protects room lifecycle, message retraction, and pin state.
 **Tradeoff:** Unrelated writes in the same room may cause a retry, matching the
 existing room mutation boundary.
 
@@ -78,7 +77,7 @@ the room and message references that clients need to refresh or update their
 authorized pin view.
 **Why:** The event describes the domain change directly for bots and the
 frontend. Clients can ignore an event type they do not use and still advance
-the common cursor. See ADR-087.
+the common cursor. See ADR-090.
 **Tradeoff:** A pin change causes the loaded room pin store to refresh its
 canonical page rather than apply an untrusted partial message payload.
 
@@ -132,7 +131,7 @@ snapshot schema receives a new fingerprinted contract namespace automatically.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (semantic realtime events)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-090 (semantic realtime events)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-019 (Room Lifecycle), FDR-031 (Client–Server Compatibility Discovery), FDR-033 (Message Search), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)
 - **Issue:** [#1982](https://github.com/chattocorp/chatto/issues/1982)
 

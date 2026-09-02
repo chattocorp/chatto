@@ -63,21 +63,50 @@ if err := projector.WaitForStartup(ctx); err != nil {
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 
+### Build a componentized projection
+
+Use `ComponentizedProjection` when related read models consume one event log
+and must expose one applied sequence. Each `ProjectionComponent` keeps a
+focused model, subject declaration, reducer, and snapshot codec. The projector
+owns one apply barrier and the exact applied sequence. The componentized
+projection routes an event only to components whose subjects match the
+delivered record.
+
+An `EventReducer` prepares an immutable `PreparedMutation` before the projector
+commits any component change under its barrier. Preparation can validate,
+decrypt, clone, and calculate. It must not change live model state. A prepared
+commit must not fail, perform external I/O, or publish another outcome. If one
+preparation fails, the projector does not change any component or advance its
+sequence.
+
+Use `NewDecodedPreparedProjector` for a prepared projection. Bind each focused
+model with `BindDecodedProjectionHandle` when application code must keep narrow
+typed handles. Use `WithReadBarrier` to run bounded in-memory work against one
+stable component generation and its exact applied sequence.
+
 ## Snapshots and checkpoints
 
 Snapshots are disposable replay accelerators, not authoritative event data.
-Configure either `ConfigureSnapshots` or `ConfigureCheckpoint` before `Run`,
-never both. Snapshot sources must return the requested contract ID, stream
-name, stream incarnation, and a cutoff no newer than the startup target. The
-projector validates those bindings again and cold-replays retained events when
-a snapshot is unavailable or invalid. Stream identity changes during restore
-fail the run rather than applying state across stream incarnations.
+Configure `ConfigureSnapshots`, `ConfigureSnapshotCohorts`, or
+`ConfigureCheckpoint` before `Run`. Select only one restore mechanism.
+Snapshot sources must return the requested contract ID, stream name, stream
+incarnation, and a cutoff no newer than the startup target. The projector
+validates those bindings again and cold-replays retained events when a snapshot
+is unavailable or invalid. Stream identity changes during restore fail the run
+rather than applying state across stream incarnations.
 
 `CaptureSnapshot` takes an apply barrier and includes the applied cutoff and
 stream identity. Publication remains application-owned and must use its own
 cross-replica OCC. Checkpoint implementations must atomically commit their
 derived state and cutoff, and must implement reset/rebuild behavior for an
 invalid checkpoint.
+
+`CaptureSnapshotCohort` takes the same barrier but captures each registered
+component as a separate payload. A projection snapshot source must return one
+complete cohort with the requested componentized-projection and component
+contracts. The projector restores the cohort as one transaction or resets all
+components and cold-replays. Storage, encryption, manifests, size limits,
+publication OCC, and cleanup remain application-owned.
 
 ## Read in bounded pages
 

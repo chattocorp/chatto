@@ -93,7 +93,7 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 }
 
 // CreatePinnedMessage adds a canonical message to a channel's current pin set.
-// The operation is idempotent and rechecks room.manage at the commit fence.
+// The operation is idempotent and rechecks room.manage in each OCC attempt.
 func (s *RoomCommandModel) CreatePinnedMessage(ctx context.Context, input PinnedMessageMutationInput) (PinnedMessageState, error) {
 	return s.mutatePinnedMessage(ctx, input, true)
 }
@@ -120,7 +120,7 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 
 	for attempt := 0; attempt < maxPinnedMessageMutationAttempts; attempt++ {
 		var kind RoomKind
-		prepared, err := s.core.prepareMessageAppendAttempt(ctx, aggregate, input.ActorID, func(ctx context.Context) error {
+		prepared, err := s.core.prepareMessageAppendAttempt(ctx, aggregate, func(ctx context.Context) error {
 			room, memberKind, memberErr := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
 			if memberErr != nil {
 				return memberErr
@@ -179,10 +179,10 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 			return PinnedMessageState{}, nil
 		}
 
-		sequences, err := s.core.appendAuthorizationFencedBatch(ctx, input.ActorID, []evtstream.BatchEntry{{
+		sequences, err := s.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 			Subject: aggregate.SubjectFor(event), Event: event, HasOCC: true,
 			ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
-		}}, prepared.authorizationSeq)
+		}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}

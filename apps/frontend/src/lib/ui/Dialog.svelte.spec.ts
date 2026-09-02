@@ -9,11 +9,13 @@ function renderDialog(props: {
   title?: string;
   size?: 'sm' | 'md' | 'lg';
   children: ReturnType<typeof testSnippet>;
+  footer?: ReturnType<typeof testSnippet>;
 }) {
   return render(Dialog, { props });
 }
 
 const FRAME = 'dialog > div';
+const WELL = `${FRAME} > div`;
 
 describe('Dialog', () => {
   describe('dialog element', () => {
@@ -99,7 +101,7 @@ describe('Dialog', () => {
         children: testSnippet('<span>Test Content</span>')
       });
 
-      await expect.element(q(container, `${FRAME} > div.text-text`)).toBeInTheDocument();
+      await expect.element(q(container, `${WELL} > div.text-text`)).toBeInTheDocument();
     });
   });
 
@@ -118,23 +120,26 @@ describe('Dialog', () => {
     });
   });
 
-  describe('flat surface styling', () => {
-    it('does not nest a second background well', async () => {
+  describe('inset work-plane styling', () => {
+    it('nests one background work plane inside the surface tray', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      expect(q(container, `${FRAME} > .bg-background`)).toBeNull();
+      const well = q(container, WELL);
+      await expect.element(well).toHaveClass('bg-background');
+      await expect.element(well).toHaveClass('rounded-md');
     });
 
-    it('keeps content padding on the surface frame', async () => {
+    it('uses separate tray and work-plane padding', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, FRAME)).toHaveClass('p-5');
+      await expect.element(q(container, FRAME)).toHaveClass('p-2');
+      await expect.element(q(container, WELL)).toHaveClass('p-3');
     });
   });
 
@@ -146,7 +151,24 @@ describe('Dialog', () => {
       });
 
       await expect.element(q(container, FRAME)).toHaveClass('overflow-hidden');
-      await expect.element(q(container, `${FRAME} > div.text-text`)).toHaveClass('overflow-y-auto');
+      await expect.element(q(container, WELL)).toHaveClass('overflow-hidden');
+      await expect.element(q(container, `${WELL} > div.text-text`)).toHaveClass('overflow-y-auto');
+    });
+  });
+
+  describe('footer', () => {
+    it('owns the single-line end-aligned action layout', async () => {
+      const { container } = renderDialog({
+        visible: true,
+        children: testSnippet('<span>Content</span>'),
+        footer: testSnippet('<button>Continue</button>')
+      });
+
+      const footer = q(container, `${WELL} > footer`);
+      await expect.element(footer).toHaveClass('dialog-actions');
+      await expect.element(footer).not.toHaveClass('flex-wrap');
+      expect(footer?.querySelectorAll('button')).toHaveLength(1);
+      expect(getComputedStyle(footer!).flexWrap).toBe('nowrap');
     });
   });
 

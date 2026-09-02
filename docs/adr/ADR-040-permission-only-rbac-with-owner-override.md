@@ -14,6 +14,10 @@
 > `domain.capability-with-qualifier`. The permission catalog defines each
 > inclusion directly. Identifier punctuation does not define authority.
 >
+> **Amended 2026-09-01:** [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md)
+> replaces the authorization fence with stable request-time authorization and
+> aggregate OCC. The RBAC resolution rules in this record remain current.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,

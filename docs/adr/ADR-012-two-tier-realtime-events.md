@@ -5,9 +5,9 @@
 **Updated:** 2026-09-01
 
 **Partially superseded by:**
-[ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md) for the
+[ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md) for the
 public realtime behavior and
-[ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md)
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
 for the canonical envelope. The durable `EVT` and transient `live.sync.>`
 delivery split remains in effect.
 
@@ -38,7 +38,7 @@ semantic public events. Genuinely non-replayable activity, such as typing and
 presence transitions, becomes transient public events. Latest-value
 invalidations produce semantic public events; clients can then use canonical
 snapshot resources or ConnectRPC reads to refresh current state. See ADR-076,
-ADR-077, ADR-087, and ADR-088.
+ADR-077, ADR-090, and ADR-091.
 
 ## Consequences
 

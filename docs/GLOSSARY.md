@@ -152,6 +152,8 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Each direct user or named role contributes only its nearest explicit decision (room, then group, then server). Denies win across those subject decisions; an allow must be at least as specific as an `everyone` deny to override the baseline. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
+**Request-time authorization** — Command authorization decision that becomes final after Chatto confirms that its projected RBAC, room-group, user, and other declared inputs did not change during evaluation. A later concurrent authorization change does not cancel the command; domain invariants use OCC separately. See [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
+
 **Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a channel-room root or another account directly mentions it. With room membership and `message.read-interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
@@ -187,11 +189,21 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 **Event** — Canonical `evtv1.Event` envelope and payload that describe one
 Chatto domain change. A durable Event is stored in EVT. A transient Event is
 published only on NATS Core. The publisher, not the envelope, selects
-durability. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+durability. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+
+**Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
 **Projection** — Derived read model rebuilt from `EVT` and owned independently by each consuming process. Persistence is optional: a projection may cold-replay every time, use an encrypted snapshot, or checkpoint a disposable local index and EVT cutoff for tail replay. `EVT` remains the source of truth. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md) and [ADR-054](adr/ADR-054-optional-projection-persistence.md).
 
-**Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
+**Projector** — Runtime engine that consumes events and owns replay, readiness, failure, one apply barrier, and the applied sequence frontier for one projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Componentized projection** — Projection that combines related projection components behind one projector, apply barrier, and sequence frontier. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Projection component** — Focused reducer, read model, and optional snapshot codec inside a componentized projection. It does not own an independent consumer or sequence frontier while it is part of that projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
+
+**Server Content View** — Chatto's named componentized projection for process-local, sequence-consistent client-readable state derived from `EVT`. It includes focused room, timeline, call, asset, thread, reaction, configuration, user-profile, content-key, RBAC, and mentionable components. Authentication, presence, read markers, notifications, invitations, OAuth clients, and search remain outside the view. See [ADR-089](adr/ADR-089-server-content-view.md).
+
+**Projection snapshot cohort** — Complete persisted snapshot generation whose manifest binds separately stored projection-component payloads to the same event-log identity and cutoff. Chatto restores all required components or cold-replays the complete componentized projection. See [ADR-088](adr/ADR-088-componentized-projections-behind-one-apply-barrier.md).
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
@@ -210,33 +222,33 @@ durability. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-
 **Live Event** — An Event delivered through the internal live ingress. Durable
 Events reach it through EVT republish on `live.evt.>`. Transient Events publish
 directly on `live.sync.>`. Both paths use the canonical Event envelope. See
-[ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Public Realtime Event** — Fresh authorized copy of a canonical Event for
 bots, integrations, alternate clients, and the bundled frontend. The server
 omits internal variants and storage-only fields and can add client-only
 plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
-numbers are not public API. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
+numbers are not public API. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Client Projection** — Authenticated, server-scoped current state that a client
 builds from cursor-bounded canonical ConnectRPC reads and maintains with Public
 Realtime Events plus later resource reads. It is a convergence view rather
 than an audit log. It does not replace the resource-oriented `chatto.api.v1`
 API for explicit reads, commands, pagination, and history. See
-[ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md) and
-[ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
+[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Realtime Resource Boundary** — Opaque viewer-bound cursor `E` that a client
 uses as the minimum consistency cursor for ConnectRPC resource reads. After
 the reads, realtime catch-up sends later authorized events through boundary
 `F`. This gives the client one complete current view even when requests use
-different replicas. See [ADR-088](adr/ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+different replicas. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
-**Resume Cursor** — Opaque, viewer-bound token for bounded recovery after a recent realtime disconnect. It can identify an internal EVT position, but it does not expose that position and does not promise arbitrary history. When safe resume is not possible, Chatto uses the subscription's explicit resource-read or live-only fallback. See [ADR-087](adr/ADR-087-semantic-realtime-events-with-bounded-resume.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
+**Resume Cursor** — Opaque, viewer-bound token for bounded recovery after a recent realtime disconnect. It can identify an internal EVT position, but it does not expose that position and does not promise arbitrary history. When safe resume is not possible, Chatto uses the subscription's explicit resource-read or live-only fallback. See [ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 
-**OCC (Optimistic Concurrency Control)** — Publishing with an expected stream sequence so concurrent writers don't clobber each other. Used for message posting. See [ADR-016](adr/ADR-016-occ-for-message-publishing.md).
+**OCC (Optimistic Concurrency Control)** — Publishing with an expected stream sequence so concurrent writers cannot commit from stale aggregate state. See [ADR-016](adr/ADR-016-occ-for-message-publishing.md) and [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
 
 **Nanoid** — Short URL-safe unique ID format. All Chatto entities are prefixed (`usr_…`, `rm_…`, `srv_…`). See [ADR-022](adr/ADR-022-nanoid-with-entity-prefixes.md).
 

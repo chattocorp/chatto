@@ -7,12 +7,12 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3 } from "@bufbuild/protobuf";
 
 /**
- * AuthorizationFenceAdvancedEvent advances the durable concurrency boundary
- * shared by authorization-changing writes and mutations whose authority must
- * remain valid until commit. It intentionally carries no duplicated policy
- * state; the owning RBAC, user, room, and room-group events remain authoritative.
+ * AuthorizationFenceAdvancedEvent is a legacy persisted event. Current writers
+ * do not emit it. Keep this empty message and its Event oneof field so servers
+ * can decode existing EVT history.
  *
  * @generated from message chatto.core.evt.v1.AuthorizationFenceAdvancedEvent
+ * @deprecated
  */
 export class AuthorizationFenceAdvancedEvent extends Message<AuthorizationFenceAdvancedEvent> {
   constructor(data?: PartialMessage<AuthorizationFenceAdvancedEvent>) {

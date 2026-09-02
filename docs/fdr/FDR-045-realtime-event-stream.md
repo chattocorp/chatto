@@ -56,7 +56,7 @@ frontend-only mutation feed or a parallel public event payload.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. Existing EVT compatibility also gives the public
-event vocabulary a strong additive contract. See ADR-088.
+event vocabulary a strong additive contract. See ADR-091.
 **Tradeoff:** Every public event and field needs an explicit authorization and
 surface decision. The storage publisher must reject delivery-only fields.
 Field surfaces are static exposure classes. Viewer-specific field policy is not
@@ -160,8 +160,8 @@ that must process every transition after a long outage.
 - **ADRs:** ADR-012 (two-tier realtime events), ADR-026 (event identity),
   ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-042
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
-  (process-wide realtime event hub), ADR-087 (semantic realtime events),
-  ADR-088 (one event vocabulary)
+  (process-wide realtime event hub), ADR-090 (semantic realtime events),
+  ADR-091 (one event vocabulary)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

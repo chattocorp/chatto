@@ -1,7 +1,10 @@
 package core
 
 import (
+	"context"
+	"errors"
 	"testing"
+	"time"
 )
 
 // ============================================================================
@@ -1301,4 +1304,70 @@ func TestPermissionResolver_ServerAuthority(t *testing.T) {
 			t.Error("Expected instance grant to apply for space member")
 		}
 	})
+}
+
+func TestContentAuthorizationReadsOneServerContentViewGeneration(t *testing.T) {
+	tests := map[string]func(context.Context, *ChattoCore) error{
+		"permission resolution": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.PermResolver().Resolve(ctx, SystemActorID, KindChannel, "", PermMessagePost)
+			return err
+		},
+		"owner check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.IsServerOwner(ctx, SystemActorID)
+			return err
+		},
+		"DM creation check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.CanStartDM(ctx, "missing-user")
+			return err
+		},
+		"admin capability check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.HasAnyAdminPermission(ctx, SystemActorID)
+			return err
+		},
+		"effective membership check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.RoomMembershipExists(ctx, KindDM, SystemActorID, "missing-room")
+			return err
+		},
+		"room ban and RBAC check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.CanJoinRoomAt(ctx, SystemActorID, KindChannel, "missing-room")
+			return err
+		},
+		"message and interaction check": func(ctx context.Context, core *ChattoCore) error {
+			_, err := core.CanReadMessage(ctx, SystemActorID, KindChannel, "missing-room", "missing-message")
+			return err
+		},
+	}
+	for name, check := range tests {
+		t.Run(name, func(t *testing.T) {
+			chattoCore, _ := setupTestCore(t)
+			entered := make(chan struct{})
+			release := make(chan struct{})
+			readDone := make(chan error, 1)
+			go func() {
+				readDone <- chattoCore.contentView.Read(func(uint64) error {
+					close(entered)
+					<-release
+					return nil
+				})
+			}()
+			<-entered
+
+			checked := make(chan error, 1)
+			go func() {
+				checked <- check(t.Context(), chattoCore)
+			}()
+			select {
+			case err := <-checked:
+				t.Fatalf("authorization crossed an active content-view transaction: %v", err)
+			case <-time.After(10 * time.Millisecond):
+			}
+			close(release)
+			if err := <-readDone; err != nil {
+				t.Fatal(err)
+			}
+			if err := <-checked; err != nil && !errors.Is(err, ErrNotFound) {
+				t.Fatal(err)
+			}
+		})
+	}
 }

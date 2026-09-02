@@ -2,8 +2,8 @@
 @component
 
 A small dialog that asks the user to confirm an action. Built on top of
-`FormDialog` so it shares the same chrome (footer divider, button layout,
-Enter-to-confirm) and tone-driven button color.
+`FormDialog` so it shares the standard chrome, action layout,
+Enter-to-confirm behavior, and tone-driven button color.
 
 Use the `tone` prop to communicate the weight of the action:
 
@@ -38,6 +38,7 @@ Use the `tone` prop to communicate the weight of the action:
     tone = 'danger',
     actionLabel = m('common.confirm'),
     actionIcon,
+    actionLoadingLabel,
     loading = false,
     onconfirm,
     onclose
@@ -50,6 +51,8 @@ Use the `tone` prop to communicate the weight of the action:
     actionLabel?: string;
     /** Iconify class for the confirm button. Defaults to a sensible icon per tone. */
     actionIcon?: string;
+    /** Optional localized label to show while the confirmation is running. */
+    actionLoadingLabel?: string;
     loading?: boolean;
     onconfirm: () => void;
     onclose: () => void;
@@ -71,7 +74,7 @@ Use the `tone` prop to communicate the weight of the action:
   submitLabel={actionLabel}
   submitTone={tone === 'info' ? 'action' : tone}
   submitIcon={resolvedIcon}
-  submitLoadingText={m('ui.dialog.submit_loading', { label: actionLabel })}
+  submitLoadingText={actionLoadingLabel ?? m('ui.dialog.submit_loading', { label: actionLabel })}
   {loading}
   onsubmit={() => onconfirm()}
   {onclose}

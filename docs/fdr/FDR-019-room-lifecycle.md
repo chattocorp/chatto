@@ -80,7 +80,7 @@ or restore the room and reconcile the current room-group layout.
 without waiting for a page refresh. Unarchive must restore the authoritative
 room and layout state in the same convergence model. Semantic public events
 let bots observe the same room lifecycle while the frontend updates its local
-projection. See ADR-087 and FDR-045.
+projection. See ADR-090 and FDR-045.
 **Tradeoff:** Clients must apply room lifecycle events in order and reconcile
 current room state after a snapshot fallback.
 
@@ -137,5 +137,5 @@ current room state after a snapshot fallback.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-086 (atomic room-layout structural mutations), ADR-087 (semantic realtime events)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-086 (atomic room-layout structural mutations), ADR-090 (semantic realtime events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout), FDR-045 (Realtime Event Stream)

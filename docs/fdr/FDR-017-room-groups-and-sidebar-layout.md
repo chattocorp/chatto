@@ -57,7 +57,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Moving a room or sidebar link from group A to group B requires `room.manage` in _both_ A and B. The UI previews affected users before confirming room moves.
 **Why:** Moving across groups changes the effective permission set for everyone using the room. An admin authorized only in A shouldn't be able to dump rooms into B and grant a different audience access. Requiring both ends makes the privilege boundary symmetric.
-**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch. User-authorized group/layout mutations also share the narrow authorization fence with RBAC changes, so a concurrent permission revocation forces the complete authorization check to rerun.
+**Tradeoff:** Operators with split responsibilities (group-of-groups admins) can't unilaterally rebalance — they need authorization on both sides. Considered correct: the operation is consequential. The write path uses a room-group projection snapshot plus `evt.group.>` OCC so concurrent moves retry from the current source group before appending the remove/add batch. User-authorized group and layout mutations validate stable request-time authorization inputs before the domain append.
 
 ### 6. Sidebar links extend the existing group aggregate
 
@@ -99,8 +99,10 @@ current projections and guards every state boundary that it used.
 **Why:** A process failure between separate writes can leave a room without a
 group or leave a deleted group in the authoritative order. Reconciliation can
 hide an incomplete state, but it cannot add the missing durable fact to EVT.
-**Tradeoff:** These commands can retry when a concurrent room, group, layout, or
-authorization change advances one of their OCC boundaries. See ADR-086.
+**Tradeoff:** These commands can repeat their authorization read when an input
+changes during the decision. They can retry the complete command when a
+concurrent room, group, or layout change advances a domain OCC boundary. See
+ADR-086 and ADR-087.
 
 ## Permissions
 
@@ -114,5 +116,5 @@ authorization change advances one of their OCC boundaries. See ADR-086.
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-086 (atomic room-layout structural mutations), ADR-087 (request-time authorization with aggregate OCC)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-019 (Room Lifecycle)

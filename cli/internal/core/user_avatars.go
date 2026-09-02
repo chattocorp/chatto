@@ -126,18 +126,14 @@ func (c *ChattoCore) requireCanManageUserAvatar(ctx context.Context, actorID, ta
 	return target, nil
 }
 
-// appendManagedAvatarEvent commits one avatar fact against the target user and
-// the global authorization fence. It returns the avatar that was current at
-// the successful OCC attempt. When skipIfMissing is true, an absent avatar is
-// an authorized no-op and no event is appended.
+// appendManagedAvatarEvent commits one avatar fact against the target user.
+// Authorization uses a stable request-time read. It returns the avatar that
+// was current at the successful OCC attempt. When skipIfMissing is true, an
+// absent avatar is an authorized no-op and no event is appended.
 func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targetUserID string, event *evtv1.Event, skipIfMissing bool) (*evtv1.AssetRecord, bool, error) {
 	filter := evtstream.UserAggregate(targetUserID).AllEventsFilter()
 	subject := evtstream.UserAggregate(targetUserID).SubjectFor(event)
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return nil, false, fmt.Errorf("read authorization fence seq: %w", err)
-		}
 		filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
 			return nil, false, fmt.Errorf("read user OCC filter seq: %w", err)
@@ -148,23 +144,19 @@ func (c *ChattoCore) appendManagedAvatarEvent(ctx context.Context, actorID, targ
 		if err := c.userModel.waitForUserAuthCurrent(ctx, "avatar mutation"); err != nil {
 			return nil, false, fmt.Errorf("wait for user auth projection: %w", err)
 		}
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
-		if err != nil {
-			return nil, false, fmt.Errorf("read RBAC projection position: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
-			return nil, false, fmt.Errorf("wait for RBAC projection: %w", err)
-		}
-		if _, err := c.requireCanManageUserAvatar(ctx, actorID, targetUserID); err != nil {
+		if err := c.authorizeAtStableInputs(ctx, func() error {
+			_, authorizeErr := c.requireCanManageUserAvatar(ctx, actorID, targetUserID)
+			return authorizeErr
+		}); err != nil {
 			return nil, false, err
 		}
 		previous, _ := c.GetUserAvatar(ctx, targetUserID)
 		if skipIfMissing && previous == nil {
 			return nil, false, nil
 		}
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
-		}}, authorizationSeq)
+		}})
 		if err == nil {
 			if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
 				return previous, true, fmt.Errorf("wait for user projection: %w", err)

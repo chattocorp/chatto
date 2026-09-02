@@ -3,6 +3,7 @@ package core
 import (
 	"sort"
 	"testing"
+	"time"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -96,6 +97,29 @@ func TestRoomMembershipProjection_BanRemovesTarget(t *testing.T) {
 	}
 	if p.IsMember("R1", "moderator") {
 		t.Error("moderator should not be removed by a target-user ban event")
+	}
+}
+
+func TestRoomDirectoryProjectionPrepareRejectsMalformedEventBeforeCommit(t *testing.T) {
+	directory := NewRoomDirectoryProjection()
+	event := &evtv1.Event{
+		ActorId: "moderator",
+		Event: &evtv1.Event_RoomMemberBanned{
+			RoomMemberBanned: &evtv1.RoomMemberBannedEvent{RoomId: "R1", UserId: "target"},
+		},
+	}
+	mutation, err := directory.Prepare(event, 7)
+	if err == nil {
+		t.Fatal("Prepare accepted a room ban without a reason")
+	}
+	if mutation != nil {
+		t.Fatal("Prepare returned a mutation for a malformed room event")
+	}
+	if directory.Membership.IsMember("R1", "target") {
+		t.Fatal("malformed event changed room membership")
+	}
+	if _, ok := directory.Bans.ActiveBan("R1", "target", time.Now()); ok {
+		t.Fatal("malformed event changed room bans")
 	}
 }
 

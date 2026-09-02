@@ -307,6 +307,31 @@
   @apply disabled:cursor-not-allowed disabled:opacity-50;
 }
 
+@utility button-content {
+  @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+/* Dialog actions form one stable row. Buttons can surrender label width in a
+ * narrow viewport, but they never wrap or force a second action row. */
+@utility dialog-actions {
+  @apply mt-6 flex min-w-0 shrink-0 flex-nowrap justify-end gap-2;
+
+  & > :is(button, a) {
+    min-width: 0;
+    max-width: 100%;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* The standard first action is Cancel. Keep that stable while committing
+   * actions surrender their longer labels first. */
+  & > :is(button, a):first-child:not(:last-child) {
+    flex-shrink: 0;
+  }
+}
+
 @utility btn-neutral {
   @apply btn border-neutral-action bg-neutral-action text-on-neutral-action hover:border-neutral-action-hover hover:bg-neutral-action-hover;
 }

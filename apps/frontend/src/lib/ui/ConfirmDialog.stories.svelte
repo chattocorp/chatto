@@ -127,6 +127,7 @@
     bind:visible={loadingVisible}
     title="Leave Space"
     actionLabel="Leave Space"
+    actionLoadingLabel="Leaving Space…"
     actionIcon="iconify icon-[uil--sign-out-alt]"
     {loading}
     onconfirm={startLoading}

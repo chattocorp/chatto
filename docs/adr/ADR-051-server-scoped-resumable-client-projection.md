@@ -2,13 +2,19 @@
 
 **Date:** 2026-07-16
 
-**Superseded by:** [ADR-087](ADR-087-semantic-realtime-events-with-bounded-resume.md)
-and [ADR-088](ADR-088-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-087 replaced frontend-shaped live projection operations with semantic
-public events. ADR-088 then replaced realtime-specific state items, retained
+**Updated:** 2026-09-02
+
+**Superseded by:** [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md)
+and [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+ADR-090 replaced frontend-shaped live projection operations with semantic
+public events. ADR-091 then replaced realtime-specific state items, retained
 timelines, and room hydration with canonical public resource reads and an
 event-only WebSocket. The text below records the former protocol 2 design. It
 does not describe protocol 4.
+
+[ADR-089](ADR-089-server-content-view.md) separately replaces the former
+server-side multi-projection readiness and capture mechanism with
+`ServerContentView`.
 
 ## Context
 
