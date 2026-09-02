@@ -112,11 +112,11 @@ Chatto does not copy one key-shredding sequence into every bucket that contains
 a message from that user.
 
 Secure deletion can remove private `MessageBodyEvent` records from `EVT` as
-defined by ADR-007, ADR-011, and ADR-033. The current bucket recipe stops
-depending on an obsolete or retracted body sequence before cleanup removes
-that record. Separate bounded cleanup state can retain the sequence until the
-delete attempt finishes. Missing public message facts are not normal secure
-deletion and cause the bucket load to fail.
+defined by ADR-007, ADR-011, and ADR-033. The exact occurrence recipe can keep
+the deleted sequence, but reconstruction does not retain an obsolete,
+retracted, or shredded body payload. Separate bounded cleanup state can retain
+the sequence until the delete attempt finishes. A missing current body for a
+visible message causes the bucket load to fail.
 
 ### Projection snapshots
 
@@ -145,17 +145,18 @@ them in stream order.
 Bucket reconstruction does not hold the `ServerContentView` apply barrier
 while it performs NATS I/O. A load uses this procedure:
 
-1. Under the apply barrier, capture the bucket recipe, bucket revision, and
-   `ServerContentView` cutoff.
-2. Release the barrier and fetch the referenced EVT records.
-3. Reduce only records at or before the captured cutoff.
-4. Re-enter the barrier and compare the bucket revision.
-5. Apply recorded changes after the captured revision, or retry the load when
-   safe reconciliation is not possible.
-6. Install the bucket only when it represents an exact known revision.
+1. Under the timeline projection lock, capture the bucket recipe and revision.
+2. Release the lock and fetch the referenced EVT records.
+3. Re-enter the lock and compare the bucket revision.
+4. Retry the load if an apply changed the recipe.
+5. Install the bucket only when it represents an exact known revision.
+
+The `ServerContentView` apply barrier encloses every timeline reducer apply.
+The component lock therefore detects any timeline change that can affect the
+captured recipe without keeping the wider barrier across I/O.
 
 Concurrent requests for the same bucket share one in-progress load. Loads have
-a deadline and a configured concurrency limit. A failed load does not install
+a deadline and a bounded concurrency limit. A failed load does not install
 partial state.
 
 Materialized buckets live in one process-local, access-ordered cache. The
@@ -175,15 +176,14 @@ period, normal idle tracking and eviction begin.
 
 Request-time authorization continues to use current state from
 `ServerContentView` as defined by ADR-087 and ADR-089. Authorization evaluation
-and capture of the bucket recipes and EVT cutoff occur in one content-view read
-transaction. The final subject-tail validation from ADR-087 remains the
-authorization decision point. The read performs bucket I/O only after it
-releases the content-view barrier.
+occurs in one content-view read transaction. The final subject-tail validation
+from ADR-087 remains the authorization decision point. The read performs
+bucket I/O only after it releases the content-view barrier.
 
-The captured recipes limit reconstruction to the authorized read cutoff. A
-later authorization change does not cancel a decision that already passed the
-stable request-time authorization procedure. No NATS or object-storage I/O
-occurs while the content-view barrier is held.
+A later authorization change does not cancel a decision that already passed
+the stable request-time authorization procedure. A concurrent timeline apply
+changes the bucket revision and makes reconstruction retry. No NATS or object-
+storage I/O occurs while the content-view barrier is held.
 
 Focused projections can keep compact all-history indexes when current API
 behavior needs them. Thread reply lists, interaction relationships, current
@@ -218,8 +218,8 @@ state and stay consistent with the timeline bucket directory.
   replay because snapshot cohorts restore as one complete generation.
 - Late message mutations need a reliable message-ID-to-bucket locator and a
   race-safe cache installation procedure.
-- Secure deletion must update the reconstruction recipe before it removes a
-  referenced private body record.
+- Secure deletion must mark a body unavailable or superseded before it removes
+  the referenced private record.
 
 ## Out of Scope
 
