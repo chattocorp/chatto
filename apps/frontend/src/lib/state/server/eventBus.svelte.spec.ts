@@ -376,6 +376,31 @@ describe('eventBusManager realtime transport', () => {
     expect(fake.status).toBe('connected');
   });
 
+  it('rejects snapshot resources outside snapshot recovery', async () => {
+    const { socket } = await startAndSubscribe();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+
+    await socket.receive(snapshotFrame());
+
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
+    expect(socket.closeCalls.at(-1)?.reason).toBe('unexpected snapshot frame');
+  });
+
+  it('rejects snapshot recovery before a projection reducer is registered', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+
+    await socket.receive(subscribedFrame(RealtimeRecoveryMode.SNAPSHOT));
+
+    expect(socket.closeCalls.at(-1)?.code).toBe(4000);
+    expect(socket.closeCalls.at(-1)?.reason).toBe('snapshot reducer failed');
+    expect(sync.resumeCursor).toBeNull();
+  });
+
   it('does not advance the cursor when no projection reducer is registered', async () => {
     vi.useFakeTimers();
     const { socket } = await startAndSubscribe();

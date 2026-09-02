@@ -246,8 +246,8 @@ func TestPlanRealtimeReplayResetsForExpiredPublicCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
-	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("expired cursor plan = %+v, want resource-read fallback", plan)
+	if !plan.Reset || len(plan.Events) != 0 || plan.BoundaryCursor == "" {
+		t.Fatalf("expired cursor plan = %+v, want snapshot fallback", plan)
 	}
 }
 
@@ -260,7 +260,7 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("initial PlanRealtimeReplay: %v", err)
 	}
-	if len(before.Events) != 0 || before.StartCursor == "" || before.BoundaryCursor == "" {
+	if len(before.Events) != 0 || before.BoundaryCursor == "" {
 		t.Fatalf("initial replay plan = %+v", before)
 	}
 
@@ -274,9 +274,6 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 	replay, err := chatto.PlanRealtimeReplay(ctx, user.Id, before.BoundaryCursor)
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
-	}
-	if replay.StartCursor != before.BoundaryCursor {
-		t.Fatalf("start cursor changed: got %q want %q", replay.StartCursor, before.BoundaryCursor)
 	}
 	if len(replay.Events) != 2 {
 		t.Fatalf("replayed events = %d, want 2", len(replay.Events))
@@ -299,8 +296,8 @@ func TestPlanRealtimeReplayReplaysAuthorizedReactionGap(t *testing.T) {
 	if err != nil {
 		t.Fatalf("outsider PlanRealtimeReplay: %v", err)
 	}
-	if !outsiderReplay.Reset || outsiderReplay.StartCursor != outsiderReplay.BoundaryCursor {
-		t.Fatalf("cross-user cursor plan = %+v, want resource-read fallback", outsiderReplay)
+	if !outsiderReplay.Reset || outsiderReplay.BoundaryCursor == "" {
+		t.Fatalf("cross-user cursor plan = %+v, want snapshot fallback", outsiderReplay)
 	}
 	for _, event := range outsiderReplay.Events {
 		if event.EVTEvent().GetReactionAdded() != nil || event.EVTEvent().GetReactionRemoved() != nil {
@@ -442,8 +439,8 @@ func TestPlanRealtimeReplayResetsForDifferentStreamIncarnation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
-	if !plan.Reset || len(plan.Events) != 0 || plan.StartCursor != plan.BoundaryCursor {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want resource-read fallback", plan)
+	if !plan.Reset || len(plan.Events) != 0 || plan.BoundaryCursor == "" {
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
 	}
 }
 
@@ -483,7 +480,7 @@ func TestPlanRealtimeReplayResetsAfterUserKeyShredding(t *testing.T) {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
 	if !plan.Reset || len(plan.Events) != 0 {
-		t.Fatalf("PlanRealtimeReplay plan = %+v, want resource-read fallback", plan)
+		t.Fatalf("PlanRealtimeReplay plan = %+v, want snapshot fallback", plan)
 	}
 }
 

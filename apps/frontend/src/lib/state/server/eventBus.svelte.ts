@@ -360,6 +360,7 @@ class EventBusManager {
       let frameProcessing = Promise.resolve();
       let cursorReconciliation = Promise.resolve();
       let reconciliationFailed = false;
+      let snapshotRecovery = false;
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
@@ -421,9 +422,17 @@ class EventBusManager {
               case 'subscribed':
                 socketSubscribed = true;
                 reconnectAttempts = 0;
-                if (frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT) {
-                  dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
-                  sync.acceptProjectionEvent(undefined, true);
+                snapshotRecovery =
+                  frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
+                if (snapshotRecovery) {
+                  try {
+                    dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
+                    sync.acceptProjectionEvent(undefined, true);
+                  } catch (error) {
+                    console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
+                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
+                    return;
+                  }
                 }
                 console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                   generation: socketGeneration,
@@ -435,6 +444,10 @@ class EventBusManager {
                 commitEventCursor(frame.frame.value.resumeCursor);
                 return;
               case 'snapshot':
+                if (!snapshotRecovery) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'unexpected snapshot frame');
+                  return;
+                }
                 if (!frame.frame.value.resource.case) {
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'empty snapshot frame');
                   return;
@@ -475,6 +488,7 @@ class EventBusManager {
                   return;
                 }
                 if (stopped || socket !== nextSocket) return;
+                snapshotRecovery = false;
                 sync.markCaughtUp(frame.frame.value.cursor);
                 resolvePoll(true);
                 if (mode === 'polling') {

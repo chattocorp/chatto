@@ -51,9 +51,6 @@ type realtimeCursorClaims struct {
 type RealtimeReplayPlan struct {
 	// Reset requires the transport to use the requested current-state fallback.
 	Reset bool
-	// StartCursor is the validated request cursor, or BoundaryCursor for a
-	// subscription that did not request history.
-	StartCursor string
 	// BoundaryCursor is safe to persist after all Events have been applied.
 	BoundaryCursor string
 	// BoundarySequence is the EVT cutoff used to suppress buffered duplicates.
@@ -150,7 +147,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return RealtimeReplayPlan{}, err
 	}
 	// The public cursor promises that every current-state read used to shape
-	// authorization or a resource-read fallback includes all durable facts through
+	// authorization or a snapshot fallback includes all durable facts through
 	// this boundary. Waiting here, before any reset early-return or membership
 	// capture, prevents a lagging replica from publishing stale plaintext or
 	// permissions and then discarding the durable facts that would correct it.
@@ -160,7 +157,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 
 	plan := RealtimeReplayPlan{
 		Reset:            strings.TrimSpace(resumeCursor) == "",
-		StartCursor:      boundaryCursor,
 		BoundaryCursor:   boundaryCursor,
 		BoundarySequence: boundarySeq,
 	}
@@ -175,7 +171,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return plan, nil
 	}
 	plan.HadSequenceGap = cursorSequence < boundarySeq
-	plan.StartCursor = resumeCursor
 
 	memberRooms := make(map[string]struct{})
 	if err := c.myEventsModel.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
@@ -197,13 +192,11 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			// resource that the viewer may no longer read.
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 		if realtimeReplayRequiresReset(msg.Subject) {
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 
@@ -216,7 +209,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			// A reset purges every cached plaintext row in one ordered operation.
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
@@ -241,7 +233,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				} else if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true
 					plan.Events = nil
-					plan.StartCursor = boundaryCursor
 					return plan, nil
 				} else {
 					continue
@@ -309,7 +300,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		if len(plan.Events) > realtimeReplayMaxEvents {
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 	}
