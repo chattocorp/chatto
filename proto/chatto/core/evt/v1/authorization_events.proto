@@ -7,4 +7,6 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 // AuthorizationFenceAdvancedEvent is a legacy persisted event. Current writers
 // do not emit it. Keep this empty message and its Event oneof field so servers
 // can decode existing EVT history.
-message AuthorizationFenceAdvancedEvent {}
+message AuthorizationFenceAdvancedEvent {
+  option deprecated = true;
+}
