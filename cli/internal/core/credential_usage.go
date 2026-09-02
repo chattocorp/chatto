@@ -130,13 +130,22 @@ func (r *credentialUsageRecorder) ForgetAll(ctx context.Context, botID string) {
 	}
 }
 
-// LastUsed reads one per-bot record and merges observations that this process
-// has not flushed yet. A missing record means that no use was recorded.
-// available is false when persisted telemetry cannot be read or decoded.
+// LastUsed snapshots process-local observations before it reads the per-bot
+// record. This order prevents a concurrent flush from removing an observation
+// after the persisted read has already missed it. A missing record means that
+// no use was recorded. available is false when persisted telemetry cannot be
+// read or decoded.
 func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (lastUsed map[string]time.Time, available bool) {
 	if r == nil || r.kv == nil {
 		return nil, false
 	}
+	r.mu.RLock()
+	observed := make(map[string]time.Time, len(r.observed[botID]))
+	for key, observedAt := range r.observed[botID] {
+		observed[key] = observedAt
+	}
+	r.mu.RUnlock()
+
 	lastUsed = make(map[string]time.Time)
 	entry, err := r.kv.Get(ctx, credentialUsageRuntimeStateKey(botID))
 	if err != nil {
@@ -154,13 +163,11 @@ func (r *credentialUsageRecorder) LastUsed(ctx context.Context, botID string) (l
 			}
 		}
 	}
-	r.mu.RLock()
-	for key, observedAt := range r.observed[botID] {
+	for key, observedAt := range observed {
 		if observedAt.After(lastUsed[key]) {
 			lastUsed[key] = observedAt
 		}
 	}
-	r.mu.RUnlock()
 	return lastUsed, true
 }
 
