@@ -83,10 +83,11 @@ func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) 
 	if eventOneof == nil {
 		t.Fatal("Event.event descriptor is missing")
 	}
+	publicEvents := 0
 	for index := 0; index < eventOneof.Fields().Len(); index++ {
 		field := eventOneof.Fields().Get(index)
 		dynamicEvent := dynamicpb.NewMessage(descriptor)
-		dynamicEvent.Mutable(field)
+		dynamicEvent.Set(field, dynamicEvent.NewField(field))
 		wire, err := proto.Marshal(dynamicEvent)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", field.FullName(), err)
@@ -102,6 +103,7 @@ func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) 
 		if !isRealtimePublicEvent(&event) {
 			continue
 		}
+		publicEvents++
 		payloadFields := field.Message().Fields()
 		for payloadIndex := 0; payloadIndex < payloadFields.Len(); payloadIndex++ {
 			payloadField := payloadFields.Get(payloadIndex)
@@ -109,5 +111,8 @@ func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) 
 				t.Errorf("public event field %s has no surface classification", payloadField.FullName())
 			}
 		}
+	}
+	if publicEvents < 40 {
+		t.Fatalf("public event catalogue contains %d variants, want at least 40", publicEvents)
 	}
 }

@@ -390,6 +390,12 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	isRBACSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.RBACSubjectFilter(), ">"))
 	if !isRBACSubject {
 		eventType := liveEventType(msg.Subject)
+		if realtimeEVTRequiresSnapshot(evtSubject, eventType) {
+			// These content facts do not yet have a safe public event projection.
+			// Reconnect projection clients so the next exact snapshot includes the
+			// fact instead of relying only on a racy transient invalidation.
+			return true
+		}
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
@@ -522,6 +528,21 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 	h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
 	return false
+}
+
+func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
+	parts := strings.Split(subject, ".")
+	if len(parts) < 2 || parts[0] != strings.TrimSuffix(evtstream.SubjectRoot, ".") {
+		return false
+	}
+	switch parts[1] {
+	case evtstream.AggregateGroup, evtstream.AggregateLayout:
+		return true
+	case evtstream.AggregateConfig:
+		return len(parts) == 4 && parts[2] == evtstream.ConfigSingletonID && !isDeliverableLiveEVTServerConfigEventType(eventType)
+	default:
+		return false
+	}
 }
 
 func isLiveEVTServerConfigSubject(subject string) bool {

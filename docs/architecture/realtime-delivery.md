@@ -228,6 +228,12 @@ closes current sessions. The replica admits a new hub generation only after
 NATS resources, projections, and volatile watchers are current. A slow session
 that exceeds its queue count or byte limit closes independently.
 
+A durable room-group, room-layout, or non-MOTD server-configuration fact does
+not yet have a safe public event projection. The hub also quarantines current
+sessions for these facts. The next exact snapshot provides current content.
+This fail-closed path prevents a transient resource invalidation from racing a
+lagging replica. A later public catalogue entry can replace the reset.
+
 ## Bundled frontend
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when

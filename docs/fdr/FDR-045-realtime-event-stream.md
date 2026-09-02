@@ -33,6 +33,9 @@ the stream to build and maintain its local server projection.
   live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
+- A live durable content fact that has no safe public event projection closes
+  the current projection stream. Snapshot clients reconnect and receive exact
+  current state instead of relying on a cross-replica transient read.
 - Resume, snapshots, and cursor-bounded resource reads use the caller's current
   authorization. Deleted, retracted, or erased data does not return in its old
   form.

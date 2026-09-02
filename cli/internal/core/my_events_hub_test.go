@@ -32,6 +32,23 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubResetsForUnprojectedContentFacts(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	for _, subject := range []string{
+		evtstream.LiveSubjectRoot + evtstream.AggregateGroup + ".group-1." + evtstream.EventRoomGroupUpdated,
+		evtstream.LiveSubjectRoot + evtstream.AggregateLayout + ".default." + evtstream.EventRoomGroupsReordered,
+		evtstream.LiveSubjectRoot + evtstream.AggregateConfig + "." + evtstream.ConfigSingletonID + "." + evtstream.EventServerNameChanged,
+	} {
+		if discontinuity := hub.handleLiveEVT(context.Background(), &nats.Msg{Subject: subject}); !discontinuity {
+			t.Errorf("content fact %q did not require a snapshot", subject)
+		}
+	}
+	if got := hub.decoded.Load(); got != 0 {
+		t.Fatalf("decoded events = %d, want reset classification before decode", got)
+	}
+}
+
 func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
