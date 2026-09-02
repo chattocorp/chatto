@@ -400,15 +400,11 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
-		if roomSubject && !isDeliverableLiveEVTRoomEventType(eventType) {
+		if roomSubject && isKnownPrivateLiveEVTRoomEventType(eventType) {
 			h.prefiltered.Add(1)
 			return false
 		}
-		if assetSubject && !isDeliverableLiveEVTAssetEventType(eventType) {
-			h.prefiltered.Add(1)
-			return false
-		}
-		if userSubject && !isDeliverableLiveEVTUserEventType(eventType) {
+		if assetSubject && isKnownPrivateLiveEVTAssetEventType(eventType) {
 			h.prefiltered.Add(1)
 			return false
 		}
@@ -417,8 +413,13 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			return false
 		}
 		if !roomSubject && !assetSubject && !userSubject && !serverConfigSubject {
-			h.prefiltered.Add(1)
-			return false
+			if isKnownNonRealtimeEVTSubject(evtSubject) {
+				h.prefiltered.Add(1)
+				return false
+			}
+			// A newer server can introduce an aggregate that contributes to the
+			// exact snapshot. An older replica cannot classify that fact safely.
+			return true
 		}
 	}
 
@@ -482,7 +483,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 
 	if roomSubject {
 		if !isDeliverableLiveEVTRoomEvent(&event) {
-			return true
+			return false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
@@ -496,7 +497,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 
 	if assetSubject {
 		if !isDeliverableLiveEVTAssetEvent(&event) {
-			return true
+			return false
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
@@ -513,7 +514,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	}
 
 	if !isDeliverableLiveEVTUserEvent(&event) {
-		return true
+		return false
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 	defer cancel()
@@ -548,6 +549,53 @@ func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
 func isLiveEVTServerConfigSubject(subject string) bool {
 	parts := strings.Split(subject, ".")
 	return len(parts) == 4 && parts[0] == "evt" && parts[1] == evtstream.AggregateConfig && parts[2] == evtstream.ConfigSingletonID
+}
+
+// isKnownPrivateLiveEVTRoomEventType reports room facts that this server
+// understands but intentionally excludes from the public realtime catalogue.
+// The live hub can skip these facts before it decodes potentially large stored
+// payloads. An unrecognized type is decoded and fails closed to a snapshot.
+func isKnownPrivateLiveEVTRoomEventType(eventType string) bool {
+	switch eventType {
+	case evtstream.EventMessageBody,
+		evtstream.EventThreadFollowed,
+		evtstream.EventThreadUnfollowed,
+		evtstream.EventAssetCreated,
+		evtstream.EventAssetAttached:
+		return true
+	default:
+		return false
+	}
+}
+
+func isKnownPrivateLiveEVTAssetEventType(eventType string) bool {
+	switch eventType {
+	case evtstream.EventAssetCreated, evtstream.EventAssetAttached:
+		return true
+	default:
+		return false
+	}
+}
+
+// isKnownNonRealtimeEVTSubject reports durable namespaces that do not
+// contribute to the public snapshot or event projection. Unknown namespaces
+// fail closed because a mixed-version replica cannot know their state impact.
+func isKnownNonRealtimeEVTSubject(subject string) bool {
+	parts := strings.Split(subject, ".")
+	if len(parts) != 4 || parts[0] != strings.TrimSuffix(evtstream.SubjectRoot, ".") {
+		return false
+	}
+	switch parts[1] {
+	case evtstream.AggregateAuthorization,
+		evtstream.AggregateAuth,
+		evtstream.AggregateInvitation,
+		evtstream.AggregateOAuthClient:
+		return true
+	case evtstream.AggregateConfig:
+		return parts[2] != evtstream.ConfigSingletonID
+	default:
+		return false
+	}
 }
 
 type roomProjectionFanoutCandidate struct {

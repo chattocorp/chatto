@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/encoding/protowire"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -709,6 +710,34 @@ func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) 
 	}
 	if realtimeReplayRequiresReset("evt.room.R1.message_posted") {
 		t.Fatal("room message unexpectedly requires reset")
+	}
+}
+
+func TestPlanRealtimeReplayResetsForUnknownFutureEvent(t *testing.T) {
+	chatto, nc := setupTestCore(t)
+	ctx := testContext(t)
+	const userID = "future-event-viewer"
+
+	before, err := chatto.PlanRealtimeReplay(ctx, userID, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("create JetStream client: %v", err)
+	}
+	data := protowire.AppendTag(nil, 19_999, protowire.BytesType)
+	data = protowire.AppendBytes(data, nil)
+	if _, err := js.Publish(ctx, "evt.room.room-1.future_room_fact", data); err != nil {
+		t.Fatalf("publish future EVT event: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, userID, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay after future event: %v", err)
+	}
+	if !plan.Reset || !plan.HadSequenceGap || len(plan.Events) != 0 {
+		t.Fatalf("future event replay = %+v, want exact snapshot fallback", plan)
 	}
 }
 

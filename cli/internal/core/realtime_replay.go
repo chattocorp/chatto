@@ -204,6 +204,15 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
 		}
+		if evtstream.EventTypeOf(&event) != liveEventType(msg.Subject) {
+			// Protobuf preserves an unknown future oneof field as unknown bytes,
+			// which leaves Event unset on this older server. The subject can also
+			// disagree with a known payload after damaged or invalid publication.
+			// In both cases only a current exact snapshot is safe.
+			plan.Reset = true
+			plan.Events = nil
+			return plan, nil
+		}
 		if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 			// Key shredding can tombstone messages across many retained rooms.
 			// A reset purges every cached plaintext row in one ordered operation.

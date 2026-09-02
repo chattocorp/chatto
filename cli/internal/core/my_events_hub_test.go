@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -29,6 +31,64 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	}
 	if got := model.hub.prefiltered.Load(); got != 1 {
 		t.Fatalf("prefiltered events = %d, want 1", got)
+	}
+}
+
+func TestMyEventsHubResetsForUnknownFutureRoomEvent(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	data := protowire.AppendTag(nil, 19_999, protowire.BytesType)
+	data = protowire.AppendBytes(data, nil)
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateRoom + ".room-1.future_room_fact",
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("unknown future room event did not require a snapshot")
+	}
+	if got := hub.decoded.Load(); got != 1 {
+		t.Fatalf("decoded events = %d, want unknown event classification after decode", got)
+	}
+}
+
+func TestMyEventsHubDiscardsKnownPrivateUserEventAfterValidation(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	event := &evtv1.Event{
+		Event: &evtv1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal private user event: %v", err)
+	}
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateUser + ".user-1." + evtstream.EventUserPasswordHashChanged,
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); discontinuity {
+		t.Fatal("known private user event caused a delivery discontinuity")
+	}
+	if got := hub.decoded.Load(); got != 1 {
+		t.Fatalf("decoded events = %d, want one validated private event", got)
+	}
+}
+
+func TestMyEventsHubResetsForUnknownAggregateNamespace(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	msg := &nats.Msg{Subject: evtstream.LiveSubjectRoot + "future.resource-1.changed"}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("unknown aggregate namespace did not require a snapshot")
+	}
+	if got := hub.decoded.Load(); got != 0 {
+		t.Fatalf("decoded events = %d, want namespace classification before decode", got)
 	}
 }
 
