@@ -857,6 +857,10 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				"duration", time.Since(startedAt),
 				"error", resultErr,
 			)
+			if errors.Is(resultErr, context.Canceled) {
+				p.logger.Debug("Room timeline bucket reconstruction canceled", fields...)
+				return
+			}
 			p.logger.Error("Room timeline bucket reconstruction failed", fields...)
 		}()
 		select {

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -1309,6 +1310,34 @@ func TestRoomTimeline_LogsBucketReconstructionEvictionAndFailure(t *testing.T) {
 	}
 	if got, ok := timelineLogField(failed, "error"); !ok || got == nil {
 		t.Errorf("reconstruction failure error = %v, present = %v", got, ok)
+	}
+
+	canceledLogger := &recordingTimelineLogger{}
+	canceledSource := &blockingTimelineEventSource{
+		records: source,
+		started: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	canceledProjection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: canceledSource, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now }, Logger: canceledLogger,
+	})
+	if err := canceledProjection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := canceledProjection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	canceledContext, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, _, err := canceledProjection.LatestBodyContext(canceledContext, "MESSAGE"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled reconstruction error = %v, want context canceled", err)
+	}
+	if _, ok := canceledLogger.find("debug", "Room timeline bucket reconstruction canceled"); !ok {
+		t.Fatal("canceled reconstruction was not logged at debug level")
+	}
+	if _, ok := canceledLogger.find("error", "Room timeline bucket reconstruction failed"); ok {
+		t.Fatal("canceled reconstruction was logged at error level")
 	}
 }
 
