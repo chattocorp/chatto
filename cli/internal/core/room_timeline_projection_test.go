@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"sync"
 	"testing"
@@ -1079,6 +1080,60 @@ func (s timelineTestEventSource) EventAt(_ context.Context, sequence uint64) (*e
 	return s[sequence], nil
 }
 
+type timelineLogEntry struct {
+	level   string
+	message string
+	fields  []interface{}
+}
+
+type recordingTimelineLogger struct {
+	mu      sync.Mutex
+	entries []timelineLogEntry
+}
+
+func (l *recordingTimelineLogger) record(level string, message interface{}, fields ...interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.entries = append(l.entries, timelineLogEntry{level: level, message: fmt.Sprint(message), fields: fields})
+}
+
+func (l *recordingTimelineLogger) Debug(message interface{}, fields ...interface{}) {
+	l.record("debug", message, fields...)
+}
+
+func (l *recordingTimelineLogger) Info(message interface{}, fields ...interface{}) {
+	l.record("info", message, fields...)
+}
+
+func (l *recordingTimelineLogger) Warn(message interface{}, fields ...interface{}) {
+	l.record("warn", message, fields...)
+}
+
+func (l *recordingTimelineLogger) Error(message interface{}, fields ...interface{}) {
+	l.record("error", message, fields...)
+}
+
+func (l *recordingTimelineLogger) find(level, message string) (timelineLogEntry, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for i := len(l.entries) - 1; i >= 0; i-- {
+		entry := l.entries[i]
+		if entry.level == level && entry.message == message {
+			return entry, true
+		}
+	}
+	return timelineLogEntry{}, false
+}
+
+func timelineLogField(entry timelineLogEntry, key string) (interface{}, bool) {
+	for i := 0; i+1 < len(entry.fields); i += 2 {
+		if entry.fields[i] == key {
+			return entry.fields[i+1], true
+		}
+	}
+	return nil, false
+}
+
 type blockingTimelineEventSource struct {
 	mu      sync.Mutex
 	records timelineTestEventSource
@@ -1175,6 +1230,85 @@ func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	mismatch := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{EventSource: source, Interval: 24 * time.Hour})
 	if err := mismatch.Restore(payload); err == nil {
 		t.Fatal("snapshot with a different bucket interval restored successfully")
+	}
+}
+
+func TestRoomTimeline_LogsBucketReconstructionEvictionAndFailure(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+	}
+	logger := &recordingTimelineLogger{}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now }, Logger: logger,
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE"); err != nil {
+		t.Fatal(err)
+	}
+
+	started, ok := logger.find("debug", "Room timeline bucket reconstruction started")
+	if !ok {
+		t.Fatal("bucket reconstruction start was not logged at debug level")
+	}
+	if got, _ := timelineLogField(started, "sequence_count"); got != 2 {
+		t.Errorf("reconstruction start sequence_count = %v, want 2", got)
+	}
+	completed, ok := logger.find("debug", "Room timeline bucket reconstructed")
+	if !ok {
+		t.Fatal("bucket reconstruction completion was not logged at debug level")
+	}
+	for key, want := range map[string]interface{}{
+		"room_id": "R1", "sequence_count": 2, "event_count": 2, "message_count": 1,
+		"pinned": false,
+	} {
+		if got, _ := timelineLogField(completed, key); got != want {
+			t.Errorf("reconstruction %s = %v, want %v", key, got, want)
+		}
+	}
+	if got, _ := timelineLogField(completed, "bucket_start"); got != time.Date(2025, 1, 6, 0, 0, 0, 0, time.UTC) {
+		t.Errorf("reconstruction bucket_start = %v", got)
+	}
+	if got, ok := timelineLogField(completed, "duration"); !ok {
+		t.Error("reconstruction duration was not logged")
+	} else if _, ok := got.(time.Duration); !ok {
+		t.Errorf("reconstruction duration type = %T, want time.Duration", got)
+	}
+
+	projection.evictIdleBuckets(now.Add(2 * time.Minute))
+	evicted, ok := logger.find("debug", "Room timeline bucket evicted")
+	if !ok {
+		t.Fatal("bucket eviction was not logged at debug level")
+	}
+	for key, want := range map[string]interface{}{
+		"room_id": "R1", "event_count": 2, "message_count": 1,
+		"idle_for": 2 * time.Minute, "materialized_buckets_remaining": 0,
+	} {
+		if got, _ := timelineLogField(evicted, key); got != want {
+			t.Errorf("eviction %s = %v, want %v", key, got, want)
+		}
+	}
+
+	delete(source, 1)
+	if _, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE"); err == nil {
+		t.Fatal("incomplete reconstruction succeeded")
+	}
+	failed, ok := logger.find("error", "Room timeline bucket reconstruction failed")
+	if !ok {
+		t.Fatal("bucket reconstruction failure was not logged at error level")
+	}
+	if got, ok := timelineLogField(failed, "error"); !ok || got == nil {
+		t.Errorf("reconstruction failure error = %v, present = %v", got, ok)
 	}
 }
 

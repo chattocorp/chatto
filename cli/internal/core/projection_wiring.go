@@ -177,6 +177,7 @@ func initializeCoreProjections(
 		Interval:     cfg.TimelineBucketIntervalOrDefault(),
 		PinnedPeriod: cfg.TimelineBucketPinnedPeriodOrDefault(),
 		IdleTimeout:  cfg.TimelineBucketIdleTimeoutOrDefault(),
+		Logger:       logger.WithPrefix("core.RoomTimelineBuckets"),
 	})
 	callState := NewCallStateProjection()
 	assets := NewAssetProjection()

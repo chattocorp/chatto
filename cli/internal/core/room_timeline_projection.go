@@ -71,6 +71,7 @@ type RoomTimelineProjection struct {
 	pinnedPeriod         time.Duration
 	idleTimeout          time.Duration
 	now                  func() time.Time
+	logger               events.Logger
 	eventSource          timelineEventSource
 	buckets              map[timelineBucketKey]*timelineBucketState
 	messageBuckets       map[string]timelineBucketKey
@@ -93,6 +94,9 @@ type RoomTimelineProjectionOptions struct {
 	PinnedPeriod time.Duration
 	IdleTimeout  time.Duration
 	Now          func() time.Time
+	// Logger receives cache reconstruction, failure, and eviction diagnostics.
+	// A nil logger disables these diagnostics.
+	Logger events.Logger
 }
 
 type timelineBucketKey struct {
@@ -230,6 +234,7 @@ func NewRoomTimelineProjectionWithOptions(options RoomTimelineProjectionOptions)
 		pinnedPeriod:               options.PinnedPeriod,
 		idleTimeout:                options.IdleTimeout,
 		now:                        options.Now,
+		logger:                     options.Logger,
 		eventSource:                options.EventSource,
 		buckets:                    make(map[timelineBucketKey]*timelineBucketState),
 		messageBuckets:             make(map[string]timelineBucketKey),
@@ -238,6 +243,21 @@ func NewRoomTimelineProjectionWithOptions(options RoomTimelineProjectionOptions)
 		cache:                      make(map[timelineBucketKey]*timelineBucketCache),
 		loadSemaphore:              make(chan struct{}, 4),
 	}
+}
+
+func (p *RoomTimelineProjection) bucketLogFields(key timelineBucketKey) []interface{} {
+	fields := []interface{}{
+		"room_id", key.roomID,
+		"bucket_undated", key.undated,
+	}
+	if !key.undated {
+		start := time.Unix(0, key.startUnixNs).UTC()
+		fields = append(fields,
+			"bucket_start", start,
+			"bucket_end", start.Add(p.bucketInterval),
+		)
+	}
+	return fields
 }
 
 // Subjects implements evtstream.Projection. The projection owns the
@@ -820,7 +840,25 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 		return fmt.Errorf("room timeline bucket %q has no EVT source", key.roomID)
 	}
 	loadKey := fmt.Sprintf("%s/%d/%t", key.roomID, key.startUnixNs, key.undated)
-	_, err, _ := p.loads.Do(loadKey, func() (any, error) {
+	_, err, _ := p.loads.Do(loadKey, func() (_ any, resultErr error) {
+		startedAt := time.Now()
+		attempts := 0
+		sequenceCount := 0
+		var revision uint64
+		defer func() {
+			if resultErr == nil || p.logger == nil {
+				return
+			}
+			fields := p.bucketLogFields(key)
+			fields = append(fields,
+				"revision", revision,
+				"sequence_count", sequenceCount,
+				"attempts", attempts,
+				"duration", time.Since(startedAt),
+				"error", resultErr,
+			)
+			p.logger.Error("Room timeline bucket reconstruction failed", fields...)
+		}()
 		select {
 		case p.loadSemaphore <- struct{}{}:
 			defer func() { <-p.loadSemaphore }()
@@ -830,6 +868,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 		loadCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		for attempt := 0; attempt < 3; attempt++ {
+			attempts = attempt + 1
 			p.RLock()
 			bucket := p.buckets[key]
 			if bucket == nil {
@@ -845,9 +884,19 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				p.Unlock()
 				return nil, nil
 			}
-			revision := bucket.revision
+			revision = bucket.revision
 			sequences := append([]uint64(nil), bucket.sequences...)
+			sequenceCount = len(sequences)
 			p.RUnlock()
+			if p.logger != nil {
+				fields := p.bucketLogFields(key)
+				fields = append(fields,
+					"revision", revision,
+					"sequence_count", sequenceCount,
+					"attempt", attempts,
+				)
+				p.logger.Debug("Room timeline bucket reconstruction started", fields...)
+			}
 
 			eventsBySequence := make(map[uint64]*evtv1.Event, len(sequences))
 			for _, sequence := range sequences {
@@ -896,9 +945,10 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 					return nil, fmt.Errorf("room timeline bucket is missing current body sequence %d for message %q", state.currentSequence, messageID)
 				}
 			}
+			pinned := p.bucketPinnedLocked(key, p.now())
 			p.cache[key] = &timelineBucketCache{
 				events: eventsBySequence, revision: revision, lastAccess: p.now(),
-				pinned: p.bucketPinnedLocked(key, p.now()),
+				pinned: pinned,
 			}
 			for messageID := range p.bucketMessages[key] {
 				state := p.bodyStates[messageID]
@@ -920,7 +970,21 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 					p.bodyStates[messageID] = state
 				}
 			}
+			messageCount := len(p.bucketMessages[key])
 			p.Unlock()
+			if p.logger != nil {
+				fields := p.bucketLogFields(key)
+				fields = append(fields,
+					"revision", revision,
+					"sequence_count", sequenceCount,
+					"event_count", len(eventsBySequence),
+					"message_count", messageCount,
+					"attempts", attempts,
+					"pinned", pinned,
+					"duration", time.Since(startedAt),
+				)
+				p.logger.Debug("Room timeline bucket reconstructed", fields...)
+			}
 			return nil, nil
 		}
 		return nil, fmt.Errorf("room timeline bucket changed during reconstruction")
@@ -990,8 +1054,15 @@ func (p *RoomTimelineProjection) RunBucketCache(ctx context.Context) error {
 }
 
 func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
+	type eviction struct {
+		key          timelineBucketKey
+		revision     uint64
+		eventCount   int
+		messageCount int
+		idleFor      time.Duration
+	}
+	var evictions []eviction
 	p.Lock()
-	defer p.Unlock()
 	for key, cached := range p.cache {
 		if p.bucketPinnedLocked(key, now) {
 			cached.pinned = true
@@ -1005,12 +1076,35 @@ func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 		if now.Sub(cached.lastAccess) < p.idleTimeout {
 			continue
 		}
+		evictions = append(evictions, eviction{
+			key:          key,
+			revision:     cached.revision,
+			eventCount:   len(cached.events),
+			messageCount: len(p.bucketMessages[key]),
+			idleFor:      now.Sub(cached.lastAccess),
+		})
 		delete(p.cache, key)
 		for messageID := range p.bucketMessages[key] {
 			state := p.bodyStates[messageID]
 			state.body = nil
 			p.bodyStates[messageID] = state
 		}
+	}
+	remainingBuckets := len(p.cache)
+	p.Unlock()
+	if p.logger == nil {
+		return
+	}
+	for _, evicted := range evictions {
+		fields := p.bucketLogFields(evicted.key)
+		fields = append(fields,
+			"revision", evicted.revision,
+			"event_count", evicted.eventCount,
+			"message_count", evicted.messageCount,
+			"idle_for", evicted.idleFor,
+			"materialized_buckets_remaining", remainingBuckets,
+		)
+		p.logger.Debug("Room timeline bucket evicted", fields...)
 	}
 }
 

@@ -66,7 +66,10 @@ readiness. Other buckets load from EVT when a read needs their encrypted body
 data. A process-local cache evicts an unpinned bucket after the configured idle
 timeout, which is 15 minutes by default. Concurrent reads share one bucket
 load. A revision check prevents a loader from installing state over a newer
-projection apply.
+projection apply. Chatto writes debug logs when reconstruction starts, when it
+completes, and when idle eviction removes a bucket. These logs contain the
+opaque room ID, UTC bucket boundaries, item counts, and durations. Chatto
+writes reconstruction failures at the error level without message content.
 
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run

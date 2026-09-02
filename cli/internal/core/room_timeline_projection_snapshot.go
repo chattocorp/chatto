@@ -128,7 +128,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 	restored := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
 		EventSource: p.eventSource, Interval: p.bucketInterval, PinnedPeriod: p.pinnedPeriod,
-		IdleTimeout: p.idleTimeout, Now: p.now,
+		IdleTimeout: p.idleTimeout, Now: p.now, Logger: p.logger,
 	})
 	restored.replayGuard = guard
 	var lastEntrySequence uint64
