@@ -1193,6 +1193,7 @@ func (x *Event) GetRbacRolePingableChanged() *RbacRolePingableChangedEvent {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in chatto/core/evt/v1/event.proto.
 func (x *Event) GetAuthorizationFenceAdvanced() *AuthorizationFenceAdvancedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_AuthorizationFenceAdvanced); ok {
@@ -1916,7 +1917,9 @@ type Event_RbacRolePingableChanged struct {
 }
 
 type Event_AuthorizationFenceAdvanced struct {
-	// ----- Authorization concurrency fence (830-839, durable) -----
+	// ----- Legacy authorization concurrency fence (830-839, durable) -----
+	//
+	// Deprecated: Marked as deprecated in chatto/core/evt/v1/event.proto.
 	AuthorizationFenceAdvanced *AuthorizationFenceAdvancedEvent `protobuf:"bytes,830,opt,name=authorization_fence_advanced,json=authorizationFenceAdvanced,proto3,oneof"`
 }
 
@@ -2312,7 +2315,7 @@ var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\"\xbar\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\"\xber\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2421,8 +2424,8 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\x17rbac_permission_granted\x18\xaa\x06 \x01(\v2..chatto.core.evt.v1.RbacPermissionGrantedEventH\x00R\x15rbacPermissionGranted\x12f\n" +
 	"\x16rbac_permission_denied\x18\xab\x06 \x01(\v2-.chatto.core.evt.v1.RbacPermissionDeniedEventH\x00R\x14rbacPermissionDenied\x12i\n" +
 	"\x17rbac_permission_cleared\x18\xac\x06 \x01(\v2..chatto.core.evt.v1.RbacPermissionClearedEventH\x00R\x15rbacPermissionCleared\x12p\n" +
-	"\x1arbac_role_pingable_changed\x18\xad\x06 \x01(\v20.chatto.core.evt.v1.RbacRolePingableChangedEventH\x00R\x17rbacRolePingableChanged\x12x\n" +
-	"\x1cauthorization_fence_advanced\x18\xbe\x06 \x01(\v23.chatto.core.evt.v1.AuthorizationFenceAdvancedEventH\x00R\x1aauthorizationFenceAdvanced\x12Z\n" +
+	"\x1arbac_role_pingable_changed\x18\xad\x06 \x01(\v20.chatto.core.evt.v1.RbacRolePingableChangedEventH\x00R\x17rbacRolePingableChanged\x12|\n" +
+	"\x1cauthorization_fence_advanced\x18\xbe\x06 \x01(\v23.chatto.core.evt.v1.AuthorizationFenceAdvancedEventB\x02\x18\x01H\x00R\x1aauthorizationFenceAdvanced\x12Z\n" +
 	"\x12room_member_banned\x18\xc8\x06 \x01(\v2).chatto.core.evt.v1.RoomMemberBannedEventH\x00R\x10roomMemberBanned\x12`\n" +
 	"\x14room_member_unbanned\x18\xc9\x06 \x01(\v2+.chatto.core.evt.v1.RoomMemberUnbannedEventH\x00R\x12roomMemberUnbanned\x12W\n" +
 	"\x11room_member_added\x18\xca\x06 \x01(\v2(.chatto.core.evt.v1.RoomMemberAddedEventH\x00R\x0froomMemberAdded\x12]\n" +

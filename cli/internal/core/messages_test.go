@@ -147,7 +147,7 @@ func TestExplicitThreadCreationRechecksAuthorizationAfterConcurrentRevocation(t 
 		withPostMessageCommitAuthorization(func(ctx context.Context, _ string) error { return authorize(ctx) }),
 	)
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.GreaterOrEqual(t, authorizationChecks, 2, "authorization must be rerun after the fence conflict")
+	require.GreaterOrEqual(t, authorizationChecks, 2, "authorization must be rerun after its inputs change")
 
 	agg := evtstream.RoomAggregate(room.Id)
 	posted, _, err := chatto.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessagePosted))
@@ -894,67 +894,6 @@ func TestChattoCore_PostMessage_ConcurrentOCC(t *testing.T) {
 	}
 }
 
-func TestMessageModel_PostMessageDoesNotAdvanceAuthorizationFence(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, SystemActorID, "post-fence-user", "Post Fence User", "password123")
-	require.NoError(t, err)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "post-fence-room", "")
-	require.NoError(t, err)
-	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
-	require.NoError(t, err)
-
-	before, err := core.authorizationFenceSeq(ctx)
-	require.NoError(t, err)
-	_, err = core.Messages().PostMessage(ctx, MessagePostInput{
-		ActorID: user.Id,
-		RoomID:  room.Id,
-		Body:    "authorized without advancing the fence",
-	})
-	require.NoError(t, err)
-	after, err := core.authorizationFenceSeq(ctx)
-	require.NoError(t, err)
-	require.Equal(t, before, after, "ordinary message posts must only check the authorization fence")
-}
-
-func TestMessageMutationsDoNotAdvanceAuthorizationFence(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	user, err := core.CreateUser(ctx, SystemActorID, "mutation-fence-user", "Mutation Fence User", "password123")
-	require.NoError(t, err)
-	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "mutation-fence-room", "")
-	require.NoError(t, err)
-	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
-	require.NoError(t, err)
-	message, err := core.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "before edit"})
-	require.NoError(t, err)
-
-	before, err := core.authorizationFenceSeq(ctx)
-	require.NoError(t, err)
-	updatedBody := "after edit"
-	_, _, err = core.Messages().UpdateMessage(ctx, MessageUpdateInput{
-		ActorID: user.Id,
-		RoomID:  room.Id,
-		EventID: message.Event.Id,
-		Body:    &updatedBody,
-	})
-	require.NoError(t, err)
-	afterEdit, err := core.authorizationFenceSeq(ctx)
-	require.NoError(t, err)
-	require.Equal(t, before, afterEdit, "ordinary message edits must not use the authorization fence")
-
-	require.NoError(t, core.Messages().DeleteMessage(ctx, MessageDeleteInput{
-		ActorID: user.Id,
-		RoomID:  room.Id,
-		EventID: message.Event.Id,
-	}))
-	afterDelete, err := core.authorizationFenceSeq(ctx)
-	require.NoError(t, err)
-	require.Equal(t, before, afterDelete, "ordinary message deletes must not use the authorization fence")
-}
-
 func TestEditMessageReauthorizesAfterMemberRemoval(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -1119,7 +1058,7 @@ func TestEditMessageReauthorizesAfterRoomConflictFollowingManageRevocation(t *te
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
-func TestDeleteMessageAllowsInFlightManageRevocation(t *testing.T) {
+func TestDeleteMessageRejectsManageRevocationDuringAuthorization(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := core.CreateUser(ctx, SystemActorID, "delete-manage-author", "Delete Manage Author", "password123")
@@ -1146,11 +1085,11 @@ func TestDeleteMessageAllowsInFlightManageRevocation(t *testing.T) {
 			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermMessageManage)
 		}),
 	)
-	require.NoError(t, err)
+	require.ErrorIs(t, err, ErrPermissionDenied)
 	require.Equal(t, 1, checks)
 	retractions, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageRetracted))
 	require.NoError(t, err)
-	require.Len(t, retractions, 1)
+	require.Empty(t, retractions)
 }
 
 func TestDeleteMessageReauthorizesAfterMemberRemoval(t *testing.T) {
@@ -1551,7 +1490,7 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRBACChange(t *test
 		withPostMessageCommitAuthorization(authorize),
 	)
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.Equal(t, 2, attempts, "authorization should rerun after the RBAC OCC conflict")
+	require.Equal(t, 2, attempts, "authorization should rerun after the RBAC inputs change")
 
 	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
 	require.NoError(t, err)
@@ -1613,7 +1552,7 @@ func TestChattoCore_PostMessageCommitAuthorizationRetriesAfterRoomGroupChange(t 
 		withPostMessageCommitAuthorization(authorize),
 	)
 	require.ErrorIs(t, err, ErrPermissionDenied)
-	require.Equal(t, 2, attempts, "authorization should rerun after the authorization-fence conflict")
+	require.Equal(t, 2, attempts, "authorization should rerun after its inputs change")
 
 	posted, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
 	require.NoError(t, err)

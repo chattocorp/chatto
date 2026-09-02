@@ -196,48 +196,6 @@ func TestScopedNotificationPolicyUpdateRequiresCurrentScopeAccess(t *testing.T) 
 	}
 }
 
-func TestScopedNotificationPolicyUpdatesDoNotAdvanceAuthorizationFence(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-no-fence-user", "Policy No Fence User", "password")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Policy No Fence Group", "")
-	if err != nil {
-		t.Fatalf("CreateRoomGroup: %v", err)
-	}
-	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "policy-no-fence-room", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-
-	before, err := chattoCore.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence before policy updates: %v", err)
-	}
-	patch := &evtv1.NotificationDeliveryModes{Reactions: evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
-	mask := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
-	for _, scope := range []NotificationPolicyScope{
-		{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
-		{Kind: NotificationPolicyScopeRoom, ID: room.Id},
-	} {
-		if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id, scope, patch, mask); err != nil {
-			t.Fatalf("UpdateScopedNotificationPolicy(%+v): %v", scope, err)
-		}
-	}
-	after, err := chattoCore.authorizationFenceSeq(ctx)
-	if err != nil {
-		t.Fatalf("authorization fence after policy updates: %v", err)
-	}
-	if after != before {
-		t.Fatalf("scoped notification policy updates advanced authorization fence: before=%d after=%d", before, after)
-	}
-}
-
 func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

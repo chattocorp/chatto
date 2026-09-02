@@ -218,8 +218,8 @@ message Event {
     RbacPermissionClearedEvent rbac_permission_cleared = 812;
     RbacRolePingableChangedEvent rbac_role_pingable_changed = 813;
 
-    // ----- Authorization concurrency fence (830-839, durable) -----
-    AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830;
+    // ----- Legacy authorization concurrency fence (830-839, durable) -----
+    AuthorizationFenceAdvancedEvent authorization_fence_advanced = 830 [deprecated = true];
 
     // ----- Moderation (840-899, durable, room-owned) -----
     RoomMemberBannedEvent room_member_banned = 840;

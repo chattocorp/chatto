@@ -2673,6 +2673,37 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 	}
 }
 
+func TestHistoricalAuthorizationFenceEventRemainsReadable(t *testing.T) {
+	js, stream := setupTestStream(t)
+	publisher := NewPublisher(js, stream, testLogger())
+	ctx := testContext(t)
+	event := &evtv1.Event{
+		Id:        "historical-authorization-fence",
+		ActorId:   "system",
+		CreatedAt: timestamppb.Now(),
+		Event: &evtv1.Event_AuthorizationFenceAdvanced{
+			AuthorizationFenceAdvanced: &evtv1.AuthorizationFenceAdvancedEvent{},
+		},
+	}
+	if got := EventTypeOf(event); got != EventAuthorizationFenceAdvanced {
+		t.Fatalf("EventTypeOf = %q, want %q", got, EventAuthorizationFenceAdvanced)
+	}
+	subject := AuthorizationAggregate().SubjectFor(event)
+	if subject != "evt.authorization.server.fence_advanced" {
+		t.Fatalf("historical authorization fence subject = %q", subject)
+	}
+	if _, err := publisher.Append(ctx, subject, event); err != nil {
+		t.Fatalf("append historical authorization fence: %v", err)
+	}
+	stored, _, err := publisher.SubjectEvents(ctx, subject)
+	if err != nil {
+		t.Fatalf("read historical authorization fence: %v", err)
+	}
+	if len(stored) != 1 || stored[0].GetAuthorizationFenceAdvanced() == nil {
+		t.Fatalf("stored historical authorization fence = %+v", stored)
+	}
+}
+
 func TestEventTypeOf_AssetAttached(t *testing.T) {
 	event := &evtv1.Event{Event: &evtv1.Event_AssetAttached{
 		AssetAttached: &evtv1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},

@@ -2,7 +2,12 @@
 
 **Date:** 2026-08-10
 
-**Status:** Accepted
+**Status:** Partially superseded
+
+> **Partially superseded by [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md).**
+> Explicit aggregate and whole-stream boundaries remain current. ADR-087
+> replaces the narrow authorization fence and strict message-edit rule with
+> stable request-time authorization.
 
 ## Context
 

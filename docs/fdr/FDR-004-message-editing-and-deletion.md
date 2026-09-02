@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -31,9 +31,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
   occurrences targeting the canonical thread reply.
 - A racing deletion always wins over an edit; a deleted message cannot be made visible again by a late edit retry.
 - An edit retried after another message mutation keeps the latest attachments and preview metadata instead of restoring an older body snapshot.
-- Every authorized edit, attachment removal, and preview removal rechecks mutable authority inside a room-OCC attempt and atomically guards the narrow authorization fence. A concurrent room or classified authorization change forces a retry before commit. Deletions still recheck mutable authority on each room-OCC attempt and retain request-time semantics for a cross-aggregate revocation.
+- Every authorized edit, attachment removal, preview removal, and deletion rechecks mutable authority inside a room-OCC attempt. The authorization read repeats when RBAC, room-group, or user inputs change during the decision. A concurrent room change forces the complete command attempt to retry. A cross-aggregate authorization change after the stable decision can overlap the command.
 - Editing or deleting a thread reply that was echoed to the channel propagates to both visible artifacts automatically through the echo's `echoOfEventId` link.
-- Creating or removing a channel echo through an edit commits atomically with the parent edit. Echo creation also rechecks `message.echo`, `message.post`, and the room's Threading Mode on each room-and-authorization-fence attempt. Disabled rooms reject new echoes while still allowing an existing historical echo to be removed.
+- Creating or removing a channel echo through an edit commits atomically with the parent edit. Echo creation also rechecks `message.echo`, `message.post`, and the room's Threading Mode on each room-OCC attempt. Disabled rooms reject new echoes while still allowing an existing historical echo to be removed.
 - Deleting the echo artifact itself hides only the room-timeline echo. The original thread reply remains readable inside the thread.
 - Individual attachments and link previews can be removed from a message by the author without deleting the whole message.
 - ConnectRPC `MessageService.UpdateMessage`, `DeleteMessage`, `DeleteAttachment`, and `DeleteLinkPreview` expose message-management behavior through the shared core `MessageModel`.
@@ -54,9 +54,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 3. Optimistic concurrency for edits
 
-**Decision:** Authorized edits use two OCC guards in one atomic JetStream batch: the replacement body is guarded by the room aggregate tail, and the semantic edit event is guarded by the narrow authorization-fence tail. Every attempt captures the authorization fence before the room tail, waits for current room, group, RBAC, actor, and message state, then rechecks room archive state, membership, current message identity and authorship, the exact author edit-window boundary, and applicable permissions. It rebuilds from the latest committed body and atomically commits the body, semantic edit, and any edit-driven echo change. A change to either boundary retries the complete decision. Internal linked-message propagation and deletions remain room-scoped. Message edits check but do not advance the authorization fence.
-**Why:** Reusing a body prepared before a room OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit facts independently could let a late body resurrect a deleted message. The room guard closes those lifecycle races. The authorization guard closes the cross-aggregate revocation race without making unrelated EVT traffic contend. Atomic echo reconciliation prevents partial success. See ADR-016, ADR-033, ADR-034, ADR-040, and ADR-068.
-**Tradeoff:** Strict edit authorization depends on every authorization-changing writer advancing the fence. Deletions deliberately retain request-time authorization semantics and can overlap a cross-aggregate role or permission revocation until the serving replica projects it. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
+**Decision:** Authorized edits use the room aggregate tail as their OCC boundary. Every attempt waits for current room and message state, validates stable room-group, RBAC, and user authorization inputs, and rechecks room archive state, membership, current message identity and authorship, the exact author edit-window boundary, and applicable permissions. It rebuilds from the latest committed body and atomically commits the body, semantic edit, and any edit-driven echo change. A room conflict retries the complete decision. Internal linked-message propagation and deletions remain room-scoped.
+**Why:** Reusing a body prepared before a room OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit facts independently could let a late body resurrect a deleted message. The room guard closes those lifecycle races. Stable request-time authorization gives one clear decision point without a synthetic domain event. Atomic echo reconciliation prevents partial success. See ADR-016, ADR-033, ADR-034, ADR-040, ADR-068, and ADR-087.
+**Tradeoff:** A cross-aggregate revocation after the final authorization validation can overlap a successful edit. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
 
 ### 4. Edits don't re-resolve mentions
 
@@ -101,5 +101,5 @@ message's thread summary contains a reply.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)

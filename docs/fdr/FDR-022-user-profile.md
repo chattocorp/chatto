@@ -107,8 +107,8 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 14. Avatar mutations use one target-aware user API
 
-**Decision:** `UserService.UploadAvatar` and `UserService.DeleteAvatar` each take a target user ID. The core checks the caller, the target account kind, bot ownership, and current permissions at the domain boundary. The durable fact records the authenticated caller as its actor. The write uses optimistic concurrency control for the target user aggregate and the authorization fence. The response waits for the user projection and then publishes the existing profile-update snapshot. Delete is idempotent.
-**Why:** One command path gives human and bot avatars the same validation, storage, projection, cleanup, and realtime behavior. The authorization fence prevents a concurrent permission, ownership, target deletion, or avatar change from using stale authority.
+**Decision:** `UserService.UploadAvatar` and `UserService.DeleteAvatar` each take a target user ID. The core checks the caller, the target account kind, bot ownership, and current permissions at the domain boundary. The durable fact records the authenticated caller as its actor. The write validates stable request-time authorization inputs and uses optimistic concurrency control for the target user aggregate. The response waits for the user projection and then publishes the existing profile-update snapshot. Delete is idempotent.
+**Why:** One command path gives human and bot avatars the same validation, storage, projection, cleanup, and realtime behavior. Stable authorization input validation prevents a torn permission or ownership decision. Target-user OCC protects account and avatar state.
 **Tradeoff:** This is an intentional pre-1.0 API break. Clients that used `MyAccountService.UploadAvatar` or `MyAccountService.DeleteAvatar` must move to `UserService` and send the authenticated user's ID when they manage their own avatar.
 
 ## Permissions
@@ -122,5 +122,5 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization), ADR-087 (request-time authorization with aggregate OCC)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts)

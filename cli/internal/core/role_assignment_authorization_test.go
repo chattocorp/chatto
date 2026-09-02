@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"hmans.de/chatto/internal/evtstream"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func TestDelegatedRoleAssignmentCannotGrantBroaderAuthority(t *testing.T) {
@@ -139,7 +139,7 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 	}
 }
 
-func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
+func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	assigner, err := core.CreateUser(ctx, SystemActorID, "chat-independent-assigner", "Chat Independent Assigner", "password123")
@@ -167,21 +167,37 @@ func TestRoleAssignmentFenceIgnoresUnrelatedChatTraffic(t *testing.T) {
 		}
 	}
 
-	before, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
-	if err != nil {
-		t.Fatalf("authorization fence before post: %v", err)
-	}
 	if _, err := core.PostMessage(ctx, KindChannel, room.GetId(), assigner.Id, "unrelated traffic", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	after, err := core.EventPublisher.LastSubjectSeq(ctx, evtstream.AuthorizationSubjectFilter())
-	if err != nil {
-		t.Fatalf("authorization fence after post: %v", err)
-	}
-	if after != before {
-		t.Fatalf("authorization fence advanced from %d to %d for unrelated chat traffic", before, after)
-	}
 	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, RoleModerator); err != nil {
 		t.Fatalf("AdminAssignServerRole after chat traffic: %v", err)
+	}
+}
+
+func TestRoleAssignmentRechecksTargetExistenceWithStableInputs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	target, err := core.CreateUser(ctx, SystemActorID, "deleted-role-target", "Deleted Role Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_RbacRoleAssigned{
+		RbacRoleAssigned: &evtv1.RbacRoleAssignedEvent{UserId: target.GetId(), RoleName: RoleModerator},
+	}})
+	authorizationChecks := 0
+
+	_, err = core.appendRoleAssignmentEvent(ctx, target.GetId(), true, event, func() error {
+		authorizationChecks++
+		if authorizationChecks == 1 {
+			return core.DeleteUser(ctx, SystemActorID, target.GetId())
+		}
+		return nil
+	})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("appendRoleAssignmentEvent error = %v, want ErrNotFound", err)
+	}
+	if core.rbacModel.hasRole(target.GetId(), RoleModerator) {
+		t.Fatal("role assignment was stored for a deleted target")
 	}
 }

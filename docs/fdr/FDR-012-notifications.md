@@ -176,10 +176,9 @@ inert. Group IDs are not reused, and deletion does not fan out cleanup writes
 to user configuration aggregates.
 
 Room-group and room policy writes validate scope access at request time and use
-OCC on the user's configuration aggregate. They do not advance the
-authorization fence. A concurrent membership loss, room deletion, or group
-deletion can leave a newly committed preference inert, but it cannot change
-another user's state or grant access to the deleted scope.
+OCC on the user's configuration aggregate. A concurrent membership loss, room
+deletion, or group deletion can leave a newly committed preference inert, but
+it cannot change another user's state or grant access to the deleted scope.
 
 ### 4. Materialization uses current policy and visibility
 
@@ -362,6 +361,6 @@ separate permission to manage another user's notification list.
 ## Related
 
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
-  ADR-077, ADR-080, ADR-082
+  ADR-077, ADR-080, ADR-082, ADR-087
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
   FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039, FDR-044

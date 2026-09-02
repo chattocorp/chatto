@@ -565,10 +565,6 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 	if err != nil {
 		return nil, err
 	}
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return nil, err
-	}
 	filter := evtstream.UserAggregate(botID).AllEventsFilter()
 	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 	if err != nil {
@@ -580,16 +576,12 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key creation"); err != nil {
 		return nil, err
 	}
-	rbacFilter := evtstream.RBACSubjectFilter()
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
-		return nil, err
-	}
-	user, err := c.requireBotManager(ctx, actorID, botID)
-	if err != nil {
+	var user *evtv1.User
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		var authorizeErr error
+		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
+		return authorizeErr
+	}); err != nil {
 		return nil, err
 	}
 	if len(c.userModel.botAPIKeyCredentials(botID)) >= maxBotAPIKeys {
@@ -601,9 +593,9 @@ func (c *ChattoCore) CreateBotAPIKey(ctx context.Context, actorID, botID, name s
 		},
 	}})
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
-	}}, authorizationSeq)
+	}})
 	if err != nil {
 		return nil, err
 	}
@@ -628,10 +620,6 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 	if !isCanonicalBotAPIKeyID(keyID) {
 		return nil, invalidArgument("invalid bot API key ID")
 	}
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return nil, err
-	}
 	filter := evtstream.UserAggregate(botID).AllEventsFilter()
 	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 	if err != nil {
@@ -643,16 +631,12 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key revocation"); err != nil {
 		return nil, err
 	}
-	rbacFilter := evtstream.RBACSubjectFilter()
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
-		return nil, err
-	}
-	user, err := c.requireBotManager(ctx, actorID, botID)
-	if err != nil {
+	var user *evtv1.User
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		var authorizeErr error
+		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
+		return authorizeErr
+	}); err != nil {
 		return nil, err
 	}
 	var selected BotAPIKeyCredential
@@ -686,9 +670,9 @@ func (c *ChattoCore) RevokeBotAPIKey(ctx context.Context, actorID, botID, keyID 
 		}})
 	}
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
-	}}, authorizationSeq)
+	}})
 	if err != nil {
 		return nil, err
 	}
@@ -740,10 +724,6 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 			return nil, err
 		}
 	}
-	authorizationSeq, err := c.authorizationFenceSeq(ctx)
-	if err != nil {
-		return nil, err
-	}
 	filter := evtstream.UserAggregate(botID).AllEventsFilter()
 	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
 	if err != nil {
@@ -755,16 +735,12 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot incoming webhook mutation"); err != nil {
 		return nil, err
 	}
-	rbacFilter := evtstream.RBACSubjectFilter()
-	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
-	if err != nil {
-		return nil, err
-	}
-	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
-		return nil, err
-	}
-	user, err := c.requireBotManager(ctx, actorID, botID)
-	if err != nil {
+	var user *evtv1.User
+	if err := c.authorizeAtStableInputs(ctx, func() error {
+		var authorizeErr error
+		user, authorizeErr = c.requireBotManager(ctx, actorID, botID)
+		return authorizeErr
+	}); err != nil {
 		return nil, err
 	}
 	webhooks := c.userModel.botIncomingWebhookCredentials(botID)
@@ -793,9 +769,9 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 		return nil, fmt.Errorf("%w: unsupported incoming webhook mutation", ErrInvalidArgument)
 	}
 	subject := evtstream.UserAggregate(botID).SubjectFor(event)
-	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+	seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
 		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
-	}}, authorizationSeq)
+	}})
 	if err != nil {
 		return nil, err
 	}
@@ -827,8 +803,9 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 }
 
 // ReassignBotOwner changes the human account responsible for a bot without
-// changing its configured permission allowlist or active API key. The command
-// is fenced against bot changes, authorization changes, and owner deletion.
+// changing its configured permission allowlist or active API key. User-family
+// OCC serializes bot changes with deletion of the previous or new owner.
+// Authorization uses a stable request-time read.
 func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, ownerUserID string) (*Bot, error) {
 	// Resolve once before building subject filters so malformed public IDs can
 	// never become NATS wildcards. Every decision is repeated inside the OCC
@@ -843,47 +820,40 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 		return nil, err
 	}
 
-	botFilter := evtstream.UserAggregate(botID).AllEventsFilter()
-	actorFilter := evtstream.UserAggregate(actorID).AllEventsFilter()
-	ownerFilter := evtstream.UserAggregate(ownerUserID).AllEventsFilter()
-	rbacFilter := evtstream.RBACSubjectFilter()
+	userFilter := evtstream.UserSubjectFilter()
 
 	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		userSeq, err := c.EventPublisher.LastSubjectSeq(ctx, userFilter)
 		if err != nil {
-			return nil, fmt.Errorf("read authorization fence seq: %w", err)
+			return nil, fmt.Errorf("read user-family OCC filter seq: %w", err)
 		}
-		botSeq, err := c.EventPublisher.LastSubjectSeq(ctx, botFilter)
-		if err != nil {
-			return nil, fmt.Errorf("read bot OCC filter seq: %w", err)
-		}
-		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner reassignment", actorFilter, botFilter, ownerFilter); err != nil {
-			return nil, err
-		}
-		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
-		if err != nil {
-			return nil, fmt.Errorf("read RBAC projection position: %w", err)
-		}
-		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
-			return nil, fmt.Errorf("wait for RBAC projection: %w", err)
+		if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(userFilter, userSeq)); err != nil {
+			return nil, fmt.Errorf("wait for user projection: %w", err)
 		}
 
-		if err := c.requireBotReassignmentManager(ctx, actorID); err != nil {
+		var bot *evtv1.User
+		if err := c.authorizeAtStableInputs(ctx, func() error {
+			if err := c.requireBotReassignmentManager(ctx, actorID); err != nil {
+				return err
+			}
+			var readErr error
+			bot, readErr = c.GetUser(ctx, botID)
+			if readErr != nil {
+				return readErr
+			}
+			if !bot.GetIsBot() {
+				return ErrNotFound
+			}
+			owner, readErr := c.GetUser(ctx, ownerUserID)
+			if readErr != nil {
+				return readErr
+			}
+			if owner.GetIsBot() {
+				return ErrHumanAccountRequired
+			}
+			return nil
+		}); err != nil {
 			return nil, err
-		}
-		bot, err := c.GetUser(ctx, botID)
-		if err != nil {
-			return nil, err
-		}
-		if !bot.GetIsBot() {
-			return nil, ErrNotFound
-		}
-		owner, err := c.GetUser(ctx, ownerUserID)
-		if err != nil {
-			return nil, err
-		}
-		if owner.GetIsBot() {
-			return nil, ErrHumanAccountRequired
 		}
 		if bot.GetBotOwnerUserId() == ownerUserID {
 			return c.botFromUser(bot)
@@ -897,9 +867,9 @@ func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, owner
 			},
 		}})
 		subject := evtstream.UserAggregate(botID).SubjectFor(event)
-		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: botSeq, FilterSubject: botFilter,
-		}}, authorizationSeq)
+		seqs, err := c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: userSeq, FilterSubject: userFilter,
+		}})
 		if err == nil {
 			position := events.SubjectPosition(subject, seqs[0])
 			if err := c.userModel.waitForUsers(ctx, position); err != nil {
@@ -963,9 +933,9 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 			if normalized.ID == "" {
 				return fmt.Errorf("%w: group scope requires an ID", ErrInvalidArgument)
 			}
-			// Capture and apply the shared group tail before trusting this
-			// replica's projection. A concurrent deletion after this point
-			// advances the authorization fence and conflicts the RBAC append.
+			// Capture and apply the group tail before trusting this replica's
+			// projection. The RBAC writer validates authorization inputs around
+			// this check before it appends the permission fact.
 			position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupAggregate(normalized.ID).AllEventsFilter())
 			if err != nil {
 				return fmt.Errorf("read room-group aggregate tail: %w", err)
