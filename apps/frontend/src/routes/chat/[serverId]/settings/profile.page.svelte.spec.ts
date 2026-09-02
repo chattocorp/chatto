@@ -20,9 +20,12 @@ const mocks = vi.hoisted(() => ({
       displayName: 'Alice',
       avatarUrl: null,
       viewerCanDeleteAccount: true,
-      lastLoginChange: null
+      lastLoginChange: null as string | null
     },
     loading: false
+  },
+  permissions: {
+    canAdminManageAccounts: false
   }
 }));
 
@@ -33,7 +36,8 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     getStore: () => ({
-      currentUser: mocks.currentUser
+      currentUser: mocks.currentUser,
+      permissions: mocks.permissions
     })
   }
 }));
@@ -83,6 +87,7 @@ describe('Profile settings page', () => {
       lastLoginChange: null
     };
     mocks.query.mockReset();
+    mocks.permissions.canAdminManageAccounts = false;
     mocks.mutation.mockReset();
     mocks.updateProfile.mockReset();
     mocks.updateProfile.mockImplementation((input) =>
@@ -157,6 +162,56 @@ describe('Profile settings page', () => {
 
     await expect.element(q(container, 'form')).toHaveTextContent('consecutive spaces');
     expect(mocks.updateProfile).not.toHaveBeenCalled();
+  });
+
+  it('keeps the username cooldown for a regular user', async () => {
+    mocks.currentUser.user.lastLoginChange = new Date().toISOString();
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
+    await expect.element(usernameInput).toBeDisabled();
+    await expect.element(q(container, 'form')).toHaveTextContent(
+      'You can change your username again in'
+    );
+  });
+
+  it('lets an account manager bypass their own username cooldown', async () => {
+    const lastLoginChange = new Date().toISOString();
+    mocks.currentUser.user.lastLoginChange = lastLoginChange;
+    mocks.permissions.canAdminManageAccounts = true;
+    const { container } = render(ProfilePage);
+    await settle();
+
+    const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
+    await expect.element(usernameInput).toBeEnabled();
+    expect(container.textContent).not.toContain('You can change your username again in');
+
+    setInputValue(usernameInput, 'alice2');
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain(
+        'Are you sure you want to change your username to @alice2?'
+      );
+    });
+    expect(container.textContent).not.toContain(
+      'You can only change your username once every 30 days.'
+    );
+
+    const confirmButton = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('dialog button')
+    ).find((button) => button.textContent?.includes('Change Username'));
+    expect(confirmButton).toBeDefined();
+    confirmButton?.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: undefined,
+        login: 'alice2'
+      });
+    });
+    expect(mocks.currentUser.user.lastLoginChange).toBe(lastLoginChange);
   });
 
   it('uploads an avatar through the account API', async () => {

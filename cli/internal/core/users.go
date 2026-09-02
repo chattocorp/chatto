@@ -1019,10 +1019,16 @@ func userLoginChangedAtKey(userID string) string {
 	return "user_login_changed_at." + userID
 }
 
-// UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
+// UpdateUserLogin changes a user's login/username. The 30-day cooldown applies
+// unless the user has user.manage-accounts. A bypassed change does not advance
+// the user's cooldown timestamp.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
-	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
+	bypassCooldown, err := c.CanManageUserAccounts(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("check user.manage-accounts: %w", err)
+	}
+	return c.applyLoginChange(ctx, userID, userID, newLogin, !bypassCooldown)
 }
 
 // AdminUpdateUserLogin changes a user's login/username, bypassing the cooldown

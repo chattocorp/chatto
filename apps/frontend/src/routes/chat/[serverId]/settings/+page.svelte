@@ -24,7 +24,8 @@
   // `loading` are `$state`), so subsequent profile updates flow through.
   // The connection getter resolves to the active server's API client,
   // so profile/avatar mutations land on the right backend.
-  const currentUser = serverRegistry.getStore(getActiveServer()).currentUser;
+  const serverStore = serverRegistry.getStore(getActiveServer());
+  const currentUser = serverStore.currentUser;
   const connection = useConnection();
 
   function accountAPI() {
@@ -76,7 +77,8 @@
   const isModified = $derived(displayNameModified || loginModified);
   // Cooldown
   const cooldownRemaining = $derived(getLoginChangeCooldownRemaining(lastLoginChange));
-  const canChangeLogin = $derived(cooldownRemaining === 0);
+  const canBypassLoginCooldown = $derived(serverStore.permissions.canAdminManageAccounts);
+  const canChangeLogin = $derived(canBypassLoginCooldown || cooldownRemaining === 0);
 
   function clearProfileMessages() {
     error = '';
@@ -224,7 +226,7 @@
 
       // Update the current user state
       if (currentUser.user) {
-        const lastLoginChange = normalizedLogin
+        const lastLoginChange = normalizedLogin && !canBypassLoginCooldown
           ? new Date().toISOString()
           : currentUser.user.lastLoginChange;
         currentUser.user = {
@@ -240,7 +242,7 @@
       login = updated.login;
 
       // Update cooldown if login was changed
-      if (normalizedLogin) {
+      if (normalizedLogin && !canBypassLoginCooldown) {
         localLastLoginChange = new Date();
       }
 
@@ -379,7 +381,9 @@
   <p class="mb-2">
     {m['settings.profile.username.confirm_prompt']({ login: pendingLogin ?? '' })}
   </p>
-  <p class="mb-4 text-muted">{m['settings.profile.username.confirm_cooldown']()}</p>
+  {#if !canBypassLoginCooldown}
+    <p class="mb-4 text-muted">{m['settings.profile.username.confirm_cooldown']()}</p>
+  {/if}
 
   <div class="flex items-center gap-3">
     <Button onclick={confirmLoginChange}>
