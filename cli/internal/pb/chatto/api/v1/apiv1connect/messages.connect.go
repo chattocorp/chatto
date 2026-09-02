@@ -78,9 +78,10 @@ type MessageServiceClient interface {
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
-	// window. Non-authors need message.manage and cannot change channel echo
-	// state. Disabled rooms reject creation of a new channel echo while allowing
-	// an existing echo to be removed. Room membership is also required.
+	// window. Effective message.manage permits edits at any time. Only the
+	// message author can change channel echo state. Disabled rooms reject
+	// creation of a new channel echo while allowing an existing echo to be
+	// removed. Room membership is also required.
 	// Channel-room edits require message.read or a matching thread relationship
 	// with message.read-interactions. DM membership authorizes the DM read.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
@@ -270,9 +271,10 @@ type MessageServiceHandler interface {
 	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
-	// window. Non-authors need message.manage and cannot change channel echo
-	// state. Disabled rooms reject creation of a new channel echo while allowing
-	// an existing echo to be removed. Room membership is also required.
+	// window. Effective message.manage permits edits at any time. Only the
+	// message author can change channel echo state. Disabled rooms reject
+	// creation of a new channel echo while allowing an existing echo to be
+	// removed. Room membership is also required.
 	// Channel-room edits require message.read or a matching thread relationship
 	// with message.read-interactions. DM membership authorizes the DM read.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)

@@ -1,15 +1,23 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-02
 
 ## Overview
 
-Authors can edit and delete their own messages; users with `message.manage` can edit and delete others' messages. Edits replace the message body; deletes remove the body and attachments and initially leave a "[Message deleted]" placeholder.
+Authors can edit and delete their own messages. Effective `message.manage`
+permits edits at any time and permits edits and deletions of other users'
+messages. Edits replace the message body. Deletes remove the body and
+attachments and initially leave a "[Message deleted]" placeholder.
 
 ## Behavior
 
-- Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
+- Authors can edit their own messages within a 3-hour window from posting time.
+  After the window closes, the author needs effective `message.manage` to edit
+  it. This permission also lets a user edit other users' messages at any time.
+  The window value is queryable through `Server.messageEditWindowSeconds` so
+  the frontend can show countdown timers and disable the edit action at the
+  correct time.
 - Editing requires current room membership. In a channel room, it also requires
   broad `message.read`, or `message.read-interactions` with a relationship to
   the message's thread. The operation reads and returns the current message.
@@ -42,7 +50,11 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 1. 3-hour edit window for authors
 
-**Decision:** Authors can edit their own messages only within 3 hours of posting. Moderators have no time limit. The 3-hour value is a Go constant (`core.MessageEditWindow`) exposed read-only through the public server-state API.
+**Decision:** Authors can edit their own messages without `message.manage` only
+within 3 hours of posting. Effective `message.manage` permits edits at any
+time, including edits to the permission holder's own messages. The 3-hour value
+is a Go constant (`core.MessageEditWindow`) exposed read-only through the public
+server-state API.
 **Why:** Edits long after the fact (days or weeks later) damage the integrity of the conversation log — readers who already responded would be reacting to text that no longer exists. A short window covers genuine typo-fix cases; the moderation perm covers everything else. Exposing the constant through the API (rather than hardcoding it in the frontend) lets the UI align countdown timers and disable-edit thresholds with the server's actual enforcement.
 **Tradeoff:** Authors who notice a mistake a day later can't fix it themselves. They have to ask a moderator, or live with it. Operators who want a different window currently have to recompile — promoting it to a tunable server config is cheap if demand emerges.
 
@@ -91,12 +103,14 @@ message's thread summary contains a reply.
 
 ## Permissions
 
-- `message.manage` — edit and delete *other* users' messages.
+- `message.manage` — edit messages at any time, and edit and delete other users'
+  messages.
 - `message.read` — read and edit any channel-room message.
 - `message.read-interactions` — read and edit a channel-room message in a
   related thread. DM membership authorizes DM reads without either permission.
   Deletion remains independently authorized by authorship or `message.manage`.
-- (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)
+- There is no separate edit-own or delete-own permission. Authorship permits
+  deletion and permits editing within the edit window.
 - Attachment and link-preview removal is author-only; `message.manage` does not grant cross-user removal for those partial message edits.
 
 ## Related

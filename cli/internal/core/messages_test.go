@@ -451,6 +451,9 @@ func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
 	if _, err := core.JoinRoom(ctx, other.Id, KindChannel, other.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom other: %v", err)
 	}
+	if err := core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, other.Id, PermMessageManage); err != nil {
+		t.Fatalf("Grant message.manage to other: %v", err)
+	}
 
 	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
 	if err != nil {
@@ -464,7 +467,7 @@ func TestChattoCore_EditMessageRejectsInvalidEchoStateTargets(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Post reply: %v", err)
 	}
-	if err := core.EditMessage(ctx, other.Id, KindChannel, room.Id, reply.Id, "other edit", WithMessageChannelEcho(true)); !errors.Is(err, ErrNotMessageAuthor) {
+	if err := core.EditMessage(ctx, other.Id, KindChannel, room.Id, reply.Id, "other edit", WithMessageChannelEcho(true), withEditMessageAuthorization()); !errors.Is(err, ErrNotMessageAuthor) {
 		t.Fatalf("expected ErrNotMessageAuthor, got %v", err)
 	}
 	if body, err := core.GetMessageBody(ctx, reply.Id); err != nil || body != "reply" {
@@ -1154,6 +1157,108 @@ func TestDeleteMessageReauthorizesAfterRoomArchive(t *testing.T) {
 	assertNoMessageMutationEvents(t, core, ctx, room.Id)
 }
 
+func TestEditMessageRejectsExpiredAuthorWithoutManage(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-author", "Edit Expired Author", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-expired-author", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	expiresAt := message.GetCreatedAt().AsTime().Add(MessageEditWindow)
+	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, message.Id, "must not land",
+		withEditMessageAuthorization(),
+		withEditMessageClock(func() time.Time { return expiresAt.Add(time.Nanosecond) }),
+	)
+	require.ErrorIs(t, err, ErrEditWindowExpired)
+	assertNoMessageMutationEvents(t, core, ctx, room.Id)
+}
+
+func TestEditMessageAllowsExpiredAuthorWithManage(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-manager", "Edit Expired Manager", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-expired-manager", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermMessageManage))
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	expiresAt := message.GetCreatedAt().AsTime().Add(MessageEditWindow)
+	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, message.Id, "managed edit",
+		withEditMessageAuthorization(),
+		withEditMessageClock(func() time.Time { return expiresAt.Add(time.Nanosecond) }),
+	)
+	require.NoError(t, err)
+	body, err := core.GetMessageBody(ctx, message.Id)
+	require.NoError(t, err)
+	require.Equal(t, "managed edit", body)
+}
+
+func TestEditMessageRejectsExpiredAuthorAfterManageRevocation(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-revoked-manager", "Edit Expired Revoked Manager", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-expired-revoked-manager", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermMessageManage))
+	message, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "original", nil, "", "", nil, false)
+	require.NoError(t, err)
+
+	expiresAt := message.GetCreatedAt().AsTime().Add(MessageEditWindow)
+	hookCalls := 0
+	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, message.Id, "must not land",
+		withEditMessageAuthorization(),
+		withEditMessageClock(func() time.Time { return expiresAt.Add(time.Nanosecond) }),
+		withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
+			hookCalls++
+			return core.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, author.Id, PermMessageManage)
+		}),
+	)
+	require.ErrorIs(t, err, ErrEditWindowExpired)
+	require.Equal(t, 1, hookCalls)
+	assertNoMessageMutationEvents(t, core, ctx, room.Id)
+}
+
+func TestEditMessageAllowsExpiredManagingAuthorToCreateChannelEcho(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := core.CreateUser(ctx, SystemActorID, "edit-expired-echo-manager", "Edit Expired Echo Manager", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, SystemActorID, KindChannel, "", "edit-expired-echo-manager", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, core.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermMessageManage))
+	root, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "reply", nil, root.Id, "", nil, false)
+	require.NoError(t, err)
+
+	expiresAt := reply.GetCreatedAt().AsTime().Add(MessageEditWindow)
+	err = core.EditMessage(ctx, author.Id, KindChannel, room.Id, reply.Id, "managed reply edit",
+		WithMessageChannelEcho(true),
+		withEditMessageAuthorization(),
+		withEditMessageClock(func() time.Time { return expiresAt.Add(time.Nanosecond) }),
+	)
+	require.NoError(t, err)
+	echoID, ok := core.roomModel.channelEchoEventID(reply.Id)
+	require.True(t, ok)
+	echoBody, err := core.GetMessageBody(ctx, echoID)
+	require.NoError(t, err)
+	require.Equal(t, "managed reply edit", echoBody)
+}
+
 func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -1170,7 +1275,7 @@ func TestEditMessageRechecksExactWindowAfterOCCConflict(t *testing.T) {
 	clockCalls := 0
 	clock := func() time.Time {
 		clockCalls++
-		if clockCalls <= 2 {
+		if clockCalls <= 3 {
 			return expiresAt
 		}
 		return expiresAt.Add(time.Nanosecond)

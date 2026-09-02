@@ -1332,7 +1332,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 		}
 	}
 
-	entry, err := c.validateMessageMutationIdentity(actorID, roomID, eventID, policy, now)
+	entry, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, policy, now)
 	if err != nil {
 		return err
 	}
@@ -1367,8 +1367,15 @@ func (c *ChattoCore) authorizeMessageMutation(
 	return nil
 }
 
+// validateMessageMutationIdentity checks current message identity and the
+// author-only rules for one mutation attempt. Effective message.manage lets an
+// author continue after the edit window closes, but it does not replace an
+// authorOnly requirement.
 func (c *ChattoCore) validateMessageMutationIdentity(
-	actorID, roomID, eventID string,
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	roomID, eventID string,
 	policy messageMutationAuthorization,
 	now time.Time,
 ) (*TimelineEntry, error) {
@@ -1382,7 +1389,13 @@ func (c *ChattoCore) validateMessageMutationIdentity(
 	}
 	if entry.Event.GetActorId() == actorID {
 		if policy.enforceEditWindow && now.After(entry.Event.GetCreatedAt().AsTime().Add(MessageEditWindow)) {
-			return nil, ErrEditWindowExpired
+			canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
+			if err != nil {
+				return nil, err
+			}
+			if !canManage {
+				return nil, ErrEditWindowExpired
+			}
 		}
 		return entry, nil
 	}
@@ -1486,8 +1499,9 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 
 // EditMessage edits a message body. Updates the body content and sets updated_at.
 // Publishes a MessageEditedEvent to notify connected clients in real-time.
-// Business rule: Authors can only edit their own messages within MessageEditWindow (3 hours).
-// Non-authors (moderators with message.manage) can edit at any time.
+// Business rule: Authors can edit their own messages within MessageEditWindow
+// (3 hours). Effective message.manage bypasses the window and also permits
+// editing other authors' messages.
 //
 // Authorization: Caller must verify the actor is the author OR
 // CanManageOthersMessage before calling.
@@ -1522,14 +1536,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		return ErrMessageNotFound
 	}
 
-	// Author / edit-window check. Edit window only applies to the
-	// original author; moderators bypass it (their authorization is
-	// gated upstream at the resolver).
-	authorID := originalEntry.Event.GetActorId()
-	if authorID == actorID {
-		if time.Since(originalEntry.Event.GetCreatedAt().AsTime()) > MessageEditWindow {
-			return ErrEditWindowExpired
-		}
+	// Check the author window before preparing echo reconciliation. The same
+	// rule runs inside every authorized OCC attempt below.
+	if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, messageMutationAuthorization{enforceEditWindow: true}, now()); err != nil {
+		return err
 	}
 	channelEchoCreationTargetID := ""
 	channelEchoRetractionTargetID := ""
@@ -1554,8 +1564,8 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		if echoTargetEvent.GetActorId() != actorID {
 			return ErrNotMessageAuthor
 		}
-		if time.Since(echoTargetEvent.GetCreatedAt().AsTime()) > MessageEditWindow {
-			return ErrEditWindowExpired
+		if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, echoTargetEvent.GetId(), messageMutationAuthorization{authorOnly: true, enforceEditWindow: true}, now()); err != nil {
+			return err
 		}
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
 		if *options.channelEcho {
@@ -1589,7 +1599,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			return nil
 		}
 		validateCommit = func() error {
-			_, err := c.validateMessageMutationIdentity(actorID, roomID, eventID, policy, now())
+			_, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, policy, now())
 			return err
 		}
 	}
@@ -2095,7 +2105,7 @@ func (c *ChattoCore) editEmbeddedBody(
 		return nil
 	}
 	validateCommit := func() error {
-		_, err := c.validateMessageMutationIdentity(actorID, roomID, eventID, policy, time.Now())
+		_, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, policy, time.Now())
 		return err
 	}
 	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", "", func(ctx context.Context, updated *evtv1.MessageBody) (string, error) {

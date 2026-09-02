@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-02
 
 ## Overview
 
@@ -27,7 +27,12 @@ Chatto messages can link to one another via reply attribution, and channel-room 
   - **Required** — every new root atomically establishes its thread. The room composer keeps **Post as thread** visible, selected, and locked so the policy is explicit without presenting a false choice. The standard **Reply** action and adjacent **Reply in thread** action keep their usual order; either opens the root's thread, while **Reply** also preserves reply attribution. Inside the thread, **Reply** creates attribution in that thread. The server rejects replies to roots unless they are placed in that root's thread. Automatic root-thread creation needs `message.post`; posting an actual thread reply still needs `message.post-in-thread`.
   - **Encouraged** — both flat and threaded conversation remain valid. The standard **Reply** action opens the root's thread with reply attribution, while the adjacent **Reply in thread** action keeps its usual position. **Reply in room** remains available as a secondary expanded-menu action. **Post as thread** starts selected for each new root draft, but the author may turn it off. If a member can post in the room but cannot post in threads, the standard reply falls back to the room and the composer cannot establish a thread.
   - **Enabled** — the default and unrestricted behavior. Authors may opt into **Post as thread**, and other members may start a thread later.
-  - **Disabled** — new threads, thread replies, thread typing indicators, and new channel echoes from historical thread replies are unavailable and rejected by the server. Ordinary in-room reply attribution remains available. Existing threads and existing channel echoes stay readable, including after a room changes to Disabled; authors may still remove a historical echo during its normal edit window.
+  - **Disabled** — the server rejects new threads, thread replies, thread typing
+    indicators, and new channel echoes from historical thread replies. Ordinary
+    in-room reply attribution remains available. Existing threads and channel
+    echoes stay readable after a room changes to Disabled. Authors can remove a
+    historical echo while they can edit the reply. Effective `message.manage`
+    permits this removal after the normal edit window.
 - Outside Required rooms, a root explicitly posted as a thread is immediately marked as a thread and the author follows it, while the composer remains in the room timeline. If nobody explicitly establishes an ordinary root's thread, the first thread reply establishes one implicitly.
 - Threading Mode changes are prospective: they do not backfill threads for existing roots or remove historical thread state.
 - A successful Threading Mode change appears as an actor-attributed room timeline event. The same ordered realtime update also refreshes room metadata, so open composers and reply actions react immediately.

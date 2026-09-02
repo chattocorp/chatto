@@ -456,10 +456,11 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room
 // member. Channel-room edits also require message.read. DM membership
-// authorizes the DM read. Authors may edit their own messages subject to the
-// core edit window. Non-authors need message.manage. Changing a thread reply's
-// channel echo state is author-only and, when enabling the echo, additionally
-// requires message.echo and message.post.
+// authorizes the DM read. Authors may edit their own messages within the core
+// edit window. Effective message.manage bypasses the window and permits edits
+// to other authors' messages. Changing a thread reply's channel echo state is
+// author-only and, when enabling the echo, additionally requires message.echo
+// and message.post.
 func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*evtv1.Event, RoomKind, error) {
 	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
