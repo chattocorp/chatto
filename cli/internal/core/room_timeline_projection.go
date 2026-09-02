@@ -110,6 +110,7 @@ type timelineBucketCache struct {
 	events     map[uint64]*evtv1.Event
 	revision   uint64
 	lastAccess time.Time
+	pinned     bool
 }
 
 type latestRoomPinState struct {
@@ -304,6 +305,7 @@ func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, 
 		cached = &timelineBucketCache{events: make(map[uint64]*evtv1.Event)}
 		p.cache[key] = cached
 	}
+	cached.pinned = p.bucketPinnedLocked(key, p.now())
 	retainPayload := true
 	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
 		if target, ok := p.messageBuckets[bodyEvent.GetEventId()]; ok && target != key {
@@ -887,6 +889,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 			}
 			p.cache[key] = &timelineBucketCache{
 				events: eventsBySequence, revision: revision, lastAccess: p.now(),
+				pinned: p.bucketPinnedLocked(key, p.now()),
 			}
 			for messageID := range p.bucketMessages[key] {
 				state := p.bodyStates[messageID]
@@ -981,7 +984,16 @@ func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 	p.Lock()
 	defer p.Unlock()
 	for key, cached := range p.cache {
-		if p.bucketPinnedLocked(key, now) || now.Sub(cached.lastAccess) < p.idleTimeout {
+		if p.bucketPinnedLocked(key, now) {
+			cached.pinned = true
+			continue
+		}
+		if cached.pinned {
+			cached.pinned = false
+			cached.lastAccess = now
+			continue
+		}
+		if now.Sub(cached.lastAccess) < p.idleTimeout {
 			continue
 		}
 		delete(p.cache, key)

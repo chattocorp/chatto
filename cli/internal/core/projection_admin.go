@@ -443,7 +443,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	}
 	var cacheBytes, cachedEvents int64
 	for key, cached := range p.cache {
-		cacheBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 1 + 8 + 24
+		cacheBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 1 + 8 + 24 + 1
 		for _, event := range cached.events {
 			cachedEvents++
 			cacheBytes += projectionMapEntryOverhead + 8 + int64(proto.Size(event))

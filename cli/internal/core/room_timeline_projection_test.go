@@ -1301,6 +1301,42 @@ func TestRoomTimeline_SnapshotPreservesBodyReferenceBeforePost(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_BucketGetsFullIdlePeriodAfterPinningEnds(t *testing.T) {
+	now := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
+	created := now
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: timelineTestEventSource{}, Interval: 7 * 24 * time.Hour,
+		PinnedPeriod: 4 * 7 * 24 * time.Hour, IdleTimeout: 15 * time.Minute,
+		Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	key := projection.messageBuckets["MESSAGE"]
+	if cached := projection.cache[key]; cached == nil || !cached.pinned {
+		t.Fatal("current bucket was not pinned")
+	}
+
+	now = now.Add(6 * 7 * 24 * time.Hour)
+	projection.evictIdleBuckets(now)
+	if cached := projection.cache[key]; cached == nil || cached.pinned {
+		t.Fatal("bucket did not enter an unpinned idle period")
+	}
+	projection.evictIdleBuckets(now.Add(14 * time.Minute))
+	if projection.cache[key] == nil {
+		t.Fatal("bucket was evicted before its idle period elapsed")
+	}
+	projection.evictIdleBuckets(now.Add(16 * time.Minute))
+	if projection.cache[key] != nil {
+		t.Fatal("bucket remained after its full idle period")
+	}
+}
+
 func TestRoomTimeline_HandledEventsRemainIdempotent(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	event := &evtv1.Event{
