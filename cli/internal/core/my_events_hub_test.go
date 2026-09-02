@@ -190,7 +190,10 @@ func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
 	defer timer.Stop()
 	for {
 		select {
-		case envelope := <-stream:
+		case envelope, ok := <-stream:
+			if !ok {
+				t.Fatal("myEvents stream closed before server MOTD delivery")
+			}
 			event := envelope.EVTEvent()
 			if event == nil || event.GetServerMotdChanged() == nil {
 				continue
@@ -202,6 +205,28 @@ func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
 		case <-timer.C:
 			t.Fatal("server MOTD event was not delivered")
 		}
+	}
+}
+
+func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+		want      bool
+	}{
+		{name: "public profile", eventType: evtstream.EventServerNameChanged, want: true},
+		{name: "public event", eventType: evtstream.EventServerMotdChanged, want: false},
+		{name: "private blocked usernames", eventType: evtstream.EventServerBlockedUsernamesChanged, want: false},
+		{name: "separate neighbor resource", eventType: evtstream.EventServerNeighborCreated, want: false},
+		{name: "unknown future event", eventType: "future_server_setting_changed", want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			subject := evtstream.ConfigAggregate().Subject(test.eventType)
+			if got := realtimeEVTRequiresSnapshot(subject, test.eventType); got != test.want {
+				t.Fatalf("realtimeEVTRequiresSnapshot(%q, %q) = %t, want %t", subject, test.eventType, got, test.want)
+			}
+		})
 	}
 }
 

@@ -540,7 +540,26 @@ func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
 	case evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	case evtstream.AggregateConfig:
-		return len(parts) == 4 && parts[2] == evtstream.ConfigSingletonID && !isDeliverableLiveEVTServerConfigEventType(eventType)
+		return len(parts) == 4 && parts[2] == evtstream.ConfigSingletonID &&
+			!isDeliverableLiveEVTServerConfigEventType(eventType) &&
+			!isKnownNonSnapshotServerConfigEventType(eventType)
+	default:
+		return false
+	}
+}
+
+// isKnownNonSnapshotServerConfigEventType reports server configuration facts
+// that do not contribute to the realtime snapshot resource families. These
+// facts do not disconnect a new stream if their live republish arrives
+// after the originating mutation returns.
+func isKnownNonSnapshotServerConfigEventType(eventType string) bool {
+	switch eventType {
+	case evtstream.EventServerBlockedUsernamesChanged,
+		evtstream.EventServerNeighborCreated,
+		evtstream.EventServerNeighborOriginChanged,
+		evtstream.EventServerNeighborTestimonialChanged,
+		evtstream.EventServerNeighborDeleted:
+		return true
 	default:
 		return false
 	}
