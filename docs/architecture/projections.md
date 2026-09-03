@@ -75,6 +75,11 @@ waiting, and when idle eviction removes a bucket. These logs contain the opaque
 room ID, UTC bucket boundaries, item counts, and durations. Chatto writes
 reconstruction failures at the error level without message content.
 
+A cache assembled from events after a snapshot cutoff is incomplete, even when
+its revision matches the current bucket revision. Pinned-bucket warming must
+read the complete recipe before it marks that cache as complete. This prevents
+delta replay from hiding older message bodies in the same bucket.
+
 Any non-cancellation error from checkpoint or snapshot restore, consumer setup,
 or event application moves the projector into its failed state before its run
 loop returns. Readiness and provider status therefore cannot remain
