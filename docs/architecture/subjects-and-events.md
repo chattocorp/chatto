@@ -9,6 +9,8 @@ Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/s
 [`proto/chatto/core/notification/v1/notification.proto`](../../proto/chatto/core/notification/v1/notification.proto),
 [`proto/chatto/core/live/v1/live_events.proto`](../../proto/chatto/core/live/v1/live_events.proto),
 [`proto/chatto/realtime/v1/events.proto`](../../proto/chatto/realtime/v1/events.proto),
+[`proto/chatto/realtime/v1/room_group_events.proto`](../../proto/chatto/realtime/v1/room_group_events.proto),
+[`proto/chatto/realtime/v1/transient_events.proto`](../../proto/chatto/realtime/v1/transient_events.proto),
 and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),

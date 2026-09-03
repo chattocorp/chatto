@@ -3,8 +3,9 @@
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
-- [`events.proto`](../../proto/chatto/realtime/v1/events.proto) and its sibling
-  public event files
+- [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
+- [`room_group_events.proto`](../../proto/chatto/realtime/v1/room_group_events.proto)
+- [`transient_events.proto`](../../proto/chatto/realtime/v1/transient_events.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
 - [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
