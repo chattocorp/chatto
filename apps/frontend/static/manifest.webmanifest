@@ -10,7 +10,6 @@
   "display": "standalone",
   "display_override": ["standalone", "browser"],
   "background_color": "#f3f4f6",
-  "theme_color": "#e5e7eb",
   "categories": ["communication", "social", "productivity"],
   "prefer_related_applications": false,
   "icons": [
