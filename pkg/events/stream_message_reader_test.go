@@ -158,30 +158,37 @@ func TestStreamMessageReaderForgetAndClear(t *testing.T) {
 	}
 }
 
-func TestStreamMessageReaderForgetPreventsInflightReadFromRefillingCache(t *testing.T) {
-	source := &exactMessageSourceStub{
-		reads:   make(map[uint64]int),
-		msgs:    map[uint64]*jetstream.RawStreamMsg{1: {Subject: "evt.one", Sequence: 1, Data: []byte("one")}},
-		started: make(chan struct{}, 1),
-		release: make(chan struct{}),
-	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
-	done := make(chan error, 1)
-	go func() {
-		_, err := reader.Message(context.Background(), 1)
-		done <- err
-	}()
-	<-source.started
-	reader.Forget(1)
-	close(source.release)
-	if err := <-done; err != nil {
-		t.Fatalf("Message: %v", err)
-	}
-	if _, err := reader.Message(context.Background(), 1); err != nil {
-		t.Fatalf("Message after Forget: %v", err)
-	}
-	if source.reads[1] != 2 {
-		t.Fatalf("source reads = %d, want 2", source.reads[1])
+func TestStreamMessageReaderInvalidationPreventsInflightReadFromRefillingCache(t *testing.T) {
+	for name, invalidate := range map[string]func(*StreamMessageReader){
+		"forget": func(reader *StreamMessageReader) { reader.Forget(1) },
+		"clear":  func(reader *StreamMessageReader) { reader.Clear() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			source := &exactMessageSourceStub{
+				reads:   make(map[uint64]int),
+				msgs:    map[uint64]*jetstream.RawStreamMsg{1: {Subject: "evt.one", Sequence: 1, Data: []byte("one")}},
+				started: make(chan struct{}, 1),
+				release: make(chan struct{}),
+			}
+			reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+			done := make(chan error, 1)
+			go func() {
+				_, err := reader.Message(context.Background(), 1)
+				done <- err
+			}()
+			<-source.started
+			invalidate(reader)
+			close(source.release)
+			if err := <-done; err != nil {
+				t.Fatalf("Message: %v", err)
+			}
+			if _, err := reader.Message(context.Background(), 1); err != nil {
+				t.Fatalf("Message after invalidation: %v", err)
+			}
+			if source.reads[1] != 2 {
+				t.Fatalf("source reads = %d, want 2", source.reads[1])
+			}
+		})
 	}
 }
 
