@@ -1165,9 +1165,9 @@ AssetProcessingFailureCode identifies a stable processing failure class.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED` | `0` | No value description provided. |
-| `ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED` | `1` | No value description provided. |
-| `ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING` | `2` | No value description provided. |
+| `ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED` | `0` | The failure class is not known. |
+| `ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED` | `1` | Asset processing failed without a more specific public reason. |
+| `ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING` | `2` | The source asset was not available. |
 
 
 <a id="chatto-realtime-v1-CallParticipantEventSource"></a>
@@ -1178,10 +1178,10 @@ CallParticipantEventSource identifies what caused a call-participant change.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED` | `0` | No value description provided. |
-| `CALL_PARTICIPANT_EVENT_SOURCE_USER` | `1` | No value description provided. |
-| `CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT` | `2` | No value description provided. |
-| `CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION` | `3` | No value description provided. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED` | `0` | The event source is not known. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_USER` | `1` | A user action caused the change. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT` | `2` | LiveKit reported the change. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION` | `3` | Server reconciliation caused the change. |
 
 
 <a id="chatto-realtime-v1-RealtimeTimeFormat"></a>
@@ -1192,9 +1192,9 @@ RealtimeTimeFormat identifies the transient client time-display preference.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | No value description provided. |
-| `REALTIME_TIME_FORMAT_12H` | `1` | No value description provided. |
-| `REALTIME_TIME_FORMAT_24H` | `2` | No value description provided. |
+| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | Use the client locale default. |
+| `REALTIME_TIME_FORMAT_12H` | `1` | Display time with a 12-hour clock. |
+| `REALTIME_TIME_FORMAT_24H` | `2` | Display time with a 24-hour clock. |
 
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>

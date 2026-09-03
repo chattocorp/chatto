@@ -27,9 +27,13 @@ const (
 type CallParticipantEventSource int32
 
 const (
-	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED    CallParticipantEventSource = 0
-	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER           CallParticipantEventSource = 1
-	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT        CallParticipantEventSource = 2
+	// The event source is not known.
+	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED CallParticipantEventSource = 0
+	// A user action caused the change.
+	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER CallParticipantEventSource = 1
+	// LiveKit reported the change.
+	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT CallParticipantEventSource = 2
+	// Server reconciliation caused the change.
 	CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION CallParticipantEventSource = 3
 )
 
@@ -80,9 +84,12 @@ func (CallParticipantEventSource) EnumDescriptor() ([]byte, []int) {
 type AssetProcessingFailureCode int32
 
 const (
-	AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED       AssetProcessingFailureCode = 0
+	// The failure class is not known.
+	AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED AssetProcessingFailureCode = 0
+	// Asset processing failed without a more specific public reason.
 	AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED AssetProcessingFailureCode = 1
-	AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING    AssetProcessingFailureCode = 2
+	// The source asset was not available.
+	AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING AssetProcessingFailureCode = 2
 )
 
 // Enum value maps for AssetProcessingFailureCode.
@@ -130,9 +137,12 @@ func (AssetProcessingFailureCode) EnumDescriptor() ([]byte, []int) {
 type RealtimeTimeFormat int32
 
 const (
+	// Use the client locale default.
 	RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED RealtimeTimeFormat = 0
-	RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H         RealtimeTimeFormat = 1
-	RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H         RealtimeTimeFormat = 2
+	// Display time with a 12-hour clock.
+	RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H RealtimeTimeFormat = 1
+	// Display time with a 24-hour clock.
+	RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H RealtimeTimeFormat = 2
 )
 
 // Enum value maps for RealtimeTimeFormat.

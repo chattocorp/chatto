@@ -16,21 +16,29 @@ import { CustomUserStatus } from "../../api/v1/user_status_pb.js";
  */
 export enum CallParticipantEventSource {
   /**
+   * The event source is not known.
+   *
    * @generated from enum value: CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * A user action caused the change.
+   *
    * @generated from enum value: CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
    */
   USER = 1,
 
   /**
+   * LiveKit reported the change.
+   *
    * @generated from enum value: CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
    */
   LIVEKIT = 2,
 
   /**
+   * Server reconciliation caused the change.
+   *
    * @generated from enum value: CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
    */
   RECONCILIATION = 3,
@@ -50,16 +58,22 @@ proto3.util.setEnumType(CallParticipantEventSource, "chatto.realtime.v1.CallPart
  */
 export enum AssetProcessingFailureCode {
   /**
+   * The failure class is not known.
+   *
    * @generated from enum value: ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
+   * Asset processing failed without a more specific public reason.
+   *
    * @generated from enum value: ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED = 1;
    */
   PROCESSING_FAILED = 1,
 
   /**
+   * The source asset was not available.
+   *
    * @generated from enum value: ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
    */
   SOURCE_MISSING = 2,
@@ -78,16 +92,22 @@ proto3.util.setEnumType(AssetProcessingFailureCode, "chatto.realtime.v1.AssetPro
  */
 export enum RealtimeTimeFormat {
   /**
+   * Use the client locale default.
+   *
    * @generated from enum value: REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
    */
   REALTIME_TIME_FORMAT_UNSPECIFIED = 0,
 
   /**
+   * Display time with a 12-hour clock.
+   *
    * @generated from enum value: REALTIME_TIME_FORMAT_12H = 1;
    */
   REALTIME_TIME_FORMAT_12H = 1,
 
   /**
+   * Display time with a 24-hour clock.
+   *
    * @generated from enum value: REALTIME_TIME_FORMAT_24H = 2;
    */
   REALTIME_TIME_FORMAT_24H = 2,

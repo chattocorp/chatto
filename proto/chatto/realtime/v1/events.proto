@@ -69,9 +69,13 @@ message UserLeftRoomEvent {
 
 // CallParticipantEventSource identifies what caused a call-participant change.
 enum CallParticipantEventSource {
+  // The event source is not known.
   CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
+  // A user action caused the change.
   CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
+  // LiveKit reported the change.
   CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
+  // Server reconciliation caused the change.
   CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
 }
 
@@ -221,8 +225,11 @@ message AssetProcessingSucceededEvent {
 
 // AssetProcessingFailureCode identifies a stable processing failure class.
 enum AssetProcessingFailureCode {
+  // The failure class is not known.
   ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED = 0;
+  // Asset processing failed without a more specific public reason.
   ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED = 1;
+  // The source asset was not available.
   ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
 }
 
@@ -355,8 +362,11 @@ message UserProfileSyncEvent {
 
 // RealtimeTimeFormat identifies the transient client time-display preference.
 enum RealtimeTimeFormat {
+  // Use the client locale default.
   REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
+  // Display time with a 12-hour clock.
   REALTIME_TIME_FORMAT_12H = 1;
+  // Display time with a 24-hour clock.
   REALTIME_TIME_FORMAT_24H = 2;
 }
 
