@@ -25,12 +25,10 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   UserAccountDeletedEvent,
-  UserDisplayNameChangedEvent
-} from '@chatto/api-types/realtime/v1/events_pb';
-import {
+  UserDisplayNameChangedEvent,
   NotificationUnreadChangedEvent,
-  ThreadFollowChangedSyncEvent
-} from '@chatto/api-types/realtime/v1/transient_events_pb';
+  ThreadViewerStateChangedEvent
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
@@ -1006,8 +1004,8 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         event: new RealtimeEvent({
           event: {
-            case: 'threadFollowChangedSync',
-            value: new ThreadFollowChangedSyncEvent({
+            case: 'threadViewerStateChanged',
+            value: new ThreadViewerStateChangedEvent({
               roomId: 'R1',
               threadRootEventId: 'E-ROOT',
               isFollowing: true

@@ -36,7 +36,7 @@ const (
 // live tags during the EVT cutover. Treat them like persisted tags.
 //
 // - **>= 1000, except 1050-1051**: retired legacy live-only variant
-// numbers. New transient pubsub signals belong in LiveEvent, not Event.
+// numbers. New non-durable pubsub activity belongs in PubSubEvent, not Event.
 //
 // Category ownership for the top-level oneof tags is documented in the
 // sibling *_events.proto files. The top-level tag is the durable/event
@@ -1599,7 +1599,7 @@ type Event_ServerNameChanged struct {
 	// ----- Config / preferences (500-599, durable) -----
 	// These variants live on the EVT stream (subjects under evt.config.>)
 	// per ADRs 033/034/035. Member-visible server profile/config live
-	// invalidation uses LiveEvent.ServerUpdatedEvent instead.
+	// invalidation uses PubSubEvent.ServerProfileChangedEvent instead.
 	ServerNameChanged *ServerNameChangedEvent `protobuf:"bytes,501,opt,name=server_name_changed,json=serverNameChanged,proto3,oneof"`
 }
 

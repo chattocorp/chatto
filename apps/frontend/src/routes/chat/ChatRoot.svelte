@@ -131,10 +131,7 @@
           );
         }
         const semantic = event.event?.event;
-        if (
-          semantic?.case === 'userAccountDeleted' ||
-          semantic?.case === 'serverMemberDeletedSync'
-        ) {
+        if (semantic?.case === 'userAccountDeleted') {
           rootProfileCache.remove(semantic.value.userId);
         }
       },

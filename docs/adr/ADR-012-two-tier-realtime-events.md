@@ -10,12 +10,12 @@ public realtime behavior and
 [ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md)
 for the former canonical envelope,
 [ADR-093](ADR-093-use-a-public-realtime-event-union.md) for the public union,
-and [ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md) for the
+and [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) for the
 current internal envelope split.
 The durable `EVT` and transient `live.sync.>`
 delivery split remains in effect.
 
-**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), ADR-042 (protobuf-first public API), and ADR-094 (separate internal envelopes), the live equivalents are `live.evt.>` for republished durable `Event` facts, `live.sync.>` for transient `LiveEvent` signals, and realtime WebSocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
+**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), ADR-042 (protobuf-first public API), and ADR-094 (separate internal envelopes), the live equivalents are `live.evt.>` for republished durable `Event` facts, `live.sync.>` for `PubSubEvent` values, and realtime WebSocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. NATS Core) and the per-event-type channel decision are unchanged.
 
 **Update:** Reactions moved from the original live-only examples into durable
 room facts during the event-sourcing rollout. `ReactionAddedEvent` and
@@ -34,7 +34,7 @@ Publishing all events to JetStream would waste storage on high-frequency transie
 Split events into two channels based on persistence:
 
 1. **JetStream events** (messages, joins, leaves, room lifecycle, reactions): Originally published to `space.{id}.>` subjects on a persisted per-space stream; currently published as durable `EVT` facts and exposed internally through `live.evt.>`.
-2. **Live-only signals** (typing indicators, presence, notification sync, session/user/config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `livev1.LiveEvent` messages under `live.sync.>`. They are not stored. Plain NATS subscriptions consume them.
+2. **Pubsub events** (typing indicators, presence, notification sync, session and config invalidations): Originally published to `live.space.{id}.>` subjects via bare NATS Core pub/sub; currently published as `pubsubv1.PubSubEvent` messages under `live.sync.>`. They are not stored. Plain NATS subscriptions consume them.
 
 The realtime delivery layer merges both internal channels, then maps authorized
 input to the public protocol. Durable facts with a public meaning become

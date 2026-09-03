@@ -292,7 +292,7 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectBannerPreviewVisible();
 
     // CRITICAL: Banner should now be visible in sidebar WITHOUT page reload
-    // This tests that the ServerUpdatedEvent is being received and processed
+    // This tests that the server-profile-changed event is received and processed.
     await serverAdminPage.expectSidebarBannerVisible();
 
     // Remove the banner

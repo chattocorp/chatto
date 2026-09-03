@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
 // ============================================================================

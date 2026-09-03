@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"strings"
 	"testing"
 	"time"
@@ -491,9 +491,9 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 // Instance Event Authorization Tests
 // ============================================================================
 
-// TestChattoCore_isAuthorizedForLiveEvent verifies the authorization logic
+// TestChattoCore_isAuthorizedForPubSubEvent verifies the authorization logic
 // for server-level events based on subject patterns.
-func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
+func TestChattoCore_isAuthorizedForPubSubEvent(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -585,9 +585,9 @@ func TestChattoCore_isAuthorizedForLiveEvent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := core.isAuthorizedForLiveEvent(ctx, tt.userID, tt.subject)
+			result := core.isAuthorizedForPubSubEvent(ctx, tt.userID, tt.subject)
 			if result != tt.wantResult {
-				t.Errorf("isAuthorizedForLiveEvent(%s, %s) = %v, want %v",
+				t.Errorf("isAuthorizedForPubSubEvent(%s, %s) = %v, want %v",
 					tt.userID, tt.subject, result, tt.wantResult)
 			}
 		})
@@ -804,26 +804,26 @@ func TestStreamMyEvents_FiltersOwnTypingEvents(t *testing.T) {
 	}
 }
 
-func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
+func TestFilterPubSubEvent_DropsMissingPayload(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
-	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
+	event, ok := core.filterPubSubEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
 		Subject: "live.sync.config.server_updated",
-	}, &livev1.LiveEvent{
+	}, &pubsubv1.PubSubEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",
 	})
 
 	if ok {
-		t.Fatal("expected empty LiveEvent to be rejected")
+		t.Fatal("expected empty PubSubEvent to be rejected")
 	}
 	if event != nil {
 		t.Fatalf("expected no delivered event, got %+v", event)
 	}
 }
 
-func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
+func TestFilterPubSubEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-viewer", "Typing Viewer", "password123")
@@ -847,18 +847,18 @@ func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
-		UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId()},
+	pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &pubsubv1.UserTypingEvent{RoomId: room.GetId()},
 	}})
-	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
+	event, ok := chatto.filterPubSubEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
-	}, live)
+	}, pubsub)
 	if ok || event != nil {
 		t.Fatalf("typing event = %+v, delivered=%v; want denied", event, ok)
 	}
 }
 
-func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
+func TestFilterPubSubEventAllowsRelatedThreadTyping(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "typing-interaction-viewer", "Typing Interaction Viewer", "password123")
@@ -897,12 +897,12 @@ func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
 	}
 	memberRooms := map[string]struct{}{room.GetId(): {}}
 	typing := func(threadRootEventID string) (EventEnvelope, bool) {
-		live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
-			UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+		pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+			UserTyping: &pubsubv1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
 		}})
-		return chatto.filterLiveSyncEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
+		return chatto.filterPubSubEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
 			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
-		}, live)
+		}, pubsub)
 	}
 	if event, ok := typing(root.GetId()); !ok || event == nil {
 		t.Fatalf("related thread typing = %+v, %v; want delivered", event, ok)
@@ -914,7 +914,7 @@ func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
 	}
 }
 
-func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
+func TestFilterPubSubEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-viewer", "DM Typing Viewer", "password123")
@@ -933,12 +933,12 @@ func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
-		UserTyping: &livev1.UserTypingEvent{RoomId: dm.GetId()},
+	pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &pubsubv1.UserTypingEvent{RoomId: dm.GetId()},
 	}})
-	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
+	event, ok := chatto.filterPubSubEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),
-	}, live)
+	}, pubsub)
 	if !ok || event == nil {
 		t.Fatalf("DM typing event = %+v, delivered=%v; want delivered", event, ok)
 	}

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -26,9 +26,9 @@ const (
 
 var ErrBioTooLong = fmt.Errorf("bio is too long")
 
-// publishUserProfileUpdate publishes a transient snapshot of the current public
+// publishUserProfileChanged publishes a pubsub snapshot of the current public
 // profile. Durable profile facts remain authoritative in EVT.
-func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
+func (c *ChattoCore) publishUserProfileChanged(ctx context.Context, userID string) {
 	// Get current user data
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
@@ -50,9 +50,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		timezone = settings.GetTimezone()
 	}
 
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &livev1.UserProfileSyncEvent{
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_UserProfileChanged{
+			UserProfileChanged: &pubsubv1.UserProfileChangedEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,
@@ -63,10 +63,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		},
 	})
 
-	// Publish to live.sync.user.{userId}.profile_updated for real-time delivery.
-	// Profile updates are transient (no need for JetStream storage/replay)
+	// Publish to live.sync.user.{userId}.profile_updated without EVT storage.
 	subject := subjects.LiveSyncUserEvent(userID, "profile_updated")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
 	}
 }
@@ -126,7 +125,7 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 	c.logger.Info("Updated user display name", "id", userID)
 
 	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 
 	return user, nil
 }
@@ -306,7 +305,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		user.Bio = nextBio
 	}
 	c.logger.Info("Updated user profile", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 	return user, nil
 }
 
@@ -497,7 +496,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	c.logger.Info("Updated user login", "id", userID)
 
 	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 
 	return user, nil
 }
@@ -531,7 +530,7 @@ func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, us
 		return fmt.Errorf("failed to clear login change cooldown: %w", err)
 	}
 	c.logger.Info("Cleared user login change cooldown", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 	return nil
 }
 

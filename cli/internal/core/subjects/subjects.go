@@ -155,8 +155,8 @@ func AllRoomEventsFiltersAnyKind() []string {
 //	server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}      (thread)
 //	server.room.{kind}.{roomId}.meta                                     (meta)
 //
-// Transient LiveEvent messages use `live.sync.>`. Parsers normalize that
-// live root so durable and transient room subjects share one set of length
+// PubSubEvent messages use `live.sync.>`. Parsers normalize that
+// live root so durable and pubsub room subjects share one set of length
 // checks.
 
 // ParseRoomIDFromSubject extracts the room ID from a room event subject.
@@ -170,7 +170,7 @@ func ParseRoomIDFromSubject(subject string) string {
 }
 
 // ParseKindFromRoomSubject extracts the room kind ("channel" or "dm") from a
-// durable (`server.room.{kind}.>`) or transient (`live.sync.room.{kind}.>`)
+// durable (`server.room.{kind}.>`) or pubsub (`live.sync.room.{kind}.>`)
 // room-event subject. Returns "" for non-room subjects.
 func ParseKindFromRoomSubject(subject string) string {
 	parts := normalizeLivePrefix(splitSubject(subject))
@@ -227,8 +227,8 @@ func ParseEventIDFromSubject(subject string) string {
 	return ""
 }
 
-// normalizeLivePrefix removes the transient sync root so durable (`server.>`)
-// and transient sync (`live.sync.>`) subject parsers can use the same path
+// normalizeLivePrefix removes the pubsub root so durable (`server.>`)
+// and pubsub (`live.sync.>`) subject parsers can use the same path
 // layout. The protobuf envelope types remain separate.
 // Returns the original slice if not prefixed.
 func normalizeLivePrefix(parts []string) []string {
@@ -266,36 +266,29 @@ func splitSubject(subject string) []string {
 
 // ===== LIVE SUBJECTS =====
 //
-// Live subjects are used for transient events that bypass JetStream storage.
-// `live.sync.>` carries LiveEvent envelopes.
+// Live subjects are used for pubsub events that bypass JetStream storage.
+// `live.sync.>` carries PubSubEvent envelopes.
 
-// LiveSyncAllEvents returns the wildcard subject for new transient Event
-// messages. Pattern: `live.sync.>`.
+// LiveSyncAllEvents returns the wildcard subject for PubSubEvent messages.
+// Pattern: `live.sync.>`.
 func LiveSyncAllEvents() string {
 	return "live.sync.>"
 }
 
-// LiveSyncUserEvent returns the transient Event subject for a specific user.
+// LiveSyncUserEvent returns the pubsub subject for a specific user.
 // Pattern: `live.sync.user.{userId}.{eventType}`.
 func LiveSyncUserEvent(userID, eventType string) string {
 	return fmt.Sprintf("live.sync.user.%s.%s", userID, eventType)
 }
 
-// LiveSyncRoomEvent returns the transient Event subject for a room event.
+// LiveSyncRoomEvent returns the pubsub subject for a room event.
 // Pattern: `live.sync.room.{kind}.{roomId}.{eventType}`.
 func LiveSyncRoomEvent(kind, roomID, eventType string) string {
 	return fmt.Sprintf("live.sync.room.%s.%s.%s", kind, roomID, eventType)
 }
 
-// LiveSyncConfigEvent returns the transient Event subject for a deployment-wide
+// LiveSyncConfigEvent returns the pubsub subject for a deployment-wide
 // config event. Pattern: `live.sync.config.{eventType}`.
 func LiveSyncConfigEvent(eventType string) string {
 	return fmt.Sprintf("live.sync.config.%s", eventType)
-}
-
-// LiveSyncMember returns the transient Event subject for server-level membership
-// event. `member_` prefix is stripped from `eventType` (mirrors Member).
-// Pattern: `live.sync.member.{verb}`.
-func LiveSyncMember(eventType string) string {
-	return fmt.Sprintf("live.sync.member.%s", strings.TrimPrefix(eventType, "member_"))
 }

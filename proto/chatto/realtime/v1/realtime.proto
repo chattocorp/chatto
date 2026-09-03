@@ -8,8 +8,6 @@ import "chatto/api/v1/server.proto";
 import "chatto/api/v1/user_service.proto";
 import "chatto/api/v1/voice_calls.proto";
 import "chatto/realtime/v1/events.proto";
-import "chatto/realtime/v1/room_group_events.proto";
-import "chatto/realtime/v1/transient_events.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -23,8 +21,8 @@ message RealtimeSubscribe {
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
-  // Opaque cursor from a previously received durable event or `caught_up`
-  // frame. A usable cursor receives bounded authorized durable events after
+  // Opaque cursor from a previously received replayable event or `caught_up`
+  // frame. A usable cursor receives bounded authorized events after
   // that position. Cursors expire 15 minutes after issue.
   optional string resume_cursor = 3;
   // Required fallback when the cursor is absent or cannot resume safely.
@@ -33,20 +31,17 @@ message RealtimeSubscribe {
 
 // Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 message RealtimeServerFrame {
-  reserved 1, 2, 5, 7;
-  reserved "hello", "subscribed", "error", "pong";
-
   oneof frame {
     // One authorized public event copy.
-    RealtimeEvent event = 3;
+    RealtimeEvent event = 1;
     // Application-level heartbeat used for liveness checks.
-    RealtimeHeartbeat heartbeat = 4;
+    RealtimeHeartbeat heartbeat = 2;
     // Server-requested close with reconnect guidance.
-    RealtimeClose close = 6;
+    RealtimeClose close = 3;
     // Confirms that recovery reached the live-stream boundary.
-    RealtimeCaughtUp caught_up = 8;
+    RealtimeCaughtUp caught_up = 4;
     // One exact authorized server-content snapshot.
-    RealtimeSnapshot snapshot = 9;
+    RealtimeSnapshot snapshot = 5;
   }
 }
 
@@ -83,7 +78,6 @@ message RealtimeSnapshot {
 // Confirms that recovery is complete and live delivery has begun.
 //
 // Clients can retain `cursor` after they apply every preceding event.
-// Transient events are never replayed.
 message RealtimeCaughtUp {
   // Opaque cursor at the recovery-to-live handoff boundary.
   string cursor = 1;
@@ -92,15 +86,12 @@ message RealtimeCaughtUp {
 // One authorized public event with its optional resume cursor.
 //
 // Each payload uses a realtime-owned public message. The union is the public
-// event catalogue. A canonical event that is absent from this union is not
+// event catalogue. An internal event that is absent from this union is not
 // part of the realtime API. The server creates a fresh caller-specific value
-// after authorization. Durable events have a resume cursor. Transient events
-// do not.
+// after authorization. An event has a resume cursor when it can be replayed.
+// An event without a cursor is safe to miss, or its state can be restored from
+// a snapshot or a ConnectRPC resource.
 message RealtimeEvent {
-  reserved 20014;
-  reserved "state";
-  reserved "room_groups_updated_sync";
-
   // Universal event identifier (NanoID).
   string id = 1;
   // Time when the source event was created.
@@ -112,85 +103,75 @@ message RealtimeEvent {
 
   // Authorized semantic payload.
   oneof event {
-    RoomCreatedEvent room_created = 300;
-    RoomUpdatedEvent room_updated = 301;
-    RoomDeletedEvent room_deleted = 302;
-    RoomArchivedEvent room_archived = 303;
-    RoomUnarchivedEvent room_unarchived = 304;
-    RoomUniversalChangedEvent room_universal_changed = 305;
-    RoomSlowModeChangedEvent room_slow_mode_changed = 307;
-    RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
-    UserJoinedRoomEvent user_joined_room = 310;
-    UserLeftRoomEvent user_left_room = 311;
-    VoiceCallParticipantJoinedEvent voice_call_participant_joined = 330;
-    VoiceCallParticipantLeftEvent voice_call_participant_left = 331;
-    VoiceCallStartedEvent voice_call_started = 332;
-    VoiceCallEndedEvent voice_call_ended = 333;
-    MessagePostedEvent message_posted = 400;
-    MessageEditedEvent message_edited = 401;
-    MessageRetractedEvent message_retracted = 402;
-    MessagePinnedEvent message_pinned = 405;
-    MessageUnpinnedEvent message_unpinned = 406;
-    ThreadCreatedEvent thread_created = 425;
-    AssetProcessingStartedEvent asset_processing_started = 451;
-    AssetProcessingSucceededEvent asset_processing_succeeded = 452;
-    AssetProcessingFailedEvent asset_processing_failed = 453;
-    AssetDeletedEvent asset_deleted = 454;
-    ServerMotdChangedEvent server_motd_changed = 504;
-    RoomGroupCreatedEvent room_group_created = 600;
-    RoomGroupUpdatedEvent room_group_updated = 601;
-    RoomGroupDeletedEvent room_group_deleted = 602;
-    RoomAddedToGroupEvent room_added_to_group = 603;
-    RoomRemovedFromGroupEvent room_removed_from_group = 604;
-    RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
-    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 606;
-    SidebarLinkUpdatedEvent sidebar_link_updated = 607;
-    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 608;
-    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 609;
-    RoomGroupsReorderedEvent room_groups_reordered = 650;
-    UserAccountCreatedEvent user_account_created = 700;
-    UserLoginChangedEvent user_login_changed = 701;
-    UserDisplayNameChangedEvent user_display_name_changed = 702;
-    UserAvatarSetEvent user_avatar_set = 703;
-    UserAvatarClearedEvent user_avatar_cleared = 704;
-    UserAccountDeletedEvent user_account_deleted = 710;
-    UserCustomStatusSetEvent user_custom_status_set = 715;
-    UserCustomStatusClearedEvent user_custom_status_cleared = 716;
-    UserBioChangedEvent user_bio_changed = 722;
-    RoomMemberBannedEvent room_member_banned = 840;
-    RoomMemberUnbannedEvent room_member_unbanned = 841;
-    RoomMemberAddedEvent room_member_added = 842;
-    RoomMemberRemovedEvent room_member_removed = 843;
-    ReactionAddedEvent reaction_added = 1050;
-    ReactionRemovedEvent reaction_removed = 1051;
-
-    UserCreatedSyncEvent user_created_sync = 20000;
-    UserProfileSyncEvent user_profile_sync = 20001;
-    ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
-    ThreadFollowChangedSyncEvent thread_follow_changed_sync = 20003;
-    ServerMemberDeletedSyncEvent server_member_deleted_sync = 20004;
-    ServerUpdatedSyncEvent server_updated_sync = 20005;
-    UserTypingSignalEvent user_typing_signal = 20006;
-    PresenceChangedSignalEvent presence_changed_signal = 20007;
-    CallParticipantJoinedSignalEvent call_participant_joined_signal = 20008;
-    CallParticipantLeftSignalEvent call_participant_left_signal = 20009;
-    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
-    NotificationUnreadChangedEvent notification_unread_changed = 20011;
-    RoomMarkedAsReadSyncEvent room_marked_as_read_sync = 20012;
-    MentionStatusClearedSyncEvent mention_status_cleared_sync = 20013;
-    SessionTerminatedSignalEvent session_terminated_signal = 20015;
+    RoomCreatedEvent room_created = 10;
+    RoomUpdatedEvent room_updated = 11;
+    RoomDeletedEvent room_deleted = 12;
+    RoomArchivedEvent room_archived = 13;
+    RoomUnarchivedEvent room_unarchived = 14;
+    RoomUniversalChangedEvent room_universal_changed = 15;
+    RoomSlowModeChangedEvent room_slow_mode_changed = 16;
+    RoomThreadingModeChangedEvent room_threading_mode_changed = 17;
+    UserJoinedRoomEvent user_joined_room = 18;
+    UserLeftRoomEvent user_left_room = 19;
+    VoiceCallParticipantJoinedEvent voice_call_participant_joined = 20;
+    VoiceCallParticipantLeftEvent voice_call_participant_left = 21;
+    VoiceCallStartedEvent voice_call_started = 22;
+    VoiceCallEndedEvent voice_call_ended = 23;
+    MessagePostedEvent message_posted = 24;
+    MessageEditedEvent message_edited = 25;
+    MessageRetractedEvent message_retracted = 26;
+    MessagePinnedEvent message_pinned = 27;
+    MessageUnpinnedEvent message_unpinned = 28;
+    ThreadCreatedEvent thread_created = 29;
+    AssetProcessingStartedEvent asset_processing_started = 30;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 31;
+    AssetProcessingFailedEvent asset_processing_failed = 32;
+    AssetDeletedEvent asset_deleted = 33;
+    ServerMotdChangedEvent server_motd_changed = 34;
+    RoomGroupCreatedEvent room_group_created = 35;
+    RoomGroupUpdatedEvent room_group_updated = 36;
+    RoomGroupDeletedEvent room_group_deleted = 37;
+    RoomAddedToGroupEvent room_added_to_group = 38;
+    RoomRemovedFromGroupEvent room_removed_from_group = 39;
+    RoomsInGroupReorderedEvent rooms_in_group_reordered = 40;
+    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 41;
+    SidebarLinkUpdatedEvent sidebar_link_updated = 42;
+    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 43;
+    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 44;
+    RoomGroupsReorderedEvent room_groups_reordered = 45;
+    UserAccountCreatedEvent user_account_created = 46;
+    UserLoginChangedEvent user_login_changed = 47;
+    UserDisplayNameChangedEvent user_display_name_changed = 48;
+    UserAvatarSetEvent user_avatar_set = 49;
+    UserAvatarClearedEvent user_avatar_cleared = 50;
+    UserAccountDeletedEvent user_account_deleted = 51;
+    UserCustomStatusSetEvent user_custom_status_set = 52;
+    UserCustomStatusClearedEvent user_custom_status_cleared = 53;
+    UserBioChangedEvent user_bio_changed = 54;
+    RoomMemberBannedEvent room_member_banned = 55;
+    RoomMemberUnbannedEvent room_member_unbanned = 56;
+    RoomMemberAddedEvent room_member_added = 57;
+    RoomMemberRemovedEvent room_member_removed = 58;
+    ReactionAddedEvent reaction_added = 59;
+    ReactionRemovedEvent reaction_removed = 60;
+    UserProfileChangedEvent user_profile_changed = 61;
+    ViewerPreferencesChangedEvent viewer_preferences_changed = 62;
+    ThreadViewerStateChangedEvent thread_viewer_state_changed = 63;
+    ServerProfileChangedEvent server_profile_changed = 64;
+    UserTypingEvent user_typing = 65;
+    PresenceChangedEvent presence_changed = 66;
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 67;
+    NotificationUnreadChangedEvent notification_unread_changed = 68;
+    RoomReadStateChangedEvent room_read_state_changed = 69;
   }
 }
 
 // Application-level heartbeat.
 message RealtimeHeartbeat {
-  reserved 1, 2;
-  reserved "id", "created_at";
-
-  // Fresh resume cursor for the latest durable boundary delivered on this
+  // Fresh resume cursor for the latest replay boundary delivered on this
   // socket. A client can retain it only after all earlier frames have been
   // applied.
-  optional string resume_cursor = 3;
+  optional string resume_cursor = 1;
 }
 
 // Stable server-requested close category.
@@ -209,6 +190,8 @@ enum RealtimeCloseCode {
   REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 5;
   // The server projection reset and the client must take a new snapshot.
   REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 6;
+  // The user's session ended and the client must return to sign-in.
+  REALTIME_CLOSE_CODE_SESSION_TERMINATED = 7;
 }
 
 // Close instruction sent before the socket closes when possible.

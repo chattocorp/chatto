@@ -124,7 +124,7 @@
     if (!isCurrentTarget(target)) return;
 
     toast.success(m('admin.member_delete.success'));
-    // The realtime ServerMemberDeletedEvent purge
+    // The realtime user-account-deleted event purge
     // (removeRegisteredAdminUserQueries) fences other admin caches that embed
     // this user; here we only refresh the list and drop this page's entry.
     void queryClient.invalidateQueries({

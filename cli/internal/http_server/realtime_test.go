@@ -714,7 +714,7 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketDeliversPublicTransientEvent(t *testing.T) {
+func TestRealtimeWebSocketDeliversPublicCursorlessEvent(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-typing-viewer", "RT Typing Viewer", "password123")
 	if err != nil {
@@ -745,7 +745,7 @@ func TestRealtimeWebSocketDeliversPublicTransientEvent(t *testing.T) {
 	}
 	for {
 		delivery := readPublicRealtimeEvent(t, conn)
-		typing := delivery.GetUserTypingSignal()
+		typing := delivery.GetUserTyping()
 		if typing == nil || delivery.GetActorId() != actor.GetId() {
 			continue
 		}
@@ -753,9 +753,42 @@ func TestRealtimeWebSocketDeliversPublicTransientEvent(t *testing.T) {
 			t.Fatalf("typing room = %q, want %q", typing.GetRoomId(), room.GetId())
 		}
 		if delivery.GetResumeCursor() != "" {
-			t.Fatal("transient event unexpectedly carried a resume cursor")
+			t.Fatal("cursorless event unexpectedly carried a resume cursor")
 		}
 		return
+	}
+}
+
+func TestRealtimeWebSocketUsesCloseFrameForSessionTermination(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-terminated", "RT Terminated", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, conn)
+
+	if err := env.core.PublishSessionTerminated(env.ctx, viewer.GetId(), "admin_boot"); err != nil {
+		t.Fatalf("PublishSessionTerminated: %v", err)
+	}
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok {
+		t.Fatal("timed out waiting for session-termination close")
+	}
+	closeFrame := frame.GetClose()
+	if closeFrame == nil {
+		t.Fatalf("frame = %T, want close", frame.GetFrame())
+	}
+	if closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED {
+		t.Fatalf("close code = %v, want SESSION_TERMINATED", closeFrame.GetCode())
+	}
+	if closeFrame.GetReconnect() {
+		t.Fatal("session-termination close unexpectedly permits reconnect")
 	}
 }
 

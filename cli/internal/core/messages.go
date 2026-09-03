@@ -1160,7 +1160,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		}
 	}
 	if options.createThread {
-		c.publishThreadFollowChangedEvent(ctx, user_id, kind, room_id, event.Id, true)
+		c.publishThreadViewerStateChangedEvent(ctx, user_id, kind, room_id, event.Id, true)
 	}
 
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)

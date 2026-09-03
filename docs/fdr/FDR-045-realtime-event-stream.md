@@ -17,9 +17,8 @@ the stream to build and maintain its local server projection.
   clients receive current canonical resources through the WebSocket when
   resume is not possible. Live-only clients start at a stated current boundary
   without historical events.
-- The stream sends authorized public events for durable activity,
-  including messages, edits, retractions, reactions, membership, rooms,
-  profiles, calls, and other public domain changes.
+- The stream sends authorized public events for messages, edits, retractions,
+  reactions, membership, rooms, profiles, calls, and other public activity.
 - Public events contain the canonical event ID, source time, visible actor ID,
   a dedicated public payload message, and an optional opaque resume cursor.
   These are sibling fields in the public event shape.
@@ -28,11 +27,11 @@ the stream to build and maintain its local server projection.
   payloads. The server never sends raw EVT bytes.
 - A client can ignore an event type that it does not use and still retain the
   event cursor.
-- Typing, presence transitions, and other transient activity are live-only.
-  ConnectRPC supplies current latest-value state when clients need it.
+- Typing, presence transitions, and other cursorless activity are live-only.
+  ConnectRPC supplies current state when clients need it.
 - A recently disconnected client can reconnect with its last safe cursor. The
-  server sends authorized durable events after that cursor before it continues
-  live.
+  server sends authorized replayable events after that cursor before it
+  continues live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
 - A live durable content fact that has no safe public event projection closes
@@ -55,13 +54,13 @@ the stream to build and maintain its local server projection.
 
 ### 1. One public semantic event catalogue serves all clients
 
-**Decision:** Durable EVT facts use `chatto.core.evt.v1.Event`. Transient NATS
-Core signals use `chatto.core.live.v1.LiveEvent`. Realtime uses the explicit
+**Decision:** Durable EVT facts use `chatto.core.evt.v1.Event`. NATS Core
+pubsub uses `chatto.core.pubsub.v1.PubSubEvent`. Realtime uses the explicit
 `chatto.realtime.v1.RealtimeEvent.event` union and dedicated payloads in
-the `chatto/realtime/v1` event files. Durable public members keep the matching
-EVT event name and union field number. Live mappings are explicit and use the
-reserved public transient number range. Each payload has an independent public
-layout. Chatto does not provide a frontend-only mutation feed.
+`chatto/realtime/v1/events.proto`. Public names and compact field numbers do
+not expose which internal source produced an event. Each payload has an
+independent public layout. Chatto does not provide a frontend-only mutation
+feed. Session termination is a close frame, not an event.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. The public union and payload file make all exposure
@@ -129,14 +128,14 @@ snapshot. It reloads only mounted room or thread timelines. Unmounted
 timelines remain lazy. A new snapshot invalidates any late response from an
 earlier projection generation.
 
-### 5. Durable and transient activity have different recovery
+### 5. Cursor-bearing and cursorless activity have different recovery
 
-**Decision:** Public durable events can resume from EVT. Transient activity is
-live-only, and current latest-value values are reconciled through resource
+**Decision:** Public events with cursors can resume from EVT. Cursorless
+activity is live-only, and current values are reconciled through resource
 reads.
 **Why:** Typing and presence transitions have no useful historical meaning.
 Durable domain changes need ordering and short-gap recovery.
-**Tradeoff:** A reconnect does not recreate transient presentation effects.
+**Tradeoff:** A reconnect does not recreate cursorless presentation effects.
 
 ### 6. ConnectRPC remains the explicit resource API
 
@@ -186,7 +185,7 @@ discovery metadata or a new behavioral protocol version.
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-091 (semantic realtime events),
   ADR-092 (superseded one event vocabulary), ADR-093 (public realtime event
-  union), ADR-094 (separate durable and live event envelopes)
+  union), ADR-094 (separate durable and pubsub event envelopes)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

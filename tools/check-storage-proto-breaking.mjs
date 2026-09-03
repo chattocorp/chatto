@@ -48,6 +48,8 @@ function main() {
       "--exclude-path",
       "chatto/core/live/v1",
       "--exclude-path",
+      "chatto/core/pubsub/v1",
+      "--exclude-path",
       "chatto/core/projection/v1",
     ],
     { cwd: protoDir, encoding: "utf8" },

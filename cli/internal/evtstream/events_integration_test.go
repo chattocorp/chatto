@@ -2783,7 +2783,7 @@ func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testi
 	}
 }
 
-func TestEventOneofFieldNumberPolicy(t *testing.T) {
+func TestEventOneofDurableFieldNumberPolicy(t *testing.T) {
 	allowedHighDurableTags := map[protoreflect.Name]protoreflect.FieldNumber{
 		"reaction_added":   1050,
 		"reaction_removed": 1051,
@@ -2805,10 +2805,7 @@ func TestEventOneofFieldNumberPolicy(t *testing.T) {
 		if allowed, ok := allowedHighDurableTags[field.Name()]; ok && number == allowed {
 			continue
 		}
-		if number >= 20000 && number <= 29999 {
-			continue
-		}
-		t.Errorf("Event.%s uses field number %d; durable variants must stay below 1000 except reaction_added=1050/reaction_removed=1051, and transient variants must use 20000-29999", field.Name(), number)
+		t.Errorf("Event.%s uses field number %d; durable Event variants must stay below 1000 except reaction_added=1050/reaction_removed=1051", field.Name(), number)
 	}
 }
 

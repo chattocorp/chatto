@@ -229,15 +229,12 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
           labels='${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}'
-          for package in auth discovery api admin realtime live; do
+          for package in auth discovery api admin realtime; do
             if [[ ",${labels}," == *",api-breaking-change:${package},"* ]]; then
               echo "::notice::Skipping acknowledged ${package} protobuf break."
               continue
             fi
-            case "$package" in
-              live) path="chatto/core/live/v1/live_events.proto" ;;
-              *) path="chatto/${package}/v1" ;;
-            esac
+            path="chatto/${package}/v1"
             mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --path "$path"
           done
 

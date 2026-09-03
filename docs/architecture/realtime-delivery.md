@@ -4,8 +4,6 @@ Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
 - [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
-- [`room_group_events.proto`](../../proto/chatto/realtime/v1/room_group_events.proto)
-- [`transient_events.proto`](../../proto/chatto/realtime/v1/transient_events.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
 - [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
@@ -15,7 +13,7 @@ Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md),
 [ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md), and
-[ADR-094](../adr/ADR-094-separate-durable-and-live-event-envelopes.md).
+[ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 ## Public protocol
 
@@ -45,26 +43,25 @@ are `event`, `heartbeat`, and `close`. All terminal protocol results use
 ## Public events
 
 `chatto.core.evt.v1.Event` contains durable EVT facts.
-`chatto.core.live.v1.LiveEvent` contains transient NATS Core signals.
+`chatto.core.pubsub.v1.PubSubEvent` contains NATS Core pubsub events.
 `chatto.realtime.v1.RealtimeEvent` is the authorized public event shape for
 both sources. It contains common metadata, one public payload variant, and an
 optional opaque resume cursor. It does not contain resource state.
 
 A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
-membership, threads, users, calls, and public invalidations. Typing, presence
-changes, and session termination use the same public union but have no resume
-cursor.
+membership, threads, users, calls, and public invalidations. Typing and
+presence changes use the same public union but have no resume cursor. Session
+termination uses a `close` frame instead of an event.
 
 Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the
 complete frame.
 
-The `RealtimeEvent.event` union and the realtime event files are the public
-catalogue. Durable members keep the EVT event name and union field number.
-Transient members use the reserved public transient range and have explicit
-`LiveEvent` mappings. Public payload field numbers are independent from both
-internal envelopes. A missing union member keeps an internal variant out of
+The `RealtimeEvent.event` union and `events.proto` are the public catalogue.
+Public names and compact field numbers do not expose whether the internal
+source is EVT or pubsub. Public payload field numbers are independent from
+both internal envelopes. A missing union member keeps an internal variant out of
 the public API. A missing public payload field keeps an internal field out of
 the generated client types.
 
@@ -232,9 +229,9 @@ events into count- and byte-bounded session queues. Sessions for one user
 share room-visibility state. There are no per-client NATS or JetStream
 consumers.
 
-Transient `live.sync.>` messages use `chatto.core.live.v1.LiveEvent`. Durable
+`live.sync.>` messages use `chatto.core.pubsub.v1.PubSubEvent`. Durable
 `live.evt.>` messages use `chatto.core.evt.v1.Event`. The hub decodes each
-subject root with its matching envelope. Live signals have no replay contract.
+subject root with its matching envelope. Pubsub events have no replay contract.
 Durable facts continue through `live.evt.>`, and a reconnect snapshot restores
 current content state.
 

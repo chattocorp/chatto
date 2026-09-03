@@ -95,6 +95,8 @@ const (
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED RealtimeCloseCode = 5
 	// The server projection reset and the client must take a new snapshot.
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED RealtimeCloseCode = 6
+	// The user's session ended and the client must return to sign-in.
+	RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED RealtimeCloseCode = 7
 )
 
 // Enum value maps for RealtimeCloseCode.
@@ -107,6 +109,7 @@ var (
 		4: "REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED",
 		5: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED",
 		6: "REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED",
+		7: "REALTIME_CLOSE_CODE_SESSION_TERMINATED",
 	}
 	RealtimeCloseCode_value = map[string]int32{
 		"REALTIME_CLOSE_CODE_UNSPECIFIED":               0,
@@ -116,6 +119,7 @@ var (
 		"REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED":   4,
 		"REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED":  5,
 		"REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED": 6,
+		"REALTIME_CLOSE_CODE_SESSION_TERMINATED":        7,
 	}
 )
 
@@ -157,8 +161,8 @@ type RealtimeSubscribe struct {
 	ProtocolVersion uint32 `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
 	// Optional bearer token. When present, it takes precedence over cookie auth.
 	BearerToken *string `protobuf:"bytes,2,opt,name=bearer_token,json=bearerToken,proto3,oneof" json:"bearer_token,omitempty"`
-	// Opaque cursor from a previously received durable event or `caught_up`
-	// frame. A usable cursor receives bounded authorized durable events after
+	// Opaque cursor from a previously received replayable event or `caught_up`
+	// frame. A usable cursor receives bounded authorized events after
 	// that position. Cursors expire 15 minutes after issue.
 	ResumeCursor *string `protobuf:"bytes,3,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	// Required fallback when the cursor is absent or cannot resume safely.
@@ -328,27 +332,27 @@ type isRealtimeServerFrame_Frame interface {
 
 type RealtimeServerFrame_Event struct {
 	// One authorized public event copy.
-	Event *RealtimeEvent `protobuf:"bytes,3,opt,name=event,proto3,oneof"`
+	Event *RealtimeEvent `protobuf:"bytes,1,opt,name=event,proto3,oneof"`
 }
 
 type RealtimeServerFrame_Heartbeat struct {
 	// Application-level heartbeat used for liveness checks.
-	Heartbeat *RealtimeHeartbeat `protobuf:"bytes,4,opt,name=heartbeat,proto3,oneof"`
+	Heartbeat *RealtimeHeartbeat `protobuf:"bytes,2,opt,name=heartbeat,proto3,oneof"`
 }
 
 type RealtimeServerFrame_Close struct {
 	// Server-requested close with reconnect guidance.
-	Close *RealtimeClose `protobuf:"bytes,6,opt,name=close,proto3,oneof"`
+	Close *RealtimeClose `protobuf:"bytes,3,opt,name=close,proto3,oneof"`
 }
 
 type RealtimeServerFrame_CaughtUp struct {
 	// Confirms that recovery reached the live-stream boundary.
-	CaughtUp *RealtimeCaughtUp `protobuf:"bytes,8,opt,name=caught_up,json=caughtUp,proto3,oneof"`
+	CaughtUp *RealtimeCaughtUp `protobuf:"bytes,4,opt,name=caught_up,json=caughtUp,proto3,oneof"`
 }
 
 type RealtimeServerFrame_Snapshot struct {
 	// One exact authorized server-content snapshot.
-	Snapshot *RealtimeSnapshot `protobuf:"bytes,9,opt,name=snapshot,proto3,oneof"`
+	Snapshot *RealtimeSnapshot `protobuf:"bytes,5,opt,name=snapshot,proto3,oneof"`
 }
 
 func (*RealtimeServerFrame_Event) isRealtimeServerFrame_Frame() {}
@@ -452,7 +456,6 @@ func (x *RealtimeSnapshot) GetActiveCalls() []*v1.ActiveCall {
 // Confirms that recovery is complete and live delivery has begun.
 //
 // Clients can retain `cursor` after they apply every preceding event.
-// Transient events are never replayed.
 type RealtimeCaughtUp struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque cursor at the recovery-to-live handoff boundary.
@@ -501,10 +504,11 @@ func (x *RealtimeCaughtUp) GetCursor() string {
 // One authorized public event with its optional resume cursor.
 //
 // Each payload uses a realtime-owned public message. The union is the public
-// event catalogue. A canonical event that is absent from this union is not
+// event catalogue. An internal event that is absent from this union is not
 // part of the realtime API. The server creates a fresh caller-specific value
-// after authorization. Durable events have a resume cursor. Transient events
-// do not.
+// after authorization. An event has a resume cursor when it can be replayed.
+// An event without a cursor is safe to miss, or its state can be restored from
+// a snapshot or a ConnectRPC resource.
 type RealtimeEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Universal event identifier (NanoID).
@@ -570,21 +574,15 @@ type RealtimeEvent struct {
 	//	*RealtimeEvent_RoomMemberRemoved
 	//	*RealtimeEvent_ReactionAdded
 	//	*RealtimeEvent_ReactionRemoved
-	//	*RealtimeEvent_UserCreatedSync
-	//	*RealtimeEvent_UserProfileSync
-	//	*RealtimeEvent_ServerUserPreferencesSync
-	//	*RealtimeEvent_ThreadFollowChangedSync
-	//	*RealtimeEvent_ServerMemberDeletedSync
-	//	*RealtimeEvent_ServerUpdatedSync
-	//	*RealtimeEvent_UserTypingSignal
-	//	*RealtimeEvent_PresenceChangedSignal
-	//	*RealtimeEvent_CallParticipantJoinedSignal
-	//	*RealtimeEvent_CallParticipantLeftSignal
+	//	*RealtimeEvent_UserProfileChanged
+	//	*RealtimeEvent_ViewerPreferencesChanged
+	//	*RealtimeEvent_ThreadViewerStateChanged
+	//	*RealtimeEvent_ServerProfileChanged
+	//	*RealtimeEvent_UserTyping
+	//	*RealtimeEvent_PresenceChanged
 	//	*RealtimeEvent_NotificationOccurrencesInvalidated
 	//	*RealtimeEvent_NotificationUnreadChanged
-	//	*RealtimeEvent_RoomMarkedAsReadSync
-	//	*RealtimeEvent_MentionStatusClearedSync
-	//	*RealtimeEvent_SessionTerminatedSignal
+	//	*RealtimeEvent_RoomReadStateChanged
 	Event         isRealtimeEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1114,91 +1112,55 @@ func (x *RealtimeEvent) GetReactionRemoved() *ReactionRemovedEvent {
 	return nil
 }
 
-func (x *RealtimeEvent) GetUserCreatedSync() *UserCreatedSyncEvent {
+func (x *RealtimeEvent) GetUserProfileChanged() *UserProfileChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_UserCreatedSync); ok {
-			return x.UserCreatedSync
+		if x, ok := x.Event.(*RealtimeEvent_UserProfileChanged); ok {
+			return x.UserProfileChanged
 		}
 	}
 	return nil
 }
 
-func (x *RealtimeEvent) GetUserProfileSync() *UserProfileSyncEvent {
+func (x *RealtimeEvent) GetViewerPreferencesChanged() *ViewerPreferencesChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_UserProfileSync); ok {
-			return x.UserProfileSync
+		if x, ok := x.Event.(*RealtimeEvent_ViewerPreferencesChanged); ok {
+			return x.ViewerPreferencesChanged
 		}
 	}
 	return nil
 }
 
-func (x *RealtimeEvent) GetServerUserPreferencesSync() *ServerUserPreferencesSyncEvent {
+func (x *RealtimeEvent) GetThreadViewerStateChanged() *ThreadViewerStateChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_ServerUserPreferencesSync); ok {
-			return x.ServerUserPreferencesSync
+		if x, ok := x.Event.(*RealtimeEvent_ThreadViewerStateChanged); ok {
+			return x.ThreadViewerStateChanged
 		}
 	}
 	return nil
 }
 
-func (x *RealtimeEvent) GetThreadFollowChangedSync() *ThreadFollowChangedSyncEvent {
+func (x *RealtimeEvent) GetServerProfileChanged() *ServerProfileChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_ThreadFollowChangedSync); ok {
-			return x.ThreadFollowChangedSync
+		if x, ok := x.Event.(*RealtimeEvent_ServerProfileChanged); ok {
+			return x.ServerProfileChanged
 		}
 	}
 	return nil
 }
 
-func (x *RealtimeEvent) GetServerMemberDeletedSync() *ServerMemberDeletedSyncEvent {
+func (x *RealtimeEvent) GetUserTyping() *UserTypingEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_ServerMemberDeletedSync); ok {
-			return x.ServerMemberDeletedSync
+		if x, ok := x.Event.(*RealtimeEvent_UserTyping); ok {
+			return x.UserTyping
 		}
 	}
 	return nil
 }
 
-func (x *RealtimeEvent) GetServerUpdatedSync() *ServerUpdatedSyncEvent {
+func (x *RealtimeEvent) GetPresenceChanged() *PresenceChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_ServerUpdatedSync); ok {
-			return x.ServerUpdatedSync
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetUserTypingSignal() *UserTypingSignalEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_UserTypingSignal); ok {
-			return x.UserTypingSignal
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetPresenceChangedSignal() *PresenceChangedSignalEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_PresenceChangedSignal); ok {
-			return x.PresenceChangedSignal
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetCallParticipantJoinedSignal() *CallParticipantJoinedSignalEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_CallParticipantJoinedSignal); ok {
-			return x.CallParticipantJoinedSignal
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetCallParticipantLeftSignal() *CallParticipantLeftSignalEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_CallParticipantLeftSignal); ok {
-			return x.CallParticipantLeftSignal
+		if x, ok := x.Event.(*RealtimeEvent_PresenceChanged); ok {
+			return x.PresenceChanged
 		}
 	}
 	return nil
@@ -1222,28 +1184,10 @@ func (x *RealtimeEvent) GetNotificationUnreadChanged() *NotificationUnreadChange
 	return nil
 }
 
-func (x *RealtimeEvent) GetRoomMarkedAsReadSync() *RoomMarkedAsReadSyncEvent {
+func (x *RealtimeEvent) GetRoomReadStateChanged() *RoomReadStateChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_RoomMarkedAsReadSync); ok {
-			return x.RoomMarkedAsReadSync
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetMentionStatusClearedSync() *MentionStatusClearedSyncEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_MentionStatusClearedSync); ok {
-			return x.MentionStatusClearedSync
-		}
-	}
-	return nil
-}
-
-func (x *RealtimeEvent) GetSessionTerminatedSignal() *SessionTerminatedSignalEvent {
-	if x != nil {
-		if x, ok := x.Event.(*RealtimeEvent_SessionTerminatedSignal); ok {
-			return x.SessionTerminatedSignal
+		if x, ok := x.Event.(*RealtimeEvent_RoomReadStateChanged); ok {
+			return x.RoomReadStateChanged
 		}
 	}
 	return nil
@@ -1254,267 +1198,243 @@ type isRealtimeEvent_Event interface {
 }
 
 type RealtimeEvent_RoomCreated struct {
-	RoomCreated *RoomCreatedEvent `protobuf:"bytes,300,opt,name=room_created,json=roomCreated,proto3,oneof"`
+	RoomCreated *RoomCreatedEvent `protobuf:"bytes,10,opt,name=room_created,json=roomCreated,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomUpdated struct {
-	RoomUpdated *RoomUpdatedEvent `protobuf:"bytes,301,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
+	RoomUpdated *RoomUpdatedEvent `protobuf:"bytes,11,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomDeleted struct {
-	RoomDeleted *RoomDeletedEvent `protobuf:"bytes,302,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
+	RoomDeleted *RoomDeletedEvent `protobuf:"bytes,12,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomArchived struct {
-	RoomArchived *RoomArchivedEvent `protobuf:"bytes,303,opt,name=room_archived,json=roomArchived,proto3,oneof"`
+	RoomArchived *RoomArchivedEvent `protobuf:"bytes,13,opt,name=room_archived,json=roomArchived,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomUnarchived struct {
-	RoomUnarchived *RoomUnarchivedEvent `protobuf:"bytes,304,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
+	RoomUnarchived *RoomUnarchivedEvent `protobuf:"bytes,14,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomUniversalChanged struct {
-	RoomUniversalChanged *RoomUniversalChangedEvent `protobuf:"bytes,305,opt,name=room_universal_changed,json=roomUniversalChanged,proto3,oneof"`
+	RoomUniversalChanged *RoomUniversalChangedEvent `protobuf:"bytes,15,opt,name=room_universal_changed,json=roomUniversalChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomSlowModeChanged struct {
-	RoomSlowModeChanged *RoomSlowModeChangedEvent `protobuf:"bytes,307,opt,name=room_slow_mode_changed,json=roomSlowModeChanged,proto3,oneof"`
+	RoomSlowModeChanged *RoomSlowModeChangedEvent `protobuf:"bytes,16,opt,name=room_slow_mode_changed,json=roomSlowModeChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomThreadingModeChanged struct {
-	RoomThreadingModeChanged *RoomThreadingModeChangedEvent `protobuf:"bytes,308,opt,name=room_threading_mode_changed,json=roomThreadingModeChanged,proto3,oneof"`
+	RoomThreadingModeChanged *RoomThreadingModeChangedEvent `protobuf:"bytes,17,opt,name=room_threading_mode_changed,json=roomThreadingModeChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_UserJoinedRoom struct {
-	UserJoinedRoom *UserJoinedRoomEvent `protobuf:"bytes,310,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
+	UserJoinedRoom *UserJoinedRoomEvent `protobuf:"bytes,18,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
 }
 
 type RealtimeEvent_UserLeftRoom struct {
-	UserLeftRoom *UserLeftRoomEvent `protobuf:"bytes,311,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
+	UserLeftRoom *UserLeftRoomEvent `protobuf:"bytes,19,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
 }
 
 type RealtimeEvent_VoiceCallParticipantJoined struct {
-	VoiceCallParticipantJoined *VoiceCallParticipantJoinedEvent `protobuf:"bytes,330,opt,name=voice_call_participant_joined,json=voiceCallParticipantJoined,proto3,oneof"`
+	VoiceCallParticipantJoined *VoiceCallParticipantJoinedEvent `protobuf:"bytes,20,opt,name=voice_call_participant_joined,json=voiceCallParticipantJoined,proto3,oneof"`
 }
 
 type RealtimeEvent_VoiceCallParticipantLeft struct {
-	VoiceCallParticipantLeft *VoiceCallParticipantLeftEvent `protobuf:"bytes,331,opt,name=voice_call_participant_left,json=voiceCallParticipantLeft,proto3,oneof"`
+	VoiceCallParticipantLeft *VoiceCallParticipantLeftEvent `protobuf:"bytes,21,opt,name=voice_call_participant_left,json=voiceCallParticipantLeft,proto3,oneof"`
 }
 
 type RealtimeEvent_VoiceCallStarted struct {
-	VoiceCallStarted *VoiceCallStartedEvent `protobuf:"bytes,332,opt,name=voice_call_started,json=voiceCallStarted,proto3,oneof"`
+	VoiceCallStarted *VoiceCallStartedEvent `protobuf:"bytes,22,opt,name=voice_call_started,json=voiceCallStarted,proto3,oneof"`
 }
 
 type RealtimeEvent_VoiceCallEnded struct {
-	VoiceCallEnded *VoiceCallEndedEvent `protobuf:"bytes,333,opt,name=voice_call_ended,json=voiceCallEnded,proto3,oneof"`
+	VoiceCallEnded *VoiceCallEndedEvent `protobuf:"bytes,23,opt,name=voice_call_ended,json=voiceCallEnded,proto3,oneof"`
 }
 
 type RealtimeEvent_MessagePosted struct {
-	MessagePosted *MessagePostedEvent `protobuf:"bytes,400,opt,name=message_posted,json=messagePosted,proto3,oneof"`
+	MessagePosted *MessagePostedEvent `protobuf:"bytes,24,opt,name=message_posted,json=messagePosted,proto3,oneof"`
 }
 
 type RealtimeEvent_MessageEdited struct {
-	MessageEdited *MessageEditedEvent `protobuf:"bytes,401,opt,name=message_edited,json=messageEdited,proto3,oneof"`
+	MessageEdited *MessageEditedEvent `protobuf:"bytes,25,opt,name=message_edited,json=messageEdited,proto3,oneof"`
 }
 
 type RealtimeEvent_MessageRetracted struct {
-	MessageRetracted *MessageRetractedEvent `protobuf:"bytes,402,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
+	MessageRetracted *MessageRetractedEvent `protobuf:"bytes,26,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
 }
 
 type RealtimeEvent_MessagePinned struct {
-	MessagePinned *MessagePinnedEvent `protobuf:"bytes,405,opt,name=message_pinned,json=messagePinned,proto3,oneof"`
+	MessagePinned *MessagePinnedEvent `protobuf:"bytes,27,opt,name=message_pinned,json=messagePinned,proto3,oneof"`
 }
 
 type RealtimeEvent_MessageUnpinned struct {
-	MessageUnpinned *MessageUnpinnedEvent `protobuf:"bytes,406,opt,name=message_unpinned,json=messageUnpinned,proto3,oneof"`
+	MessageUnpinned *MessageUnpinnedEvent `protobuf:"bytes,28,opt,name=message_unpinned,json=messageUnpinned,proto3,oneof"`
 }
 
 type RealtimeEvent_ThreadCreated struct {
-	ThreadCreated *ThreadCreatedEvent `protobuf:"bytes,425,opt,name=thread_created,json=threadCreated,proto3,oneof"`
+	ThreadCreated *ThreadCreatedEvent `protobuf:"bytes,29,opt,name=thread_created,json=threadCreated,proto3,oneof"`
 }
 
 type RealtimeEvent_AssetProcessingStarted struct {
-	AssetProcessingStarted *AssetProcessingStartedEvent `protobuf:"bytes,451,opt,name=asset_processing_started,json=assetProcessingStarted,proto3,oneof"`
+	AssetProcessingStarted *AssetProcessingStartedEvent `protobuf:"bytes,30,opt,name=asset_processing_started,json=assetProcessingStarted,proto3,oneof"`
 }
 
 type RealtimeEvent_AssetProcessingSucceeded struct {
-	AssetProcessingSucceeded *AssetProcessingSucceededEvent `protobuf:"bytes,452,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
+	AssetProcessingSucceeded *AssetProcessingSucceededEvent `protobuf:"bytes,31,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
 }
 
 type RealtimeEvent_AssetProcessingFailed struct {
-	AssetProcessingFailed *AssetProcessingFailedEvent `protobuf:"bytes,453,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
+	AssetProcessingFailed *AssetProcessingFailedEvent `protobuf:"bytes,32,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
 }
 
 type RealtimeEvent_AssetDeleted struct {
-	AssetDeleted *AssetDeletedEvent `protobuf:"bytes,454,opt,name=asset_deleted,json=assetDeleted,proto3,oneof"`
+	AssetDeleted *AssetDeletedEvent `protobuf:"bytes,33,opt,name=asset_deleted,json=assetDeleted,proto3,oneof"`
 }
 
 type RealtimeEvent_ServerMotdChanged struct {
-	ServerMotdChanged *ServerMotdChangedEvent `protobuf:"bytes,504,opt,name=server_motd_changed,json=serverMotdChanged,proto3,oneof"`
+	ServerMotdChanged *ServerMotdChangedEvent `protobuf:"bytes,34,opt,name=server_motd_changed,json=serverMotdChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomGroupCreated struct {
-	RoomGroupCreated *RoomGroupCreatedEvent `protobuf:"bytes,600,opt,name=room_group_created,json=roomGroupCreated,proto3,oneof"`
+	RoomGroupCreated *RoomGroupCreatedEvent `protobuf:"bytes,35,opt,name=room_group_created,json=roomGroupCreated,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomGroupUpdated struct {
-	RoomGroupUpdated *RoomGroupUpdatedEvent `protobuf:"bytes,601,opt,name=room_group_updated,json=roomGroupUpdated,proto3,oneof"`
+	RoomGroupUpdated *RoomGroupUpdatedEvent `protobuf:"bytes,36,opt,name=room_group_updated,json=roomGroupUpdated,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomGroupDeleted struct {
-	RoomGroupDeleted *RoomGroupDeletedEvent `protobuf:"bytes,602,opt,name=room_group_deleted,json=roomGroupDeleted,proto3,oneof"`
+	RoomGroupDeleted *RoomGroupDeletedEvent `protobuf:"bytes,37,opt,name=room_group_deleted,json=roomGroupDeleted,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomAddedToGroup struct {
-	RoomAddedToGroup *RoomAddedToGroupEvent `protobuf:"bytes,603,opt,name=room_added_to_group,json=roomAddedToGroup,proto3,oneof"`
+	RoomAddedToGroup *RoomAddedToGroupEvent `protobuf:"bytes,38,opt,name=room_added_to_group,json=roomAddedToGroup,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomRemovedFromGroup struct {
-	RoomRemovedFromGroup *RoomRemovedFromGroupEvent `protobuf:"bytes,604,opt,name=room_removed_from_group,json=roomRemovedFromGroup,proto3,oneof"`
+	RoomRemovedFromGroup *RoomRemovedFromGroupEvent `protobuf:"bytes,39,opt,name=room_removed_from_group,json=roomRemovedFromGroup,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomsInGroupReordered struct {
-	RoomsInGroupReordered *RoomsInGroupReorderedEvent `protobuf:"bytes,605,opt,name=rooms_in_group_reordered,json=roomsInGroupReordered,proto3,oneof"`
+	RoomsInGroupReordered *RoomsInGroupReorderedEvent `protobuf:"bytes,40,opt,name=rooms_in_group_reordered,json=roomsInGroupReordered,proto3,oneof"`
 }
 
 type RealtimeEvent_SidebarLinkAddedToGroup struct {
-	SidebarLinkAddedToGroup *SidebarLinkAddedToGroupEvent `protobuf:"bytes,606,opt,name=sidebar_link_added_to_group,json=sidebarLinkAddedToGroup,proto3,oneof"`
+	SidebarLinkAddedToGroup *SidebarLinkAddedToGroupEvent `protobuf:"bytes,41,opt,name=sidebar_link_added_to_group,json=sidebarLinkAddedToGroup,proto3,oneof"`
 }
 
 type RealtimeEvent_SidebarLinkUpdated struct {
-	SidebarLinkUpdated *SidebarLinkUpdatedEvent `protobuf:"bytes,607,opt,name=sidebar_link_updated,json=sidebarLinkUpdated,proto3,oneof"`
+	SidebarLinkUpdated *SidebarLinkUpdatedEvent `protobuf:"bytes,42,opt,name=sidebar_link_updated,json=sidebarLinkUpdated,proto3,oneof"`
 }
 
 type RealtimeEvent_SidebarLinkRemovedFromGroup struct {
-	SidebarLinkRemovedFromGroup *SidebarLinkRemovedFromGroupEvent `protobuf:"bytes,608,opt,name=sidebar_link_removed_from_group,json=sidebarLinkRemovedFromGroup,proto3,oneof"`
+	SidebarLinkRemovedFromGroup *SidebarLinkRemovedFromGroupEvent `protobuf:"bytes,43,opt,name=sidebar_link_removed_from_group,json=sidebarLinkRemovedFromGroup,proto3,oneof"`
 }
 
 type RealtimeEvent_SidebarGroupEntriesReordered struct {
-	SidebarGroupEntriesReordered *SidebarGroupEntriesReorderedEvent `protobuf:"bytes,609,opt,name=sidebar_group_entries_reordered,json=sidebarGroupEntriesReordered,proto3,oneof"`
+	SidebarGroupEntriesReordered *SidebarGroupEntriesReorderedEvent `protobuf:"bytes,44,opt,name=sidebar_group_entries_reordered,json=sidebarGroupEntriesReordered,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomGroupsReordered struct {
-	RoomGroupsReordered *RoomGroupsReorderedEvent `protobuf:"bytes,650,opt,name=room_groups_reordered,json=roomGroupsReordered,proto3,oneof"`
+	RoomGroupsReordered *RoomGroupsReorderedEvent `protobuf:"bytes,45,opt,name=room_groups_reordered,json=roomGroupsReordered,proto3,oneof"`
 }
 
 type RealtimeEvent_UserAccountCreated struct {
-	UserAccountCreated *UserAccountCreatedEvent `protobuf:"bytes,700,opt,name=user_account_created,json=userAccountCreated,proto3,oneof"`
+	UserAccountCreated *UserAccountCreatedEvent `protobuf:"bytes,46,opt,name=user_account_created,json=userAccountCreated,proto3,oneof"`
 }
 
 type RealtimeEvent_UserLoginChanged struct {
-	UserLoginChanged *UserLoginChangedEvent `protobuf:"bytes,701,opt,name=user_login_changed,json=userLoginChanged,proto3,oneof"`
+	UserLoginChanged *UserLoginChangedEvent `protobuf:"bytes,47,opt,name=user_login_changed,json=userLoginChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_UserDisplayNameChanged struct {
-	UserDisplayNameChanged *UserDisplayNameChangedEvent `protobuf:"bytes,702,opt,name=user_display_name_changed,json=userDisplayNameChanged,proto3,oneof"`
+	UserDisplayNameChanged *UserDisplayNameChangedEvent `protobuf:"bytes,48,opt,name=user_display_name_changed,json=userDisplayNameChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_UserAvatarSet struct {
-	UserAvatarSet *UserAvatarSetEvent `protobuf:"bytes,703,opt,name=user_avatar_set,json=userAvatarSet,proto3,oneof"`
+	UserAvatarSet *UserAvatarSetEvent `protobuf:"bytes,49,opt,name=user_avatar_set,json=userAvatarSet,proto3,oneof"`
 }
 
 type RealtimeEvent_UserAvatarCleared struct {
-	UserAvatarCleared *UserAvatarClearedEvent `protobuf:"bytes,704,opt,name=user_avatar_cleared,json=userAvatarCleared,proto3,oneof"`
+	UserAvatarCleared *UserAvatarClearedEvent `protobuf:"bytes,50,opt,name=user_avatar_cleared,json=userAvatarCleared,proto3,oneof"`
 }
 
 type RealtimeEvent_UserAccountDeleted struct {
-	UserAccountDeleted *UserAccountDeletedEvent `protobuf:"bytes,710,opt,name=user_account_deleted,json=userAccountDeleted,proto3,oneof"`
+	UserAccountDeleted *UserAccountDeletedEvent `protobuf:"bytes,51,opt,name=user_account_deleted,json=userAccountDeleted,proto3,oneof"`
 }
 
 type RealtimeEvent_UserCustomStatusSet struct {
-	UserCustomStatusSet *UserCustomStatusSetEvent `protobuf:"bytes,715,opt,name=user_custom_status_set,json=userCustomStatusSet,proto3,oneof"`
+	UserCustomStatusSet *UserCustomStatusSetEvent `protobuf:"bytes,52,opt,name=user_custom_status_set,json=userCustomStatusSet,proto3,oneof"`
 }
 
 type RealtimeEvent_UserCustomStatusCleared struct {
-	UserCustomStatusCleared *UserCustomStatusClearedEvent `protobuf:"bytes,716,opt,name=user_custom_status_cleared,json=userCustomStatusCleared,proto3,oneof"`
+	UserCustomStatusCleared *UserCustomStatusClearedEvent `protobuf:"bytes,53,opt,name=user_custom_status_cleared,json=userCustomStatusCleared,proto3,oneof"`
 }
 
 type RealtimeEvent_UserBioChanged struct {
-	UserBioChanged *UserBioChangedEvent `protobuf:"bytes,722,opt,name=user_bio_changed,json=userBioChanged,proto3,oneof"`
+	UserBioChanged *UserBioChangedEvent `protobuf:"bytes,54,opt,name=user_bio_changed,json=userBioChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomMemberBanned struct {
-	RoomMemberBanned *RoomMemberBannedEvent `protobuf:"bytes,840,opt,name=room_member_banned,json=roomMemberBanned,proto3,oneof"`
+	RoomMemberBanned *RoomMemberBannedEvent `protobuf:"bytes,55,opt,name=room_member_banned,json=roomMemberBanned,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomMemberUnbanned struct {
-	RoomMemberUnbanned *RoomMemberUnbannedEvent `protobuf:"bytes,841,opt,name=room_member_unbanned,json=roomMemberUnbanned,proto3,oneof"`
+	RoomMemberUnbanned *RoomMemberUnbannedEvent `protobuf:"bytes,56,opt,name=room_member_unbanned,json=roomMemberUnbanned,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomMemberAdded struct {
-	RoomMemberAdded *RoomMemberAddedEvent `protobuf:"bytes,842,opt,name=room_member_added,json=roomMemberAdded,proto3,oneof"`
+	RoomMemberAdded *RoomMemberAddedEvent `protobuf:"bytes,57,opt,name=room_member_added,json=roomMemberAdded,proto3,oneof"`
 }
 
 type RealtimeEvent_RoomMemberRemoved struct {
-	RoomMemberRemoved *RoomMemberRemovedEvent `protobuf:"bytes,843,opt,name=room_member_removed,json=roomMemberRemoved,proto3,oneof"`
+	RoomMemberRemoved *RoomMemberRemovedEvent `protobuf:"bytes,58,opt,name=room_member_removed,json=roomMemberRemoved,proto3,oneof"`
 }
 
 type RealtimeEvent_ReactionAdded struct {
-	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,1050,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+	ReactionAdded *ReactionAddedEvent `protobuf:"bytes,59,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
 }
 
 type RealtimeEvent_ReactionRemoved struct {
-	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,1051,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,60,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
 }
 
-type RealtimeEvent_UserCreatedSync struct {
-	UserCreatedSync *UserCreatedSyncEvent `protobuf:"bytes,20000,opt,name=user_created_sync,json=userCreatedSync,proto3,oneof"`
+type RealtimeEvent_UserProfileChanged struct {
+	UserProfileChanged *UserProfileChangedEvent `protobuf:"bytes,61,opt,name=user_profile_changed,json=userProfileChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_UserProfileSync struct {
-	UserProfileSync *UserProfileSyncEvent `protobuf:"bytes,20001,opt,name=user_profile_sync,json=userProfileSync,proto3,oneof"`
+type RealtimeEvent_ViewerPreferencesChanged struct {
+	ViewerPreferencesChanged *ViewerPreferencesChangedEvent `protobuf:"bytes,62,opt,name=viewer_preferences_changed,json=viewerPreferencesChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_ServerUserPreferencesSync struct {
-	ServerUserPreferencesSync *ServerUserPreferencesSyncEvent `protobuf:"bytes,20002,opt,name=server_user_preferences_sync,json=serverUserPreferencesSync,proto3,oneof"`
+type RealtimeEvent_ThreadViewerStateChanged struct {
+	ThreadViewerStateChanged *ThreadViewerStateChangedEvent `protobuf:"bytes,63,opt,name=thread_viewer_state_changed,json=threadViewerStateChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_ThreadFollowChangedSync struct {
-	ThreadFollowChangedSync *ThreadFollowChangedSyncEvent `protobuf:"bytes,20003,opt,name=thread_follow_changed_sync,json=threadFollowChangedSync,proto3,oneof"`
+type RealtimeEvent_ServerProfileChanged struct {
+	ServerProfileChanged *ServerProfileChangedEvent `protobuf:"bytes,64,opt,name=server_profile_changed,json=serverProfileChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_ServerMemberDeletedSync struct {
-	ServerMemberDeletedSync *ServerMemberDeletedSyncEvent `protobuf:"bytes,20004,opt,name=server_member_deleted_sync,json=serverMemberDeletedSync,proto3,oneof"`
+type RealtimeEvent_UserTyping struct {
+	UserTyping *UserTypingEvent `protobuf:"bytes,65,opt,name=user_typing,json=userTyping,proto3,oneof"`
 }
 
-type RealtimeEvent_ServerUpdatedSync struct {
-	ServerUpdatedSync *ServerUpdatedSyncEvent `protobuf:"bytes,20005,opt,name=server_updated_sync,json=serverUpdatedSync,proto3,oneof"`
-}
-
-type RealtimeEvent_UserTypingSignal struct {
-	UserTypingSignal *UserTypingSignalEvent `protobuf:"bytes,20006,opt,name=user_typing_signal,json=userTypingSignal,proto3,oneof"`
-}
-
-type RealtimeEvent_PresenceChangedSignal struct {
-	PresenceChangedSignal *PresenceChangedSignalEvent `protobuf:"bytes,20007,opt,name=presence_changed_signal,json=presenceChangedSignal,proto3,oneof"`
-}
-
-type RealtimeEvent_CallParticipantJoinedSignal struct {
-	CallParticipantJoinedSignal *CallParticipantJoinedSignalEvent `protobuf:"bytes,20008,opt,name=call_participant_joined_signal,json=callParticipantJoinedSignal,proto3,oneof"`
-}
-
-type RealtimeEvent_CallParticipantLeftSignal struct {
-	CallParticipantLeftSignal *CallParticipantLeftSignalEvent `protobuf:"bytes,20009,opt,name=call_participant_left_signal,json=callParticipantLeftSignal,proto3,oneof"`
+type RealtimeEvent_PresenceChanged struct {
+	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,66,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
 type RealtimeEvent_NotificationOccurrencesInvalidated struct {
-	NotificationOccurrencesInvalidated *NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,20010,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
+	NotificationOccurrencesInvalidated *NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,67,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
 }
 
 type RealtimeEvent_NotificationUnreadChanged struct {
-	NotificationUnreadChanged *NotificationUnreadChangedEvent `protobuf:"bytes,20011,opt,name=notification_unread_changed,json=notificationUnreadChanged,proto3,oneof"`
+	NotificationUnreadChanged *NotificationUnreadChangedEvent `protobuf:"bytes,68,opt,name=notification_unread_changed,json=notificationUnreadChanged,proto3,oneof"`
 }
 
-type RealtimeEvent_RoomMarkedAsReadSync struct {
-	RoomMarkedAsReadSync *RoomMarkedAsReadSyncEvent `protobuf:"bytes,20012,opt,name=room_marked_as_read_sync,json=roomMarkedAsReadSync,proto3,oneof"`
-}
-
-type RealtimeEvent_MentionStatusClearedSync struct {
-	MentionStatusClearedSync *MentionStatusClearedSyncEvent `protobuf:"bytes,20013,opt,name=mention_status_cleared_sync,json=mentionStatusClearedSync,proto3,oneof"`
-}
-
-type RealtimeEvent_SessionTerminatedSignal struct {
-	SessionTerminatedSignal *SessionTerminatedSignalEvent `protobuf:"bytes,20015,opt,name=session_terminated_signal,json=sessionTerminatedSignal,proto3,oneof"`
+type RealtimeEvent_RoomReadStateChanged struct {
+	RoomReadStateChanged *RoomReadStateChangedEvent `protobuf:"bytes,69,opt,name=room_read_state_changed,json=roomReadStateChanged,proto3,oneof"`
 }
 
 func (*RealtimeEvent_RoomCreated) isRealtimeEvent_Event() {}
@@ -1619,43 +1539,31 @@ func (*RealtimeEvent_ReactionAdded) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_ReactionRemoved) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_UserCreatedSync) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_UserProfileChanged) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_UserProfileSync) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_ViewerPreferencesChanged) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_ServerUserPreferencesSync) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_ThreadViewerStateChanged) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_ThreadFollowChangedSync) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_ServerProfileChanged) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_ServerMemberDeletedSync) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_UserTyping) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_ServerUpdatedSync) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_UserTypingSignal) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_PresenceChangedSignal) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_CallParticipantJoinedSignal) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_CallParticipantLeftSignal) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_PresenceChanged) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_NotificationOccurrencesInvalidated) isRealtimeEvent_Event() {}
 
 func (*RealtimeEvent_NotificationUnreadChanged) isRealtimeEvent_Event() {}
 
-func (*RealtimeEvent_RoomMarkedAsReadSync) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_MentionStatusClearedSync) isRealtimeEvent_Event() {}
-
-func (*RealtimeEvent_SessionTerminatedSignal) isRealtimeEvent_Event() {}
+func (*RealtimeEvent_RoomReadStateChanged) isRealtimeEvent_Event() {}
 
 // Application-level heartbeat.
 type RealtimeHeartbeat struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Fresh resume cursor for the latest durable boundary delivered on this
+	// Fresh resume cursor for the latest replay boundary delivered on this
 	// socket. A client can retain it only after all earlier frames have been
 	// applied.
-	ResumeCursor  *string `protobuf:"bytes,3,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
+	ResumeCursor  *string `protobuf:"bytes,1,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1774,22 +1682,21 @@ var File_chatto_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a$chatto/api/v1/member_directory.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/user_service.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fchatto/realtime/v1/events.proto\x1a*chatto/realtime/v1/room_group_events.proto\x1a)chatto/realtime/v1/transient_events.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
+	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a$chatto/api/v1/member_directory.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/user_service.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1egoogle/protobuf/duration.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
 	"\x11RealtimeSubscribe\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
 	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01\x12(\n" +
 	"\rresume_cursor\x18\x03 \x01(\tH\x01R\fresumeCursor\x88\x01\x01\x12M\n" +
 	"\rinitial_state\x18\x04 \x01(\x0e2(.chatto.realtime.v1.RealtimeInitialStateR\finitialStateB\x0f\n" +
 	"\r_bearer_tokenB\x10\n" +
-	"\x0e_resume_cursor\"\x9c\x03\n" +
+	"\x0e_resume_cursor\"\xe4\x02\n" +
 	"\x13RealtimeServerFrame\x129\n" +
-	"\x05event\x18\x03 \x01(\v2!.chatto.realtime.v1.RealtimeEventH\x00R\x05event\x12E\n" +
-	"\theartbeat\x18\x04 \x01(\v2%.chatto.realtime.v1.RealtimeHeartbeatH\x00R\theartbeat\x129\n" +
-	"\x05close\x18\x06 \x01(\v2!.chatto.realtime.v1.RealtimeCloseH\x00R\x05close\x12C\n" +
-	"\tcaught_up\x18\b \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUp\x12B\n" +
-	"\bsnapshot\x18\t \x01(\v2$.chatto.realtime.v1.RealtimeSnapshotH\x00R\bsnapshotB\a\n" +
-	"\x05frameJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x05\x10\x06J\x04\b\a\x10\bR\x05helloR\n" +
-	"subscribedR\x05errorR\x04pong\"\xb7\x02\n" +
+	"\x05event\x18\x01 \x01(\v2!.chatto.realtime.v1.RealtimeEventH\x00R\x05event\x12E\n" +
+	"\theartbeat\x18\x02 \x01(\v2%.chatto.realtime.v1.RealtimeHeartbeatH\x00R\theartbeat\x129\n" +
+	"\x05close\x18\x03 \x01(\v2!.chatto.realtime.v1.RealtimeCloseH\x00R\x05close\x12C\n" +
+	"\tcaught_up\x18\x04 \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUp\x12B\n" +
+	"\bsnapshot\x18\x05 \x01(\v2$.chatto.realtime.v1.RealtimeSnapshotH\x00R\bsnapshotB\a\n" +
+	"\x05frame\"\xb7\x02\n" +
 	"\x10RealtimeSnapshot\x12:\n" +
 	"\x06server\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\x06server\x128\n" +
 	"\x05rooms\x18\x02 \x03(\v2\".chatto.api.v1.RoomWithViewerStateR\x05rooms\x129\n" +
@@ -1798,86 +1705,81 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x05users\x18\x04 \x03(\v2\x1e.chatto.api.v1.DirectoryMemberR\x05users\x12<\n" +
 	"\factive_calls\x18\x05 \x03(\v2\x19.chatto.api.v1.ActiveCallR\vactiveCalls\"*\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
-	"\x06cursor\x18\x01 \x01(\tR\x06cursor\"\xa25\n" +
+	"\x06cursor\x18\x01 \x01(\tR\x06cursor\"\xef.\n" +
 	"\rRealtimeEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1e\n" +
 	"\bactor_id\x18\x03 \x01(\tH\x01R\aactorId\x88\x01\x01\x12(\n" +
-	"\rresume_cursor\x18\x04 \x01(\tH\x02R\fresumeCursor\x88\x01\x01\x12J\n" +
-	"\froom_created\x18\xac\x02 \x01(\v2$.chatto.realtime.v1.RoomCreatedEventH\x00R\vroomCreated\x12J\n" +
-	"\froom_updated\x18\xad\x02 \x01(\v2$.chatto.realtime.v1.RoomUpdatedEventH\x00R\vroomUpdated\x12J\n" +
-	"\froom_deleted\x18\xae\x02 \x01(\v2$.chatto.realtime.v1.RoomDeletedEventH\x00R\vroomDeleted\x12M\n" +
-	"\rroom_archived\x18\xaf\x02 \x01(\v2%.chatto.realtime.v1.RoomArchivedEventH\x00R\froomArchived\x12S\n" +
-	"\x0froom_unarchived\x18\xb0\x02 \x01(\v2'.chatto.realtime.v1.RoomUnarchivedEventH\x00R\x0eroomUnarchived\x12f\n" +
-	"\x16room_universal_changed\x18\xb1\x02 \x01(\v2-.chatto.realtime.v1.RoomUniversalChangedEventH\x00R\x14roomUniversalChanged\x12d\n" +
-	"\x16room_slow_mode_changed\x18\xb3\x02 \x01(\v2,.chatto.realtime.v1.RoomSlowModeChangedEventH\x00R\x13roomSlowModeChanged\x12s\n" +
-	"\x1broom_threading_mode_changed\x18\xb4\x02 \x01(\v21.chatto.realtime.v1.RoomThreadingModeChangedEventH\x00R\x18roomThreadingModeChanged\x12T\n" +
-	"\x10user_joined_room\x18\xb6\x02 \x01(\v2'.chatto.realtime.v1.UserJoinedRoomEventH\x00R\x0euserJoinedRoom\x12N\n" +
-	"\x0euser_left_room\x18\xb7\x02 \x01(\v2%.chatto.realtime.v1.UserLeftRoomEventH\x00R\fuserLeftRoom\x12y\n" +
-	"\x1dvoice_call_participant_joined\x18\xca\x02 \x01(\v23.chatto.realtime.v1.VoiceCallParticipantJoinedEventH\x00R\x1avoiceCallParticipantJoined\x12s\n" +
-	"\x1bvoice_call_participant_left\x18\xcb\x02 \x01(\v21.chatto.realtime.v1.VoiceCallParticipantLeftEventH\x00R\x18voiceCallParticipantLeft\x12Z\n" +
-	"\x12voice_call_started\x18\xcc\x02 \x01(\v2).chatto.realtime.v1.VoiceCallStartedEventH\x00R\x10voiceCallStarted\x12T\n" +
-	"\x10voice_call_ended\x18\xcd\x02 \x01(\v2'.chatto.realtime.v1.VoiceCallEndedEventH\x00R\x0evoiceCallEnded\x12P\n" +
-	"\x0emessage_posted\x18\x90\x03 \x01(\v2&.chatto.realtime.v1.MessagePostedEventH\x00R\rmessagePosted\x12P\n" +
-	"\x0emessage_edited\x18\x91\x03 \x01(\v2&.chatto.realtime.v1.MessageEditedEventH\x00R\rmessageEdited\x12Y\n" +
-	"\x11message_retracted\x18\x92\x03 \x01(\v2).chatto.realtime.v1.MessageRetractedEventH\x00R\x10messageRetracted\x12P\n" +
-	"\x0emessage_pinned\x18\x95\x03 \x01(\v2&.chatto.realtime.v1.MessagePinnedEventH\x00R\rmessagePinned\x12V\n" +
-	"\x10message_unpinned\x18\x96\x03 \x01(\v2(.chatto.realtime.v1.MessageUnpinnedEventH\x00R\x0fmessageUnpinned\x12P\n" +
-	"\x0ethread_created\x18\xa9\x03 \x01(\v2&.chatto.realtime.v1.ThreadCreatedEventH\x00R\rthreadCreated\x12l\n" +
-	"\x18asset_processing_started\x18\xc3\x03 \x01(\v2/.chatto.realtime.v1.AssetProcessingStartedEventH\x00R\x16assetProcessingStarted\x12r\n" +
-	"\x1aasset_processing_succeeded\x18\xc4\x03 \x01(\v21.chatto.realtime.v1.AssetProcessingSucceededEventH\x00R\x18assetProcessingSucceeded\x12i\n" +
-	"\x17asset_processing_failed\x18\xc5\x03 \x01(\v2..chatto.realtime.v1.AssetProcessingFailedEventH\x00R\x15assetProcessingFailed\x12M\n" +
-	"\rasset_deleted\x18\xc6\x03 \x01(\v2%.chatto.realtime.v1.AssetDeletedEventH\x00R\fassetDeleted\x12]\n" +
-	"\x13server_motd_changed\x18\xf8\x03 \x01(\v2*.chatto.realtime.v1.ServerMotdChangedEventH\x00R\x11serverMotdChanged\x12Z\n" +
-	"\x12room_group_created\x18\xd8\x04 \x01(\v2).chatto.realtime.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12Z\n" +
-	"\x12room_group_updated\x18\xd9\x04 \x01(\v2).chatto.realtime.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12Z\n" +
-	"\x12room_group_deleted\x18\xda\x04 \x01(\v2).chatto.realtime.v1.RoomGroupDeletedEventH\x00R\x10roomGroupDeleted\x12[\n" +
-	"\x13room_added_to_group\x18\xdb\x04 \x01(\v2).chatto.realtime.v1.RoomAddedToGroupEventH\x00R\x10roomAddedToGroup\x12g\n" +
-	"\x17room_removed_from_group\x18\xdc\x04 \x01(\v2-.chatto.realtime.v1.RoomRemovedFromGroupEventH\x00R\x14roomRemovedFromGroup\x12j\n" +
-	"\x18rooms_in_group_reordered\x18\xdd\x04 \x01(\v2..chatto.realtime.v1.RoomsInGroupReorderedEventH\x00R\x15roomsInGroupReordered\x12q\n" +
-	"\x1bsidebar_link_added_to_group\x18\xde\x04 \x01(\v20.chatto.realtime.v1.SidebarLinkAddedToGroupEventH\x00R\x17sidebarLinkAddedToGroup\x12`\n" +
-	"\x14sidebar_link_updated\x18\xdf\x04 \x01(\v2+.chatto.realtime.v1.SidebarLinkUpdatedEventH\x00R\x12sidebarLinkUpdated\x12}\n" +
-	"\x1fsidebar_link_removed_from_group\x18\xe0\x04 \x01(\v24.chatto.realtime.v1.SidebarLinkRemovedFromGroupEventH\x00R\x1bsidebarLinkRemovedFromGroup\x12\x7f\n" +
-	"\x1fsidebar_group_entries_reordered\x18\xe1\x04 \x01(\v25.chatto.realtime.v1.SidebarGroupEntriesReorderedEventH\x00R\x1csidebarGroupEntriesReordered\x12c\n" +
-	"\x15room_groups_reordered\x18\x8a\x05 \x01(\v2,.chatto.realtime.v1.RoomGroupsReorderedEventH\x00R\x13roomGroupsReordered\x12`\n" +
-	"\x14user_account_created\x18\xbc\x05 \x01(\v2+.chatto.realtime.v1.UserAccountCreatedEventH\x00R\x12userAccountCreated\x12Z\n" +
-	"\x12user_login_changed\x18\xbd\x05 \x01(\v2).chatto.realtime.v1.UserLoginChangedEventH\x00R\x10userLoginChanged\x12m\n" +
-	"\x19user_display_name_changed\x18\xbe\x05 \x01(\v2/.chatto.realtime.v1.UserDisplayNameChangedEventH\x00R\x16userDisplayNameChanged\x12Q\n" +
-	"\x0fuser_avatar_set\x18\xbf\x05 \x01(\v2&.chatto.realtime.v1.UserAvatarSetEventH\x00R\ruserAvatarSet\x12]\n" +
-	"\x13user_avatar_cleared\x18\xc0\x05 \x01(\v2*.chatto.realtime.v1.UserAvatarClearedEventH\x00R\x11userAvatarCleared\x12`\n" +
-	"\x14user_account_deleted\x18\xc6\x05 \x01(\v2+.chatto.realtime.v1.UserAccountDeletedEventH\x00R\x12userAccountDeleted\x12d\n" +
-	"\x16user_custom_status_set\x18\xcb\x05 \x01(\v2,.chatto.realtime.v1.UserCustomStatusSetEventH\x00R\x13userCustomStatusSet\x12p\n" +
-	"\x1auser_custom_status_cleared\x18\xcc\x05 \x01(\v20.chatto.realtime.v1.UserCustomStatusClearedEventH\x00R\x17userCustomStatusCleared\x12T\n" +
-	"\x10user_bio_changed\x18\xd2\x05 \x01(\v2'.chatto.realtime.v1.UserBioChangedEventH\x00R\x0euserBioChanged\x12Z\n" +
-	"\x12room_member_banned\x18\xc8\x06 \x01(\v2).chatto.realtime.v1.RoomMemberBannedEventH\x00R\x10roomMemberBanned\x12`\n" +
-	"\x14room_member_unbanned\x18\xc9\x06 \x01(\v2+.chatto.realtime.v1.RoomMemberUnbannedEventH\x00R\x12roomMemberUnbanned\x12W\n" +
-	"\x11room_member_added\x18\xca\x06 \x01(\v2(.chatto.realtime.v1.RoomMemberAddedEventH\x00R\x0froomMemberAdded\x12]\n" +
-	"\x13room_member_removed\x18\xcb\x06 \x01(\v2*.chatto.realtime.v1.RoomMemberRemovedEventH\x00R\x11roomMemberRemoved\x12P\n" +
-	"\x0ereaction_added\x18\x9a\b \x01(\v2&.chatto.realtime.v1.ReactionAddedEventH\x00R\rreactionAdded\x12V\n" +
-	"\x10reaction_removed\x18\x9b\b \x01(\v2(.chatto.realtime.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12X\n" +
-	"\x11user_created_sync\x18\xa0\x9c\x01 \x01(\v2(.chatto.realtime.v1.UserCreatedSyncEventH\x00R\x0fuserCreatedSync\x12X\n" +
-	"\x11user_profile_sync\x18\xa1\x9c\x01 \x01(\v2(.chatto.realtime.v1.UserProfileSyncEventH\x00R\x0fuserProfileSync\x12w\n" +
-	"\x1cserver_user_preferences_sync\x18\xa2\x9c\x01 \x01(\v22.chatto.realtime.v1.ServerUserPreferencesSyncEventH\x00R\x19serverUserPreferencesSync\x12q\n" +
-	"\x1athread_follow_changed_sync\x18\xa3\x9c\x01 \x01(\v20.chatto.realtime.v1.ThreadFollowChangedSyncEventH\x00R\x17threadFollowChangedSync\x12q\n" +
-	"\x1aserver_member_deleted_sync\x18\xa4\x9c\x01 \x01(\v20.chatto.realtime.v1.ServerMemberDeletedSyncEventH\x00R\x17serverMemberDeletedSync\x12^\n" +
-	"\x13server_updated_sync\x18\xa5\x9c\x01 \x01(\v2*.chatto.realtime.v1.ServerUpdatedSyncEventH\x00R\x11serverUpdatedSync\x12[\n" +
-	"\x12user_typing_signal\x18\xa6\x9c\x01 \x01(\v2).chatto.realtime.v1.UserTypingSignalEventH\x00R\x10userTypingSignal\x12j\n" +
-	"\x17presence_changed_signal\x18\xa7\x9c\x01 \x01(\v2..chatto.realtime.v1.PresenceChangedSignalEventH\x00R\x15presenceChangedSignal\x12}\n" +
-	"\x1ecall_participant_joined_signal\x18\xa8\x9c\x01 \x01(\v24.chatto.realtime.v1.CallParticipantJoinedSignalEventH\x00R\x1bcallParticipantJoinedSignal\x12w\n" +
-	"\x1ccall_participant_left_signal\x18\xa9\x9c\x01 \x01(\v22.chatto.realtime.v1.CallParticipantLeftSignalEventH\x00R\x19callParticipantLeftSignal\x12\x91\x01\n" +
-	"$notification_occurrences_invalidated\x18\xaa\x9c\x01 \x01(\v2;.chatto.realtime.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12v\n" +
-	"\x1bnotification_unread_changed\x18\xab\x9c\x01 \x01(\v22.chatto.realtime.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12i\n" +
-	"\x18room_marked_as_read_sync\x18\xac\x9c\x01 \x01(\v2-.chatto.realtime.v1.RoomMarkedAsReadSyncEventH\x00R\x14roomMarkedAsReadSync\x12t\n" +
-	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v21.chatto.realtime.v1.MentionStatusClearedSyncEventH\x00R\x18mentionStatusClearedSync\x12p\n" +
-	"\x19session_terminated_signal\x18\xaf\x9c\x01 \x01(\v20.chatto.realtime.v1.SessionTerminatedSignalEventH\x00R\x17sessionTerminatedSignalB\a\n" +
+	"\rresume_cursor\x18\x04 \x01(\tH\x02R\fresumeCursor\x88\x01\x01\x12I\n" +
+	"\froom_created\x18\n" +
+	" \x01(\v2$.chatto.realtime.v1.RoomCreatedEventH\x00R\vroomCreated\x12I\n" +
+	"\froom_updated\x18\v \x01(\v2$.chatto.realtime.v1.RoomUpdatedEventH\x00R\vroomUpdated\x12I\n" +
+	"\froom_deleted\x18\f \x01(\v2$.chatto.realtime.v1.RoomDeletedEventH\x00R\vroomDeleted\x12L\n" +
+	"\rroom_archived\x18\r \x01(\v2%.chatto.realtime.v1.RoomArchivedEventH\x00R\froomArchived\x12R\n" +
+	"\x0froom_unarchived\x18\x0e \x01(\v2'.chatto.realtime.v1.RoomUnarchivedEventH\x00R\x0eroomUnarchived\x12e\n" +
+	"\x16room_universal_changed\x18\x0f \x01(\v2-.chatto.realtime.v1.RoomUniversalChangedEventH\x00R\x14roomUniversalChanged\x12c\n" +
+	"\x16room_slow_mode_changed\x18\x10 \x01(\v2,.chatto.realtime.v1.RoomSlowModeChangedEventH\x00R\x13roomSlowModeChanged\x12r\n" +
+	"\x1broom_threading_mode_changed\x18\x11 \x01(\v21.chatto.realtime.v1.RoomThreadingModeChangedEventH\x00R\x18roomThreadingModeChanged\x12S\n" +
+	"\x10user_joined_room\x18\x12 \x01(\v2'.chatto.realtime.v1.UserJoinedRoomEventH\x00R\x0euserJoinedRoom\x12M\n" +
+	"\x0euser_left_room\x18\x13 \x01(\v2%.chatto.realtime.v1.UserLeftRoomEventH\x00R\fuserLeftRoom\x12x\n" +
+	"\x1dvoice_call_participant_joined\x18\x14 \x01(\v23.chatto.realtime.v1.VoiceCallParticipantJoinedEventH\x00R\x1avoiceCallParticipantJoined\x12r\n" +
+	"\x1bvoice_call_participant_left\x18\x15 \x01(\v21.chatto.realtime.v1.VoiceCallParticipantLeftEventH\x00R\x18voiceCallParticipantLeft\x12Y\n" +
+	"\x12voice_call_started\x18\x16 \x01(\v2).chatto.realtime.v1.VoiceCallStartedEventH\x00R\x10voiceCallStarted\x12S\n" +
+	"\x10voice_call_ended\x18\x17 \x01(\v2'.chatto.realtime.v1.VoiceCallEndedEventH\x00R\x0evoiceCallEnded\x12O\n" +
+	"\x0emessage_posted\x18\x18 \x01(\v2&.chatto.realtime.v1.MessagePostedEventH\x00R\rmessagePosted\x12O\n" +
+	"\x0emessage_edited\x18\x19 \x01(\v2&.chatto.realtime.v1.MessageEditedEventH\x00R\rmessageEdited\x12X\n" +
+	"\x11message_retracted\x18\x1a \x01(\v2).chatto.realtime.v1.MessageRetractedEventH\x00R\x10messageRetracted\x12O\n" +
+	"\x0emessage_pinned\x18\x1b \x01(\v2&.chatto.realtime.v1.MessagePinnedEventH\x00R\rmessagePinned\x12U\n" +
+	"\x10message_unpinned\x18\x1c \x01(\v2(.chatto.realtime.v1.MessageUnpinnedEventH\x00R\x0fmessageUnpinned\x12O\n" +
+	"\x0ethread_created\x18\x1d \x01(\v2&.chatto.realtime.v1.ThreadCreatedEventH\x00R\rthreadCreated\x12k\n" +
+	"\x18asset_processing_started\x18\x1e \x01(\v2/.chatto.realtime.v1.AssetProcessingStartedEventH\x00R\x16assetProcessingStarted\x12q\n" +
+	"\x1aasset_processing_succeeded\x18\x1f \x01(\v21.chatto.realtime.v1.AssetProcessingSucceededEventH\x00R\x18assetProcessingSucceeded\x12h\n" +
+	"\x17asset_processing_failed\x18  \x01(\v2..chatto.realtime.v1.AssetProcessingFailedEventH\x00R\x15assetProcessingFailed\x12L\n" +
+	"\rasset_deleted\x18! \x01(\v2%.chatto.realtime.v1.AssetDeletedEventH\x00R\fassetDeleted\x12\\\n" +
+	"\x13server_motd_changed\x18\" \x01(\v2*.chatto.realtime.v1.ServerMotdChangedEventH\x00R\x11serverMotdChanged\x12Y\n" +
+	"\x12room_group_created\x18# \x01(\v2).chatto.realtime.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12Y\n" +
+	"\x12room_group_updated\x18$ \x01(\v2).chatto.realtime.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12Y\n" +
+	"\x12room_group_deleted\x18% \x01(\v2).chatto.realtime.v1.RoomGroupDeletedEventH\x00R\x10roomGroupDeleted\x12Z\n" +
+	"\x13room_added_to_group\x18& \x01(\v2).chatto.realtime.v1.RoomAddedToGroupEventH\x00R\x10roomAddedToGroup\x12f\n" +
+	"\x17room_removed_from_group\x18' \x01(\v2-.chatto.realtime.v1.RoomRemovedFromGroupEventH\x00R\x14roomRemovedFromGroup\x12i\n" +
+	"\x18rooms_in_group_reordered\x18( \x01(\v2..chatto.realtime.v1.RoomsInGroupReorderedEventH\x00R\x15roomsInGroupReordered\x12p\n" +
+	"\x1bsidebar_link_added_to_group\x18) \x01(\v20.chatto.realtime.v1.SidebarLinkAddedToGroupEventH\x00R\x17sidebarLinkAddedToGroup\x12_\n" +
+	"\x14sidebar_link_updated\x18* \x01(\v2+.chatto.realtime.v1.SidebarLinkUpdatedEventH\x00R\x12sidebarLinkUpdated\x12|\n" +
+	"\x1fsidebar_link_removed_from_group\x18+ \x01(\v24.chatto.realtime.v1.SidebarLinkRemovedFromGroupEventH\x00R\x1bsidebarLinkRemovedFromGroup\x12~\n" +
+	"\x1fsidebar_group_entries_reordered\x18, \x01(\v25.chatto.realtime.v1.SidebarGroupEntriesReorderedEventH\x00R\x1csidebarGroupEntriesReordered\x12b\n" +
+	"\x15room_groups_reordered\x18- \x01(\v2,.chatto.realtime.v1.RoomGroupsReorderedEventH\x00R\x13roomGroupsReordered\x12_\n" +
+	"\x14user_account_created\x18. \x01(\v2+.chatto.realtime.v1.UserAccountCreatedEventH\x00R\x12userAccountCreated\x12Y\n" +
+	"\x12user_login_changed\x18/ \x01(\v2).chatto.realtime.v1.UserLoginChangedEventH\x00R\x10userLoginChanged\x12l\n" +
+	"\x19user_display_name_changed\x180 \x01(\v2/.chatto.realtime.v1.UserDisplayNameChangedEventH\x00R\x16userDisplayNameChanged\x12P\n" +
+	"\x0fuser_avatar_set\x181 \x01(\v2&.chatto.realtime.v1.UserAvatarSetEventH\x00R\ruserAvatarSet\x12\\\n" +
+	"\x13user_avatar_cleared\x182 \x01(\v2*.chatto.realtime.v1.UserAvatarClearedEventH\x00R\x11userAvatarCleared\x12_\n" +
+	"\x14user_account_deleted\x183 \x01(\v2+.chatto.realtime.v1.UserAccountDeletedEventH\x00R\x12userAccountDeleted\x12c\n" +
+	"\x16user_custom_status_set\x184 \x01(\v2,.chatto.realtime.v1.UserCustomStatusSetEventH\x00R\x13userCustomStatusSet\x12o\n" +
+	"\x1auser_custom_status_cleared\x185 \x01(\v20.chatto.realtime.v1.UserCustomStatusClearedEventH\x00R\x17userCustomStatusCleared\x12S\n" +
+	"\x10user_bio_changed\x186 \x01(\v2'.chatto.realtime.v1.UserBioChangedEventH\x00R\x0euserBioChanged\x12Y\n" +
+	"\x12room_member_banned\x187 \x01(\v2).chatto.realtime.v1.RoomMemberBannedEventH\x00R\x10roomMemberBanned\x12_\n" +
+	"\x14room_member_unbanned\x188 \x01(\v2+.chatto.realtime.v1.RoomMemberUnbannedEventH\x00R\x12roomMemberUnbanned\x12V\n" +
+	"\x11room_member_added\x189 \x01(\v2(.chatto.realtime.v1.RoomMemberAddedEventH\x00R\x0froomMemberAdded\x12\\\n" +
+	"\x13room_member_removed\x18: \x01(\v2*.chatto.realtime.v1.RoomMemberRemovedEventH\x00R\x11roomMemberRemoved\x12O\n" +
+	"\x0ereaction_added\x18; \x01(\v2&.chatto.realtime.v1.ReactionAddedEventH\x00R\rreactionAdded\x12U\n" +
+	"\x10reaction_removed\x18< \x01(\v2(.chatto.realtime.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12_\n" +
+	"\x14user_profile_changed\x18= \x01(\v2+.chatto.realtime.v1.UserProfileChangedEventH\x00R\x12userProfileChanged\x12q\n" +
+	"\x1aviewer_preferences_changed\x18> \x01(\v21.chatto.realtime.v1.ViewerPreferencesChangedEventH\x00R\x18viewerPreferencesChanged\x12r\n" +
+	"\x1bthread_viewer_state_changed\x18? \x01(\v21.chatto.realtime.v1.ThreadViewerStateChangedEventH\x00R\x18threadViewerStateChanged\x12e\n" +
+	"\x16server_profile_changed\x18@ \x01(\v2-.chatto.realtime.v1.ServerProfileChangedEventH\x00R\x14serverProfileChanged\x12F\n" +
+	"\vuser_typing\x18A \x01(\v2#.chatto.realtime.v1.UserTypingEventH\x00R\n" +
+	"userTyping\x12U\n" +
+	"\x10presence_changed\x18B \x01(\v2(.chatto.realtime.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12\x8f\x01\n" +
+	"$notification_occurrences_invalidated\x18C \x01(\v2;.chatto.realtime.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12t\n" +
+	"\x1bnotification_unread_changed\x18D \x01(\v22.chatto.realtime.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12f\n" +
+	"\x17room_read_state_changed\x18E \x01(\v2-.chatto.realtime.v1.RoomReadStateChangedEventH\x00R\x14roomReadStateChangedB\a\n" +
 	"\x05eventB\v\n" +
 	"\t_actor_idB\x10\n" +
-	"\x0e_resume_cursorJ\b\b\xae\x9c\x01\x10\xaf\x9c\x01R\x05stateR\x18room_groups_updated_sync\"k\n" +
+	"\x0e_resume_cursor\"O\n" +
 	"\x11RealtimeHeartbeat\x12(\n" +
-	"\rresume_cursor\x18\x03 \x01(\tH\x00R\fresumeCursor\x88\x01\x01B\x10\n" +
-	"\x0e_resume_cursorJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x02idR\n" +
-	"created_at\"\xbe\x01\n" +
+	"\rresume_cursor\x18\x01 \x01(\tH\x00R\fresumeCursor\x88\x01\x01B\x10\n" +
+	"\x0e_resume_cursor\"\xbe\x01\n" +
 	"\rRealtimeClose\x129\n" +
 	"\x04code\x18\x01 \x01(\x0e2%.chatto.realtime.v1.RealtimeCloseCodeR\x04code\x12\x18\n" +
 	"\amessage\x18\x02 \x01(\tR\amessage\x12\x1c\n" +
@@ -1887,7 +1789,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x14RealtimeInitialState\x12&\n" +
 	"\"REALTIME_INITIAL_STATE_UNSPECIFIED\x10\x00\x12$\n" +
 	" REALTIME_INITIAL_STATE_LIVE_ONLY\x10\x01\x12#\n" +
-	"\x1fREALTIME_INITIAL_STATE_SNAPSHOT\x10\x02*\xd6\x02\n" +
+	"\x1fREALTIME_INITIAL_STATE_SNAPSHOT\x10\x02*\x82\x03\n" +
 	"\x11RealtimeCloseCode\x12#\n" +
 	"\x1fREALTIME_CLOSE_CODE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#REALTIME_CLOSE_CODE_INVALID_REQUEST\x10\x01\x12,\n" +
@@ -1895,7 +1797,8 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"+REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE\x10\x03\x12/\n" +
 	"+REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED\x10\x04\x120\n" +
 	",REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED\x10\x05\x121\n" +
-	"-REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED\x10\x06B\xcc\x01\n" +
+	"-REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED\x10\x06\x12*\n" +
+	"&REALTIME_CLOSE_CODE_SESSION_TERMINATED\x10\aB\xcc\x01\n" +
 	"\x16com.chatto.realtime.v1B\rRealtimeProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/realtime/v1;realtimev1\xa2\x02\x03CRX\xaa\x02\x12Chatto.Realtime.V1\xca\x02\x12Chatto\\Realtime\\V1\xe2\x02\x1eChatto\\Realtime\\V1\\GPBMetadata\xea\x02\x14Chatto::Realtime::V1b\x06proto3"
 
 var (
@@ -1979,22 +1882,16 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*RoomMemberRemovedEvent)(nil),                  // 63: chatto.realtime.v1.RoomMemberRemovedEvent
 	(*ReactionAddedEvent)(nil),                      // 64: chatto.realtime.v1.ReactionAddedEvent
 	(*ReactionRemovedEvent)(nil),                    // 65: chatto.realtime.v1.ReactionRemovedEvent
-	(*UserCreatedSyncEvent)(nil),                    // 66: chatto.realtime.v1.UserCreatedSyncEvent
-	(*UserProfileSyncEvent)(nil),                    // 67: chatto.realtime.v1.UserProfileSyncEvent
-	(*ServerUserPreferencesSyncEvent)(nil),          // 68: chatto.realtime.v1.ServerUserPreferencesSyncEvent
-	(*ThreadFollowChangedSyncEvent)(nil),            // 69: chatto.realtime.v1.ThreadFollowChangedSyncEvent
-	(*ServerMemberDeletedSyncEvent)(nil),            // 70: chatto.realtime.v1.ServerMemberDeletedSyncEvent
-	(*ServerUpdatedSyncEvent)(nil),                  // 71: chatto.realtime.v1.ServerUpdatedSyncEvent
-	(*UserTypingSignalEvent)(nil),                   // 72: chatto.realtime.v1.UserTypingSignalEvent
-	(*PresenceChangedSignalEvent)(nil),              // 73: chatto.realtime.v1.PresenceChangedSignalEvent
-	(*CallParticipantJoinedSignalEvent)(nil),        // 74: chatto.realtime.v1.CallParticipantJoinedSignalEvent
-	(*CallParticipantLeftSignalEvent)(nil),          // 75: chatto.realtime.v1.CallParticipantLeftSignalEvent
-	(*NotificationOccurrencesInvalidatedEvent)(nil), // 76: chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
-	(*NotificationUnreadChangedEvent)(nil),          // 77: chatto.realtime.v1.NotificationUnreadChangedEvent
-	(*RoomMarkedAsReadSyncEvent)(nil),               // 78: chatto.realtime.v1.RoomMarkedAsReadSyncEvent
-	(*MentionStatusClearedSyncEvent)(nil),           // 79: chatto.realtime.v1.MentionStatusClearedSyncEvent
-	(*SessionTerminatedSignalEvent)(nil),            // 80: chatto.realtime.v1.SessionTerminatedSignalEvent
-	(*durationpb.Duration)(nil),                     // 81: google.protobuf.Duration
+	(*UserProfileChangedEvent)(nil),                 // 66: chatto.realtime.v1.UserProfileChangedEvent
+	(*ViewerPreferencesChangedEvent)(nil),           // 67: chatto.realtime.v1.ViewerPreferencesChangedEvent
+	(*ThreadViewerStateChangedEvent)(nil),           // 68: chatto.realtime.v1.ThreadViewerStateChangedEvent
+	(*ServerProfileChangedEvent)(nil),               // 69: chatto.realtime.v1.ServerProfileChangedEvent
+	(*UserTypingEvent)(nil),                         // 70: chatto.realtime.v1.UserTypingEvent
+	(*PresenceChangedEvent)(nil),                    // 71: chatto.realtime.v1.PresenceChangedEvent
+	(*NotificationOccurrencesInvalidatedEvent)(nil), // 72: chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
+	(*NotificationUnreadChangedEvent)(nil),          // 73: chatto.realtime.v1.NotificationUnreadChangedEvent
+	(*RoomReadStateChangedEvent)(nil),               // 74: chatto.realtime.v1.RoomReadStateChangedEvent
+	(*durationpb.Duration)(nil),                     // 75: google.protobuf.Duration
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	0,  // 0: chatto.realtime.v1.RealtimeSubscribe.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
@@ -2060,28 +1957,22 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	63, // 60: chatto.realtime.v1.RealtimeEvent.room_member_removed:type_name -> chatto.realtime.v1.RoomMemberRemovedEvent
 	64, // 61: chatto.realtime.v1.RealtimeEvent.reaction_added:type_name -> chatto.realtime.v1.ReactionAddedEvent
 	65, // 62: chatto.realtime.v1.RealtimeEvent.reaction_removed:type_name -> chatto.realtime.v1.ReactionRemovedEvent
-	66, // 63: chatto.realtime.v1.RealtimeEvent.user_created_sync:type_name -> chatto.realtime.v1.UserCreatedSyncEvent
-	67, // 64: chatto.realtime.v1.RealtimeEvent.user_profile_sync:type_name -> chatto.realtime.v1.UserProfileSyncEvent
-	68, // 65: chatto.realtime.v1.RealtimeEvent.server_user_preferences_sync:type_name -> chatto.realtime.v1.ServerUserPreferencesSyncEvent
-	69, // 66: chatto.realtime.v1.RealtimeEvent.thread_follow_changed_sync:type_name -> chatto.realtime.v1.ThreadFollowChangedSyncEvent
-	70, // 67: chatto.realtime.v1.RealtimeEvent.server_member_deleted_sync:type_name -> chatto.realtime.v1.ServerMemberDeletedSyncEvent
-	71, // 68: chatto.realtime.v1.RealtimeEvent.server_updated_sync:type_name -> chatto.realtime.v1.ServerUpdatedSyncEvent
-	72, // 69: chatto.realtime.v1.RealtimeEvent.user_typing_signal:type_name -> chatto.realtime.v1.UserTypingSignalEvent
-	73, // 70: chatto.realtime.v1.RealtimeEvent.presence_changed_signal:type_name -> chatto.realtime.v1.PresenceChangedSignalEvent
-	74, // 71: chatto.realtime.v1.RealtimeEvent.call_participant_joined_signal:type_name -> chatto.realtime.v1.CallParticipantJoinedSignalEvent
-	75, // 72: chatto.realtime.v1.RealtimeEvent.call_participant_left_signal:type_name -> chatto.realtime.v1.CallParticipantLeftSignalEvent
-	76, // 73: chatto.realtime.v1.RealtimeEvent.notification_occurrences_invalidated:type_name -> chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
-	77, // 74: chatto.realtime.v1.RealtimeEvent.notification_unread_changed:type_name -> chatto.realtime.v1.NotificationUnreadChangedEvent
-	78, // 75: chatto.realtime.v1.RealtimeEvent.room_marked_as_read_sync:type_name -> chatto.realtime.v1.RoomMarkedAsReadSyncEvent
-	79, // 76: chatto.realtime.v1.RealtimeEvent.mention_status_cleared_sync:type_name -> chatto.realtime.v1.MentionStatusClearedSyncEvent
-	80, // 77: chatto.realtime.v1.RealtimeEvent.session_terminated_signal:type_name -> chatto.realtime.v1.SessionTerminatedSignalEvent
-	1,  // 78: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
-	81, // 79: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
-	80, // [80:80] is the sub-list for method output_type
-	80, // [80:80] is the sub-list for method input_type
-	80, // [80:80] is the sub-list for extension type_name
-	80, // [80:80] is the sub-list for extension extendee
-	0,  // [0:80] is the sub-list for field type_name
+	66, // 63: chatto.realtime.v1.RealtimeEvent.user_profile_changed:type_name -> chatto.realtime.v1.UserProfileChangedEvent
+	67, // 64: chatto.realtime.v1.RealtimeEvent.viewer_preferences_changed:type_name -> chatto.realtime.v1.ViewerPreferencesChangedEvent
+	68, // 65: chatto.realtime.v1.RealtimeEvent.thread_viewer_state_changed:type_name -> chatto.realtime.v1.ThreadViewerStateChangedEvent
+	69, // 66: chatto.realtime.v1.RealtimeEvent.server_profile_changed:type_name -> chatto.realtime.v1.ServerProfileChangedEvent
+	70, // 67: chatto.realtime.v1.RealtimeEvent.user_typing:type_name -> chatto.realtime.v1.UserTypingEvent
+	71, // 68: chatto.realtime.v1.RealtimeEvent.presence_changed:type_name -> chatto.realtime.v1.PresenceChangedEvent
+	72, // 69: chatto.realtime.v1.RealtimeEvent.notification_occurrences_invalidated:type_name -> chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
+	73, // 70: chatto.realtime.v1.RealtimeEvent.notification_unread_changed:type_name -> chatto.realtime.v1.NotificationUnreadChangedEvent
+	74, // 71: chatto.realtime.v1.RealtimeEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
+	1,  // 72: chatto.realtime.v1.RealtimeClose.code:type_name -> chatto.realtime.v1.RealtimeCloseCode
+	75, // 73: chatto.realtime.v1.RealtimeClose.retry_after:type_name -> google.protobuf.Duration
+	74, // [74:74] is the sub-list for method output_type
+	74, // [74:74] is the sub-list for method input_type
+	74, // [74:74] is the sub-list for extension type_name
+	74, // [74:74] is the sub-list for extension extendee
+	0,  // [0:74] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -2090,8 +1981,6 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		return
 	}
 	file_chatto_realtime_v1_events_proto_init()
-	file_chatto_realtime_v1_room_group_events_proto_init()
-	file_chatto_realtime_v1_transient_events_proto_init()
 	file_chatto_realtime_v1_realtime_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[1].OneofWrappers = []any{
 		(*RealtimeServerFrame_Event)(nil),
@@ -2152,21 +2041,15 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeEvent_RoomMemberRemoved)(nil),
 		(*RealtimeEvent_ReactionAdded)(nil),
 		(*RealtimeEvent_ReactionRemoved)(nil),
-		(*RealtimeEvent_UserCreatedSync)(nil),
-		(*RealtimeEvent_UserProfileSync)(nil),
-		(*RealtimeEvent_ServerUserPreferencesSync)(nil),
-		(*RealtimeEvent_ThreadFollowChangedSync)(nil),
-		(*RealtimeEvent_ServerMemberDeletedSync)(nil),
-		(*RealtimeEvent_ServerUpdatedSync)(nil),
-		(*RealtimeEvent_UserTypingSignal)(nil),
-		(*RealtimeEvent_PresenceChangedSignal)(nil),
-		(*RealtimeEvent_CallParticipantJoinedSignal)(nil),
-		(*RealtimeEvent_CallParticipantLeftSignal)(nil),
+		(*RealtimeEvent_UserProfileChanged)(nil),
+		(*RealtimeEvent_ViewerPreferencesChanged)(nil),
+		(*RealtimeEvent_ThreadViewerStateChanged)(nil),
+		(*RealtimeEvent_ServerProfileChanged)(nil),
+		(*RealtimeEvent_UserTyping)(nil),
+		(*RealtimeEvent_PresenceChanged)(nil),
 		(*RealtimeEvent_NotificationOccurrencesInvalidated)(nil),
 		(*RealtimeEvent_NotificationUnreadChanged)(nil),
-		(*RealtimeEvent_RoomMarkedAsReadSync)(nil),
-		(*RealtimeEvent_MentionStatusClearedSync)(nil),
-		(*RealtimeEvent_SessionTerminatedSignal)(nil),
+		(*RealtimeEvent_RoomReadStateChanged)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

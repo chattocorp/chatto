@@ -11,7 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/core"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
@@ -170,40 +170,34 @@ func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 	canonicalDescriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
 	canonicalOneof := canonicalDescriptor.Oneofs().ByName("event")
-	liveDescriptor := (&livev1.LiveEvent{}).ProtoReflect().Descriptor()
-	liveOneof := liveDescriptor.Oneofs().ByName("event")
+	pubsubDescriptor := (&pubsubv1.PubSubEvent{}).ProtoReflect().Descriptor()
+	pubsubOneof := pubsubDescriptor.Oneofs().ByName("event")
 	publicDescriptor := (&realtimev1.RealtimeEvent{}).ProtoReflect().Descriptor()
 	publicOneof := publicDescriptor.Oneofs().ByName("event")
-	if canonicalOneof == nil || liveOneof == nil || publicOneof == nil {
+	if canonicalOneof == nil || pubsubOneof == nil || publicOneof == nil {
 		t.Fatal("event catalogue descriptor is missing")
 	}
-	liveSourceNames := map[string]string{
-		"user_created_sync":                    "user_created",
-		"user_profile_sync":                    "user_profile_updated",
-		"server_user_preferences_sync":         "server_user_preferences_updated",
-		"thread_follow_changed_sync":           "thread_follow_changed",
-		"server_member_deleted_sync":           "server_member_deleted",
-		"server_updated_sync":                  "server_updated",
-		"user_typing_signal":                   "user_typing",
-		"presence_changed_signal":              "presence_changed",
-		"call_participant_joined_signal":       "call_participant_joined",
-		"call_participant_left_signal":         "call_participant_left",
+	pubsubSourceNames := map[string]string{
+		"user_profile_changed":                 "user_profile_changed",
+		"viewer_preferences_changed":           "viewer_preferences_changed",
+		"thread_viewer_state_changed":          "thread_viewer_state_changed",
+		"server_profile_changed":               "server_profile_changed",
+		"user_typing":                          "user_typing",
+		"presence_changed":                     "presence_changed",
 		"notification_occurrences_invalidated": "notification_occurrences_invalidated",
 		"notification_unread_changed":          "notification_unread_changed",
-		"room_marked_as_read_sync":             "room_marked_as_read",
-		"mention_status_cleared_sync":          "mention_status_cleared",
-		"session_terminated_signal":            "session_terminated",
+		"room_read_state_changed":              "room_read_state_changed",
 	}
-	mappedLiveFields := map[protoreflect.Name]bool{}
+	mappedPubSubFields := map[protoreflect.Name]bool{}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
 		publicField := publicOneof.Fields().Get(index)
-		canonicalField := canonicalOneof.Fields().ByNumber(publicField.Number())
+		canonicalField := canonicalOneof.Fields().ByName(publicField.Name())
 		if got := publicField.Message().ParentFile().Package(); got != "chatto.realtime.v1" {
 			t.Errorf("public payload %s is owned by package %s", publicField.Message().FullName(), got)
 		}
 
 		var projected *realtimev1.RealtimeEvent
-		if canonicalField != nil && canonicalField.Name() == publicField.Name() {
+		if canonicalField != nil {
 			dynamicEvent := dynamicpb.NewMessage(canonicalDescriptor)
 			dynamicEvent.Set(canonicalField, dynamicEvent.NewField(canonicalField))
 			wire, err := proto.Marshal(dynamicEvent)
@@ -216,28 +210,28 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			}
 			projected = projectRealtimeEvent(&event)
 		} else {
-			liveName, ok := liveSourceNames[string(publicField.Name())]
+			pubsubName, ok := pubsubSourceNames[string(publicField.Name())]
 			if !ok {
-				t.Errorf("public field %s has no Event or LiveEvent source", publicField.FullName())
+				t.Errorf("public field %s has no Event or PubSubEvent source", publicField.FullName())
 				continue
 			}
-			liveField := liveOneof.Fields().ByName(protoreflect.Name(liveName))
-			if liveField == nil {
-				t.Errorf("public field %s refers to missing LiveEvent field %s", publicField.FullName(), liveName)
+			pubsubField := pubsubOneof.Fields().ByName(protoreflect.Name(pubsubName))
+			if pubsubField == nil {
+				t.Errorf("public field %s refers to missing PubSubEvent field %s", publicField.FullName(), pubsubName)
 				continue
 			}
-			mappedLiveFields[liveField.Name()] = true
-			dynamicEvent := dynamicpb.NewMessage(liveDescriptor)
-			dynamicEvent.Set(liveField, dynamicEvent.NewField(liveField))
+			mappedPubSubFields[pubsubField.Name()] = true
+			dynamicEvent := dynamicpb.NewMessage(pubsubDescriptor)
+			dynamicEvent.Set(pubsubField, dynamicEvent.NewField(pubsubField))
 			wire, err := proto.Marshal(dynamicEvent)
 			if err != nil {
-				t.Fatalf("marshal %s: %v", liveField.FullName(), err)
+				t.Fatalf("marshal %s: %v", pubsubField.FullName(), err)
 			}
-			var event livev1.LiveEvent
+			var event pubsubv1.PubSubEvent
 			if err := proto.Unmarshal(wire, &event); err != nil {
-				t.Fatalf("unmarshal %s: %v", liveField.FullName(), err)
+				t.Fatalf("unmarshal %s: %v", pubsubField.FullName(), err)
 			}
-			projected = projectRealtimeLiveEvent(&event)
+			projected = projectRealtimePubSubEvent(&event)
 		}
 		if projected == nil {
 			t.Errorf("projected field = nil, want %s", publicField.FullName())
@@ -248,19 +242,46 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			t.Errorf("projected field = %v, want %s", projectedField, publicField.FullName())
 		}
 	}
-	for index := 0; index < liveOneof.Fields().Len(); index++ {
-		liveField := liveOneof.Fields().Get(index)
-		if !mappedLiveFields[liveField.Name()] {
-			t.Errorf("LiveEvent field %s has no public realtime mapping", liveField.FullName())
+	for index := 0; index < pubsubOneof.Fields().Len(); index++ {
+		pubsubField := pubsubOneof.Fields().Get(index)
+		if pubsubField.Name() == "session_terminated" {
+			continue
+		}
+		if !mappedPubSubFields[pubsubField.Name()] {
+			t.Errorf("PubSubEvent field %s has no public realtime mapping", pubsubField.FullName())
 		}
 	}
 	if publicOneof.Fields().Len() < 40 {
 		t.Fatalf("public event catalogue contains %d variants, want at least 40", publicOneof.Fields().Len())
 	}
-	canonicalRoomID := canonicalOneof.Fields().ByName("room_created").Message().Fields().ByName("room_id").Number()
-	publicRoomID := publicOneof.Fields().ByName("room_created").Message().Fields().ByName("room_id").Number()
-	if canonicalRoomID == publicRoomID {
-		t.Fatal("room_created payload tags still depend on the EVT wire layout")
+	for index := 0; index < publicOneof.Fields().Len(); index++ {
+		if got, want := publicOneof.Fields().Get(index).Number(), protoreflect.FieldNumber(index+10); got != want {
+			t.Errorf("public field %s has tag %d, want compact tag %d", publicOneof.Fields().Get(index).FullName(), got, want)
+		}
+	}
+}
+
+func TestRealtimeSessionTerminationUsesCloseFrame(t *testing.T) {
+	frame, err := (&HTTPServer{}).realtimeServerFrameForEvent(t.Context(), "viewer", core.NewPubSubEventEnvelope(
+		&pubsubv1.PubSubEvent{
+			Id: "session-event",
+			Event: &pubsubv1.PubSubEvent_SessionTerminated{
+				SessionTerminated: &pubsubv1.SessionTerminatedEvent{Reason: "admin_boot"},
+			},
+		},
+	))
+	if err != nil {
+		t.Fatalf("project session termination: %v", err)
+	}
+	close := frame.GetClose()
+	if close == nil {
+		t.Fatalf("frame = %T, want close", frame.GetFrame())
+	}
+	if close.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED {
+		t.Fatalf("close code = %v, want session terminated", close.GetCode())
+	}
+	if close.GetReconnect() {
+		t.Fatal("session termination requested reconnect")
 	}
 }
 

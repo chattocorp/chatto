@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -41,9 +41,9 @@ type LastReadEventIDAdvance struct {
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_RoomMarkedAsRead{
-			RoomMarkedAsRead: &livev1.RoomMarkedAsReadEvent{
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_RoomReadStateChanged{
+			RoomReadStateChanged: &pubsubv1.RoomReadStateChangedEvent{
 				RoomId: roomID,
 			},
 		},
@@ -51,7 +51,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 
 	// Publish to user's server event stream (only they need to know)
 	subject := subjects.LiveSyncUserEvent(userID, "room_read")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
 			"kind", kind,

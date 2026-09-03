@@ -8,18 +8,12 @@
  */
 
 import { SvelteSet } from 'svelte/reactivity';
-import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RealtimeResource, RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import {
-  TransientEventKind,
-  transientEventKind,
-  type TransientEventEnvelope,
-  type TransientEventPayload
-} from '$lib/realtimeEvents';
 
-export type EventHandler = (event: TransientEventEnvelope) => void;
+export type EventHandler = (event: RealtimeEvent) => void;
 /** One ordered public event or canonical resource response consumed by the frontend. */
 export class RealtimeProjectionUpdate {
   /** Semantic source event. Resource responses do not have one. */
@@ -57,6 +51,7 @@ export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;
 export interface EventBus {
   handlers: SvelteSet<EventHandler>;
   projectionHandlers: SvelteSet<ProjectionHandler>;
+  sessionTerminatedHandlers: SvelteSet<(reason: string) => void>;
 }
 
 function selectedBus(serverId: string): EventBus | undefined {
@@ -77,33 +72,6 @@ export function onProjectionEvent(serverId: string, handler: ProjectionHandler):
 // Typed event handler helpers
 // ---------------------------------------------------------------------------
 
-// The extractor receives the inner event payload; helpers needing envelope
-// fields (actorId, etc.) read them from the closure instead.
-
-function onTypedEvent<TKind extends TransientEventPayload['kind'], T>(
-  serverId: string,
-  kind: TKind,
-  extract: (
-    envelope: TransientEventEnvelope,
-    event: Extract<TransientEventPayload, { kind: TKind }>
-  ) => T,
-  handler: (data: T) => void
-): () => void {
-  const bus = selectedBus(serverId);
-  if (!bus) return () => {};
-
-  const wrapper: EventHandler = (envelope) => {
-    if (transientEventKind(envelope.event) === kind) {
-      handler(extract(envelope, envelope.event as Extract<TransientEventPayload, { kind: TKind }>));
-    }
-  };
-
-  bus.handlers.add(wrapper);
-  return () => {
-    bus.handlers.delete(wrapper);
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Typed event handler exports
 // ---------------------------------------------------------------------------
@@ -112,14 +80,10 @@ export function onSessionTerminated(
   serverId: string,
   handler: (reason: string) => void
 ): () => void {
-  return onTypedEvent(
-    serverId,
-    TransientEventKind.SessionTerminated,
-    (_env, e) => {
-      return e.reason;
-    },
-    handler
-  );
+  const bus = selectedBus(serverId);
+  if (!bus) return () => {};
+  bus.sessionTerminatedHandlers.add(handler);
+  return () => bus.sessionTerminatedHandlers.delete(handler);
 }
 
 // ---------------------------------------------------------------------------
@@ -129,17 +93,14 @@ export function onSessionTerminated(
 type PresenceHandler = (userId: string, status: PresenceStatus) => void;
 
 export function onPresenceChange(serverId: string, handler: PresenceHandler): () => void {
-  return onTypedEvent(
-    serverId,
-    TransientEventKind.PresenceChanged,
-    (envelope, e) => {
-      return { userId: envelope.actorId, status: e.status as PresenceStatus };
-    },
-    ({ userId, status }) => {
-      if (!userId) return;
-      handler(userId, status);
-    }
-  );
+  const bus = selectedBus(serverId);
+  if (!bus) return () => {};
+  const wrapper: EventHandler = (event) => {
+    if (event.event.case !== 'presenceChanged' || !event.actorId) return;
+    handler(event.actorId, presenceStatus(event.event.value.status));
+  };
+  bus.handlers.add(wrapper);
+  return () => bus.handlers.delete(wrapper);
 }
 
 export interface TypingEventData {
@@ -154,17 +115,30 @@ export function onTypingEvent(serverId: string, handler: TypingHandler): () => v
   const bus = selectedBus(serverId);
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
-    if (transientEventKind(event.event) !== TransientEventKind.UserTyping) return;
+    if (event.event.case !== 'userTyping') return;
     if (!event.actorId) return;
-    const ev = event.event as { roomId: string; typingThreadRootEventId?: string | null };
+    const ev = event.event.value;
     handler({
       userId: event.actorId,
       roomId: ev.roomId,
-      threadRootEventId: ev.typingThreadRootEventId ?? null
+      threadRootEventId: ev.threadRootEventId ?? null
     });
   };
   bus.handlers.add(wrapper);
   return () => {
     bus.handlers.delete(wrapper);
   };
+}
+
+function presenceStatus(status: string): PresenceStatus {
+  switch (status) {
+    case 'ONLINE':
+      return PresenceStatus.ONLINE;
+    case 'AWAY':
+      return PresenceStatus.AWAY;
+    case 'DO_NOT_DISTURB':
+      return PresenceStatus.DO_NOT_DISTURB;
+    default:
+      return PresenceStatus.OFFLINE;
+  }
 }

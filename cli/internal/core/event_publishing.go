@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 // ============================================================================
@@ -24,34 +24,34 @@ import (
 // indefinitely instead of surfacing as a normal error.
 const natsPublishFlushTimeout = 5 * time.Second
 
-// publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
+// publishPubSubEvent publishes a PubSubEvent directly to a live.sync.>
 // subject, bypassing JetStream storage. The subject should already include
 // the "live.sync." prefix.
-func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *livev1.LiveEvent) error {
-	return c.publishLiveEvents(ctx, []liveEventPublication{{subject: subject, event: event}})
+func (c *ChattoCore) publishPubSubEvent(ctx context.Context, subject string, event *pubsubv1.PubSubEvent) error {
+	return c.publishPubSubEvents(ctx, []pubsubEventPublication{{subject: subject, event: event}})
 }
 
-type liveEventPublication struct {
+type pubsubEventPublication struct {
 	subject string
-	event   *livev1.LiveEvent
+	event   *pubsubv1.PubSubEvent
 }
 
-// publishLiveEvents publishes a related set of transient events and flushes
+// publishPubSubEvents publishes a related set of pubsub events and flushes
 // once after the complete set has entered the client buffer. This keeps large
 // fanouts linear without imposing one network round trip per recipient.
-func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEventPublication) error {
+func (c *ChattoCore) publishPubSubEvents(_ context.Context, publications []pubsubEventPublication) error {
 	type encodedPublication struct {
 		subject string
 		data    []byte
 	}
 	encoded := make([]encodedPublication, 0, len(publications))
 	for index, publication := range publications {
-		if err := validateLiveEvent(publication.event); err != nil {
-			return fmt.Errorf("live publication %d: %w", index, err)
+		if err := validatePubSubEvent(publication.event); err != nil {
+			return fmt.Errorf("pubsub publication %d: %w", index, err)
 		}
 		eventData, err := proto.Marshal(publication.event)
 		if err != nil {
-			return fmt.Errorf("marshal live publication %d: %w", index, err)
+			return fmt.Errorf("marshal pubsub publication %d: %w", index, err)
 		}
 		encoded = append(encoded, encodedPublication{subject: publication.subject, data: eventData})
 	}
@@ -60,11 +60,11 @@ func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEve
 	}
 	for _, publication := range encoded {
 		if err := c.nc.Publish(publication.subject, publication.data); err != nil {
-			return fmt.Errorf("publish live event to %s: %w", publication.subject, err)
+			return fmt.Errorf("publish pubsub event to %s: %w", publication.subject, err)
 		}
 	}
 	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
-		return fmt.Errorf("flush %d live events: %w", len(encoded), err)
+		return fmt.Errorf("flush %d pubsub events: %w", len(encoded), err)
 	}
 	return nil
 }
@@ -76,9 +76,9 @@ func validateEvent(event *evtv1.Event) error {
 	return nil
 }
 
-func validateLiveEvent(event *livev1.LiveEvent) error {
+func validatePubSubEvent(event *pubsubv1.PubSubEvent) error {
 	if event == nil || event.Event == nil {
-		return fmt.Errorf("%w: live event payload is nil or oneof field is unset", ErrInvalidEvent)
+		return fmt.Errorf("%w: pubsub event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
 	return nil
 }
@@ -99,10 +99,10 @@ func newEvent(actorID string, event *evtv1.Event) *evtv1.Event {
 	return event
 }
 
-// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of a LiveEvent
+// newPubSubEvent fills in the ID, actor ID, and creation time of a PubSubEvent
 // envelope if they're not already set. The caller provides the event with the
 // concrete oneof variant already populated.
-func newLiveEvent(actorID string, event *livev1.LiveEvent) *livev1.LiveEvent {
+func newPubSubEvent(actorID string, event *pubsubv1.PubSubEvent) *pubsubv1.PubSubEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}

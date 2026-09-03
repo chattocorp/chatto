@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"io"
 
 	"github.com/nats-io/nats.go"
@@ -113,7 +113,7 @@ func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset 
 }
 
 // setServerBrandingAsset is the shared OCC swap implementation backing
-// SetServerLogo / SetServerBanner. Publishes ServerUpdatedEvent on
+// SetServerLogo / SetServerBanner. Publishes ServerProfileChangedEvent on
 // success so subscribers can refetch the updated branding.
 func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *evtv1.AssetRecord) error {
 	if c.configModel == nil {
@@ -302,9 +302,9 @@ func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 		bannerURL = ""
 	}
 
-	event := newLiveEvent(actorID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_ServerUpdated{
-			ServerUpdated: &livev1.ServerUpdatedEvent{
+	event := newPubSubEvent(actorID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_ServerProfileChanged{
+			ServerProfileChanged: &pubsubv1.ServerProfileChangedEvent{
 				ServerId:    LegacyServerSpaceID,
 				Name:        name,
 				Description: description,
@@ -315,7 +315,7 @@ func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 	})
 
 	subject := subjects.LiveSyncConfigEvent("server_updated")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish server update event", "error", err)
 	}
 }

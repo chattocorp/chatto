@@ -251,6 +251,43 @@ MessageUnpinnedEvent reports a message that is no longer pinned.
 
 
 
+<a id="chatto-realtime-v1-NotificationOccurrencesInvalidatedEvent"></a>
+
+### NotificationOccurrencesInvalidatedEvent
+
+NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `sound_candidate_notification_id` | `optional string` | Notification that can cause a sound after reconciliation. |
+
+
+
+<a id="chatto-realtime-v1-NotificationUnreadChangedEvent"></a>
+
+### NotificationUnreadChangedEvent
+
+NotificationUnreadChangedEvent requests unread-state reconciliation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | Event ID of the affected thread root, or empty for room state. |
+
+
+
+<a id="chatto-realtime-v1-PresenceChangedEvent"></a>
+
+### PresenceChangedEvent
+
+PresenceChangedEvent reports the actor's current presence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `string` | No field description provided. |
+
+
+
 <a id="chatto-realtime-v1-ReactionAddedEvent"></a>
 
 ### ReactionAddedEvent
@@ -288,6 +325,19 @@ RoleMessageMention identifies the role that caused a mention.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomAddedToGroupEvent"></a>
+
+### RoomAddedToGroupEvent
+
+RoomAddedToGroupEvent reports that a room was added to a group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
 
 
 
@@ -329,6 +379,58 @@ RoomDeletedEvent reports a deleted room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomGroupCreatedEvent"></a>
+
+### RoomGroupCreatedEvent
+
+RoomGroupCreatedEvent reports a new room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomGroupDeletedEvent"></a>
+
+### RoomGroupDeletedEvent
+
+RoomGroupDeletedEvent reports a deleted room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomGroupUpdatedEvent"></a>
+
+### RoomGroupUpdatedEvent
+
+RoomGroupUpdatedEvent reports changed room-group metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomGroupsReorderedEvent"></a>
+
+### RoomGroupsReorderedEvent
+
+RoomGroupsReorderedEvent reports the complete room-group order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_ids` | `repeated string` | No field description provided. |
 
 
 
@@ -382,6 +484,31 @@ RoomMemberUnbannedEvent reports removal of a room ban.
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomReadStateChangedEvent"></a>
+
+### RoomReadStateChangedEvent
+
+RoomReadStateChangedEvent reports the caller's current room read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomRemovedFromGroupEvent"></a>
+
+### RoomRemovedFromGroupEvent
+
+RoomRemovedFromGroupEvent reports that a room was removed from a group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `room_id` | `string` | No field description provided. |
 
 
 
@@ -450,6 +577,19 @@ RoomUpdatedEvent reports changed room metadata.
 
 
 
+<a id="chatto-realtime-v1-RoomsInGroupReorderedEvent"></a>
+
+### RoomsInGroupReorderedEvent
+
+RoomsInGroupReorderedEvent reports the visible room order in a group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `room_ids` | `repeated string` | No field description provided. |
+
+
+
 <a id="chatto-realtime-v1-ServerMotdChangedEvent"></a>
 
 ### ServerMotdChangedEvent
@@ -459,6 +599,91 @@ ServerMotdChangedEvent reports the current message of the day.
 | Field | Type | Description |
 | --- | --- | --- |
 | `motd` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ServerProfileChangedEvent"></a>
+
+### ServerProfileChangedEvent
+
+ServerProfileChangedEvent reports the current public server profile.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+| `logo_url` | `string` | No field description provided. |
+| `banner_url` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-SidebarGroupEntriesReorderedEvent"></a>
+
+### SidebarGroupEntriesReorderedEvent
+
+SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `entries` | repeated [`SidebarGroupEntryReference`](#chatto-realtime-v1-SidebarGroupEntryReference) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-SidebarGroupEntryReference"></a>
+
+### SidebarGroupEntryReference
+
+SidebarGroupEntryReference identifies one entry in a mixed group order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`SidebarGroupEntryKind`](#chatto-realtime-v1-SidebarGroupEntryKind) | No field description provided. |
+| `id` | `string` | Room ID or sidebar-link ID, as selected by `kind`. |
+
+
+
+<a id="chatto-realtime-v1-SidebarLinkAddedToGroupEvent"></a>
+
+### SidebarLinkAddedToGroupEvent
+
+SidebarLinkAddedToGroupEvent reports a new link in a room group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `link_id` | `string` | No field description provided. |
+| `label` | `string` | No field description provided. |
+| `url` | `string` | Absolute HTTP(S) URL or server-local path that starts with `/`. |
+
+
+
+<a id="chatto-realtime-v1-SidebarLinkRemovedFromGroupEvent"></a>
+
+### SidebarLinkRemovedFromGroupEvent
+
+SidebarLinkRemovedFromGroupEvent reports a removed room-group link.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `link_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-SidebarLinkUpdatedEvent"></a>
+
+### SidebarLinkUpdatedEvent
+
+SidebarLinkUpdatedEvent reports changed room-group link data.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `group_id` | `string` | No field description provided. |
+| `link_id` | `string` | No field description provided. |
+| `label` | `string` | No field description provided. |
+| `url` | `string` | Complete new absolute HTTP(S) URL or server-local path. |
 
 
 
@@ -472,6 +697,20 @@ ThreadCreatedEvent reports a new message thread.
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `thread_root_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ThreadViewerStateChangedEvent"></a>
+
+### ThreadViewerStateChangedEvent
+
+ThreadViewerStateChangedEvent reports the caller's current thread state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `is_following` | `bool` | No field description provided. |
 
 
 
@@ -615,11 +854,55 @@ UserLoginChangedEvent reports a changed public login name.
 
 
 
+<a id="chatto-realtime-v1-UserProfileChangedEvent"></a>
+
+### UserProfileChangedEvent
+
+UserProfileChangedEvent reports the current public profile after a change.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `display_name` | `string` | No field description provided. |
+| `avatar_url` | `string` | No field description provided. |
+| `login` | `string` | No field description provided. |
+| `bio` | `string` | No field description provided. |
+| `timezone` | `string` | Current public time zone, or empty when sharing is disabled. |
+
+
+
+<a id="chatto-realtime-v1-UserTypingEvent"></a>
+
+### UserTypingEvent
+
+UserTypingEvent reports current typing activity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ViewerPreferencesChangedEvent"></a>
+
+### ViewerPreferencesChangedEvent
+
+ViewerPreferencesChangedEvent reports the caller's current display preferences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `string` | Current private IANA time-zone preference. |
+| `time_format` | `chatto.api.v1.TimeFormat` | No field description provided. |
+| `share_timezone` | `bool` | Whether the caller shares the time zone in their public profile. |
+
+
+
 <a id="chatto-realtime-v1-VoiceCallEndedEvent"></a>
 
 ### VoiceCallEndedEvent
 
-VoiceCallEndedEvent reports the end of a durable call session.
+VoiceCallEndedEvent reports the end of a call session.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -633,7 +916,7 @@ VoiceCallEndedEvent reports the end of a durable call session.
 
 ### VoiceCallParticipantJoinedEvent
 
-VoiceCallParticipantJoinedEvent reports that the actor joined a durable call session.
+VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -647,7 +930,7 @@ VoiceCallParticipantJoinedEvent reports that the actor joined a durable call ses
 
 ### VoiceCallParticipantLeftEvent
 
-VoiceCallParticipantLeftEvent reports that the actor left a durable call session.
+VoiceCallParticipantLeftEvent reports that the actor left a call session.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -661,375 +944,13 @@ VoiceCallParticipantLeftEvent reports that the actor left a durable call session
 
 ### VoiceCallStartedEvent
 
-VoiceCallStartedEvent reports a new durable call session.
+VoiceCallStartedEvent reports a new call session.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `call_id` | `string` | No field description provided. |
 | `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
-
-
-
-<a id="chatto-realtime-v1-RoomAddedToGroupEvent"></a>
-
-### RoomAddedToGroupEvent
-
-RoomAddedToGroupEvent reports that a room was added to a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the target room group. |
-| `room_id` | `string` | ID of the added room. |
-
-
-
-<a id="chatto-realtime-v1-RoomGroupCreatedEvent"></a>
-
-### RoomGroupCreatedEvent
-
-RoomGroupCreatedEvent reports a new room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the new room group. |
-| `name` | `string` | Display name of the room group. |
-| `description` | `string` | Optional public description of the room group. |
-
-
-
-<a id="chatto-realtime-v1-RoomGroupDeletedEvent"></a>
-
-### RoomGroupDeletedEvent
-
-RoomGroupDeletedEvent reports a deleted room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the deleted room group. |
-
-
-
-<a id="chatto-realtime-v1-RoomGroupUpdatedEvent"></a>
-
-### RoomGroupUpdatedEvent
-
-RoomGroupUpdatedEvent reports changed room-group metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the changed room group. |
-| `name` | `string` | Complete new display name. |
-| `description` | `string` | Complete new public description. |
-
-
-
-<a id="chatto-realtime-v1-RoomGroupsReorderedEvent"></a>
-
-### RoomGroupsReorderedEvent
-
-RoomGroupsReorderedEvent reports the complete room-group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_ids` | `repeated string` | Complete ordered list of room-group IDs. |
-
-
-
-<a id="chatto-realtime-v1-RoomRemovedFromGroupEvent"></a>
-
-### RoomRemovedFromGroupEvent
-
-RoomRemovedFromGroupEvent reports that a room was removed from a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the source room group. |
-| `room_id` | `string` | ID of the removed room. |
-
-
-
-<a id="chatto-realtime-v1-RoomsInGroupReorderedEvent"></a>
-
-### RoomsInGroupReorderedEvent
-
-RoomsInGroupReorderedEvent reports the visible room order in a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the reordered room group. |
-| `room_ids` | `repeated string` | Complete ordered list of room IDs that the caller can see. |
-
-
-
-<a id="chatto-realtime-v1-SidebarGroupEntriesReorderedEvent"></a>
-
-### SidebarGroupEntriesReorderedEvent
-
-SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the reordered room group. |
-| `entries` | repeated [`SidebarGroupEntryReference`](#chatto-realtime-v1-SidebarGroupEntryReference) | Complete mixed order of visible rooms and sidebar links. |
-
-
-
-<a id="chatto-realtime-v1-SidebarGroupEntryReference"></a>
-
-### SidebarGroupEntryReference
-
-SidebarGroupEntryReference identifies one entry in a mixed group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`SidebarGroupEntryKind`](#chatto-realtime-v1-SidebarGroupEntryKind) | Type of the referenced entry. |
-| `id` | `string` | Room ID or sidebar-link ID, as selected by `kind`. |
-
-
-
-<a id="chatto-realtime-v1-SidebarLinkAddedToGroupEvent"></a>
-
-### SidebarLinkAddedToGroupEvent
-
-SidebarLinkAddedToGroupEvent reports a new link in a room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the target room group. |
-| `link_id` | `string` | ID of the new sidebar link. |
-| `label` | `string` | Display label of the sidebar link. |
-| `url` | `string` | Absolute HTTP(S) URL or server-local path that starts with `/`. |
-
-
-
-<a id="chatto-realtime-v1-SidebarLinkRemovedFromGroupEvent"></a>
-
-### SidebarLinkRemovedFromGroupEvent
-
-SidebarLinkRemovedFromGroupEvent reports a removed room-group link.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the source room group. |
-| `link_id` | `string` | ID of the removed sidebar link. |
-
-
-
-<a id="chatto-realtime-v1-SidebarLinkUpdatedEvent"></a>
-
-### SidebarLinkUpdatedEvent
-
-SidebarLinkUpdatedEvent reports changed room-group link data.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | ID of the containing room group. |
-| `link_id` | `string` | ID of the changed sidebar link. |
-| `label` | `string` | Complete new display label. |
-| `url` | `string` | Complete new absolute HTTP(S) URL or server-local path. |
-
-
-
-<a id="chatto-realtime-v1-CallParticipantJoinedSignalEvent"></a>
-
-### CallParticipantJoinedSignalEvent
-
-CallParticipantJoinedSignalEvent reports a transient call join.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the containing room. |
-| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | Cause of the call-participant change. |
-| `call_id` | `string` | ID of the active call. |
-
-
-
-<a id="chatto-realtime-v1-CallParticipantLeftSignalEvent"></a>
-
-### CallParticipantLeftSignalEvent
-
-CallParticipantLeftSignalEvent reports a transient call leave.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the containing room. |
-| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | Cause of the call-participant change. |
-| `call_id` | `string` | ID of the active call. |
-
-
-
-<a id="chatto-realtime-v1-MentionStatusClearedSyncEvent"></a>
-
-### MentionStatusClearedSyncEvent
-
-MentionStatusClearedSyncEvent reports a cleared room mention indicator.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the room with a cleared mention indicator. |
-
-
-
-<a id="chatto-realtime-v1-NotificationOccurrencesInvalidatedEvent"></a>
-
-### NotificationOccurrencesInvalidatedEvent
-
-NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `alert_candidate_notification_id` | `optional string` | Notification that can cause a visual alert after reconciliation. |
-| `sound_candidate_notification_id` | `optional string` | Notification that can cause a sound after reconciliation. |
-
-
-
-<a id="chatto-realtime-v1-NotificationUnreadChangedEvent"></a>
-
-### NotificationUnreadChangedEvent
-
-NotificationUnreadChangedEvent requests unread-state reconciliation.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the room with changed unread state. |
-| `thread_root_event_id` | `string` | Event ID of the affected thread root, or empty for room state. |
-
-
-
-<a id="chatto-realtime-v1-PresenceChangedSignalEvent"></a>
-
-### PresenceChangedSignalEvent
-
-PresenceChangedSignalEvent reports the actor's current presence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `status` | `string` | Current presence status. |
-
-
-
-<a id="chatto-realtime-v1-RoomMarkedAsReadSyncEvent"></a>
-
-### RoomMarkedAsReadSyncEvent
-
-RoomMarkedAsReadSyncEvent reports a viewer read-state change.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the room that the caller marked as read. |
-
-
-
-<a id="chatto-realtime-v1-ServerMemberDeletedSyncEvent"></a>
-
-### ServerMemberDeletedSyncEvent
-
-ServerMemberDeletedSyncEvent reports a removed server member.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | ID of the removed user. |
-
-
-
-<a id="chatto-realtime-v1-ServerUpdatedSyncEvent"></a>
-
-### ServerUpdatedSyncEvent
-
-ServerUpdatedSyncEvent reports the current public server profile.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `server_id` | `string` | Stable server ID. |
-| `name` | `string` | Current public server name. |
-| `description` | `string` | Current public server description. |
-| `logo_url` | `string` | Current public server logo URL. |
-| `banner_url` | `string` | Current public server banner URL. |
-
-
-
-<a id="chatto-realtime-v1-ServerUserPreferencesSyncEvent"></a>
-
-### ServerUserPreferencesSyncEvent
-
-ServerUserPreferencesSyncEvent reports current client display preferences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `timezone` | `string` | Current private IANA time-zone preference. |
-| `time_format` | [`RealtimeTimeFormat`](#chatto-realtime-v1-RealtimeTimeFormat) | Current time-display preference. |
-| `share_timezone` | `bool` | Whether the caller shares its time zone in public profiles. |
-
-
-
-<a id="chatto-realtime-v1-SessionTerminatedSignalEvent"></a>
-
-### SessionTerminatedSignalEvent
-
-SessionTerminatedSignalEvent reports that the current session ended.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `reason` | `string` | Safe reason for the session termination. |
-
-
-
-<a id="chatto-realtime-v1-ThreadFollowChangedSyncEvent"></a>
-
-### ThreadFollowChangedSyncEvent
-
-ThreadFollowChangedSyncEvent reports the viewer's current thread follow state.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the containing room. |
-| `thread_root_event_id` | `string` | Event ID of the thread root. |
-| `is_following` | `bool` | Current follow state for the caller. |
-
-
-
-<a id="chatto-realtime-v1-UserCreatedSyncEvent"></a>
-
-### UserCreatedSyncEvent
-
-UserCreatedSyncEvent reports a newly materialized public user profile.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | ID of the new user. |
-| `login` | `string` | Current public login name. |
-| `display_name` | `string` | Current public display name. |
-
-
-
-<a id="chatto-realtime-v1-UserProfileSyncEvent"></a>
-
-### UserProfileSyncEvent
-
-UserProfileSyncEvent reports the current public profile after a change.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `user_id` | `string` | ID of the changed user. |
-| `display_name` | `string` | Current public display name. |
-| `avatar_url` | `string` | Current public avatar URL. |
-| `login` | `string` | Current public login name. |
-| `bio` | `string` | Current public biography. |
-| `timezone` | `string` | Current public time zone, or empty when sharing is disabled. |
-
-
-
-<a id="chatto-realtime-v1-UserTypingSignalEvent"></a>
-
-### UserTypingSignalEvent
-
-UserTypingSignalEvent reports current typing activity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | ID of the room in which the actor is typing. |
-| `thread_root_event_id` | `optional string` | Event ID of the thread root when the actor is typing in a thread. |
 
 
 
@@ -1040,7 +961,6 @@ UserTypingSignalEvent reports current typing activity.
 Confirms that recovery is complete and live delivery has begun.
 
 Clients can retain `cursor` after they apply every preceding event.
-Transient events are never replayed.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1070,10 +990,11 @@ Close instruction sent before the socket closes when possible.
 One authorized public event with its optional resume cursor.
 
 Each payload uses a realtime-owned public message. The union is the public
-event catalogue. A canonical event that is absent from this union is not
+event catalogue. An internal event that is absent from this union is not
 part of the realtime API. The server creates a fresh caller-specific value
-after authorization. Durable events have a resume cursor. Transient events
-do not.
+after authorization. An event has a resume cursor when it can be replayed.
+An event without a cursor is safe to miss, or its state can be restored from
+a snapshot or a ConnectRPC resource.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1132,21 +1053,15 @@ do not.
 | `event.room_member_removed` | [`RoomMemberRemovedEvent`](#chatto-realtime-v1-RoomMemberRemovedEvent) | No field description provided. |
 | `event.reaction_added` | [`ReactionAddedEvent`](#chatto-realtime-v1-ReactionAddedEvent) | No field description provided. |
 | `event.reaction_removed` | [`ReactionRemovedEvent`](#chatto-realtime-v1-ReactionRemovedEvent) | No field description provided. |
-| `event.user_created_sync` | [`UserCreatedSyncEvent`](#chatto-realtime-v1-UserCreatedSyncEvent) | No field description provided. |
-| `event.user_profile_sync` | [`UserProfileSyncEvent`](#chatto-realtime-v1-UserProfileSyncEvent) | No field description provided. |
-| `event.server_user_preferences_sync` | [`ServerUserPreferencesSyncEvent`](#chatto-realtime-v1-ServerUserPreferencesSyncEvent) | No field description provided. |
-| `event.thread_follow_changed_sync` | [`ThreadFollowChangedSyncEvent`](#chatto-realtime-v1-ThreadFollowChangedSyncEvent) | No field description provided. |
-| `event.server_member_deleted_sync` | [`ServerMemberDeletedSyncEvent`](#chatto-realtime-v1-ServerMemberDeletedSyncEvent) | No field description provided. |
-| `event.server_updated_sync` | [`ServerUpdatedSyncEvent`](#chatto-realtime-v1-ServerUpdatedSyncEvent) | No field description provided. |
-| `event.user_typing_signal` | [`UserTypingSignalEvent`](#chatto-realtime-v1-UserTypingSignalEvent) | No field description provided. |
-| `event.presence_changed_signal` | [`PresenceChangedSignalEvent`](#chatto-realtime-v1-PresenceChangedSignalEvent) | No field description provided. |
-| `event.call_participant_joined_signal` | [`CallParticipantJoinedSignalEvent`](#chatto-realtime-v1-CallParticipantJoinedSignalEvent) | No field description provided. |
-| `event.call_participant_left_signal` | [`CallParticipantLeftSignalEvent`](#chatto-realtime-v1-CallParticipantLeftSignalEvent) | No field description provided. |
+| `event.user_profile_changed` | [`UserProfileChangedEvent`](#chatto-realtime-v1-UserProfileChangedEvent) | No field description provided. |
+| `event.viewer_preferences_changed` | [`ViewerPreferencesChangedEvent`](#chatto-realtime-v1-ViewerPreferencesChangedEvent) | No field description provided. |
+| `event.thread_viewer_state_changed` | [`ThreadViewerStateChangedEvent`](#chatto-realtime-v1-ThreadViewerStateChangedEvent) | No field description provided. |
+| `event.server_profile_changed` | [`ServerProfileChangedEvent`](#chatto-realtime-v1-ServerProfileChangedEvent) | No field description provided. |
+| `event.user_typing` | [`UserTypingEvent`](#chatto-realtime-v1-UserTypingEvent) | No field description provided. |
+| `event.presence_changed` | [`PresenceChangedEvent`](#chatto-realtime-v1-PresenceChangedEvent) | No field description provided. |
 | `event.notification_occurrences_invalidated` | [`NotificationOccurrencesInvalidatedEvent`](#chatto-realtime-v1-NotificationOccurrencesInvalidatedEvent) | No field description provided. |
 | `event.notification_unread_changed` | [`NotificationUnreadChangedEvent`](#chatto-realtime-v1-NotificationUnreadChangedEvent) | No field description provided. |
-| `event.room_marked_as_read_sync` | [`RoomMarkedAsReadSyncEvent`](#chatto-realtime-v1-RoomMarkedAsReadSyncEvent) | No field description provided. |
-| `event.mention_status_cleared_sync` | [`MentionStatusClearedSyncEvent`](#chatto-realtime-v1-MentionStatusClearedSyncEvent) | No field description provided. |
-| `event.session_terminated_signal` | [`SessionTerminatedSignalEvent`](#chatto-realtime-v1-SessionTerminatedSignalEvent) | No field description provided. |
+| `event.room_read_state_changed` | [`RoomReadStateChangedEvent`](#chatto-realtime-v1-RoomReadStateChangedEvent) | No field description provided. |
 
 
 
@@ -1158,7 +1073,7 @@ Application-level heartbeat.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `resume_cursor` | `optional string` | Fresh resume cursor for the latest durable boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
+| `resume_cursor` | `optional string` | Fresh resume cursor for the latest replay boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
 
 
 
@@ -1213,7 +1128,7 @@ client does not send more application messages on the socket.
 | --- | --- | --- |
 | `protocol_version` | `uint32` | Behavioral protocol version requested by the client. The only supported version is 4. |
 | `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
-| `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 15 minutes after issue. |
+| `resume_cursor` | `optional string` | Opaque cursor from a previously received replayable event or `caught_up` frame. A usable cursor receives bounded authorized events after that position. Cursors expire 15 minutes after issue. |
 | `initial_state` | [`RealtimeInitialState`](#chatto-realtime-v1-RealtimeInitialState) | Required fallback when the cursor is absent or cannot resume safely. |
 
 
@@ -1252,26 +1167,13 @@ CallParticipantEventSource identifies what caused a call-participant change.
 
 ### SidebarGroupEntryKind
 
-Identifies the type of one ordered room-group entry.
+SidebarGroupEntryKind identifies one ordered room-group entry type.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED` | `0` | Invalid or unknown entry type. |
-| `SIDEBAR_GROUP_ENTRY_KIND_ROOM` | `1` | The entry identifies a room. |
-| `SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK` | `2` | The entry identifies a sidebar link. |
-
-
-<a id="chatto-realtime-v1-RealtimeTimeFormat"></a>
-
-### RealtimeTimeFormat
-
-RealtimeTimeFormat identifies a client time-display preference.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | Use the client locale default. |
-| `REALTIME_TIME_FORMAT_12H` | `1` | Display time with a 12-hour clock. |
-| `REALTIME_TIME_FORMAT_24H` | `2` | Display time with a 24-hour clock. |
+| `SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED` | `0` | No value description provided. |
+| `SIDEBAR_GROUP_ENTRY_KIND_ROOM` | `1` | No value description provided. |
+| `SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK` | `2` | No value description provided. |
 
 
 <a id="chatto-realtime-v1-RealtimeCloseCode"></a>
@@ -1289,6 +1191,7 @@ Stable server-requested close category.
 | `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `4` | The caller is no longer authenticated. |
 | `REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED` | `5` | The caller must renew its session before reconnecting. |
 | `REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED` | `6` | The server projection reset and the client must take a new snapshot. |
+| `REALTIME_CLOSE_CODE_SESSION_TERMINATED` | `7` | The user's session ended and the client must return to sign-in. |
 
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>

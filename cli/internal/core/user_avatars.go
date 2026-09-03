@@ -50,7 +50,7 @@ func (c *ChattoCore) UpdateUserAvatar(ctx context.Context, actorID, targetUserID
 	}
 
 	c.logger.Info("Updated user avatar", "actor_id", actorID, "user_id", targetUserID)
-	c.publishUserProfileUpdate(ctx, targetUserID)
+	c.publishUserProfileChanged(ctx, targetUserID)
 	return c.GetUser(ctx, targetUserID)
 }
 
@@ -75,7 +75,7 @@ func (c *ChattoCore) ClearUserAvatar(ctx context.Context, actorID, targetUserID 
 	}
 	c.deleteAsset(ctx, assetStorageFromAsset(previous), "avatar", targetUserID)
 	c.logger.Info("Deleted user avatar", "actor_id", actorID, "user_id", targetUserID)
-	c.publishUserProfileUpdate(ctx, targetUserID)
+	c.publishUserProfileChanged(ctx, targetUserID)
 	return c.GetUser(ctx, targetUserID)
 }
 
@@ -284,7 +284,7 @@ func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *ev
 	c.logger.Info("Updated user avatar", "user_id", userID)
 
 	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 
 	return nil
 }
@@ -329,7 +329,7 @@ func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error 
 	c.logger.Info("Deleted user avatar", "user_id", userID)
 
 	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
+	c.publishUserProfileChanged(ctx, userID)
 
 	return nil
 }

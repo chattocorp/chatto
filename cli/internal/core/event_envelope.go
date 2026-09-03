@@ -4,13 +4,13 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 // EventEnvelope is the in-process envelope used by StreamMyEvents and the
 // realtime API. Concrete implementations are intentionally private so an
-// envelope can only wrap one backing source: a durable EVT fact, a transient
-// LiveEvent, or a synthetic heartbeat.
+// envelope can only wrap one backing source: a durable EVT fact, a pubsub
+// event, or a synthetic heartbeat.
 type EventEnvelope interface {
 	ID() string
 	CreatedAt() *timestamppb.Timestamp
@@ -18,8 +18,8 @@ type EventEnvelope interface {
 	Payload() any
 	DeliverySeq() uint64
 	EVTEvent() *evtv1.Event
-	LiveEvent() *livev1.LiveEvent
-	HeartbeatEvent() *livev1.HeartbeatEvent
+	PubSubEvent() *pubsubv1.PubSubEvent
+	Heartbeat() bool
 }
 
 type evtEventEnvelope struct {
@@ -34,64 +34,64 @@ func NewEVTEventEnvelopeWithDeliverySeq(event *evtv1.Event, seq uint64) EventEnv
 	return &evtEventEnvelope{event: event, deliverySeq: seq}
 }
 
-func (e *evtEventEnvelope) ID() string                             { return e.event.GetId() }
-func (e *evtEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
-func (e *evtEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
-func (e *evtEventEnvelope) Payload() any                           { return e.event.GetEvent() }
-func (e *evtEventEnvelope) DeliverySeq() uint64                    { return e.deliverySeq }
-func (e *evtEventEnvelope) EVTEvent() *evtv1.Event                 { return e.event }
-func (e *evtEventEnvelope) LiveEvent() *livev1.LiveEvent           { return nil }
-func (e *evtEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return nil }
+func (e *evtEventEnvelope) ID() string                         { return e.event.GetId() }
+func (e *evtEventEnvelope) CreatedAt() *timestamppb.Timestamp  { return e.event.GetCreatedAt() }
+func (e *evtEventEnvelope) ActorID() string                    { return e.event.GetActorId() }
+func (e *evtEventEnvelope) Payload() any                       { return e.event.GetEvent() }
+func (e *evtEventEnvelope) DeliverySeq() uint64                { return e.deliverySeq }
+func (e *evtEventEnvelope) EVTEvent() *evtv1.Event             { return e.event }
+func (e *evtEventEnvelope) PubSubEvent() *pubsubv1.PubSubEvent { return nil }
+func (e *evtEventEnvelope) Heartbeat() bool                    { return false }
 
-type liveEventEnvelope struct {
-	event *livev1.LiveEvent
+type pubsubEventEnvelope struct {
+	event *pubsubv1.PubSubEvent
 }
 
-// NewLiveEventEnvelope wraps one transient NATS Core event.
-func NewLiveEventEnvelope(event *livev1.LiveEvent) EventEnvelope {
+// NewPubSubEventEnvelope wraps one NATS Core pubsub event.
+func NewPubSubEventEnvelope(event *pubsubv1.PubSubEvent) EventEnvelope {
 	if event == nil {
 		return nil
 	}
-	return &liveEventEnvelope{event: event}
+	return &pubsubEventEnvelope{event: event}
 }
 
-func (e *liveEventEnvelope) ID() string                             { return e.event.GetId() }
-func (e *liveEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
-func (e *liveEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
-func (e *liveEventEnvelope) Payload() any                           { return e.event.GetEvent() }
-func (e *liveEventEnvelope) DeliverySeq() uint64                    { return 0 }
-func (e *liveEventEnvelope) EVTEvent() *evtv1.Event                 { return nil }
-func (e *liveEventEnvelope) LiveEvent() *livev1.LiveEvent           { return e.event }
-func (e *liveEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return nil }
+func (e *pubsubEventEnvelope) ID() string                        { return e.event.GetId() }
+func (e *pubsubEventEnvelope) CreatedAt() *timestamppb.Timestamp { return e.event.GetCreatedAt() }
+func (e *pubsubEventEnvelope) ActorID() string                   { return e.event.GetActorId() }
+func (e *pubsubEventEnvelope) Payload() any                      { return e.event.GetEvent() }
+func (e *pubsubEventEnvelope) DeliverySeq() uint64               { return 0 }
+func (e *pubsubEventEnvelope) EVTEvent() *evtv1.Event            { return nil }
+func (e *pubsubEventEnvelope) PubSubEvent() *pubsubv1.PubSubEvent {
+	return e.event
+}
+func (e *pubsubEventEnvelope) Heartbeat() bool { return false }
 
 type heartbeatEventEnvelope struct {
 	id        string
 	createdAt *timestamppb.Timestamp
-	event     *livev1.HeartbeatEvent
 }
 
 func NewHeartbeatEventEnvelope(id string, createdAt *timestamppb.Timestamp) EventEnvelope {
 	return &heartbeatEventEnvelope{
 		id:        id,
 		createdAt: createdAt,
-		event:     &livev1.HeartbeatEvent{},
 	}
 }
 
-func (e *heartbeatEventEnvelope) ID() string                             { return e.id }
-func (e *heartbeatEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.createdAt }
-func (e *heartbeatEventEnvelope) ActorID() string                        { return "" }
-func (e *heartbeatEventEnvelope) Payload() any                           { return e.event }
-func (e *heartbeatEventEnvelope) DeliverySeq() uint64                    { return 0 }
-func (e *heartbeatEventEnvelope) EVTEvent() *evtv1.Event                 { return nil }
-func (e *heartbeatEventEnvelope) LiveEvent() *livev1.LiveEvent           { return nil }
-func (e *heartbeatEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return e.event }
+func (e *heartbeatEventEnvelope) ID() string                         { return e.id }
+func (e *heartbeatEventEnvelope) CreatedAt() *timestamppb.Timestamp  { return e.createdAt }
+func (e *heartbeatEventEnvelope) ActorID() string                    { return "" }
+func (e *heartbeatEventEnvelope) Payload() any                       { return nil }
+func (e *heartbeatEventEnvelope) DeliverySeq() uint64                { return 0 }
+func (e *heartbeatEventEnvelope) EVTEvent() *evtv1.Event             { return nil }
+func (e *heartbeatEventEnvelope) PubSubEvent() *pubsubv1.PubSubEvent { return nil }
+func (e *heartbeatEventEnvelope) Heartbeat() bool                    { return true }
 
-func EventSessionTerminated(event EventEnvelope) *livev1.SessionTerminatedEvent {
-	if event == nil || event.LiveEvent() == nil {
+func EventSessionTerminated(event EventEnvelope) *pubsubv1.SessionTerminatedEvent {
+	if event == nil || event.PubSubEvent() == nil {
 		return nil
 	}
-	return event.LiveEvent().GetSessionTerminated()
+	return event.PubSubEvent().GetSessionTerminated()
 }
 
 func EventMessagePosted(event EventEnvelope) *evtv1.MessagePostedEvent {
@@ -115,16 +115,16 @@ func EventMessageRetracted(event EventEnvelope) *evtv1.MessageRetractedEvent {
 	return event.EVTEvent().GetMessageRetracted()
 }
 
-func EventUserTyping(event EventEnvelope) *livev1.UserTypingEvent {
-	if event == nil || event.LiveEvent() == nil {
+func EventUserTyping(event EventEnvelope) *pubsubv1.UserTypingEvent {
+	if event == nil || event.PubSubEvent() == nil {
 		return nil
 	}
-	return event.LiveEvent().GetUserTyping()
+	return event.PubSubEvent().GetUserTyping()
 }
 
-func EventPresenceChanged(event EventEnvelope) *livev1.PresenceChangedEvent {
-	if event == nil || event.LiveEvent() == nil {
+func EventPresenceChanged(event EventEnvelope) *pubsubv1.PresenceChangedEvent {
+	if event == nil || event.PubSubEvent() == nil {
 		return nil
 	}
-	return event.LiveEvent().GetPresenceChanged()
+	return event.PubSubEvent().GetPresenceChanged()
 }

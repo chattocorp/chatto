@@ -118,7 +118,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Link Preview** — Auto-generated preview card for URLs in messages. See [FDR-009](fdr/FDR-009-link-previews.md).
 
-**Typing Indicator** — Ephemeral "X is typing…" signal. Published as a live event, never persisted. See [FDR-010](fdr/FDR-010-typing-indicators.md).
+**Typing Indicator** — Ephemeral "X is typing…" signal. Published internally as a pubsub event and exposed as a cursorless realtime event. It is never persisted. See [FDR-010](fdr/FDR-010-typing-indicators.md).
 
 **Presence** — A user's online/away/offline state. See [FDR-011](fdr/FDR-011-user-presence.md).
 
@@ -184,11 +184,11 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several current buckets, especially `RUNTIME_STATE`, `MEMORY_CACHE`, and `ENCRYPTION_KEYS`; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
-**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
+**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; pubsub uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
 
 **Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
 domain fact. EVT stores this value. See
-[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
@@ -218,17 +218,17 @@ domain fact. EVT stores this value. See
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Live Event** — A transient `livev1.LiveEvent` envelope and payload published
-on `live.sync.>` through NATS Core. It is not stored in EVT. Durable Events
+**Pubsub Event** — A non-durable `pubsubv1.PubSubEvent` envelope and payload
+published on `live.sync.>` through NATS Core. It is not stored in EVT. Durable Events
 reach the internal live ingress separately through EVT republish on
 `live.evt.>`. See
-[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
-union and dedicated payload files form the public event catalogue. Durable
-union members stay aligned with selected EVT events. Live event mappings are
-explicit. Public payload field numbers are independent from EVT. An optional
+union and dedicated payloads in `events.proto` form the public event catalogue.
+Its names and compact field numbers do not expose whether an internal source
+is EVT or pubsub. Public payload field numbers are independent. An optional
 cursor remains outside the payload union. Internal variants and storage-only
 fields do not exist in the public schema. The server can add authorized
 public-only plaintext fields. Raw
@@ -244,7 +244,7 @@ log. It does not replace the resource-oriented `chatto.api.v1` API for
 explicit reads, commands, pagination, and history. See
 [ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
 [ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
-[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after

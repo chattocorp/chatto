@@ -701,8 +701,7 @@ export class ServerStateStore {
     const roomId = rawValue?.roomId ?? '';
 
     switch (payload.case) {
-      case 'userAccountDeleted':
-      case 'serverMemberDeletedSync': {
+      case 'userAccountDeleted': {
         const userId = payload.value.userId;
         this.projection.removeUser(userId);
         this.scrubRemovedUser(userId);
@@ -781,7 +780,6 @@ export class ServerStateStore {
         this.refreshLoadedTimelineResources('', { files: true, pins: true });
         return;
       case 'voiceCallParticipantJoined':
-      case 'callParticipantJoinedSignal':
         this.playCallTransitionSound(
           event.id,
           'join',
@@ -792,7 +790,6 @@ export class ServerStateStore {
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'voiceCallParticipantLeft':
-      case 'callParticipantLeftSignal':
         this.playCallTransitionSound(
           event.id,
           'leave',
@@ -828,7 +825,6 @@ export class ServerStateStore {
         this.refreshRealtimeResource('activeCalls');
         return;
       case 'notificationOccurrencesInvalidated':
-      case 'mentionStatusClearedSync':
         this.refreshRealtimeResource('notifications');
         return;
       case 'notificationUnreadChanged':
@@ -867,14 +863,13 @@ export class ServerStateStore {
       case 'roomGroupsReordered':
         this.refreshRealtimeResource('roomGroups');
         return;
-      case 'serverUpdatedSync':
+      case 'serverProfileChanged':
         this.refreshRealtimeResource('server');
         return;
       case 'serverMotdChanged':
         this.refreshRealtimeResource('serverState');
         return;
-      case 'userCreatedSync':
-      case 'userProfileSync':
+      case 'userProfileChanged':
       case 'userAccountCreated':
       case 'userLoginChanged':
       case 'userDisplayNameChanged':
@@ -885,14 +880,14 @@ export class ServerStateStore {
       case 'userBioChanged':
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         return;
-      case 'serverUserPreferencesSync':
+      case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');
         this.refreshRealtimeResource('rooms');
         return;
-      case 'roomMarkedAsReadSync':
+      case 'roomReadStateChanged':
         this.refreshRealtimeResource('rooms');
         return;
-      case 'threadFollowChangedSync': {
+      case 'threadViewerStateChanged': {
         this.applyThreadFollowChange(
           roomId,
           payload.value.threadRootEventId,

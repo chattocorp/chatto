@@ -1,6 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { TransientEventKind } from '$lib/realtimeEvents';
 import {
   RealtimeEvent,
   RealtimeClose,
@@ -12,7 +11,7 @@ import {
   RealtimeCloseCode
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/transient_events_pb';
+import { UserTypingEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import {
   eventBusManager,
   setRealtimePollRandomForTests,
@@ -152,7 +151,7 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   });
 }
 
-function transientFrame(id = 'evt-1'): RealtimeServerFrame {
+function cursorlessFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
@@ -160,8 +159,8 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
       createdAt: Timestamp.now(),
       actorId: 'user-1',
       event: {
-        case: 'userTypingSignal',
-        value: new UserTypingSignalEvent({ roomId: 'room-1' })
+        case: 'userTyping',
+        value: new UserTypingEvent({ roomId: 'room-1' })
       }
     })
   });
@@ -250,20 +249,17 @@ describe('eventBusManager realtime transport', () => {
     const handler = vi.fn();
     eventBusManager.getBus(TEST_SERVER)!.handlers.add(handler);
 
-    await socket.receive(transientFrame());
+    await socket.receive(cursorlessFrame());
 
     expect(handler).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'evt-1',
-        event: expect.objectContaining({
-          kind: TransientEventKind.UserTyping,
-          roomId: 'room-1'
-        })
+        event: expect.objectContaining({ case: 'userTyping' })
       })
     );
     expect(consoleDebug).toHaveBeenCalledWith(
       `[eventBus:${TEST_SERVER}] event dispatched`,
-      TransientEventKind.UserTyping,
+      'userTyping',
       expect.objectContaining({ eventId: 'evt-1' })
     );
   });
@@ -448,7 +444,7 @@ describe('eventBusManager realtime transport', () => {
     });
     bus.handlers.add(ranAfter);
 
-    await socket.receive(transientFrame());
+    await socket.receive(cursorlessFrame());
 
     expect(ranBefore).toHaveBeenCalledTimes(1);
     expect(ranAfter).toHaveBeenCalledTimes(1);
@@ -469,8 +465,8 @@ describe('eventBusManager realtime transport', () => {
     });
     bus.handlers.add(handler);
 
-    await socket.receive(transientFrame('evt-1'));
-    await socket.receive(transientFrame('evt-2'));
+    await socket.receive(cursorlessFrame('evt-1'));
+    await socket.receive(cursorlessFrame('evt-2'));
 
     expect(handler).toHaveBeenCalledTimes(2);
   });
@@ -551,6 +547,29 @@ describe('eventBusManager realtime transport', () => {
     expect(fake.authRequiredCalls).toBe(1);
     expect(fake.status).toBe('disconnected');
     await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(1);
+  });
+
+  it('dispatches session termination as control state and does not reconnect', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+    const handler = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.sessionTerminatedHandlers.add(handler);
+
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: RealtimeCloseCode.SESSION_TERMINATED,
+          message: 'session terminated: admin_boot',
+          reconnect: false
+        })
+      })
+    );
+
+    expect(handler).toHaveBeenCalledWith('session terminated: admin_boot');
+    expect(fake.status).toBe('disconnected');
+    await vi.advanceTimersByTimeAsync(60_000);
     expect(sockets).toHaveLength(1);
   });
 

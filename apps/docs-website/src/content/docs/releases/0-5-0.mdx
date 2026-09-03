@@ -301,7 +301,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   15-minute bounded cursor resume. The client sends one `RealtimeSubscribe`
   message. The server can send `snapshot`, `event`, `caught_up`, `heartbeat`,
   and `close` frames. Snapshot clients receive one atomic frame with canonical
-  resource shapes. Room and thread timelines stay in the paginated ConnectRPC
+  resource shapes. `RealtimeEvent` has one source-independent public catalogue;
+  its names and field numbers do not expose EVT or internal pubsub. Session
+  termination uses a non-reconnecting `close` frame. Room and thread timelines stay in the paginated ConnectRPC
   APIs; protocol 4 has no retained-room control. The additive authenticated
   `ServerService.GetServerProfile` method remains available for explicit reads. Public server
   discovery stays unauthenticated.
@@ -375,8 +377,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   notifications as phantom DMs.
 - App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
-- Realtime uses one canonical internal event envelope and a dedicated public payload catalogue.
-  An explicit typed mapper keeps public payload layouts independent from stored EVT bytes. The
+- Realtime uses separate internal envelopes for stored facts and NATS Core pubsub activity, plus
+  a dedicated public payload catalogue. Explicit typed mappers keep public payload layouts
+  independent from both internal wire formats. The
   public union excludes internal event variants and storage-only fields. The
   WebSocket sends an exact, bounded resource snapshot and then sends public events. Clients use
   ConnectRPC for resources that are not in the snapshot and for details that are not in an event.

@@ -43,6 +43,6 @@
   <text x="460" y="476" text-anchor="middle" class="text">authorized public events after E</text>
 
   <line x1="750" y1="565" x2="172" y2="565" class="flow durable"/>
-  <text x="460" y="556" text-anchor="middle" class="text">live events and heartbeats</text>
+  <text x="460" y="556" text-anchor="middle" class="text">realtime events and heartbeats</text>
   <text x="460" y="655" text-anchor="middle" class="small">Save a cursor only after the event and its required resource reads succeed.</text>
 </svg>

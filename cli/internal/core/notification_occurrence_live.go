@@ -2,8 +2,8 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 
 	"google.golang.org/protobuf/proto"
 
@@ -35,33 +35,27 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 			presences = nil
 		}
 	}
-	publications := make([]liveEventPublication, 0, len(occurrences))
+	publications := make([]pubsubEventPublication, 0, len(occurrences))
 	for _, occurrence := range occurrences {
 		if occurrence == nil || occurrence.GetRecipientId() == "" {
 			continue
 		}
-		var alertCandidateID, soundCandidateID *string
+		var soundCandidateID *string
 		if creationCandidate && !occurrence.GetRead() && presences[occurrence.GetRecipientId()] != PresenceStatusDoNotDisturb {
 			soundCandidateID = proto.String(occurrence.GetId())
-			if NotificationAlertPending(occurrence) {
-				// Preserve the legacy candidate for older replicas, which only play
-				// sound for push-eligible notification occurrences.
-				alertCandidateID = proto.String(occurrence.GetId())
-			}
 		}
-		publications = append(publications, liveEventPublication{
+		publications = append(publications, pubsubEventPublication{
 			subject: subjects.LiveSyncUserEvent(occurrence.GetRecipientId(), "notification_v2"),
-			event: newLiveEvent(occurrence.GetActorId(), &livev1.LiveEvent{
-				Event: &livev1.LiveEvent_NotificationOccurrencesInvalidated{
-					NotificationOccurrencesInvalidated: &livev1.NotificationOccurrencesInvalidatedEvent{
-						AlertCandidateNotificationId: alertCandidateID,
+			event: newPubSubEvent(occurrence.GetActorId(), &pubsubv1.PubSubEvent{
+				Event: &pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated{
+					NotificationOccurrencesInvalidated: &pubsubv1.NotificationOccurrencesInvalidatedEvent{
 						SoundCandidateNotificationId: soundCandidateID,
 					},
 				},
 			}),
 		})
 	}
-	if err := c.publishLiveEvents(ctx, publications); err != nil {
+	if err := c.publishPubSubEvents(ctx, publications); err != nil {
 		c.logger.Warn("Failed to publish notification occurrence invalidations",
 			"count", len(publications), "error", err)
 	}

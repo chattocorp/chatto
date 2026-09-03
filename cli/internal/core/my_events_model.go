@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -96,7 +96,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // that is relevant to a specific user.
 //
 // The process-wide MyEventsHub receives two internal NATS Core subject roots:
-// live.sync.> carries transient LiveEvent messages and live.evt.> is the
+// live.sync.> carries PubSubEvent messages and live.evt.> is the
 // raw singleton republish of committed EVT facts. EVT delivery is not UI-safe by
 // itself: the hub waits for the relevant local projection(s) to reach the
 // republished stream sequence, then applies each user's authorization before
@@ -109,7 +109,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //     message.read. DM membership authorizes DM delivery. The membership set is
 //     pre-loaded across both kinds (channel + dm) and updated as
 //     join/leave/room-deleted events arrive.
-//   - User/config/member subjects are filtered by isAuthorizedForLiveEvent.
+//   - User/config/member subjects are filtered by isAuthorizedForPubSubEvent.
 //   - Presence updates from the per-process PresenceHub are deployment-wide;
 //     the hub dedups status flapping.
 //
@@ -242,12 +242,12 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 					s.slowDisconnects.Add(1)
 					return
 				}
-				live := newLiveEvent(update.UserID, &livev1.LiveEvent{
-					Event: &livev1.LiveEvent_PresenceChanged{
-						PresenceChanged: &livev1.PresenceChangedEvent{Status: update.Status},
+				pubsub := newPubSubEvent(update.UserID, &pubsubv1.PubSubEvent{
+					Event: &pubsubv1.PubSubEvent_PresenceChanged{
+						PresenceChanged: &pubsubv1.PresenceChangedEvent{Status: update.Status},
 					},
 				})
-				if !send(NewLiveEventEnvelope(live)) {
+				if !send(NewPubSubEventEnvelope(pubsub)) {
 					return
 				}
 			case <-presenceSub.Done:
@@ -292,11 +292,11 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 	return nil
 }
 
-func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *livev1.LiveEvent) (EventEnvelope, bool) {
-	return c.myEventsModel.filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
+func (c *ChattoCore) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
+	return c.myEventsModel.filterPubSubEvent(ctx, userID, memberRooms, msg, event)
 }
 
-func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *livev1.LiveEvent) (EventEnvelope, bool) {
+func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *pubsubv1.PubSubEvent) (EventEnvelope, bool) {
 	if event == nil || event.Event == nil {
 		s.core.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
 		return nil, false
@@ -331,14 +331,14 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 				return nil, false
 			}
 		}
-		return NewLiveEventEnvelope(event), true
+		return NewPubSubEventEnvelope(event), true
 	}
 
-	if !s.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
+	if !s.isAuthorizedForPubSubEvent(ctx, userID, msg.Subject) {
 		return nil, false
 	}
 
-	return NewLiveEventEnvelope(event), true
+	return NewPubSubEventEnvelope(event), true
 }
 
 func liveEVTMsgSeq(msg *nats.Msg) uint64 {
@@ -495,13 +495,13 @@ func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject str
 	return s.core.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq))
 }
 
-// isAuthorizedForLiveEvent checks whether a user can receive a non-room
-// transient live event based on its live.sync subject.
-func (c *ChattoCore) isAuthorizedForLiveEvent(ctx context.Context, userID, subject string) bool {
-	return c.myEventsModel.isAuthorizedForLiveEvent(ctx, userID, subject)
+// isAuthorizedForPubSubEvent checks whether a user can receive a non-room
+// pubsub event based on its live.sync subject.
+func (c *ChattoCore) isAuthorizedForPubSubEvent(ctx context.Context, userID, subject string) bool {
+	return c.myEventsModel.isAuthorizedForPubSubEvent(ctx, userID, subject)
 }
 
-func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subject string) bool {
+func (s *MyEventsModel) isAuthorizedForPubSubEvent(_ context.Context, userID, subject string) bool {
 	parts := strings.Split(subject, ".")
 	if len(parts) < 3 || parts[0] != "live" || parts[1] != "sync" {
 		s.core.logger.Warn("Invalid live event subject format", "subject", subject)
@@ -509,7 +509,7 @@ func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subj
 	}
 
 	switch parts[2] {
-	case "config", "member":
+	case "config":
 		return true
 	case "user":
 		if len(parts) < 5 {
@@ -521,7 +521,7 @@ func (s *MyEventsModel) isAuthorizedForLiveEvent(_ context.Context, userID, subj
 		}
 		return parts[3] == userID
 	case "room":
-		s.core.logger.Warn("Room subject reached isAuthorizedForLiveEvent - should be filtered upstream", "subject", subject)
+		s.core.logger.Warn("Room subject reached isAuthorizedForPubSubEvent - should be filtered upstream", "subject", subject)
 		return false
 	default:
 		s.core.logger.Warn("Unknown live event scope", "scope", parts[2], "subject", subject)

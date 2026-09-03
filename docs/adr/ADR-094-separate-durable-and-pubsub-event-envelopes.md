@@ -1,4 +1,4 @@
-# ADR-094: Separate Durable and Live Event Envelopes
+# ADR-094: Separate Durable and Pubsub Event Envelopes
 
 **Status:** Accepted
 
@@ -17,7 +17,7 @@ stored EVT schema.
 
 ADR-093 later gave the public realtime API its own event union and payloads.
 The public API no longer needs one internal envelope to provide one semantic
-event catalogue. The durable and transient internal paths have different
+event catalogue. The durable and pubsub internal paths have different
 compatibility and recovery rules, so separate envelopes now give a clearer
 boundary.
 
@@ -32,22 +32,23 @@ change the result of a subscription.
 EVT. Its existing stored field numbers, payloads, and wire layout stay
 compatible with supported Chatto data.
 
-`chatto.core.live.v1.LiveEvent` contains only transient signals that are sent
-on `live.sync.>` through NATS Core. It is never stored in EVT. Live event field
-numbers are local to `LiveEvent`; they do not use the public realtime union
+`chatto.core.pubsub.v1.PubSubEvent` contains only events that are sent on
+`live.sync.>` through NATS Core. It is never stored in EVT. Its field numbers
+are local to `PubSubEvent`; they do not use the public realtime union
 numbers.
 
 Both envelopes have the common event ID, creation time, and actor ID. Backend
 publishers and event-delivery code use typed accessors so that code must select
-the durable or transient source. Durable EVT replay cannot contain a
-`LiveEvent`.
+the durable or pubsub source. Durable EVT replay cannot contain a
+`PubSubEvent`.
 
 The public `chatto.realtime.v1.RealtimeEvent` union stays independent. The
-server maps selected `Event` and `LiveEvent` variants to dedicated public
-payloads after authorization. Every `LiveEvent` variant is public in the
-current catalogue. An exhaustive descriptor test fails when a new live
-variant does not have a public mapping. Durable internal events can remain
-private.
+server maps selected `Event` and `PubSubEvent` variants to dedicated public
+payloads after authorization. Public field names and compact field numbers do
+not expose the internal source. An exhaustive descriptor test fails when a
+public variant has no mapping. Internal events can remain private. Internal
+control events can map to protocol frames. In particular, session termination
+maps to `RealtimeClose` and is not a public event.
 
 The protocol 4 startup has one client message. The client sends
 `RealtimeSubscribe` as the first binary WebSocket message and sends no more
@@ -66,16 +67,32 @@ learns the selected recovery path from the frames that it receives: a
 snapshot starts snapshot recovery, replay starts with events, and
 `caught_up` completes either path.
 
+## Compatibility
+
+The EVT envelope and every stored payload keep their existing wire shapes. The
+storage compatibility check continues to compare them with `origin/main`.
+
+The public realtime and private pubsub schemas are intentionally breaking. They
+have not shipped in a Chatto release. Older clients cannot use protocol 4 on a
+server with this schema, and newer clients cannot use the earlier development
+form of protocol 4. Deploy the server and bundled frontend from the same build.
+Integrations must regenerate their clients.
+
+The pubsub package rename and compact numbering also prevent mixed application
+replicas from decoding every `live.sync.>` message. Upgrade all server replicas
+together. A missed pubsub event does not affect EVT or stored state. Current
+resource reads and a new snapshot restore the related client state.
+
 ## Consequences
 
 - EVT compatibility remains isolated in the durable `Event` schema.
-- A transient signal cannot enter EVT through the normal typed publisher.
-- Live NATS Core wire changes need mixed-version review, but they do not add
+- A pubsub event cannot enter EVT through the normal typed publisher.
+- Pubsub NATS Core wire changes need mixed-version review, but they do not add
   fields to the stored EVT union.
 - The public realtime catalogue keeps one semantic view across both internal
   sources without importing either internal payload schema.
-- A new public durable event needs an explicit public mapping. A new
-  `LiveEvent` also fails the catalogue test until it has one.
+- A new public event needs an explicit public mapping from its internal source.
+- A new `PubSubEvent` is not public unless the public catalogue includes it.
 - Realtime startup has fewer messages, frame types, and partial states.
 - An atomic snapshot is larger than one resource-family frame, but it is
   bounded, compressed when useful, and cannot be partly accepted.

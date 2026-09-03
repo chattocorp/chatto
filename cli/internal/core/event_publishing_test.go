@@ -15,7 +15,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -23,57 +23,60 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	core := &ChattoCore{}
 	ctx := testContext(t)
 
-	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.sync.test", &livev1.LiveEvent{})
+	t.Run("publishPubSubEvent rejects invalid payload", func(t *testing.T) {
+		err := core.publishPubSubEvent(ctx, "live.sync.test", &pubsubv1.PubSubEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 }
 
-func TestLiveEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
-	event := newLiveEvent("actor-id", &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
-		UserTyping: &livev1.UserTypingEvent{RoomId: "room-id"},
+func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
+	event := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &pubsubv1.UserTypingEvent{RoomId: "room-id"},
 	}})
 	wire, err := proto.Marshal(event)
 	if err != nil {
-		t.Fatalf("marshal LiveEvent: %v", err)
+		t.Fatalf("marshal PubSubEvent: %v", err)
 	}
-	var decoded livev1.LiveEvent
+	var decoded pubsubv1.PubSubEvent
 	if err := proto.Unmarshal(wire, &decoded); err != nil {
-		t.Fatalf("unmarshal LiveEvent: %v", err)
+		t.Fatalf("unmarshal PubSubEvent: %v", err)
 	}
 	if decoded.GetId() != event.GetId() || decoded.GetUserTyping().GetRoomId() != "room-id" {
-		t.Fatalf("decoded LiveEvent = %+v, want metadata and typing payload", &decoded)
+		t.Fatalf("decoded PubSubEvent = %+v, want metadata and typing payload", &decoded)
 	}
 	var stored evtv1.Event
 	if err := proto.Unmarshal(wire, &stored); err != nil {
-		t.Fatalf("unmarshal LiveEvent bytes as Event: %v", err)
+		t.Fatalf("unmarshal PubSubEvent bytes as Event: %v", err)
 	}
 	if stored.GetEvent() != nil {
-		t.Fatalf("LiveEvent bytes selected durable EVT variant %T", stored.GetEvent())
+		t.Fatalf("PubSubEvent bytes selected durable EVT variant %T", stored.GetEvent())
 	}
 }
 
-func TestEveryLiveEventVariantPassesLiveValidation(t *testing.T) {
-	descriptor := (&livev1.LiveEvent{}).ProtoReflect().Descriptor()
+func TestEveryPubSubEventVariantPassesValidation(t *testing.T) {
+	descriptor := (&pubsubv1.PubSubEvent{}).ProtoReflect().Descriptor()
 	oneof := descriptor.Oneofs().ByName("event")
 	if oneof == nil {
-		t.Fatal("LiveEvent.event descriptor is missing")
+		t.Fatal("PubSubEvent.event descriptor is missing")
 	}
 	for index := 0; index < oneof.Fields().Len(); index++ {
 		field := oneof.Fields().Get(index)
+		if got, want := int(field.Number()), index+10; got != want {
+			t.Errorf("PubSubEvent field %s has tag %d, want compact tag %d", field.FullName(), got, want)
+		}
 		dynamicEvent := dynamicpb.NewMessage(descriptor)
 		dynamicEvent.Set(field, dynamicEvent.NewField(field))
 		wire, err := proto.Marshal(dynamicEvent)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", field.FullName(), err)
 		}
-		var event livev1.LiveEvent
+		var event pubsubv1.PubSubEvent
 		if err := proto.Unmarshal(wire, &event); err != nil {
 			t.Fatalf("unmarshal %s: %v", field.FullName(), err)
 		}
-		if err := validateLiveEvent(&event); err != nil {
+		if err := validatePubSubEvent(&event); err != nil {
 			t.Errorf("validate %s: %v", field.FullName(), err)
 		}
 	}
@@ -710,7 +713,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 			if !ok {
 				t.Fatal("event stream closed unexpectedly")
 			}
-			if liveEventRoomID(ev) == room.Id && EventMessagePosted(ev) != nil {
+			if pubsubEventRoomID(ev) == room.Id && EventMessagePosted(ev) != nil {
 				return
 			}
 		case <-timeout:
@@ -784,7 +787,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	}
 }
 
-func liveEventRoomID(event EventEnvelope) string {
+func pubsubEventRoomID(event EventEnvelope) string {
 	evt := event.EVTEvent()
 	if evt == nil {
 		return ""

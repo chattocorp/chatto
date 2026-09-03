@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -253,20 +253,20 @@ type notificationUnreadInvalidation struct {
 // with one final NATS flush. The invalidations are best-effort convergence
 // hints; the unread markers remain authoritative across a lost publication.
 func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context, invalidations []notificationUnreadInvalidation) {
-	publications := make([]liveEventPublication, 0, len(invalidations))
+	publications := make([]pubsubEventPublication, 0, len(invalidations))
 	for _, invalidation := range invalidations {
-		publications = append(publications, liveEventPublication{
+		publications = append(publications, pubsubEventPublication{
 			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
-			event: newLiveEvent(invalidation.actorID, &livev1.LiveEvent{
-				Event: &livev1.LiveEvent_NotificationUnreadChanged{
-					NotificationUnreadChanged: &livev1.NotificationUnreadChangedEvent{
+			event: newPubSubEvent(invalidation.actorID, &pubsubv1.PubSubEvent{
+				Event: &pubsubv1.PubSubEvent_NotificationUnreadChanged{
+					NotificationUnreadChanged: &pubsubv1.NotificationUnreadChangedEvent{
 						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
 					},
 				},
 			}),
 		})
 	}
-	if err := c.publishLiveEvents(ctx, publications); err != nil {
+	if err := c.publishPubSubEvents(ctx, publications); err != nil {
 		c.logger.Warn("Failed to publish notification unread invalidations", "count", len(publications), "error", err)
 	}
 }

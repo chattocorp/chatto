@@ -12,8 +12,6 @@ import {
   type ProjectionHandler,
   type EventBus
 } from '$lib/eventBus.svelte';
-import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
-import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeInitialState,
   RealtimeCloseCode,
@@ -155,8 +153,9 @@ class EventBusManager {
 
     const handlers = new SvelteSet<EventHandler>();
     const projectionHandlers = new SvelteSet<ProjectionHandler>();
+    const sessionTerminatedHandlers = new SvelteSet<(reason: string) => void>();
     if (projectionHandler) projectionHandlers.add(projectionHandler);
-    const bus: EventBus = { handlers, projectionHandlers };
+    const bus: EventBus = { handlers, projectionHandlers, sessionTerminatedHandlers };
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
@@ -294,13 +293,13 @@ class EventBusManager {
       resolvePoll(false);
     };
 
-    const dispatchEvent = (event: TransientEventEnvelope) => {
+    const dispatchEvent = (event: RealtimeEvent) => {
       dispatchedEventCount++;
-      console.debug(
-        `[eventBus:${serverId}] event dispatched`,
-        transientEventKind(event.event) ?? '<unknown>',
-        { eventId: event.id, total: dispatchedEventCount, ...debugState() }
-      );
+      console.debug(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
+        eventId: event.id,
+        total: dispatchedEventCount,
+        ...debugState()
+      });
       for (const handler of handlers) {
         try {
           handler(event);
@@ -318,6 +317,7 @@ class EventBusManager {
     };
 
     const dispatchRealtimeEvent = (event: RealtimeEvent) => {
+      dispatchEvent(event);
       dispatchProjectionUpdate(
         new RealtimeProjectionUpdate({
           event,
@@ -445,8 +445,6 @@ class EventBusManager {
                 }
                 return;
               case 'event': {
-                const event = realtimeEventToEventEnvelope(frame.frame.value);
-                if (event) dispatchEvent(event);
                 try {
                   dispatchRealtimeEvent(frame.frame.value);
                 } catch (error) {
@@ -481,6 +479,18 @@ class EventBusManager {
                 return;
               }
               case 'close':
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
+                  for (const handler of sessionTerminatedHandlers) {
+                    try {
+                      handler(frame.frame.value.message);
+                    } catch (error) {
+                      console.error(`[eventBus:${serverId}] session termination handler threw`, error);
+                    }
+                  }
+                  becomeDormant(true, 'disconnected');
+                  resolvePoll(false);
+                  return;
+                }
                 if (frame.frame.value.code === RealtimeCloseCode.AUTHENTICATION_REQUIRED) {
                   void recoverFromAuthenticationRequired(nextSocket, 'close frame');
                   return;

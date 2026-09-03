@@ -13,7 +13,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -949,16 +949,13 @@ func TestDMNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
-		var live livev1.LiveEvent
-		if err := proto.Unmarshal(msg.Data, &live); err != nil {
-			t.Fatalf("unmarshal live event: %v", err)
+		var pubsub pubsubv1.PubSubEvent
+		if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
+			t.Fatalf("unmarshal pubsub event: %v", err)
 		}
-		event := live.GetNotificationOccurrencesInvalidated()
+		event := pubsub.GetNotificationOccurrencesInvalidated()
 		if event == nil {
-			t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
-		}
-		if event.GetAlertCandidateNotificationId() != "" {
-			t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
+			t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", pubsub.Event)
 		}
 		if event.GetSoundCandidateNotificationId() != "" {
 			t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")

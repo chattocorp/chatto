@@ -15,7 +15,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -353,7 +353,7 @@ func (h *MyEventsHub) consume(sub *myEventsSubscription, delivery myEventsDelive
 // established and every current subscriber must reconnect and catch up.
 func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	if strings.HasPrefix(msg.Subject, "live.sync.") {
-		return h.handleLiveSync(msg)
+		return h.handlePubSub(msg)
 	}
 	if strings.HasPrefix(msg.Subject, evtstream.LiveSubjectRoot) {
 		return h.handleLiveEVT(ctx, msg)
@@ -362,9 +362,9 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 	return false
 }
 
-func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
+func (h *MyEventsHub) handlePubSub(msg *nats.Msg) bool {
 	h.decoded.Add(1)
-	event := new(livev1.LiveEvent)
+	event := new(pubsubv1.PubSubEvent)
 	if err := proto.Unmarshal(msg.Data, event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
@@ -378,7 +378,7 @@ func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for userID, state := range h.users {
-		authorized, ok := h.model.filterLiveSyncEvent(context.Background(), userID, state.memberRooms, msg, event)
+		authorized, ok := h.model.filterPubSubEvent(context.Background(), userID, state.memberRooms, msg, event)
 		if ok {
 			h.enqueueUserLocked(state, authorized, bytes)
 		}

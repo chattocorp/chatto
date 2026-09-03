@@ -10,7 +10,7 @@ protocol at `/api/realtime`.
 - Do not add unary ConnectRPC services here.
 - Prefer importing stable public enums/messages from `chatto.api.v1` over
   duplicating shared client-visible semantics.
-- Keep client-visible event payloads in the small domain event files. These messages are
+- Keep client-visible event payloads in `events.proto`. These messages are
   the public event catalogue and must not import `chatto.core` payload types.
 - Public payloads contain only fields that a client can receive. Do not add
   storage placeholders, encrypted fields, key references, private moderation
@@ -40,15 +40,16 @@ protocol at `/api/realtime`.
   because common event metadata and the cursor remain outside the event
   `oneof`. Use a new behavioral protocol version when a new variant needs
   required client behavior.
-- `RealtimeEvent.event` is the public variant catalogue. Keep each durable
-  member's name and field number aligned with its matching EVT `Event` member.
-  Map `LiveEvent` members explicitly in the reserved public transient range.
-  Public payload field numbers are independent.
-- When a new `Event` or `LiveEvent` variant must reach clients, update the applicable event file, the
-  `RealtimeEvent.event` union, the explicit mapper and exhaustive tests, the frontend event
+- `RealtimeEvent.event` is the source-independent public variant catalogue.
+  Its names and compact field numbers do not encode the internal source.
+  Public payload field numbers are also independent.
+- When a new `Event` or `PubSubEvent` variant must reach clients, update
+  `events.proto`, the `RealtimeEvent.event` union, the explicit mapper and
+  exhaustive tests, the frontend event
   reducer or reconciliation path, generated clients, architecture and public
   documentation, and compatibility notes in the same change.
 - Live delivery and replay must use the same internal-to-public mapping path.
   A public union member without a valid mapping must fail tests and fail closed
-  at runtime. Every `LiveEvent` variant must have a public mapping unless an
-  ADR explicitly records the exception.
+  at runtime. A `PubSubEvent` is public only when the catalogue contains an
+  explicit semantic mapping. Internal control events can map to protocol
+  frames instead. `session_terminated` maps to `close`.

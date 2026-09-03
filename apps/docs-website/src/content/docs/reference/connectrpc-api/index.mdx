@@ -69,7 +69,7 @@ The API is split by who uses each part and how clients connect to it.
 **`chatto.realtime.v1`**
 
 - **Transport:** WebSocket protobuf frames at `/api/realtime`.
-- **Covers:** Live event delivery and realtime client synchronization.
+- **Covers:** Realtime event delivery and client synchronization.
 - **Contract:** Public realtime wire protocol. It is documented separately because it is not a ConnectRPC service.
 
 This split makes it clear which calls are for ordinary client behavior, which calls are administrative, and which protocol handles live updates.

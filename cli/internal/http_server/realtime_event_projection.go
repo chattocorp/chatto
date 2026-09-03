@@ -9,7 +9,7 @@ import (
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
@@ -91,16 +91,16 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_RoomGroupsReordered{RoomGroupsReordered: &realtimev1.RoomGroupsReorderedEvent{GroupIds: append([]string(nil), e.RoomGroupsReordered.GetGroupIds()...)}}
 	case *evtv1.Event_VoiceCallParticipantJoined:
 		v := e.VoiceCallParticipantJoined
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &realtimev1.VoiceCallParticipantJoinedEvent{RoomId: v.GetRoomId(), Source: realtimeDurableCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &realtimev1.VoiceCallParticipantJoinedEvent{RoomId: v.GetRoomId(), Source: realtimeCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
 	case *evtv1.Event_VoiceCallParticipantLeft:
 		v := e.VoiceCallParticipantLeft
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantLeft{VoiceCallParticipantLeft: &realtimev1.VoiceCallParticipantLeftEvent{RoomId: v.GetRoomId(), Source: realtimeDurableCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantLeft{VoiceCallParticipantLeft: &realtimev1.VoiceCallParticipantLeftEvent{RoomId: v.GetRoomId(), Source: realtimeCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
 	case *evtv1.Event_VoiceCallStarted:
 		v := e.VoiceCallStarted
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallStarted{VoiceCallStarted: &realtimev1.VoiceCallStartedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeDurableCallParticipantSource(v.GetSource())}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallStarted{VoiceCallStarted: &realtimev1.VoiceCallStartedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeCallParticipantSource(v.GetSource())}}
 	case *evtv1.Event_VoiceCallEnded:
 		v := e.VoiceCallEnded
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeDurableCallParticipantSource(v.GetSource())}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeCallParticipantSource(v.GetSource())}}
 	case *evtv1.Event_MessagePosted:
 		v := e.MessagePosted
 		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), InThread: v.GetInThread(), MentionedUserIds: append([]string(nil), v.GetMentionedUserIds()...), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(v.GetMentions())}}
@@ -176,9 +176,9 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 	return target
 }
 
-// projectRealtimeLiveEvent explicitly maps one transient internal signal to
-// the independent public catalogue.
-func projectRealtimeLiveEvent(source *livev1.LiveEvent) *realtimev1.RealtimeEvent {
+// projectRealtimePubSubEvent explicitly maps one internal pubsub event to the
+// source-independent public catalogue.
+func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.RealtimeEvent {
 	if source == nil || source.GetEvent() == nil {
 		return nil
 	}
@@ -187,46 +187,31 @@ func projectRealtimeLiveEvent(source *livev1.LiveEvent) *realtimev1.RealtimeEven
 		target.ActorId = proto.String(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
-	case *livev1.LiveEvent_UserCreated:
-		v := e.UserCreated
-		target.Event = &realtimev1.RealtimeEvent_UserCreatedSync{UserCreatedSync: &realtimev1.UserCreatedSyncEvent{UserId: v.GetUserId(), Login: v.GetLogin(), DisplayName: v.GetDisplayName()}}
-	case *livev1.LiveEvent_UserProfileUpdated:
-		v := e.UserProfileUpdated
-		target.Event = &realtimev1.RealtimeEvent_UserProfileSync{UserProfileSync: &realtimev1.UserProfileSyncEvent{UserId: v.GetUserId(), DisplayName: v.GetDisplayName(), AvatarUrl: v.GetAvatarUrl(), Login: v.GetLogin(), Bio: v.GetBio(), Timezone: v.GetTimezone()}}
-	case *livev1.LiveEvent_ServerUserPreferencesUpdated:
-		v := e.ServerUserPreferencesUpdated
-		target.Event = &realtimev1.RealtimeEvent_ServerUserPreferencesSync{ServerUserPreferencesSync: &realtimev1.ServerUserPreferencesSyncEvent{Timezone: v.GetTimezone(), TimeFormat: realtimeTimeFormat(v.GetTimeFormat()), ShareTimezone: v.GetShareTimezone()}}
-	case *livev1.LiveEvent_ThreadFollowChanged:
-		v := e.ThreadFollowChanged
-		target.Event = &realtimev1.RealtimeEvent_ThreadFollowChangedSync{ThreadFollowChangedSync: &realtimev1.ThreadFollowChangedSyncEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: v.GetIsFollowing()}}
-	case *livev1.LiveEvent_ServerMemberDeleted:
-		target.Event = &realtimev1.RealtimeEvent_ServerMemberDeletedSync{ServerMemberDeletedSync: &realtimev1.ServerMemberDeletedSyncEvent{UserId: e.ServerMemberDeleted.GetUserId()}}
-	case *livev1.LiveEvent_ServerUpdated:
-		v := e.ServerUpdated
-		target.Event = &realtimev1.RealtimeEvent_ServerUpdatedSync{ServerUpdatedSync: &realtimev1.ServerUpdatedSyncEvent{ServerId: v.GetServerId(), Name: v.GetName(), Description: v.GetDescription(), LogoUrl: v.GetLogoUrl(), BannerUrl: v.GetBannerUrl()}}
-	case *livev1.LiveEvent_UserTyping:
+	case *pubsubv1.PubSubEvent_UserProfileChanged:
+		v := e.UserProfileChanged
+		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: v.GetUserId(), DisplayName: v.GetDisplayName(), AvatarUrl: v.GetAvatarUrl(), Login: v.GetLogin(), Bio: v.GetBio(), Timezone: v.GetTimezone()}}
+	case *pubsubv1.PubSubEvent_ViewerPreferencesChanged:
+		v := e.ViewerPreferencesChanged
+		target.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{Timezone: v.GetTimezone(), TimeFormat: realtimeTimeFormat(v.GetTimeFormat()), ShareTimezone: v.GetShareTimezone()}}
+	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
+		v := e.ThreadViewerStateChanged
+		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: v.GetIsFollowing()}}
+	case *pubsubv1.PubSubEvent_ServerProfileChanged:
+		v := e.ServerProfileChanged
+		target.Event = &realtimev1.RealtimeEvent_ServerProfileChanged{ServerProfileChanged: &realtimev1.ServerProfileChangedEvent{ServerId: v.GetServerId(), Name: v.GetName(), Description: v.GetDescription(), LogoUrl: v.GetLogoUrl(), BannerUrl: v.GetBannerUrl()}}
+	case *pubsubv1.PubSubEvent_UserTyping:
 		v := e.UserTyping
-		target.Event = &realtimev1.RealtimeEvent_UserTypingSignal{UserTypingSignal: &realtimev1.UserTypingSignalEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.ThreadRootEventId}}
-	case *livev1.LiveEvent_PresenceChanged:
-		target.Event = &realtimev1.RealtimeEvent_PresenceChangedSignal{PresenceChangedSignal: &realtimev1.PresenceChangedSignalEvent{Status: e.PresenceChanged.GetStatus()}}
-	case *livev1.LiveEvent_CallParticipantJoined:
-		v := e.CallParticipantJoined
-		target.Event = &realtimev1.RealtimeEvent_CallParticipantJoinedSignal{CallParticipantJoinedSignal: &realtimev1.CallParticipantJoinedSignalEvent{RoomId: v.GetRoomId(), Source: realtimeLiveCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
-	case *livev1.LiveEvent_CallParticipantLeft:
-		v := e.CallParticipantLeft
-		target.Event = &realtimev1.RealtimeEvent_CallParticipantLeftSignal{CallParticipantLeftSignal: &realtimev1.CallParticipantLeftSignalEvent{RoomId: v.GetRoomId(), Source: realtimeLiveCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
-	case *livev1.LiveEvent_NotificationOccurrencesInvalidated:
+		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: &realtimev1.UserTypingEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.ThreadRootEventId}}
+	case *pubsubv1.PubSubEvent_PresenceChanged:
+		target.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: &realtimev1.PresenceChangedEvent{Status: e.PresenceChanged.GetStatus()}}
+	case *pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated:
 		v := e.NotificationOccurrencesInvalidated
-		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{AlertCandidateNotificationId: v.AlertCandidateNotificationId, SoundCandidateNotificationId: v.SoundCandidateNotificationId}}
-	case *livev1.LiveEvent_NotificationUnreadChanged:
+		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{SoundCandidateNotificationId: v.SoundCandidateNotificationId}}
+	case *pubsubv1.PubSubEvent_NotificationUnreadChanged:
 		v := e.NotificationUnreadChanged
 		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadChanged{NotificationUnreadChanged: &realtimev1.NotificationUnreadChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
-	case *livev1.LiveEvent_RoomMarkedAsRead:
-		target.Event = &realtimev1.RealtimeEvent_RoomMarkedAsReadSync{RoomMarkedAsReadSync: &realtimev1.RoomMarkedAsReadSyncEvent{RoomId: e.RoomMarkedAsRead.GetRoomId()}}
-	case *livev1.LiveEvent_MentionStatusCleared:
-		target.Event = &realtimev1.RealtimeEvent_MentionStatusClearedSync{MentionStatusClearedSync: &realtimev1.MentionStatusClearedSyncEvent{RoomId: e.MentionStatusCleared.GetRoomId()}}
-	case *livev1.LiveEvent_SessionTerminated:
-		target.Event = &realtimev1.RealtimeEvent_SessionTerminatedSignal{SessionTerminatedSignal: &realtimev1.SessionTerminatedSignalEvent{Reason: e.SessionTerminated.GetReason()}}
+	case *pubsubv1.PubSubEvent_RoomReadStateChanged:
+		target.Event = &realtimev1.RealtimeEvent_RoomReadStateChanged{RoomReadStateChanged: &realtimev1.RoomReadStateChangedEvent{RoomId: e.RoomReadStateChanged.GetRoomId()}}
 	default:
 		return nil
 	}
@@ -270,26 +255,13 @@ func realtimeSidebarGroupEntryKind(value evtv1.SidebarGroupEntry_Kind) realtimev
 	}
 }
 
-func realtimeDurableCallParticipantSource(value evtv1.CallParticipantEventSource) realtimev1.CallParticipantEventSource {
+func realtimeCallParticipantSource(value evtv1.CallParticipantEventSource) realtimev1.CallParticipantEventSource {
 	switch value {
 	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
 		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
 	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT:
 		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT
 	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION
-	default:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
-	}
-}
-
-func realtimeLiveCallParticipantSource(value livev1.CallParticipantEventSource) realtimev1.CallParticipantEventSource {
-	switch value {
-	case livev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
-	case livev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT
-	case livev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
 		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION
 	default:
 		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
@@ -307,14 +279,14 @@ func realtimeAssetProcessingFailureCode(value evtv1.AssetProcessingFailureCode) 
 	}
 }
 
-func realtimeTimeFormat(value livev1.TimeFormat) realtimev1.RealtimeTimeFormat {
+func realtimeTimeFormat(value pubsubv1.TimeFormat) apiv1.TimeFormat {
 	switch value {
-	case livev1.TimeFormat_TIME_FORMAT_12H:
-		return realtimev1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_12H
-	case livev1.TimeFormat_TIME_FORMAT_24H:
-		return realtimev1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_24H
+	case pubsubv1.TimeFormat_TIME_FORMAT_12H:
+		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
+	case pubsubv1.TimeFormat_TIME_FORMAT_24H:
+		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
 	default:
-		return realtimev1.RealtimeTimeFormat_REALTIME_TIME_FORMAT_UNSPECIFIED
+		return apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }
 

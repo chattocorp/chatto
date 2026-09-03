@@ -19,7 +19,7 @@ For public API packages:
   realtime WebSocket protobuf protocol.
 - `chatto.realtime.v1.RealtimeEvent.event` is the public realtime catalogue.
   Every member uses a dedicated payload from
-  `chatto/realtime/v1/*_events.proto`. Do not import core EVT or live payload
+  `chatto/realtime/v1/events.proto`. Do not import core EVT or pubsub payload
   messages into the public union.
 - Write comments for API users, not Chatto maintainers.
 - Add useful comments to each public service, RPC, message, enum, enum value,
@@ -36,8 +36,7 @@ For public API packages:
 - Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
   ownership and storage compatibility. Put new durable `Event` payloads in the
   applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads for
-  transient-only `LiveEvent` variants in
-  `chatto/core/live/v1/live_events.proto`.
+  pubsub-only `PubSubEvent` variants in `chatto/core/pubsub/v1/event.proto`.
 - Protobuf file placement affects generated source and descriptor names. Do not
   move a stored symbol only to reorganize it. A transient symbol that is in the
   wrong package can move as an approved source-breaking change. Do not keep a
@@ -70,7 +69,7 @@ For public API packages:
   `ENCRYPTION_KEYS`, and object metadata need additive evolution plus
   repair/migration code when existing data changes shape. Volatile protobuf
   values in `MEMORY_CACHE` must remain readable across a rolling upgrade.
-- Transient live-event protos are less stable, but `chatto/realtime/v1` is still
+- Pubsub event protos are less stable, but `chatto/realtime/v1` is still
   a public wire protocol and must consider mixed-version clients.
 - For bundled-client version skew, update the frontend's explicit
   feature-to-minimum-server-version table. Negotiate realtime behavior in the

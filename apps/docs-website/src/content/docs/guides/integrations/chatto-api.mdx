@@ -88,11 +88,11 @@ for the connection lifecycle and reducer rules. Then use the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to connect a
 small browser client.
 
-Durable events contain one authorized public event and an opaque resume
-cursor. They do not contain resource sidecars. Typing, presence changes, and
-session termination are transient and do not have resume cursors. Snapshot
-frames reuse canonical public resource messages. Clients use event variants as
-refresh hints and read additional resources through ConnectRPC. See the
+Each event contains one authorized public payload and can contain an opaque
+resume cursor. Cursorless events are safe to miss, or a snapshot or ConnectRPC
+read can restore their current effect. Snapshot frames reuse canonical public
+resource messages. Clients use event variants as refresh hints and read
+additional resources through ConnectRPC. See the
 [`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
 reference for the public variants and their dedicated public payload types.
 

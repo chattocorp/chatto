@@ -3,7 +3,7 @@
 **Status:** Superseded by
 [ADR-093](ADR-093-use-a-public-realtime-event-union.md) for the public event
 shape and by
-[ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md) for the
+[ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) for the
 internal durable and transient envelopes.
 **Date:** 2026-08-31
 
@@ -19,7 +19,7 @@ supersedes the two-envelope part of
 Chatto had three event representations:
 
 - `chatto.core.evt.v1.Event` for durable EVT facts;
-- `chatto.core.live.v1.LiveEvent` for transient NATS Core signals; and
+- `chatto.core.pubsub.v1.PubSubEvent` for NATS Core pubsub events; and
 - duplicated semantic event messages in `chatto.realtime.v1`.
 
 The public messages described the same changes as the internal events, but each
@@ -50,13 +50,13 @@ retired legacy live variants, except the durable reaction tags 1050 and 1051.
 High protobuf field numbers have a small key-size cost but no relevant runtime
 or compatibility cost here.
 
-Transient publishers serialize only the canonical Event. The old
-`chatto.core.live.v1.LiveEvent` envelope is removed in the same atomic change.
+Transient publishers serialize only the canonical Event. The separate pubsub
+envelope is removed in the same atomic change.
 Mixed old and new application replicas do not exchange transient
 `live.sync.>` signals during a rolling replacement. Each side drops the
 unknown envelope safely. Durable EVT delivery is unaffected. Reconnect
 resource reads and credential revalidation restore authoritative current state.
-Transient payload messages stay in `chatto.core.live.v1`; moving those symbols
+Pubsub payload messages stay in their internal package; moving those symbols
 would add source churn without changing the one-envelope runtime model.
 
 ### Public delivery experiment (superseded)

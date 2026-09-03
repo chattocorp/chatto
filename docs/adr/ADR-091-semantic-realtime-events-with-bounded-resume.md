@@ -3,7 +3,7 @@
 **Status:** Partially superseded by
 [ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md),
 [ADR-093](ADR-093-use-a-public-realtime-event-union.md), and
-[ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md). ADR-093
+[ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md). ADR-093
 defines the public union and dedicated payload catalogue. ADR-094 defines the
 current internal envelopes and protocol 4 frame set. The authorization,
 bounded-resume, snapshot, and transport rules that this ADR introduced remain

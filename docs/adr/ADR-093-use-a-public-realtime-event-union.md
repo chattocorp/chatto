@@ -28,15 +28,16 @@ inherited rules. The generated public API still showed the complete stored
 message, including fields that the server removed at runtime.
 
 A dedicated public payload catalogue duplicates protobuf declarations, but it
-does not need a second semantic event model. Event names and union numbers can
-stay aligned with canonical events. Payload layouts can evolve independently.
-Tests can enforce the catalog relationship and mapper coverage.
+does not need a second semantic event model. Public names and compact union
+numbers can stay independent from the internal source. Payload layouts can
+evolve independently. Tests can enforce the catalogue relationship and mapper
+coverage.
 
 ## Decision
 
 `chatto.core.evt.v1.Event` is the internal envelope for stored EVT facts.
-`chatto.core.live.v1.LiveEvent` is the internal envelope for transient NATS
-Core signals. Existing stored event tags, payload messages, and bytes do not
+`chatto.core.pubsub.v1.PubSubEvent` is the internal envelope for NATS Core
+signals. Existing stored event tags, payload messages, and bytes do not
 change. See ADR-094.
 
 The realtime API uses `chatto.realtime.v1.RealtimeEvent`. This message
@@ -46,10 +47,11 @@ contains:
 - an explicit `event` oneof that contains only public variants; and
 - an optional opaque resume cursor outside the payload oneof.
 
-Each public union member references a dedicated payload in the
-`chatto/realtime/v1` event files. It uses the same oneof field number and name
-as the matching canonical event. The public payload has its own field numbers
-and contains only fields that clients can receive.
+Each public union member references a dedicated payload in
+`chatto/realtime/v1/events.proto`. Its name describes the public semantic event,
+and its compact field number is independent from the internal source. The
+public payload has its own field numbers and contains only fields that clients
+can receive.
 
 `chatto.realtime.v1.RealtimeServerFrame` is the transport wrapper. Its `event`
 arm contains one `RealtimeEvent` directly. No second event wrapper exists.

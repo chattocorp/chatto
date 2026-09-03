@@ -120,8 +120,9 @@ and Storybook.
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.
 - `$lib/render/timelineEvents` contains the hand-owned timeline presentation
-  model; transient realtime signals belong in `$lib/realtimeEvents`. Do not
-  combine the two delivery paths or add calls for the retired legacy API.
+  model. Realtime handlers consume the generated public `RealtimeEvent`
+  catalogue directly. Do not add a second frontend event taxonomy or calls for
+  the retired legacy API.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package

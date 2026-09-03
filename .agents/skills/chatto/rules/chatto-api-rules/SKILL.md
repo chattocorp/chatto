@@ -20,7 +20,7 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
   clients. Do not limit the public event catalogue to events used by the
   bundled frontend.
 - Use `chatto.core.evt.v1.Event` for durable EVT facts and
-  `chatto.core.live.v1.LiveEvent` for transient NATS Core signals. Use the dedicated
+  `chatto.core.pubsub.v1.PubSubEvent` for transient NATS Core signals. Use the dedicated
   `chatto.realtime.v1.RealtimeEvent` union and domain payload catalog
   for public delivery. Keep a semantic one-to-one relationship for selected
   public events without importing core payload types into the public schema.
@@ -43,12 +43,11 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
 - Use a new behavioral protocol version when a change requires all clients to
   change their behavior. Do not use a capability matrix to restate required
   frame semantics.
-- When an `Event` or `LiveEvent` variant must reach clients, update the dedicated payload,
+- When an `Event` or `PubSubEvent` variant must reach clients, update the dedicated payload,
   public union member, authorization and mapper coverage, consuming reducers,
   generated clients, architecture inventory, public documentation, and
-  compatibility notes in the same change. Keep durable public members aligned
-  with their EVT name and union number. Map live members explicitly in the
-  public transient number range. Use independent public payload field numbers
-  and explicit typed mapping.
+  compatibility notes in the same change. Keep public names and compact union
+  numbers independent from the internal event source. Use independent public
+  payload field numbers and explicit typed mapping.
 - Keep protobuf comments, public API overviews, tutorials, compatibility
   guidance, and release notes current.

@@ -196,10 +196,7 @@
       return;
     }
     const semantic = event.event?.event;
-    if (
-      semantic?.case === 'userAccountDeleted' ||
-      semantic?.case === 'serverMemberDeletedSync'
-    ) {
+    if (semantic?.case === 'userAccountDeleted') {
       const userId = semantic.value.userId;
       const affectsSelection = selectedUser?.id === userId;
       const affectsRemoval = removeCandidate?.id === userId;

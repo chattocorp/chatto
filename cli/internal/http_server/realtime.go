@@ -733,9 +733,18 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
-	if heartbeat := event.HeartbeatEvent(); heartbeat != nil {
+	if event.Heartbeat() {
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Heartbeat{
 			Heartbeat: &realtimev1.RealtimeHeartbeat{},
+		}}, nil
+	}
+	if terminated := core.EventSessionTerminated(event); terminated != nil {
+		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED,
+				Message:   "session terminated: " + terminated.GetReason(),
+				Reconnect: false,
+			},
 		}}, nil
 	}
 	if core.IsRBACEvent(event.EVTEvent()) {
@@ -760,11 +769,11 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 
 func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
 	durable := event.EVTEvent()
-	live := event.LiveEvent()
-	if durable == nil && live == nil {
+	pubsub := event.PubSubEvent()
+	if durable == nil && pubsub == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-	if typing := live.GetUserTyping(); typing != nil {
+	if typing := pubsub.GetUserTyping(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
 			return nil, err
@@ -790,8 +799,8 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		}
 	}
 	projected := projectRealtimeEvent(durable)
-	if live != nil {
-		projected = projectRealtimeLiveEvent(live)
+	if pubsub != nil {
+		projected = projectRealtimePubSubEvent(pubsub)
 	}
 	if projected == nil {
 		return nil, errRealtimeEventOmitted

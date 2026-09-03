@@ -8,7 +8,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 // ============================================================================
@@ -117,11 +117,11 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err != nil {
 		t.Fatalf("waiting for profile update: %v", err)
 	}
-	var live livev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+	var pubsub pubsubv1.PubSubEvent
+	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
 		t.Fatalf("unmarshal profile update: %v", err)
 	}
-	if got := live.GetUserProfileUpdated().GetTimezone(); got != tz {
+	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != tz {
 		t.Fatalf("profile timezone = %q, want %q", got, tz)
 	}
 
@@ -133,10 +133,10 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err != nil {
 		t.Fatalf("waiting for shared timezone profile update: %v", err)
 	}
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
 		t.Fatalf("unmarshal shared timezone profile update: %v", err)
 	}
-	if got := live.GetUserProfileUpdated().GetTimezone(); got != newTZ {
+	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != newTZ {
 		t.Fatalf("profile timezone = %q, want %q", got, newTZ)
 	}
 
@@ -148,10 +148,10 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err != nil {
 		t.Fatalf("waiting for hidden timezone profile update: %v", err)
 	}
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
+	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
 		t.Fatalf("unmarshal hidden timezone profile update: %v", err)
 	}
-	if got := live.GetUserProfileUpdated().GetTimezone(); got != "" {
+	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != "" {
 		t.Fatalf("hidden profile timezone = %q, want empty", got)
 	}
 	settings, err := core.GetUserSettings(ctx, user.GetId())

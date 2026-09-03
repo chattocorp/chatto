@@ -38,7 +38,7 @@ integration needs.
 5. Process replayed events, if any. The server sends `caught_up` when recovery
    reaches the live boundary.
 6. Save the `caught_up` cursor after all earlier work succeeds. Continue to
-   process live events.
+   process realtime events.
 
 Treat the stream as live only after `caught_up`. The frames that precede it
 show whether the server selected snapshot, resume, or live-only startup.
@@ -55,7 +55,7 @@ boundary `E`. It then sends `caught_up(E)`. The bundled frontend uses this
 mode.
 
 When a cursor is usable, both choices can result in `RESUME`. The server sends
-authorized durable events after that cursor and then sends `caught_up`. The
+authorized replayable events after that cursor and then sends `caught_up`. The
 client does not send a separate catch-up command.
 
 A cursor can become unusable because it is invalid, expired, too far behind,
@@ -71,10 +71,11 @@ normal recovery behavior. The server does not send a partial replay.
 ## Handle public events
 
 Each [`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
-contains one authorized public payload variant. Durable variants
-include messages, edits, retractions, reactions, pins, assets, rooms,
-membership, profiles, threads, and calls. Typing, presence changes, and session
-termination are transient variants and have no resume cursor.
+contains one authorized public payload variant. Events include messages,
+edits, retractions, reactions, pins, assets, rooms, membership, profiles,
+threads, calls, typing, and presence changes. An event has a resume cursor when
+it can be replayed. Cursorless events are safe to miss, or current resource
+state can restore their effect.
 
 The public event contains common metadata outside its event `oneof`:
 
@@ -86,10 +87,10 @@ The optional `resume_cursor` is outside the payload `oneof`. A public event
 does not contain broker coordinates.
 
 The public union contains only event variants that are part of the realtime
-API. Each union member uses a dedicated public payload. Durable variants keep
-the matching EVT event name and union field number. Transient variants use the
-public range from 20000 through 29999. Public payload fields have an independent
-wire layout. The complete stored `Event` union is not part of the public API.
+API. Each union member uses a dedicated public payload. Public names and
+compact field numbers describe event semantics, not the internal delivery
+source. Public payload fields have an independent wire layout. The complete
+stored `Event` union is not part of the public API.
 
 Internal event variants and storage-only fields do not exist in the public
 schema. The server can add authorized public-only `_plaintext` fields. It never
@@ -147,7 +148,7 @@ the snapshot in order, so no client-driven second replay is required.
 ## Bind a targeted resource read to an event
 
 Some events contain enough data for immediate use but not a complete resource.
-When a durable event causes a follow-up ConnectRPC read, set this header:
+When a cursor-bearing event causes a follow-up ConnectRPC read, set this header:
 
 ```http
 Chatto-Realtime-Minimum-Cursor: <event.resume_cursor>
@@ -170,7 +171,7 @@ heartbeat approximately every 15 seconds. Replace the socket when no frame
 arrives for 75 seconds. WebSocket control frames provide transport ping and
 pong behavior; the client sends no application ping message.
 
-A heartbeat can contain a fresh resume cursor for the last durable boundary
+A heartbeat can contain a fresh resume cursor for the last replay boundary
 that this socket delivered. Save it only after all earlier events and resource
 work succeed.
 
@@ -185,7 +186,8 @@ work succeed.
 Bearer access credentials can expire while the socket is open. Rotate the
 credential and reconnect when the server requests authentication. Same-origin
 cookie clients can receive a session-renewal close and must renew the browser
-session before they reconnect.
+session before they reconnect. A `SESSION_TERMINATED` close means that the
+session ended. Clients must stop reconnecting and return to sign-in.
 
 <CardGrid>
   <LinkCard

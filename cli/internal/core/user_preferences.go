@@ -3,7 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -143,34 +143,34 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
-	c.publishServerUserPreferencesSync(ctx, userID, settings)
+	c.publishViewerPreferencesChanged(ctx, userID, settings)
 	if sharingChanged || (timezoneChanged && settings.GetShareTimezone()) {
-		c.publishUserProfileUpdate(ctx, userID)
+		c.publishUserProfileChanged(ctx, userID)
 	}
 
 	return settings, nil
 }
 
-// publishServerUserPreferencesSync publishes a transient signal for the user
-// whose preferences changed.
-func (c *ChattoCore) publishServerUserPreferencesSync(ctx context.Context, userID string, settings *evtv1.ServerUserPreferences) {
+// publishViewerPreferencesChanged publishes the user's current preferences so
+// their active clients converge.
+func (c *ChattoCore) publishViewerPreferencesChanged(ctx context.Context, userID string, settings *evtv1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {
 		tz = *settings.Timezone
 	}
 
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_ServerUserPreferencesUpdated{
-			ServerUserPreferencesUpdated: &livev1.ServerUserPreferencesSyncEvent{
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_ViewerPreferencesChanged{
+			ViewerPreferencesChanged: &pubsubv1.ViewerPreferencesChangedEvent{
 				Timezone:      tz,
-				TimeFormat:    livev1.TimeFormat(settings.TimeFormat),
+				TimeFormat:    pubsubv1.TimeFormat(settings.TimeFormat),
 				ShareTimezone: settings.GetShareTimezone(),
 			},
 		},
 	})
 
 	subject := subjects.LiveSyncUserEvent(userID, "settings_updated")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
 	}
 }
