@@ -53,6 +53,7 @@ authorizes and selects references against `ServerContentView`. It then uses
 `RoomTimelineHydrator` to read the selected records from EVT outside the apply
 barrier. The hydrator validates the stored identity and routing metadata before
 it returns a payload. Mutable body references are checked again after the read.
+
 The shared `events.StreamMessageReader` keeps copied opaque records in a
 process-local cache with sliding idle expiry and byte-costed LRU eviction. The
 default idle lifetime is 15 minutes and the default approximate byte limit is
@@ -63,6 +64,7 @@ removes the affected local cache entries. An info log reports both effective
 settings at startup. Debug logs report direct misses, batch hits and misses,
 read durations, LRU evictions, expired entry counts, and cache clears. They do
 not report subjects or payloads.
+
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
