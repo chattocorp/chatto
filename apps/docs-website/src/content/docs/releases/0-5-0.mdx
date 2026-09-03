@@ -297,7 +297,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Realtime protocol 4 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
-  `/api/realtime` must regenerate their clients. Protocol 4 sends authorized canonical
+  `/api/realtime` must regenerate their clients. Protocol 4 sends authorized public
   events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
   15-minute bounded cursor resume. Snapshot clients receive exact canonical resource shapes
   through the WebSocket. Room and thread timelines stay in the paginated ConnectRPC APIs;
@@ -374,8 +374,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   notifications as phantom DMs.
 - App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
-- Realtime uses the canonical event protobuf for stored and live facts. Clients read current
-  resources through ConnectRPC at an opaque realtime boundary, while the WebSocket stays event-only.
+- Realtime uses one canonical payload vocabulary for stored, live, and public events. An
+  explicit public union excludes internal event variants. Clients read current resources through
+  ConnectRPC at an opaque realtime boundary, while the WebSocket stays event-only.
 
 ### Administration and interface polish
 

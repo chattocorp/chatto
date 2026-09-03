@@ -363,8 +363,8 @@ export class ChattoRealtimeClient {
 
 ## Handle the events that your bot needs
 
-Pass the access credential from a secure runtime source. Switch on the
-canonical event variant and use ConnectRPC when you need the current resource.
+Pass the access credential from a secure runtime source. Switch on the public
+event variant and use ConnectRPC when you need the current resource.
 
 ```ts
 import { ChattoRealtimeClient } from "./realtime.js";
@@ -373,14 +373,14 @@ const client = new ChattoRealtimeClient(
   "https://chat.example.com",
   accessToken,
   async (event) => {
-    const canonical = event.event;
-    if (!canonical) return;
-    switch (canonical.event.case) {
+    const publicEvent = event.event;
+    if (!publicEvent) return;
+    switch (publicEvent.event.case) {
       case "messagePosted":
-        console.info("New message ID", canonical.id);
+        console.info("New message ID", publicEvent.id);
         break;
       case "reactionAdded":
-        console.info("Reaction", canonical.event.value.emoji);
+        console.info("Reaction", publicEvent.event.value.emoji);
         break;
       default:
         // Ignore event variants that this integration does not use.
@@ -481,7 +481,7 @@ succeeds.
 
 Do not infer old history from the realtime stream. Use ConnectRPC for commands,
 explicit reads, room or thread history, paginated lists, files, pins, and
-searches. Treat canonical events as refresh hints for resources that the
+searches. Treat public events as refresh hints for resources that the
 client has loaded.
 
 <CardGrid>
@@ -498,7 +498,7 @@ client has loaded.
   <LinkCard
     title="Realtime Event Catalogue"
     href="/reference/connectrpc-api/realtime-events/"
-    description="Read public canonical event variants and payload fields."
+    description="Read public event variants and payload fields."
   />
   <LinkCard
     title="Integrating With Chatto"

@@ -9,6 +9,7 @@ import (
 
 	eventv1 "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 func TestProjectRealtimeEventUsesFreshAuthorizedShape(t *testing.T) {
@@ -31,8 +32,8 @@ func TestProjectRealtimeEventUsesFreshAuthorizedShape(t *testing.T) {
 	source.ProtoReflect().SetUnknown(unknown)
 
 	projected := projectRealtimeEvent(source)
-	if projected == nil || projected == source {
-		t.Fatalf("projectRealtimeEvent() = %p, want a fresh public event", projected)
+	if projected == nil {
+		t.Fatal("projectRealtimeEvent() = nil, want a fresh public event")
 	}
 	if projected.GetId() != source.GetId() || projected.GetActorId() != source.GetActorId() {
 		t.Fatalf("projected metadata = %+v, want source metadata", projected)
@@ -63,6 +64,30 @@ func TestProjectRealtimeEventCarriesClientOnlyMessagePlaintext(t *testing.T) {
 	}
 }
 
+func TestProjectRealtimeEventKeepsCanonicalWireEncoding(t *testing.T) {
+	bodyPlaintext := "public message"
+	canonical := &evtv1.Event{
+		Id:      "message-id",
+		ActorId: "actor-id",
+		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
+			RoomId:        "room-id",
+			BodyPlaintext: &bodyPlaintext,
+		}},
+	}
+	public := projectRealtimeEvent(canonical)
+	canonicalWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(canonical)
+	if err != nil {
+		t.Fatalf("marshal canonical event: %v", err)
+	}
+	publicWire, err := proto.MarshalOptions{Deterministic: true}.Marshal(public)
+	if err != nil {
+		t.Fatalf("marshal public event: %v", err)
+	}
+	if string(publicWire) != string(canonicalWire) {
+		t.Fatalf("public wire = %x, want canonical wire %x", publicWire, canonicalWire)
+	}
+}
+
 func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 	event := &evtv1.Event{
 		Id: "event-id",
@@ -77,34 +102,68 @@ func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 	}
 }
 
+func TestRealtimePublicEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
+	publicEvent := &realtimev1.PublicEvent{Id: "event-id", ActorId: "actor-id"}
+	unknown := protowire.AppendTag(nil, 25000, protowire.BytesType)
+	unknown = protowire.AppendBytes(unknown, nil)
+	publicEvent.ProtoReflect().SetUnknown(unknown)
+	cursor := "opaque-cursor"
+	wire, err := proto.Marshal(&realtimev1.RealtimeEvent{Event: publicEvent, ResumeCursor: &cursor})
+	if err != nil {
+		t.Fatalf("marshal RealtimeEvent: %v", err)
+	}
+
+	var decoded realtimev1.RealtimeEvent
+	if err := proto.Unmarshal(wire, &decoded); err != nil {
+		t.Fatalf("unmarshal RealtimeEvent: %v", err)
+	}
+	if decoded.GetEvent().GetId() != "event-id" || decoded.GetEvent().GetActorId() != "actor-id" {
+		t.Fatalf("decoded metadata = %+v, want public event metadata", decoded.GetEvent())
+	}
+	if decoded.GetEvent().GetEvent() != nil {
+		t.Fatalf("decoded payload = %T, want unknown variant to remain unset", decoded.GetEvent().GetEvent())
+	}
+	if decoded.GetResumeCursor() != cursor {
+		t.Fatalf("decoded cursor = %q, want %q", decoded.GetResumeCursor(), cursor)
+	}
+}
+
 func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) {
-	descriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
-	eventOneof := descriptor.Oneofs().ByName("event")
-	if eventOneof == nil {
+	canonicalDescriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
+	canonicalOneof := canonicalDescriptor.Oneofs().ByName("event")
+	publicDescriptor := (&realtimev1.PublicEvent{}).ProtoReflect().Descriptor()
+	publicOneof := publicDescriptor.Oneofs().ByName("event")
+	if canonicalOneof == nil || publicOneof == nil {
 		t.Fatal("Event.event descriptor is missing")
 	}
-	publicEvents := 0
-	for index := 0; index < eventOneof.Fields().Len(); index++ {
-		field := eventOneof.Fields().Get(index)
-		dynamicEvent := dynamicpb.NewMessage(descriptor)
-		dynamicEvent.Set(field, dynamicEvent.NewField(field))
+	for index := 0; index < publicOneof.Fields().Len(); index++ {
+		publicField := publicOneof.Fields().Get(index)
+		canonicalField := canonicalOneof.Fields().ByNumber(publicField.Number())
+		if canonicalField == nil || canonicalField.Name() != publicField.Name() ||
+			canonicalField.Message().FullName() != publicField.Message().FullName() {
+			t.Errorf("public field %s does not match canonical field %d", publicField.FullName(), publicField.Number())
+			continue
+		}
+		dynamicEvent := dynamicpb.NewMessage(canonicalDescriptor)
+		dynamicEvent.Set(canonicalField, dynamicEvent.NewField(canonicalField))
 		wire, err := proto.Marshal(dynamicEvent)
 		if err != nil {
-			t.Fatalf("marshal %s: %v", field.FullName(), err)
+			t.Fatalf("marshal %s: %v", canonicalField.FullName(), err)
 		}
 		var event evtv1.Event
 		if err := proto.Unmarshal(wire, &event); err != nil {
-			t.Fatalf("unmarshal %s: %v", field.FullName(), err)
+			t.Fatalf("unmarshal %s: %v", canonicalField.FullName(), err)
 		}
-		isTransient := field.Number() >= 20000 && field.Number() <= 29999
-		if isTransient && !isRealtimePublicEvent(&event) {
-			t.Errorf("transient event %s is not in the public catalogue", field.FullName())
-		}
-		if !isRealtimePublicEvent(&event) {
+		projected := projectRealtimeEvent(&event)
+		if projected == nil {
+			t.Errorf("public event %s was not projected", publicField.FullName())
 			continue
 		}
-		publicEvents++
-		payloadFields := field.Message().Fields()
+		projectedField := projected.ProtoReflect().WhichOneof(publicOneof)
+		if projectedField == nil || projectedField.Number() != publicField.Number() {
+			t.Errorf("projected field = %v, want %s", projectedField, publicField.FullName())
+		}
+		payloadFields := publicField.Message().Fields()
 		for payloadIndex := 0; payloadIndex < payloadFields.Len(); payloadIndex++ {
 			payloadField := payloadFields.Get(payloadIndex)
 			if got := realtimeFieldSurface(payloadField); got == eventv1.EventFieldSurface_EVENT_FIELD_SURFACE_UNSPECIFIED {
@@ -112,7 +171,13 @@ func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) 
 			}
 		}
 	}
-	if publicEvents < 40 {
-		t.Fatalf("public event catalogue contains %d variants, want at least 40", publicEvents)
+	if publicOneof.Fields().Len() < 40 {
+		t.Fatalf("public event catalogue contains %d variants, want at least 40", publicOneof.Fields().Len())
+	}
+	for index := 0; index < canonicalOneof.Fields().Len(); index++ {
+		field := canonicalOneof.Fields().Get(index)
+		if field.Number() >= 20000 && field.Number() <= 29999 && publicOneof.Fields().ByNumber(field.Number()) == nil {
+			t.Errorf("transient event %s is not in the public catalogue", field.FullName())
+		}
 	}
 }

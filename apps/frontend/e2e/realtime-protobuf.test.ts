@@ -364,7 +364,7 @@ test.describe('protobuf realtime stream', () => {
     }
   });
 
-  test('uses canonical events as notification resource refresh hints', async ({
+  test('uses public events as notification resource refresh hints', async ({
     page,
     browser,
     serverURL

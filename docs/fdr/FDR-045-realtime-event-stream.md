@@ -17,11 +17,12 @@ the stream to build and maintain its local server projection.
   clients receive current canonical resources through the WebSocket when
   resume is not possible. Live-only clients start at a stated current boundary
   without historical events.
-- The stream sends authorized copies of canonical events for durable activity,
+- The stream sends authorized public events for durable activity,
   including messages, edits, retractions, reactions, membership, rooms,
   profiles, calls, and other public domain changes.
 - Public events contain the canonical event ID, source time, visible actor ID,
-  event payload, and an opaque resume cursor in the transport wrapper.
+  a canonical payload message, and an opaque resume cursor in the transport
+  wrapper.
 - The server omits internal events, removes storage-only fields, and can add
   authorized client-only `_plaintext` fields. It never sends raw EVT bytes.
 - A client can ignore an event type that it does not use and still retain the
@@ -51,16 +52,18 @@ the stream to build and maintain its local server projection.
 
 ## Design Decisions
 
-### 1. One canonical event vocabulary serves all clients
+### 1. One semantic event vocabulary serves all clients
 
-**Decision:** Durable EVT facts, transient NATS Core signals, bots, and the
-bundled frontend use `chatto.core.evt.v1.Event`. The realtime transport carries
-a new authorized and censored copy of that event. Chatto does not provide a
-frontend-only mutation feed or a parallel public event payload.
+**Decision:** Durable EVT facts and transient NATS Core signals use
+`chatto.core.evt.v1.Event`. Realtime uses the explicit
+`chatto.realtime.v1.PublicEvent` union. Each public member reuses the matching
+canonical payload message, name, and field number. Chatto does not provide a
+frontend-only mutation feed or duplicate public payload messages.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
-models from disagreeing. Existing EVT compatibility also gives the public
-event vocabulary a strong additive contract. See ADR-091.
+models from disagreeing. Existing EVT compatibility also gives reused payload
+messages a strong additive contract. The public union makes event exposure
+visible in the schema. See ADR-091 and ADR-092.
 **Tradeoff:** Every public event and field needs an explicit authorization and
 surface decision. The storage publisher must reject delivery-only fields.
 Field surfaces are static exposure classes. Viewer-specific field policy is not
@@ -165,7 +168,7 @@ that must process every transition after a long outage.
   ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-042
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-090 (semantic realtime events),
-  ADR-091 (one event vocabulary)
+  ADR-091 (one event vocabulary), ADR-092 (public realtime event union)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

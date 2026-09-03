@@ -17,10 +17,10 @@ For public API packages:
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
   realtime WebSocket protobuf protocol.
-- `chatto.core.evt.v1.Event` is also a public realtime payload, but only for
-  variants in the runtime public-event catalogue and fields allowed by their
-  field-surface options. Generate this curated subset instead of publishing
-  the complete core schema.
+- `chatto.realtime.v1.PublicEvent` is the public realtime union. Its members
+  reuse canonical EVT and live payload messages with the same field numbers.
+  The union selects public variants, and field-surface options select public
+  payload fields. Do not publish the complete core Event union.
 - Write comments for API users, not Chatto maintainers.
 - Add useful comments to each public service, RPC, message, enum, enum value,
   and important field.

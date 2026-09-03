@@ -224,11 +224,13 @@ Events reach it through EVT republish on `live.evt.>`. Transient Events publish
 directly on `live.sync.>`. Both paths use the canonical Event envelope. See
 [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
-**Public Realtime Event** — Fresh authorized copy of a canonical Event for
-bots, integrations, alternate clients, and the bundled frontend. The server
-omits internal variants and storage-only fields and can add client-only
-plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
-numbers are not public API. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
+**Public Realtime Event** — Fresh authorized `PublicEvent` value for bots,
+integrations, alternate clients, and the bundled frontend. Its explicit public
+union reuses canonical payload messages and field numbers. The server omits
+internal variants and storage-only fields and can add client-only plaintext
+fields. Raw EVT bytes, subjects, stream identities, and sequence numbers are
+not public API. See [ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md)
+and [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Client Projection** — Authenticated, server-scoped current state that a client
 builds from an exact realtime snapshot and maintains with Public Realtime
@@ -239,10 +241,11 @@ explicit reads, commands, pagination, and history. See
 [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
-realtime snapshot. The server sends later authorized Events only after that
-snapshot. A client can also use the opaque Resume Cursor for `E` as the
+realtime snapshot. The server sends later authorized public events only after
+that snapshot. A client can also use the opaque
+Resume Cursor for `E` as the
 minimum consistency token for a targeted ConnectRPC read. See
-[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md).
 
 **Resume Cursor** — Signed, viewer-bound JWT for bounded recovery after a
 recent realtime disconnect. Its opaque `p` claim is an HMAC of the internal

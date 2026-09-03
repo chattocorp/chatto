@@ -1,5 +1,4 @@
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -27,13 +26,6 @@ const scalarTypes = new Map([
 
 function anchor(fullName) {
   return fullName.replaceAll(".", "-");
-}
-
-function pascalCase(name) {
-  return name
-    .split("_")
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join("");
 }
 
 function normalizeComment(value) {
@@ -148,22 +140,6 @@ function buildDescriptorIndex(descriptorSet) {
   return { messages, enums };
 }
 
-function publicWrapperNames(source) {
-  const functionBody = source.match(
-    /func isRealtimePublicEvent\(event \*evtv1\.Event\) bool \{[\s\S]*?switch event\.GetEvent\(\)\.\(type\) \{([\s\S]*?)\n\tdefault:/,
-  );
-  if (!functionBody) {
-    throw new Error("Cannot find the runtime public realtime event catalogue.");
-  }
-  const names = [
-    ...functionBody[1].matchAll(/\*evtv1\.Event_([A-Za-z0-9]+)/g),
-  ].map((match) => match[1]);
-  if (names.length === 0) {
-    throw new Error("The runtime public realtime event catalogue is empty.");
-  }
-  return new Set(names);
-}
-
 function fieldType(field, linkedTypes) {
   const fullType = (field.typeName ?? "").replace(/^\./, "");
   let rendered;
@@ -260,28 +236,35 @@ export async function renderRealtimeEventCatalogue({
   const index = buildDescriptorIndex(descriptorSet);
   const eventEntry = index.messages.get("chatto.core.evt.v1.Event");
   if (!eventEntry) throw new Error("Cannot find chatto.core.evt.v1.Event.");
+  const publicEventEntry = index.messages.get("chatto.realtime.v1.PublicEvent");
+  if (!publicEventEntry)
+    throw new Error("Cannot find chatto.realtime.v1.PublicEvent.");
 
-  const catalogueSource = await readFile(
-    path.join(repoRoot, "cli/internal/http_server/realtime_event_surface.go"),
-    "utf8",
-  );
-  const wrapperNames = publicWrapperNames(catalogueSource);
   const eventOneofIndex = eventEntry.message.oneofDecl.findIndex(
     (oneof) => oneof.name === "event",
   );
-  const publicVariants = eventEntry.message.field.filter(
-    (field) =>
-      field.oneofIndex === eventOneofIndex &&
-      wrapperNames.has(pascalCase(field.name)),
+  const publicOneofIndex = publicEventEntry.message.oneofDecl.findIndex(
+    (oneof) => oneof.name === "event",
   );
-  if (publicVariants.length !== wrapperNames.size) {
-    const found = new Set(
-      publicVariants.map((field) => pascalCase(field.name)),
+  const canonicalVariants = eventEntry.message.field.filter(
+    (field) => field.oneofIndex === eventOneofIndex,
+  );
+  const publicVariants = publicEventEntry.message.field.filter(
+    (field) => field.oneofIndex === publicOneofIndex,
+  );
+  for (const field of publicVariants) {
+    const canonical = canonicalVariants.find(
+      (candidate) => candidate.number === field.number,
     );
-    const missing = [...wrapperNames].filter((name) => !found.has(name));
-    throw new Error(
-      `Public realtime event variants are missing from Event: ${missing.join(", ")}`,
-    );
+    if (
+      !canonical ||
+      canonical.name !== field.name ||
+      canonical.typeName !== field.typeName
+    ) {
+      throw new Error(
+        `Public realtime event variant ${field.name} does not match canonical field ${field.number}.`,
+      );
+    }
   }
 
   const messageModes = new Map();
@@ -323,15 +306,15 @@ export async function renderRealtimeEventCatalogue({
     });
 
   const body = [
-    '<a id="chatto-core-evt-v1-Event"></a>',
+    '<a id="chatto-realtime-v1-PublicEvent"></a>',
     "",
-    "## Event",
+    "## PublicEvent",
     "",
-    "This catalogue contains the canonical event variants that Chatto can send through `RealtimeEvent.event`. It is a public subset of `chatto.core.evt.v1.Event`. Internal variants and storage-only fields are excluded. The page is generated from the runtime public-event catalogue and the protobuf field-surface rules.",
+    "This catalogue contains the event variants that Chatto can send through `RealtimeEvent.event`. `chatto.realtime.v1.PublicEvent` is a public union. Internal canonical variants and storage-only fields are excluded. The page is generated from the public union and the protobuf field-surface rules.",
     "",
-    "The canonical event package is public because protocol 4 puts this message directly on the wire. The package name still reflects the persisted compatibility contract. It does not mean that the server sends stored bytes.",
+    "Each union member uses the existing canonical payload message and field number. The public API does not contain the complete stored `chatto.core.evt.v1.Event` envelope. The server does not send stored bytes.",
     "",
-    "Every canonical event also contains these common fields:",
+    "Every public event also contains these common fields:",
     "",
     "| Field | Type | Description |",
     "| --- | --- | --- |",
@@ -339,7 +322,7 @@ export async function renderRealtimeEventCatalogue({
     "| `created_at` | `google.protobuf.Timestamp` | Time when Chatto created the event. |",
     "| `actor_id` | `string` | Visible user that caused the event, when applicable. |",
     "",
-    "The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the canonical event.",
+    "The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the public event.",
     "",
     "## Durable variants",
     "",
@@ -369,7 +352,7 @@ export async function renderRealtimeEventCatalogue({
   return [
     "---",
     "title: Realtime Event Catalogue",
-    "description: Public canonical event variants and client-visible payload fields for realtime protocol 4.",
+    "description: Public event variants and client-visible payload fields for realtime protocol 4.",
     "editUrl: false",
     "---",
     "",

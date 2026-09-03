@@ -9,7 +9,15 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { ListRoomGroupsResponse, ListRoomsResponse } from "../../api/v1/room_directory_pb.js";
 import { BatchGetUsersResponse } from "../../api/v1/user_service_pb.js";
 import { ListActiveCallsResponse } from "../../api/v1/voice_calls_pb.js";
-import { Event } from "../../core/evt/v1/event_pb.js";
+import { CallEndedEvent, CallParticipantJoinedEvent, CallParticipantLeftEvent, CallStartedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, UserJoinedRoomEvent, UserLeftRoomEvent } from "../../core/evt/v1/room_events_pb.js";
+import { MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent } from "../../core/evt/v1/message_events_pb.js";
+import { ThreadCreatedEvent } from "../../core/evt/v1/thread_events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent } from "../../core/evt/v1/asset_events_pb.js";
+import { ServerMotdChangedEvent } from "../../core/evt/v1/config_events_pb.js";
+import { UserAccountCreatedEvent, UserAccountDeletedEvent, UserAvatarClearedEvent, UserAvatarSetEvent, UserBioChangedEvent, UserCustomStatusClearedEvent, UserCustomStatusSetEvent, UserDisplayNameChangedEvent, UserLoginChangedEvent } from "../../core/evt/v1/user_events_pb.js";
+import { RoomMemberAddedEvent, RoomMemberBannedEvent, RoomMemberRemovedEvent, RoomMemberUnbannedEvent } from "../../core/evt/v1/moderation_events_pb.js";
+import { ReactionAddedEvent, ReactionRemovedEvent } from "../../core/evt/v1/reaction_events_pb.js";
+import { CallParticipantJoinedEvent as CallParticipantJoinedEvent$1, CallParticipantLeftEvent as CallParticipantLeftEvent$1, MentionStatusClearedEvent, NotificationOccurrencesInvalidatedEvent, NotificationUnreadChangedEvent, PresenceChangedEvent, RoomGroupsUpdatedEvent, RoomMarkedAsReadEvent, ServerMemberDeletedEvent, ServerUpdatedEvent, ServerUserPreferencesSyncEvent, SessionTerminatedEvent, ThreadFollowChangedEvent, UserCreatedSyncEvent, UserProfileSyncEvent, UserTypingEvent } from "../../core/live/v1/live_events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -32,7 +40,7 @@ export enum RealtimeInitialState {
   LIVE_ONLY = 1,
 
   /**
-   * Send an exact authorized snapshot before later canonical events.
+   * Send an exact authorized snapshot before later public events.
    *
    * @generated from enum value: REALTIME_INITIAL_STATE_SNAPSHOT = 2;
    */
@@ -92,7 +100,7 @@ proto3.util.setEnumType(RealtimeRecoveryMode, "chatto.realtime.v1.RealtimeRecove
  *
  * Clients send binary protobuf frames to `/api/realtime`. The first frame must
  * be `hello`. After the server replies with `hello`, clients send
- * `subscribe_events` to start one authorized canonical event stream.
+ * `subscribe_events` to start one authorized public event stream.
  *
  * @generated from message chatto.realtime.v1.RealtimeClientFrame
  */
@@ -110,7 +118,7 @@ export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
     case: "hello";
   } | {
     /**
-     * Starts the caller's authorized canonical event stream.
+     * Starts the caller's authorized public event stream.
      *
      * @generated from field: chatto.realtime.v1.RealtimeSubscribeEvents subscribe_events = 2;
      */
@@ -183,7 +191,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "subscribed";
   } | {
     /**
-     * One authorized canonical event copy.
+     * One authorized public event copy.
      *
      * @generated from field: chatto.realtime.v1.RealtimeEvent event = 3;
      */
@@ -383,7 +391,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
 }
 
 /**
- * Request to start the caller's authorized canonical event stream.
+ * Request to start the caller's authorized public event stream.
  *
  * @generated from message chatto.realtime.v1.RealtimeSubscribeEvents
  */
@@ -608,22 +616,21 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
 }
 
 /**
- * One authorized canonical event.
+ * One authorized public event.
  *
- * `event` uses Chatto's canonical event shape for both durable and transient
- * activity. The server creates a fresh caller-specific value and omits events
- * and fields that the caller cannot see. Durable events have a resume cursor.
- * Transient events do not.
+ * The server creates a fresh caller-specific value and omits events and fields
+ * that the caller cannot see. Durable events have a resume cursor. Transient
+ * events do not.
  *
  * @generated from message chatto.realtime.v1.RealtimeEvent
  */
 export class RealtimeEvent extends Message<RealtimeEvent> {
   /**
-   * Authorized canonical event. The server never sends raw stored bytes.
+   * Authorized public event. The server never sends raw stored bytes.
    *
-   * @generated from field: chatto.core.evt.v1.Event event = 1;
+   * @generated from field: chatto.realtime.v1.PublicEvent event = 1;
    */
-  event?: Event;
+  event?: PublicEvent;
 
   /**
    * Opaque cursor safe to retain after this complete event is accepted.
@@ -640,7 +647,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event", kind: "message", T: Event },
+    { no: 1, name: "event", kind: "message", T: PublicEvent },
     { no: 2, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
@@ -658,6 +665,466 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
 
   static equals(a: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined, b: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined): boolean {
     return proto3.util.equals(RealtimeEvent, a, b);
+  }
+}
+
+/**
+ * Public event metadata and payload.
+ *
+ * Each payload field reuses the canonical payload message and field number.
+ * The union is the public event catalogue. A canonical event that is absent
+ * from this union is not part of the realtime API.
+ *
+ * @generated from message chatto.realtime.v1.PublicEvent
+ */
+export class PublicEvent extends Message<PublicEvent> {
+  /**
+   * Universal event identifier (NanoID).
+   *
+   * @generated from field: string id = 1;
+   */
+  id = "";
+
+  /**
+   * Time when the source event was created.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 2;
+   */
+  createdAt?: Timestamp;
+
+  /**
+   * ID of the user that caused the event. An empty value means no user actor.
+   *
+   * @generated from field: string actor_id = 3;
+   */
+  actorId = "";
+
+  /**
+   * Authorized semantic payload.
+   *
+   * @generated from oneof chatto.realtime.v1.PublicEvent.event
+   */
+  event: {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomCreatedEvent room_created = 300;
+     */
+    value: RoomCreatedEvent;
+    case: "roomCreated";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomUpdatedEvent room_updated = 301;
+     */
+    value: RoomUpdatedEvent;
+    case: "roomUpdated";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomDeletedEvent room_deleted = 302;
+     */
+    value: RoomDeletedEvent;
+    case: "roomDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomArchivedEvent room_archived = 303;
+     */
+    value: RoomArchivedEvent;
+    case: "roomArchived";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomUnarchivedEvent room_unarchived = 304;
+     */
+    value: RoomUnarchivedEvent;
+    case: "roomUnarchived";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomUniversalChangedEvent room_universal_changed = 305;
+     */
+    value: RoomUniversalChangedEvent;
+    case: "roomUniversalChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+     */
+    value: RoomSlowModeChangedEvent;
+    case: "roomSlowModeChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+     */
+    value: RoomThreadingModeChangedEvent;
+    case: "roomThreadingModeChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserJoinedRoomEvent user_joined_room = 310;
+     */
+    value: UserJoinedRoomEvent;
+    case: "userJoinedRoom";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserLeftRoomEvent user_left_room = 311;
+     */
+    value: UserLeftRoomEvent;
+    case: "userLeftRoom";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.CallParticipantJoinedEvent voice_call_participant_joined = 330;
+     */
+    value: CallParticipantJoinedEvent;
+    case: "voiceCallParticipantJoined";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.CallParticipantLeftEvent voice_call_participant_left = 331;
+     */
+    value: CallParticipantLeftEvent;
+    case: "voiceCallParticipantLeft";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.CallStartedEvent voice_call_started = 332;
+     */
+    value: CallStartedEvent;
+    case: "voiceCallStarted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.CallEndedEvent voice_call_ended = 333;
+     */
+    value: CallEndedEvent;
+    case: "voiceCallEnded";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.MessagePostedEvent message_posted = 400;
+     */
+    value: MessagePostedEvent;
+    case: "messagePosted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.MessageEditedEvent message_edited = 401;
+     */
+    value: MessageEditedEvent;
+    case: "messageEdited";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.MessageRetractedEvent message_retracted = 402;
+     */
+    value: MessageRetractedEvent;
+    case: "messageRetracted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.MessagePinnedEvent message_pinned = 405;
+     */
+    value: MessagePinnedEvent;
+    case: "messagePinned";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.MessageUnpinnedEvent message_unpinned = 406;
+     */
+    value: MessageUnpinnedEvent;
+    case: "messageUnpinned";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.ThreadCreatedEvent thread_created = 425;
+     */
+    value: ThreadCreatedEvent;
+    case: "threadCreated";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.AssetProcessingStartedEvent asset_processing_started = 451;
+     */
+    value: AssetProcessingStartedEvent;
+    case: "assetProcessingStarted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+     */
+    value: AssetProcessingSucceededEvent;
+    case: "assetProcessingSucceeded";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.AssetProcessingFailedEvent asset_processing_failed = 453;
+     */
+    value: AssetProcessingFailedEvent;
+    case: "assetProcessingFailed";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.AssetDeletedEvent asset_deleted = 454;
+     */
+    value: AssetDeletedEvent;
+    case: "assetDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.ServerMotdChangedEvent server_motd_changed = 504;
+     */
+    value: ServerMotdChangedEvent;
+    case: "serverMotdChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserAccountCreatedEvent user_account_created = 700;
+     */
+    value: UserAccountCreatedEvent;
+    case: "userAccountCreated";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserLoginChangedEvent user_login_changed = 701;
+     */
+    value: UserLoginChangedEvent;
+    case: "userLoginChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserDisplayNameChangedEvent user_display_name_changed = 702;
+     */
+    value: UserDisplayNameChangedEvent;
+    case: "userDisplayNameChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserAvatarSetEvent user_avatar_set = 703;
+     */
+    value: UserAvatarSetEvent;
+    case: "userAvatarSet";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserAvatarClearedEvent user_avatar_cleared = 704;
+     */
+    value: UserAvatarClearedEvent;
+    case: "userAvatarCleared";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserAccountDeletedEvent user_account_deleted = 710;
+     */
+    value: UserAccountDeletedEvent;
+    case: "userAccountDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserCustomStatusSetEvent user_custom_status_set = 715;
+     */
+    value: UserCustomStatusSetEvent;
+    case: "userCustomStatusSet";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+     */
+    value: UserCustomStatusClearedEvent;
+    case: "userCustomStatusCleared";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.UserBioChangedEvent user_bio_changed = 722;
+     */
+    value: UserBioChangedEvent;
+    case: "userBioChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomMemberBannedEvent room_member_banned = 840;
+     */
+    value: RoomMemberBannedEvent;
+    case: "roomMemberBanned";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomMemberUnbannedEvent room_member_unbanned = 841;
+     */
+    value: RoomMemberUnbannedEvent;
+    case: "roomMemberUnbanned";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomMemberAddedEvent room_member_added = 842;
+     */
+    value: RoomMemberAddedEvent;
+    case: "roomMemberAdded";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.RoomMemberRemovedEvent room_member_removed = 843;
+     */
+    value: RoomMemberRemovedEvent;
+    case: "roomMemberRemoved";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.ReactionAddedEvent reaction_added = 1050;
+     */
+    value: ReactionAddedEvent;
+    case: "reactionAdded";
+  } | {
+    /**
+     * @generated from field: chatto.core.evt.v1.ReactionRemovedEvent reaction_removed = 1051;
+     */
+    value: ReactionRemovedEvent;
+    case: "reactionRemoved";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.UserCreatedSyncEvent user_created_sync = 20000;
+     */
+    value: UserCreatedSyncEvent;
+    case: "userCreatedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.UserProfileSyncEvent user_profile_sync = 20001;
+     */
+    value: UserProfileSyncEvent;
+    case: "userProfileSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
+     */
+    value: ServerUserPreferencesSyncEvent;
+    case: "serverUserPreferencesSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.ThreadFollowChangedEvent thread_follow_changed_sync = 20003;
+     */
+    value: ThreadFollowChangedEvent;
+    case: "threadFollowChangedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.ServerMemberDeletedEvent server_member_deleted_sync = 20004;
+     */
+    value: ServerMemberDeletedEvent;
+    case: "serverMemberDeletedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.ServerUpdatedEvent server_updated_sync = 20005;
+     */
+    value: ServerUpdatedEvent;
+    case: "serverUpdatedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.UserTypingEvent user_typing_signal = 20006;
+     */
+    value: UserTypingEvent;
+    case: "userTypingSignal";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.PresenceChangedEvent presence_changed_signal = 20007;
+     */
+    value: PresenceChangedEvent;
+    case: "presenceChangedSignal";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.CallParticipantJoinedEvent call_participant_joined_signal = 20008;
+     */
+    value: CallParticipantJoinedEvent$1;
+    case: "callParticipantJoinedSignal";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.CallParticipantLeftEvent call_participant_left_signal = 20009;
+     */
+    value: CallParticipantLeftEvent$1;
+    case: "callParticipantLeftSignal";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
+     */
+    value: NotificationOccurrencesInvalidatedEvent;
+    case: "notificationOccurrencesInvalidated";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.NotificationUnreadChangedEvent notification_unread_changed = 20011;
+     */
+    value: NotificationUnreadChangedEvent;
+    case: "notificationUnreadChanged";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.RoomMarkedAsReadEvent room_marked_as_read_sync = 20012;
+     */
+    value: RoomMarkedAsReadEvent;
+    case: "roomMarkedAsReadSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.MentionStatusClearedEvent mention_status_cleared_sync = 20013;
+     */
+    value: MentionStatusClearedEvent;
+    case: "mentionStatusClearedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.RoomGroupsUpdatedEvent room_groups_updated_sync = 20014;
+     */
+    value: RoomGroupsUpdatedEvent;
+    case: "roomGroupsUpdatedSync";
+  } | {
+    /**
+     * @generated from field: chatto.core.live.v1.SessionTerminatedEvent session_terminated_signal = 20015;
+     */
+    value: SessionTerminatedEvent;
+    case: "sessionTerminatedSignal";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<PublicEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.PublicEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "created_at", kind: "message", T: Timestamp },
+    { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 300, name: "room_created", kind: "message", T: RoomCreatedEvent, oneof: "event" },
+    { no: 301, name: "room_updated", kind: "message", T: RoomUpdatedEvent, oneof: "event" },
+    { no: 302, name: "room_deleted", kind: "message", T: RoomDeletedEvent, oneof: "event" },
+    { no: 303, name: "room_archived", kind: "message", T: RoomArchivedEvent, oneof: "event" },
+    { no: 304, name: "room_unarchived", kind: "message", T: RoomUnarchivedEvent, oneof: "event" },
+    { no: 305, name: "room_universal_changed", kind: "message", T: RoomUniversalChangedEvent, oneof: "event" },
+    { no: 307, name: "room_slow_mode_changed", kind: "message", T: RoomSlowModeChangedEvent, oneof: "event" },
+    { no: 308, name: "room_threading_mode_changed", kind: "message", T: RoomThreadingModeChangedEvent, oneof: "event" },
+    { no: 310, name: "user_joined_room", kind: "message", T: UserJoinedRoomEvent, oneof: "event" },
+    { no: 311, name: "user_left_room", kind: "message", T: UserLeftRoomEvent, oneof: "event" },
+    { no: 330, name: "voice_call_participant_joined", kind: "message", T: CallParticipantJoinedEvent, oneof: "event" },
+    { no: 331, name: "voice_call_participant_left", kind: "message", T: CallParticipantLeftEvent, oneof: "event" },
+    { no: 332, name: "voice_call_started", kind: "message", T: CallStartedEvent, oneof: "event" },
+    { no: 333, name: "voice_call_ended", kind: "message", T: CallEndedEvent, oneof: "event" },
+    { no: 400, name: "message_posted", kind: "message", T: MessagePostedEvent, oneof: "event" },
+    { no: 401, name: "message_edited", kind: "message", T: MessageEditedEvent, oneof: "event" },
+    { no: 402, name: "message_retracted", kind: "message", T: MessageRetractedEvent, oneof: "event" },
+    { no: 405, name: "message_pinned", kind: "message", T: MessagePinnedEvent, oneof: "event" },
+    { no: 406, name: "message_unpinned", kind: "message", T: MessageUnpinnedEvent, oneof: "event" },
+    { no: 425, name: "thread_created", kind: "message", T: ThreadCreatedEvent, oneof: "event" },
+    { no: 451, name: "asset_processing_started", kind: "message", T: AssetProcessingStartedEvent, oneof: "event" },
+    { no: 452, name: "asset_processing_succeeded", kind: "message", T: AssetProcessingSucceededEvent, oneof: "event" },
+    { no: 453, name: "asset_processing_failed", kind: "message", T: AssetProcessingFailedEvent, oneof: "event" },
+    { no: 454, name: "asset_deleted", kind: "message", T: AssetDeletedEvent, oneof: "event" },
+    { no: 504, name: "server_motd_changed", kind: "message", T: ServerMotdChangedEvent, oneof: "event" },
+    { no: 700, name: "user_account_created", kind: "message", T: UserAccountCreatedEvent, oneof: "event" },
+    { no: 701, name: "user_login_changed", kind: "message", T: UserLoginChangedEvent, oneof: "event" },
+    { no: 702, name: "user_display_name_changed", kind: "message", T: UserDisplayNameChangedEvent, oneof: "event" },
+    { no: 703, name: "user_avatar_set", kind: "message", T: UserAvatarSetEvent, oneof: "event" },
+    { no: 704, name: "user_avatar_cleared", kind: "message", T: UserAvatarClearedEvent, oneof: "event" },
+    { no: 710, name: "user_account_deleted", kind: "message", T: UserAccountDeletedEvent, oneof: "event" },
+    { no: 715, name: "user_custom_status_set", kind: "message", T: UserCustomStatusSetEvent, oneof: "event" },
+    { no: 716, name: "user_custom_status_cleared", kind: "message", T: UserCustomStatusClearedEvent, oneof: "event" },
+    { no: 722, name: "user_bio_changed", kind: "message", T: UserBioChangedEvent, oneof: "event" },
+    { no: 840, name: "room_member_banned", kind: "message", T: RoomMemberBannedEvent, oneof: "event" },
+    { no: 841, name: "room_member_unbanned", kind: "message", T: RoomMemberUnbannedEvent, oneof: "event" },
+    { no: 842, name: "room_member_added", kind: "message", T: RoomMemberAddedEvent, oneof: "event" },
+    { no: 843, name: "room_member_removed", kind: "message", T: RoomMemberRemovedEvent, oneof: "event" },
+    { no: 1050, name: "reaction_added", kind: "message", T: ReactionAddedEvent, oneof: "event" },
+    { no: 1051, name: "reaction_removed", kind: "message", T: ReactionRemovedEvent, oneof: "event" },
+    { no: 20000, name: "user_created_sync", kind: "message", T: UserCreatedSyncEvent, oneof: "event" },
+    { no: 20001, name: "user_profile_sync", kind: "message", T: UserProfileSyncEvent, oneof: "event" },
+    { no: 20002, name: "server_user_preferences_sync", kind: "message", T: ServerUserPreferencesSyncEvent, oneof: "event" },
+    { no: 20003, name: "thread_follow_changed_sync", kind: "message", T: ThreadFollowChangedEvent, oneof: "event" },
+    { no: 20004, name: "server_member_deleted_sync", kind: "message", T: ServerMemberDeletedEvent, oneof: "event" },
+    { no: 20005, name: "server_updated_sync", kind: "message", T: ServerUpdatedEvent, oneof: "event" },
+    { no: 20006, name: "user_typing_signal", kind: "message", T: UserTypingEvent, oneof: "event" },
+    { no: 20007, name: "presence_changed_signal", kind: "message", T: PresenceChangedEvent, oneof: "event" },
+    { no: 20008, name: "call_participant_joined_signal", kind: "message", T: CallParticipantJoinedEvent$1, oneof: "event" },
+    { no: 20009, name: "call_participant_left_signal", kind: "message", T: CallParticipantLeftEvent$1, oneof: "event" },
+    { no: 20010, name: "notification_occurrences_invalidated", kind: "message", T: NotificationOccurrencesInvalidatedEvent, oneof: "event" },
+    { no: 20011, name: "notification_unread_changed", kind: "message", T: NotificationUnreadChangedEvent, oneof: "event" },
+    { no: 20012, name: "room_marked_as_read_sync", kind: "message", T: RoomMarkedAsReadEvent, oneof: "event" },
+    { no: 20013, name: "mention_status_cleared_sync", kind: "message", T: MentionStatusClearedEvent, oneof: "event" },
+    { no: 20014, name: "room_groups_updated_sync", kind: "message", T: RoomGroupsUpdatedEvent, oneof: "event" },
+    { no: 20015, name: "session_terminated_signal", kind: "message", T: SessionTerminatedEvent, oneof: "event" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PublicEvent {
+    return new PublicEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PublicEvent {
+    return new PublicEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PublicEvent {
+    return new PublicEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PublicEvent | PlainMessage<PublicEvent> | undefined, b: PublicEvent | PlainMessage<PublicEvent> | undefined): boolean {
+    return proto3.util.equals(PublicEvent, a, b);
   }
 }
 

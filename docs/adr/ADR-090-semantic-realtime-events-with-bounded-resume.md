@@ -1,11 +1,11 @@
 # ADR-090: Use Semantic Realtime Events with Bounded Resume
 
 **Status:** Partially superseded by
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-091 replaces the separate public event schema and selects protocol 4. The
-current protocol reuses this ADR's exact WebSocket snapshot model with the
-single canonical event vocabulary. The authorization, bounded-resume, and
-transport rules that this ADR introduced remain active.
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
+and [ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-091 selects
+one canonical payload vocabulary and protocol 4. ADR-092 defines its public
+union. The authorization, bounded-resume, snapshot, and transport rules that
+this ADR introduced remain active.
 
 **Date:** 2026-08-30
 
@@ -88,9 +88,9 @@ The implementation and future protocol changes must preserve these invariants:
     a capability matrix to restate required frame semantics. A change that
     requires every client to behave differently uses a new behavioral protocol
     version.
-13. **Public delivery does not expose stored bytes.** Per ADR-091, public
-    delivery uses the canonical Event schema. The server still creates a fresh
-    authorized copy and removes internal variants and storage-only fields.
+13. **Public delivery does not expose stored bytes.** Per ADR-092, public
+    delivery uses an explicit public union with canonical payload messages.
+    The server creates a fresh authorized copy and removes storage-only fields.
 14. **Long-offline reliable automation is separate.** If Chatto later promises
     eventual processing of every durable trigger, that promise uses an
     acknowledged webhook or paged activity contract. It does not change the
@@ -107,7 +107,7 @@ Each durable domain change that has an authorized public meaning maps to a
 semantic public event. Examples include message posts, edits, and retractions;
 reaction changes; room and membership changes; profile changes; call changes;
 and other public domain activity. Public events are not raw EVT messages. The
-server creates authorized canonical Event copies after projection readiness and
+server creates authorized public events after projection readiness and
 authorization checks.
 
 A durable public event contains:
@@ -202,7 +202,7 @@ consumer.
 
 ### Protocol 4 replaces earlier development protocols
 
-The canonical event contract is intentionally incompatible with earlier
+The public event contract is intentionally incompatible with earlier
 development protocols. The implementation uses behavioral protocol version 4
 and rejects earlier versions. Chatto is in alpha, so the server does not retain
 those compatibility paths.

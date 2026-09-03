@@ -12,6 +12,7 @@ import (
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	v11 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	v12 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -32,7 +33,7 @@ const (
 	RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED RealtimeInitialState = 0
 	// Start at the current event boundary without sending current resources.
 	RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY RealtimeInitialState = 1
-	// Send an exact authorized snapshot before later canonical events.
+	// Send an exact authorized snapshot before later public events.
 	RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT RealtimeInitialState = 2
 )
 
@@ -138,7 +139,7 @@ func (RealtimeRecoveryMode) EnumDescriptor() ([]byte, []int) {
 //
 // Clients send binary protobuf frames to `/api/realtime`. The first frame must
 // be `hello`. After the server replies with `hello`, clients send
-// `subscribe_events` to start one authorized canonical event stream.
+// `subscribe_events` to start one authorized public event stream.
 type RealtimeClientFrame struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Frame:
@@ -225,7 +226,7 @@ type RealtimeClientFrame_Hello struct {
 }
 
 type RealtimeClientFrame_SubscribeEvents struct {
-	// Starts the caller's authorized canonical event stream.
+	// Starts the caller's authorized public event stream.
 	SubscribeEvents *RealtimeSubscribeEvents `protobuf:"bytes,2,opt,name=subscribe_events,json=subscribeEvents,proto3,oneof"`
 }
 
@@ -392,7 +393,7 @@ type RealtimeServerFrame_Subscribed struct {
 }
 
 type RealtimeServerFrame_Event struct {
-	// One authorized canonical event copy.
+	// One authorized public event copy.
 	Event *RealtimeEvent `protobuf:"bytes,3,opt,name=event,proto3,oneof"`
 }
 
@@ -564,7 +565,7 @@ func (x *RealtimeServerHello) GetHeartbeatIntervalSeconds() uint32 {
 	return 0
 }
 
-// Request to start the caller's authorized canonical event stream.
+// Request to start the caller's authorized public event stream.
 type RealtimeSubscribeEvents struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Opaque cursor from a previously received durable event or `caught_up`
@@ -858,16 +859,15 @@ func (x *RealtimeCaughtUp) GetCursor() string {
 	return ""
 }
 
-// One authorized canonical event.
+// One authorized public event.
 //
-// `event` uses Chatto's canonical event shape for both durable and transient
-// activity. The server creates a fresh caller-specific value and omits events
-// and fields that the caller cannot see. Durable events have a resume cursor.
-// Transient events do not.
+// The server creates a fresh caller-specific value and omits events and fields
+// that the caller cannot see. Durable events have a resume cursor. Transient
+// events do not.
 type RealtimeEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Authorized canonical event. The server never sends raw stored bytes.
-	Event *v11.Event `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
+	// Authorized public event. The server never sends raw stored bytes.
+	Event *PublicEvent `protobuf:"bytes,1,opt,name=event,proto3" json:"event,omitempty"`
 	// Opaque cursor safe to retain after this complete event is accepted.
 	ResumeCursor  *string `protobuf:"bytes,2,opt,name=resume_cursor,json=resumeCursor,proto3,oneof" json:"resume_cursor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -904,7 +904,7 @@ func (*RealtimeEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{8}
 }
 
-func (x *RealtimeEvent) GetEvent() *v11.Event {
+func (x *RealtimeEvent) GetEvent() *PublicEvent {
 	if x != nil {
 		return x.Event
 	}
@@ -918,6 +918,986 @@ func (x *RealtimeEvent) GetResumeCursor() string {
 	return ""
 }
 
+// Public event metadata and payload.
+//
+// Each payload field reuses the canonical payload message and field number.
+// The union is the public event catalogue. A canonical event that is absent
+// from this union is not part of the realtime API.
+type PublicEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Universal event identifier (NanoID).
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Time when the source event was created.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// ID of the user that caused the event. An empty value means no user actor.
+	ActorId string `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	// Authorized semantic payload.
+	//
+	// Types that are valid to be assigned to Event:
+	//
+	//	*PublicEvent_RoomCreated
+	//	*PublicEvent_RoomUpdated
+	//	*PublicEvent_RoomDeleted
+	//	*PublicEvent_RoomArchived
+	//	*PublicEvent_RoomUnarchived
+	//	*PublicEvent_RoomUniversalChanged
+	//	*PublicEvent_RoomSlowModeChanged
+	//	*PublicEvent_RoomThreadingModeChanged
+	//	*PublicEvent_UserJoinedRoom
+	//	*PublicEvent_UserLeftRoom
+	//	*PublicEvent_VoiceCallParticipantJoined
+	//	*PublicEvent_VoiceCallParticipantLeft
+	//	*PublicEvent_VoiceCallStarted
+	//	*PublicEvent_VoiceCallEnded
+	//	*PublicEvent_MessagePosted
+	//	*PublicEvent_MessageEdited
+	//	*PublicEvent_MessageRetracted
+	//	*PublicEvent_MessagePinned
+	//	*PublicEvent_MessageUnpinned
+	//	*PublicEvent_ThreadCreated
+	//	*PublicEvent_AssetProcessingStarted
+	//	*PublicEvent_AssetProcessingSucceeded
+	//	*PublicEvent_AssetProcessingFailed
+	//	*PublicEvent_AssetDeleted
+	//	*PublicEvent_ServerMotdChanged
+	//	*PublicEvent_UserAccountCreated
+	//	*PublicEvent_UserLoginChanged
+	//	*PublicEvent_UserDisplayNameChanged
+	//	*PublicEvent_UserAvatarSet
+	//	*PublicEvent_UserAvatarCleared
+	//	*PublicEvent_UserAccountDeleted
+	//	*PublicEvent_UserCustomStatusSet
+	//	*PublicEvent_UserCustomStatusCleared
+	//	*PublicEvent_UserBioChanged
+	//	*PublicEvent_RoomMemberBanned
+	//	*PublicEvent_RoomMemberUnbanned
+	//	*PublicEvent_RoomMemberAdded
+	//	*PublicEvent_RoomMemberRemoved
+	//	*PublicEvent_ReactionAdded
+	//	*PublicEvent_ReactionRemoved
+	//	*PublicEvent_UserCreatedSync
+	//	*PublicEvent_UserProfileSync
+	//	*PublicEvent_ServerUserPreferencesSync
+	//	*PublicEvent_ThreadFollowChangedSync
+	//	*PublicEvent_ServerMemberDeletedSync
+	//	*PublicEvent_ServerUpdatedSync
+	//	*PublicEvent_UserTypingSignal
+	//	*PublicEvent_PresenceChangedSignal
+	//	*PublicEvent_CallParticipantJoinedSignal
+	//	*PublicEvent_CallParticipantLeftSignal
+	//	*PublicEvent_NotificationOccurrencesInvalidated
+	//	*PublicEvent_NotificationUnreadChanged
+	//	*PublicEvent_RoomMarkedAsReadSync
+	//	*PublicEvent_MentionStatusClearedSync
+	//	*PublicEvent_RoomGroupsUpdatedSync
+	//	*PublicEvent_SessionTerminatedSignal
+	Event         isPublicEvent_Event `protobuf_oneof:"event"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PublicEvent) Reset() {
+	*x = PublicEvent{}
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PublicEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PublicEvent) ProtoMessage() {}
+
+func (x *PublicEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PublicEvent.ProtoReflect.Descriptor instead.
+func (*PublicEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *PublicEvent) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *PublicEvent) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *PublicEvent) GetEvent() isPublicEvent_Event {
+	if x != nil {
+		return x.Event
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomCreated() *v11.RoomCreatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomCreated); ok {
+			return x.RoomCreated
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomUpdated() *v11.RoomUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomUpdated); ok {
+			return x.RoomUpdated
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomDeleted() *v11.RoomDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomDeleted); ok {
+			return x.RoomDeleted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomArchived() *v11.RoomArchivedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomArchived); ok {
+			return x.RoomArchived
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomUnarchived() *v11.RoomUnarchivedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomUnarchived); ok {
+			return x.RoomUnarchived
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomUniversalChanged() *v11.RoomUniversalChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomUniversalChanged); ok {
+			return x.RoomUniversalChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomSlowModeChanged() *v11.RoomSlowModeChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomSlowModeChanged); ok {
+			return x.RoomSlowModeChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomThreadingModeChanged() *v11.RoomThreadingModeChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomThreadingModeChanged); ok {
+			return x.RoomThreadingModeChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserJoinedRoom() *v11.UserJoinedRoomEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserJoinedRoom); ok {
+			return x.UserJoinedRoom
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserLeftRoom() *v11.UserLeftRoomEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserLeftRoom); ok {
+			return x.UserLeftRoom
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetVoiceCallParticipantJoined() *v11.CallParticipantJoinedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_VoiceCallParticipantJoined); ok {
+			return x.VoiceCallParticipantJoined
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetVoiceCallParticipantLeft() *v11.CallParticipantLeftEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_VoiceCallParticipantLeft); ok {
+			return x.VoiceCallParticipantLeft
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetVoiceCallStarted() *v11.CallStartedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_VoiceCallStarted); ok {
+			return x.VoiceCallStarted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetVoiceCallEnded() *v11.CallEndedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_VoiceCallEnded); ok {
+			return x.VoiceCallEnded
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMessagePosted() *v11.MessagePostedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MessagePosted); ok {
+			return x.MessagePosted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMessageEdited() *v11.MessageEditedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MessageEdited); ok {
+			return x.MessageEdited
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMessageRetracted() *v11.MessageRetractedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MessageRetracted); ok {
+			return x.MessageRetracted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMessagePinned() *v11.MessagePinnedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MessagePinned); ok {
+			return x.MessagePinned
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMessageUnpinned() *v11.MessageUnpinnedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MessageUnpinned); ok {
+			return x.MessageUnpinned
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetThreadCreated() *v11.ThreadCreatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ThreadCreated); ok {
+			return x.ThreadCreated
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetAssetProcessingStarted() *v11.AssetProcessingStartedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_AssetProcessingStarted); ok {
+			return x.AssetProcessingStarted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetAssetProcessingSucceeded() *v11.AssetProcessingSucceededEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_AssetProcessingSucceeded); ok {
+			return x.AssetProcessingSucceeded
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetAssetProcessingFailed() *v11.AssetProcessingFailedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_AssetProcessingFailed); ok {
+			return x.AssetProcessingFailed
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetAssetDeleted() *v11.AssetDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_AssetDeleted); ok {
+			return x.AssetDeleted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetServerMotdChanged() *v11.ServerMotdChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ServerMotdChanged); ok {
+			return x.ServerMotdChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserAccountCreated() *v11.UserAccountCreatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserAccountCreated); ok {
+			return x.UserAccountCreated
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserLoginChanged() *v11.UserLoginChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserLoginChanged); ok {
+			return x.UserLoginChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserDisplayNameChanged() *v11.UserDisplayNameChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserDisplayNameChanged); ok {
+			return x.UserDisplayNameChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserAvatarSet() *v11.UserAvatarSetEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserAvatarSet); ok {
+			return x.UserAvatarSet
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserAvatarCleared() *v11.UserAvatarClearedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserAvatarCleared); ok {
+			return x.UserAvatarCleared
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserAccountDeleted() *v11.UserAccountDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserAccountDeleted); ok {
+			return x.UserAccountDeleted
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserCustomStatusSet() *v11.UserCustomStatusSetEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserCustomStatusSet); ok {
+			return x.UserCustomStatusSet
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserCustomStatusCleared() *v11.UserCustomStatusClearedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserCustomStatusCleared); ok {
+			return x.UserCustomStatusCleared
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserBioChanged() *v11.UserBioChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserBioChanged); ok {
+			return x.UserBioChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomMemberBanned() *v11.RoomMemberBannedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomMemberBanned); ok {
+			return x.RoomMemberBanned
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomMemberUnbanned() *v11.RoomMemberUnbannedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomMemberUnbanned); ok {
+			return x.RoomMemberUnbanned
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomMemberAdded() *v11.RoomMemberAddedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomMemberAdded); ok {
+			return x.RoomMemberAdded
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomMemberRemoved() *v11.RoomMemberRemovedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomMemberRemoved); ok {
+			return x.RoomMemberRemoved
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetReactionAdded() *v11.ReactionAddedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ReactionAdded); ok {
+			return x.ReactionAdded
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetReactionRemoved() *v11.ReactionRemovedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ReactionRemoved); ok {
+			return x.ReactionRemoved
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserCreatedSync() *v12.UserCreatedSyncEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserCreatedSync); ok {
+			return x.UserCreatedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserProfileSync() *v12.UserProfileSyncEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserProfileSync); ok {
+			return x.UserProfileSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetServerUserPreferencesSync() *v12.ServerUserPreferencesSyncEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ServerUserPreferencesSync); ok {
+			return x.ServerUserPreferencesSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetThreadFollowChangedSync() *v12.ThreadFollowChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ThreadFollowChangedSync); ok {
+			return x.ThreadFollowChangedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetServerMemberDeletedSync() *v12.ServerMemberDeletedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ServerMemberDeletedSync); ok {
+			return x.ServerMemberDeletedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetServerUpdatedSync() *v12.ServerUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_ServerUpdatedSync); ok {
+			return x.ServerUpdatedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetUserTypingSignal() *v12.UserTypingEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_UserTypingSignal); ok {
+			return x.UserTypingSignal
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetPresenceChangedSignal() *v12.PresenceChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_PresenceChangedSignal); ok {
+			return x.PresenceChangedSignal
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetCallParticipantJoinedSignal() *v12.CallParticipantJoinedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_CallParticipantJoinedSignal); ok {
+			return x.CallParticipantJoinedSignal
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetCallParticipantLeftSignal() *v12.CallParticipantLeftEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_CallParticipantLeftSignal); ok {
+			return x.CallParticipantLeftSignal
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetNotificationOccurrencesInvalidated() *v12.NotificationOccurrencesInvalidatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_NotificationOccurrencesInvalidated); ok {
+			return x.NotificationOccurrencesInvalidated
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetNotificationUnreadChanged() *v12.NotificationUnreadChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_NotificationUnreadChanged); ok {
+			return x.NotificationUnreadChanged
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomMarkedAsReadSync() *v12.RoomMarkedAsReadEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomMarkedAsReadSync); ok {
+			return x.RoomMarkedAsReadSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetMentionStatusClearedSync() *v12.MentionStatusClearedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_MentionStatusClearedSync); ok {
+			return x.MentionStatusClearedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetRoomGroupsUpdatedSync() *v12.RoomGroupsUpdatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_RoomGroupsUpdatedSync); ok {
+			return x.RoomGroupsUpdatedSync
+		}
+	}
+	return nil
+}
+
+func (x *PublicEvent) GetSessionTerminatedSignal() *v12.SessionTerminatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PublicEvent_SessionTerminatedSignal); ok {
+			return x.SessionTerminatedSignal
+		}
+	}
+	return nil
+}
+
+type isPublicEvent_Event interface {
+	isPublicEvent_Event()
+}
+
+type PublicEvent_RoomCreated struct {
+	RoomCreated *v11.RoomCreatedEvent `protobuf:"bytes,300,opt,name=room_created,json=roomCreated,proto3,oneof"`
+}
+
+type PublicEvent_RoomUpdated struct {
+	RoomUpdated *v11.RoomUpdatedEvent `protobuf:"bytes,301,opt,name=room_updated,json=roomUpdated,proto3,oneof"`
+}
+
+type PublicEvent_RoomDeleted struct {
+	RoomDeleted *v11.RoomDeletedEvent `protobuf:"bytes,302,opt,name=room_deleted,json=roomDeleted,proto3,oneof"`
+}
+
+type PublicEvent_RoomArchived struct {
+	RoomArchived *v11.RoomArchivedEvent `protobuf:"bytes,303,opt,name=room_archived,json=roomArchived,proto3,oneof"`
+}
+
+type PublicEvent_RoomUnarchived struct {
+	RoomUnarchived *v11.RoomUnarchivedEvent `protobuf:"bytes,304,opt,name=room_unarchived,json=roomUnarchived,proto3,oneof"`
+}
+
+type PublicEvent_RoomUniversalChanged struct {
+	RoomUniversalChanged *v11.RoomUniversalChangedEvent `protobuf:"bytes,305,opt,name=room_universal_changed,json=roomUniversalChanged,proto3,oneof"`
+}
+
+type PublicEvent_RoomSlowModeChanged struct {
+	RoomSlowModeChanged *v11.RoomSlowModeChangedEvent `protobuf:"bytes,307,opt,name=room_slow_mode_changed,json=roomSlowModeChanged,proto3,oneof"`
+}
+
+type PublicEvent_RoomThreadingModeChanged struct {
+	RoomThreadingModeChanged *v11.RoomThreadingModeChangedEvent `protobuf:"bytes,308,opt,name=room_threading_mode_changed,json=roomThreadingModeChanged,proto3,oneof"`
+}
+
+type PublicEvent_UserJoinedRoom struct {
+	UserJoinedRoom *v11.UserJoinedRoomEvent `protobuf:"bytes,310,opt,name=user_joined_room,json=userJoinedRoom,proto3,oneof"`
+}
+
+type PublicEvent_UserLeftRoom struct {
+	UserLeftRoom *v11.UserLeftRoomEvent `protobuf:"bytes,311,opt,name=user_left_room,json=userLeftRoom,proto3,oneof"`
+}
+
+type PublicEvent_VoiceCallParticipantJoined struct {
+	VoiceCallParticipantJoined *v11.CallParticipantJoinedEvent `protobuf:"bytes,330,opt,name=voice_call_participant_joined,json=voiceCallParticipantJoined,proto3,oneof"`
+}
+
+type PublicEvent_VoiceCallParticipantLeft struct {
+	VoiceCallParticipantLeft *v11.CallParticipantLeftEvent `protobuf:"bytes,331,opt,name=voice_call_participant_left,json=voiceCallParticipantLeft,proto3,oneof"`
+}
+
+type PublicEvent_VoiceCallStarted struct {
+	VoiceCallStarted *v11.CallStartedEvent `protobuf:"bytes,332,opt,name=voice_call_started,json=voiceCallStarted,proto3,oneof"`
+}
+
+type PublicEvent_VoiceCallEnded struct {
+	VoiceCallEnded *v11.CallEndedEvent `protobuf:"bytes,333,opt,name=voice_call_ended,json=voiceCallEnded,proto3,oneof"`
+}
+
+type PublicEvent_MessagePosted struct {
+	MessagePosted *v11.MessagePostedEvent `protobuf:"bytes,400,opt,name=message_posted,json=messagePosted,proto3,oneof"`
+}
+
+type PublicEvent_MessageEdited struct {
+	MessageEdited *v11.MessageEditedEvent `protobuf:"bytes,401,opt,name=message_edited,json=messageEdited,proto3,oneof"`
+}
+
+type PublicEvent_MessageRetracted struct {
+	MessageRetracted *v11.MessageRetractedEvent `protobuf:"bytes,402,opt,name=message_retracted,json=messageRetracted,proto3,oneof"`
+}
+
+type PublicEvent_MessagePinned struct {
+	MessagePinned *v11.MessagePinnedEvent `protobuf:"bytes,405,opt,name=message_pinned,json=messagePinned,proto3,oneof"`
+}
+
+type PublicEvent_MessageUnpinned struct {
+	MessageUnpinned *v11.MessageUnpinnedEvent `protobuf:"bytes,406,opt,name=message_unpinned,json=messageUnpinned,proto3,oneof"`
+}
+
+type PublicEvent_ThreadCreated struct {
+	ThreadCreated *v11.ThreadCreatedEvent `protobuf:"bytes,425,opt,name=thread_created,json=threadCreated,proto3,oneof"`
+}
+
+type PublicEvent_AssetProcessingStarted struct {
+	AssetProcessingStarted *v11.AssetProcessingStartedEvent `protobuf:"bytes,451,opt,name=asset_processing_started,json=assetProcessingStarted,proto3,oneof"`
+}
+
+type PublicEvent_AssetProcessingSucceeded struct {
+	AssetProcessingSucceeded *v11.AssetProcessingSucceededEvent `protobuf:"bytes,452,opt,name=asset_processing_succeeded,json=assetProcessingSucceeded,proto3,oneof"`
+}
+
+type PublicEvent_AssetProcessingFailed struct {
+	AssetProcessingFailed *v11.AssetProcessingFailedEvent `protobuf:"bytes,453,opt,name=asset_processing_failed,json=assetProcessingFailed,proto3,oneof"`
+}
+
+type PublicEvent_AssetDeleted struct {
+	AssetDeleted *v11.AssetDeletedEvent `protobuf:"bytes,454,opt,name=asset_deleted,json=assetDeleted,proto3,oneof"`
+}
+
+type PublicEvent_ServerMotdChanged struct {
+	ServerMotdChanged *v11.ServerMotdChangedEvent `protobuf:"bytes,504,opt,name=server_motd_changed,json=serverMotdChanged,proto3,oneof"`
+}
+
+type PublicEvent_UserAccountCreated struct {
+	UserAccountCreated *v11.UserAccountCreatedEvent `protobuf:"bytes,700,opt,name=user_account_created,json=userAccountCreated,proto3,oneof"`
+}
+
+type PublicEvent_UserLoginChanged struct {
+	UserLoginChanged *v11.UserLoginChangedEvent `protobuf:"bytes,701,opt,name=user_login_changed,json=userLoginChanged,proto3,oneof"`
+}
+
+type PublicEvent_UserDisplayNameChanged struct {
+	UserDisplayNameChanged *v11.UserDisplayNameChangedEvent `protobuf:"bytes,702,opt,name=user_display_name_changed,json=userDisplayNameChanged,proto3,oneof"`
+}
+
+type PublicEvent_UserAvatarSet struct {
+	UserAvatarSet *v11.UserAvatarSetEvent `protobuf:"bytes,703,opt,name=user_avatar_set,json=userAvatarSet,proto3,oneof"`
+}
+
+type PublicEvent_UserAvatarCleared struct {
+	UserAvatarCleared *v11.UserAvatarClearedEvent `protobuf:"bytes,704,opt,name=user_avatar_cleared,json=userAvatarCleared,proto3,oneof"`
+}
+
+type PublicEvent_UserAccountDeleted struct {
+	UserAccountDeleted *v11.UserAccountDeletedEvent `protobuf:"bytes,710,opt,name=user_account_deleted,json=userAccountDeleted,proto3,oneof"`
+}
+
+type PublicEvent_UserCustomStatusSet struct {
+	UserCustomStatusSet *v11.UserCustomStatusSetEvent `protobuf:"bytes,715,opt,name=user_custom_status_set,json=userCustomStatusSet,proto3,oneof"`
+}
+
+type PublicEvent_UserCustomStatusCleared struct {
+	UserCustomStatusCleared *v11.UserCustomStatusClearedEvent `protobuf:"bytes,716,opt,name=user_custom_status_cleared,json=userCustomStatusCleared,proto3,oneof"`
+}
+
+type PublicEvent_UserBioChanged struct {
+	UserBioChanged *v11.UserBioChangedEvent `protobuf:"bytes,722,opt,name=user_bio_changed,json=userBioChanged,proto3,oneof"`
+}
+
+type PublicEvent_RoomMemberBanned struct {
+	RoomMemberBanned *v11.RoomMemberBannedEvent `protobuf:"bytes,840,opt,name=room_member_banned,json=roomMemberBanned,proto3,oneof"`
+}
+
+type PublicEvent_RoomMemberUnbanned struct {
+	RoomMemberUnbanned *v11.RoomMemberUnbannedEvent `protobuf:"bytes,841,opt,name=room_member_unbanned,json=roomMemberUnbanned,proto3,oneof"`
+}
+
+type PublicEvent_RoomMemberAdded struct {
+	RoomMemberAdded *v11.RoomMemberAddedEvent `protobuf:"bytes,842,opt,name=room_member_added,json=roomMemberAdded,proto3,oneof"`
+}
+
+type PublicEvent_RoomMemberRemoved struct {
+	RoomMemberRemoved *v11.RoomMemberRemovedEvent `protobuf:"bytes,843,opt,name=room_member_removed,json=roomMemberRemoved,proto3,oneof"`
+}
+
+type PublicEvent_ReactionAdded struct {
+	ReactionAdded *v11.ReactionAddedEvent `protobuf:"bytes,1050,opt,name=reaction_added,json=reactionAdded,proto3,oneof"`
+}
+
+type PublicEvent_ReactionRemoved struct {
+	ReactionRemoved *v11.ReactionRemovedEvent `protobuf:"bytes,1051,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
+}
+
+type PublicEvent_UserCreatedSync struct {
+	UserCreatedSync *v12.UserCreatedSyncEvent `protobuf:"bytes,20000,opt,name=user_created_sync,json=userCreatedSync,proto3,oneof"`
+}
+
+type PublicEvent_UserProfileSync struct {
+	UserProfileSync *v12.UserProfileSyncEvent `protobuf:"bytes,20001,opt,name=user_profile_sync,json=userProfileSync,proto3,oneof"`
+}
+
+type PublicEvent_ServerUserPreferencesSync struct {
+	ServerUserPreferencesSync *v12.ServerUserPreferencesSyncEvent `protobuf:"bytes,20002,opt,name=server_user_preferences_sync,json=serverUserPreferencesSync,proto3,oneof"`
+}
+
+type PublicEvent_ThreadFollowChangedSync struct {
+	ThreadFollowChangedSync *v12.ThreadFollowChangedEvent `protobuf:"bytes,20003,opt,name=thread_follow_changed_sync,json=threadFollowChangedSync,proto3,oneof"`
+}
+
+type PublicEvent_ServerMemberDeletedSync struct {
+	ServerMemberDeletedSync *v12.ServerMemberDeletedEvent `protobuf:"bytes,20004,opt,name=server_member_deleted_sync,json=serverMemberDeletedSync,proto3,oneof"`
+}
+
+type PublicEvent_ServerUpdatedSync struct {
+	ServerUpdatedSync *v12.ServerUpdatedEvent `protobuf:"bytes,20005,opt,name=server_updated_sync,json=serverUpdatedSync,proto3,oneof"`
+}
+
+type PublicEvent_UserTypingSignal struct {
+	UserTypingSignal *v12.UserTypingEvent `protobuf:"bytes,20006,opt,name=user_typing_signal,json=userTypingSignal,proto3,oneof"`
+}
+
+type PublicEvent_PresenceChangedSignal struct {
+	PresenceChangedSignal *v12.PresenceChangedEvent `protobuf:"bytes,20007,opt,name=presence_changed_signal,json=presenceChangedSignal,proto3,oneof"`
+}
+
+type PublicEvent_CallParticipantJoinedSignal struct {
+	CallParticipantJoinedSignal *v12.CallParticipantJoinedEvent `protobuf:"bytes,20008,opt,name=call_participant_joined_signal,json=callParticipantJoinedSignal,proto3,oneof"`
+}
+
+type PublicEvent_CallParticipantLeftSignal struct {
+	CallParticipantLeftSignal *v12.CallParticipantLeftEvent `protobuf:"bytes,20009,opt,name=call_participant_left_signal,json=callParticipantLeftSignal,proto3,oneof"`
+}
+
+type PublicEvent_NotificationOccurrencesInvalidated struct {
+	NotificationOccurrencesInvalidated *v12.NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,20010,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
+}
+
+type PublicEvent_NotificationUnreadChanged struct {
+	NotificationUnreadChanged *v12.NotificationUnreadChangedEvent `protobuf:"bytes,20011,opt,name=notification_unread_changed,json=notificationUnreadChanged,proto3,oneof"`
+}
+
+type PublicEvent_RoomMarkedAsReadSync struct {
+	RoomMarkedAsReadSync *v12.RoomMarkedAsReadEvent `protobuf:"bytes,20012,opt,name=room_marked_as_read_sync,json=roomMarkedAsReadSync,proto3,oneof"`
+}
+
+type PublicEvent_MentionStatusClearedSync struct {
+	MentionStatusClearedSync *v12.MentionStatusClearedEvent `protobuf:"bytes,20013,opt,name=mention_status_cleared_sync,json=mentionStatusClearedSync,proto3,oneof"`
+}
+
+type PublicEvent_RoomGroupsUpdatedSync struct {
+	RoomGroupsUpdatedSync *v12.RoomGroupsUpdatedEvent `protobuf:"bytes,20014,opt,name=room_groups_updated_sync,json=roomGroupsUpdatedSync,proto3,oneof"`
+}
+
+type PublicEvent_SessionTerminatedSignal struct {
+	SessionTerminatedSignal *v12.SessionTerminatedEvent `protobuf:"bytes,20015,opt,name=session_terminated_signal,json=sessionTerminatedSignal,proto3,oneof"`
+}
+
+func (*PublicEvent_RoomCreated) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomUpdated) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomDeleted) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomArchived) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomUnarchived) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomUniversalChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomSlowModeChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomThreadingModeChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserJoinedRoom) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserLeftRoom) isPublicEvent_Event() {}
+
+func (*PublicEvent_VoiceCallParticipantJoined) isPublicEvent_Event() {}
+
+func (*PublicEvent_VoiceCallParticipantLeft) isPublicEvent_Event() {}
+
+func (*PublicEvent_VoiceCallStarted) isPublicEvent_Event() {}
+
+func (*PublicEvent_VoiceCallEnded) isPublicEvent_Event() {}
+
+func (*PublicEvent_MessagePosted) isPublicEvent_Event() {}
+
+func (*PublicEvent_MessageEdited) isPublicEvent_Event() {}
+
+func (*PublicEvent_MessageRetracted) isPublicEvent_Event() {}
+
+func (*PublicEvent_MessagePinned) isPublicEvent_Event() {}
+
+func (*PublicEvent_MessageUnpinned) isPublicEvent_Event() {}
+
+func (*PublicEvent_ThreadCreated) isPublicEvent_Event() {}
+
+func (*PublicEvent_AssetProcessingStarted) isPublicEvent_Event() {}
+
+func (*PublicEvent_AssetProcessingSucceeded) isPublicEvent_Event() {}
+
+func (*PublicEvent_AssetProcessingFailed) isPublicEvent_Event() {}
+
+func (*PublicEvent_AssetDeleted) isPublicEvent_Event() {}
+
+func (*PublicEvent_ServerMotdChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserAccountCreated) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserLoginChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserDisplayNameChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserAvatarSet) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserAvatarCleared) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserAccountDeleted) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserCustomStatusSet) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserCustomStatusCleared) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserBioChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomMemberBanned) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomMemberUnbanned) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomMemberAdded) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomMemberRemoved) isPublicEvent_Event() {}
+
+func (*PublicEvent_ReactionAdded) isPublicEvent_Event() {}
+
+func (*PublicEvent_ReactionRemoved) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserCreatedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserProfileSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_ServerUserPreferencesSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_ThreadFollowChangedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_ServerMemberDeletedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_ServerUpdatedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_UserTypingSignal) isPublicEvent_Event() {}
+
+func (*PublicEvent_PresenceChangedSignal) isPublicEvent_Event() {}
+
+func (*PublicEvent_CallParticipantJoinedSignal) isPublicEvent_Event() {}
+
+func (*PublicEvent_CallParticipantLeftSignal) isPublicEvent_Event() {}
+
+func (*PublicEvent_NotificationOccurrencesInvalidated) isPublicEvent_Event() {}
+
+func (*PublicEvent_NotificationUnreadChanged) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomMarkedAsReadSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_MentionStatusClearedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_RoomGroupsUpdatedSync) isPublicEvent_Event() {}
+
+func (*PublicEvent_SessionTerminatedSignal) isPublicEvent_Event() {}
+
 // Application-level ping.
 type RealtimePing struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -929,7 +1909,7 @@ type RealtimePing struct {
 
 func (x *RealtimePing) Reset() {
 	*x = RealtimePing{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -941,7 +1921,7 @@ func (x *RealtimePing) String() string {
 func (*RealtimePing) ProtoMessage() {}
 
 func (x *RealtimePing) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[9]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -954,7 +1934,7 @@ func (x *RealtimePing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimePing.ProtoReflect.Descriptor instead.
 func (*RealtimePing) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{9}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RealtimePing) GetNonce() string {
@@ -975,7 +1955,7 @@ type RealtimePong struct {
 
 func (x *RealtimePong) Reset() {
 	*x = RealtimePong{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -987,7 +1967,7 @@ func (x *RealtimePong) String() string {
 func (*RealtimePong) ProtoMessage() {}
 
 func (x *RealtimePong) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[10]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1000,7 +1980,7 @@ func (x *RealtimePong) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimePong.ProtoReflect.Descriptor instead.
 func (*RealtimePong) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{10}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *RealtimePong) GetNonce() string {
@@ -1027,7 +2007,7 @@ type RealtimeHeartbeat struct {
 
 func (x *RealtimeHeartbeat) Reset() {
 	*x = RealtimeHeartbeat{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +2019,7 @@ func (x *RealtimeHeartbeat) String() string {
 func (*RealtimeHeartbeat) ProtoMessage() {}
 
 func (x *RealtimeHeartbeat) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[11]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1052,7 +2032,7 @@ func (x *RealtimeHeartbeat) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeHeartbeat.ProtoReflect.Descriptor instead.
 func (*RealtimeHeartbeat) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{11}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *RealtimeHeartbeat) GetId() string {
@@ -1095,7 +2075,7 @@ type RealtimeError struct {
 
 func (x *RealtimeError) Reset() {
 	*x = RealtimeError{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1107,7 +2087,7 @@ func (x *RealtimeError) String() string {
 func (*RealtimeError) ProtoMessage() {}
 
 func (x *RealtimeError) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[12]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1120,7 +2100,7 @@ func (x *RealtimeError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeError.ProtoReflect.Descriptor instead.
 func (*RealtimeError) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{12}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RealtimeError) GetCode() string {
@@ -1175,7 +2155,7 @@ type RealtimeClose struct {
 
 func (x *RealtimeClose) Reset() {
 	*x = RealtimeClose{}
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1187,7 +2167,7 @@ func (x *RealtimeClose) String() string {
 func (*RealtimeClose) ProtoMessage() {}
 
 func (x *RealtimeClose) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[13]
+	mi := &file_chatto_realtime_v1_realtime_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1200,7 +2180,7 @@ func (x *RealtimeClose) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RealtimeClose.ProtoReflect.Descriptor instead.
 func (*RealtimeClose) Descriptor() ([]byte, []int) {
-	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{13}
+	return file_chatto_realtime_v1_realtime_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *RealtimeClose) GetCode() string {
@@ -1235,7 +2215,7 @@ var File_chatto_realtime_v1_realtime_proto protoreflect.FileDescriptor
 
 const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a\x1echatto/core/evt/v1/event.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/user_service.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\x02\n" +
+	"!chatto/realtime/v1/realtime.proto\x12\x12chatto.realtime.v1\x1a\"chatto/api/v1/room_directory.proto\x1a\x1achatto/api/v1/server.proto\x1a chatto/api/v1/user_service.proto\x1a\x1fchatto/api/v1/voice_calls.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a%chatto/core/live/v1/live_events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\x02\n" +
 	"\x13RealtimeClientFrame\x12?\n" +
 	"\x05hello\x18\x01 \x01(\v2'.chatto.realtime.v1.RealtimeClientHelloH\x00R\x05hello\x12X\n" +
 	"\x10subscribe_events\x18\x02 \x01(\v2+.chatto.realtime.v1.RealtimeSubscribeEventsH\x00R\x0fsubscribeEvents\x126\n" +
@@ -1278,11 +2258,73 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\n" +
 	"\bresource\"*\n" +
 	"\x10RealtimeCaughtUp\x12\x16\n" +
-	"\x06cursor\x18\x01 \x01(\tR\x06cursor\"\x89\x01\n" +
-	"\rRealtimeEvent\x12/\n" +
-	"\x05event\x18\x01 \x01(\v2\x19.chatto.core.evt.v1.EventR\x05event\x12(\n" +
+	"\x06cursor\x18\x01 \x01(\tR\x06cursor\"\x8f\x01\n" +
+	"\rRealtimeEvent\x125\n" +
+	"\x05event\x18\x01 \x01(\v2\x1f.chatto.realtime.v1.PublicEventR\x05event\x12(\n" +
 	"\rresume_cursor\x18\x02 \x01(\tH\x00R\fresumeCursor\x88\x01\x01B\x10\n" +
-	"\x0e_resume_cursorJ\x04\b\x03\x10\x04R\x05state\"$\n" +
+	"\x0e_resume_cursorJ\x04\b\x03\x10\x04R\x05state\"\xda+\n" +
+	"\vPublicEvent\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
+	"\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12J\n" +
+	"\froom_created\x18\xac\x02 \x01(\v2$.chatto.core.evt.v1.RoomCreatedEventH\x00R\vroomCreated\x12J\n" +
+	"\froom_updated\x18\xad\x02 \x01(\v2$.chatto.core.evt.v1.RoomUpdatedEventH\x00R\vroomUpdated\x12J\n" +
+	"\froom_deleted\x18\xae\x02 \x01(\v2$.chatto.core.evt.v1.RoomDeletedEventH\x00R\vroomDeleted\x12M\n" +
+	"\rroom_archived\x18\xaf\x02 \x01(\v2%.chatto.core.evt.v1.RoomArchivedEventH\x00R\froomArchived\x12S\n" +
+	"\x0froom_unarchived\x18\xb0\x02 \x01(\v2'.chatto.core.evt.v1.RoomUnarchivedEventH\x00R\x0eroomUnarchived\x12f\n" +
+	"\x16room_universal_changed\x18\xb1\x02 \x01(\v2-.chatto.core.evt.v1.RoomUniversalChangedEventH\x00R\x14roomUniversalChanged\x12d\n" +
+	"\x16room_slow_mode_changed\x18\xb3\x02 \x01(\v2,.chatto.core.evt.v1.RoomSlowModeChangedEventH\x00R\x13roomSlowModeChanged\x12s\n" +
+	"\x1broom_threading_mode_changed\x18\xb4\x02 \x01(\v21.chatto.core.evt.v1.RoomThreadingModeChangedEventH\x00R\x18roomThreadingModeChanged\x12T\n" +
+	"\x10user_joined_room\x18\xb6\x02 \x01(\v2'.chatto.core.evt.v1.UserJoinedRoomEventH\x00R\x0euserJoinedRoom\x12N\n" +
+	"\x0euser_left_room\x18\xb7\x02 \x01(\v2%.chatto.core.evt.v1.UserLeftRoomEventH\x00R\fuserLeftRoom\x12t\n" +
+	"\x1dvoice_call_participant_joined\x18\xca\x02 \x01(\v2..chatto.core.evt.v1.CallParticipantJoinedEventH\x00R\x1avoiceCallParticipantJoined\x12n\n" +
+	"\x1bvoice_call_participant_left\x18\xcb\x02 \x01(\v2,.chatto.core.evt.v1.CallParticipantLeftEventH\x00R\x18voiceCallParticipantLeft\x12U\n" +
+	"\x12voice_call_started\x18\xcc\x02 \x01(\v2$.chatto.core.evt.v1.CallStartedEventH\x00R\x10voiceCallStarted\x12O\n" +
+	"\x10voice_call_ended\x18\xcd\x02 \x01(\v2\".chatto.core.evt.v1.CallEndedEventH\x00R\x0evoiceCallEnded\x12P\n" +
+	"\x0emessage_posted\x18\x90\x03 \x01(\v2&.chatto.core.evt.v1.MessagePostedEventH\x00R\rmessagePosted\x12P\n" +
+	"\x0emessage_edited\x18\x91\x03 \x01(\v2&.chatto.core.evt.v1.MessageEditedEventH\x00R\rmessageEdited\x12Y\n" +
+	"\x11message_retracted\x18\x92\x03 \x01(\v2).chatto.core.evt.v1.MessageRetractedEventH\x00R\x10messageRetracted\x12P\n" +
+	"\x0emessage_pinned\x18\x95\x03 \x01(\v2&.chatto.core.evt.v1.MessagePinnedEventH\x00R\rmessagePinned\x12V\n" +
+	"\x10message_unpinned\x18\x96\x03 \x01(\v2(.chatto.core.evt.v1.MessageUnpinnedEventH\x00R\x0fmessageUnpinned\x12P\n" +
+	"\x0ethread_created\x18\xa9\x03 \x01(\v2&.chatto.core.evt.v1.ThreadCreatedEventH\x00R\rthreadCreated\x12l\n" +
+	"\x18asset_processing_started\x18\xc3\x03 \x01(\v2/.chatto.core.evt.v1.AssetProcessingStartedEventH\x00R\x16assetProcessingStarted\x12r\n" +
+	"\x1aasset_processing_succeeded\x18\xc4\x03 \x01(\v21.chatto.core.evt.v1.AssetProcessingSucceededEventH\x00R\x18assetProcessingSucceeded\x12i\n" +
+	"\x17asset_processing_failed\x18\xc5\x03 \x01(\v2..chatto.core.evt.v1.AssetProcessingFailedEventH\x00R\x15assetProcessingFailed\x12M\n" +
+	"\rasset_deleted\x18\xc6\x03 \x01(\v2%.chatto.core.evt.v1.AssetDeletedEventH\x00R\fassetDeleted\x12]\n" +
+	"\x13server_motd_changed\x18\xf8\x03 \x01(\v2*.chatto.core.evt.v1.ServerMotdChangedEventH\x00R\x11serverMotdChanged\x12`\n" +
+	"\x14user_account_created\x18\xbc\x05 \x01(\v2+.chatto.core.evt.v1.UserAccountCreatedEventH\x00R\x12userAccountCreated\x12Z\n" +
+	"\x12user_login_changed\x18\xbd\x05 \x01(\v2).chatto.core.evt.v1.UserLoginChangedEventH\x00R\x10userLoginChanged\x12m\n" +
+	"\x19user_display_name_changed\x18\xbe\x05 \x01(\v2/.chatto.core.evt.v1.UserDisplayNameChangedEventH\x00R\x16userDisplayNameChanged\x12Q\n" +
+	"\x0fuser_avatar_set\x18\xbf\x05 \x01(\v2&.chatto.core.evt.v1.UserAvatarSetEventH\x00R\ruserAvatarSet\x12]\n" +
+	"\x13user_avatar_cleared\x18\xc0\x05 \x01(\v2*.chatto.core.evt.v1.UserAvatarClearedEventH\x00R\x11userAvatarCleared\x12`\n" +
+	"\x14user_account_deleted\x18\xc6\x05 \x01(\v2+.chatto.core.evt.v1.UserAccountDeletedEventH\x00R\x12userAccountDeleted\x12d\n" +
+	"\x16user_custom_status_set\x18\xcb\x05 \x01(\v2,.chatto.core.evt.v1.UserCustomStatusSetEventH\x00R\x13userCustomStatusSet\x12p\n" +
+	"\x1auser_custom_status_cleared\x18\xcc\x05 \x01(\v20.chatto.core.evt.v1.UserCustomStatusClearedEventH\x00R\x17userCustomStatusCleared\x12T\n" +
+	"\x10user_bio_changed\x18\xd2\x05 \x01(\v2'.chatto.core.evt.v1.UserBioChangedEventH\x00R\x0euserBioChanged\x12Z\n" +
+	"\x12room_member_banned\x18\xc8\x06 \x01(\v2).chatto.core.evt.v1.RoomMemberBannedEventH\x00R\x10roomMemberBanned\x12`\n" +
+	"\x14room_member_unbanned\x18\xc9\x06 \x01(\v2+.chatto.core.evt.v1.RoomMemberUnbannedEventH\x00R\x12roomMemberUnbanned\x12W\n" +
+	"\x11room_member_added\x18\xca\x06 \x01(\v2(.chatto.core.evt.v1.RoomMemberAddedEventH\x00R\x0froomMemberAdded\x12]\n" +
+	"\x13room_member_removed\x18\xcb\x06 \x01(\v2*.chatto.core.evt.v1.RoomMemberRemovedEventH\x00R\x11roomMemberRemoved\x12P\n" +
+	"\x0ereaction_added\x18\x9a\b \x01(\v2&.chatto.core.evt.v1.ReactionAddedEventH\x00R\rreactionAdded\x12V\n" +
+	"\x10reaction_removed\x18\x9b\b \x01(\v2(.chatto.core.evt.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12Y\n" +
+	"\x11user_created_sync\x18\xa0\x9c\x01 \x01(\v2).chatto.core.live.v1.UserCreatedSyncEventH\x00R\x0fuserCreatedSync\x12Y\n" +
+	"\x11user_profile_sync\x18\xa1\x9c\x01 \x01(\v2).chatto.core.live.v1.UserProfileSyncEventH\x00R\x0fuserProfileSync\x12x\n" +
+	"\x1cserver_user_preferences_sync\x18\xa2\x9c\x01 \x01(\v23.chatto.core.live.v1.ServerUserPreferencesSyncEventH\x00R\x19serverUserPreferencesSync\x12n\n" +
+	"\x1athread_follow_changed_sync\x18\xa3\x9c\x01 \x01(\v2-.chatto.core.live.v1.ThreadFollowChangedEventH\x00R\x17threadFollowChangedSync\x12n\n" +
+	"\x1aserver_member_deleted_sync\x18\xa4\x9c\x01 \x01(\v2-.chatto.core.live.v1.ServerMemberDeletedEventH\x00R\x17serverMemberDeletedSync\x12[\n" +
+	"\x13server_updated_sync\x18\xa5\x9c\x01 \x01(\v2'.chatto.core.live.v1.ServerUpdatedEventH\x00R\x11serverUpdatedSync\x12V\n" +
+	"\x12user_typing_signal\x18\xa6\x9c\x01 \x01(\v2$.chatto.core.live.v1.UserTypingEventH\x00R\x10userTypingSignal\x12e\n" +
+	"\x17presence_changed_signal\x18\xa7\x9c\x01 \x01(\v2).chatto.core.live.v1.PresenceChangedEventH\x00R\x15presenceChangedSignal\x12x\n" +
+	"\x1ecall_participant_joined_signal\x18\xa8\x9c\x01 \x01(\v2/.chatto.core.live.v1.CallParticipantJoinedEventH\x00R\x1bcallParticipantJoinedSignal\x12r\n" +
+	"\x1ccall_participant_left_signal\x18\xa9\x9c\x01 \x01(\v2-.chatto.core.live.v1.CallParticipantLeftEventH\x00R\x19callParticipantLeftSignal\x12\x92\x01\n" +
+	"$notification_occurrences_invalidated\x18\xaa\x9c\x01 \x01(\v2<.chatto.core.live.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12w\n" +
+	"\x1bnotification_unread_changed\x18\xab\x9c\x01 \x01(\v23.chatto.core.live.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12f\n" +
+	"\x18room_marked_as_read_sync\x18\xac\x9c\x01 \x01(\v2*.chatto.core.live.v1.RoomMarkedAsReadEventH\x00R\x14roomMarkedAsReadSync\x12q\n" +
+	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x18mentionStatusClearedSync\x12h\n" +
+	"\x18room_groups_updated_sync\x18\xae\x9c\x01 \x01(\v2+.chatto.core.live.v1.RoomGroupsUpdatedEventH\x00R\x15roomGroupsUpdatedSync\x12k\n" +
+	"\x19session_terminated_signal\x18\xaf\x9c\x01 \x01(\v2+.chatto.core.live.v1.SessionTerminatedEventH\x00R\x17sessionTerminatedSignalB\a\n" +
+	"\x05event\"$\n" +
 	"\fRealtimePing\x12\x14\n" +
 	"\x05nonce\x18\x01 \x01(\tR\x05nonce\"$\n" +
 	"\fRealtimePong\x12\x14\n" +
@@ -1331,59 +2373,172 @@ func file_chatto_realtime_v1_realtime_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_realtime_v1_realtime_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_chatto_realtime_v1_realtime_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
-	(RealtimeInitialState)(0),          // 0: chatto.realtime.v1.RealtimeInitialState
-	(RealtimeRecoveryMode)(0),          // 1: chatto.realtime.v1.RealtimeRecoveryMode
-	(*RealtimeClientFrame)(nil),        // 2: chatto.realtime.v1.RealtimeClientFrame
-	(*RealtimeServerFrame)(nil),        // 3: chatto.realtime.v1.RealtimeServerFrame
-	(*RealtimeClientHello)(nil),        // 4: chatto.realtime.v1.RealtimeClientHello
-	(*RealtimeServerHello)(nil),        // 5: chatto.realtime.v1.RealtimeServerHello
-	(*RealtimeSubscribeEvents)(nil),    // 6: chatto.realtime.v1.RealtimeSubscribeEvents
-	(*RealtimeSubscribed)(nil),         // 7: chatto.realtime.v1.RealtimeSubscribed
-	(*RealtimeSnapshot)(nil),           // 8: chatto.realtime.v1.RealtimeSnapshot
-	(*RealtimeCaughtUp)(nil),           // 9: chatto.realtime.v1.RealtimeCaughtUp
-	(*RealtimeEvent)(nil),              // 10: chatto.realtime.v1.RealtimeEvent
-	(*RealtimePing)(nil),               // 11: chatto.realtime.v1.RealtimePing
-	(*RealtimePong)(nil),               // 12: chatto.realtime.v1.RealtimePong
-	(*RealtimeHeartbeat)(nil),          // 13: chatto.realtime.v1.RealtimeHeartbeat
-	(*RealtimeError)(nil),              // 14: chatto.realtime.v1.RealtimeError
-	(*RealtimeClose)(nil),              // 15: chatto.realtime.v1.RealtimeClose
-	(*v1.ServerPublicProfile)(nil),     // 16: chatto.api.v1.ServerPublicProfile
-	(*v1.ListRoomsResponse)(nil),       // 17: chatto.api.v1.ListRoomsResponse
-	(*v1.ListRoomGroupsResponse)(nil),  // 18: chatto.api.v1.ListRoomGroupsResponse
-	(*v1.BatchGetUsersResponse)(nil),   // 19: chatto.api.v1.BatchGetUsersResponse
-	(*v1.ListActiveCallsResponse)(nil), // 20: chatto.api.v1.ListActiveCallsResponse
-	(*v11.Event)(nil),                  // 21: chatto.core.evt.v1.Event
-	(*timestamppb.Timestamp)(nil),      // 22: google.protobuf.Timestamp
+	(RealtimeInitialState)(0),                           // 0: chatto.realtime.v1.RealtimeInitialState
+	(RealtimeRecoveryMode)(0),                           // 1: chatto.realtime.v1.RealtimeRecoveryMode
+	(*RealtimeClientFrame)(nil),                         // 2: chatto.realtime.v1.RealtimeClientFrame
+	(*RealtimeServerFrame)(nil),                         // 3: chatto.realtime.v1.RealtimeServerFrame
+	(*RealtimeClientHello)(nil),                         // 4: chatto.realtime.v1.RealtimeClientHello
+	(*RealtimeServerHello)(nil),                         // 5: chatto.realtime.v1.RealtimeServerHello
+	(*RealtimeSubscribeEvents)(nil),                     // 6: chatto.realtime.v1.RealtimeSubscribeEvents
+	(*RealtimeSubscribed)(nil),                          // 7: chatto.realtime.v1.RealtimeSubscribed
+	(*RealtimeSnapshot)(nil),                            // 8: chatto.realtime.v1.RealtimeSnapshot
+	(*RealtimeCaughtUp)(nil),                            // 9: chatto.realtime.v1.RealtimeCaughtUp
+	(*RealtimeEvent)(nil),                               // 10: chatto.realtime.v1.RealtimeEvent
+	(*PublicEvent)(nil),                                 // 11: chatto.realtime.v1.PublicEvent
+	(*RealtimePing)(nil),                                // 12: chatto.realtime.v1.RealtimePing
+	(*RealtimePong)(nil),                                // 13: chatto.realtime.v1.RealtimePong
+	(*RealtimeHeartbeat)(nil),                           // 14: chatto.realtime.v1.RealtimeHeartbeat
+	(*RealtimeError)(nil),                               // 15: chatto.realtime.v1.RealtimeError
+	(*RealtimeClose)(nil),                               // 16: chatto.realtime.v1.RealtimeClose
+	(*v1.ServerPublicProfile)(nil),                      // 17: chatto.api.v1.ServerPublicProfile
+	(*v1.ListRoomsResponse)(nil),                        // 18: chatto.api.v1.ListRoomsResponse
+	(*v1.ListRoomGroupsResponse)(nil),                   // 19: chatto.api.v1.ListRoomGroupsResponse
+	(*v1.BatchGetUsersResponse)(nil),                    // 20: chatto.api.v1.BatchGetUsersResponse
+	(*v1.ListActiveCallsResponse)(nil),                  // 21: chatto.api.v1.ListActiveCallsResponse
+	(*timestamppb.Timestamp)(nil),                       // 22: google.protobuf.Timestamp
+	(*v11.RoomCreatedEvent)(nil),                        // 23: chatto.core.evt.v1.RoomCreatedEvent
+	(*v11.RoomUpdatedEvent)(nil),                        // 24: chatto.core.evt.v1.RoomUpdatedEvent
+	(*v11.RoomDeletedEvent)(nil),                        // 25: chatto.core.evt.v1.RoomDeletedEvent
+	(*v11.RoomArchivedEvent)(nil),                       // 26: chatto.core.evt.v1.RoomArchivedEvent
+	(*v11.RoomUnarchivedEvent)(nil),                     // 27: chatto.core.evt.v1.RoomUnarchivedEvent
+	(*v11.RoomUniversalChangedEvent)(nil),               // 28: chatto.core.evt.v1.RoomUniversalChangedEvent
+	(*v11.RoomSlowModeChangedEvent)(nil),                // 29: chatto.core.evt.v1.RoomSlowModeChangedEvent
+	(*v11.RoomThreadingModeChangedEvent)(nil),           // 30: chatto.core.evt.v1.RoomThreadingModeChangedEvent
+	(*v11.UserJoinedRoomEvent)(nil),                     // 31: chatto.core.evt.v1.UserJoinedRoomEvent
+	(*v11.UserLeftRoomEvent)(nil),                       // 32: chatto.core.evt.v1.UserLeftRoomEvent
+	(*v11.CallParticipantJoinedEvent)(nil),              // 33: chatto.core.evt.v1.CallParticipantJoinedEvent
+	(*v11.CallParticipantLeftEvent)(nil),                // 34: chatto.core.evt.v1.CallParticipantLeftEvent
+	(*v11.CallStartedEvent)(nil),                        // 35: chatto.core.evt.v1.CallStartedEvent
+	(*v11.CallEndedEvent)(nil),                          // 36: chatto.core.evt.v1.CallEndedEvent
+	(*v11.MessagePostedEvent)(nil),                      // 37: chatto.core.evt.v1.MessagePostedEvent
+	(*v11.MessageEditedEvent)(nil),                      // 38: chatto.core.evt.v1.MessageEditedEvent
+	(*v11.MessageRetractedEvent)(nil),                   // 39: chatto.core.evt.v1.MessageRetractedEvent
+	(*v11.MessagePinnedEvent)(nil),                      // 40: chatto.core.evt.v1.MessagePinnedEvent
+	(*v11.MessageUnpinnedEvent)(nil),                    // 41: chatto.core.evt.v1.MessageUnpinnedEvent
+	(*v11.ThreadCreatedEvent)(nil),                      // 42: chatto.core.evt.v1.ThreadCreatedEvent
+	(*v11.AssetProcessingStartedEvent)(nil),             // 43: chatto.core.evt.v1.AssetProcessingStartedEvent
+	(*v11.AssetProcessingSucceededEvent)(nil),           // 44: chatto.core.evt.v1.AssetProcessingSucceededEvent
+	(*v11.AssetProcessingFailedEvent)(nil),              // 45: chatto.core.evt.v1.AssetProcessingFailedEvent
+	(*v11.AssetDeletedEvent)(nil),                       // 46: chatto.core.evt.v1.AssetDeletedEvent
+	(*v11.ServerMotdChangedEvent)(nil),                  // 47: chatto.core.evt.v1.ServerMotdChangedEvent
+	(*v11.UserAccountCreatedEvent)(nil),                 // 48: chatto.core.evt.v1.UserAccountCreatedEvent
+	(*v11.UserLoginChangedEvent)(nil),                   // 49: chatto.core.evt.v1.UserLoginChangedEvent
+	(*v11.UserDisplayNameChangedEvent)(nil),             // 50: chatto.core.evt.v1.UserDisplayNameChangedEvent
+	(*v11.UserAvatarSetEvent)(nil),                      // 51: chatto.core.evt.v1.UserAvatarSetEvent
+	(*v11.UserAvatarClearedEvent)(nil),                  // 52: chatto.core.evt.v1.UserAvatarClearedEvent
+	(*v11.UserAccountDeletedEvent)(nil),                 // 53: chatto.core.evt.v1.UserAccountDeletedEvent
+	(*v11.UserCustomStatusSetEvent)(nil),                // 54: chatto.core.evt.v1.UserCustomStatusSetEvent
+	(*v11.UserCustomStatusClearedEvent)(nil),            // 55: chatto.core.evt.v1.UserCustomStatusClearedEvent
+	(*v11.UserBioChangedEvent)(nil),                     // 56: chatto.core.evt.v1.UserBioChangedEvent
+	(*v11.RoomMemberBannedEvent)(nil),                   // 57: chatto.core.evt.v1.RoomMemberBannedEvent
+	(*v11.RoomMemberUnbannedEvent)(nil),                 // 58: chatto.core.evt.v1.RoomMemberUnbannedEvent
+	(*v11.RoomMemberAddedEvent)(nil),                    // 59: chatto.core.evt.v1.RoomMemberAddedEvent
+	(*v11.RoomMemberRemovedEvent)(nil),                  // 60: chatto.core.evt.v1.RoomMemberRemovedEvent
+	(*v11.ReactionAddedEvent)(nil),                      // 61: chatto.core.evt.v1.ReactionAddedEvent
+	(*v11.ReactionRemovedEvent)(nil),                    // 62: chatto.core.evt.v1.ReactionRemovedEvent
+	(*v12.UserCreatedSyncEvent)(nil),                    // 63: chatto.core.live.v1.UserCreatedSyncEvent
+	(*v12.UserProfileSyncEvent)(nil),                    // 64: chatto.core.live.v1.UserProfileSyncEvent
+	(*v12.ServerUserPreferencesSyncEvent)(nil),          // 65: chatto.core.live.v1.ServerUserPreferencesSyncEvent
+	(*v12.ThreadFollowChangedEvent)(nil),                // 66: chatto.core.live.v1.ThreadFollowChangedEvent
+	(*v12.ServerMemberDeletedEvent)(nil),                // 67: chatto.core.live.v1.ServerMemberDeletedEvent
+	(*v12.ServerUpdatedEvent)(nil),                      // 68: chatto.core.live.v1.ServerUpdatedEvent
+	(*v12.UserTypingEvent)(nil),                         // 69: chatto.core.live.v1.UserTypingEvent
+	(*v12.PresenceChangedEvent)(nil),                    // 70: chatto.core.live.v1.PresenceChangedEvent
+	(*v12.CallParticipantJoinedEvent)(nil),              // 71: chatto.core.live.v1.CallParticipantJoinedEvent
+	(*v12.CallParticipantLeftEvent)(nil),                // 72: chatto.core.live.v1.CallParticipantLeftEvent
+	(*v12.NotificationOccurrencesInvalidatedEvent)(nil), // 73: chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent
+	(*v12.NotificationUnreadChangedEvent)(nil),          // 74: chatto.core.live.v1.NotificationUnreadChangedEvent
+	(*v12.RoomMarkedAsReadEvent)(nil),                   // 75: chatto.core.live.v1.RoomMarkedAsReadEvent
+	(*v12.MentionStatusClearedEvent)(nil),               // 76: chatto.core.live.v1.MentionStatusClearedEvent
+	(*v12.RoomGroupsUpdatedEvent)(nil),                  // 77: chatto.core.live.v1.RoomGroupsUpdatedEvent
+	(*v12.SessionTerminatedEvent)(nil),                  // 78: chatto.core.live.v1.SessionTerminatedEvent
 }
 var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	4,  // 0: chatto.realtime.v1.RealtimeClientFrame.hello:type_name -> chatto.realtime.v1.RealtimeClientHello
 	6,  // 1: chatto.realtime.v1.RealtimeClientFrame.subscribe_events:type_name -> chatto.realtime.v1.RealtimeSubscribeEvents
-	11, // 2: chatto.realtime.v1.RealtimeClientFrame.ping:type_name -> chatto.realtime.v1.RealtimePing
+	12, // 2: chatto.realtime.v1.RealtimeClientFrame.ping:type_name -> chatto.realtime.v1.RealtimePing
 	5,  // 3: chatto.realtime.v1.RealtimeServerFrame.hello:type_name -> chatto.realtime.v1.RealtimeServerHello
 	7,  // 4: chatto.realtime.v1.RealtimeServerFrame.subscribed:type_name -> chatto.realtime.v1.RealtimeSubscribed
 	10, // 5: chatto.realtime.v1.RealtimeServerFrame.event:type_name -> chatto.realtime.v1.RealtimeEvent
-	13, // 6: chatto.realtime.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.realtime.v1.RealtimeHeartbeat
-	14, // 7: chatto.realtime.v1.RealtimeServerFrame.error:type_name -> chatto.realtime.v1.RealtimeError
-	15, // 8: chatto.realtime.v1.RealtimeServerFrame.close:type_name -> chatto.realtime.v1.RealtimeClose
-	12, // 9: chatto.realtime.v1.RealtimeServerFrame.pong:type_name -> chatto.realtime.v1.RealtimePong
+	14, // 6: chatto.realtime.v1.RealtimeServerFrame.heartbeat:type_name -> chatto.realtime.v1.RealtimeHeartbeat
+	15, // 7: chatto.realtime.v1.RealtimeServerFrame.error:type_name -> chatto.realtime.v1.RealtimeError
+	16, // 8: chatto.realtime.v1.RealtimeServerFrame.close:type_name -> chatto.realtime.v1.RealtimeClose
+	13, // 9: chatto.realtime.v1.RealtimeServerFrame.pong:type_name -> chatto.realtime.v1.RealtimePong
 	9,  // 10: chatto.realtime.v1.RealtimeServerFrame.caught_up:type_name -> chatto.realtime.v1.RealtimeCaughtUp
 	8,  // 11: chatto.realtime.v1.RealtimeServerFrame.snapshot:type_name -> chatto.realtime.v1.RealtimeSnapshot
 	0,  // 12: chatto.realtime.v1.RealtimeSubscribeEvents.initial_state:type_name -> chatto.realtime.v1.RealtimeInitialState
 	1,  // 13: chatto.realtime.v1.RealtimeSubscribed.recovery_mode:type_name -> chatto.realtime.v1.RealtimeRecoveryMode
-	16, // 14: chatto.realtime.v1.RealtimeSnapshot.server:type_name -> chatto.api.v1.ServerPublicProfile
-	17, // 15: chatto.realtime.v1.RealtimeSnapshot.rooms:type_name -> chatto.api.v1.ListRoomsResponse
-	18, // 16: chatto.realtime.v1.RealtimeSnapshot.room_groups:type_name -> chatto.api.v1.ListRoomGroupsResponse
-	19, // 17: chatto.realtime.v1.RealtimeSnapshot.users:type_name -> chatto.api.v1.BatchGetUsersResponse
-	20, // 18: chatto.realtime.v1.RealtimeSnapshot.active_calls:type_name -> chatto.api.v1.ListActiveCallsResponse
-	21, // 19: chatto.realtime.v1.RealtimeEvent.event:type_name -> chatto.core.evt.v1.Event
-	22, // 20: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
-	21, // [21:21] is the sub-list for method output_type
-	21, // [21:21] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	17, // 14: chatto.realtime.v1.RealtimeSnapshot.server:type_name -> chatto.api.v1.ServerPublicProfile
+	18, // 15: chatto.realtime.v1.RealtimeSnapshot.rooms:type_name -> chatto.api.v1.ListRoomsResponse
+	19, // 16: chatto.realtime.v1.RealtimeSnapshot.room_groups:type_name -> chatto.api.v1.ListRoomGroupsResponse
+	20, // 17: chatto.realtime.v1.RealtimeSnapshot.users:type_name -> chatto.api.v1.BatchGetUsersResponse
+	21, // 18: chatto.realtime.v1.RealtimeSnapshot.active_calls:type_name -> chatto.api.v1.ListActiveCallsResponse
+	11, // 19: chatto.realtime.v1.RealtimeEvent.event:type_name -> chatto.realtime.v1.PublicEvent
+	22, // 20: chatto.realtime.v1.PublicEvent.created_at:type_name -> google.protobuf.Timestamp
+	23, // 21: chatto.realtime.v1.PublicEvent.room_created:type_name -> chatto.core.evt.v1.RoomCreatedEvent
+	24, // 22: chatto.realtime.v1.PublicEvent.room_updated:type_name -> chatto.core.evt.v1.RoomUpdatedEvent
+	25, // 23: chatto.realtime.v1.PublicEvent.room_deleted:type_name -> chatto.core.evt.v1.RoomDeletedEvent
+	26, // 24: chatto.realtime.v1.PublicEvent.room_archived:type_name -> chatto.core.evt.v1.RoomArchivedEvent
+	27, // 25: chatto.realtime.v1.PublicEvent.room_unarchived:type_name -> chatto.core.evt.v1.RoomUnarchivedEvent
+	28, // 26: chatto.realtime.v1.PublicEvent.room_universal_changed:type_name -> chatto.core.evt.v1.RoomUniversalChangedEvent
+	29, // 27: chatto.realtime.v1.PublicEvent.room_slow_mode_changed:type_name -> chatto.core.evt.v1.RoomSlowModeChangedEvent
+	30, // 28: chatto.realtime.v1.PublicEvent.room_threading_mode_changed:type_name -> chatto.core.evt.v1.RoomThreadingModeChangedEvent
+	31, // 29: chatto.realtime.v1.PublicEvent.user_joined_room:type_name -> chatto.core.evt.v1.UserJoinedRoomEvent
+	32, // 30: chatto.realtime.v1.PublicEvent.user_left_room:type_name -> chatto.core.evt.v1.UserLeftRoomEvent
+	33, // 31: chatto.realtime.v1.PublicEvent.voice_call_participant_joined:type_name -> chatto.core.evt.v1.CallParticipantJoinedEvent
+	34, // 32: chatto.realtime.v1.PublicEvent.voice_call_participant_left:type_name -> chatto.core.evt.v1.CallParticipantLeftEvent
+	35, // 33: chatto.realtime.v1.PublicEvent.voice_call_started:type_name -> chatto.core.evt.v1.CallStartedEvent
+	36, // 34: chatto.realtime.v1.PublicEvent.voice_call_ended:type_name -> chatto.core.evt.v1.CallEndedEvent
+	37, // 35: chatto.realtime.v1.PublicEvent.message_posted:type_name -> chatto.core.evt.v1.MessagePostedEvent
+	38, // 36: chatto.realtime.v1.PublicEvent.message_edited:type_name -> chatto.core.evt.v1.MessageEditedEvent
+	39, // 37: chatto.realtime.v1.PublicEvent.message_retracted:type_name -> chatto.core.evt.v1.MessageRetractedEvent
+	40, // 38: chatto.realtime.v1.PublicEvent.message_pinned:type_name -> chatto.core.evt.v1.MessagePinnedEvent
+	41, // 39: chatto.realtime.v1.PublicEvent.message_unpinned:type_name -> chatto.core.evt.v1.MessageUnpinnedEvent
+	42, // 40: chatto.realtime.v1.PublicEvent.thread_created:type_name -> chatto.core.evt.v1.ThreadCreatedEvent
+	43, // 41: chatto.realtime.v1.PublicEvent.asset_processing_started:type_name -> chatto.core.evt.v1.AssetProcessingStartedEvent
+	44, // 42: chatto.realtime.v1.PublicEvent.asset_processing_succeeded:type_name -> chatto.core.evt.v1.AssetProcessingSucceededEvent
+	45, // 43: chatto.realtime.v1.PublicEvent.asset_processing_failed:type_name -> chatto.core.evt.v1.AssetProcessingFailedEvent
+	46, // 44: chatto.realtime.v1.PublicEvent.asset_deleted:type_name -> chatto.core.evt.v1.AssetDeletedEvent
+	47, // 45: chatto.realtime.v1.PublicEvent.server_motd_changed:type_name -> chatto.core.evt.v1.ServerMotdChangedEvent
+	48, // 46: chatto.realtime.v1.PublicEvent.user_account_created:type_name -> chatto.core.evt.v1.UserAccountCreatedEvent
+	49, // 47: chatto.realtime.v1.PublicEvent.user_login_changed:type_name -> chatto.core.evt.v1.UserLoginChangedEvent
+	50, // 48: chatto.realtime.v1.PublicEvent.user_display_name_changed:type_name -> chatto.core.evt.v1.UserDisplayNameChangedEvent
+	51, // 49: chatto.realtime.v1.PublicEvent.user_avatar_set:type_name -> chatto.core.evt.v1.UserAvatarSetEvent
+	52, // 50: chatto.realtime.v1.PublicEvent.user_avatar_cleared:type_name -> chatto.core.evt.v1.UserAvatarClearedEvent
+	53, // 51: chatto.realtime.v1.PublicEvent.user_account_deleted:type_name -> chatto.core.evt.v1.UserAccountDeletedEvent
+	54, // 52: chatto.realtime.v1.PublicEvent.user_custom_status_set:type_name -> chatto.core.evt.v1.UserCustomStatusSetEvent
+	55, // 53: chatto.realtime.v1.PublicEvent.user_custom_status_cleared:type_name -> chatto.core.evt.v1.UserCustomStatusClearedEvent
+	56, // 54: chatto.realtime.v1.PublicEvent.user_bio_changed:type_name -> chatto.core.evt.v1.UserBioChangedEvent
+	57, // 55: chatto.realtime.v1.PublicEvent.room_member_banned:type_name -> chatto.core.evt.v1.RoomMemberBannedEvent
+	58, // 56: chatto.realtime.v1.PublicEvent.room_member_unbanned:type_name -> chatto.core.evt.v1.RoomMemberUnbannedEvent
+	59, // 57: chatto.realtime.v1.PublicEvent.room_member_added:type_name -> chatto.core.evt.v1.RoomMemberAddedEvent
+	60, // 58: chatto.realtime.v1.PublicEvent.room_member_removed:type_name -> chatto.core.evt.v1.RoomMemberRemovedEvent
+	61, // 59: chatto.realtime.v1.PublicEvent.reaction_added:type_name -> chatto.core.evt.v1.ReactionAddedEvent
+	62, // 60: chatto.realtime.v1.PublicEvent.reaction_removed:type_name -> chatto.core.evt.v1.ReactionRemovedEvent
+	63, // 61: chatto.realtime.v1.PublicEvent.user_created_sync:type_name -> chatto.core.live.v1.UserCreatedSyncEvent
+	64, // 62: chatto.realtime.v1.PublicEvent.user_profile_sync:type_name -> chatto.core.live.v1.UserProfileSyncEvent
+	65, // 63: chatto.realtime.v1.PublicEvent.server_user_preferences_sync:type_name -> chatto.core.live.v1.ServerUserPreferencesSyncEvent
+	66, // 64: chatto.realtime.v1.PublicEvent.thread_follow_changed_sync:type_name -> chatto.core.live.v1.ThreadFollowChangedEvent
+	67, // 65: chatto.realtime.v1.PublicEvent.server_member_deleted_sync:type_name -> chatto.core.live.v1.ServerMemberDeletedEvent
+	68, // 66: chatto.realtime.v1.PublicEvent.server_updated_sync:type_name -> chatto.core.live.v1.ServerUpdatedEvent
+	69, // 67: chatto.realtime.v1.PublicEvent.user_typing_signal:type_name -> chatto.core.live.v1.UserTypingEvent
+	70, // 68: chatto.realtime.v1.PublicEvent.presence_changed_signal:type_name -> chatto.core.live.v1.PresenceChangedEvent
+	71, // 69: chatto.realtime.v1.PublicEvent.call_participant_joined_signal:type_name -> chatto.core.live.v1.CallParticipantJoinedEvent
+	72, // 70: chatto.realtime.v1.PublicEvent.call_participant_left_signal:type_name -> chatto.core.live.v1.CallParticipantLeftEvent
+	73, // 71: chatto.realtime.v1.PublicEvent.notification_occurrences_invalidated:type_name -> chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent
+	74, // 72: chatto.realtime.v1.PublicEvent.notification_unread_changed:type_name -> chatto.core.live.v1.NotificationUnreadChangedEvent
+	75, // 73: chatto.realtime.v1.PublicEvent.room_marked_as_read_sync:type_name -> chatto.core.live.v1.RoomMarkedAsReadEvent
+	76, // 74: chatto.realtime.v1.PublicEvent.mention_status_cleared_sync:type_name -> chatto.core.live.v1.MentionStatusClearedEvent
+	77, // 75: chatto.realtime.v1.PublicEvent.room_groups_updated_sync:type_name -> chatto.core.live.v1.RoomGroupsUpdatedEvent
+	78, // 76: chatto.realtime.v1.PublicEvent.session_terminated_signal:type_name -> chatto.core.live.v1.SessionTerminatedEvent
+	22, // 77: chatto.realtime.v1.RealtimeHeartbeat.created_at:type_name -> google.protobuf.Timestamp
+	78, // [78:78] is the sub-list for method output_type
+	78, // [78:78] is the sub-list for method input_type
+	78, // [78:78] is the sub-list for extension type_name
+	78, // [78:78] is the sub-list for extension extendee
+	0,  // [0:78] is the sub-list for field type_name
 }
 
 func init() { file_chatto_realtime_v1_realtime_proto_init() }
@@ -1417,15 +2572,73 @@ func file_chatto_realtime_v1_realtime_proto_init() {
 		(*RealtimeSnapshot_ActiveCalls)(nil),
 	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[8].OneofWrappers = []any{}
-	file_chatto_realtime_v1_realtime_proto_msgTypes[11].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[9].OneofWrappers = []any{
+		(*PublicEvent_RoomCreated)(nil),
+		(*PublicEvent_RoomUpdated)(nil),
+		(*PublicEvent_RoomDeleted)(nil),
+		(*PublicEvent_RoomArchived)(nil),
+		(*PublicEvent_RoomUnarchived)(nil),
+		(*PublicEvent_RoomUniversalChanged)(nil),
+		(*PublicEvent_RoomSlowModeChanged)(nil),
+		(*PublicEvent_RoomThreadingModeChanged)(nil),
+		(*PublicEvent_UserJoinedRoom)(nil),
+		(*PublicEvent_UserLeftRoom)(nil),
+		(*PublicEvent_VoiceCallParticipantJoined)(nil),
+		(*PublicEvent_VoiceCallParticipantLeft)(nil),
+		(*PublicEvent_VoiceCallStarted)(nil),
+		(*PublicEvent_VoiceCallEnded)(nil),
+		(*PublicEvent_MessagePosted)(nil),
+		(*PublicEvent_MessageEdited)(nil),
+		(*PublicEvent_MessageRetracted)(nil),
+		(*PublicEvent_MessagePinned)(nil),
+		(*PublicEvent_MessageUnpinned)(nil),
+		(*PublicEvent_ThreadCreated)(nil),
+		(*PublicEvent_AssetProcessingStarted)(nil),
+		(*PublicEvent_AssetProcessingSucceeded)(nil),
+		(*PublicEvent_AssetProcessingFailed)(nil),
+		(*PublicEvent_AssetDeleted)(nil),
+		(*PublicEvent_ServerMotdChanged)(nil),
+		(*PublicEvent_UserAccountCreated)(nil),
+		(*PublicEvent_UserLoginChanged)(nil),
+		(*PublicEvent_UserDisplayNameChanged)(nil),
+		(*PublicEvent_UserAvatarSet)(nil),
+		(*PublicEvent_UserAvatarCleared)(nil),
+		(*PublicEvent_UserAccountDeleted)(nil),
+		(*PublicEvent_UserCustomStatusSet)(nil),
+		(*PublicEvent_UserCustomStatusCleared)(nil),
+		(*PublicEvent_UserBioChanged)(nil),
+		(*PublicEvent_RoomMemberBanned)(nil),
+		(*PublicEvent_RoomMemberUnbanned)(nil),
+		(*PublicEvent_RoomMemberAdded)(nil),
+		(*PublicEvent_RoomMemberRemoved)(nil),
+		(*PublicEvent_ReactionAdded)(nil),
+		(*PublicEvent_ReactionRemoved)(nil),
+		(*PublicEvent_UserCreatedSync)(nil),
+		(*PublicEvent_UserProfileSync)(nil),
+		(*PublicEvent_ServerUserPreferencesSync)(nil),
+		(*PublicEvent_ThreadFollowChangedSync)(nil),
+		(*PublicEvent_ServerMemberDeletedSync)(nil),
+		(*PublicEvent_ServerUpdatedSync)(nil),
+		(*PublicEvent_UserTypingSignal)(nil),
+		(*PublicEvent_PresenceChangedSignal)(nil),
+		(*PublicEvent_CallParticipantJoinedSignal)(nil),
+		(*PublicEvent_CallParticipantLeftSignal)(nil),
+		(*PublicEvent_NotificationOccurrencesInvalidated)(nil),
+		(*PublicEvent_NotificationUnreadChanged)(nil),
+		(*PublicEvent_RoomMarkedAsReadSync)(nil),
+		(*PublicEvent_MentionStatusClearedSync)(nil),
+		(*PublicEvent_RoomGroupsUpdatedSync)(nil),
+		(*PublicEvent_SessionTerminatedSignal)(nil),
+	}
 	file_chatto_realtime_v1_realtime_proto_msgTypes[12].OneofWrappers = []any{}
+	file_chatto_realtime_v1_realtime_proto_msgTypes[13].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_realtime_v1_realtime_proto_rawDesc), len(file_chatto_realtime_v1_realtime_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   14,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

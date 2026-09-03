@@ -7,27 +7,48 @@ import (
 
 	eventv1 "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-// projectRealtimeEvent creates a new public event. It never mutates or clones
-// unclassified fields from the stored or transient source event.
-func projectRealtimeEvent(source *evtv1.Event) *evtv1.Event {
-	if !isRealtimePublicEvent(source) {
+// projectRealtimeEvent maps one canonical event to the public realtime union.
+// The public union field number and payload type must match the canonical
+// event. The function never mutates or copies unclassified source fields.
+func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
+	if source == nil || source.GetEvent() == nil {
 		return nil
 	}
-	target := &evtv1.Event{}
-	copyRealtimeMessage(source.ProtoReflect(), target.ProtoReflect(), true, false)
+	sourceMessage := source.ProtoReflect()
+	sourceOneof := sourceMessage.Descriptor().Oneofs().ByName("event")
+	sourcePayload := sourceMessage.WhichOneof(sourceOneof)
+	if sourcePayload == nil {
+		return nil
+	}
+
+	target := &realtimev1.PublicEvent{}
+	targetMessage := target.ProtoReflect()
+	targetPayload := targetMessage.Descriptor().Fields().ByNumber(sourcePayload.Number())
+	if targetPayload == nil || targetPayload.ContainingOneof() == nil ||
+		targetPayload.ContainingOneof().Name() != "event" ||
+		targetPayload.Message().FullName() != sourcePayload.Message().FullName() {
+		return nil
+	}
+
+	for _, number := range []protoreflect.FieldNumber{1, 2, 3} {
+		sourceField := sourceMessage.Descriptor().Fields().ByNumber(number)
+		if !sourceMessage.Has(sourceField) {
+			continue
+		}
+		targetField := targetMessage.Descriptor().Fields().ByNumber(number)
+		copyRealtimeField(targetMessage, targetField, sourceMessage.Get(sourceField), true)
+	}
+	payload := targetMessage.NewField(targetPayload).Message()
+	copyRealtimeMessage(sourceMessage.Get(sourcePayload).Message(), payload, false)
+	targetMessage.Set(targetPayload, protoreflect.ValueOfMessage(payload))
 	return target
 }
 
-func copyRealtimeMessage(source, target protoreflect.Message, eventEnvelope, inheritUnspecified bool) {
+func copyRealtimeMessage(source, target protoreflect.Message, inheritUnspecified bool) {
 	source.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
-		if eventEnvelope && field.ContainingOneof() != nil && field.ContainingOneof().Name() == "event" {
-			payload := target.NewField(field).Message()
-			copyRealtimeMessage(value.Message(), payload, false, false)
-			target.Set(field, protoreflect.ValueOfMessage(payload))
-			return true
-		}
 		surface := realtimeFieldSurface(field)
 		allowed := surface == eventv1.EventFieldSurface_EVENT_FIELD_SURFACE_SHARED ||
 			surface == eventv1.EventFieldSurface_EVENT_FIELD_SURFACE_CLIENT_ONLY ||
@@ -67,7 +88,7 @@ func copyRealtimeField(target protoreflect.Message, field protoreflect.FieldDesc
 				continue
 			}
 			item := out.NewElement().Message()
-			copyRealtimeMessage(in.Get(index).Message(), item, false, inheritUnspecified)
+			copyRealtimeMessage(in.Get(index).Message(), item, inheritUnspecified)
 			out.Append(protoreflect.ValueOfMessage(item))
 		}
 		return
@@ -80,7 +101,7 @@ func copyRealtimeField(target protoreflect.Message, field protoreflect.FieldDesc
 				return true
 			}
 			mapped := out.NewValue().Message()
-			copyRealtimeMessage(item.Message(), mapped, false, inheritUnspecified)
+			copyRealtimeMessage(item.Message(), mapped, inheritUnspecified)
 			out.Set(key, protoreflect.ValueOfMessage(mapped))
 			return true
 		})
@@ -88,7 +109,7 @@ func copyRealtimeField(target protoreflect.Message, field protoreflect.FieldDesc
 	}
 	if field.Message() != nil {
 		message := target.NewField(field).Message()
-		copyRealtimeMessage(value.Message(), message, false, inheritUnspecified)
+		copyRealtimeMessage(value.Message(), message, inheritUnspecified)
 		target.Set(field, protoreflect.ValueOfMessage(message))
 		return
 	}
@@ -100,71 +121,4 @@ func cloneRealtimeScalar(field protoreflect.FieldDescriptor, value protoreflect.
 		return protoreflect.ValueOfBytes(append([]byte(nil), value.Bytes()...))
 	}
 	return value
-}
-
-func isRealtimePublicEvent(event *evtv1.Event) bool {
-	if event == nil || event.GetEvent() == nil {
-		return false
-	}
-	switch event.GetEvent().(type) {
-	case *evtv1.Event_MessagePosted,
-		*evtv1.Event_MessageEdited,
-		*evtv1.Event_MessageRetracted,
-		*evtv1.Event_MessagePinned,
-		*evtv1.Event_MessageUnpinned,
-		*evtv1.Event_ReactionAdded,
-		*evtv1.Event_ReactionRemoved,
-		*evtv1.Event_AssetProcessingStarted,
-		*evtv1.Event_AssetProcessingSucceeded,
-		*evtv1.Event_AssetProcessingFailed,
-		*evtv1.Event_AssetDeleted,
-		*evtv1.Event_VoiceCallStarted,
-		*evtv1.Event_VoiceCallParticipantJoined,
-		*evtv1.Event_VoiceCallParticipantLeft,
-		*evtv1.Event_VoiceCallEnded,
-		*evtv1.Event_RoomCreated,
-		*evtv1.Event_RoomUpdated,
-		*evtv1.Event_RoomDeleted,
-		*evtv1.Event_RoomArchived,
-		*evtv1.Event_RoomUnarchived,
-		*evtv1.Event_RoomUniversalChanged,
-		*evtv1.Event_RoomSlowModeChanged,
-		*evtv1.Event_RoomThreadingModeChanged,
-		*evtv1.Event_UserJoinedRoom,
-		*evtv1.Event_UserLeftRoom,
-		*evtv1.Event_RoomMemberAdded,
-		*evtv1.Event_RoomMemberRemoved,
-		*evtv1.Event_RoomMemberBanned,
-		*evtv1.Event_RoomMemberUnbanned,
-		*evtv1.Event_ThreadCreated,
-		*evtv1.Event_UserAccountCreated,
-		*evtv1.Event_UserCustomStatusSet,
-		*evtv1.Event_UserCustomStatusCleared,
-		*evtv1.Event_UserLoginChanged,
-		*evtv1.Event_UserDisplayNameChanged,
-		*evtv1.Event_UserBioChanged,
-		*evtv1.Event_UserAvatarSet,
-		*evtv1.Event_UserAvatarCleared,
-		*evtv1.Event_UserAccountDeleted,
-		*evtv1.Event_ServerMotdChanged,
-		*evtv1.Event_UserCreatedSync,
-		*evtv1.Event_UserProfileSync,
-		*evtv1.Event_ServerUserPreferencesSync,
-		*evtv1.Event_ThreadFollowChangedSync,
-		*evtv1.Event_ServerMemberDeletedSync,
-		*evtv1.Event_ServerUpdatedSync,
-		*evtv1.Event_UserTypingSignal,
-		*evtv1.Event_PresenceChangedSignal,
-		*evtv1.Event_CallParticipantJoinedSignal,
-		*evtv1.Event_CallParticipantLeftSignal,
-		*evtv1.Event_NotificationOccurrencesInvalidated,
-		*evtv1.Event_NotificationUnreadChanged,
-		*evtv1.Event_RoomMarkedAsReadSync,
-		*evtv1.Event_MentionStatusClearedSync,
-		*evtv1.Event_RoomGroupsUpdatedSync,
-		*evtv1.Event_SessionTerminatedSignal:
-		return true
-	default:
-		return false
-	}
 }

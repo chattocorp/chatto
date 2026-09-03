@@ -14,7 +14,7 @@ Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) b
 
 
 
-This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the public `chatto.core.evt.v1.Event` variants and payload fields.
+This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the `chatto.realtime.v1.PublicEvent` variants and payload fields.
 
 
 
@@ -25,6 +25,78 @@ Realtime frames are documented separately from ConnectRPC services because they 
 ## Protocol Types
 
 
+
+<a id="chatto-realtime-v1-PublicEvent"></a>
+
+### PublicEvent
+
+Public event metadata and payload.
+
+Each payload field reuses the canonical payload message and field number.
+The union is the public event catalogue. A canonical event that is absent
+from this union is not part of the realtime API.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Universal event identifier (NanoID). |
+| `created_at` | `google.protobuf.Timestamp` | Time when the source event was created. |
+| `actor_id` | `string` | ID of the user that caused the event. An empty value means no user actor. |
+| `event.room_created` | `chatto.core.evt.v1.RoomCreatedEvent` | No field description provided. |
+| `event.room_updated` | `chatto.core.evt.v1.RoomUpdatedEvent` | No field description provided. |
+| `event.room_deleted` | `chatto.core.evt.v1.RoomDeletedEvent` | No field description provided. |
+| `event.room_archived` | `chatto.core.evt.v1.RoomArchivedEvent` | No field description provided. |
+| `event.room_unarchived` | `chatto.core.evt.v1.RoomUnarchivedEvent` | No field description provided. |
+| `event.room_universal_changed` | `chatto.core.evt.v1.RoomUniversalChangedEvent` | No field description provided. |
+| `event.room_slow_mode_changed` | `chatto.core.evt.v1.RoomSlowModeChangedEvent` | No field description provided. |
+| `event.room_threading_mode_changed` | `chatto.core.evt.v1.RoomThreadingModeChangedEvent` | No field description provided. |
+| `event.user_joined_room` | `chatto.core.evt.v1.UserJoinedRoomEvent` | No field description provided. |
+| `event.user_left_room` | `chatto.core.evt.v1.UserLeftRoomEvent` | No field description provided. |
+| `event.voice_call_participant_joined` | `chatto.core.evt.v1.CallParticipantJoinedEvent` | No field description provided. |
+| `event.voice_call_participant_left` | `chatto.core.evt.v1.CallParticipantLeftEvent` | No field description provided. |
+| `event.voice_call_started` | `chatto.core.evt.v1.CallStartedEvent` | No field description provided. |
+| `event.voice_call_ended` | `chatto.core.evt.v1.CallEndedEvent` | No field description provided. |
+| `event.message_posted` | `chatto.core.evt.v1.MessagePostedEvent` | No field description provided. |
+| `event.message_edited` | `chatto.core.evt.v1.MessageEditedEvent` | No field description provided. |
+| `event.message_retracted` | `chatto.core.evt.v1.MessageRetractedEvent` | No field description provided. |
+| `event.message_pinned` | `chatto.core.evt.v1.MessagePinnedEvent` | No field description provided. |
+| `event.message_unpinned` | `chatto.core.evt.v1.MessageUnpinnedEvent` | No field description provided. |
+| `event.thread_created` | `chatto.core.evt.v1.ThreadCreatedEvent` | No field description provided. |
+| `event.asset_processing_started` | `chatto.core.evt.v1.AssetProcessingStartedEvent` | No field description provided. |
+| `event.asset_processing_succeeded` | `chatto.core.evt.v1.AssetProcessingSucceededEvent` | No field description provided. |
+| `event.asset_processing_failed` | `chatto.core.evt.v1.AssetProcessingFailedEvent` | No field description provided. |
+| `event.asset_deleted` | `chatto.core.evt.v1.AssetDeletedEvent` | No field description provided. |
+| `event.server_motd_changed` | `chatto.core.evt.v1.ServerMotdChangedEvent` | No field description provided. |
+| `event.user_account_created` | `chatto.core.evt.v1.UserAccountCreatedEvent` | No field description provided. |
+| `event.user_login_changed` | `chatto.core.evt.v1.UserLoginChangedEvent` | No field description provided. |
+| `event.user_display_name_changed` | `chatto.core.evt.v1.UserDisplayNameChangedEvent` | No field description provided. |
+| `event.user_avatar_set` | `chatto.core.evt.v1.UserAvatarSetEvent` | No field description provided. |
+| `event.user_avatar_cleared` | `chatto.core.evt.v1.UserAvatarClearedEvent` | No field description provided. |
+| `event.user_account_deleted` | `chatto.core.evt.v1.UserAccountDeletedEvent` | No field description provided. |
+| `event.user_custom_status_set` | `chatto.core.evt.v1.UserCustomStatusSetEvent` | No field description provided. |
+| `event.user_custom_status_cleared` | `chatto.core.evt.v1.UserCustomStatusClearedEvent` | No field description provided. |
+| `event.user_bio_changed` | `chatto.core.evt.v1.UserBioChangedEvent` | No field description provided. |
+| `event.room_member_banned` | `chatto.core.evt.v1.RoomMemberBannedEvent` | No field description provided. |
+| `event.room_member_unbanned` | `chatto.core.evt.v1.RoomMemberUnbannedEvent` | No field description provided. |
+| `event.room_member_added` | `chatto.core.evt.v1.RoomMemberAddedEvent` | No field description provided. |
+| `event.room_member_removed` | `chatto.core.evt.v1.RoomMemberRemovedEvent` | No field description provided. |
+| `event.reaction_added` | `chatto.core.evt.v1.ReactionAddedEvent` | No field description provided. |
+| `event.reaction_removed` | `chatto.core.evt.v1.ReactionRemovedEvent` | No field description provided. |
+| `event.user_created_sync` | `chatto.core.live.v1.UserCreatedSyncEvent` | No field description provided. |
+| `event.user_profile_sync` | `chatto.core.live.v1.UserProfileSyncEvent` | No field description provided. |
+| `event.server_user_preferences_sync` | `chatto.core.live.v1.ServerUserPreferencesSyncEvent` | No field description provided. |
+| `event.thread_follow_changed_sync` | `chatto.core.live.v1.ThreadFollowChangedEvent` | No field description provided. |
+| `event.server_member_deleted_sync` | `chatto.core.live.v1.ServerMemberDeletedEvent` | No field description provided. |
+| `event.server_updated_sync` | `chatto.core.live.v1.ServerUpdatedEvent` | No field description provided. |
+| `event.user_typing_signal` | `chatto.core.live.v1.UserTypingEvent` | No field description provided. |
+| `event.presence_changed_signal` | `chatto.core.live.v1.PresenceChangedEvent` | No field description provided. |
+| `event.call_participant_joined_signal` | `chatto.core.live.v1.CallParticipantJoinedEvent` | No field description provided. |
+| `event.call_participant_left_signal` | `chatto.core.live.v1.CallParticipantLeftEvent` | No field description provided. |
+| `event.notification_occurrences_invalidated` | `chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent` | No field description provided. |
+| `event.notification_unread_changed` | `chatto.core.live.v1.NotificationUnreadChangedEvent` | No field description provided. |
+| `event.room_marked_as_read_sync` | `chatto.core.live.v1.RoomMarkedAsReadEvent` | No field description provided. |
+| `event.mention_status_cleared_sync` | `chatto.core.live.v1.MentionStatusClearedEvent` | No field description provided. |
+| `event.room_groups_updated_sync` | `chatto.core.live.v1.RoomGroupsUpdatedEvent` | No field description provided. |
+| `event.session_terminated_signal` | `chatto.core.live.v1.SessionTerminatedEvent` | No field description provided. |
 
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
@@ -47,12 +119,12 @@ Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
 
 Clients send binary protobuf frames to `/api/realtime`. The first frame must
 be `hello`. After the server replies with `hello`, clients send
-`subscribe_events` to start one authorized canonical event stream.
+`subscribe_events` to start one authorized public event stream.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
-| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized canonical event stream. |
+| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized public event stream. |
 | `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
 
 <a id="chatto-realtime-v1-RealtimeClientHello"></a>
@@ -97,16 +169,15 @@ Protocol error.
 
 ### RealtimeEvent
 
-One authorized canonical event.
+One authorized public event.
 
-`event` uses Chatto's canonical event shape for both durable and transient
-activity. The server creates a fresh caller-specific value and omits events
-and fields that the caller cannot see. Durable events have a resume cursor.
-Transient events do not.
+The server creates a fresh caller-specific value and omits events and fields
+that the caller cannot see. Durable events have a resume cursor. Transient
+events do not.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `event` | [`chatto.core.evt.v1.Event`](/reference/connectrpc-api/realtime-events/#chatto-core-evt-v1-Event) | Authorized canonical event. The server never sends raw stored bytes. |
+| `event` | [`PublicEvent`](#chatto-realtime-v1-PublicEvent) | Authorized public event. The server never sends raw stored bytes. |
 | `resume_cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
 
 <a id="chatto-realtime-v1-RealtimeHeartbeat"></a>
@@ -151,7 +222,7 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 | --- | --- | --- |
 | `frame.hello` | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol and server versions. |
 | `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the stream and the recovery mode that the server selected. |
-| `frame.event` | [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) | One authorized canonical event copy. |
+| `frame.event` | [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) | One authorized public event copy. |
 | `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
 | `frame.error` | [`RealtimeError`](#chatto-realtime-v1-RealtimeError) | Protocol or authorization error. |
 | `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
@@ -195,7 +266,7 @@ snapshot and remain available through ConnectRPC.
 
 ### RealtimeSubscribeEvents
 
-Request to start the caller's authorized canonical event stream.
+Request to start the caller's authorized public event stream.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -228,7 +299,7 @@ Startup behavior when a subscription cannot resume from its cursor.
 | --- | --- | --- |
 | `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
 | `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
-| `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an exact authorized snapshot before later canonical events. |
+| `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an exact authorized snapshot before later public events. |
 
 <a id="chatto-realtime-v1-RealtimeRecoveryMode"></a>
 

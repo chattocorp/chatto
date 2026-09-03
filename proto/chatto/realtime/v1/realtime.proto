@@ -2,18 +2,26 @@ syntax = "proto3";
 
 package chatto.realtime.v1;
 
-import "chatto/core/evt/v1/event.proto";
 import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/server.proto";
 import "chatto/api/v1/user_service.proto";
 import "chatto/api/v1/voice_calls.proto";
+import "chatto/core/evt/v1/asset_events.proto";
+import "chatto/core/evt/v1/config_events.proto";
+import "chatto/core/evt/v1/message_events.proto";
+import "chatto/core/evt/v1/moderation_events.proto";
+import "chatto/core/evt/v1/reaction_events.proto";
+import "chatto/core/evt/v1/room_events.proto";
+import "chatto/core/evt/v1/thread_events.proto";
+import "chatto/core/evt/v1/user_events.proto";
+import "chatto/core/live/v1/live_events.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
 //
 // Clients send binary protobuf frames to `/api/realtime`. The first frame must
 // be `hello`. After the server replies with `hello`, clients send
-// `subscribe_events` to start one authorized canonical event stream.
+// `subscribe_events` to start one authorized public event stream.
 message RealtimeClientFrame {
   reserved 4, 5;
   reserved "ack", "hydrate_room", "catch_up";
@@ -21,7 +29,7 @@ message RealtimeClientFrame {
   oneof frame {
     // Opens the protocol session and optionally carries a bearer token.
     RealtimeClientHello hello = 1;
-    // Starts the caller's authorized canonical event stream.
+    // Starts the caller's authorized public event stream.
     RealtimeSubscribeEvents subscribe_events = 2;
     // Application-level ping. The server replies with `pong`.
     RealtimePing ping = 3;
@@ -35,7 +43,7 @@ message RealtimeServerFrame {
     RealtimeServerHello hello = 1;
     // Confirms the stream and the recovery mode that the server selected.
     RealtimeSubscribed subscribed = 2;
-    // One authorized canonical event copy.
+    // One authorized public event copy.
     RealtimeEvent event = 3;
     // Application-level heartbeat used for liveness checks.
     RealtimeHeartbeat heartbeat = 4;
@@ -83,7 +91,7 @@ enum RealtimeInitialState {
   REALTIME_INITIAL_STATE_UNSPECIFIED = 0;
   // Start at the current event boundary without sending current resources.
   REALTIME_INITIAL_STATE_LIVE_ONLY = 1;
-  // Send an exact authorized snapshot before later canonical events.
+  // Send an exact authorized snapshot before later public events.
   REALTIME_INITIAL_STATE_SNAPSHOT = 2;
 }
 
@@ -99,7 +107,7 @@ enum RealtimeRecoveryMode {
   REALTIME_RECOVERY_MODE_RESUME = 3;
 }
 
-// Request to start the caller's authorized canonical event stream.
+// Request to start the caller's authorized public event stream.
 message RealtimeSubscribeEvents {
   reserved 2;
   reserved "retained_room_ids";
@@ -152,20 +160,94 @@ message RealtimeCaughtUp {
   string cursor = 1;
 }
 
-// One authorized canonical event.
+// One authorized public event.
 //
-// `event` uses Chatto's canonical event shape for both durable and transient
-// activity. The server creates a fresh caller-specific value and omits events
-// and fields that the caller cannot see. Durable events have a resume cursor.
-// Transient events do not.
+// The server creates a fresh caller-specific value and omits events and fields
+// that the caller cannot see. Durable events have a resume cursor. Transient
+// events do not.
 message RealtimeEvent {
   reserved 3;
   reserved "state";
 
-  // Authorized canonical event. The server never sends raw stored bytes.
-  chatto.core.evt.v1.Event event = 1;
+  // Authorized public event. The server never sends raw stored bytes.
+  PublicEvent event = 1;
   // Opaque cursor safe to retain after this complete event is accepted.
   optional string resume_cursor = 2;
+}
+
+// Public event metadata and payload.
+//
+// Each payload field reuses the canonical payload message and field number.
+// The union is the public event catalogue. A canonical event that is absent
+// from this union is not part of the realtime API.
+message PublicEvent {
+  // Universal event identifier (NanoID).
+  string id = 1;
+  // Time when the source event was created.
+  google.protobuf.Timestamp created_at = 2;
+  // ID of the user that caused the event. An empty value means no user actor.
+  string actor_id = 3;
+
+  // Authorized semantic payload.
+  oneof event {
+    chatto.core.evt.v1.RoomCreatedEvent room_created = 300;
+    chatto.core.evt.v1.RoomUpdatedEvent room_updated = 301;
+    chatto.core.evt.v1.RoomDeletedEvent room_deleted = 302;
+    chatto.core.evt.v1.RoomArchivedEvent room_archived = 303;
+    chatto.core.evt.v1.RoomUnarchivedEvent room_unarchived = 304;
+    chatto.core.evt.v1.RoomUniversalChangedEvent room_universal_changed = 305;
+    chatto.core.evt.v1.RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+    chatto.core.evt.v1.RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+    chatto.core.evt.v1.UserJoinedRoomEvent user_joined_room = 310;
+    chatto.core.evt.v1.UserLeftRoomEvent user_left_room = 311;
+    chatto.core.evt.v1.CallParticipantJoinedEvent voice_call_participant_joined = 330;
+    chatto.core.evt.v1.CallParticipantLeftEvent voice_call_participant_left = 331;
+    chatto.core.evt.v1.CallStartedEvent voice_call_started = 332;
+    chatto.core.evt.v1.CallEndedEvent voice_call_ended = 333;
+    chatto.core.evt.v1.MessagePostedEvent message_posted = 400;
+    chatto.core.evt.v1.MessageEditedEvent message_edited = 401;
+    chatto.core.evt.v1.MessageRetractedEvent message_retracted = 402;
+    chatto.core.evt.v1.MessagePinnedEvent message_pinned = 405;
+    chatto.core.evt.v1.MessageUnpinnedEvent message_unpinned = 406;
+    chatto.core.evt.v1.ThreadCreatedEvent thread_created = 425;
+    chatto.core.evt.v1.AssetProcessingStartedEvent asset_processing_started = 451;
+    chatto.core.evt.v1.AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+    chatto.core.evt.v1.AssetProcessingFailedEvent asset_processing_failed = 453;
+    chatto.core.evt.v1.AssetDeletedEvent asset_deleted = 454;
+    chatto.core.evt.v1.ServerMotdChangedEvent server_motd_changed = 504;
+    chatto.core.evt.v1.UserAccountCreatedEvent user_account_created = 700;
+    chatto.core.evt.v1.UserLoginChangedEvent user_login_changed = 701;
+    chatto.core.evt.v1.UserDisplayNameChangedEvent user_display_name_changed = 702;
+    chatto.core.evt.v1.UserAvatarSetEvent user_avatar_set = 703;
+    chatto.core.evt.v1.UserAvatarClearedEvent user_avatar_cleared = 704;
+    chatto.core.evt.v1.UserAccountDeletedEvent user_account_deleted = 710;
+    chatto.core.evt.v1.UserCustomStatusSetEvent user_custom_status_set = 715;
+    chatto.core.evt.v1.UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+    chatto.core.evt.v1.UserBioChangedEvent user_bio_changed = 722;
+    chatto.core.evt.v1.RoomMemberBannedEvent room_member_banned = 840;
+    chatto.core.evt.v1.RoomMemberUnbannedEvent room_member_unbanned = 841;
+    chatto.core.evt.v1.RoomMemberAddedEvent room_member_added = 842;
+    chatto.core.evt.v1.RoomMemberRemovedEvent room_member_removed = 843;
+    chatto.core.evt.v1.ReactionAddedEvent reaction_added = 1050;
+    chatto.core.evt.v1.ReactionRemovedEvent reaction_removed = 1051;
+
+    chatto.core.live.v1.UserCreatedSyncEvent user_created_sync = 20000;
+    chatto.core.live.v1.UserProfileSyncEvent user_profile_sync = 20001;
+    chatto.core.live.v1.ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
+    chatto.core.live.v1.ThreadFollowChangedEvent thread_follow_changed_sync = 20003;
+    chatto.core.live.v1.ServerMemberDeletedEvent server_member_deleted_sync = 20004;
+    chatto.core.live.v1.ServerUpdatedEvent server_updated_sync = 20005;
+    chatto.core.live.v1.UserTypingEvent user_typing_signal = 20006;
+    chatto.core.live.v1.PresenceChangedEvent presence_changed_signal = 20007;
+    chatto.core.live.v1.CallParticipantJoinedEvent call_participant_joined_signal = 20008;
+    chatto.core.live.v1.CallParticipantLeftEvent call_participant_left_signal = 20009;
+    chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
+    chatto.core.live.v1.NotificationUnreadChangedEvent notification_unread_changed = 20011;
+    chatto.core.live.v1.RoomMarkedAsReadEvent room_marked_as_read_sync = 20012;
+    chatto.core.live.v1.MentionStatusClearedEvent mention_status_cleared_sync = 20013;
+    chatto.core.live.v1.RoomGroupsUpdatedEvent room_groups_updated_sync = 20014;
+    chatto.core.live.v1.SessionTerminatedEvent session_terminated_signal = 20015;
+  }
 }
 
 // Application-level ping.

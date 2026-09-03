@@ -106,4 +106,5 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
 | [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Accepted | 2026-09-02 |
 | [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
-| [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) | Use One Event Vocabulary for Storage, Live Delivery, and Realtime | Accepted | 2026-08-31 |
+| [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) | Use One Event Vocabulary for Storage, Live Delivery, and Realtime | Partially superseded | 2026-08-31 |
+| [ADR-092](ADR-092-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Canonical Payloads | Accepted | 2026-09-03 |

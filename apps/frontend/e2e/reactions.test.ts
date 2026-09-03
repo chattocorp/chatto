@@ -36,7 +36,7 @@ test.describe('Emoji reactions', () => {
     await message.expectNoReaction('❤️');
   });
 
-  test('real-time reaction sync via canonical event subscription', async ({
+  test('real-time reaction sync via public event subscription', async ({
     page,
     chatPage,
     roomPage,
@@ -72,7 +72,7 @@ test.describe('Emoji reactions', () => {
         await message2.react('😂');
         await message2.expectReaction('😂', 1);
 
-        // User 1 should see the reaction through canonical realtime delivery.
+        // User 1 should see the reaction through public realtime delivery.
         await message1.expectReaction('😂', 1);
       },
       { viewport: { width: 1280, height: 720 } }

@@ -470,7 +470,7 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,
   user/config/member subject gates, and projection readiness.
-- Live delivery plus protocol-4 bounded replay of authorized canonical durable
+- Live delivery plus protocol-4 bounded replay of authorized public durable
   events. The WebSocket subscribes to the hub before it captures its EVT
   cutoff, replays through that cutoff, and then drops buffered duplicates
   before it continues live. Fresh and unsafe subscriptions use an exact

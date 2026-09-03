@@ -69,7 +69,7 @@ agent integration.
 Authenticated realtime clients connect to `/api/realtime` and exchange
 protobuf `chatto.realtime.v1` frames. The package name is the protobuf
 namespace; 0.5 servers accept only behavioral protocol version 4. The stream
-sends authorized canonical events for messages, edits, reactions, rooms,
+sends authorized public events for messages, edits, reactions, rooms,
 membership, profiles, calls, and other public activity.
 
 A subscription selects a `SNAPSHOT` or `LIVE_ONLY` fallback. A bot can select
@@ -88,7 +88,7 @@ for the connection lifecycle and reducer rules. Then use the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to connect a
 small browser client.
 
-Durable events contain one authorized canonical event and an opaque resume
+Durable events contain one authorized public event and an opaque resume
 cursor. They do not contain resource sidecars. Typing, presence changes, and
 session termination are transient and do not have resume cursors. Snapshot
 frames reuse canonical public resource messages. Clients use event variants as

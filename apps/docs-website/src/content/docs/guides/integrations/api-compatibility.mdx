@@ -40,11 +40,17 @@ The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
 realtime protocol 4. Protocol 4 replaces earlier development protocols during
-the 0.5 alpha. It uses exact canonical-resource snapshots, authorized canonical
+the 0.5 alpha. It uses exact canonical-resource snapshots, authorized public
 events, explicit `SNAPSHOT` or `LIVE_ONLY` startup, targeted cursor-bounded
 ConnectRPC reads, and bounded cursor resume. Normal event frames contain only a
-canonical Event and an opaque cursor. Regenerate clients and update the
-handshake and reducers together.
+`chatto.realtime.v1.PublicEvent` and an opaque cursor. Public union members
+reuse canonical payload messages. Regenerate clients and update the handshake
+and reducers together.
+
+Existing public event variants keep the same nested protobuf wire bytes because
+their metadata and payload fields keep the canonical numbers and types. The
+generated source type changes from the complete canonical Event to
+`PublicEvent`, so integrations must still regenerate their clients.
 
 The `chatto.realtime.v1` protobuf package name does not select behavioral
 protocol version 1. The `hello.protocol_version` field selects the complete

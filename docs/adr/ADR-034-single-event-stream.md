@@ -3,7 +3,8 @@
 **Status:** Partially superseded by
 [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 The single durable stream remains active. ADR-091 replaces the separate
-transient envelope.
+transient envelope. [ADR-092](ADR-092-use-a-public-realtime-event-union.md)
+defines the current public mapping.
 
 **Date:** 2026-05-24
 
@@ -114,8 +115,8 @@ EVT-backed mutations must not publish direct event-envelope live mirrors.
 `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the
 public realtime stream. Durable facts reach the mapper through EVT republish.
 Ephemeral activity and latest-value invalidations reach it as transient
-canonical Events. Both become authorized Event copies with optional current
-state.
+canonical Events. Both become authorized public events with canonical payload
+messages.
 
 ### Replication and retention
 

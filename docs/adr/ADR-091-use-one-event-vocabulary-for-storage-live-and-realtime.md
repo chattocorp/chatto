@@ -1,6 +1,10 @@
 # ADR-091: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
 
-**Status:** Accepted
+**Status:** Partially superseded by
+[ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-092 replaces the
+public use of the complete canonical envelope with a public union that reuses
+the same payload messages. The canonical storage and transient envelope
+decision in this ADR remains active.
 **Date:** 2026-08-31
 
 **Supersedes:** The separate-public-schema rule in
@@ -57,6 +61,8 @@ Transient payload messages stay in `chatto.core.live.v1`; moving those symbols
 would add source churn without changing the one-envelope runtime model.
 
 ### Public delivery uses an authorized Event copy
+
+This section is superseded by ADR-092. It records the first protocol 4 design.
 
 `chatto.realtime.v1.RealtimeEvent` is a transport wrapper. It contains:
 

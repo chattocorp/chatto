@@ -185,12 +185,12 @@ func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.Realti
 	}
 }
 
-func readCanonicalRealtimeEvent(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeEvent {
+func readPublicRealtimeEvent(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeEvent {
 	t.Helper()
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
-			t.Fatal("timed out waiting for canonical realtime event")
+			t.Fatal("timed out waiting for public realtime event")
 		}
 		if event := frame.GetEvent(); event != nil {
 			return event
@@ -198,7 +198,7 @@ func readCanonicalRealtimeEvent(t testing.TB, conn *websocket.Conn) *realtimev1.
 	}
 }
 
-func TestRealtimeDurableEventHasCanonicalShapeAndOpaqueCursor(t *testing.T) {
+func TestRealtimeDurableEventHasPublicShapeAndOpaqueCursor(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "cursor-user", "Cursor User", "password123")
 	if err != nil {
@@ -221,7 +221,7 @@ func TestRealtimeDurableEventHasCanonicalShapeAndOpaqueCursor(t *testing.T) {
 	}
 	bioChanged := frame.GetEvent().GetEvent().GetUserBioChanged()
 	if bioChanged == nil {
-		t.Fatal("realtime event omitted canonical user_bio_changed fact")
+		t.Fatal("realtime event omitted public user_bio_changed fact")
 	}
 	if bioChanged.GetBioPlaintext() != "new bio" {
 		t.Fatalf("bio_plaintext = %q, want decrypted delivery value", bioChanged.GetBioPlaintext())
@@ -413,7 +413,7 @@ func TestRealtimeWebSocketSnapshotHandsOffToSubsequentBufferedEvent(t *testing.T
 	}
 
 	for {
-		event := readCanonicalRealtimeEvent(t, conn)
+		event := readPublicRealtimeEvent(t, conn)
 		bio := event.GetEvent().GetUserBioChanged()
 		if bio == nil {
 			continue
@@ -670,7 +670,7 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 		t.Fatalf("PostMessage visible: %v", err)
 	}
 	for {
-		delivery := readCanonicalRealtimeEvent(t, conn)
+		delivery := readPublicRealtimeEvent(t, conn)
 		event := delivery.GetEvent()
 		if event.GetId() == hidden.GetId() {
 			t.Fatalf("outsider received unauthorized event: %+v", event)
@@ -687,7 +687,7 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketDeliversCanonicalTransientEvent(t *testing.T) {
+func TestRealtimeWebSocketDeliversPublicTransientEvent(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-typing-viewer", "RT Typing Viewer", "password123")
 	if err != nil {
@@ -717,7 +717,7 @@ func TestRealtimeWebSocketDeliversCanonicalTransientEvent(t *testing.T) {
 		t.Fatalf("PublishTypingIndicator: %v", err)
 	}
 	for {
-		delivery := readCanonicalRealtimeEvent(t, conn)
+		delivery := readPublicRealtimeEvent(t, conn)
 		typing := delivery.GetEvent().GetUserTypingSignal()
 		if typing == nil || delivery.GetEvent().GetActorId() != actor.GetId() {
 			continue

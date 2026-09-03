@@ -820,9 +820,6 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-	if !isRealtimePublicEvent(canonical) {
-		return nil, errRealtimeEventOmitted
-	}
 	if typing := canonical.GetUserTypingSignal(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
@@ -857,7 +854,7 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	}
 	projected := projectRealtimeEvent(deliverySource)
 	if projected == nil {
-		return nil, fmt.Errorf("project public realtime event %T", canonical.GetEvent())
+		return nil, errRealtimeEventOmitted
 	}
 	envelope := &realtimev1.RealtimeEvent{Event: projected}
 	if sequence := event.DeliverySeq(); sequence > 0 {

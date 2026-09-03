@@ -1,6 +1,6 @@
 ---
 title: Realtime Protocol Overview
-description: Receive an exact resource snapshot, canonical events, and short-gap resume.
+description: Receive an exact resource snapshot, public events, and short-gap resume.
 ---
 
 import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
@@ -71,24 +71,28 @@ normal recovery behavior. The server does not send a partial replay.
   server binds it to the authenticated viewer.
 </Aside>
 
-## Handle canonical events
+## Handle public events
 
-Each `RealtimeEvent` carries one authorized copy of Chatto's canonical
-[`Event`](/reference/connectrpc-api/realtime-events/).
+Each `RealtimeEvent` carries one authorized
+[`PublicEvent`](/reference/connectrpc-api/realtime-events/).
 Durable variants
 include messages, edits, retractions, reactions, pins, assets, rooms,
 membership, profiles, threads, and calls. Typing, presence changes, and session
 termination are transient variants and have no resume cursor.
 
-The canonical Event contains common metadata outside its event `oneof`:
+The public event contains common metadata outside its event `oneof`:
 
 - a stable event ID;
 - source time;
 - a visible actor ID, when applicable.
 
-The `RealtimeEvent` transport wrapper contains only the canonical event and
-the resume cursor for durable activity. The canonical Event does not contain
-broker coordinates or a cursor.
+The `RealtimeEvent` transport wrapper contains only the public event and the
+resume cursor for durable activity. The public event does not contain broker
+coordinates or a cursor.
+
+The public union contains only event variants that are part of the realtime
+API. Each union member reuses the canonical EVT or live payload message and
+field number. The complete stored Event union is not part of the public API.
 
 The server omits internal event variants and storage-only fields. It can add
 authorized delivery-only `_plaintext` fields. It never sends raw EVT bytes,
@@ -109,7 +113,7 @@ with the authoritative resource response.
 Process one event as one unit:
 
 1. Decode the complete frame.
-2. Process the canonical variant that you understand.
+2. Process the public variant that you understand.
 3. Save `resume_cursor` only after your processing succeeds.
 
 Delivery is at least once across reconnects. Use the stable event ID to
@@ -202,7 +206,7 @@ session before they reconnect.
   <LinkCard
     title="Realtime Event Catalogue"
     href="/reference/connectrpc-api/realtime-events/"
-    description="Read every public canonical event variant and payload field."
+    description="Read every public event variant and payload field."
   />
   <LinkCard
     title="API Compatibility"

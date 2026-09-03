@@ -30,7 +30,7 @@ Chatto's pre-1.0 API remains experimental.
   version supports relative room-group and sidebar-item moves. Other sidebar
   management actions continue to use the older management API when available.
 - The `chatto.realtime.v1` protobuf namespace uses behavioral protocol version
-  4 for the canonical event stream. The alpha server rejects older and unknown
+  4 for the public event stream. The alpha server rejects older and unknown
   handshakes.
 
 ## Design Decisions

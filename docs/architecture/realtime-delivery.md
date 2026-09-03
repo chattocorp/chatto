@@ -11,7 +11,8 @@ Key files:
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-090](../adr/ADR-090-semantic-realtime-events-with-bounded-resume.md),
-and [ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md),
+and [ADR-092](../adr/ADR-092-use-a-public-realtime-event-union.md).
 
 ## Public protocol
 
@@ -42,29 +43,31 @@ and this marker.
 Client control frames after subscription contain application-level `ping`
 frames. The server returns the ping nonce in `pong`.
 
-## Canonical events
+## Public events
 
 `chatto.core.evt.v1.Event` is the semantic unit for durable facts and
-transient signals. `RealtimeEvent` is a transport wrapper that contains one
-authorized Event and an optional opaque resume cursor. It does not contain
-resource state.
+transient signals inside the server. `RealtimeEvent` is a transport wrapper
+that contains one authorized `chatto.realtime.v1.PublicEvent` and an optional
+opaque resume cursor. It does not contain resource state.
 
-A durable Event has a stable event ID, source time, visible actor ID, and one
+A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
 membership, threads, users, calls, and public invalidations. Typing, presence
-changes, and session termination use the same envelope but have no resume
+changes, and session termination use the same public union but have no resume
 cursor.
 
 Common metadata is outside the event `oneof`, and the cursor is outside the
-canonical Event. A client can ignore a new event variant and still retain its
+public event. A client can ignore a new event variant and still retain its
 cursor after it accepts the complete frame.
 
-The server creates a fresh authorized Event for delivery. A public catalogue
-omits internal variants. Protobuf field-surface options allow shared,
-storage-only, and client-only fields. Unspecified payload fields are denied by
-default. The copier does not retain unknown fields. Authorized delivery-only
-decrypted values use `_plaintext` fields. Public events do not expose raw EVT
-bytes, ciphertext, subjects, stream identities, or sequence numbers.
+The `PublicEvent` union is the event-level catalogue. Each member has the same
+name, field number, and payload message as its canonical event. A missing
+member keeps an internal variant out of the public API. Protobuf field-surface
+options allow shared, storage-only, and client-only fields. Unspecified payload
+fields are denied by default. The server creates a fresh public value and does
+not retain unknown fields. Authorized delivery-only decrypted values use
+`_plaintext` fields. Public events do not expose raw EVT bytes, ciphertext,
+subjects, stream identities, or sequence numbers.
 
 Field surfaces are static. They do not make viewer-specific authorization
 decisions. Event-level authorization must make every delivered shared or
@@ -147,7 +150,8 @@ Snapshot and resume use this handoff:
 2. Validate the optional cursor and capture a stable EVT boundary `E`.
 3. Send either an exact snapshot at `E` or authorized durable events through
    `E`.
-4. Apply current authorization and censor each replayed canonical event.
+4. Apply current authorization and map each replayed canonical event to the
+   public union.
 5. Send `caught_up(E)`, discard buffered durable duplicates through `E`, and
    continue with live delivery.
 
@@ -181,7 +185,7 @@ before it reads membership, applicable message-read permissions, interaction
 relationships, or compacted state, and performs bounded JetStream point reads
 for the sequences after the cursor. It does not create a JetStream consumer. Each
 deliverable room, asset, or user fact uses that same content-view readiness
-boundary and is converted to a fresh authorized canonical public event. The handler
+boundary and is converted to a fresh authorized public event. The handler
 sends `caught_up` at the cutoff, discards buffered live duplicates through
 that sequence, and continues with the hub stream.
 
@@ -203,7 +207,7 @@ is false. This closing fact removes state that the client could have retained.
 
 A durable mapping or resource-reconciliation failure closes the connection
 before the cursor advances. Reconnect retries the fact or uses a safe fallback.
-Unknown canonical event variants are additive and can be ignored while the
+Unknown public event variants are additive and can be ignored while the
 transport cursor advances.
 
 ## Process-wide live ingress
@@ -274,7 +278,7 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized canonical events, and 15-minute bounded resume |
+| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized public events, and 15-minute bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and

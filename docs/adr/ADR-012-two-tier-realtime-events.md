@@ -8,7 +8,9 @@
 [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md) for the
 public realtime behavior and
 [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
-for the canonical envelope. The durable `EVT` and transient `live.sync.>`
+for the canonical envelope, and
+[ADR-092](ADR-092-use-a-public-realtime-event-union.md) for the public union.
+The durable `EVT` and transient `live.sync.>`
 delivery split remains in effect.
 
 **Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), and ADR-042 (protobuf-first public API), the live equivalents are `live.evt.>` for republished durable EVT facts, `live.sync.>` for transient canonical Event signals, and realtime websocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
@@ -44,6 +46,6 @@ ADR-077, ADR-090, and ADR-091.
 
 - **Efficient storage**: High-frequency transient events don't accumulate in JetStream streams. A busy space with constant typing indicators doesn't bloat its event stream.
 - **Appropriate delivery guarantees**: Messages get ordered, durable delivery. Typing indicators get fire-and-forget delivery, which is correct — a missed typing indicator is harmless.
-- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The process-wide hub consumes `live.evt.>` and `live.sync.>` and maps both to authorized canonical events.
+- **Fan-in complexity**: The realtime delivery layer merges durable committed facts and transient sync signals into one authorized stream. The process-wide hub consumes `live.evt.>` and `live.sync.>` and maps both to authorized public events.
 - **Delivery mapping must stay explicit**: Every new live signal must be registered in the hub/realtime mapping path so delivery can extract its authorization scope and decide whether it emits a durable or transient public event. Missing mappings can hide otherwise-valid changes from clients, so live-signal changes need tests at the delivery boundary.
 - **New event types require a channel decision**: When adding a new event type, developers must decide whether it belongs in JetStream (persistent, ordered) or NATS Core (ephemeral, best-effort). This is an explicit architectural choice, not a default.

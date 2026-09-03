@@ -8,6 +8,7 @@ import {
   RealtimeCaughtUp,
   RealtimeError,
   RealtimeHeartbeat,
+  PublicEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
   RealtimeSnapshot,
@@ -21,7 +22,6 @@ import {
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { BatchGetUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
 import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
 import {
   eventBusManager,
@@ -206,7 +206,7 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
     case: 'event',
     value: new RealtimeEvent({
       resumeCursor: cursor,
-      event: new CanonicalEvent()
+      event: new PublicEvent()
     })
   });
 }
@@ -215,7 +215,7 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
-      event: new CanonicalEvent({
+      event: new PublicEvent({
         id,
         createdAt: Timestamp.now(),
         actorId: 'user-1',

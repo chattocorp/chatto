@@ -312,7 +312,7 @@ function dedupeInlineMethodTypes(content) {
 }
 
 function isRealtimeType(name) {
-  return name.startsWith('Realtime');
+  return name.startsWith('Realtime') || name === 'PublicEvent';
 }
 
 function renderPage(title, description, body) {
@@ -537,7 +537,7 @@ function renderLanding() {
     '',
     '- [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.',
     '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames exchanged at `/api/realtime`.',
-    '- [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) - public canonical event variants and client-visible payload fields.'
+    '- [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) - public event variants and client-visible payload fields.'
   ];
   return renderPage(
     'API Overview',
@@ -604,7 +604,7 @@ function renderRealtimePage(typeSections, enumSections) {
     '',
     'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
     '',
-    'This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the public `chatto.core.evt.v1.Event` variants and payload fields.',
+    'This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the `chatto.realtime.v1.PublicEvent` variants and payload fields.',
     '',
     'Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',
