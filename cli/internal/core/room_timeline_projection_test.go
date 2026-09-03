@@ -1333,8 +1333,8 @@ func TestRoomTimeline_LogsBucketReconstructionEvictionAndFailure(t *testing.T) {
 	if _, _, _, err := canceledProjection.LatestBodyContext(canceledContext, "MESSAGE"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled reconstruction error = %v, want context canceled", err)
 	}
-	if _, ok := canceledLogger.find("debug", "Room timeline bucket reconstruction canceled"); !ok {
-		t.Fatal("canceled reconstruction was not logged at debug level")
+	if _, ok := canceledLogger.find("debug", "Room timeline bucket wait canceled"); !ok {
+		t.Fatal("canceled bucket wait was not logged at debug level")
 	}
 	if _, ok := canceledLogger.find("error", "Room timeline bucket reconstruction failed"); ok {
 		t.Fatal("canceled reconstruction was logged at error level")
@@ -1456,6 +1456,114 @@ func TestRoomTimeline_ConcurrentHistoricalReadsShareOneLoad(t *testing.T) {
 	source.mu.Unlock()
 	if calls != 2 {
 		t.Fatalf("EVT reads = %d, want one two-record bucket load", calls)
+	}
+}
+
+func TestRoomTimeline_CanceledWaiterDoesNotCancelSharedLoad(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := &blockingTimelineEventSource{
+		records: timelineTestEventSource{
+			1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+			2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		},
+		started: make(chan struct{}), release: make(chan struct{}),
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	type loadResult struct {
+		body *evtv1.MessageBody
+		err  error
+	}
+	leaderContext, cancelLeader := context.WithCancel(context.Background())
+	leaderResult := make(chan loadResult, 1)
+	go func() {
+		body, _, _, err := projection.LatestBodyContext(leaderContext, "MESSAGE")
+		leaderResult <- loadResult{body: body, err: err}
+	}()
+	<-source.started
+
+	waiterStarted := make(chan struct{})
+	waiterResult := make(chan loadResult, 1)
+	go func() {
+		close(waiterStarted)
+		body, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE")
+		waiterResult <- loadResult{body: body, err: err}
+	}()
+	<-waiterStarted
+	select {
+	case result := <-waiterResult:
+		t.Fatalf("second waiter returned before the shared load was released: %v", result.err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	cancelLeader()
+	if result := <-leaderResult; !errors.Is(result.err, context.Canceled) {
+		t.Fatalf("leader result error = %v, want context canceled", result.err)
+	}
+	select {
+	case result := <-waiterResult:
+		t.Fatalf("leader cancellation stopped the second waiter: %v", result.err)
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(source.release)
+	result := <-waiterResult
+	if result.err != nil || string(result.body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("second waiter result = (%v, %v)", result.body, result.err)
+	}
+}
+
+func TestRoomTimeline_CacheHitRefreshesIdleTimeout(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(created), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE"); err != nil {
+		t.Fatal(err)
+	}
+	key := projection.messageBuckets["MESSAGE"]
+	loadedAt := projection.cache[key].lastAccess
+
+	now = now.Add(30 * time.Second)
+	if _, _, _, err := projection.LatestBodyContext(context.Background(), "MESSAGE"); err != nil {
+		t.Fatal(err)
+	}
+	if got := projection.cache[key].lastAccess; got != now {
+		t.Fatalf("cache-hit last access = %v, want %v", got, now)
+	}
+	projection.evictIdleBuckets(loadedAt.Add(61 * time.Second))
+	if projection.cache[key] == nil {
+		t.Fatal("recently accessed bucket was evicted using its original load time")
+	}
+	projection.evictIdleBuckets(now.Add(61 * time.Second))
+	if projection.cache[key] != nil {
+		t.Fatal("idle bucket remained cached after the refreshed timeout")
 	}
 }
 

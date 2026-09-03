@@ -155,13 +155,18 @@ The `ServerContentView` apply barrier encloses every timeline reducer apply.
 The component lock therefore detects any timeline change that can affect the
 captured recipe without keeping the wider barrier across I/O.
 
-Concurrent requests for the same bucket share one in-progress load. Loads have
-a deadline and a bounded concurrency limit. A failed load does not install
-partial state.
+Concurrent requests for the same bucket share one in-progress load. The load
+has a separate 30-second lifetime, so cancellation by its first caller does
+not cancel the load for other callers. Each caller can stop waiting with its
+own context. Loads also have a bounded concurrency limit. A failed load does
+not install partial state.
 
 Materialized buckets live in one process-local, access-ordered cache. The
 operator can configure the idle timeout. Chatto evicts an unpinned bucket after
 it has not been used for that period. The default idle timeout is 15 minutes.
+Each hydrated body read refreshes the bucket access time while it holds the
+timeline projection lock. An eviction cannot clear the body between the read
+decision and this refresh.
 The first version does not use a byte budget and does not persist cache
 contents. Each replica reconstructs and evicts its own buckets.
 

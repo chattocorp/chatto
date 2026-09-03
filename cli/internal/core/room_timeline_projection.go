@@ -839,8 +839,24 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 	if p.eventSource == nil {
 		return fmt.Errorf("room timeline bucket %q has no EVT source", key.roomID)
 	}
+	waitStartedAt := time.Now()
+	logCanceledWait := func(err error) {
+		if p.logger == nil {
+			return
+		}
+		fields := p.bucketLogFields(key)
+		fields = append(fields,
+			"duration", time.Since(waitStartedAt),
+			"error", err,
+		)
+		p.logger.Debug("Room timeline bucket wait canceled", fields...)
+	}
+	if err := ctx.Err(); err != nil {
+		logCanceledWait(err)
+		return err
+	}
 	loadKey := fmt.Sprintf("%s/%d/%t", key.roomID, key.startUnixNs, key.undated)
-	_, err, _ := p.loads.Do(loadKey, func() (_ any, resultErr error) {
+	result := p.loads.DoChan(loadKey, func() (_ any, resultErr error) {
 		startedAt := time.Now()
 		attempts := 0
 		sequenceCount := 0
@@ -857,20 +873,16 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				"duration", time.Since(startedAt),
 				"error", resultErr,
 			)
-			if errors.Is(resultErr, context.Canceled) {
-				p.logger.Debug("Room timeline bucket reconstruction canceled", fields...)
-				return
-			}
 			p.logger.Error("Room timeline bucket reconstruction failed", fields...)
 		}()
+		loadCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
 		select {
 		case p.loadSemaphore <- struct{}{}:
 			defer func() { <-p.loadSemaphore }()
-		case <-ctx.Done():
-			return nil, ctx.Err()
+		case <-loadCtx.Done():
+			return nil, loadCtx.Err()
 		}
-		loadCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		defer cancel()
 		for attempt := 0; attempt < 3; attempt++ {
 			attempts = attempt + 1
 			p.RLock()
@@ -993,7 +1005,13 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 		}
 		return nil, fmt.Errorf("room timeline bucket changed during reconstruction")
 	})
-	return err
+	select {
+	case completed := <-result:
+		return completed.Err
+	case <-ctx.Done():
+		logCanceledWait(ctx.Err())
+		return ctx.Err()
+	}
 }
 
 func (p *RoomTimelineProjection) messageBodyUnavailableLocked(messageID string) bool {
@@ -1115,18 +1133,29 @@ func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 // LatestBodyContext loads the owning bucket when its materialization was
 // evicted, then returns the current body state.
 func (p *RoomTimelineProjection) LatestBodyContext(ctx context.Context, eventID string) (*evtv1.MessageBody, bool, bool, error) {
-	p.RLock()
+	p.Lock()
 	key, hasBucket := p.messageBuckets[eventID]
 	state := p.bodyStates[eventID]
-	_, retracted := p.retractedFlags[eventID]
-	_, hidden := p.hiddenEchoes[eventID]
-	p.RUnlock()
-	if !retracted && !hidden && state.body == nil && state.currentSequence != 0 && hasBucket {
+	body, isRetracted, ok := p.latestBodyLocked(eventID)
+	if body != nil && hasBucket {
+		if cached := p.cache[key]; cached != nil {
+			cached.lastAccess = p.now()
+		}
+	}
+	p.Unlock()
+	if body == nil && !isRetracted && state.currentSequence != 0 && hasBucket {
 		if err := p.loadBucket(ctx, key); err != nil {
 			return nil, false, true, err
 		}
+		p.Lock()
+		body, isRetracted, ok = p.latestBodyLocked(eventID)
+		if body != nil {
+			if cached := p.cache[key]; cached != nil {
+				cached.lastAccess = p.now()
+			}
+		}
+		p.Unlock()
 	}
-	body, isRetracted, ok := p.LatestBody(eventID)
 	return body, isRetracted, ok, nil
 }
 
@@ -1141,6 +1170,10 @@ func (p *RoomTimelineProjection) LatestBodyContext(ctx context.Context, eventID 
 func (p *RoomTimelineProjection) LatestBody(eventID string) (body *evtv1.MessageBody, retracted bool, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
+	return p.latestBodyLocked(eventID)
+}
+
+func (p *RoomTimelineProjection) latestBodyLocked(eventID string) (body *evtv1.MessageBody, retracted bool, ok bool) {
 	if eventID == "" {
 		return nil, false, false
 	}
