@@ -323,15 +323,17 @@ func (p *RoomTimelineProjection) addBucketSequenceLocked(key timelineBucketKey, 
 }
 
 func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, sequence uint64, event *evtv1.Event) {
+	now := p.now()
+	pinned := p.bucketPinnedLocked(key, now)
 	cached := p.cache[key]
-	if cached == nil && !p.bucketPinnedLocked(key, p.now()) {
+	if cached == nil && !pinned {
 		return
 	}
 	if cached == nil {
 		cached = &timelineBucketCache{events: make(map[uint64]*evtv1.Event)}
 		p.cache[key] = cached
 	}
-	cached.pinned = p.bucketPinnedLocked(key, p.now())
+	cached.pinned = pinned
 	retainPayload := true
 	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
 		if target, ok := p.messageBuckets[bodyEvent.GetEventId()]; ok && target != key {
@@ -342,7 +344,7 @@ func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, 
 		cached.events[sequence] = proto.Clone(event).(*evtv1.Event)
 	}
 	cached.revision = p.buckets[key].revision
-	cached.lastAccess = p.now()
+	cached.lastAccess = now
 }
 
 func (p *RoomTimelineProjection) linkMessageBucketLocked(messageID string, key timelineBucketKey) {
@@ -972,9 +974,10 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 					return nil, fmt.Errorf("room timeline bucket is missing current body sequence %d for message %q", state.currentSequence, messageID)
 				}
 			}
-			pinned := p.bucketPinnedLocked(key, p.now())
+			now := p.now()
+			pinned := p.bucketPinnedLocked(key, now)
 			p.cache[key] = &timelineBucketCache{
-				events: eventsBySequence, revision: revision, lastAccess: p.now(),
+				events: eventsBySequence, revision: revision, lastAccess: now,
 				pinned: pinned, complete: true,
 			}
 			for messageID := range p.bucketMessages[key] {
@@ -993,7 +996,6 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 						continue
 					}
 					state.body = body
-					state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(state.body)
 					p.bodyStates[messageID] = state
 				}
 			}

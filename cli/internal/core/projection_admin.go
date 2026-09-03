@@ -381,7 +381,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		// payload here because the bucket-cache estimate owns those bytes. The
 		// value also contains attachment metadata used for body-free page
 		// selection.
-		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8 + 8 + 24 + 8 + 1 + 24
+		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8 + 8 + 24 + 8 + 24
 		for _, assetID := range state.currentAssetIDs {
 			bodyStateBytes += int64(len(assetID))
 		}
