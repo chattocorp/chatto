@@ -1247,6 +1247,9 @@ func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	if err != nil || !ok || retracted || string(body.GetEncryptedBody()) != "ciphertext" {
 		t.Fatalf("LatestBodyContext() = (%v, %v, %v, %v)", body, retracted, ok, err)
 	}
+	if cached := projection.cache[key]; cached == nil || cached.events[1] == nil || cached.events[2] != nil || len(cached.events) != 1 {
+		t.Fatalf("materialized events = %v, want only body sequence 1", cached)
+	}
 	projection.evictIdleBuckets(now.Add(2 * time.Minute))
 	if body, _, _ := projection.LatestBody("MESSAGE"); body != nil {
 		t.Fatal("idle historical body remained materialized")
@@ -1432,7 +1435,7 @@ func TestRoomTimeline_LogsBucketReconstructionEvictionAndFailure(t *testing.T) {
 		t.Fatal("bucket reconstruction completion was not logged at debug level")
 	}
 	for key, want := range map[string]interface{}{
-		"room_id": "R1", "sequence_count": 2, "event_count": 2, "message_count": 1,
+		"room_id": "R1", "sequence_count": 2, "body_event_count": 1, "message_count": 1,
 		"pinned": false,
 	} {
 		if got, _ := timelineLogField(completed, key); got != want {
@@ -1454,7 +1457,7 @@ func TestRoomTimeline_LogsBucketReconstructionEvictionAndFailure(t *testing.T) {
 		t.Fatal("bucket eviction was not logged at debug level")
 	}
 	for key, want := range map[string]interface{}{
-		"room_id": "R1", "event_count": 2, "message_count": 1,
+		"room_id": "R1", "body_event_count": 1, "message_count": 1,
 		"idle_for": 2 * time.Minute, "materialized_buckets_remaining": 0,
 	} {
 		if got, _ := timelineLogField(evicted, key); got != want {

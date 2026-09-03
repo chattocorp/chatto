@@ -76,9 +76,9 @@ canceling the shared load. A body read refreshes the bucket idle time. A
 revision check prevents a loader from installing state over a newer projection
 apply. Chatto writes debug logs when reconstruction starts, when it completes,
 when a caller stops waiting, and when idle eviction removes a bucket. These
-logs contain the opaque room ID, UTC bucket boundaries, item counts, and
-durations. Chatto writes reconstruction failures at the error level without
-message content.
+logs contain the opaque room ID, UTC bucket boundaries, sequence counts,
+body-event counts, message counts, and durations. Chatto writes reconstruction
+failures at the error level without message content.
 
 A cache assembled from events after a snapshot cutoff is incomplete, even when
 its revision matches the current bucket revision. Pinned-bucket warming must

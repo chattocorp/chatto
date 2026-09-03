@@ -324,6 +324,7 @@ func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, 
 	now := p.now()
 	pinned := p.bucketPinnedLocked(key, now)
 	cached := p.cache[key]
+	bodyEvent := event.GetMessageBody()
 	if cached == nil && !pinned {
 		return
 	}
@@ -332,14 +333,11 @@ func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, 
 		p.cache[key] = cached
 	}
 	cached.pinned = pinned
-	retainPayload := true
-	if bodyEvent := event.GetMessageBody(); bodyEvent != nil {
-		if target, ok := p.messageBuckets[bodyEvent.GetEventId()]; ok && target != key {
-			retainPayload = false
+	if bodyEvent != nil {
+		target, hasTarget := p.messageBuckets[bodyEvent.GetEventId()]
+		if !hasTarget || target == key {
+			cached.events[sequence] = proto.Clone(event).(*evtv1.Event)
 		}
-	}
-	if retainPayload {
-		cached.events[sequence] = proto.Clone(event).(*evtv1.Event)
 	}
 	cached.revision = p.buckets[key].revision
 	cached.lastAccess = now
@@ -951,6 +949,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 			for sequence, event := range eventsBySequence {
 				bodyEvent := event.GetMessageBody()
 				if bodyEvent == nil {
+					delete(eventsBySequence, sequence)
 					continue
 				}
 				state := p.bodyStates[bodyEvent.GetEventId()]
@@ -1001,7 +1000,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				fields = append(fields,
 					"revision", revision,
 					"sequence_count", sequenceCount,
-					"event_count", len(eventsBySequence),
+					"body_event_count", len(eventsBySequence),
 					"message_count", messageCount,
 					"attempts", attempts,
 					"pinned", pinned,
@@ -1084,11 +1083,11 @@ func (p *RoomTimelineProjection) RunBucketCache(ctx context.Context) error {
 
 func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 	type eviction struct {
-		key          timelineBucketKey
-		revision     uint64
-		eventCount   int
-		messageCount int
-		idleFor      time.Duration
+		key            timelineBucketKey
+		revision       uint64
+		bodyEventCount int
+		messageCount   int
+		idleFor        time.Duration
 	}
 	var evictions []eviction
 	p.Lock()
@@ -1106,11 +1105,11 @@ func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 			continue
 		}
 		evictions = append(evictions, eviction{
-			key:          key,
-			revision:     cached.revision,
-			eventCount:   len(cached.events),
-			messageCount: len(p.bucketMessages[key]),
-			idleFor:      now.Sub(cached.lastAccess),
+			key:            key,
+			revision:       cached.revision,
+			bodyEventCount: len(cached.events),
+			messageCount:   len(p.bucketMessages[key]),
+			idleFor:        now.Sub(cached.lastAccess),
 		})
 		delete(p.cache, key)
 		for messageID := range p.bucketMessages[key] {
@@ -1128,7 +1127,7 @@ func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
 		fields := p.bucketLogFields(evicted.key)
 		fields = append(fields,
 			"revision", evicted.revision,
-			"event_count", evicted.eventCount,
+			"body_event_count", evicted.bodyEventCount,
 			"message_count", evicted.messageCount,
 			"idle_for", evicted.idleFor,
 			"materialized_buckets_remaining", remainingBuckets,

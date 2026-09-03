@@ -442,11 +442,11 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		bucketMessageBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 1
 		bucketMessageBytes += estimateStringSetBytes(messages)
 	}
-	var cacheBytes, cachedEvents int64
+	var cacheBytes, cachedBodyEvents int64
 	for key, cached := range p.cache {
 		cacheBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 1 + 8 + 24 + 1 + 1
 		for _, event := range cached.events {
-			cachedEvents++
+			cachedBodyEvents++
 			cacheBytes += projectionMapEntryOverhead + 8 + int64(proto.Size(event))
 		}
 	}
@@ -481,7 +481,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "message_bucket_locators", Value: int64(len(p.messageBuckets)), Bytes: messageBucketBytes},
 		{Name: "bucket_message_index", Value: int64(len(p.bucketMessages)), Bytes: bucketMessageBytes},
 		{Name: "materialized_buckets", Value: int64(len(p.cache)), Bytes: cacheBytes},
-		{Name: "materialized_bucket_events", Value: cachedEvents, Bytes: 0},
+		{Name: "materialized_body_events", Value: cachedBodyEvents, Bytes: 0},
 	}
 }
 
