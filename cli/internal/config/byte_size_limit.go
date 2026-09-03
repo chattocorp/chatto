@@ -32,6 +32,9 @@ func (l *ByteSizeLimit) UnmarshalText(text []byte) error {
 	if size.Bytes() > math.MaxInt64 {
 		return fmt.Errorf("byte-size limit %q exceeds the supported maximum", value)
 	}
+	if size.Bytes() == 0 {
+		return fmt.Errorf("byte-size limit must be -1 or a positive size")
+	}
 	*l = ByteSizeLimit(size.Bytes())
 	return nil
 }

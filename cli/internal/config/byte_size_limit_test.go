@@ -17,7 +17,7 @@ func TestByteSizeLimitUnmarshalText(t *testing.T) {
 		{input: "256MiB", want: 256 << 20},
 		{input: "256 MB", want: 256 << 20},
 		{input: "1GiB", want: 1 << 30},
-		{input: "0", want: 0},
+		{input: "0", wantErr: true},
 		{input: "-2", wantErr: true},
 		{input: "invalid", wantErr: true},
 		{input: "16Mib", wantErr: true},

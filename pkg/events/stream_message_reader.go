@@ -26,7 +26,7 @@ const (
 )
 
 // ErrInvalidStreamMessageReaderConfig marks invalid exact-read concurrency or
-// cache lifetime settings.
+// cache settings.
 var ErrInvalidStreamMessageReaderConfig = errors.New("invalid stream message reader config")
 
 // ErrStreamMessageReaderAlreadyStarted is returned when Run is called more
@@ -49,14 +49,16 @@ type StreamMessageReaderConfig struct {
 	CacheMaxBytes uint64
 	// MaxConcurrentReads limits broker reads across calls. Zero uses 16.
 	MaxConcurrentReads int
-	// Logger receives cache-miss, batch, expiry, and clearing diagnostics.
+	// Logger receives cache-miss, batch, LRU-eviction, expiry, and clearing
+	// diagnostics.
 	Logger Logger
 }
 
 // StreamMessageReader loads opaque records at exact stream sequences. It can
 // retain successful reads in a disposable process-local cache with sliding
-// idle expiry. The cache is bound to the supplied stream handle, so sequence
-// numbers from different streams never share a key space.
+// idle expiry, byte-costed LRU eviction, or both. The cache is bound to the
+// supplied stream handle, so sequence numbers from different streams never
+// share a key space.
 //
 // Run should execute for the lifetime of a reader with caching enabled. Reads
 // still reject expired entries when Run is not active, but idle entries are
@@ -64,7 +66,6 @@ type StreamMessageReaderConfig struct {
 type StreamMessageReader struct {
 	source        exactStreamMessageSource
 	cacheIdleTTL  time.Duration
-	cacheMaxBytes uint64
 	readSemaphore chan struct{}
 	cache         *ttlcache.Cache[uint64, EncodedSubjectRecord]
 	logger        Logger
@@ -97,7 +98,6 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 	reader := &StreamMessageReader{
 		source:        source,
 		cacheIdleTTL:  config.CacheIdleTTL,
-		cacheMaxBytes: config.CacheMaxBytes,
 		readSemaphore: make(chan struct{}, maxConcurrentReads),
 		logger:        normalizeLogger(config.Logger),
 	}
