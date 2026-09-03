@@ -888,25 +888,21 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 		}
 		for attempt := 0; attempt < 3; attempt++ {
 			attempts = attempt + 1
-			p.RLock()
+			p.Lock()
 			bucket := p.buckets[key]
 			if bucket == nil {
-				p.RUnlock()
+				p.Unlock()
 				return nil, nil
 			}
 			if cached := p.cache[key]; cached != nil && cached.revision == bucket.revision {
-				p.RUnlock()
-				p.Lock()
-				if current := p.cache[key]; current != nil {
-					current.lastAccess = p.now()
-				}
+				cached.lastAccess = p.now()
 				p.Unlock()
 				return nil, nil
 			}
 			revision = bucket.revision
 			sequences := append([]uint64(nil), bucket.sequences...)
 			sequenceCount = len(sequences)
-			p.RUnlock()
+			p.Unlock()
 			if p.logger != nil {
 				fields := p.bucketLogFields(key)
 				fields = append(fields,
