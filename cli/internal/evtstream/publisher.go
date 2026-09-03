@@ -45,6 +45,7 @@ const (
 // adds only Chatto's envelope codec and EVT-specific convenience reads.
 type Publisher struct {
 	events.TypedEventLog[*evtv1.Event]
+	stream jetstream.Stream
 }
 
 // NewPublisher constructs a Chatto event publisher bound to a stream.
@@ -52,6 +53,7 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, logger events
 	log := events.NewEncodedEventLog(js, stream, logger)
 	return &Publisher{
 		TypedEventLog: *events.NewTypedEventLog(log, encodeEvent, decodeEventData),
+		stream:        stream,
 	}
 }
 
@@ -94,6 +96,23 @@ type SubjectEvent struct {
 	Subject  string
 	Sequence uint64
 	Event    *evtv1.Event
+}
+
+// EventAt returns one decoded EVT record at an exact stream sequence. It is
+// intended for bounded reconstruction from projection-owned sequence indexes.
+func (p *Publisher) EventAt(ctx context.Context, sequence uint64) (*SubjectEvent, error) {
+	if sequence == 0 {
+		return nil, fmt.Errorf("EVT sequence must be positive")
+	}
+	record, err := p.stream.GetMsg(ctx, sequence)
+	if err != nil {
+		return nil, err
+	}
+	event, err := decodeEventData(record.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode EVT sequence %d: %w", sequence, err)
+	}
+	return &SubjectEvent{Subject: record.Subject, Sequence: sequence, Event: event}, nil
 }
 
 // SubjectEventsWithSubjectsAfter decodes opaque records while preserving their

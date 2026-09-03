@@ -125,5 +125,5 @@ viewer's effective permissions.
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-090 (cached timeline buckets)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions)

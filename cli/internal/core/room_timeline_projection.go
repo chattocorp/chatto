@@ -1,10 +1,15 @@
 package core
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"slices"
 	"strings"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -59,6 +64,60 @@ type RoomTimelineProjection struct {
 	shreddedUsers        map[string]struct{}
 	pinnedMessagesByRoom map[string]map[string]PinnedMessageState
 	latestPinByRoom      map[string]latestRoomPinState
+
+	// buckets is the always-resident reconstruction directory. The cache owns
+	// decoded EVT payloads only while a bucket is pinned or recently used.
+	bucketInterval time.Duration
+	pinnedPeriod   time.Duration
+	idleTimeout    time.Duration
+	now            func() time.Time
+	logger         events.Logger
+	eventSource    timelineEventSource
+	buckets        map[timelineBucketKey]*timelineBucketState
+	messageBuckets map[string]timelineBucketKey
+	bucketMessages map[timelineBucketKey]map[string]struct{}
+	cache          map[timelineBucketKey]*timelineBucketCache
+	loads          singleflight.Group
+	loadSemaphore  chan struct{}
+}
+
+type timelineEventSource interface {
+	EventAt(context.Context, uint64) (*evtstream.SubjectEvent, error)
+}
+
+// RoomTimelineProjectionOptions controls the process-local timeline cache.
+// EventSource is required for snapshot restores and cold bucket loads.
+type RoomTimelineProjectionOptions struct {
+	EventSource  timelineEventSource
+	Interval     time.Duration
+	PinnedPeriod time.Duration
+	IdleTimeout  time.Duration
+	Now          func() time.Time
+	// Logger receives cache reconstruction, failure, and eviction diagnostics.
+	// A nil logger disables these diagnostics.
+	Logger events.Logger
+}
+
+type timelineBucketKey struct {
+	roomID      string
+	startUnixNs int64
+	undated     bool
+}
+
+type timelineBucketState struct {
+	sequences []uint64
+	revision  uint64
+}
+
+type timelineBucketCache struct {
+	events     map[uint64]*evtv1.Event
+	revision   uint64
+	lastAccess time.Time
+	pinned     bool
+	// complete is false for caches assembled incrementally during startup
+	// replay. A snapshot restore can start replay in the middle of a bucket, so
+	// matching revisions alone do not prove that all earlier records were read.
+	complete bool
 }
 
 type latestRoomPinState struct {
@@ -99,15 +158,18 @@ type RoomTimelineMessageHydrationState struct {
 	Pinned             bool
 }
 
-type projectedRoomAttachmentMessage struct {
-	Entry *TimelineEntry
-	Body  *evtv1.MessageBody
+type projectedRoomAttachmentMessageReference struct {
+	Entry           *TimelineEntry
+	AttachmentCount int
+	AssetIDs        []string
 }
 
 type timelineBodyState struct {
 	body                *evtv1.MessageBody
 	currentSequence     uint64
 	supersededSequences []uint64
+	attachmentCount     int
+	currentAssetIDs     []string
 }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
@@ -137,6 +199,25 @@ func (p *RoomTimelineProjection) entryByEventIDLocked(eventID string) (*Timeline
 
 // NewRoomTimelineProjection returns an empty projection.
 func NewRoomTimelineProjection() *RoomTimelineProjection {
+	return NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{})
+}
+
+// NewRoomTimelineProjectionWithOptions returns an empty projection with a
+// bounded, reconstructable timeline cache. A nil event source is intended for
+// focused reducer tests and retains applied payloads for their lifetime.
+func NewRoomTimelineProjectionWithOptions(options RoomTimelineProjectionOptions) *RoomTimelineProjection {
+	if options.Interval <= 0 {
+		options.Interval = 7 * 24 * time.Hour
+	}
+	if options.PinnedPeriod <= 0 {
+		options.PinnedPeriod = 4 * 7 * 24 * time.Hour
+	}
+	if options.IdleTimeout <= 0 {
+		options.IdleTimeout = 15 * time.Minute
+	}
+	if options.Now == nil {
+		options.Now = time.Now
+	}
 	return &RoomTimelineProjection{
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
@@ -154,7 +235,33 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		shreddedUsers:              make(map[string]struct{}),
 		pinnedMessagesByRoom:       make(map[string]map[string]PinnedMessageState),
 		latestPinByRoom:            make(map[string]latestRoomPinState),
+		bucketInterval:             options.Interval,
+		pinnedPeriod:               options.PinnedPeriod,
+		idleTimeout:                options.IdleTimeout,
+		now:                        options.Now,
+		logger:                     options.Logger,
+		eventSource:                options.EventSource,
+		buckets:                    make(map[timelineBucketKey]*timelineBucketState),
+		messageBuckets:             make(map[string]timelineBucketKey),
+		bucketMessages:             make(map[timelineBucketKey]map[string]struct{}),
+		cache:                      make(map[timelineBucketKey]*timelineBucketCache),
+		loadSemaphore:              make(chan struct{}, 4),
 	}
+}
+
+func (p *RoomTimelineProjection) bucketLogFields(key timelineBucketKey) []interface{} {
+	fields := []interface{}{
+		"room_id", key.roomID,
+		"bucket_undated", key.undated,
+	}
+	if !key.undated {
+		start := time.Unix(0, key.startUnixNs).UTC()
+		fields = append(fields,
+			"bucket_start", start,
+			"bucket_end", start.Add(p.bucketInterval),
+		)
+	}
+	return fields
 }
 
 // Subjects implements evtstream.Projection. The projection owns the
@@ -165,6 +272,125 @@ func (p *RoomTimelineProjection) Subjects() []string {
 		evtstream.RoomSubjectFilter(),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+	}
+}
+
+// bucketKeyLocked maps a room event time to a stable UTC bucket. The Monday
+// after the Unix epoch is the anchor, so the default weekly buckets start on
+// Monday at 00:00 UTC.
+func (p *RoomTimelineProjection) bucketKeyLocked(roomID string, at time.Time) timelineBucketKey {
+	if at.IsZero() {
+		return timelineBucketKey{roomID: roomID, undated: true}
+	}
+	anchor := time.Date(1970, time.January, 5, 0, 0, 0, 0, time.UTC)
+	delta := at.UTC().Sub(anchor)
+	steps := delta / p.bucketInterval
+	if delta < 0 && delta%p.bucketInterval != 0 {
+		steps--
+	}
+	return timelineBucketKey{roomID: roomID, startUnixNs: anchor.Add(steps * p.bucketInterval).UnixNano()}
+}
+
+func (p *RoomTimelineProjection) bucketPinnedLocked(key timelineBucketKey, now time.Time) bool {
+	if p.eventSource == nil || key.undated {
+		return p.eventSource == nil
+	}
+	start := time.Unix(0, key.startUnixNs).UTC()
+	end := start.Add(p.bucketInterval)
+	current := p.bucketKeyLocked(key.roomID, now)
+	return key == current || (start.Before(now) && end.After(now.Add(-p.pinnedPeriod)))
+}
+
+func (p *RoomTimelineProjection) addBucketSequenceLocked(key timelineBucketKey, sequence uint64) {
+	if key.roomID == "" || sequence == 0 {
+		return
+	}
+	bucket := p.buckets[key]
+	if bucket == nil {
+		bucket = &timelineBucketState{}
+		p.buckets[key] = bucket
+	}
+	insertAt, found := slices.BinarySearch(bucket.sequences, sequence)
+	if found {
+		return
+	}
+	bucket.sequences = append(bucket.sequences, 0)
+	copy(bucket.sequences[insertAt+1:], bucket.sequences[insertAt:])
+	bucket.sequences[insertAt] = sequence
+	bucket.revision++
+}
+
+func (p *RoomTimelineProjection) cacheAppliedEventLocked(key timelineBucketKey, sequence uint64, event *evtv1.Event) {
+	now := p.now()
+	pinned := p.bucketPinnedLocked(key, now)
+	cached := p.cache[key]
+	bodyEvent := event.GetMessageBody()
+	if cached == nil && !pinned {
+		return
+	}
+	if cached == nil {
+		cached = &timelineBucketCache{events: make(map[uint64]*evtv1.Event)}
+		p.cache[key] = cached
+	}
+	cached.pinned = pinned
+	if bodyEvent != nil {
+		target, hasTarget := p.messageBuckets[bodyEvent.GetEventId()]
+		if !hasTarget || target == key {
+			cached.events[sequence] = proto.Clone(event).(*evtv1.Event)
+		}
+	}
+	cached.revision = p.buckets[key].revision
+	cached.lastAccess = now
+}
+
+func (p *RoomTimelineProjection) linkMessageBucketLocked(messageID string, key timelineBucketKey) {
+	if messageID == "" || key.roomID == "" {
+		return
+	}
+	p.messageBuckets[messageID] = key
+	messages := p.bucketMessages[key]
+	if messages == nil {
+		messages = make(map[string]struct{})
+		p.bucketMessages[key] = messages
+	}
+	messages[messageID] = struct{}{}
+	for _, sequence := range appendBodySequences(nil, p.bodyStates[messageID]) {
+		p.addBucketSequenceLocked(key, sequence)
+		for cachedKey, cached := range p.cache {
+			if cachedKey != key {
+				delete(cached.events, sequence)
+			}
+		}
+	}
+	state, exists := p.bodyStates[messageID]
+	if !exists || state.body != nil || state.currentSequence == 0 {
+		return
+	}
+	if cached := p.cache[key]; cached != nil {
+		if event := cached.events[state.currentSequence]; event != nil && event.GetMessageBody().GetBody() != nil {
+			state.body = event.GetMessageBody().GetBody()
+			p.bodyStates[messageID] = state
+		}
+	}
+}
+
+func timelineMutationTarget(event *evtv1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch value := event.GetEvent().(type) {
+	case *evtv1.Event_MessageBody:
+		return value.MessageBody.GetEventId()
+	case *evtv1.Event_MessageEdited:
+		return value.MessageEdited.GetEventId()
+	case *evtv1.Event_MessageRetracted:
+		return value.MessageRetracted.GetEventId()
+	case *evtv1.Event_MessagePinned:
+		return value.MessagePinned.GetMessageEventId()
+	case *evtv1.Event_MessageUnpinned:
+		return value.MessageUnpinned.GetMessageEventId()
+	default:
+		return ""
 	}
 }
 
@@ -200,13 +426,22 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 	if roomID == "" {
 		return nil
 	}
-	if !eventMutatesRoomTimelineProjection(event) {
-		return nil
-	}
 
 	// Idempotency is envelope-ID based during startup replay. A clean history
 	// switches to the monotonic stream-sequence guard once replay completes.
 	if p.replayGuard.seenOrMark(event, seq) {
+		return nil
+	}
+	occurrenceBucket := p.bucketKeyLocked(roomID, eventCreatedAt(event))
+	p.addBucketSequenceLocked(occurrenceBucket, seq)
+	p.cacheAppliedEventLocked(occurrenceBucket, seq, event)
+	if targetID := timelineMutationTarget(event); targetID != "" {
+		if targetBucket, ok := p.messageBuckets[targetID]; ok {
+			p.addBucketSequenceLocked(targetBucket, seq)
+			p.cacheAppliedEventLocked(targetBucket, seq, event)
+		}
+	}
+	if !eventMutatesRoomTimelineProjection(event) {
 		return nil
 	}
 
@@ -236,7 +471,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 						p.clearBodyLocked(targetID)
 						p.removeAttachmentMessageLocked(targetID)
 					} else {
-						p.refreshAttachmentMessageLocked(roomID, targetID, body)
+						p.refreshAttachmentMessageLocked(roomID, targetID)
 					}
 				}
 			}
@@ -252,6 +487,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 		}
 	}
 	if event.GetMessagePosted() != nil {
+		p.linkMessageBucketLocked(event.GetId(), occurrenceBucket)
 		if entryIdx < 0 {
 			entryIdx = p.appendEntryLocked(seq, event)
 		}
@@ -281,8 +517,8 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if state, ok := p.bodyStates[targetID]; ok && state.body != nil {
-			p.refreshAttachmentMessageLocked(roomID, targetID, state.body)
+		if state, ok := p.bodyStates[targetID]; ok && state.attachmentCount > 0 {
+			p.addAttachmentMessageLocked(roomID, targetID, seq)
 		}
 		// Track echo links so edits on either side can fan out to the
 		// other, and so original retractions can be reflected when
@@ -430,8 +666,23 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *evtv
 	state, exists := p.bodyStates[eventID]
 	if exists {
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
+		p.removeCachedEventSequenceLocked(state.currentSequence)
 	}
-	state.body = body
+	state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(body)
+	if key, ok := p.messageBuckets[eventID]; p.eventSource == nil || (ok && (p.bucketPinnedLocked(key, p.now()) || p.cache[key] != nil)) {
+		state.body = body
+		if cached := p.cache[key]; ok && cached != nil {
+			if cachedEvent := cached.events[sequence]; cachedEvent != nil && cachedEvent.GetMessageBody().GetBody() != nil {
+				cachedBody := cachedEvent.GetMessageBody().GetBody()
+				if cachedBody.GetBodyEventId() == "" {
+					cachedBody.BodyEventId = body.GetBodyEventId()
+				}
+				state.body = cachedBody
+			}
+		}
+	} else {
+		state.body = nil
+	}
 	state.currentSequence = sequence
 	p.bodyStates[eventID] = state
 }
@@ -441,8 +692,22 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 	if !exists {
 		return
 	}
+	for _, sequence := range appendBodySequences(nil, state) {
+		p.removeCachedEventSequenceLocked(sequence)
+	}
 	state.body = nil
+	state.attachmentCount = 0
+	state.currentAssetIDs = nil
 	p.bodyStates[eventID] = state
+}
+
+func (p *RoomTimelineProjection) removeCachedEventSequenceLocked(sequence uint64) {
+	if sequence == 0 {
+		return
+	}
+	for _, cached := range p.cache {
+		delete(cached.events, sequence)
+	}
 }
 
 func (p *RoomTimelineProjection) setTombstonedAtLocked(eventID string, at time.Time) {
@@ -572,6 +837,322 @@ func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (t
 	return value, ok && !value.IsZero()
 }
 
+func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBucketKey) error {
+	if p.eventSource == nil {
+		return fmt.Errorf("room timeline bucket %q has no EVT source", key.roomID)
+	}
+	waitStartedAt := time.Now()
+	logCanceledWait := func(err error) {
+		if p.logger == nil {
+			return
+		}
+		fields := p.bucketLogFields(key)
+		fields = append(fields,
+			"duration", time.Since(waitStartedAt),
+			"error", err,
+		)
+		p.logger.Debug("Room timeline bucket wait canceled", fields...)
+	}
+	if err := ctx.Err(); err != nil {
+		logCanceledWait(err)
+		return err
+	}
+	loadKey := fmt.Sprintf("%s/%d/%t", key.roomID, key.startUnixNs, key.undated)
+	result := p.loads.DoChan(loadKey, func() (_ any, resultErr error) {
+		startedAt := time.Now()
+		attempts := 0
+		sequenceCount := 0
+		var revision uint64
+		defer func() {
+			if resultErr == nil || p.logger == nil {
+				return
+			}
+			fields := p.bucketLogFields(key)
+			fields = append(fields,
+				"revision", revision,
+				"sequence_count", sequenceCount,
+				"attempts", attempts,
+				"duration", time.Since(startedAt),
+				"error", resultErr,
+			)
+			p.logger.Error("Room timeline bucket reconstruction failed", fields...)
+		}()
+		loadCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+		defer cancel()
+		select {
+		case p.loadSemaphore <- struct{}{}:
+			defer func() { <-p.loadSemaphore }()
+		case <-loadCtx.Done():
+			return nil, loadCtx.Err()
+		}
+		eventsBySequence := make(map[uint64]*evtv1.Event)
+		fetchedSequences := make(map[uint64]struct{})
+		for {
+			if err := loadCtx.Err(); err != nil {
+				return nil, err
+			}
+			attempts++
+			p.Lock()
+			bucket := p.buckets[key]
+			if bucket == nil {
+				p.Unlock()
+				return nil, nil
+			}
+			if cached := p.cache[key]; cached != nil && cached.complete && cached.revision == bucket.revision {
+				cached.lastAccess = p.now()
+				p.Unlock()
+				return nil, nil
+			}
+			revision = bucket.revision
+			sequences := append([]uint64(nil), bucket.sequences...)
+			sequenceCount = len(sequences)
+			p.Unlock()
+			if p.logger != nil {
+				fields := p.bucketLogFields(key)
+				fields = append(fields,
+					"revision", revision,
+					"sequence_count", sequenceCount,
+					"attempt", attempts,
+				)
+				p.logger.Debug("Room timeline bucket reconstruction started", fields...)
+			}
+
+			for _, sequence := range sequences {
+				if _, fetched := fetchedSequences[sequence]; fetched {
+					continue
+				}
+				fetchedSequences[sequence] = struct{}{}
+				record, readErr := p.eventSource.EventAt(loadCtx, sequence)
+				if errors.Is(readErr, jetstream.ErrMsgNotFound) {
+					// Secure deletion can remove obsolete private body records.
+					continue
+				}
+				if readErr != nil {
+					return nil, fmt.Errorf("read EVT sequence %d for room timeline bucket: %w", sequence, readErr)
+				}
+				if record == nil || record.Event == nil || record.Sequence != sequence || roomIDOfEvent(record.Event) != key.roomID {
+					return nil, fmt.Errorf("EVT sequence %d does not match room timeline bucket %q", sequence, key.roomID)
+				}
+				cachedEvent := proto.Clone(record.Event).(*evtv1.Event)
+				if bodyEvent := cachedEvent.GetMessageBody(); bodyEvent != nil && bodyEvent.GetBody() != nil && bodyEvent.GetBody().GetBodyEventId() == "" {
+					bodyEvent.GetBody().BodyEventId = cachedEvent.GetId()
+				}
+				eventsBySequence[sequence] = cachedEvent
+			}
+
+			p.Lock()
+			current := p.buckets[key]
+			if current == nil || current.revision != revision {
+				p.Unlock()
+				continue
+			}
+			for sequence, event := range eventsBySequence {
+				bodyEvent := event.GetMessageBody()
+				if bodyEvent == nil {
+					delete(eventsBySequence, sequence)
+					continue
+				}
+				state := p.bodyStates[bodyEvent.GetEventId()]
+				if state.currentSequence != sequence || p.messageBuckets[bodyEvent.GetEventId()] != key || p.messageBodyUnavailableLocked(bodyEvent.GetEventId()) {
+					delete(eventsBySequence, sequence)
+				}
+			}
+			for messageID := range p.bucketMessages[key] {
+				state := p.bodyStates[messageID]
+				if state.currentSequence == 0 || p.messageBodyUnavailableLocked(messageID) {
+					continue
+				}
+				bodyEvent := eventsBySequence[state.currentSequence].GetMessageBody()
+				if bodyEvent == nil || bodyEvent.GetBody() == nil {
+					p.Unlock()
+					return nil, fmt.Errorf("room timeline bucket is missing current body sequence %d for message %q", state.currentSequence, messageID)
+				}
+			}
+			now := p.now()
+			pinned := p.bucketPinnedLocked(key, now)
+			p.cache[key] = &timelineBucketCache{
+				events: eventsBySequence, revision: revision, lastAccess: now,
+				pinned: pinned, complete: true,
+			}
+			for messageID := range p.bucketMessages[key] {
+				state := p.bodyStates[messageID]
+				if bodyEvent := eventsBySequence[state.currentSequence].GetMessageBody(); bodyEvent != nil {
+					state.body = bodyEvent.GetBody()
+					p.bodyStates[messageID] = state
+				}
+			}
+			messageCount := len(p.bucketMessages[key])
+			p.Unlock()
+			if p.logger != nil {
+				fields := p.bucketLogFields(key)
+				fields = append(fields,
+					"revision", revision,
+					"sequence_count", sequenceCount,
+					"body_event_count", len(eventsBySequence),
+					"message_count", messageCount,
+					"attempts", attempts,
+					"pinned", pinned,
+					"duration", time.Since(startedAt),
+				)
+				p.logger.Debug("Room timeline bucket reconstructed", fields...)
+			}
+			return nil, nil
+		}
+	})
+	select {
+	case completed := <-result:
+		return completed.Err
+	case <-ctx.Done():
+		logCanceledWait(ctx.Err())
+		return ctx.Err()
+	}
+}
+
+func (p *RoomTimelineProjection) messageBodyUnavailableLocked(messageID string) bool {
+	if _, retracted := p.retractedFlags[messageID]; retracted {
+		return true
+	}
+	if _, hidden := p.hiddenEchoes[messageID]; hidden {
+		return true
+	}
+	if originalID := p.echoOriginalIDLocked(messageID); originalID != "" {
+		if _, retracted := p.retractedFlags[originalID]; retracted {
+			return true
+		}
+	}
+	entry, _ := p.entryByEventIDLocked(messageID)
+	if entry != nil && entry.Event != nil {
+		_, shredded := p.shreddedUsers[messageAuthorID(entry.Event)]
+		return shredded
+	}
+	return false
+}
+
+// WarmPinned reconstructs all current and recent pinned buckets. Startup calls
+// it before the core reports readiness after a snapshot restore.
+func (p *RoomTimelineProjection) WarmPinned(ctx context.Context) error {
+	p.RLock()
+	now := p.now()
+	keys := make([]timelineBucketKey, 0, len(p.buckets))
+	for key := range p.buckets {
+		if p.bucketPinnedLocked(key, now) {
+			keys = append(keys, key)
+		}
+	}
+	p.RUnlock()
+	for _, key := range keys {
+		if err := p.loadBucket(ctx, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// RunBucketCache evicts unpinned materializations after their idle timeout.
+func (p *RoomTimelineProjection) RunBucketCache(ctx context.Context) error {
+	interval := p.idleTimeout / 2
+	if interval > time.Minute {
+		interval = time.Minute
+	}
+	if interval < time.Second {
+		interval = time.Second
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case now := <-ticker.C:
+			p.evictIdleBuckets(now)
+		}
+	}
+}
+
+func (p *RoomTimelineProjection) evictIdleBuckets(now time.Time) {
+	type eviction struct {
+		key            timelineBucketKey
+		revision       uint64
+		bodyEventCount int
+		messageCount   int
+		idleFor        time.Duration
+	}
+	var evictions []eviction
+	p.Lock()
+	for key, cached := range p.cache {
+		if p.bucketPinnedLocked(key, now) {
+			cached.pinned = true
+			continue
+		}
+		if cached.pinned {
+			cached.pinned = false
+			cached.lastAccess = now
+			continue
+		}
+		if now.Sub(cached.lastAccess) < p.idleTimeout {
+			continue
+		}
+		evictions = append(evictions, eviction{
+			key:            key,
+			revision:       cached.revision,
+			bodyEventCount: len(cached.events),
+			messageCount:   len(p.bucketMessages[key]),
+			idleFor:        now.Sub(cached.lastAccess),
+		})
+		delete(p.cache, key)
+		for messageID := range p.bucketMessages[key] {
+			state := p.bodyStates[messageID]
+			state.body = nil
+			p.bodyStates[messageID] = state
+		}
+	}
+	remainingBuckets := len(p.cache)
+	p.Unlock()
+	if p.logger == nil {
+		return
+	}
+	for _, evicted := range evictions {
+		fields := p.bucketLogFields(evicted.key)
+		fields = append(fields,
+			"revision", evicted.revision,
+			"body_event_count", evicted.bodyEventCount,
+			"message_count", evicted.messageCount,
+			"idle_for", evicted.idleFor,
+			"materialized_buckets_remaining", remainingBuckets,
+		)
+		p.logger.Debug("Room timeline bucket evicted", fields...)
+	}
+}
+
+// LatestBodyContext loads the owning bucket when its materialization was
+// evicted, then returns the current body state.
+func (p *RoomTimelineProjection) LatestBodyContext(ctx context.Context, eventID string) (*evtv1.MessageBody, bool, bool, error) {
+	p.Lock()
+	key, hasBucket := p.messageBuckets[eventID]
+	state := p.bodyStates[eventID]
+	body, isRetracted, ok := p.latestBodyLocked(eventID)
+	if body != nil && hasBucket {
+		if cached := p.cache[key]; cached != nil {
+			cached.lastAccess = p.now()
+		}
+	}
+	p.Unlock()
+	if body == nil && !isRetracted && state.currentSequence != 0 && hasBucket {
+		if err := p.loadBucket(ctx, key); err != nil {
+			return nil, false, true, err
+		}
+		p.Lock()
+		body, isRetracted, ok = p.latestBodyLocked(eventID)
+		if body != nil {
+			if cached := p.cache[key]; cached != nil {
+				cached.lastAccess = p.now()
+			}
+		}
+		p.Unlock()
+	}
+	return body, isRetracted, ok, nil
+}
+
 // LatestBody returns the current MessageBodyEvent body for a message, or nil +
 // retracted=true if a MessageRetractedEvent has landed.
 //
@@ -583,6 +1164,10 @@ func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (t
 func (p *RoomTimelineProjection) LatestBody(eventID string) (body *evtv1.MessageBody, retracted bool, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
+	return p.latestBodyLocked(eventID)
+}
+
+func (p *RoomTimelineProjection) latestBodyLocked(eventID string) (body *evtv1.MessageBody, retracted bool, ok bool) {
 	if eventID == "" {
 		return nil, false, false
 	}
@@ -606,9 +1191,11 @@ func (p *RoomTimelineProjection) LatestBody(eventID string) (body *evtv1.Message
 	return nil, false, true
 }
 
-// CurrentRoomAttachmentMessages returns current, visible messages whose latest
-// body references attachments. Results are newest message first.
-func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+// CurrentRoomAttachmentMessageReferences returns current, visible messages
+// whose latest bodies reference attachments. Results are newest message first.
+// The references contain no message-body payload and do not load timeline
+// buckets.
+func (p *RoomTimelineProjection) CurrentRoomAttachmentMessageReferences(roomID string) []projectedRoomAttachmentMessageReference {
 	p.RLock()
 	defer p.RUnlock()
 
@@ -617,7 +1204,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 		return nil
 	}
 
-	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
+	out := make([]projectedRoomAttachmentMessageReference, 0, len(ids))
 	for i := len(ids) - 1; i >= 0; i-- {
 		eventID := ids[i]
 		entry, _ := p.entryByEventIDLocked(eventID)
@@ -632,23 +1219,24 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 				continue
 			}
 		}
-		body := p.bodyStates[eventID].body
-		if !messageBodyReferencesAttachments(body) {
+		state := p.bodyStates[eventID]
+		if state.attachmentCount <= 0 {
 			continue
 		}
-		out = append(out, projectedRoomAttachmentMessage{
-			Entry: entry,
-			Body:  cloneMessageBody(body),
+		out = append(out, projectedRoomAttachmentMessageReference{
+			Entry:           entry,
+			AttachmentCount: state.attachmentCount,
+			AssetIDs:        append([]string(nil), state.currentAssetIDs...),
 		})
 	}
 	return out
 }
 
-func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *evtv1.MessageBody) {
+func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string) {
 	if roomID == "" || eventID == "" {
 		return
 	}
-	if !messageBodyReferencesAttachments(body) {
+	if p.bodyStates[eventID].attachmentCount <= 0 {
 		p.removeAttachmentMessageLocked(eventID)
 		return
 	}
@@ -716,8 +1304,26 @@ func (p *RoomTimelineProjection) removeAttachmentMessageLocked(eventID string) {
 	delete(p.attachmentMessageRoom, eventID)
 }
 
-func messageBodyReferencesAttachments(body *evtv1.MessageBody) bool {
-	return len(ownedAssetIDsFromBody(body)) > 0
+func messageBodyAttachmentMetadata(body *evtv1.MessageBody) ([]string, int) {
+	if body == nil {
+		return nil, 0
+	}
+	if referenced := body.GetAssetIds(); len(referenced) > 0 {
+		assetIDs := make([]string, 0, len(referenced))
+		for _, assetID := range referenced {
+			if assetID != "" {
+				assetIDs = append(assetIDs, assetID)
+			}
+		}
+		return assetIDs, len(assetIDs)
+	}
+	count := 0
+	for _, attachment := range body.GetAttachments() {
+		if attachment != nil && attachment.GetId() != "" {
+			count++
+		}
+	}
+	return nil, count
 }
 
 // BodyEventSeqs returns all projected MessageBodyEvent stream sequences for

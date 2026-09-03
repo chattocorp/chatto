@@ -84,5 +84,5 @@ users.
 
 ## Related
 
-- **ADRs:** ADR-011 (message body / event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state)
+- **ADRs:** ADR-011 (message body / event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-090 (cached timeline buckets)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-005 (Reactions)

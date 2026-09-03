@@ -427,6 +427,15 @@ func (c *ChattoConfig) Validate() error {
 	if c.Core.ProjectionSnapshotRetention.Duration() < 0 {
 		errs = append(errs, "core.projection_snapshot_retention must be positive")
 	}
+	if c.Core.TimelineBucketInterval.Duration() < 0 {
+		errs = append(errs, "core.timeline_bucket_interval must be positive")
+	}
+	if c.Core.TimelineBucketPinnedPeriod.Duration() < 0 {
+		errs = append(errs, "core.timeline_bucket_pinned_period must be positive")
+	}
+	if c.Core.TimelineBucketIdleTimeout.Duration() < 0 {
+		errs = append(errs, "core.timeline_bucket_idle_timeout must be positive")
+	}
 
 	// Storage backend validation
 	if c.Core.Assets.StorageBackend != "" &&

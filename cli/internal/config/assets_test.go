@@ -16,6 +16,9 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOTS", "true")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION", "10d")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP", "false")
+	t.Setenv("CHATTO_CORE_TIMELINE_BUCKET_INTERVAL", "2w")
+	t.Setenv("CHATTO_CORE_TIMELINE_BUCKET_PINNED_PERIOD", "6w")
+	t.Setenv("CHATTO_CORE_TIMELINE_BUCKET_IDLE_TIMEOUT", "20m")
 
 	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
 	if err != nil {
@@ -30,6 +33,15 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
 		t.Error("expected S3 snapshot cleanup to be disabled from environment")
 	}
+	if got := cfg.Core.TimelineBucketIntervalOrDefault(); got != 14*24*time.Hour {
+		t.Errorf("timeline bucket interval = %s", got)
+	}
+	if got := cfg.Core.TimelineBucketPinnedPeriodOrDefault(); got != 42*24*time.Hour {
+		t.Errorf("timeline bucket pinned period = %s", got)
+	}
+	if got := cfg.Core.TimelineBucketIdleTimeoutOrDefault(); got != 20*time.Minute {
+		t.Errorf("timeline bucket idle timeout = %s", got)
+	}
 }
 
 func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
@@ -39,6 +51,19 @@ func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
 	}
 	if !cfg.ProjectionSnapshotS3CleanupOrDefault() {
 		t.Fatal("S3 projection snapshot cleanup should default to enabled")
+	}
+}
+
+func TestCoreTimelineBucketDefaults(t *testing.T) {
+	var cfg CoreConfig
+	if got := cfg.TimelineBucketIntervalOrDefault(); got != 7*24*time.Hour {
+		t.Fatalf("default timeline bucket interval = %s", got)
+	}
+	if got := cfg.TimelineBucketPinnedPeriodOrDefault(); got != 28*24*time.Hour {
+		t.Fatalf("default timeline bucket pinned period = %s", got)
+	}
+	if got := cfg.TimelineBucketIdleTimeoutOrDefault(); got != 15*time.Minute {
+		t.Fatalf("default timeline bucket idle timeout = %s", got)
 	}
 }
 
@@ -99,6 +124,27 @@ func TestChattoConfig_ValidateProjectionSnapshotRetention(t *testing.T) {
 	cfg.Core.ProjectionSnapshotRetention = Duration(-time.Hour)
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.projection_snapshot_retention must be positive") {
 		t.Fatalf("Validate() error = %v, want projection snapshot retention error", err)
+	}
+}
+
+func TestChattoConfig_ValidateTimelineBucketDurations(t *testing.T) {
+	tests := []struct {
+		name string
+		set  func(*CoreConfig)
+		want string
+	}{
+		{"interval", func(c *CoreConfig) { c.TimelineBucketInterval = Duration(-time.Hour) }, "core.timeline_bucket_interval must be positive"},
+		{"pinned period", func(c *CoreConfig) { c.TimelineBucketPinnedPeriod = Duration(-time.Hour) }, "core.timeline_bucket_pinned_period must be positive"},
+		{"idle timeout", func(c *CoreConfig) { c.TimelineBucketIdleTimeout = Duration(-time.Hour) }, "core.timeline_bucket_idle_timeout must be positive"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			tt.set(&cfg.Core)
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Fatalf("Validate() error = %v, want %q", err, tt.want)
+			}
+		})
 	}
 }
 

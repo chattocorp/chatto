@@ -196,6 +196,14 @@ func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	if result.Items[1].MessageEventID != rootEvent.Id || result.Items[1].ThreadRootEventID != "" {
 		t.Fatalf("root item anchor = (%q, %q), want (%q, empty)", result.Items[1].MessageEventID, result.Items[1].ThreadRootEventID, rootEvent.Id)
 	}
+
+	middle, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 1)
+	if err != nil {
+		t.Fatalf("Get middle page: %v", err)
+	}
+	if middle.TotalCount != 3 || !middle.HasMore || len(middle.Items) != 1 || middle.Items[0].Attachment.GetFilename() != "root-a.png" {
+		t.Fatalf("middle page = %+v, want root-a.png as one of three attachments", middle)
+	}
 }
 
 func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
@@ -227,6 +235,32 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	}
 	if second.TotalCount != 2 || second.HasMore || len(second.Items) != 1 || second.Items[0].Attachment.Filename != "old.png" {
 		t.Fatalf("second page = count %d hasMore %v names %v, want count 2 hasMore false [old.png]", second.TotalCount, second.HasMore, attachmentNames(second.Items))
+	}
+}
+
+func TestChattoCore_GetRoomAttachmentsPaginationSkipsDeletedAssets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, user := setupRoomAttachmentTest(t, core, ctx)
+
+	oldAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "old.png")
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "old", []string{oldAttachment.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Post old message: %v", err)
+	}
+	deletedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "deleted.png")
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "deleted", []string{deletedAttachment.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Post deleted-asset message: %v", err)
+	}
+	if err := core.RecordAssetDeleted(ctx, SystemActorID, room.Id, deletedAttachment.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	page, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 0)
+	if err != nil {
+		t.Fatalf("GetRoomAttachments: %v", err)
+	}
+	if page.TotalCount != 1 || page.HasMore || len(page.Items) != 1 || page.Items[0].Attachment.GetId() != oldAttachment.Id {
+		t.Fatalf("page = count %d hasMore %v names %v, want count 1 hasMore false [old.png]", page.TotalCount, page.HasMore, attachmentNames(page.Items))
 	}
 }
 

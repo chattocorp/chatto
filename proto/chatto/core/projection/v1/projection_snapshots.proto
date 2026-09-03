@@ -392,7 +392,7 @@ message ProjectedVerifiedEmailSnapshot {
 
 message RoomTimelineProjectionSnapshot {
   repeated TimelineEntrySnapshot entries = 1;
-  repeated TimelineBodySnapshot bodies = 2;
+  repeated TimelineBodyReferenceSnapshot body_references = 2;
   repeated StringTimestampSnapshot tombstoned_at = 3;
   repeated StringTimestampSnapshot shredded_at = 4;
   repeated string retracted_event_ids = 5;
@@ -401,6 +401,9 @@ message RoomTimelineProjectionSnapshot {
   ProjectionReplayGuardSnapshot replay_guard = 8;
   repeated PinnedMessageSnapshot pinned_messages = 9;
   repeated LatestRoomPinSnapshot latest_room_pins = 10;
+  int64 bucket_interval_nanoseconds = 11;
+  repeated TimelineBucketSnapshot buckets = 12;
+  repeated MessageBucketSnapshot message_buckets = 13;
 }
 
 message PinnedMessageSnapshot {
@@ -423,11 +426,31 @@ message TimelineEntrySnapshot {
   chatto.core.evt.v1.Event event = 2;
 }
 
-message TimelineBodySnapshot {
+message TimelineBodyReferenceSnapshot {
   string message_event_id = 1;
-  chatto.core.evt.v1.MessageBody body = 2;
   repeated uint64 body_event_sequences = 3;
   uint64 current_body_sequence = 4;
+  // Number of current attachment references. This permits attachment-page
+  // selection without loading the encrypted message body.
+  uint32 attachment_count = 6;
+  // Current asset IDs when the body uses asset references. Legacy bodies use
+  // embedded attachments and leave this list empty.
+  repeated string current_asset_ids = 7;
+}
+
+message TimelineBucketSnapshot {
+  string room_id = 1;
+  int64 start_unix_nanoseconds = 2;
+  bool undated = 3;
+  repeated uint64 event_sequences = 4;
+  uint64 revision = 5;
+}
+
+message MessageBucketSnapshot {
+  string message_event_id = 1;
+  string room_id = 2;
+  int64 start_unix_nanoseconds = 3;
+  bool undated = 4;
 }
 
 message StringTimestampSnapshot {

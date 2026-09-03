@@ -197,6 +197,18 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
   Delete marked S3 projection snapshot generations older than `core.projection_snapshot_retention`. Disable this when the bucket has an external lifecycle policy for `internal/projection-snapshots/`. When enabled, S3 credentials need permission to list that prefix, inspect object metadata, and delete matching objects. Chatto validates the exact internal generation path, content type, and object-purpose marker before deletion; asset paths are never eligible.
 </EnvVar>
 
+<EnvVar name="CHATTO_CORE_TIMELINE_BUCKET_INTERVAL" toml="core.timeline_bucket_interval" default="1w">
+  Set the fixed time interval for one room timeline cache bucket. A smaller value reduces the work for one historical cache load. Changing this value rejects existing projection snapshots and causes a cold `EVT` replay.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_TIMELINE_BUCKET_PINNED_PERIOD" toml="core.timeline_bucket_pinned_period" default="4w">
+  Keep all room timeline buckets that overlap this recent period in RAM. Chatto always pins the current bucket. With the default settings, Chatto normally pins the current partial week and the four preceding weekly buckets.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_TIMELINE_BUCKET_IDLE_TIMEOUT" toml="core.timeline_bucket_idle_timeout" default="15m">
+  Evict an unpinned room timeline bucket after it has not been read for this duration. The cache has no byte limit.
+</EnvVar>
+
 <EnvVar name="CHATTO_CORE_SECRET_KEY" toml="core.secret_key" required>
   256-bit hex secret for HMAC-derived bearer-token, cookie-session, OAuth-code, account-flow, and invite-link verifiers. Generate with `openssl rand -hex 32`. Keep this stable across restores if you want sessions, pending credentials, and existing invite links to remain valid. Changing it invalidates the old links without deleting their durable invitation records; authorised administrators can copy newly derived links. It also makes projection snapshots unreadable, which Chatto safely rebuilds from `EVT`.
 </EnvVar>

@@ -130,7 +130,7 @@ snapshot schema receives a new fingerprinted contract namespace automatically.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-051 (resumable client projection), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-051 (resumable client projection), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-090 (cached timeline buckets)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-019 (Room Lifecycle), FDR-031 (Client–Server Compatibility Discovery), FDR-033 (Message Search), FDR-039 (Message Access & Interactions)
 - **Issue:** [#1982](https://github.com/chattocorp/chatto/issues/1982)
 

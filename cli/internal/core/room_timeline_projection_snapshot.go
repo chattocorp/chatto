@@ -2,16 +2,18 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
+	"slices"
+	"strings"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v7", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v8", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -20,21 +22,55 @@ func (*RoomTimelineProjection) SnapshotContractID() string {
 func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	p.RLock()
 	defer p.RUnlock()
-	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
+	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers), BucketIntervalNanoseconds: int64(p.bucketInterval)}
 	for _, entry := range p.entries {
 		snapshot.Entries = append(snapshot.Entries, &projectionv1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*evtv1.Event)})
 	}
 	for _, id := range sortedMapKeys(p.bodyStates) {
 		state := p.bodyStates[id]
-		row := &projectionv1.TimelineBodySnapshot{
+		row := &projectionv1.TimelineBodyReferenceSnapshot{
 			MessageEventId:      id,
 			BodyEventSequences:  appendBodySequences(nil, state),
 			CurrentBodySequence: state.currentSequence,
+			AttachmentCount:     uint32(state.attachmentCount),
+			CurrentAssetIds:     append([]string(nil), state.currentAssetIDs...),
 		}
-		if state.body != nil {
-			row.Body = cloneMessageBody(state.body)
+		snapshot.BodyReferences = append(snapshot.BodyReferences, row)
+	}
+	bucketKeys := make([]timelineBucketKey, 0, len(p.buckets))
+	for key := range p.buckets {
+		bucketKeys = append(bucketKeys, key)
+	}
+	slices.SortFunc(bucketKeys, func(left, right timelineBucketKey) int {
+		if byRoom := strings.Compare(left.roomID, right.roomID); byRoom != 0 {
+			return byRoom
 		}
-		snapshot.Bodies = append(snapshot.Bodies, row)
+		if left.undated != right.undated {
+			if left.undated {
+				return -1
+			}
+			return 1
+		}
+		if left.startUnixNs < right.startUnixNs {
+			return -1
+		}
+		if left.startUnixNs > right.startUnixNs {
+			return 1
+		}
+		return 0
+	})
+	for _, key := range bucketKeys {
+		bucket := p.buckets[key]
+		snapshot.Buckets = append(snapshot.Buckets, &projectionv1.TimelineBucketSnapshot{
+			RoomId: key.roomID, StartUnixNanoseconds: key.startUnixNs, Undated: key.undated,
+			EventSequences: append([]uint64(nil), bucket.sequences...), Revision: bucket.revision,
+		})
+	}
+	for _, messageID := range sortedMapKeys(p.messageBuckets) {
+		key := p.messageBuckets[messageID]
+		snapshot.MessageBuckets = append(snapshot.MessageBuckets, &projectionv1.MessageBucketSnapshot{
+			MessageEventId: messageID, RoomId: key.roomID, StartUnixNanoseconds: key.startUnixNs, Undated: key.undated,
+		})
 	}
 	appendTimes := func(values map[string]time.Time) []*projectionv1.StringTimestampSnapshot {
 		rows := make([]*projectionv1.StringTimestampSnapshot, 0, len(values))
@@ -71,17 +107,27 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if err := proto.Unmarshal(data, snapshot); err != nil {
 			return fmt.Errorf("unmarshal room timeline snapshot: %w", err)
 		}
+	} else {
+		snapshot.BucketIntervalNanoseconds = int64(p.bucketInterval)
 	}
 	guard, err := restoreReplayGuard(snapshot.GetReplayGuard())
 	if err != nil {
 		return fmt.Errorf("room timeline snapshot replay guard: %w", err)
 	}
-	restored := NewRoomTimelineProjection()
+	if snapshot.GetBucketIntervalNanoseconds() <= 0 || time.Duration(snapshot.GetBucketIntervalNanoseconds()) != p.bucketInterval {
+		return fmt.Errorf("room timeline snapshot bucket interval %s does not match configured interval %s", time.Duration(snapshot.GetBucketIntervalNanoseconds()), p.bucketInterval)
+	}
+	restored := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: p.eventSource, Interval: p.bucketInterval, PinnedPeriod: p.pinnedPeriod,
+		IdleTimeout: p.idleTimeout, Now: p.now, Logger: p.logger,
+	})
 	restored.replayGuard = guard
+	var lastEntrySequence uint64
 	for _, row := range snapshot.GetEntries() {
-		if row.GetStreamSequence() == 0 || row.GetEvent().GetId() == "" {
+		if row.GetStreamSequence() == 0 || row.GetStreamSequence() <= lastEntrySequence || row.GetEvent().GetId() == "" {
 			return fmt.Errorf("room timeline snapshot has invalid timeline entry")
 		}
+		lastEntrySequence = row.GetStreamSequence()
 		event := proto.Clone(row.GetEvent()).(*evtv1.Event)
 		index := restored.appendEntryLocked(row.GetStreamSequence(), event)
 		if _, duplicate := restored.byEventID[event.GetId()]; duplicate {
@@ -110,7 +156,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			restored.byRoom[roomID] = append(restored.byRoom[roomID], index)
 		}
 	}
-	for _, row := range snapshot.GetBodies() {
+	for _, row := range snapshot.GetBodyReferences() {
 		id := row.GetMessageEventId()
 		if id == "" {
 			return fmt.Errorf("room timeline snapshot has empty body message ID")
@@ -119,13 +165,92 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			return fmt.Errorf("room timeline snapshot repeats body %q", id)
 		}
 		sequences := row.GetBodyEventSequences()
-		if len(sequences) == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
+		if len(sequences) == 0 || sequences[0] == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent sequence history", id)
 		}
+		for index := 1; index < len(sequences); index++ {
+			if sequences[index] <= sequences[index-1] {
+				return fmt.Errorf("room timeline snapshot body %q has unordered sequence history", id)
+			}
+		}
+		attachmentCount := int(row.GetAttachmentCount())
+		assetIDs := append([]string(nil), row.GetCurrentAssetIds()...)
+		if len(assetIDs) > 0 && len(assetIDs) != attachmentCount {
+			return fmt.Errorf("room timeline snapshot body %q has inconsistent asset metadata", id)
+		}
+		for _, assetID := range assetIDs {
+			if assetID == "" {
+				return fmt.Errorf("room timeline snapshot body %q has an empty asset ID", id)
+			}
+		}
 		restored.bodyStates[id] = timelineBodyState{
-			body:                cloneMessageBody(row.GetBody()),
 			currentSequence:     row.GetCurrentBodySequence(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
+			attachmentCount:     attachmentCount,
+			currentAssetIDs:     assetIDs,
+		}
+	}
+	for _, row := range snapshot.GetBuckets() {
+		key := timelineBucketKey{roomID: row.GetRoomId(), startUnixNs: row.GetStartUnixNanoseconds(), undated: row.GetUndated()}
+		if key.roomID == "" || (key.undated && key.startUnixNs != 0) || row.GetRevision() != uint64(len(row.GetEventSequences())) || len(row.GetEventSequences()) == 0 {
+			return fmt.Errorf("room timeline snapshot has invalid bucket")
+		}
+		if !key.undated && restored.bucketKeyLocked(key.roomID, time.Unix(0, key.startUnixNs)) != key {
+			return fmt.Errorf("room timeline snapshot has an unaligned bucket for room %q", key.roomID)
+		}
+		for index := 1; index < len(row.GetEventSequences()); index++ {
+			if row.GetEventSequences()[index] <= row.GetEventSequences()[index-1] {
+				return fmt.Errorf("room timeline snapshot bucket for room %q has unordered sequences", key.roomID)
+			}
+		}
+		if _, duplicate := restored.buckets[key]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats bucket for room %q", key.roomID)
+		}
+		restored.buckets[key] = &timelineBucketState{sequences: append([]uint64(nil), row.GetEventSequences()...), revision: row.GetRevision()}
+	}
+	for _, row := range snapshot.GetMessageBuckets() {
+		key := timelineBucketKey{roomID: row.GetRoomId(), startUnixNs: row.GetStartUnixNanoseconds(), undated: row.GetUndated()}
+		entry, entryExists := restored.entryByEventIDLocked(row.GetMessageEventId())
+		if row.GetMessageEventId() == "" || key.roomID == "" || restored.buckets[key] == nil || !entryExists || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != key.roomID || restored.bucketKeyLocked(key.roomID, eventCreatedAt(entry.Event)) != key {
+			return fmt.Errorf("room timeline snapshot has invalid message bucket")
+		}
+		if _, duplicate := restored.messageBuckets[row.GetMessageEventId()]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats message bucket %q", row.GetMessageEventId())
+		}
+		restored.messageBuckets[row.GetMessageEventId()] = key
+		messages := restored.bucketMessages[key]
+		if messages == nil {
+			messages = make(map[string]struct{})
+			restored.bucketMessages[key] = messages
+		}
+		messages[row.GetMessageEventId()] = struct{}{}
+	}
+	unmappedBodySequences := make(map[uint64]string)
+	for messageID, state := range restored.bodyStates {
+		key, mapped := restored.messageBuckets[messageID]
+		if !mapped {
+			if entry, exists := restored.entryByEventIDLocked(messageID); exists && entry.Event.GetMessagePosted() != nil {
+				return fmt.Errorf("room timeline snapshot body %q has no message bucket", messageID)
+			}
+		}
+		for _, sequence := range appendBodySequences(nil, state) {
+			if mapped {
+				if _, found := slices.BinarySearch(restored.buckets[key].sequences, sequence); !found {
+					return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
+				}
+				continue
+			}
+			unmappedBodySequences[sequence] = messageID
+		}
+	}
+	if len(unmappedBodySequences) > 0 {
+		for _, bucket := range restored.buckets {
+			for _, sequence := range bucket.sequences {
+				delete(unmappedBodySequences, sequence)
+			}
+		}
+		for sequence, messageID := range unmappedBodySequences {
+			return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
 		}
 	}
 	restoreTimes := func(rows []*projectionv1.StringTimestampSnapshot) (map[string]time.Time, error) {
@@ -212,22 +337,20 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 	}
-	for messageID, state := range restored.bodyStates {
-		if _, retracted := restored.retractedFlags[messageID]; retracted {
-			continue
+	for roomID, entryIndexes := range restored.messagePostsByRoom {
+		for _, entryIndex := range entryIndexes {
+			entry := restored.entryAtLocked(entryIndex)
+			messageID := entry.Event.GetId()
+			if restored.bodyStates[messageID].attachmentCount <= 0 || restored.messageBodyUnavailableLocked(messageID) {
+				continue
+			}
+			restored.attachmentMessageIDsByRoom[roomID] = append(restored.attachmentMessageIDsByRoom[roomID], messageID)
+			restored.attachmentMessageRoom[messageID] = roomID
 		}
-		if _, hidden := restored.hiddenEchoes[messageID]; hidden {
-			continue
-		}
-		entry, ok := restored.entryByEventIDLocked(messageID)
-		if !ok || entry.Event == nil || state.body == nil {
-			continue
-		}
-		roomID := roomIDOfEvent(entry.Event)
-		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
 	}
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
+	p.buckets, p.messageBuckets, p.bucketMessages, p.cache = restored.buckets, restored.messageBuckets, restored.bucketMessages, restored.cache
 	p.Unlock()
 	return nil
 }

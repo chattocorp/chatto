@@ -77,7 +77,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{reactionSnapshotContractID, "v1", &projectionv1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &projectionv1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &projectionv1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v7", &projectionv1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v8", &projectionv1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v2", &projectionv1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v4", &projectionv1.UserProfileProjectionSnapshot{}},
 	}
@@ -347,7 +347,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v2-", "room_group_layout": "v1-",
 		"notification_decisions": "v2-", "notifications": "v2-",
-		"room_timeline": "v7-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"room_timeline": "v8-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {
