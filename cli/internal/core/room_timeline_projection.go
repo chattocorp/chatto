@@ -976,20 +976,8 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 			}
 			for messageID := range p.bucketMessages[key] {
 				state := p.bodyStates[messageID]
-				event := eventsBySequence[state.currentSequence]
-				if bodyEvent := event.GetMessageBody(); bodyEvent != nil && bodyEvent.GetBody() != nil {
-					body := bodyEvent.GetBody()
-					_, retracted := p.retractedFlags[messageID]
-					_, hidden := p.hiddenEchoes[messageID]
-					_, authorShredded := p.shreddedUsers[body.GetAuthorId()]
-					if originalID := p.echoOriginalIDLocked(messageID); originalID != "" {
-						_, originalRetracted := p.retractedFlags[originalID]
-						retracted = retracted || originalRetracted
-					}
-					if retracted || hidden || authorShredded {
-						continue
-					}
-					state.body = body
+				if bodyEvent := eventsBySequence[state.currentSequence].GetMessageBody(); bodyEvent != nil {
+					state.body = bodyEvent.GetBody()
 					p.bodyStates[messageID] = state
 				}
 			}
