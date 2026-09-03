@@ -6,9 +6,9 @@ contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs
 ## Public Realtime Boundary
 
 Do not use messages from this package as public realtime payloads. Realtime
-protocol 4 maps selected canonical events to dedicated payloads in
-`chatto/realtime/v1/events.proto`. A stored field must not become public only
-because it exists in a canonical event.
+protocol 4 maps selected `Event` and `LiveEvent` values to dedicated payloads
+in `chatto/realtime/v1/events.proto`. A stored field must not become public only
+because it exists in an `Event`.
 
 ## Package Ownership
 

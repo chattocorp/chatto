@@ -298,9 +298,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
   `/api/realtime` must regenerate their clients. Protocol 4 sends authorized public
   events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
-  15-minute bounded cursor resume. Snapshot clients receive realtime-owned wrappers around
-  canonical resource shapes through the WebSocket. Room and thread timelines stay in the paginated ConnectRPC APIs;
-  protocol 4 has no retained-room control. The additive authenticated
+  15-minute bounded cursor resume. The client sends one `RealtimeSubscribe`
+  message. The server can send `snapshot`, `event`, `caught_up`, `heartbeat`,
+  and `close` frames. Snapshot clients receive one atomic frame with canonical
+  resource shapes. Room and thread timelines stay in the paginated ConnectRPC
+  APIs; protocol 4 has no retained-room control. The additive authenticated
   `ServerService.GetServerProfile` method remains available for explicit reads. Public server
   discovery stays unauthenticated.
   `RoomWithViewerState` now contains DM participant IDs and optional message-history state,

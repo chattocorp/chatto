@@ -243,8 +243,10 @@ authorization, live events, backup and restore, and backend tests.
   one of `proto/chatto/realtime/v1/*_events.proto`, a matching `RealtimeEvent` union
   member, authorization and mapping coverage, frontend subscription handling,
   generated clients, documentation, and tests. Keep the public union member's
-  name and number aligned with the canonical event. If a visible room timeline
-  event is added, also update the Connect timeline assembler and mapping tests.
+  name and number aligned with `Event` for durable facts. Put transient
+  `LiveEvent` members in the public range from 20000 through 29999. If a visible
+  room timeline event is added, also update the Connect timeline assembler and
+  mapping tests.
 
 ## Authorization And RBAC
 
