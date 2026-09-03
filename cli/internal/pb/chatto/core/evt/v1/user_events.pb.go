@@ -1871,11 +1871,11 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12;\n" +
 	"\x06avatar\x18\x02 \x01(\v2#.chatto.core.evt.v1.DeprecatedAssetR\x06avatar\"1\n" +
 	"\x16UserAvatarClearedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x9f\x01\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x88\x01\n" +
 	"\x1bUserVerifiedEmailAddedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12P\n" +
 	"\x0fencrypted_email\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedEmailJ\x04\b\v\x10\fR\x0femail_plaintext\"\xa0\x01\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedEmail\"\xa0\x01\n" +
 	"\x1cUserPasswordHashChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
 	"\rpassword_hash\x18\x02 \x01(\fR\fpasswordHash\x12B\n" +

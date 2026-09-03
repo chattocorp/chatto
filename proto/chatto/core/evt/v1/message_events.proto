@@ -57,7 +57,6 @@ message MessagePostedEvent {
   // can therefore apply the correct policy without re-parsing message content
   // or consulting newer room state.
   repeated MessageMention mentions = 10;
-
 }
 
 message DirectUserMention {}

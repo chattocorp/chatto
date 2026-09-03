@@ -154,8 +154,6 @@ message UserAvatarClearedEvent {
 }
 
 message UserVerifiedEmailAddedEvent {
-  reserved 11;
-  reserved "email_plaintext";
   string user_id = 1;
   EncryptedUserString encrypted_email = 10;
 }

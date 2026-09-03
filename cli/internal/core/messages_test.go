@@ -749,7 +749,7 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 	}
 }
 
-func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
+func TestChattoCore_MessageBodyEventsKeepCanonicalPostedEventsBodyless(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
