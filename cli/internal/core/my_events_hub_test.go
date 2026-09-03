@@ -92,6 +92,29 @@ func TestMyEventsHubResetsForUnknownAggregateNamespace(t *testing.T) {
 	}
 }
 
+func TestMyEventsHubResetsForMismatchedUserSubject(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	event := &evtv1.Event{
+		Event: &evtv1.Event_UserCustomStatusSet{
+			UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "user-2"},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal user event: %v", err)
+	}
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateUser + ".user-1." + evtstream.EventUserCustomStatusSet,
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("mismatched user subject did not require a snapshot")
+	}
+}
+
 func TestMyEventsHubResetsForUnprojectedContentFacts(t *testing.T) {
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub

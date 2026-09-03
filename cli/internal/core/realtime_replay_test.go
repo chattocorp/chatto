@@ -11,6 +11,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -738,6 +739,80 @@ func TestPlanRealtimeReplayResetsForUnknownFutureEvent(t *testing.T) {
 	}
 	if !plan.Reset || !plan.HadSequenceGap || len(plan.Events) != 0 {
 		t.Fatalf("future event replay = %+v, want exact snapshot fallback", plan)
+	}
+}
+
+func TestPlanRealtimeReplayResetsForUnknownAggregateNamespace(t *testing.T) {
+	chatto, nc := setupTestCore(t)
+	ctx := testContext(t)
+	const userID = "future-aggregate-viewer"
+
+	before, err := chatto.PlanRealtimeReplay(ctx, userID, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	event := &evtv1.Event{
+		Id: "future-aggregate-event",
+		Event: &evtv1.Event_UserCustomStatusSet{
+			UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "user-1", Status: &evtv1.CustomUserStatus{Text: "status"}},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal known payload on future aggregate: %v", err)
+	}
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("create JetStream client: %v", err)
+	}
+	subject := "evt.future.resource-1." + evtstream.EventUserCustomStatusSet
+	if _, err := js.Publish(ctx, subject, data); err != nil {
+		t.Fatalf("publish future aggregate event: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, userID, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay after future aggregate: %v", err)
+	}
+	if !plan.Reset || !plan.HadSequenceGap || len(plan.Events) != 0 {
+		t.Fatalf("future aggregate replay = %+v, want exact snapshot fallback", plan)
+	}
+}
+
+func TestPlanRealtimeReplayResetsForMismatchedUserSubject(t *testing.T) {
+	chatto, nc := setupTestCore(t)
+	ctx := testContext(t)
+	const userID = "mismatched-user-subject-viewer"
+
+	before, err := chatto.PlanRealtimeReplay(ctx, userID, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	event := &evtv1.Event{
+		Id: "mismatched-user-subject-event",
+		Event: &evtv1.Event_UserCustomStatusSet{
+			UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "user-2"},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal user event: %v", err)
+	}
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatalf("create JetStream client: %v", err)
+	}
+	subject := evtstream.UserAggregate("user-1").Subject(evtstream.EventUserCustomStatusSet)
+	if _, err := js.Publish(ctx, subject, data); err != nil {
+		t.Fatalf("publish mismatched user event: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, userID, before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay after mismatched user event: %v", err)
+	}
+	if !plan.Reset || !plan.HadSequenceGap || len(plan.Events) != 0 {
+		t.Fatalf("mismatched user replay = %+v, want exact snapshot fallback", plan)
 	}
 }
 

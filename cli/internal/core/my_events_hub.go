@@ -454,6 +454,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	eventType := liveEventType(msg.Subject)
 	roomID, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
+	userID, userSubject := evtstream.ParseUserSubject(msg.Subject)
 	serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
 
 	h.decoded.Add(1)
@@ -515,6 +516,10 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 
 	if !isDeliverableLiveEVTUserEvent(&event) {
 		return false
+	}
+	if !userSubject || userIDOfUserEvent(&event) != userID {
+		h.model.core.logger.Warn("Live EVT user subject and payload IDs disagree", "subject", msg.Subject)
+		return true
 	}
 	waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 	defer cancel()

@@ -86,6 +86,41 @@ func RoomIDOfEvent(event *evtv1.Event) string {
 	return roomIDOfEvent(event)
 }
 
+// userIDOfUserEvent returns the user aggregate ID carried by a durable user
+// fact that can affect public realtime state. Delivery compares this value
+// with the EVT subject before it trusts the fact.
+func userIDOfUserEvent(event *evtv1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserAccountCreated:
+		return payload.UserAccountCreated.GetUserId()
+	case *evtv1.Event_UserLoginChanged:
+		return payload.UserLoginChanged.GetUserId()
+	case *evtv1.Event_UserDisplayNameChanged:
+		return payload.UserDisplayNameChanged.GetUserId()
+	case *evtv1.Event_UserAvatarSet:
+		return payload.UserAvatarSet.GetUserId()
+	case *evtv1.Event_UserAvatarCleared:
+		return payload.UserAvatarCleared.GetUserId()
+	case *evtv1.Event_UserAccountDeleted:
+		return payload.UserAccountDeleted.GetUserId()
+	case *evtv1.Event_UserKeyShreddingRequested:
+		return payload.UserKeyShreddingRequested.GetUserId()
+	case *evtv1.Event_UserKeyShredded:
+		return payload.UserKeyShredded.GetUserId()
+	case *evtv1.Event_UserCustomStatusSet:
+		return payload.UserCustomStatusSet.GetUserId()
+	case *evtv1.Event_UserCustomStatusCleared:
+		return payload.UserCustomStatusCleared.GetUserId()
+	case *evtv1.Event_UserBioChanged:
+		return payload.UserBioChanged.GetUserId()
+	default:
+		return ""
+	}
+}
+
 // MessageReadProtectedEventRoomID identifies a durable fact whose public
 // delivery can expose message content or message-specific metadata.
 func (c *ChattoCore) MessageReadProtectedEventRoomID(event *evtv1.Event) (string, bool) {

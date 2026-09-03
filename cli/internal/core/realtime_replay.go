@@ -222,7 +222,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
 		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
-		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		userIDFromSubject, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		switch {
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -280,6 +280,11 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			if !isDeliverableLiveEVTUserEvent(&event) {
 				continue
 			}
+			if userIDOfUserEvent(&event) != userIDFromSubject {
+				plan.Reset = true
+				plan.Events = nil
+				return plan, nil
+			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 			err = c.myEventsModel.waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq)
 			cancel()
@@ -287,6 +292,14 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
 			}
 		default:
+			if !isKnownNonRealtimeEVTSubject(msg.Subject) {
+				// A newer server can introduce an aggregate that contributes to
+				// the exact snapshot. Match live delivery and fail closed because
+				// this replica cannot classify the fact's state impact.
+				plan.Reset = true
+				plan.Events = nil
+				return plan, nil
+			}
 			continue
 		}
 		if protectedRoomID, protected := c.MessageReadProtectedEventRoomID(&event); protected {

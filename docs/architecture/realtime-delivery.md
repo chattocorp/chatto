@@ -211,6 +211,12 @@ before the cursor advances. Reconnect retries the fact or uses a safe fallback.
 Unknown public event variants are additive and can be ignored while the
 transport cursor advances.
 
+An EVT fact with an unknown aggregate namespace requires a reset because the
+replica cannot determine its effect on snapshot state. A user fact also
+requires a reset when its subject aggregate ID and payload user ID do not
+match. Live delivery closes the connection, and replay selects the requested
+safe fallback. Neither path advances the cursor past the fact.
+
 ## Process-wide live ingress
 
 `MyEventsHub` owns one NATS Core subscription to `live.sync.>` and one to
