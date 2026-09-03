@@ -243,6 +243,22 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		restored.pendingBodySequences[row.GetMessageEventId()] = append([]uint64(nil), row.GetEventSequences()...)
 	}
+	for messageID, state := range restored.bodyStates {
+		key, mapped := restored.messageBuckets[messageID]
+		pending, hasPending := restored.pendingBodySequences[messageID]
+		if mapped == hasPending {
+			return fmt.Errorf("room timeline snapshot body %q must have exactly one bucket association", messageID)
+		}
+		indexed := pending
+		if mapped {
+			indexed = restored.buckets[key].sequences
+		}
+		for _, sequence := range appendBodySequences(nil, state) {
+			if _, found := slices.BinarySearch(indexed, sequence); !found {
+				return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
+			}
+		}
+	}
 	restoreTimes := func(rows []*projectionv1.StringTimestampSnapshot) (map[string]time.Time, error) {
 		values := make(map[string]time.Time, len(rows))
 		for _, row := range rows {

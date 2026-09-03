@@ -9,11 +9,13 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 // =============================================================================
@@ -1290,6 +1292,36 @@ func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	mismatch := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{EventSource: source, Interval: 24 * time.Hour})
 	if err := mismatch.Restore(payload); err == nil {
 		t.Fatal("snapshot with a different bucket interval restored successfully")
+	}
+}
+
+func TestRoomTimeline_RestoreRejectsDisconnectedBodyReference(t *testing.T) {
+	projection := NewRoomTimelineProjection()
+	body := bodyEventWithAssets("BODY", "MESSAGE", "R1", "U1", "ciphertext", nil, 1)
+	posted := bodylessPostedEvent("MESSAGE", "R1", "U1", 1)
+	if err := projection.Apply(body, 1); err != nil {
+		t.Fatalf("Apply body: %v", err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatalf("Apply post: %v", err)
+	}
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{}
+	if err := proto.Unmarshal(payload, snapshot); err != nil {
+		t.Fatalf("Unmarshal snapshot: %v", err)
+	}
+	snapshot.MessageBuckets = nil
+	payload, err = proto.Marshal(snapshot)
+	if err != nil {
+		t.Fatalf("Marshal corrupted snapshot: %v", err)
+	}
+
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err == nil {
+		t.Fatal("snapshot with a disconnected body reference restored successfully")
 	}
 }
 
