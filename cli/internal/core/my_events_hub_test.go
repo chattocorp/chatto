@@ -115,20 +115,54 @@ func TestMyEventsHubResetsForMismatchedUserSubject(t *testing.T) {
 	}
 }
 
-func TestMyEventsHubResetsForUnprojectedContentFacts(t *testing.T) {
+func TestMyEventsHubResetsForUnprojectedServerConfigFacts(t *testing.T) {
 	core := &ChattoCore{logger: testCoreLogger()}
 	hub := NewMyEventsModel(core).hub
-	for _, subject := range []string{
-		evtstream.LiveSubjectRoot + evtstream.AggregateGroup + ".group-1." + evtstream.EventRoomGroupUpdated,
-		evtstream.LiveSubjectRoot + evtstream.AggregateLayout + ".default." + evtstream.EventRoomGroupsReordered,
-		evtstream.LiveSubjectRoot + evtstream.AggregateConfig + "." + evtstream.ConfigSingletonID + "." + evtstream.EventServerNameChanged,
-	} {
-		if discontinuity := hub.handleLiveEVT(context.Background(), &nats.Msg{Subject: subject}); !discontinuity {
-			t.Errorf("content fact %q did not require a snapshot", subject)
-		}
+	subject := evtstream.LiveSubjectRoot + evtstream.AggregateConfig + "." + evtstream.ConfigSingletonID + "." + evtstream.EventServerNameChanged
+	if discontinuity := hub.handleLiveEVT(context.Background(), &nats.Msg{Subject: subject}); !discontinuity {
+		t.Errorf("content fact %q did not require a snapshot", subject)
 	}
 	if got := hub.decoded.Load(); got != 0 {
 		t.Fatalf("decoded events = %d, want reset classification before decode", got)
+	}
+}
+
+func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "group-viewer", "Group Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	group, err := core.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-stream:
+			if !ok {
+				t.Fatal("myEvents stream closed before room-group delivery")
+			}
+			event := envelope.EVTEvent()
+			created := event.GetRoomGroupCreated()
+			if created == nil || created.GetGroupId() != group.Id {
+				continue
+			}
+			if got, ok := core.roomModel.roomGroup(group.Id); !ok || got.GetName() != "Engineering" {
+				t.Fatalf("room-group projection at delivery = %+v, want Engineering", got)
+			}
+			return
+		case <-timer.C:
+			t.Fatal("timed out waiting for durable room-group event")
+		}
 	}
 }
 
@@ -250,6 +284,27 @@ func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
 				t.Fatalf("realtimeEVTRequiresSnapshot(%q, %q) = %t, want %t", subject, test.eventType, got, test.want)
 			}
 		})
+	}
+}
+
+func TestRealtimeEVTRequiresSnapshotAcceptsRoomGroupFacts(t *testing.T) {
+	tests := []struct {
+		subject   string
+		eventType string
+	}{
+		{
+			subject:   evtstream.GroupAggregate("group-1").Subject(evtstream.EventRoomGroupUpdated),
+			eventType: evtstream.EventRoomGroupUpdated,
+		},
+		{
+			subject:   evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered),
+			eventType: evtstream.EventRoomGroupsReordered,
+		},
+	}
+	for _, test := range tests {
+		if realtimeEVTRequiresSnapshot(test.subject, test.eventType) {
+			t.Errorf("realtimeEVTRequiresSnapshot(%q, %q) = true, want false", test.subject, test.eventType)
+		}
 	}
 }
 

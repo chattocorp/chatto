@@ -19,11 +19,18 @@ import {
   RealtimeClientHello,
   RealtimeInitialState,
   RealtimeRecoveryMode,
+  RealtimeCloseCode,
+  RealtimeErrorCode,
   RealtimeServerFrame,
   RealtimeSubscribeEvents,
   type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import {
+  ListRoomGroupsResponse,
+  ListRoomsResponse
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
@@ -37,6 +44,11 @@ const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
 const FATAL_REALTIME_CLOSE_CODE = 4000;
 const REALTIME_PROTOCOL_VERSION = 4;
+
+function durationMilliseconds(value: { seconds: bigint; nanos: number } | undefined): number {
+  if (!value) return 0;
+  return Number(value.seconds) * 1000 + Math.floor(value.nanos / 1_000_000);
+}
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -416,15 +428,14 @@ class EventBusManager {
                   return;
                 }
                 heartbeatStallMs = heartbeatStallMsForInterval(
-                  frame.frame.value.heartbeatIntervalSeconds
+                  durationMilliseconds(frame.frame.value.heartbeatInterval) / 1000
                 );
                 nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
                 return;
               case 'subscribed':
                 socketSubscribed = true;
                 reconnectAttempts = 0;
-                snapshotRecovery =
-                  frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
+                snapshotRecovery = frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
                 if (snapshotRecovery) {
                   snapshotResourcesSeen.clear();
                   try {
@@ -456,12 +467,29 @@ class EventBusManager {
                 }
                 snapshotResourcesSeen.add(frame.frame.value.resource.case);
                 try {
+                  const resource = frame.frame.value.resource;
+                  const normalized =
+                    resource.case === 'rooms'
+                      ? {
+                          case: 'rooms' as const,
+                          value: new ListRoomsResponse({ rooms: resource.value.rooms })
+                        }
+                      : resource.case === 'roomGroups'
+                        ? {
+                            case: 'roomGroups' as const,
+                            value: new ListRoomGroupsResponse({ groups: resource.value.roomGroups })
+                          }
+                        : resource.case === 'activeCalls'
+                          ? {
+                              case: 'activeCalls' as const,
+                              value: new ListActiveCallsResponse({
+                                calls: resource.value.activeCalls
+                              })
+                            }
+                          : resource;
                   dispatchProjectionUpdate(
                     new RealtimeProjectionUpdate({
-                      resource: new RealtimeResourceUpdate({
-                        resource: frame.frame.value.resource,
-                        replace: true
-                      })
+                      resource: new RealtimeResourceUpdate({ resource: normalized, replace: true })
                     })
                   );
                 } catch (error) {
@@ -521,11 +549,11 @@ class EventBusManager {
                   message: frame.frame.value.message,
                   fatal: frame.frame.value.fatal
                 });
-                if (frame.frame.value.code === 'authentication_required') {
+                if (frame.frame.value.code === RealtimeErrorCode.AUTHENTICATION_REQUIRED) {
                   void recoverFromAuthenticationRequired(nextSocket, 'error frame');
                   return;
                 }
-                if (frame.frame.value.code === 'unsupported_protocol') {
+                if (frame.frame.value.code === RealtimeErrorCode.UNSUPPORTED_PROTOCOL) {
                   stopForUnsupportedProtocol(nextSocket);
                   return;
                 }
@@ -534,11 +562,11 @@ class EventBusManager {
                 }
                 return;
               case 'close':
-                if (frame.frame.value.code === 'authentication_required') {
+                if (frame.frame.value.code === RealtimeCloseCode.AUTHENTICATION_REQUIRED) {
                   void recoverFromAuthenticationRequired(nextSocket, 'close frame');
                   return;
                 }
-                if (frame.frame.value.code === 'session_renewal_required') {
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_RENEWAL_REQUIRED) {
                   void renewBrowserSession(nextSocket);
                   return;
                 }
@@ -548,9 +576,15 @@ class EventBusManager {
                 // Release socket-scoped hydration state before reconnecting so a
                 // request whose response was lost can be sent on the replacement.
                 socketSubscribed = false;
-                nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
+                nextSocket.close(
+                  1000,
+                  frame.frame.value.message || RealtimeCloseCode[frame.frame.value.code]
+                );
                 if (mode === 'live' && frame.frame.value.reconnect) {
-                  scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
+                  scheduleReconnect(
+                    'server requested close',
+                    durationMilliseconds(frame.frame.value.retryAfter)
+                  );
                 } else {
                   resolvePoll(false);
                   if (mode === 'polling') {

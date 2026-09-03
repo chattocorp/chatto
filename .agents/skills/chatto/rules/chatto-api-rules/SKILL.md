@@ -21,7 +21,7 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
   bundled frontend.
 - Use `chatto.core.evt.v1.Event` as the one internal event vocabulary for
   durable facts and transient signals. Use the dedicated
-  `chatto.realtime.v1.RealtimeEvent` union and `events.proto` payload catalogue
+  `chatto.realtime.v1.RealtimeEvent` union and domain payload catalog
   for public delivery. Keep a semantic one-to-one relationship for selected
   public events without importing core payload types into the public schema.
 - Keep transport concerns in `chatto.realtime.v1` wrappers. Handshakes,
@@ -47,6 +47,7 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
   public union member, authorization and mapper coverage, consuming reducers,
   generated clients, architecture inventory, public documentation, and
   compatibility notes in the same change. Keep the public member name and
-  number, and all shared field wire shapes, aligned with the canonical event.
+  union number aligned with the canonical event. Use independent public
+  payload field numbers and explicit typed mapping.
 - Keep protobuf comments, public API overviews, tutorials, compatibility
   guidance, and release notes current.

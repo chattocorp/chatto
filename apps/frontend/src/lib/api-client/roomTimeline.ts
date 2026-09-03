@@ -1,6 +1,11 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { notifyUserSummaries } from './hooks.js';
-import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
+import {
+  authHeaders,
+  createChattoClient,
+  handleAuthError,
+  REALTIME_MINIMUM_CURSOR_HEADER
+} from './connect.js';
 import type { UserSummaryForCache } from './hooks.js';
 import {
   TimelineEventKind,
@@ -42,7 +47,6 @@ export type EventConnectionPage = {
   hasNewer: boolean;
 };
 
-const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 type RealtimeBoundedRead = {

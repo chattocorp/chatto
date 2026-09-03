@@ -29,9 +29,9 @@ inherited rules. The generated public API still showed the complete stored
 message, including fields that the server removed at runtime.
 
 A dedicated public payload catalogue duplicates protobuf declarations, but it
-does not need a second semantic event model. The event names, union numbers,
-and shared field wire encodings can stay aligned with the canonical events.
-Tests can enforce this relationship.
+does not need a second semantic event model. Event names and union numbers can
+stay aligned with canonical events. Payload layouts can evolve independently.
+Tests can enforce the catalog relationship and mapper coverage.
 
 ## Decision
 
@@ -46,11 +46,10 @@ contains:
 - an explicit `event` oneof that contains only public variants; and
 - an optional opaque resume cursor outside the payload oneof.
 
-Each public union member references a dedicated payload in
-`chatto/realtime/v1/events.proto`. It uses the same oneof field number and name
-as the matching canonical event. Shared payload fields also keep their
-canonical names, numbers, types, cardinality, presence, and oneof membership.
-The public payload contains only fields that clients can receive.
+Each public union member references a dedicated payload in the
+`chatto/realtime/v1` event files. It uses the same oneof field number and name
+as the matching canonical event. The public payload has its own field numbers
+and contains only fields that clients can receive.
 
 `chatto.realtime.v1.RealtimeServerFrame` is the transport wrapper. Its `event`
 arm contains one `RealtimeEvent` directly. No second event wrapper exists.
@@ -58,17 +57,15 @@ The cursor and common metadata remain outside the payload oneof. A client can
 therefore ignore an unknown additive payload and still accept the complete
 event boundary.
 
-The server maps a canonical event to the public union by its protobuf field
-number and name. It serializes the canonical payload into a new public payload
-and discards fields that the public message does not declare. If the public
-union has no matching member, the server omits the event. The public union and
-its payload file are therefore the complete exposure catalogue. There is no
-second runtime allowlist and there are no field-surface options.
+The server uses an exhaustive typed switch to copy approved values from a
+canonical event into a new public event. If the public union has no matching
+member, the server omits the event. The public union and mapper are the complete
+exposure catalogue. There are no field-surface options and no payload wire
+transcoding.
 
 The server applies current authorization before it resolves plaintext or maps
-the event. Public `_plaintext` fields exist only in the realtime payloads.
-Their numbers and names are reserved in the matching EVT messages. The mapper
-clears these fields before it applies trusted decrypted values. Ciphertext,
+the event. Public `_plaintext` fields exist only in the realtime payloads. The
+mapper applies only trusted decrypted values. Ciphertext,
 nonces, storage pointers, private moderation data, credentials, and other
 internal fields do not exist in the public payload schema.
 
@@ -76,10 +73,9 @@ Realtime protocol version 4 keeps this refined shape. Protocol 4 is not yet in
 a Chatto release. The pull request that introduces it updates the server,
 bundled client, generated clients, and public documentation together.
 
-The nested wire bytes stay compatible for shared fields because the metadata,
-union members, and payload fields keep their canonical numbers and wire types.
-The declared public message types are different, so clients must regenerate.
-Their type system then exposes only the public contract.
+The public payload bytes are independent from EVT bytes. Clients must
+regenerate when the public schema changes. Their type system exposes only the
+public contract.
 
 ## Consequences
 
@@ -88,13 +84,11 @@ Their type system then exposes only the public contract.
   catalogue.
 - `RealtimeServerFrame` provides the transport wrapper around the event.
 - The protobuf schema shows only client-visible event fields.
-- Adding a public event requires a dedicated payload and one union member with
-  the same name and number as the canonical member.
+- Adding a public event requires a dedicated payload, one union member, and an
+  explicit mapper case.
 - Adding an internal event does not enlarge the public API.
 - Public union evolution and stored EVT envelope evolution can be reviewed as
   separate compatibility decisions.
-- Existing public variant bytes keep the canonical nested wire encoding.
-- Descriptor tests fail if public names, numbers, field wire shapes, plaintext
-  reservations, mapper coverage, or transient-event coverage drift.
+- Descriptor tests fail if public union alignment or mapper coverage drifts.
 - Generated clients and reference documentation include the dedicated public
   payload catalogue.

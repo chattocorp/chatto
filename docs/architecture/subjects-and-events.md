@@ -42,7 +42,7 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 | `chatto.core.evt.v1` | Canonical `Event` wrapper, durable facts, transient variants, and fact-owned values | Existing durable field numbers and structures are stored in JetStream and need storage compatibility; transient variants cannot enter EVT |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
 | `chatto.core.live.v1` | Transient payload messages carried by the canonical Event | Records are not stored, but changes need rolling-wire review |
-| `chatto.realtime.v1` | Public event union and dedicated public payload catalogue | Contains only client-visible fields; names, union numbers, and shared field wire shapes stay aligned with selected canonical events |
+| `chatto.realtime.v1` | Public event union and dedicated public payload catalog | Contains only client-visible fields; names and union numbers stay aligned with selected canonical events, while payload layouts are independent |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
 in-process realtime delivery interface. Private implementations let it carry a

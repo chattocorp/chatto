@@ -58,14 +58,14 @@ the stream to build and maintain its local server projection.
 **Decision:** Durable EVT facts and transient NATS Core signals use
 `chatto.core.evt.v1.Event`. Realtime uses the explicit
 `chatto.realtime.v1.RealtimeEvent.event` union and dedicated payloads in
-`chatto/realtime/v1/events.proto`. Each public member keeps the matching
-canonical event name and field number. Shared fields keep compatible wire
-numbers and types. Chatto does not provide a frontend-only mutation feed.
+the `chatto/realtime/v1` event files. Each public member keeps the matching
+canonical event name and union field number. Its payload has an independent
+public layout. Chatto does not provide a frontend-only mutation feed.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. The public union and payload file make all exposure
 visible in the schema. Exhaustive descriptor tests keep the public and
-canonical wire relationships aligned. See ADR-091 and ADR-092.
+catalog and explicit mapper aligned. See ADR-091 and ADR-092.
 **Tradeoff:** A new client-visible event needs a public payload declaration,
 union member, mapper coverage, reducer handling, generated clients, and
 documentation. This small duplication keeps storage fields out of the public

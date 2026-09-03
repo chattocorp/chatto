@@ -24,11 +24,13 @@ import {
   UserJoinedRoomEvent,
   UserLeftRoomEvent,
   MessagePostedEvent,
-  NotificationUnreadChangedEvent,
-  ThreadFollowChangedSyncEvent,
   UserAccountDeletedEvent,
   UserDisplayNameChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
+import {
+  NotificationUnreadChangedEvent,
+  ThreadFollowChangedSyncEvent
+} from '@chatto/api-types/realtime/v1/transient_events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
@@ -752,29 +754,29 @@ describe('ServerStateStore unified realtime resources', () => {
   });
 
   it('discards resource responses from a superseded reset generation', async () => {
-	const oldState = deferred<RealtimeResourceUpdate[]>();
-	const stateResource = (motd: string) =>
+    const oldState = deferred<RealtimeResourceUpdate[]>();
+    const stateResource = (motd: string) =>
       new RealtimeResourceUpdate({
-		resource: { case: 'motd', value: new GetMotdResponse({ motd }) }
+        resource: { case: 'motd', value: new GetMotdResponse({ motd }) }
       });
     apiMocks.readRealtimeResource.mockImplementation((family, cursor) => {
-		if (family !== 'serverState') return Promise.resolve([]);
+      if (family !== 'serverState') return Promise.resolve([]);
       return cursor === 'cursor-old'
-		? oldState.promise
-		: Promise.resolve([stateResource('Current MOTD')]);
+        ? oldState.promise
+        : Promise.resolve([stateResource('Current MOTD')]);
     });
     const store = makeStore(new FakeServerConnection([]));
 
-	store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
-	const obsoleteCompletion = store.completeRealtimeCatchUp('cursor-old');
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    const obsoleteCompletion = store.completeRealtimeCatchUp('cursor-old');
     await flushPromises();
-	store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
-	await store.completeRealtimeCatchUp('cursor-current');
-	expect(store.projection.serverState?.motd).toBe('Current MOTD');
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    await store.completeRealtimeCatchUp('cursor-current');
+    expect(store.projection.serverState?.motd).toBe('Current MOTD');
 
-	oldState.resolve([stateResource('Obsolete MOTD')]);
-	await expect(obsoleteCompletion).rejects.toThrow('superseded by a newer reset');
-	expect(store.projection.serverState?.motd).toBe('Current MOTD');
+    oldState.resolve([stateResource('Obsolete MOTD')]);
+    await expect(obsoleteCompletion).rejects.toThrow('superseded by a newer reset');
+    expect(store.projection.serverState?.motd).toBe('Current MOTD');
   });
 
   it('includes mounted timelines in the cursor-bounded reset', async () => {
@@ -786,8 +788,8 @@ describe('ServerStateStore unified realtime resources', () => {
       .mockReturnValue(timelineRead.promise);
     await flushPromises();
 
-	store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
-	const bootstrap = store.completeRealtimeCatchUp('opaque-reset-cursor');
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    const bootstrap = store.completeRealtimeCatchUp('opaque-reset-cursor');
     await flushPromises();
     expect(hydrate).toHaveBeenCalledWith('opaque-reset-cursor', expect.any(Function));
 

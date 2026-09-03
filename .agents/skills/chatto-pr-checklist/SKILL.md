@@ -35,7 +35,8 @@ Call out compatibility, rollout, migration, security, or operational implication
 - For public API changes, state older-client/newer-server and
   newer-client/older-server impact. Verify capability discovery and bundled
   client fallback where relevant.
-- Breaking public API changes require the `api-breaking-change` label, an
+- Breaking public API changes require the `api-breaking-change` label and the
+  applicable `api-breaking-change:<package>` label, an
   explicit design benefit and compatibility plan, generated client/docs
   updates, migration guidance, and release-note coverage.
 - Persisted internal protobuf changes under `chatto.core` must remain

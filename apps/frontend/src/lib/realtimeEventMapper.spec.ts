@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/transient_events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { TransientEventKind } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from './realtimeEventMapper';

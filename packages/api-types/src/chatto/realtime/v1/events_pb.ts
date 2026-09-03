@@ -86,72 +86,38 @@ proto3.util.setEnumType(AssetProcessingFailureCode, "chatto.realtime.v1.AssetPro
 ]);
 
 /**
- * RealtimeTimeFormat identifies the transient client time-display preference.
- *
- * @generated from enum chatto.realtime.v1.RealtimeTimeFormat
- */
-export enum RealtimeTimeFormat {
-  /**
-   * Use the client locale default.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
-   */
-  REALTIME_TIME_FORMAT_UNSPECIFIED = 0,
-
-  /**
-   * Display time with a 12-hour clock.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_12H = 1;
-   */
-  REALTIME_TIME_FORMAT_12H = 1,
-
-  /**
-   * Display time with a 24-hour clock.
-   *
-   * @generated from enum value: REALTIME_TIME_FORMAT_24H = 2;
-   */
-  REALTIME_TIME_FORMAT_24H = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeTimeFormat)
-proto3.util.setEnumType(RealtimeTimeFormat, "chatto.realtime.v1.RealtimeTimeFormat", [
-  { no: 0, name: "REALTIME_TIME_FORMAT_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_TIME_FORMAT_12H" },
-  { no: 2, name: "REALTIME_TIME_FORMAT_24H" },
-]);
-
-/**
  * RoomCreatedEvent reports a new room that is visible to the caller.
  *
  * @generated from message chatto.realtime.v1.RoomCreatedEvent
  */
 export class RoomCreatedEvent extends Message<RoomCreatedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * @generated from field: string name = 3;
+   * @generated from field: string name = 2;
    */
   name = "";
 
   /**
-   * @generated from field: string description = 4;
+   * @generated from field: string description = 3;
    */
   description = "";
 
   /**
-   * @generated from field: chatto.api.v1.RoomKind kind = 5;
+   * @generated from field: chatto.api.v1.RoomKind kind = 4;
    */
   kind = RoomKind.UNSPECIFIED;
 
   /**
-   * @generated from field: bool universal = 6;
+   * @generated from field: bool universal = 5;
    */
   universal = false;
 
   /**
-   * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 7;
+   * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 6;
    */
   threadingMode = RoomThreadingMode.UNSPECIFIED;
 
@@ -163,12 +129,12 @@ export class RoomCreatedEvent extends Message<RoomCreatedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RoomCreatedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
-    { no: 6, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 7, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
+    { no: 5, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomCreatedEvent {
@@ -195,17 +161,17 @@ export class RoomCreatedEvent extends Message<RoomCreatedEvent> {
  */
 export class RoomUpdatedEvent extends Message<RoomUpdatedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * @generated from field: string name = 3;
+   * @generated from field: string name = 2;
    */
   name = "";
 
   /**
-   * @generated from field: string description = 4;
+   * @generated from field: string description = 3;
    */
   description = "";
 
@@ -217,9 +183,9 @@ export class RoomUpdatedEvent extends Message<RoomUpdatedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RoomUpdatedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomUpdatedEvent {
@@ -246,7 +212,7 @@ export class RoomUpdatedEvent extends Message<RoomUpdatedEvent> {
  */
 export class RoomDeletedEvent extends Message<RoomDeletedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
@@ -258,7 +224,7 @@ export class RoomDeletedEvent extends Message<RoomDeletedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RoomDeletedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomDeletedEvent {
@@ -285,7 +251,7 @@ export class RoomDeletedEvent extends Message<RoomDeletedEvent> {
  */
 export class RoomArchivedEvent extends Message<RoomArchivedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
@@ -297,7 +263,7 @@ export class RoomArchivedEvent extends Message<RoomArchivedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RoomArchivedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomArchivedEvent {
@@ -324,7 +290,7 @@ export class RoomArchivedEvent extends Message<RoomArchivedEvent> {
  */
 export class RoomUnarchivedEvent extends Message<RoomUnarchivedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
@@ -336,7 +302,7 @@ export class RoomUnarchivedEvent extends Message<RoomUnarchivedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RoomUnarchivedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomUnarchivedEvent {
@@ -498,7 +464,7 @@ export class RoomThreadingModeChangedEvent extends Message<RoomThreadingModeChan
  */
 export class UserJoinedRoomEvent extends Message<UserJoinedRoomEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
@@ -510,7 +476,7 @@ export class UserJoinedRoomEvent extends Message<UserJoinedRoomEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.UserJoinedRoomEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserJoinedRoomEvent {
@@ -537,7 +503,7 @@ export class UserJoinedRoomEvent extends Message<UserJoinedRoomEvent> {
  */
 export class UserLeftRoomEvent extends Message<UserLeftRoomEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
@@ -549,7 +515,7 @@ export class UserLeftRoomEvent extends Message<UserLeftRoomEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.UserLeftRoomEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserLeftRoomEvent {
@@ -780,44 +746,44 @@ export class VoiceCallEndedEvent extends Message<VoiceCallEndedEvent> {
  */
 export class MessagePostedEvent extends Message<MessagePostedEvent> {
   /**
-   * @generated from field: string room_id = 2;
+   * @generated from field: string room_id = 1;
    */
   roomId = "";
 
   /**
-   * @generated from field: string in_reply_to = 4;
+   * @generated from field: string in_reply_to = 2;
    */
   inReplyTo = "";
 
   /**
-   * @generated from field: string in_thread = 5;
+   * @generated from field: string in_thread = 3;
    */
   inThread = "";
 
   /**
-   * @generated from field: repeated string mentioned_user_ids = 6;
+   * @generated from field: repeated string mentioned_user_ids = 4;
    */
   mentionedUserIds: string[] = [];
 
   /**
-   * @generated from field: string echo_of_event_id = 7;
+   * @generated from field: string echo_of_event_id = 5;
    */
   echoOfEventId = "";
 
   /**
-   * @generated from field: string echo_from_thread_root_event_id = 8;
+   * @generated from field: string echo_from_thread_root_event_id = 6;
    */
   echoFromThreadRootEventId = "";
 
   /**
-   * @generated from field: repeated chatto.realtime.v1.MessageMention mentions = 10;
+   * @generated from field: repeated chatto.realtime.v1.MessageMention mentions = 7;
    */
   mentions: MessageMention[] = [];
 
   /**
    * Plaintext message text. The field is absent after key shredding.
    *
-   * @generated from field: optional string body_plaintext = 11;
+   * @generated from field: optional string body_plaintext = 8;
    */
   bodyPlaintext?: string;
 
@@ -829,14 +795,14 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.MessagePostedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "in_thread", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "mentioned_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-    { no: 7, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 8, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 10, name: "mentions", kind: "message", T: MessageMention, repeated: true },
-    { no: 11, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "in_thread", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "mentioned_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 5, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 6, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 7, name: "mentions", kind: "message", T: MessageMention, repeated: true },
+    { no: 8, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessagePostedEvent {
@@ -1793,12 +1759,12 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
   botOwnerUserId = "";
 
   /**
-   * @generated from field: optional string login_plaintext = 12;
+   * @generated from field: optional string login_plaintext = 4;
    */
   loginPlaintext?: string;
 
   /**
-   * @generated from field: optional string display_name_plaintext = 13;
+   * @generated from field: optional string display_name_plaintext = 5;
    */
   displayNamePlaintext?: string;
 
@@ -1813,8 +1779,8 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "is_bot", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "bot_owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 12, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 13, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserAccountCreatedEvent {
@@ -1846,7 +1812,7 @@ export class UserLoginChangedEvent extends Message<UserLoginChangedEvent> {
   userId = "";
 
   /**
-   * @generated from field: optional string login_plaintext = 11;
+   * @generated from field: optional string login_plaintext = 2;
    */
   loginPlaintext?: string;
 
@@ -1859,7 +1825,7 @@ export class UserLoginChangedEvent extends Message<UserLoginChangedEvent> {
   static readonly typeName = "chatto.realtime.v1.UserLoginChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 11, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserLoginChangedEvent {
@@ -1891,7 +1857,7 @@ export class UserDisplayNameChangedEvent extends Message<UserDisplayNameChangedE
   userId = "";
 
   /**
-   * @generated from field: optional string display_name_plaintext = 11;
+   * @generated from field: optional string display_name_plaintext = 2;
    */
   displayNamePlaintext?: string;
 
@@ -1904,7 +1870,7 @@ export class UserDisplayNameChangedEvent extends Message<UserDisplayNameChangedE
   static readonly typeName = "chatto.realtime.v1.UserDisplayNameChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 11, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserDisplayNameChangedEvent {
@@ -2139,7 +2105,7 @@ export class UserBioChangedEvent extends Message<UserBioChangedEvent> {
   /**
    * Plaintext biography. The field is absent after key shredding.
    *
-   * @generated from field: optional string bio_plaintext = 11;
+   * @generated from field: optional string bio_plaintext = 2;
    */
   bioPlaintext?: string;
 
@@ -2152,7 +2118,7 @@ export class UserBioChangedEvent extends Message<UserBioChangedEvent> {
   static readonly typeName = "chatto.realtime.v1.UserBioChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 11, name: "bio_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 2, name: "bio_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserBioChangedEvent {
@@ -2457,755 +2423,5 @@ export class ReactionRemovedEvent extends Message<ReactionRemovedEvent> {
 
   static equals(a: ReactionRemovedEvent | PlainMessage<ReactionRemovedEvent> | undefined, b: ReactionRemovedEvent | PlainMessage<ReactionRemovedEvent> | undefined): boolean {
     return proto3.util.equals(ReactionRemovedEvent, a, b);
-  }
-}
-
-/**
- * UserCreatedSyncEvent reports a newly materialized public user profile.
- *
- * @generated from message chatto.realtime.v1.UserCreatedSyncEvent
- */
-export class UserCreatedSyncEvent extends Message<UserCreatedSyncEvent> {
-  /**
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  /**
-   * @generated from field: string login = 2;
-   */
-  login = "";
-
-  /**
-   * @generated from field: string display_name = 3;
-   */
-  displayName = "";
-
-  constructor(data?: PartialMessage<UserCreatedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.UserCreatedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserCreatedSyncEvent {
-    return new UserCreatedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserCreatedSyncEvent {
-    return new UserCreatedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserCreatedSyncEvent {
-    return new UserCreatedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UserCreatedSyncEvent | PlainMessage<UserCreatedSyncEvent> | undefined, b: UserCreatedSyncEvent | PlainMessage<UserCreatedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(UserCreatedSyncEvent, a, b);
-  }
-}
-
-/**
- * UserProfileSyncEvent carries the current public profile after a profile change.
- *
- * @generated from message chatto.realtime.v1.UserProfileSyncEvent
- */
-export class UserProfileSyncEvent extends Message<UserProfileSyncEvent> {
-  /**
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
-  /**
-   * @generated from field: string display_name = 2;
-   */
-  displayName = "";
-
-  /**
-   * @generated from field: string avatar_url = 3;
-   */
-  avatarUrl = "";
-
-  /**
-   * @generated from field: string login = 4;
-   */
-  login = "";
-
-  /**
-   * @generated from field: string bio = 5;
-   */
-  bio = "";
-
-  /**
-   * @generated from field: string timezone = 6;
-   */
-  timezone = "";
-
-  constructor(data?: PartialMessage<UserProfileSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.UserProfileSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 6, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserProfileSyncEvent {
-    return new UserProfileSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserProfileSyncEvent {
-    return new UserProfileSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserProfileSyncEvent {
-    return new UserProfileSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UserProfileSyncEvent | PlainMessage<UserProfileSyncEvent> | undefined, b: UserProfileSyncEvent | PlainMessage<UserProfileSyncEvent> | undefined): boolean {
-    return proto3.util.equals(UserProfileSyncEvent, a, b);
-  }
-}
-
-/**
- * ServerUserPreferencesSyncEvent reports current client display preferences.
- *
- * @generated from message chatto.realtime.v1.ServerUserPreferencesSyncEvent
- */
-export class ServerUserPreferencesSyncEvent extends Message<ServerUserPreferencesSyncEvent> {
-  /**
-   * @generated from field: string timezone = 1;
-   */
-  timezone = "";
-
-  /**
-   * @generated from field: chatto.realtime.v1.RealtimeTimeFormat time_format = 2;
-   */
-  timeFormat = RealtimeTimeFormat.REALTIME_TIME_FORMAT_UNSPECIFIED;
-
-  /**
-   * @generated from field: bool share_timezone = 3;
-   */
-  shareTimezone = false;
-
-  constructor(data?: PartialMessage<ServerUserPreferencesSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.ServerUserPreferencesSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(RealtimeTimeFormat) },
-    { no: 3, name: "share_timezone", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerUserPreferencesSyncEvent {
-    return new ServerUserPreferencesSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerUserPreferencesSyncEvent {
-    return new ServerUserPreferencesSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerUserPreferencesSyncEvent {
-    return new ServerUserPreferencesSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerUserPreferencesSyncEvent | PlainMessage<ServerUserPreferencesSyncEvent> | undefined, b: ServerUserPreferencesSyncEvent | PlainMessage<ServerUserPreferencesSyncEvent> | undefined): boolean {
-    return proto3.util.equals(ServerUserPreferencesSyncEvent, a, b);
-  }
-}
-
-/**
- * ThreadFollowChangedSyncEvent reports the viewer's current thread follow state.
- *
- * @generated from message chatto.realtime.v1.ThreadFollowChangedSyncEvent
- */
-export class ThreadFollowChangedSyncEvent extends Message<ThreadFollowChangedSyncEvent> {
-  /**
-   * @generated from field: string room_id = 2;
-   */
-  roomId = "";
-
-  /**
-   * @generated from field: string thread_root_event_id = 3;
-   */
-  threadRootEventId = "";
-
-  /**
-   * @generated from field: bool is_following = 4;
-   */
-  isFollowing = false;
-
-  constructor(data?: PartialMessage<ThreadFollowChangedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.ThreadFollowChangedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "is_following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadFollowChangedSyncEvent {
-    return new ThreadFollowChangedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadFollowChangedSyncEvent {
-    return new ThreadFollowChangedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadFollowChangedSyncEvent {
-    return new ThreadFollowChangedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ThreadFollowChangedSyncEvent | PlainMessage<ThreadFollowChangedSyncEvent> | undefined, b: ThreadFollowChangedSyncEvent | PlainMessage<ThreadFollowChangedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(ThreadFollowChangedSyncEvent, a, b);
-  }
-}
-
-/**
- * ServerMemberDeletedSyncEvent invalidates cached data for a deleted member.
- *
- * @generated from message chatto.realtime.v1.ServerMemberDeletedSyncEvent
- */
-export class ServerMemberDeletedSyncEvent extends Message<ServerMemberDeletedSyncEvent> {
-  /**
-   * @generated from field: string user_id = 2;
-   */
-  userId = "";
-
-  constructor(data?: PartialMessage<ServerMemberDeletedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.ServerMemberDeletedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerMemberDeletedSyncEvent {
-    return new ServerMemberDeletedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerMemberDeletedSyncEvent {
-    return new ServerMemberDeletedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerMemberDeletedSyncEvent {
-    return new ServerMemberDeletedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerMemberDeletedSyncEvent | PlainMessage<ServerMemberDeletedSyncEvent> | undefined, b: ServerMemberDeletedSyncEvent | PlainMessage<ServerMemberDeletedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(ServerMemberDeletedSyncEvent, a, b);
-  }
-}
-
-/**
- * ServerUpdatedSyncEvent carries the current public server profile fields.
- *
- * @generated from message chatto.realtime.v1.ServerUpdatedSyncEvent
- */
-export class ServerUpdatedSyncEvent extends Message<ServerUpdatedSyncEvent> {
-  /**
-   * @generated from field: string server_id = 1;
-   */
-  serverId = "";
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  /**
-   * @generated from field: string logo_url = 4;
-   */
-  logoUrl = "";
-
-  /**
-   * @generated from field: string banner_url = 5;
-   */
-  bannerUrl = "";
-
-  constructor(data?: PartialMessage<ServerUpdatedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.ServerUpdatedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "server_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "logo_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "banner_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerUpdatedSyncEvent {
-    return new ServerUpdatedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ServerUpdatedSyncEvent {
-    return new ServerUpdatedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ServerUpdatedSyncEvent {
-    return new ServerUpdatedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: ServerUpdatedSyncEvent | PlainMessage<ServerUpdatedSyncEvent> | undefined, b: ServerUpdatedSyncEvent | PlainMessage<ServerUpdatedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(ServerUpdatedSyncEvent, a, b);
-  }
-}
-
-/**
- * UserTypingSignalEvent reports current typing activity.
- *
- * @generated from message chatto.realtime.v1.UserTypingSignalEvent
- */
-export class UserTypingSignalEvent extends Message<UserTypingSignalEvent> {
-  /**
-   * @generated from field: string room_id = 2;
-   */
-  roomId = "";
-
-  /**
-   * @generated from field: optional string thread_root_event_id = 3;
-   */
-  threadRootEventId?: string;
-
-  constructor(data?: PartialMessage<UserTypingSignalEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.UserTypingSignalEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserTypingSignalEvent {
-    return new UserTypingSignalEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UserTypingSignalEvent {
-    return new UserTypingSignalEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UserTypingSignalEvent {
-    return new UserTypingSignalEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: UserTypingSignalEvent | PlainMessage<UserTypingSignalEvent> | undefined, b: UserTypingSignalEvent | PlainMessage<UserTypingSignalEvent> | undefined): boolean {
-    return proto3.util.equals(UserTypingSignalEvent, a, b);
-  }
-}
-
-/**
- * PresenceChangedSignalEvent reports the actor's current presence status.
- *
- * @generated from message chatto.realtime.v1.PresenceChangedSignalEvent
- */
-export class PresenceChangedSignalEvent extends Message<PresenceChangedSignalEvent> {
-  /**
-   * @generated from field: string status = 1;
-   */
-  status = "";
-
-  constructor(data?: PartialMessage<PresenceChangedSignalEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.PresenceChangedSignalEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "status", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PresenceChangedSignalEvent {
-    return new PresenceChangedSignalEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PresenceChangedSignalEvent {
-    return new PresenceChangedSignalEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PresenceChangedSignalEvent {
-    return new PresenceChangedSignalEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: PresenceChangedSignalEvent | PlainMessage<PresenceChangedSignalEvent> | undefined, b: PresenceChangedSignalEvent | PlainMessage<PresenceChangedSignalEvent> | undefined): boolean {
-    return proto3.util.equals(PresenceChangedSignalEvent, a, b);
-  }
-}
-
-/**
- * CallParticipantJoinedSignalEvent reports a transient call join update.
- *
- * @generated from message chatto.realtime.v1.CallParticipantJoinedSignalEvent
- */
-export class CallParticipantJoinedSignalEvent extends Message<CallParticipantJoinedSignalEvent> {
-  /**
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * @generated from field: chatto.realtime.v1.CallParticipantEventSource source = 2;
-   */
-  source = CallParticipantEventSource.UNSPECIFIED;
-
-  /**
-   * @generated from field: string call_id = 3;
-   */
-  callId = "";
-
-  constructor(data?: PartialMessage<CallParticipantJoinedSignalEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.CallParticipantJoinedSignalEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "source", kind: "enum", T: proto3.getEnumType(CallParticipantEventSource) },
-    { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallParticipantJoinedSignalEvent {
-    return new CallParticipantJoinedSignalEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallParticipantJoinedSignalEvent {
-    return new CallParticipantJoinedSignalEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallParticipantJoinedSignalEvent {
-    return new CallParticipantJoinedSignalEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CallParticipantJoinedSignalEvent | PlainMessage<CallParticipantJoinedSignalEvent> | undefined, b: CallParticipantJoinedSignalEvent | PlainMessage<CallParticipantJoinedSignalEvent> | undefined): boolean {
-    return proto3.util.equals(CallParticipantJoinedSignalEvent, a, b);
-  }
-}
-
-/**
- * CallParticipantLeftSignalEvent reports a transient call leave update.
- *
- * @generated from message chatto.realtime.v1.CallParticipantLeftSignalEvent
- */
-export class CallParticipantLeftSignalEvent extends Message<CallParticipantLeftSignalEvent> {
-  /**
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * @generated from field: chatto.realtime.v1.CallParticipantEventSource source = 2;
-   */
-  source = CallParticipantEventSource.UNSPECIFIED;
-
-  /**
-   * @generated from field: string call_id = 3;
-   */
-  callId = "";
-
-  constructor(data?: PartialMessage<CallParticipantLeftSignalEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.CallParticipantLeftSignalEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "source", kind: "enum", T: proto3.getEnumType(CallParticipantEventSource) },
-    { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CallParticipantLeftSignalEvent {
-    return new CallParticipantLeftSignalEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CallParticipantLeftSignalEvent {
-    return new CallParticipantLeftSignalEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CallParticipantLeftSignalEvent {
-    return new CallParticipantLeftSignalEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: CallParticipantLeftSignalEvent | PlainMessage<CallParticipantLeftSignalEvent> | undefined, b: CallParticipantLeftSignalEvent | PlainMessage<CallParticipantLeftSignalEvent> | undefined): boolean {
-    return proto3.util.equals(CallParticipantLeftSignalEvent, a, b);
-  }
-}
-
-/**
- * NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
- *
- * @generated from message chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
- */
-export class NotificationOccurrencesInvalidatedEvent extends Message<NotificationOccurrencesInvalidatedEvent> {
-  /**
-   * @generated from field: optional string alert_candidate_notification_id = 1;
-   */
-  alertCandidateNotificationId?: string;
-
-  /**
-   * @generated from field: optional string sound_candidate_notification_id = 2;
-   */
-  soundCandidateNotificationId?: string;
-
-  constructor(data?: PartialMessage<NotificationOccurrencesInvalidatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "alert_candidate_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "sound_candidate_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrencesInvalidatedEvent {
-    return new NotificationOccurrencesInvalidatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationOccurrencesInvalidatedEvent {
-    return new NotificationOccurrencesInvalidatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationOccurrencesInvalidatedEvent {
-    return new NotificationOccurrencesInvalidatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationOccurrencesInvalidatedEvent | PlainMessage<NotificationOccurrencesInvalidatedEvent> | undefined, b: NotificationOccurrencesInvalidatedEvent | PlainMessage<NotificationOccurrencesInvalidatedEvent> | undefined): boolean {
-    return proto3.util.equals(NotificationOccurrencesInvalidatedEvent, a, b);
-  }
-}
-
-/**
- * NotificationUnreadChangedEvent requests unread-state reconciliation.
- *
- * @generated from message chatto.realtime.v1.NotificationUnreadChangedEvent
- */
-export class NotificationUnreadChangedEvent extends Message<NotificationUnreadChangedEvent> {
-  /**
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  /**
-   * @generated from field: string thread_root_event_id = 2;
-   */
-  threadRootEventId = "";
-
-  constructor(data?: PartialMessage<NotificationUnreadChangedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.NotificationUnreadChangedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationUnreadChangedEvent {
-    return new NotificationUnreadChangedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationUnreadChangedEvent {
-    return new NotificationUnreadChangedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationUnreadChangedEvent {
-    return new NotificationUnreadChangedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationUnreadChangedEvent | PlainMessage<NotificationUnreadChangedEvent> | undefined, b: NotificationUnreadChangedEvent | PlainMessage<NotificationUnreadChangedEvent> | undefined): boolean {
-    return proto3.util.equals(NotificationUnreadChangedEvent, a, b);
-  }
-}
-
-/**
- * RoomMarkedAsReadSyncEvent reports a viewer read-state change from another session.
- *
- * @generated from message chatto.realtime.v1.RoomMarkedAsReadSyncEvent
- */
-export class RoomMarkedAsReadSyncEvent extends Message<RoomMarkedAsReadSyncEvent> {
-  /**
-   * @generated from field: string room_id = 2;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RoomMarkedAsReadSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomMarkedAsReadSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMarkedAsReadSyncEvent {
-    return new RoomMarkedAsReadSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMarkedAsReadSyncEvent {
-    return new RoomMarkedAsReadSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMarkedAsReadSyncEvent {
-    return new RoomMarkedAsReadSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomMarkedAsReadSyncEvent | PlainMessage<RoomMarkedAsReadSyncEvent> | undefined, b: RoomMarkedAsReadSyncEvent | PlainMessage<RoomMarkedAsReadSyncEvent> | undefined): boolean {
-    return proto3.util.equals(RoomMarkedAsReadSyncEvent, a, b);
-  }
-}
-
-/**
- * MentionStatusClearedSyncEvent reports a cleared room mention indicator.
- *
- * @generated from message chatto.realtime.v1.MentionStatusClearedSyncEvent
- */
-export class MentionStatusClearedSyncEvent extends Message<MentionStatusClearedSyncEvent> {
-  /**
-   * @generated from field: string room_id = 1;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<MentionStatusClearedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.MentionStatusClearedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MentionStatusClearedSyncEvent {
-    return new MentionStatusClearedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MentionStatusClearedSyncEvent {
-    return new MentionStatusClearedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MentionStatusClearedSyncEvent {
-    return new MentionStatusClearedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: MentionStatusClearedSyncEvent | PlainMessage<MentionStatusClearedSyncEvent> | undefined, b: MentionStatusClearedSyncEvent | PlainMessage<MentionStatusClearedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(MentionStatusClearedSyncEvent, a, b);
-  }
-}
-
-/**
- * RoomGroupsUpdatedSyncEvent requests room-group reconciliation.
- *
- * @generated from message chatto.realtime.v1.RoomGroupsUpdatedSyncEvent
- */
-export class RoomGroupsUpdatedSyncEvent extends Message<RoomGroupsUpdatedSyncEvent> {
-  constructor(data?: PartialMessage<RoomGroupsUpdatedSyncEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomGroupsUpdatedSyncEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupsUpdatedSyncEvent {
-    return new RoomGroupsUpdatedSyncEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupsUpdatedSyncEvent {
-    return new RoomGroupsUpdatedSyncEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupsUpdatedSyncEvent {
-    return new RoomGroupsUpdatedSyncEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomGroupsUpdatedSyncEvent | PlainMessage<RoomGroupsUpdatedSyncEvent> | undefined, b: RoomGroupsUpdatedSyncEvent | PlainMessage<RoomGroupsUpdatedSyncEvent> | undefined): boolean {
-    return proto3.util.equals(RoomGroupsUpdatedSyncEvent, a, b);
-  }
-}
-
-/**
- * SessionTerminatedSignalEvent reports that the current session was terminated.
- *
- * @generated from message chatto.realtime.v1.SessionTerminatedSignalEvent
- */
-export class SessionTerminatedSignalEvent extends Message<SessionTerminatedSignalEvent> {
-  /**
-   * @generated from field: string reason = 1;
-   */
-  reason = "";
-
-  constructor(data?: PartialMessage<SessionTerminatedSignalEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SessionTerminatedSignalEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SessionTerminatedSignalEvent {
-    return new SessionTerminatedSignalEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SessionTerminatedSignalEvent {
-    return new SessionTerminatedSignalEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SessionTerminatedSignalEvent {
-    return new SessionTerminatedSignalEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SessionTerminatedSignalEvent | PlainMessage<SessionTerminatedSignalEvent> | undefined, b: SessionTerminatedSignalEvent | PlainMessage<SessionTerminatedSignalEvent> | undefined): boolean {
-    return proto3.util.equals(SessionTerminatedSignalEvent, a, b);
   }
 }

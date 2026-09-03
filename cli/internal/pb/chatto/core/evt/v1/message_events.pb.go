@@ -878,7 +878,7 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\x8d\x03\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\xf7\x02\n" +
 	"\x12MessagePostedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
 	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
@@ -888,7 +888,7 @@ const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12>\n" +
 	"\bmentions\x18\n" +
 	" \x03(\v2\".chatto.core.evt.v1.MessageMentionR\bmentionsJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
-	"J\x04\b\v\x10\fR\bspace_idR\x0fmessage_body_idR\x04bodyR\x0ebody_plaintext\"\x13\n" +
+	"R\bspace_idR\x0fmessage_body_idR\x04body\"\x13\n" +
 	"\x11DirectUserMention\"1\n" +
 	"\x12RoleMessageMention\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"\x14\n" +

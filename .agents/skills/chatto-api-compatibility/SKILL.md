@@ -48,8 +48,8 @@ contracts, not as experimental public APIs.
    - newer client → older server.
 4. Prefer additive evolution when it preserves a coherent API. If a break
    materially improves the experimental design, require an explicit rationale,
-   migration plan, `api-breaking-change` label, generated updates, public docs,
-   and release-note guidance.
+   migration plan, `api-breaking-change` and applicable package-scoped labels,
+   generated updates, public docs, and release-note guidance.
 5. Check whether new client behaviour needs a stable protocol capability.
    Keep protocol support separate from server configuration and viewer
    permissions. Use software versions only as a fallback for legacy servers.

@@ -1809,14 +1809,14 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xda\x02\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xa5\x02\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
 	"\x06is_bot\x18\x02 \x01(\bR\x05isBot\x12)\n" +
 	"\x11bot_owner_user_id\x18\x03 \x01(\tR\x0ebotOwnerUserId\x12P\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedLogin\x12]\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x0flogin_plaintextR\x16display_name_plaintext\"w\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayName\"w\n" +
 	"\x15BotApiKeyCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
 	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x15\n" +
@@ -1854,19 +1854,19 @@ const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\x1eBotIncomingWebhookRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"webhook_id\x18\x02 \x01(\tR\twebhookId\"\x99\x01\n" +
+	"webhook_id\x18\x02 \x01(\tR\twebhookId\"\x82\x01\n" +
 	"\x15UserLoginChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12P\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedLoginJ\x04\b\v\x10\fR\x0flogin_plaintext\"\xb3\x01\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedLogin\"\x95\x01\n" +
 	"\x1bUserDisplayNameChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12]\n" +
 	"\x16encrypted_display_name\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\v\x10\fR\x16display_name_plaintext\"\x91\x01\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayName\"|\n" +
 	"\x13UserBioChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\rencrypted_bio\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\fencryptedBioJ\x04\b\v\x10\fR\rbio_plaintext\"j\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\fencryptedBio\"j\n" +
 	"\x12UserAvatarSetEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12;\n" +
 	"\x06avatar\x18\x02 \x01(\v2#.chatto.core.evt.v1.DeprecatedAssetR\x06avatar\"1\n" +

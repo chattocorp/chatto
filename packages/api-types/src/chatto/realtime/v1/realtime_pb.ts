@@ -4,12 +4,14 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { Duration, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { ServerPublicProfile } from "../../api/v1/server_pb.js";
-import { ListRoomGroupsResponse, ListRoomsResponse } from "../../api/v1/room_directory_pb.js";
-import { BatchGetUsersResponse } from "../../api/v1/user_service_pb.js";
-import { ListActiveCallsResponse } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, CallParticipantJoinedSignalEvent, CallParticipantLeftSignalEvent, MentionStatusClearedSyncEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesInvalidatedEvent, NotificationUnreadChangedEvent, PresenceChangedSignalEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomGroupsUpdatedSyncEvent, RoomMarkedAsReadSyncEvent, RoomMemberAddedEvent, RoomMemberBannedEvent, RoomMemberRemovedEvent, RoomMemberUnbannedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMemberDeletedSyncEvent, ServerMotdChangedEvent, ServerUpdatedSyncEvent, ServerUserPreferencesSyncEvent, SessionTerminatedSignalEvent, ThreadCreatedEvent, ThreadFollowChangedSyncEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserAvatarClearedEvent, UserAvatarSetEvent, UserBioChangedEvent, UserCreatedSyncEvent, UserCustomStatusClearedEvent, UserCustomStatusSetEvent, UserDisplayNameChangedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserLoginChangedEvent, UserProfileSyncEvent, UserTypingSignalEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
+import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
+import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomMemberAddedEvent, RoomMemberBannedEvent, RoomMemberRemovedEvent, RoomMemberUnbannedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ThreadCreatedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserAvatarClearedEvent, UserAvatarSetEvent, UserBioChangedEvent, UserCustomStatusClearedEvent, UserCustomStatusSetEvent, UserDisplayNameChangedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserLoginChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { RoomAddedToGroupEvent, RoomGroupCreatedEvent, RoomGroupDeletedEvent, RoomGroupsReorderedEvent, RoomGroupUpdatedEvent, RoomRemovedFromGroupEvent, RoomsInGroupReorderedEvent, SidebarGroupEntriesReorderedEvent, SidebarLinkAddedToGroupEvent, SidebarLinkRemovedFromGroupEvent, SidebarLinkUpdatedEvent } from "./room_group_events_pb.js";
+import { CallParticipantJoinedSignalEvent, CallParticipantLeftSignalEvent, MentionStatusClearedSyncEvent, NotificationOccurrencesInvalidatedEvent, NotificationUnreadChangedEvent, PresenceChangedSignalEvent, RoomMarkedAsReadSyncEvent, ServerMemberDeletedSyncEvent, ServerUpdatedSyncEvent, ServerUserPreferencesSyncEvent, SessionTerminatedSignalEvent, ThreadFollowChangedSyncEvent, UserCreatedSyncEvent, UserProfileSyncEvent, UserTypingSignalEvent } from "./transient_events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -85,6 +87,194 @@ proto3.util.setEnumType(RealtimeRecoveryMode, "chatto.realtime.v1.RealtimeRecove
   { no: 1, name: "REALTIME_RECOVERY_MODE_LIVE_ONLY" },
   { no: 2, name: "REALTIME_RECOVERY_MODE_SNAPSHOT" },
   { no: 3, name: "REALTIME_RECOVERY_MODE_RESUME" },
+]);
+
+/**
+ * Stable protocol-error category.
+ *
+ * @generated from enum chatto.realtime.v1.RealtimeErrorCode
+ */
+export enum RealtimeErrorCode {
+  /**
+   * Invalid or unknown error code.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The first client frame was absent or invalid.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_BAD_HELLO = 1;
+   */
+  BAD_HELLO = 1,
+
+  /**
+   * The requested behavioral protocol version is not supported.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL = 2;
+   */
+  UNSUPPORTED_PROTOCOL = 2,
+
+  /**
+   * The server cannot accept a realtime session at present.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE = 3;
+   */
+  TEMPORARILY_UNAVAILABLE = 3,
+
+  /**
+   * The caller must authenticate or renew its session.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED = 4;
+   */
+  AUTHENTICATION_REQUIRED = 4,
+
+  /**
+   * The subscription request was absent or invalid.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_BAD_SUBSCRIBE = 5;
+   */
+  BAD_SUBSCRIBE = 5,
+
+  /**
+   * The server cannot safely replay from the supplied cursor.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE = 6;
+   */
+  REPLAY_UNAVAILABLE = 6,
+
+  /**
+   * The server could not start the requested subscription.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_SUBSCRIBE_FAILED = 7;
+   */
+  SUBSCRIBE_FAILED = 7,
+
+  /**
+   * A client frame was invalid for the current protocol state.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_BAD_FRAME = 8;
+   */
+  BAD_FRAME = 8,
+
+  /**
+   * The supplied cursor is malformed or is for another caller.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_INVALID_CURSOR = 9;
+   */
+  INVALID_CURSOR = 9,
+
+  /**
+   * The supplied cursor is older than the replay window.
+   *
+   * @generated from enum value: REALTIME_ERROR_CODE_CURSOR_EXPIRED = 10;
+   */
+  CURSOR_EXPIRED = 10,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeErrorCode)
+proto3.util.setEnumType(RealtimeErrorCode, "chatto.realtime.v1.RealtimeErrorCode", [
+  { no: 0, name: "REALTIME_ERROR_CODE_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_ERROR_CODE_BAD_HELLO" },
+  { no: 2, name: "REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL" },
+  { no: 3, name: "REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE" },
+  { no: 4, name: "REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED" },
+  { no: 5, name: "REALTIME_ERROR_CODE_BAD_SUBSCRIBE" },
+  { no: 6, name: "REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE" },
+  { no: 7, name: "REALTIME_ERROR_CODE_SUBSCRIBE_FAILED" },
+  { no: 8, name: "REALTIME_ERROR_CODE_BAD_FRAME" },
+  { no: 9, name: "REALTIME_ERROR_CODE_INVALID_CURSOR" },
+  { no: 10, name: "REALTIME_ERROR_CODE_CURSOR_EXPIRED" },
+]);
+
+/**
+ * Stable server-requested close category.
+ *
+ * @generated from enum chatto.realtime.v1.RealtimeCloseCode
+ */
+export enum RealtimeCloseCode {
+  /**
+   * Invalid or unknown close code.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Another catch-up for this caller is already active.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS = 1;
+   */
+  CATCH_UP_IN_PROGRESS = 1,
+
+  /**
+   * A process-local catch-up rate limit rejected the request.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED = 2;
+   */
+  CATCH_UP_RATE_LIMITED = 2,
+
+  /**
+   * The server has no catch-up capacity at present.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY = 3;
+   */
+  CATCH_UP_SERVER_BUSY = 3,
+
+  /**
+   * Catch-up exceeded its whole-operation time limit.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT = 4;
+   */
+  CATCH_UP_TIMEOUT = 4,
+
+  /**
+   * The internal event stream closed.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_STREAM_CLOSED = 5;
+   */
+  STREAM_CLOSED = 5,
+
+  /**
+   * The server could not map an internal event to its public payload.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED = 6;
+   */
+  EVENT_MAPPING_FAILED = 6,
+
+  /**
+   * The caller is no longer authenticated.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 7;
+   */
+  AUTHENTICATION_REQUIRED = 7,
+
+  /**
+   * The caller must renew its session before reconnecting.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 8;
+   */
+  SESSION_RENEWAL_REQUIRED = 8,
+
+  /**
+   * The server projection reset and the client must take a new snapshot.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 9;
+   */
+  PROJECTION_RESET_REQUIRED = 9,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeCloseCode)
+proto3.util.setEnumType(RealtimeCloseCode, "chatto.realtime.v1.RealtimeCloseCode", [
+  { no: 0, name: "REALTIME_CLOSE_CODE_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS" },
+  { no: 2, name: "REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED" },
+  { no: 3, name: "REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY" },
+  { no: 4, name: "REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT" },
+  { no: 5, name: "REALTIME_CLOSE_CODE_STREAM_CLOSED" },
+  { no: 6, name: "REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED" },
+  { no: 7, name: "REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED" },
+  { no: 8, name: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED" },
+  { no: 9, name: "REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED" },
 ]);
 
 /**
@@ -348,9 +538,9 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
   /**
    * Approximate heartbeat interval clients should expect.
    *
-   * @generated from field: uint32 heartbeat_interval_seconds = 4;
+   * @generated from field: google.protobuf.Duration heartbeat_interval = 4;
    */
-  heartbeatIntervalSeconds = 0;
+  heartbeatInterval?: Duration;
 
   constructor(data?: PartialMessage<RealtimeServerHello>) {
     super();
@@ -362,7 +552,7 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "server_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "heartbeat_interval_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "heartbeat_interval", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerHello {
@@ -501,33 +691,33 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
     /**
      * Complete visible room directory.
      *
-     * @generated from field: chatto.api.v1.ListRoomsResponse rooms = 2;
+     * @generated from field: chatto.realtime.v1.RealtimeRoomsSnapshot rooms = 2;
      */
-    value: ListRoomsResponse;
+    value: RealtimeRoomsSnapshot;
     case: "rooms";
   } | {
     /**
      * Complete visible room-group layout.
      *
-     * @generated from field: chatto.api.v1.ListRoomGroupsResponse room_groups = 3;
+     * @generated from field: chatto.realtime.v1.RealtimeRoomGroupsSnapshot room_groups = 3;
      */
-    value: ListRoomGroupsResponse;
+    value: RealtimeRoomGroupsSnapshot;
     case: "roomGroups";
   } | {
     /**
      * Users referenced by this snapshot. This is not the server directory.
      *
-     * @generated from field: chatto.api.v1.BatchGetUsersResponse users = 4;
+     * @generated from field: chatto.realtime.v1.RealtimeUsersSnapshot users = 4;
      */
-    value: BatchGetUsersResponse;
+    value: RealtimeUsersSnapshot;
     case: "users";
   } | {
     /**
      * Complete visible active-call state.
      *
-     * @generated from field: chatto.api.v1.ListActiveCallsResponse active_calls = 5;
+     * @generated from field: chatto.realtime.v1.RealtimeActiveCallsSnapshot active_calls = 5;
      */
-    value: ListActiveCallsResponse;
+    value: RealtimeActiveCallsSnapshot;
     case: "activeCalls";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
@@ -540,10 +730,10 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
   static readonly typeName = "chatto.realtime.v1.RealtimeSnapshot";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "server", kind: "message", T: ServerPublicProfile, oneof: "resource" },
-    { no: 2, name: "rooms", kind: "message", T: ListRoomsResponse, oneof: "resource" },
-    { no: 3, name: "room_groups", kind: "message", T: ListRoomGroupsResponse, oneof: "resource" },
-    { no: 4, name: "users", kind: "message", T: BatchGetUsersResponse, oneof: "resource" },
-    { no: 5, name: "active_calls", kind: "message", T: ListActiveCallsResponse, oneof: "resource" },
+    { no: 2, name: "rooms", kind: "message", T: RealtimeRoomsSnapshot, oneof: "resource" },
+    { no: 3, name: "room_groups", kind: "message", T: RealtimeRoomGroupsSnapshot, oneof: "resource" },
+    { no: 4, name: "users", kind: "message", T: RealtimeUsersSnapshot, oneof: "resource" },
+    { no: 5, name: "active_calls", kind: "message", T: RealtimeActiveCallsSnapshot, oneof: "resource" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSnapshot {
@@ -560,6 +750,170 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
 
   static equals(a: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined, b: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined): boolean {
     return proto3.util.equals(RealtimeSnapshot, a, b);
+  }
+}
+
+/**
+ * Complete visible room resources at the snapshot boundary.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeRoomsSnapshot
+ */
+export class RealtimeRoomsSnapshot extends Message<RealtimeRoomsSnapshot> {
+  /**
+   * All rooms visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomWithViewerState rooms = 1;
+   */
+  rooms: RoomWithViewerState[] = [];
+
+  constructor(data?: PartialMessage<RealtimeRoomsSnapshot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeRoomsSnapshot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "rooms", kind: "message", T: RoomWithViewerState, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomsSnapshot {
+    return new RealtimeRoomsSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomsSnapshot {
+    return new RealtimeRoomsSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomsSnapshot {
+    return new RealtimeRoomsSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeRoomsSnapshot | PlainMessage<RealtimeRoomsSnapshot> | undefined, b: RealtimeRoomsSnapshot | PlainMessage<RealtimeRoomsSnapshot> | undefined): boolean {
+    return proto3.util.equals(RealtimeRoomsSnapshot, a, b);
+  }
+}
+
+/**
+ * Complete visible room-group resources at the snapshot boundary.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeRoomGroupsSnapshot
+ */
+export class RealtimeRoomGroupsSnapshot extends Message<RealtimeRoomGroupsSnapshot> {
+  /**
+   * All room groups visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomGroup room_groups = 1;
+   */
+  roomGroups: RoomGroup[] = [];
+
+  constructor(data?: PartialMessage<RealtimeRoomGroupsSnapshot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeRoomGroupsSnapshot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_groups", kind: "message", T: RoomGroup, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomGroupsSnapshot {
+    return new RealtimeRoomGroupsSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsSnapshot {
+    return new RealtimeRoomGroupsSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsSnapshot {
+    return new RealtimeRoomGroupsSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeRoomGroupsSnapshot | PlainMessage<RealtimeRoomGroupsSnapshot> | undefined, b: RealtimeRoomGroupsSnapshot | PlainMessage<RealtimeRoomGroupsSnapshot> | undefined): boolean {
+    return proto3.util.equals(RealtimeRoomGroupsSnapshot, a, b);
+  }
+}
+
+/**
+ * Public user resources referenced by the other snapshot families.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeUsersSnapshot
+ */
+export class RealtimeUsersSnapshot extends Message<RealtimeUsersSnapshot> {
+  /**
+   * Public users referenced by another snapshot family.
+   *
+   * @generated from field: repeated chatto.api.v1.DirectoryMember users = 1;
+   */
+  users: DirectoryMember[] = [];
+
+  constructor(data?: PartialMessage<RealtimeUsersSnapshot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeUsersSnapshot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "users", kind: "message", T: DirectoryMember, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUsersSnapshot {
+    return new RealtimeUsersSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUsersSnapshot {
+    return new RealtimeUsersSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUsersSnapshot {
+    return new RealtimeUsersSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeUsersSnapshot | PlainMessage<RealtimeUsersSnapshot> | undefined, b: RealtimeUsersSnapshot | PlainMessage<RealtimeUsersSnapshot> | undefined): boolean {
+    return proto3.util.equals(RealtimeUsersSnapshot, a, b);
+  }
+}
+
+/**
+ * Complete visible active-call resources at the snapshot boundary.
+ *
+ * @generated from message chatto.realtime.v1.RealtimeActiveCallsSnapshot
+ */
+export class RealtimeActiveCallsSnapshot extends Message<RealtimeActiveCallsSnapshot> {
+  /**
+   * All active calls visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.ActiveCall active_calls = 1;
+   */
+  activeCalls: ActiveCall[] = [];
+
+  constructor(data?: PartialMessage<RealtimeActiveCallsSnapshot>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.realtime.v1.RealtimeActiveCallsSnapshot";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "active_calls", kind: "message", T: ActiveCall, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeActiveCallsSnapshot {
+    return new RealtimeActiveCallsSnapshot().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeActiveCallsSnapshot {
+    return new RealtimeActiveCallsSnapshot().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeActiveCallsSnapshot {
+    return new RealtimeActiveCallsSnapshot().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RealtimeActiveCallsSnapshot | PlainMessage<RealtimeActiveCallsSnapshot> | undefined, b: RealtimeActiveCallsSnapshot | PlainMessage<RealtimeActiveCallsSnapshot> | undefined): boolean {
+    return proto3.util.equals(RealtimeActiveCallsSnapshot, a, b);
   }
 }
 
@@ -634,11 +988,11 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
   createdAt?: Timestamp;
 
   /**
-   * ID of the user that caused the event. An empty value means no user actor.
+   * ID of the user that caused the event. Absence means no user actor.
    *
-   * @generated from field: string actor_id = 3;
+   * @generated from field: optional string actor_id = 3;
    */
-  actorId = "";
+  actorId?: string;
 
   /**
    * Opaque cursor safe to retain after this complete event is accepted.
@@ -802,6 +1156,72 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: ServerMotdChangedEvent;
     case: "serverMotdChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomGroupCreatedEvent room_group_created = 600;
+     */
+    value: RoomGroupCreatedEvent;
+    case: "roomGroupCreated";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomGroupUpdatedEvent room_group_updated = 601;
+     */
+    value: RoomGroupUpdatedEvent;
+    case: "roomGroupUpdated";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomGroupDeletedEvent room_group_deleted = 602;
+     */
+    value: RoomGroupDeletedEvent;
+    case: "roomGroupDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomAddedToGroupEvent room_added_to_group = 603;
+     */
+    value: RoomAddedToGroupEvent;
+    case: "roomAddedToGroup";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomRemovedFromGroupEvent room_removed_from_group = 604;
+     */
+    value: RoomRemovedFromGroupEvent;
+    case: "roomRemovedFromGroup";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomsInGroupReorderedEvent rooms_in_group_reordered = 605;
+     */
+    value: RoomsInGroupReorderedEvent;
+    case: "roomsInGroupReordered";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 606;
+     */
+    value: SidebarLinkAddedToGroupEvent;
+    case: "sidebarLinkAddedToGroup";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.SidebarLinkUpdatedEvent sidebar_link_updated = 607;
+     */
+    value: SidebarLinkUpdatedEvent;
+    case: "sidebarLinkUpdated";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 608;
+     */
+    value: SidebarLinkRemovedFromGroupEvent;
+    case: "sidebarLinkRemovedFromGroup";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 609;
+     */
+    value: SidebarGroupEntriesReorderedEvent;
+    case: "sidebarGroupEntriesReordered";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomGroupsReorderedEvent room_groups_reordered = 650;
+     */
+    value: RoomGroupsReorderedEvent;
+    case: "roomGroupsReordered";
   } | {
     /**
      * @generated from field: chatto.realtime.v1.UserAccountCreatedEvent user_account_created = 700;
@@ -978,12 +1398,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     case: "mentionStatusClearedSync";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.RoomGroupsUpdatedSyncEvent room_groups_updated_sync = 20014;
-     */
-    value: RoomGroupsUpdatedSyncEvent;
-    case: "roomGroupsUpdatedSync";
-  } | {
-    /**
      * @generated from field: chatto.realtime.v1.SessionTerminatedSignalEvent session_terminated_signal = 20015;
      */
     value: SessionTerminatedSignalEvent;
@@ -1000,7 +1414,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
-    { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 300, name: "room_created", kind: "message", T: RoomCreatedEvent, oneof: "event" },
     { no: 301, name: "room_updated", kind: "message", T: RoomUpdatedEvent, oneof: "event" },
@@ -1027,6 +1441,17 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 453, name: "asset_processing_failed", kind: "message", T: AssetProcessingFailedEvent, oneof: "event" },
     { no: 454, name: "asset_deleted", kind: "message", T: AssetDeletedEvent, oneof: "event" },
     { no: 504, name: "server_motd_changed", kind: "message", T: ServerMotdChangedEvent, oneof: "event" },
+    { no: 600, name: "room_group_created", kind: "message", T: RoomGroupCreatedEvent, oneof: "event" },
+    { no: 601, name: "room_group_updated", kind: "message", T: RoomGroupUpdatedEvent, oneof: "event" },
+    { no: 602, name: "room_group_deleted", kind: "message", T: RoomGroupDeletedEvent, oneof: "event" },
+    { no: 603, name: "room_added_to_group", kind: "message", T: RoomAddedToGroupEvent, oneof: "event" },
+    { no: 604, name: "room_removed_from_group", kind: "message", T: RoomRemovedFromGroupEvent, oneof: "event" },
+    { no: 605, name: "rooms_in_group_reordered", kind: "message", T: RoomsInGroupReorderedEvent, oneof: "event" },
+    { no: 606, name: "sidebar_link_added_to_group", kind: "message", T: SidebarLinkAddedToGroupEvent, oneof: "event" },
+    { no: 607, name: "sidebar_link_updated", kind: "message", T: SidebarLinkUpdatedEvent, oneof: "event" },
+    { no: 608, name: "sidebar_link_removed_from_group", kind: "message", T: SidebarLinkRemovedFromGroupEvent, oneof: "event" },
+    { no: 609, name: "sidebar_group_entries_reordered", kind: "message", T: SidebarGroupEntriesReorderedEvent, oneof: "event" },
+    { no: 650, name: "room_groups_reordered", kind: "message", T: RoomGroupsReorderedEvent, oneof: "event" },
     { no: 700, name: "user_account_created", kind: "message", T: UserAccountCreatedEvent, oneof: "event" },
     { no: 701, name: "user_login_changed", kind: "message", T: UserLoginChangedEvent, oneof: "event" },
     { no: 702, name: "user_display_name_changed", kind: "message", T: UserDisplayNameChangedEvent, oneof: "event" },
@@ -1056,7 +1481,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 20011, name: "notification_unread_changed", kind: "message", T: NotificationUnreadChangedEvent, oneof: "event" },
     { no: 20012, name: "room_marked_as_read_sync", kind: "message", T: RoomMarkedAsReadSyncEvent, oneof: "event" },
     { no: 20013, name: "mention_status_cleared_sync", kind: "message", T: MentionStatusClearedSyncEvent, oneof: "event" },
-    { no: 20014, name: "room_groups_updated_sync", kind: "message", T: RoomGroupsUpdatedSyncEvent, oneof: "event" },
     { no: 20015, name: "session_terminated_signal", kind: "message", T: SessionTerminatedSignalEvent, oneof: "event" },
   ]);
 
@@ -1227,9 +1651,9 @@ export class RealtimeError extends Message<RealtimeError> {
   /**
    * Stable machine-readable error code.
    *
-   * @generated from field: string code = 1;
+   * @generated from field: chatto.realtime.v1.RealtimeErrorCode code = 1;
    */
-  code = "";
+  code = RealtimeErrorCode.UNSPECIFIED;
 
   /**
    * Safe human-readable error message.
@@ -1248,9 +1672,9 @@ export class RealtimeError extends Message<RealtimeError> {
   /**
    * Suggested delay before retry, when applicable.
    *
-   * @generated from field: optional uint32 retry_after_ms = 4;
+   * @generated from field: google.protobuf.Duration retry_after = 4;
    */
-  retryAfterMs?: number;
+  retryAfter?: Duration;
 
   /**
    * Affected room for a room-scoped non-fatal error.
@@ -1267,10 +1691,10 @@ export class RealtimeError extends Message<RealtimeError> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeError";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "code", kind: "enum", T: proto3.getEnumType(RealtimeErrorCode) },
     { no: 2, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "fatal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "retry_after_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 4, name: "retry_after", kind: "message", T: Duration },
     { no: 5, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
@@ -1300,9 +1724,9 @@ export class RealtimeClose extends Message<RealtimeClose> {
   /**
    * Stable machine-readable close code.
    *
-   * @generated from field: string code = 1;
+   * @generated from field: chatto.realtime.v1.RealtimeCloseCode code = 1;
    */
-  code = "";
+  code = RealtimeCloseCode.UNSPECIFIED;
 
   /**
    * Safe human-readable close message.
@@ -1321,9 +1745,9 @@ export class RealtimeClose extends Message<RealtimeClose> {
   /**
    * Suggested delay before reconnect.
    *
-   * @generated from field: uint32 retry_after_ms = 4;
+   * @generated from field: google.protobuf.Duration retry_after = 4;
    */
-  retryAfterMs = 0;
+  retryAfter?: Duration;
 
   constructor(data?: PartialMessage<RealtimeClose>) {
     super();
@@ -1333,10 +1757,10 @@ export class RealtimeClose extends Message<RealtimeClose> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeClose";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 1, name: "code", kind: "enum", T: proto3.getEnumType(RealtimeCloseCode) },
     { no: 2, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "reconnect", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "retry_after_ms", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "retry_after", kind: "message", T: Duration },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClose {

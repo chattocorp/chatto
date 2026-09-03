@@ -399,6 +399,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		_, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 		_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		_, groupSubject := evtstream.ParseGroupSubject(msg.Subject)
+		layoutSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.LayoutSubjectFilter(), ">"))
 		serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
 		if roomSubject && isKnownPrivateLiveEVTRoomEventType(eventType) {
 			h.prefiltered.Add(1)
@@ -412,7 +414,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.prefiltered.Add(1)
 			return false
 		}
-		if !roomSubject && !assetSubject && !userSubject && !serverConfigSubject {
+		if !roomSubject && !assetSubject && !userSubject && !groupSubject && !layoutSubject && !serverConfigSubject {
 			if isKnownNonRealtimeEVTSubject(evtSubject) {
 				h.prefiltered.Add(1)
 				return false
@@ -456,6 +458,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 	userID, userSubject := evtstream.ParseUserSubject(msg.Subject)
 	serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
+	_, groupSubject := evtstream.ParseGroupSubject(msg.Subject)
+	layoutSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.LayoutSubjectFilter(), ">"))
 
 	h.decoded.Add(1)
 	var event evtv1.Event
@@ -468,6 +472,16 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		return true
 	}
 	bytes := int64(len(msg.Data))
+	if groupSubject || layoutSubject {
+		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+		defer cancel()
+		if err := h.model.core.roomModel.waitForGroupLayout(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
+			h.model.core.logger.Warn("Live EVT room-group projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			return true
+		}
+		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
+		return false
+	}
 	if serverConfigSubject {
 		if !isDeliverableLiveEVTServerConfigEvent(&event) {
 			return true
@@ -543,7 +557,7 @@ func realtimeEVTRequiresSnapshot(subject, eventType string) bool {
 	}
 	switch parts[1] {
 	case evtstream.AggregateGroup, evtstream.AggregateLayout:
-		return true
+		return false
 	case evtstream.AggregateConfig:
 		return len(parts) == 4 && parts[2] == evtstream.ConfigSingletonID &&
 			!isDeliverableLiveEVTServerConfigEventType(eventType) &&

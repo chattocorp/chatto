@@ -1,8 +1,7 @@
-import { authHeaders, createChattoClient } from './connect.js';
+import { authHeaders, createChattoClient, REALTIME_MINIMUM_CURSOR_HEADER } from './connect.js';
 import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 
-const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 
 export { mapUserSummary, mapOptionalUserSummary, type UserSummary } from './userSummary.js';

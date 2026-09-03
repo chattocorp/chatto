@@ -224,18 +224,22 @@ jobs:
         working-directory: cli
         run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
-      - name: Check public API protobuf breaking changes
-        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
+      - name: Check public protobuf packages without acknowledged breaks
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
-          mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" \
-            --path chatto/auth/v1 \
-            --path chatto/discovery/v1 \
-            --path chatto/api/v1 \
-            --path chatto/admin/v1 \
-            --path chatto/realtime/v1 \
-            --path chatto/core/live/v1/live_events.proto
+          labels='${{ github.event_name == 'pull_request' && join(github.event.pull_request.labels.*.name, ',') || '' }}'
+          for package in auth discovery api admin realtime live; do
+            if [[ ",${labels}," == *",api-breaking-change:${package},"* ]]; then
+              echo "::notice::Skipping acknowledged ${package} protobuf break."
+              continue
+            fi
+            case "$package" in
+              live) path="chatto/core/live/v1/live_events.proto" ;;
+              *) path="chatto/${package}/v1" ;;
+            esac
+            mise x -- buf breaking . --against "../.git#branch=origin/${base_ref},subdir=proto" --path "$path"
+          done
 
       - name: Check Authling persisted protobuf breaking changes
         run: |
@@ -248,11 +252,6 @@ jobs:
           else
             echo "::notice::Authling protobufs are new; no base schema exists yet."
           fi
-
-      - name: Acknowledge intentional public API protobuf breaking changes
-        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
-        run: |
-          echo "::notice::Skipping public and transient-wire Buf breaking checks because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
       - name: Lint Authling protobufs
         working-directory: authling

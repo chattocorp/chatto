@@ -1,4 +1,4 @@
-import { Timestamp } from '@bufbuild/protobuf';
+import { Duration, Timestamp } from '@bufbuild/protobuf';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { TransientEventKind } from '$lib/realtimeEvents';
 import {
@@ -12,16 +12,16 @@ import {
   RealtimeServerHello,
   RealtimeSnapshot,
   RealtimeSubscribed,
-  RealtimeRecoveryMode
+  RealtimeRecoveryMode,
+  RealtimeRoomsSnapshot,
+  RealtimeRoomGroupsSnapshot,
+  RealtimeUsersSnapshot,
+  RealtimeActiveCallsSnapshot,
+  RealtimeErrorCode,
+  RealtimeCloseCode
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import {
-  ListRoomGroupsResponse,
-  ListRoomsResponse
-} from '@chatto/api-types/api/v1/room_directory_pb';
-import { BatchGetUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
-import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/transient_events_pb';
 import {
   eventBusManager,
   setRealtimePollRandomForTests,
@@ -149,7 +149,7 @@ function helloFrame(heartbeatIntervalSeconds = 10): RealtimeServerFrame {
     value: new RealtimeServerHello({
       protocolVersion: 4,
       serverVersion: 'test',
-      heartbeatIntervalSeconds
+      heartbeatInterval: new Duration({ seconds: BigInt(heartbeatIntervalSeconds) })
     })
   });
 }
@@ -176,25 +176,25 @@ function completeSnapshotFrames(): RealtimeServerFrame[] {
     serverFrame({
       case: 'snapshot',
       value: new RealtimeSnapshot({
-        resource: { case: 'rooms', value: new ListRoomsResponse() }
+        resource: { case: 'rooms', value: new RealtimeRoomsSnapshot() }
       })
     }),
     serverFrame({
       case: 'snapshot',
       value: new RealtimeSnapshot({
-        resource: { case: 'roomGroups', value: new ListRoomGroupsResponse() }
+        resource: { case: 'roomGroups', value: new RealtimeRoomGroupsSnapshot() }
       })
     }),
     serverFrame({
       case: 'snapshot',
       value: new RealtimeSnapshot({
-        resource: { case: 'users', value: new BatchGetUsersResponse() }
+        resource: { case: 'users', value: new RealtimeUsersSnapshot() }
       })
     }),
     serverFrame({
       case: 'snapshot',
       value: new RealtimeSnapshot({
-        resource: { case: 'activeCalls', value: new ListActiveCallsResponse() }
+        resource: { case: 'activeCalls', value: new RealtimeActiveCallsSnapshot() }
       })
     })
   ];
@@ -387,9 +387,7 @@ describe('eventBusManager realtime transport', () => {
     socket.open();
     await socket.receive(helloFrame());
     eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
-    await socket.receive(
-      subscribedFrame(RealtimeRecoveryMode.SNAPSHOT)
-    );
+    await socket.receive(subscribedFrame(RealtimeRecoveryMode.SNAPSHOT));
 
     expect(sync.phase).toBe('hydrating');
     expect(sync.resumeCursor).toBeNull();
@@ -592,7 +590,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'error',
         value: new RealtimeError({
-          code: 'replay_unavailable',
+          code: RealtimeErrorCode.REPLAY_UNAVAILABLE,
           message: 'realtime replay is temporarily unavailable',
           fatal: true
         })
@@ -615,7 +613,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'error',
         value: new RealtimeError({
-          code: 'authentication_required',
+          code: RealtimeErrorCode.AUTHENTICATION_REQUIRED,
           message: 'session expired',
           fatal: true
         })
@@ -639,7 +637,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'error',
         value: new RealtimeError({
-          code: 'unsupported_protocol',
+          code: RealtimeErrorCode.UNSUPPORTED_PROTOCOL,
           message: 'unsupported realtime protocol version',
           fatal: true
         })
@@ -665,7 +663,7 @@ describe('eventBusManager realtime transport', () => {
         value: new RealtimeServerHello({
           protocolVersion: 3,
           serverVersion: 'old-server',
-          heartbeatIntervalSeconds: 10
+          heartbeatInterval: new Duration({ seconds: 10n })
         })
       })
     );
@@ -685,7 +683,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'close',
         value: new RealtimeClose({
-          code: 'authentication_required',
+          code: RealtimeCloseCode.AUTHENTICATION_REQUIRED,
           message: 'session expired',
           reconnect: true
         })
@@ -707,7 +705,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'close',
         value: new RealtimeClose({
-          code: 'authentication_required',
+          code: RealtimeCloseCode.AUTHENTICATION_REQUIRED,
           message: 'access token expired',
           reconnect: true
         })
@@ -731,7 +729,7 @@ describe('eventBusManager realtime transport', () => {
       serverFrame({
         case: 'close',
         value: new RealtimeClose({
-          code: 'session_renewal_required',
+          code: RealtimeCloseCode.SESSION_RENEWAL_REQUIRED,
           message: 'browser session ready for renewal',
           reconnect: true
         })

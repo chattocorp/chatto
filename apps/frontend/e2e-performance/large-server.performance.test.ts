@@ -45,6 +45,7 @@ interface PerformanceMeasurements {
   membersPageMs: number;
   roomPageMs: number;
   realtimeDeliveryMs: number;
+  realtimeSnapshotBytes: number;
 }
 
 interface PerformanceSample {
@@ -83,7 +84,11 @@ const ceilings = {
   memberSearchApiMs: integerEnvironment('CHATTO_E2E_PERF_MAX_MEMBER_SEARCH_API_MS', 15_000),
   membersPageMs: integerEnvironment('CHATTO_E2E_PERF_MAX_MEMBERS_PAGE_MS', 30_000),
   roomPageMs: integerEnvironment('CHATTO_E2E_PERF_MAX_ROOM_PAGE_MS', 30_000),
-  realtimeDeliveryMs: integerEnvironment('CHATTO_E2E_PERF_MAX_REALTIME_MS', 15_000)
+  realtimeDeliveryMs: integerEnvironment('CHATTO_E2E_PERF_MAX_REALTIME_MS', 15_000),
+  realtimeSnapshotBytes: integerEnvironment(
+    'CHATTO_E2E_PERF_MAX_REALTIME_SNAPSHOT_BYTES',
+    2_000_000
+  )
 };
 
 test('large loaded server stays responsive across directory, timeline, and realtime', async ({
@@ -104,6 +109,11 @@ test('large loaded server stays responsive across directory, timeline, and realt
       samples.push(await measureLargeServer(browser, server, fixture, sample));
     }
     const statistics = summarizeSamples(samples);
+    const realtimeSnapshotBytes = await readServerMetric(
+      request,
+      server,
+      'chatto_realtime_snapshot_bytes'
+    );
     const measurements: PerformanceMeasurements = {
       measurementVersion: performanceMeasurementVersion,
       sampleCount,
@@ -117,7 +127,8 @@ test('large loaded server stays responsive across directory, timeline, and realt
       memberSearchApiMs: statistics.memberSearchApiMs.median,
       membersPageMs: statistics.membersPageMs.median,
       roomPageMs: statistics.roomPageMs.median,
-      realtimeDeliveryMs: statistics.realtimeDeliveryMs.median
+      realtimeDeliveryMs: statistics.realtimeDeliveryMs.median,
+      realtimeSnapshotBytes
     };
     await attachMeasurements(testInfo, measurements, samples, statistics);
     await attachServerMetrics(request, testInfo, server);
@@ -142,6 +153,9 @@ test('large loaded server stays responsive across directory, timeline, and realt
       measurements.realtimeDeliveryMs,
       'receiver-visible realtime message'
     ).toBeLessThanOrEqual(ceilings.realtimeDeliveryMs);
+    expect(measurements.realtimeSnapshotBytes, 'serialized realtime snapshot').toBeLessThanOrEqual(
+      ceilings.realtimeSnapshotBytes
+    );
   } finally {
     await stopServer(server, testInfo);
   }
@@ -318,6 +332,19 @@ async function attachServerMetrics(
     body: await response.body(),
     contentType: 'text/plain'
   });
+}
+
+async function readServerMetric(
+  request: APIRequestContext,
+  server: ServerInfo,
+  name: string
+): Promise<number> {
+  if (!server.metricsURL) throw new Error('server metrics are required for performance tests');
+  const response = await request.get(`${server.metricsURL}/metrics`);
+  if (!response.ok()) throw new Error(`metrics request failed: ${response.status()}`);
+  const match = (await response.text()).match(new RegExp(`^${name} ([0-9.eE+-]+)$`, 'm'));
+  if (!match) throw new Error(`metric ${name} is missing`);
+  return Number(match[1]);
 }
 
 function integerEnvironment(name: string, fallback: number): number {

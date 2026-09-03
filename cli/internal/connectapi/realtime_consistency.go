@@ -9,9 +9,9 @@ import (
 	"hmans.de/chatto/internal/core"
 )
 
-// RealtimeMinimumCursorHeader asks a ConnectRPC read to wait until the serving
-// replica can return projection state that includes at least this opaque
-// realtime boundary.
+// RealtimeMinimumCursorHeader asks any authenticated unary ConnectRPC procedure
+// to wait until the serving replica includes at least this opaque realtime
+// boundary. Public and unauthenticated procedures cannot use this header.
 const RealtimeMinimumCursorHeader = "Chatto-Realtime-Minimum-Cursor"
 
 func (a *API) realtimeConsistencyInterceptor() connect.Interceptor {

@@ -270,11 +270,12 @@ export class ServerStateStore {
         this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
       }
       await Promise.all(
-        [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map((store) =>
-          store.hydrateRealtimeProjection(
-            cursor,
-            () => generation === this.#realtimeProjectionGeneration
-          )
+        [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
+          (store) =>
+            store.hydrateRealtimeProjection(
+              cursor,
+              () => generation === this.#realtimeProjectionGeneration
+            )
         )
       );
       this.requireCurrentRealtimeProjection(generation);
@@ -853,7 +854,17 @@ export class ServerStateStore {
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
-      case 'roomGroupsUpdatedSync':
+      case 'roomGroupCreated':
+      case 'roomGroupUpdated':
+      case 'roomGroupDeleted':
+      case 'roomAddedToGroup':
+      case 'roomRemovedFromGroup':
+      case 'roomsInGroupReordered':
+      case 'sidebarLinkAddedToGroup':
+      case 'sidebarLinkUpdated':
+      case 'sidebarLinkRemovedFromGroup':
+      case 'sidebarGroupEntriesReordered':
+      case 'roomGroupsReordered':
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'serverUpdatedSync':

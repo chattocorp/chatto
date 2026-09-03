@@ -252,9 +252,9 @@ When adding or moving deliverable events:
 
 - Decide explicitly whether the canonical event has a client-visible meaning.
   If it does, add its dedicated payload to
-  `proto/chatto/realtime/v1/events.proto` and its matching member to
-  `RealtimeEvent.event`. Keep the public member name, number, and shared field
-  wire shapes aligned with the canonical event.
+  the applicable `proto/chatto/realtime/v1/*_events.proto` file and its matching
+  member to `RealtimeEvent.event`. Keep the public member name and union number
+  aligned with the canonical event. Keep public payload layouts independent.
 - Update the deliverable event switch in core live filtering.
 - Ensure authorization can be resolved from projections.
 - If the subject is not room-scoped, add a path to resolve room/user visibility from payload/projections.

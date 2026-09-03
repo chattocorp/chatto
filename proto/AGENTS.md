@@ -19,7 +19,7 @@ For public API packages:
   realtime WebSocket protobuf protocol.
 - `chatto.realtime.v1.RealtimeEvent.event` is the public realtime catalogue.
   Every member uses a dedicated payload from
-  `chatto/realtime/v1/events.proto`. Do not import core EVT or live payload
+  `chatto/realtime/v1/*_events.proto`. Do not import core EVT or live payload
   messages into the public union.
 - Write comments for API users, not Chatto maintainers.
 - Add useful comments to each public service, RPC, message, enum, enum value,

@@ -1,4 +1,9 @@
-import { authHeaders, createChattoClient, type ConnectAPIConfig } from './connect';
+import {
+  authHeaders,
+  createChattoClient,
+  REALTIME_MINIMUM_CURSOR_HEADER,
+  type ConnectAPIConfig
+} from './connect';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import { RoomDirectoryService } from '@chatto/api-types/api/v1/room_directory_connect';
 import { ServerService } from '@chatto/api-types/api/v1/server_state_connect';
@@ -19,7 +24,6 @@ import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 
-const REALTIME_MINIMUM_CURSOR_HEADER = 'Chatto-Realtime-Minimum-Cursor';
 const REALTIME_RESOURCE_TIMEOUT_MS = 10_000;
 const USER_BATCH_SIZE = 100;
 

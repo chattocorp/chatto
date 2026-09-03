@@ -8,6 +8,8 @@ import (
 	"context"
 	"errors"
 
+	"google.golang.org/protobuf/proto"
+
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
@@ -24,16 +26,20 @@ func (s *HTTPServer) realtimeSnapshotFrames(ctx context.Context, userID string) 
 	}
 	snapshots := []*realtimev1.RealtimeSnapshot{
 		{Resource: &realtimev1.RealtimeSnapshot_Server{Server: resources.Server}},
-		{Resource: &realtimev1.RealtimeSnapshot_Rooms{Rooms: resources.Rooms}},
-		{Resource: &realtimev1.RealtimeSnapshot_RoomGroups{RoomGroups: resources.RoomGroups}},
-		{Resource: &realtimev1.RealtimeSnapshot_Users{Users: resources.Users}},
-		{Resource: &realtimev1.RealtimeSnapshot_ActiveCalls{ActiveCalls: resources.ActiveCalls}},
+		{Resource: &realtimev1.RealtimeSnapshot_Rooms{Rooms: &realtimev1.RealtimeRoomsSnapshot{Rooms: resources.Rooms.GetRooms()}}},
+		{Resource: &realtimev1.RealtimeSnapshot_RoomGroups{RoomGroups: &realtimev1.RealtimeRoomGroupsSnapshot{RoomGroups: resources.RoomGroups.GetGroups()}}},
+		{Resource: &realtimev1.RealtimeSnapshot_Users{Users: &realtimev1.RealtimeUsersSnapshot{Users: resources.Users.GetUsers()}}},
+		{Resource: &realtimev1.RealtimeSnapshot_ActiveCalls{ActiveCalls: &realtimev1.RealtimeActiveCallsSnapshot{ActiveCalls: resources.ActiveCalls.GetCalls()}}},
 	}
 	frames := make([]*realtimev1.RealtimeServerFrame, 0, len(snapshots))
+	var snapshotBytes uint64
 	for _, snapshot := range snapshots {
-		frames = append(frames, &realtimev1.RealtimeServerFrame{
+		frame := &realtimev1.RealtimeServerFrame{
 			Frame: &realtimev1.RealtimeServerFrame_Snapshot{Snapshot: snapshot},
-		})
+		}
+		frames = append(frames, frame)
+		snapshotBytes += uint64(proto.Size(frame))
 	}
+	s.metrics.realtimeSnapshotBytes.Store(snapshotBytes)
 	return resources.Sequence, frames, nil
 }

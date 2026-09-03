@@ -97,6 +97,7 @@ Create `src/realtime.ts`:
 import {
   RealtimeClientFrame,
   RealtimeClientHello,
+  RealtimeErrorCode,
   RealtimeEvent,
   RealtimeInitialState,
   RealtimeRecoveryMode,
@@ -109,14 +110,15 @@ const PROTOCOL_VERSION = 4;
 const BASE_RECONNECT_MS = 1_000;
 const MAX_RECONNECT_MS = 30_000;
 
+function durationMs(value?: { seconds: bigint; nanos: number }): number {
+  return value ? Number(value.seconds) * 1_000 + value.nanos / 1_000_000 : 0;
+}
+
 type ChattoRealtimeClientOptions = {
   initialState?: RealtimeInitialState;
   beginSnapshot?: () => void | Promise<void>;
   applySnapshot?: (snapshot: RealtimeSnapshot) => void | Promise<void>;
-  completeSnapshot?: (
-    cursor: string,
-    signal: AbortSignal,
-  ) => Promise<void>;
+  completeSnapshot?: (cursor: string, signal: AbortSignal) => Promise<void>;
 };
 
 export class ChattoRealtimeClient {
@@ -226,10 +228,9 @@ export class ChattoRealtimeClient {
           this.#stopped = true;
           throw new Error("The server does not support realtime protocol 4");
         }
+        const heartbeatMs = durationMs(hello.heartbeatInterval);
         this.#heartbeatStallMs =
-          hello.heartbeatIntervalSeconds > 0
-            ? Math.max(hello.heartbeatIntervalSeconds * 3_000, 15_000)
-            : 75_000;
+          heartbeatMs > 0 ? Math.max(heartbeatMs * 3, 15_000) : 75_000;
         this.#startWatchdog();
         this.#send(
           new RealtimeClientFrame({
@@ -313,12 +314,13 @@ export class ChattoRealtimeClient {
         console.error("Realtime request failed", error.code, error.message);
         if (error.fatal) {
           const retryable = [
-            "temporarily_unavailable",
-            "replay_unavailable",
-            "subscribe_failed",
+            RealtimeErrorCode.TEMPORARILY_UNAVAILABLE,
+            RealtimeErrorCode.REPLAY_UNAVAILABLE,
+            RealtimeErrorCode.SUBSCRIBE_FAILED,
           ].includes(error.code);
           this.#stopped = !retryable;
-          this.#reconnectDelay = error.retryAfterMs || BASE_RECONNECT_MS;
+          this.#reconnectDelay =
+            durationMs(error.retryAfter) || BASE_RECONNECT_MS;
           this.#socket?.close(1008, "fatal realtime error");
         }
         return;
@@ -327,7 +329,8 @@ export class ChattoRealtimeClient {
       case "close": {
         const close = frame.frame.value;
         this.#stopped = !close.reconnect;
-        this.#reconnectDelay = close.retryAfterMs || BASE_RECONNECT_MS;
+        this.#reconnectDelay =
+          durationMs(close.retryAfter) || BASE_RECONNECT_MS;
         this.#socket?.close(1000, "server requested reconnect");
         return;
       }
@@ -426,13 +429,13 @@ const projectionClient = new ChattoRealtimeClient(
           replaceRooms(snapshot.resource.value.rooms);
           break;
         case "roomGroups":
-          replaceRoomGroups(snapshot.resource.value.groups);
+          replaceRoomGroups(snapshot.resource.value.roomGroups);
           break;
         case "users":
           replaceReferencedUsers(snapshot.resource.value.users);
           break;
         case "activeCalls":
-          replaceActiveCalls(snapshot.resource.value.calls);
+          replaceActiveCalls(snapshot.resource.value.activeCalls);
           break;
         case undefined:
           throw new Error("Unknown snapshot resource");

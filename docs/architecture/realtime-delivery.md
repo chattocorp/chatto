@@ -3,7 +3,8 @@
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
-- [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
+- [`events.proto`](../../proto/chatto/realtime/v1/events.proto) and its sibling
+  public event files
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
 - [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
@@ -62,17 +63,15 @@ Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the
 complete frame.
 
-The `RealtimeEvent.event` union and `events.proto` are the public catalogue.
+The `RealtimeEvent.event` union and the realtime event files are the public catalogue.
 Each union member has the same name and field number as its canonical event.
-Shared payload fields keep compatible names, numbers, types, cardinality,
-presence, and oneof membership. A missing union member keeps an internal
+Public payload field numbers are independent from EVT. A missing union member keeps an internal
 variant out of the public API. A missing public payload field keeps an internal
 field out of the generated client types.
 
-After event authorization, the server serializes the canonical payload into a
-new dedicated public payload and discards undeclared fields. It then adds
-trusted decrypted values to public-only `_plaintext` fields. The matching EVT
-messages reserve these public-only names and numbers. Public events do not
+After event authorization, an exhaustive typed mapper copies approved values
+into a new dedicated public payload. It then adds trusted decrypted values to
+public-only `_plaintext` fields. Public events do not
 expose raw EVT bytes, ciphertext, nonces, storage pointers, private moderation
 data, subjects, stream identities, or sequence numbers.
 

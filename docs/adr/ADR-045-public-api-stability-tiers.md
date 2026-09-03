@@ -135,13 +135,11 @@ realtime frames are distinct references, while `proto/chatto/api/v1/*.proto`,
 CI runs Buf breaking-change checks against `origin/main` and codegen drift
 checks. These checks are guardrails, not a replacement for compatibility review:
 pre-1.0 public API breaking changes can still be accepted when the PR carries
-the `api-breaking-change` label and states the compatibility plan. That label
-only suppresses public API breaking checks for `chatto/auth/v1`,
-`chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
-`chatto/realtime/v1`, plus the explicitly transient
-`chatto/core/live/v1/live_events.proto` payload messages. Storage and other
-internal protobuf checks, including the persisted packages under
-`chatto/core`, still run.
+the `api-breaking-change` label and states the compatibility plan. CI also
+requires one scoped label, such as `api-breaking-change:realtime`, for each
+public package whose Buf check can be skipped. Checks for all other public
+packages still run. Storage and other internal protobuf checks, including the
+persisted packages under `chatto/core`, always run.
 The local root-equivalent `chatto.operator.v1`
 surface is reviewed separately and is not part of the public network API
 posture.

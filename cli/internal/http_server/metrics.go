@@ -22,6 +22,7 @@ type processMetrics struct {
 	realtimeCatchUpsRateLimited  atomic.Uint64
 	realtimeCatchUpsUserBusy     atomic.Uint64
 	realtimeCatchUpsServerBusy   atomic.Uint64
+	realtimeSnapshotBytes        atomic.Uint64
 }
 
 func (m *processMetrics) realtimeCatchUpStarted() {
@@ -104,6 +105,7 @@ type chattoCollector struct {
 	realtimeCatchUpsStarted  *prometheus.Desc
 	realtimeCatchUpsTimedOut *prometheus.Desc
 	realtimeCatchUpsRejected *prometheus.Desc
+	realtimeSnapshotBytes    *prometheus.Desc
 	myEventsActive           *prometheus.Desc
 	myEventsDelivered        *prometheus.Desc
 	myEventsSlowDisconnects  *prometheus.Desc
@@ -171,6 +173,12 @@ func newChattoCollector(server *HTTPServer) *chattoCollector {
 			"chatto_realtime_catch_ups_rejected_total",
 			"Total realtime catch-ups rejected by the process-local capacity guard.",
 			[]string{"reason"},
+			nil,
+		),
+		realtimeSnapshotBytes: prometheus.NewDesc(
+			"chatto_realtime_snapshot_bytes",
+			"Uncompressed protobuf bytes in the most recently constructed realtime snapshot.",
+			nil,
 			nil,
 		),
 		myEventsActive: prometheus.NewDesc(
@@ -310,6 +318,7 @@ func (c *chattoCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- c.realtimeCatchUpsStarted
 	ch <- c.realtimeCatchUpsTimedOut
 	ch <- c.realtimeCatchUpsRejected
+	ch <- c.realtimeSnapshotBytes
 	ch <- c.myEventsActive
 	ch <- c.myEventsDelivered
 	ch <- c.myEventsSlowDisconnects
@@ -345,6 +354,7 @@ func (c *chattoCollector) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(c.realtimeCatchUpsRejected, prometheus.CounterValue, float64(c.server.metrics.realtimeCatchUpsRateLimited.Load()), "rate_limited")
 	ch <- prometheus.MustNewConstMetric(c.realtimeCatchUpsRejected, prometheus.CounterValue, float64(c.server.metrics.realtimeCatchUpsUserBusy.Load()), "user_busy")
 	ch <- prometheus.MustNewConstMetric(c.realtimeCatchUpsRejected, prometheus.CounterValue, float64(c.server.metrics.realtimeCatchUpsServerBusy.Load()), "server_busy")
+	ch <- prometheus.MustNewConstMetric(c.realtimeSnapshotBytes, prometheus.GaugeValue, float64(c.server.metrics.realtimeSnapshotBytes.Load()))
 
 	c.collectNATSMetrics(ch)
 	c.collectCoreMetrics(ch)

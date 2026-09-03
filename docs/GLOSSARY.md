@@ -226,9 +226,9 @@ directly on `live.sync.>`. Both paths use the canonical Event envelope. See
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
-union and dedicated payload file form the public event catalogue. Union names,
-numbers, and shared field wire shapes stay aligned with selected canonical
-events. An optional cursor shares the event message but remains outside the
+union and dedicated payload files form the public event catalog. Union names
+and numbers stay aligned with selected canonical events. Public payload field
+numbers are independent from EVT. An optional cursor remains outside the
 payload union. Internal variants and storage-only fields do not exist in the
 public schema. The server can add authorized public-only plaintext fields. Raw
 EVT bytes, subjects, stream identities, and sequence numbers are not public

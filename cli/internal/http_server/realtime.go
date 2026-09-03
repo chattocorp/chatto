@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
@@ -21,16 +22,15 @@ import (
 )
 
 const (
-	realtimePath                     = "/api/realtime"
-	realtimeProtocolVersion          = 4
-	realtimeReadLimitBytes           = 64 << 10
-	realtimeReadBufferBytes          = 256
-	realtimeWriteBufferBytes         = 512
-	realtimeCompressionMinBytes      = 1024
-	realtimeHandshakeTimeout         = 10 * time.Second
-	realtimeWriteTimeout             = 10 * time.Second
-	realtimeCredentialCheckInterval  = time.Minute
-	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
+	realtimePath                    = "/api/realtime"
+	realtimeProtocolVersion         = 4
+	realtimeReadLimitBytes          = 64 << 10
+	realtimeReadBufferBytes         = 256
+	realtimeWriteBufferBytes        = 512
+	realtimeCompressionMinBytes     = 1024
+	realtimeHandshakeTimeout        = 10 * time.Second
+	realtimeWriteTimeout            = 10 * time.Second
+	realtimeCredentialCheckInterval = time.Minute
 )
 
 var errRealtimeEventOmitted = errors.New("realtime event is not public")
@@ -121,7 +121,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 	writeError := func(code, message string, fatal bool) {
 		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-			Error: &realtimev1.RealtimeError{Code: code, Message: message, Fatal: fatal},
+			Error: &realtimev1.RealtimeError{Code: realtimeErrorCode(code), Message: message, Fatal: fatal},
 		}})
 	}
 	hello, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
@@ -297,9 +297,9 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
 		Hello: &realtimev1.RealtimeServerHello{
-			ProtocolVersion:          realtimeProtocolVersion,
-			ServerVersion:            s.version,
-			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
+			ProtocolVersion:   realtimeProtocolVersion,
+			ServerVersion:     s.version,
+			HeartbeatInterval: durationpb.New(core.MyEventsHeartbeatInterval),
 		},
 	}}); err != nil {
 		return
@@ -354,9 +354,8 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id, meteredReplay)
 	if admissionErr != nil {
 		s.metrics.realtimeCatchUpRejected(admissionErr.code)
-		retryAfterMs := uint32(admissionErr.retryAfter.Milliseconds())
 		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: admissionErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+			Close: &realtimev1.RealtimeClose{Code: realtimeCloseCode(admissionErr.code), Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
 		}})
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
 		return
@@ -383,7 +382,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			s.metrics.realtimeCatchUpTimedOut()
 			s.logger.Warn("Realtime catch-up timed out", "error", err)
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: "catch_up_timeout", Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfterMs: 1000},
+				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT, Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 			}})
 			return
 		}
@@ -418,9 +417,8 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		// replay gap before emitting subscribed or projection frames.
 		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
 			s.metrics.realtimeCatchUpRejected(chargeErr.code)
-			retryAfterMs := uint32(chargeErr.retryAfter.Milliseconds())
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: chargeErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+				Close: &realtimev1.RealtimeClose{Code: realtimeCloseCode(chargeErr.code), Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(chargeErr.retryAfter)},
 			}})
 			return
 		}
@@ -496,7 +494,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: "stream_closed", Message: "event stream closed", Reconnect: true, RetryAfterMs: 1000},
+					Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_STREAM_CLOSED, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 				}})
 				return
 			}
@@ -517,7 +515,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
 				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-						Close: &realtimev1.RealtimeClose{Code: "event_mapping_failed", Message: "durable realtime event mapping failed", Reconnect: true},
+						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED, Message: "durable realtime event mapping failed", Reconnect: true},
 					}})
 					return
 				}
@@ -555,6 +553,46 @@ func realtimeReplayError(err error) (code, message string) {
 		return "cursor_expired", "the realtime resume cursor is no longer retained"
 	default:
 		return "replay_unavailable", "realtime replay is temporarily unavailable"
+	}
+}
+
+func realtimeErrorCode(code string) realtimev1.RealtimeErrorCode {
+	switch code {
+	case "bad_hello":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_HELLO
+	case "unsupported_protocol":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL
+	case "temporarily_unavailable":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE
+	case "authentication_required":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED
+	case "bad_subscribe":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_SUBSCRIBE
+	case "replay_unavailable":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE
+	case "invalid_cursor":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_INVALID_CURSOR
+	case "cursor_expired":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_CURSOR_EXPIRED
+	case "subscribe_failed":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_SUBSCRIBE_FAILED
+	case "bad_frame":
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME
+	default:
+		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSPECIFIED
+	}
+}
+
+func realtimeCloseCode(code string) realtimev1.RealtimeCloseCode {
+	switch code {
+	case "catch_up_in_progress":
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS
+	case "catch_up_rate_limited":
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED
+	case "catch_up_server_busy":
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY
+	default:
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSPECIFIED
 	}
 }
 
@@ -608,7 +646,7 @@ func terminateRealtimeForOAuthClientBlock(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the OAuth client has been blocked",
 			Reconnect: false,
 		},
@@ -626,7 +664,7 @@ func terminateRealtimeForBearerExpiry(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the access token has expired",
 			Reconnect: true,
 		},
@@ -642,7 +680,7 @@ func terminateRealtimeForCredentialRevocation(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the session is no longer valid",
 			Reconnect: false,
 		},
@@ -662,7 +700,7 @@ func terminateRealtimeForCookieRenewal(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "session_renewal_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED,
 			Message:   "the browser session is ready for renewal",
 			Reconnect: true,
 		},
@@ -681,7 +719,7 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the bot API key is no longer valid",
 			Reconnect: false,
 		},
@@ -703,14 +741,14 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 		}
 		if mt != websocket.BinaryMessage {
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "expected binary protobuf frame", Fatal: true},
+				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "expected binary protobuf frame", Fatal: true},
 			}})
 			return
 		}
 		var frame realtimev1.RealtimeClientFrame
 		if err := proto.Unmarshal(data, &frame); err != nil {
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "invalid protobuf frame", Fatal: true},
+				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "invalid protobuf frame", Fatal: true},
 			}})
 			return
 		}
@@ -721,7 +759,7 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			}})
 		default:
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
+				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "unexpected control frame", Fatal: true},
 			}})
 			return
 		}
@@ -801,10 +839,9 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 		// before this durable sequence, so replay selects the authorized fallback.
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 			Close: &realtimev1.RealtimeClose{
-				Code:         "projection_reset_required",
-				Message:      "realtime authorization changed",
-				Reconnect:    true,
-				RetryAfterMs: 0,
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED,
+				Message:   "realtime authorization changed",
+				Reconnect: true,
 			},
 		}}, nil
 	}
@@ -820,7 +857,8 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-	if !hasRealtimePublicVariant(canonical) {
+	projected := projectRealtimeEvent(canonical)
+	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
 	if typing := canonical.GetUserTypingSignal(); typing != nil {
@@ -852,13 +890,7 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if err != nil {
 		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
 	}
-	projected, err := projectRealtimeEvent(canonical, plaintext)
-	if err != nil {
-		return nil, err
-	}
-	if projected == nil {
-		return nil, errRealtimeEventOmitted
-	}
+	applyRealtimePlaintext(projected, plaintext)
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
 		if err != nil {

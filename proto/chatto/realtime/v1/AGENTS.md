@@ -10,7 +10,7 @@ protocol at `/api/realtime`.
 - Do not add unary ConnectRPC services here.
 - Prefer importing stable public enums/messages from `chatto.api.v1` over
   duplicating shared client-visible semantics.
-- Keep all client-visible event payloads in `events.proto`. These messages are
+- Keep client-visible event payloads in the small domain event files. These messages are
   the public event catalogue and must not import `chatto.core` payload types.
 - Public payloads contain only fields that a client can receive. Do not add
   storage placeholders, encrypted fields, key references, private moderation
@@ -42,8 +42,9 @@ protocol at `/api/realtime`.
   required client behavior.
 - `RealtimeEvent.event` is the public variant catalogue. Keep each member's
   name and field number aligned with its matching canonical Event member.
-- When a new canonical event must reach clients, update `events.proto`, the
-  `RealtimeEvent.event` union, the exhaustive mapper tests, the frontend event
+  Public payload field numbers are independent.
+- When a new canonical event must reach clients, update the applicable event file, the
+  `RealtimeEvent.event` union, the explicit mapper and exhaustive tests, the frontend event
   reducer or reconciliation path, generated clients, architecture and public
   documentation, and compatibility notes in the same change.
 - Live delivery and replay must use the same canonical-to-public mapper. A

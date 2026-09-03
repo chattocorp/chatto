@@ -307,7 +307,7 @@ func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 		t.Fatalf("realtimeServerFrameForEvent() error = %v", err)
 	}
 	closeFrame := frame.GetClose()
-	if closeFrame == nil || closeFrame.GetCode() != "projection_reset_required" || !closeFrame.GetReconnect() {
+	if closeFrame == nil || closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED || !closeFrame.GetReconnect() {
 		t.Fatalf("realtimeServerFrameForEvent() = %+v, want authorization reconnect", frame)
 	}
 }
@@ -367,6 +367,9 @@ func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
 		if !seen[resource] {
 			t.Fatalf("snapshot omitted %s resource", resource)
 		}
+	}
+	if got := env.httpServer.metrics.realtimeSnapshotBytes.Load(); got == 0 {
+		t.Fatal("snapshot byte measurement was not recorded")
 	}
 	if err := realtimePingRoundTrip(conn, "nonce"); err != nil {
 		t.Fatalf("ping round trip: %v", err)
@@ -476,7 +479,7 @@ func TestRealtimeWebSocketRejectsUnexpectedControlFrame(t *testing.T) {
 			t.Fatal("timed out waiting for unexpected control-frame rejection")
 		}
 		if realtimeErr := frame.GetError(); realtimeErr != nil {
-			if realtimeErr.GetCode() != "bad_frame" || !realtimeErr.GetFatal() {
+			if realtimeErr.GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME || !realtimeErr.GetFatal() {
 				t.Fatalf("control-frame error = %+v, want fatal bad_frame", realtimeErr)
 			}
 			return
@@ -492,7 +495,7 @@ func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
 			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
 		}})
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != "authentication_required" || !frame.GetError().GetFatal() {
+		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED || !frame.GetError().GetFatal() {
 			t.Fatalf("unauthenticated response = %+v, want fatal authentication_required", frame)
 		}
 	})
@@ -504,7 +507,7 @@ func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
 			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion + 1},
 		}})
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != "unsupported_protocol" || !frame.GetError().GetFatal() {
+		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL || !frame.GetError().GetFatal() {
 			t.Fatalf("unsupported protocol response = %+v, want fatal unsupported_protocol", frame)
 		}
 	})
@@ -551,7 +554,7 @@ func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
 			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
 		}})
 		frame, ok := readRealtimeServerFrame(t, cookieConn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != "authentication_required" {
+		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED {
 			t.Fatalf("cross-origin cookie response = %+v, want authentication_required", frame)
 		}
 
@@ -579,7 +582,7 @@ func TestRealtimeWebSocketClosesAtBearerExpiry(t *testing.T) {
 	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 	readRealtimeCaughtUp(t, conn)
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != "authentication_required" || !frame.GetClose().GetReconnect() {
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || !frame.GetClose().GetReconnect() {
 		t.Fatalf("expiry response = %+v, want reconnecting authentication_required", frame)
 	}
 }
@@ -608,7 +611,7 @@ func TestRealtimeWebSocketClosesAfterCookieRevocation(t *testing.T) {
 		t.Fatalf("RevokeCookieSession: %v", err)
 	}
 	frame, ok := readRealtimeServerFrame(t, conn, 2*time.Second)
-	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
 		t.Fatalf("revocation response = %+v, want terminal authentication_required", frame)
 	}
 }
@@ -643,7 +646,7 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 		t.Fatalf("RevokeBotAPIKey first: %v", err)
 	}
 	frame, ok := readRealtimeServerFrame(t, firstConn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
 		t.Fatalf("first revoked socket frame = %+v, want terminal authentication_required", frame)
 	}
 	if err := realtimePingRoundTrip(secondConn, "still-valid"); err != nil {
@@ -654,7 +657,7 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 		t.Fatalf("RevokeBotAPIKey second: %v", err)
 	}
 	frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
 		t.Fatalf("second revoked socket frame = %+v, want terminal authentication_required", frame)
 	}
 }

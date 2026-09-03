@@ -15,13 +15,13 @@ reads, pagination, history, and read-your-writes results. Realtime events tell
 you what happened. ConnectRPC gives you the resource detail that your
 integration needs.
 
-| Need                                                                     | Use                             |
-| ------------------------------------------------------------------------ | ------------------------------- |
-| React to a message, edit, reaction, membership change, or other activity | Realtime event                  |
-| Create, update, or delete a resource                                     | ConnectRPC                      |
-| Read one resource or a paginated list                                    | ConnectRPC                      |
-| Build a current local content view                                       | Realtime snapshot               |
-| Repair a short connection gap                                            | Realtime resume                 |
+| Need                                                                     | Use               |
+| ------------------------------------------------------------------------ | ----------------- |
+| React to a message, edit, reaction, membership change, or other activity | Realtime event    |
+| Create, update, or delete a resource                                     | ConnectRPC        |
+| Read one resource or a paginated list                                    | ConnectRPC        |
+| Build a current local content view                                       | Realtime snapshot |
+| Repair a short connection gap                                            | Realtime resume   |
 
 ## Connection lifecycle
 
@@ -90,8 +90,8 @@ does not contain broker coordinates.
 
 The public union contains only event variants that are part of the realtime
 API. Each union member uses a dedicated public payload and keeps the matching
-canonical event name and field number. Shared payload fields keep compatible
-wire numbers and types. The complete stored Event union is not part of the
+canonical event name and union field number. Public payload fields have an
+independent wire layout. The complete stored Event union is not part of the
 public API.
 
 Internal event variants and storage-only fields do not exist in the public
@@ -129,13 +129,13 @@ If `subscribed.recovery_mode` is `SNAPSHOT`, clear the state that your client
 projection owns. The server sends these canonical resource families before
 `caught_up(E)`:
 
-| Snapshot value | Meaning |
-| --- | --- |
-| `ServerPublicProfile` | Current public server profile |
-| `ListRoomsResponse` | Complete visible room directory |
-| `ListRoomGroupsResponse` | Complete visible room-group layout |
-| `BatchGetUsersResponse` | The viewer and users referenced by snapshot resources |
-| `ListActiveCallsResponse` | Complete visible active-call state |
+| Snapshot value            | Meaning                                               |
+| ------------------------- | ----------------------------------------------------- |
+| `ServerPublicProfile`     | Current public server profile                         |
+| `ListRoomsResponse`       | Complete visible room directory                       |
+| `ListRoomGroupsResponse`  | Complete visible room-group layout                    |
+| `BatchGetUsersResponse`   | The viewer and users referenced by snapshot resources |
+| `ListActiveCallsResponse` | Complete visible active-call state                    |
 
 The snapshot does not contain the complete user directory. It also excludes
 message and thread history, search results, files, pins, notifications,
@@ -156,10 +156,12 @@ When a durable event causes a follow-up ConnectRPC read, set this header:
 Chatto-Realtime-Minimum-Cursor: <event.resume_cursor>
 ```
 
-The serving replica validates the viewer-bound cursor and waits until its
-content view includes that event boundary. This prevents a request that reaches
-another replica from returning older content. Give each bounded read a finite
-deadline. Save the event cursor only after the required read succeeds.
+The common ConnectRPC interceptor honors this header on every authenticated
+unary procedure. The serving replica validates the viewer-bound cursor and
+waits until its content view includes that event boundary. This prevents a
+request that reaches another replica from using older content. Give each
+bounded request a finite deadline. Save the event cursor only after the
+required request succeeds.
 
 If a new snapshot starts, discard late reads from the earlier local projection
 generation. They must not replace newer state.
@@ -181,9 +183,9 @@ work succeed.
 
 | Frame                           | Client action                                                                                                                                         |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Non-fatal `error`               | Keep the socket open. Retry only the rejected operation and honor `retry_after_ms`.                                                                   |
+| Non-fatal `error`               | Keep the socket open. Retry only the rejected operation and honor `retry_after`.                                                                      |
 | Fatal `error`                   | Stop processing that socket and keep the preceding cursor. Retry temporary failures with backoff. Fix protocol or authentication errors before retry. |
-| `close` with `reconnect: true`  | Close the socket, wait for `retry_after_ms` or local backoff, and subscribe with the last safe cursor.                                                |
+| `close` with `reconnect: true`  | Close the socket, wait for `retry_after` or local backoff, and subscribe with the last safe cursor.                                                   |
 | `close` with `reconnect: false` | Stop automatic reconnects and require the applicable user or authentication action.                                                                   |
 | Network close without guidance  | Retry with bounded exponential backoff and the last safe cursor.                                                                                      |
 
