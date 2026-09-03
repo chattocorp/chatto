@@ -32,7 +32,6 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			MessageEventId:      id,
 			BodyEventSequences:  appendBodySequences(nil, state),
 			CurrentBodySequence: state.currentSequence,
-			HasAttachments:      state.hasAttachments,
 			AttachmentCount:     uint32(state.attachmentCount),
 			CurrentAssetIds:     append([]string(nil), state.currentAssetIDs...),
 		}
@@ -185,9 +184,6 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 		attachmentCount := int(row.GetAttachmentCount())
-		if row.GetHasAttachments() != (attachmentCount > 0) {
-			return fmt.Errorf("room timeline snapshot body %q has inconsistent attachment metadata", id)
-		}
 		assetIDs := append([]string(nil), row.GetCurrentAssetIds()...)
 		if len(assetIDs) > 0 && len(assetIDs) != attachmentCount {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent asset metadata", id)
@@ -200,7 +196,6 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.bodyStates[id] = timelineBodyState{
 			currentSequence:     row.GetCurrentBodySequence(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
-			hasAttachments:      row.GetHasAttachments(),
 			attachmentCount:     attachmentCount,
 			currentAssetIDs:     assetIDs,
 		}
@@ -363,7 +358,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		for _, messageID := range row.GetMessageEventIds() {
 			state := restored.bodyStates[messageID]
-			if messageID == "" || !state.hasAttachments || state.attachmentCount <= 0 || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
+			if messageID == "" || state.attachmentCount <= 0 || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
 				return fmt.Errorf("room timeline snapshot has invalid attachment message")
 			}
 			restored.attachmentMessageIDsByRoom[row.GetRoomId()] = append(restored.attachmentMessageIDsByRoom[row.GetRoomId()], messageID)

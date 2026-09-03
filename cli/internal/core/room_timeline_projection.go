@@ -169,7 +169,6 @@ type timelineBodyState struct {
 	body                *evtv1.MessageBody
 	currentSequence     uint64
 	supersededSequences []uint64
-	hasAttachments      bool
 	attachmentCount     int
 	currentAssetIDs     []string
 }
@@ -477,7 +476,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 						p.clearBodyLocked(targetID)
 						p.removeAttachmentMessageLocked(targetID)
 					} else {
-						p.refreshAttachmentMessageLocked(roomID, targetID, body)
+						p.refreshAttachmentMessageLocked(roomID, targetID)
 					}
 				}
 			}
@@ -523,7 +522,7 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 				p.removeAttachmentMessageLocked(targetID)
 			}
 		}
-		if state, ok := p.bodyStates[targetID]; ok && state.hasAttachments {
+		if state, ok := p.bodyStates[targetID]; ok && state.attachmentCount > 0 {
 			p.addAttachmentMessageLocked(roomID, targetID, seq)
 		}
 		// Track echo links so edits on either side can fan out to the
@@ -675,7 +674,6 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *evtv
 		p.removeCachedEventSequenceLocked(state.currentSequence)
 	}
 	state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(body)
-	state.hasAttachments = state.attachmentCount > 0
 	if key, ok := p.messageBuckets[eventID]; p.eventSource == nil || (ok && (p.bucketPinnedLocked(key, p.now()) || p.cache[key] != nil)) {
 		state.body = body
 		if cached := p.cache[key]; ok && cached != nil {
@@ -703,7 +701,6 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 		p.removeCachedEventSequenceLocked(sequence)
 	}
 	state.body = nil
-	state.hasAttachments = false
 	state.attachmentCount = 0
 	state.currentAssetIDs = nil
 	p.bodyStates[eventID] = state
@@ -997,7 +994,6 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 					}
 					state.body = body
 					state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(state.body)
-					state.hasAttachments = state.attachmentCount > 0
 					p.bodyStates[messageID] = state
 				}
 			}
@@ -1240,7 +1236,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessageReferences(roomID s
 			}
 		}
 		state := p.bodyStates[eventID]
-		if !state.hasAttachments || state.attachmentCount <= 0 {
+		if state.attachmentCount <= 0 {
 			continue
 		}
 		out = append(out, projectedRoomAttachmentMessageReference{
@@ -1252,11 +1248,11 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessageReferences(roomID s
 	return out
 }
 
-func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *evtv1.MessageBody) {
+func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string) {
 	if roomID == "" || eventID == "" {
 		return
 	}
-	if !messageBodyReferencesAttachments(body) {
+	if p.bodyStates[eventID].attachmentCount <= 0 {
 		p.removeAttachmentMessageLocked(eventID)
 		return
 	}
@@ -1322,15 +1318,6 @@ func (p *RoomTimelineProjection) removeAttachmentMessageLocked(eventID string) {
 		p.attachmentMessageIDsByRoom[roomID] = ids
 	}
 	delete(p.attachmentMessageRoom, eventID)
-}
-
-func messageBodyReferencesAttachments(body *evtv1.MessageBody) bool {
-	return messageBodyAttachmentCount(body) > 0
-}
-
-func messageBodyAttachmentCount(body *evtv1.MessageBody) int {
-	_, count := messageBodyAttachmentMetadata(body)
-	return count
 }
 
 func messageBodyAttachmentMetadata(body *evtv1.MessageBody) ([]string, int) {

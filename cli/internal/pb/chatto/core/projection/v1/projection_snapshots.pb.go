@@ -3830,7 +3830,6 @@ type TimelineBodyReferenceSnapshot struct {
 	MessageEventId      string                 `protobuf:"bytes,1,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	BodyEventSequences  []uint64               `protobuf:"varint,3,rep,packed,name=body_event_sequences,json=bodyEventSequences,proto3" json:"body_event_sequences,omitempty"`
 	CurrentBodySequence uint64                 `protobuf:"varint,4,opt,name=current_body_sequence,json=currentBodySequence,proto3" json:"current_body_sequence,omitempty"`
-	HasAttachments      bool                   `protobuf:"varint,5,opt,name=has_attachments,json=hasAttachments,proto3" json:"has_attachments,omitempty"`
 	// Number of current attachment references. This permits attachment-page
 	// selection without loading the encrypted message body.
 	AttachmentCount uint32 `protobuf:"varint,6,opt,name=attachment_count,json=attachmentCount,proto3" json:"attachment_count,omitempty"`
@@ -3890,13 +3889,6 @@ func (x *TimelineBodyReferenceSnapshot) GetCurrentBodySequence() uint64 {
 		return x.CurrentBodySequence
 	}
 	return 0
-}
-
-func (x *TimelineBodyReferenceSnapshot) GetHasAttachments() bool {
-	if x != nil {
-		return x.HasAttachments
-	}
-	return false
 }
 
 func (x *TimelineBodyReferenceSnapshot) GetAttachmentCount() uint32 {
@@ -4604,12 +4596,11 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"q\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
 	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12/\n" +
-	"\x05event\x18\x02 \x01(\v2\x19.chatto.core.evt.v1.EventR\x05event\"\xaf\x02\n" +
+	"\x05event\x18\x02 \x01(\v2\x19.chatto.core.evt.v1.EventR\x05event\"\x86\x02\n" +
 	"\x1dTimelineBodyReferenceSnapshot\x12(\n" +
 	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x120\n" +
 	"\x14body_event_sequences\x18\x03 \x03(\x04R\x12bodyEventSequences\x122\n" +
-	"\x15current_body_sequence\x18\x04 \x01(\x04R\x13currentBodySequence\x12'\n" +
-	"\x0fhas_attachments\x18\x05 \x01(\bR\x0ehasAttachments\x12)\n" +
+	"\x15current_body_sequence\x18\x04 \x01(\x04R\x13currentBodySequence\x12)\n" +
 	"\x10attachment_count\x18\x06 \x01(\rR\x0fattachmentCount\x12*\n" +
 	"\x11current_asset_ids\x18\a \x03(\tR\x0fcurrentAssetIds\"\xc6\x01\n" +
 	"\x16TimelineBucketSnapshot\x12\x17\n" +
