@@ -3,6 +3,41 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.6](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.5...v0.5.0-alpha.6) (2026-09-02)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** align UserService protobuf source ([#2259](https://github.com/chattocorp/chatto/issues/2259))
+* **api:** manage targeted user avatars ([#2256](https://github.com/chattocorp/chatto/issues/2256))
+* **realtime:** stop retransmitting room permissions ([#2254](https://github.com/chattocorp/chatto/issues/2254))
+* **threads:** turn My Threads into a conversation inbox ([#2232](https://github.com/chattocorp/chatto/issues/2232))
+
+### Features
+
+* **api:** manage targeted user avatars ([#2256](https://github.com/chattocorp/chatto/issues/2256)) ([cb58f6d](https://github.com/chattocorp/chatto/commit/cb58f6d335d0f9829f0ddebe7b75b42cf1b55828))
+* **auth:** allow native loopback OAuth callbacks ([#2255](https://github.com/chattocorp/chatto/issues/2255)) ([1fb7eb9](https://github.com/chattocorp/chatto/commit/1fb7eb91e4d09f7e6096d8d4b3724f09e5c67c79))
+* **frontend:** consolidate standard modal design ([#2265](https://github.com/chattocorp/chatto/issues/2265)) ([be76cd2](https://github.com/chattocorp/chatto/commit/be76cd24db7348d7c2e960e11d827c48077b9435))
+* **mcp:** clarify connected server role ([#2250](https://github.com/chattocorp/chatto/issues/2250)) ([937aa8a](https://github.com/chattocorp/chatto/commit/937aa8afd5ff0d829cc85b08e1f8d83de315f9a3))
+* **threads:** turn My Threads into a conversation inbox ([#2232](https://github.com/chattocorp/chatto/issues/2232)) ([3fc1d08](https://github.com/chattocorp/chatto/commit/3fc1d08fd120effb4c811db12474e1e79951de02))
+
+
+### Bug Fixes
+
+* **accounts:** bypass own username cooldown ([#2271](https://github.com/chattocorp/chatto/issues/2271)) ([17a43bf](https://github.com/chattocorp/chatto/commit/17a43bf008cb06077478b38df3e76c1fa617277e))
+* **dev:** unify local embedded NATS data directory ([#2279](https://github.com/chattocorp/chatto/issues/2279)) ([403e911](https://github.com/chattocorp/chatto/commit/403e911232f21f25d1ae8e304a87813e329f0bd5))
+* **email:** omit unnecessary SMTPUTF8 ([#2273](https://github.com/chattocorp/chatto/issues/2273)) ([0595d00](https://github.com/chattocorp/chatto/commit/0595d0064dc51b0555ac5cfae1cbe7297929678c))
+* **frontend:** hide inactive preview scroll fades ([#2261](https://github.com/chattocorp/chatto/issues/2261)) ([eee27b7](https://github.com/chattocorp/chatto/commit/eee27b7f6aa9822710e97d26d95e018a54be6408))
+* **messages:** let managers bypass edit window ([#2280](https://github.com/chattocorp/chatto/issues/2280)) ([0fe226f](https://github.com/chattocorp/chatto/commit/0fe226fe8ec2eb54700b4f2f8c6182683ccc7003))
+* **notifications:** decide from current projected state ([#2253](https://github.com/chattocorp/chatto/issues/2253)) ([7e1b5c8](https://github.com/chattocorp/chatto/commit/7e1b5c8c1ced26b8ee40128766f2ae5e93dbf137))
+* **notifications:** stop retrying absent signal deletion ([#2258](https://github.com/chattocorp/chatto/issues/2258)) ([cd9042e](https://github.com/chattocorp/chatto/commit/cd9042efce87d1181825e607587a554ff38df3f9))
+* **realtime:** stop retransmitting room permissions ([#2254](https://github.com/chattocorp/chatto/issues/2254)) ([fc03a98](https://github.com/chattocorp/chatto/commit/fc03a98ad83888e8faf95882e033d9c0bf8aa322))
+
+
+### Code Refactoring
+
+* **api:** align UserService protobuf source ([#2259](https://github.com/chattocorp/chatto/issues/2259)) ([9df3011](https://github.com/chattocorp/chatto/commit/9df30112d67390b3c92b0a839130760678a71bb3))
+
 ## [0.5.0-alpha.5](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.4...v0.5.0-alpha.5) (2026-08-30)
 
 
