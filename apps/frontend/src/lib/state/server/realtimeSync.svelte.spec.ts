@@ -1,10 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import {
-  MAX_RETAINED_ROOM_TIMELINES,
-  RealtimeProjectionSyncState
-} from './realtimeSync.svelte';
+import { MAX_RETAINED_ROOM_TIMELINES, RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 describe('RealtimeProjectionSyncState', () => {
+  it('resolves a refresh waiter only after a later caught-up boundary', async () => {
+    const state = new RealtimeProjectionSyncState();
+    state.markCaughtUp('cursor-before');
+    let settled = false;
+    const refreshed = state.waitForNextCaughtUp().then((result) => {
+      settled = true;
+      return result;
+    });
+
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    state.markCaughtUp('cursor-after');
+
+    await expect(refreshed).resolves.toBe(true);
+    expect(state.resumeCursor).toBe('cursor-after');
+  });
+
+  it('drops the resume cursor but retains requested rooms after authorization changes', () => {
+    const state = new RealtimeProjectionSyncState();
+    state.retainRoom('R1');
+    state.confirmRoom('R1');
+    state.markCaughtUp('cursor-before');
+
+    state.invalidateAuthorization();
+
+    expect(state.phase).toBe('empty');
+    expect(state.resumeCursor).toBeNull();
+    expect(state.desiredRoomIds).toEqual(['R1']);
+    expect(state.retainedRoomIds).toEqual(['R1']);
+  });
+
   it('keeps an opaque cursor attached to the retained projection across socket lifetimes', () => {
     const state = new RealtimeProjectionSyncState();
 

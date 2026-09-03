@@ -55,12 +55,26 @@ without a public runtime credential keeps entitlement semantics.
 active, and its deadline. It also provides activate and deactivate RPCs. The
 effective permission grants in viewer and room state describe permissions that
 can be used now. The bundled client puts the control in the current-user area
-for the selected server. It reconnects its realtime projection after a state
-change so all effective room and server permissions use the new session state.
+for the selected server. Each mutation response includes the new effective
+server capabilities and permissions, which the client applies immediately. It
+then discards the authorization-bound resume cursor and requests a complete
+realtime projection. A normal cursor resume contains only later EVT changes and
+cannot represent this runtime-state mutation. The complete projection replaces
+room-scoped state with the new session permissions.
 
-Privileged-mode state is runtime state. Chatto does not write an EVT event for
-activation or deactivation. Privileged operations continue to write their
-normal durable audit facts.
+The realtime connection retains the privilege deadline accepted during its
+hello. At that deadline, the server cancels authorized work and sends a
+reconnecting `privileged_mode_expired` close when possible. The replacement
+projection reports unprivileged effective permissions. The client also keeps a
+local deadline as a prompt fallback.
+
+Privileged-mode authority stays in runtime state. Chatto writes minimal
+`PrivilegedModeActivatedEvent` and `PrivilegedModeDeactivatedEvent` facts to
+EVT for the event log. The activation fact includes the deadline, so automatic
+expiry does not require a scheduled event. These facts are audit-only and do
+not change runtime authority during replay. If the runtime-state mutation
+succeeds but its audit append fails, Chatto keeps the runtime result and logs
+the failure. This prevents an audit outage from keeping privilege active.
 
 ## Compatibility
 
@@ -80,6 +94,8 @@ old replica does not apply the new request-time gate.
 - The runtime-state records have one more mutable deadline.
 - Clients must refresh effective permission state after activation,
   deactivation, or expiry.
+- The event log records user-driven privileged-mode transitions without making
+  EVT the authorization source.
 - A future MFA step can be added to the activation RPC without changing the
   RBAC model.
 

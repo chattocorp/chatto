@@ -40,6 +40,7 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 		if active && now.Before(session.PrivilegedModeExpiresAt) {
 			return session.PrivilegedModeExpiresAt, nil
 		}
+		wasActive := now.Before(session.PrivilegedModeExpiresAt)
 		deadline := time.Time{}
 		if active {
 			deadline = now.Add(PrivilegedModeWindow)
@@ -57,6 +58,15 @@ func (c *ChattoCore) setRenewableSessionPrivilegedMode(ctx context.Context, sess
 				continue
 			}
 			return time.Time{}, fmt.Errorf("set renewable-session privileged mode: %w", err)
+		}
+		if active {
+			if err := c.recordPrivilegedModeActivated(ctx, session.UserID, deadline); err != nil {
+				c.logger.Warn("Failed to append privileged-mode activation audit event", "error", err)
+			}
+		} else if wasActive {
+			if err := c.recordPrivilegedModeDeactivated(ctx, session.UserID); err != nil {
+				c.logger.Warn("Failed to append privileged-mode deactivation audit event", "error", err)
+			}
 		}
 		return deadline, nil
 	}
@@ -108,6 +118,7 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 		if active && now.Before(tokenData.PrivilegedModeExpiresAt) {
 			return tokenData.PrivilegedModeExpiresAt, nil
 		}
+		wasActive := now.Before(tokenData.PrivilegedModeExpiresAt)
 		deadline := time.Time{}
 		if active {
 			deadline = now.Add(PrivilegedModeWindow)
@@ -125,6 +136,15 @@ func (c *ChattoCore) SetCookiePrivilegedMode(ctx context.Context, sessionID stri
 				continue
 			}
 			return time.Time{}, fmt.Errorf("set cookie-session privileged mode: %w", err)
+		}
+		if active {
+			if err := c.recordPrivilegedModeActivated(ctx, tokenData.UserID, deadline); err != nil {
+				c.logger.Warn("Failed to append privileged-mode activation audit event", "error", err)
+			}
+		} else if wasActive {
+			if err := c.recordPrivilegedModeDeactivated(ctx, tokenData.UserID); err != nil {
+				c.logger.Warn("Failed to append privileged-mode deactivation audit event", "error", err)
+			}
 		}
 		return deadline, nil
 	}

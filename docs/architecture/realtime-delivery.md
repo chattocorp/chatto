@@ -49,6 +49,19 @@ the same cookie-session record with KV OCC and writes the same SCS handle in a
 fresh browser cookie slot with the new lifetime. The frontend then opens the
 replacement socket. The upgrade does not update the record or set a cookie.
 
+An armed human connection also retains the privileged-mode deadline accepted
+during its hello. At that deadline, the handler cancels authorized work, sends
+a reconnecting `privileged_mode_expired` close when possible, and closes the
+socket. The replacement projection reports privileged mode as inactive and
+replaces effective server and room permissions. This server timer is
+authoritative; the frontend deadline is an additional prompt fallback.
+
+Activation, deactivation, and local deadline handling clear the frontend's
+resume cursor before reconnect. Privileged mode is runtime state and does not
+advance the EVT cursor, so an ordinary resume could correctly report no new
+events while retaining old room authorization. A cursorless reconnect requests
+a complete projection and replaces all effective room state.
+
 The frontend keeps its route, projection, opaque cursor, and retained-room set
 during this automatic reconnect. The route also returns the next renewal time.
 An HTTP timer uses that value when realtime transport is blocked or

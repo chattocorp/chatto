@@ -238,23 +238,38 @@ export class ServerStateStore {
   /** Change privilege activation for this server session and rehydrate every
    * effective viewer permission through a fresh authenticated transport. */
   async setPrivilegedMode(active: boolean): Promise<void> {
-    const state = active
+    const update = active
       ? await this.#privilegedModeAPI.activate()
       : await this.#privilegedModeAPI.deactivate();
-    this.applyPrivilegedModeState(state);
+    const viewer = this.projection.viewer?.clone();
+    if (!viewer) throw new Error('privileged-mode update has no viewer projection');
+    viewer.privilegedMode = update.privilegedMode;
+    viewer.capabilities = update.capabilities;
+    viewer.viewerPermissions = update.viewerPermissions;
+    this.applyViewerSnapshot(viewer);
+    this.realtimeSync.invalidateAuthorization();
+    const projectionRefreshed = this.realtimeSync.waitForNextCaughtUp();
     this.#serverConnection.forceReconnect('privileged mode changed');
+    await projectionRefreshed;
   }
 
   /** Reflect local expiry immediately; the reconnect obtains authoritative
    * effective permissions and catches role changes made during activation. */
-  expirePrivilegedMode(): void {
+  async expirePrivilegedMode(): Promise<void> {
     this.applyPrivilegedModeState(
       new PrivilegedModeState({
         available: this.projection.viewer?.privilegedMode?.available ?? false,
         active: false
       })
     );
-    this.#serverConnection.forceReconnect('privileged mode expired');
+    try {
+      this.applyViewerSnapshot(await this.#privilegedModeAPI.refresh());
+    } catch (error) {
+      console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
+    } finally {
+      this.realtimeSync.invalidateAuthorization();
+      this.#serverConnection.forceReconnect('privileged mode expired');
+    }
   }
 
   private applyPrivilegedModeState(state: PrivilegedModeState): void {
@@ -262,6 +277,14 @@ export class ServerStateStore {
     if (!viewer) return;
     viewer.privilegedMode = state;
     this.projection.viewer = viewer;
+  }
+
+  private applyViewerSnapshot(response: GetViewerResponse): void {
+    this.projection.viewer = response;
+    const viewer = viewerResponseToState(response);
+    this.currentUser.user = viewer.user;
+    this.currentUser.loading = false;
+    this.setPermissions(viewer);
   }
 
   /** Stable room timeline owner used by routes as a rendering selector. */

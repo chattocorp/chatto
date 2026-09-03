@@ -4,6 +4,13 @@ import { SvelteSet } from 'svelte/reactivity';
 export type RealtimeProjectionPhase = 'empty' | 'hydrating' | 'ready' | 'stale';
 
 export const MAX_RETAINED_ROOM_TIMELINES = 64;
+const PROJECTION_REFRESH_TIMEOUT_MS = 30_000;
+
+type CatchUpWaiter = {
+  afterGeneration: number;
+  resolve: (caughtUp: boolean) => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
 
 /**
  * Session-local resume state for one server projection.
@@ -19,6 +26,8 @@ export class RealtimeProjectionSyncState {
   #desiredRoomIds = new SvelteSet<string>();
   #materializedRoomIds = new SvelteSet<string>();
   #pendingTransportEvictions: string[] = [];
+  #caughtUpGeneration = 0;
+  #catchUpWaiters = new SvelteSet<CatchUpWaiter>();
 
   get resumeCursor(): string | null {
     return this.#resumeCursor;
@@ -86,10 +95,40 @@ export class RealtimeProjectionSyncState {
     if (cursor) this.#resumeCursor = cursor;
     this.phase = 'ready';
     this.lastCaughtUpAt = Date.now();
+    this.#caughtUpGeneration++;
+    for (const waiter of this.#catchUpWaiters) {
+      if (waiter.afterGeneration >= this.#caughtUpGeneration) continue;
+      clearTimeout(waiter.timeout);
+      this.#catchUpWaiters.delete(waiter);
+      waiter.resolve(true);
+    }
+  }
+
+  /** Wait for a later transport to finish applying its projection prefix. */
+  waitForNextCaughtUp(timeoutMs = PROJECTION_REFRESH_TIMEOUT_MS): Promise<boolean> {
+    const afterGeneration = this.#caughtUpGeneration;
+    return new Promise<boolean>((resolve) => {
+      const waiter: CatchUpWaiter = {
+        afterGeneration,
+        resolve,
+        timeout: setTimeout(() => {
+          this.#catchUpWaiters.delete(waiter);
+          resolve(false);
+        }, timeoutMs)
+      };
+      this.#catchUpWaiters.add(waiter);
+    });
   }
 
   markStale(): void {
     if (this.phase === 'ready') this.phase = 'stale';
+  }
+
+  /** Force the next transport to request a complete authorization snapshot. */
+  invalidateAuthorization(): void {
+    this.phase = 'empty';
+    this.lastCaughtUpAt = null;
+    this.#resumeCursor = null;
   }
 
   reset(): void {
@@ -99,5 +138,10 @@ export class RealtimeProjectionSyncState {
     this.#desiredRoomIds.clear();
     this.#materializedRoomIds.clear();
     this.#pendingTransportEvictions = [];
+    for (const waiter of this.#catchUpWaiters) {
+      clearTimeout(waiter.timeout);
+      waiter.resolve(false);
+    }
+    this.#catchUpWaiters.clear();
   }
 }

@@ -1,6 +1,7 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import { connectPost } from './fixtures/connectHelpers';
 import * as routes from './routes';
 
 test('owner explicitly activates and deactivates privileged mode', async ({ page }) => {
@@ -26,4 +27,23 @@ test('owner explicitly activates and deactivates privileged mode', async ({ page
   await disable.click();
   await expect(enable).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).not.toBeVisible();
+
+  await enable.click();
+  await page
+    .getByRole('dialog', { name: 'Enable privileged mode' })
+    .getByRole('button', { name: 'Enable privileged mode' })
+    .click();
+  await expect(disable).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+
+  for (const eventType of ['PrivilegedModeActivatedEvent', 'PrivilegedModeDeactivatedEvent']) {
+    const response = await connectPost<{ entries?: Array<{ eventType?: string }> }>(
+      page,
+      'chatto.admin.v1.AdminEventLogService/ListEvents',
+      { limit: 10, filter: { eventType } }
+    );
+    expect(response.entries).toEqual(
+      expect.arrayContaining([expect.objectContaining({ eventType })])
+    );
+  }
 });

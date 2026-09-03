@@ -65,6 +65,12 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if !activated.Msg.GetPrivilegedMode().GetActive() || activated.Msg.GetPrivilegedMode().GetExpiresAt() == nil {
 		t.Fatalf("activated privileged mode = %+v, want active deadline", activated.Msg.GetPrivilegedMode())
 	}
+	if !apiCapabilityGranted(activated.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("activation response lacks newly effective system capability")
+	}
+	if _, err := env.viewerService.ActivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); err != nil {
+		t.Fatalf("idempotent ActivatePrivilegedMode: %v", err)
+	}
 	armed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {
 		t.Fatalf("GetViewer armed: %v", err)
@@ -72,9 +78,35 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	if !apiCapabilityGranted(armed.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
 		t.Fatal("armed owner lacks effective system capability")
 	}
+	activationLog, err := env.core.ListEventLog(requestContext(), owner.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: owner.Id},
+	})
+	if err != nil {
+		t.Fatalf("ListEventLog activation: %v", err)
+	}
+	if len(activationLog.Entries) != 1 {
+		t.Fatalf("privileged-mode activation audit entries = %d, want 1", len(activationLog.Entries))
+	}
 
-	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+	armedContext := requestContext()
+	deactivated, err := env.viewerService.DeactivatePrivilegedMode(armedContext, connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{}))
+	if err != nil {
 		t.Fatalf("DeactivatePrivilegedMode: %v", err)
+	}
+	if apiCapabilityGranted(deactivated.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("deactivation response retains system capability")
+	}
+	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+		t.Fatalf("idempotent DeactivatePrivilegedMode: %v", err)
+	}
+	deactivationLog, err := env.core.ListEventLog(armedContext, owner.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeDeactivatedEvent", ActorID: owner.Id},
+	})
+	if err != nil {
+		t.Fatalf("ListEventLog deactivation: %v", err)
+	}
+	if len(deactivationLog.Entries) != 1 {
+		t.Fatalf("privileged-mode deactivation audit entries = %d, want 1", len(deactivationLog.Entries))
 	}
 	disarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
 	if err != nil {

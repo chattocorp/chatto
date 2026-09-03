@@ -81,6 +81,8 @@ Result of activating privileged mode for the current session.
 | Field | Type | Description |
 | --- | --- | --- |
 | `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after activation. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities that are effective after activation. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server permission decisions after activation. |
 
 
 <a id="chatto-api-v1-ViewerService-DeactivatePrivilegedMode"></a>
@@ -110,6 +112,8 @@ Result of deactivating privileged mode for the current session.
 | Field | Type | Description |
 | --- | --- | --- |
 | `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after deactivation. |
+| `capabilities` | [`ViewerCapabilities`](#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities that are effective after deactivation. |
+| `viewer_permissions` | [`ServerViewerPermissions`](#chatto-api-v1-ServerViewerPermissions) | Effective server permission decisions after deactivation. |
 
 
 <a id="chatto-api-v1-MyAccountService"></a>

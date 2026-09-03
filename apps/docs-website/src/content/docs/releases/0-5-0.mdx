@@ -143,7 +143,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Chatto now keeps administrative and moderation permissions inactive during ordinary
     use. A human must enable privileged mode for the current server session before these
     permissions become effective. The activation lasts for 15 minutes and can be ended
-    immediately. Bot API keys keep their direct permission behavior.
+    immediately. Permission controls update without a page reload, and the event log
+    records activation and explicit deactivation. Bot API keys keep their direct
+    permission behavior.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Bots activate through normal notifications" size="large">

@@ -202,20 +202,48 @@ describe('getCurrentUserViaConnect', () => {
   it('activates and deactivates privileged mode through the viewer service', async () => {
     const active = { available: true, active: true };
     const inactive = { available: true, active: false };
-    mocks.activatePrivilegedMode.mockResolvedValue({ privilegedMode: active });
-    mocks.deactivatePrivilegedMode.mockResolvedValue({ privilegedMode: inactive });
+    const activeCapabilities = { grants: [{ capability: 'admin.view-system', granted: true }] };
+    const inactiveCapabilities = {
+      grants: [{ capability: 'admin.view-system', granted: false }]
+    };
+    const viewerPermissions = { canManageInvites: true };
+    const refreshedViewer = { privilegedMode: inactive, capabilities: inactiveCapabilities };
+    mocks.activatePrivilegedMode.mockResolvedValue({
+      privilegedMode: active,
+      capabilities: activeCapabilities,
+      viewerPermissions
+    });
+    mocks.deactivatePrivilegedMode.mockResolvedValue({
+      privilegedMode: inactive,
+      capabilities: inactiveCapabilities,
+      viewerPermissions
+    });
+    mocks.getViewer.mockResolvedValue(refreshedViewer);
     const api = createPrivilegedModeAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'
     });
 
-    await expect(api.activate()).resolves.toBe(active);
-    await expect(api.deactivate()).resolves.toBe(inactive);
+    await expect(api.activate()).resolves.toEqual({
+      privilegedMode: active,
+      capabilities: activeCapabilities,
+      viewerPermissions
+    });
+    await expect(api.deactivate()).resolves.toEqual({
+      privilegedMode: inactive,
+      capabilities: inactiveCapabilities,
+      viewerPermissions
+    });
+    await expect(api.refresh()).resolves.toBe(refreshedViewer);
     expect(mocks.activatePrivilegedMode).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.getViewer).toHaveBeenCalledWith(
       {},
       { headers: { Authorization: 'Bearer token' } }
     );

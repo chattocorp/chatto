@@ -204,7 +204,7 @@ sidebar. Shows the avatar with presence and the live display name.
 </script>
 
 {#if privilegedModeDeadline !== null}
-  <Deadline at={privilegedModeDeadline} onreached={() => activeStore.expirePrivilegedMode()} />
+  <Deadline at={privilegedModeDeadline} onreached={() => void activeStore.expirePrivilegedMode()} />
 {/if}
 
 {#snippet customStatusEditor(sheet = false)}

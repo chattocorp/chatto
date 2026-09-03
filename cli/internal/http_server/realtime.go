@@ -222,6 +222,34 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
+	var privilegedModeDeadlineTimer *time.Timer
+	if credentialOK && time.Now().Before(credential.PrivilegedModeExpiresAt) {
+		privilegedModeDeadlineTimer = time.NewTimer(time.Until(credential.PrivilegedModeExpiresAt))
+	}
+	if privilegedModeDeadlineTimer != nil {
+		defer privilegedModeDeadlineTimer.Stop()
+		privilegedModeWatcherDone := make(chan struct{})
+		go func() {
+			defer close(privilegedModeWatcherDone)
+			select {
+			case <-privilegedModeDeadlineTimer.C:
+				terminateRealtimeForPrivilegedModeExpiry(cancel, writeFrame, func() {
+					_ = conn.WriteControl(
+						websocket.CloseMessage,
+						websocket.FormatCloseMessage(websocket.CloseNormalClosure, "privileged mode expired"),
+						time.Now().Add(time.Second),
+					)
+					_ = conn.Close()
+				})
+			case <-ctx.Done():
+			}
+		}()
+		defer func() {
+			cancel()
+			<-privilegedModeWatcherDone
+		}()
+	}
+
 	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
 		credentialCheckDone := make(chan struct{})
 		credentialCheckEvery := realtimeCredentialCheckInterval
@@ -706,6 +734,25 @@ func terminateRealtimeForCookieRenewal(
 		Close: &realtimev1.RealtimeClose{
 			Code:      "session_renewal_required",
 			Message:   "the browser session is ready for renewal",
+			Reconnect: true,
+		},
+	}})
+	closeConnection()
+}
+
+// terminateRealtimeForPrivilegedModeExpiry reconnects the projection at the
+// exact server-side privilege deadline. The replacement connection receives
+// viewer and room permissions with privileged mode inactive.
+func terminateRealtimeForPrivilegedModeExpiry(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "privileged_mode_expired",
+			Message:   "privileged mode expired",
 			Reconnect: true,
 		},
 	}})

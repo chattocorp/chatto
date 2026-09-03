@@ -36,6 +36,9 @@ chat use. When you need these permissions, select the shield in your current-
 user area and confirm **Enable privileged mode**. The activation applies only
 to the selected server session. It lasts for 15 minutes and does not extend
 when you use a permission. Select the active shield to disable it sooner.
+The interface updates effective permissions immediately. At expiry, the server
+reconnects the live projection so elevated controls turn off without a page
+reload.
 
 The mode activates permissions, not role names. It therefore also covers
 custom roles and direct user grants. It does not add authority: a role removal
@@ -46,6 +49,10 @@ and management, role and user administration, server management, invite and
 bot administration, audit access, and owner-only system diagnostics. Normal
 message use and editing or deleting your own messages do not require the mode.
 Bot API keys do not use privileged mode.
+
+The event log records each successful activation and explicit deactivation.
+An activation entry includes its deadline, which also records when automatic
+expiry will occur.
 
 ## How a permission check works
 

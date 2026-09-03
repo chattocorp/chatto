@@ -108,6 +108,10 @@ message ActivatePrivilegedModeRequest {}
 message ActivatePrivilegedModeResponse {
   // Current privileged-mode state after activation.
   PrivilegedModeState privileged_mode = 1;
+  // Permission-derived capabilities that are effective after activation.
+  ViewerCapabilities capabilities = 2;
+  // Effective server permission decisions after activation.
+  ServerViewerPermissions viewer_permissions = 3;
 }
 
 // Request to deactivate all elevation-required permissions for this session.
@@ -117,6 +121,10 @@ message DeactivatePrivilegedModeRequest {}
 message DeactivatePrivilegedModeResponse {
   // Current privileged-mode state after deactivation.
   PrivilegedModeState privileged_mode = 1;
+  // Permission-derived capabilities that are effective after deactivation.
+  ViewerCapabilities capabilities = 2;
+  // Effective server permission decisions after deactivation.
+  ServerViewerPermissions viewer_permissions = 3;
 }
 
 // Provides authenticated user profile, preferences, and capability state.

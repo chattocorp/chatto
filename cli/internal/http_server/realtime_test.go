@@ -1151,6 +1151,33 @@ func TestCookieRenewalCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
 	}
 }
 
+func TestPrivilegedModeExpiryCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var written *realtimev1.RealtimeServerFrame
+	closed := false
+
+	terminateRealtimeForPrivilegedModeExpiry(
+		cancel,
+		func(frame *realtimev1.RealtimeServerFrame) error {
+			written = frame
+			return nil
+		},
+		func() { closed = true },
+	)
+
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("authorized context remained active at the privileged-mode deadline")
+	}
+	if !closed {
+		t.Fatal("connection remained open at the privileged-mode deadline")
+	}
+	if written.GetClose().GetCode() != "privileged_mode_expired" || !written.GetClose().GetReconnect() {
+		t.Fatalf("expiry frame = %+v, want reconnecting privileged_mode_expired", written)
+	}
+}
+
 func TestRealtimeWebSocketBoundsWholeCatchUpDuration(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.realtimeCatchUps.timeout = -time.Nanosecond

@@ -532,6 +532,20 @@ export class ActivatePrivilegedModeResponse extends Message<ActivatePrivilegedMo
    */
   privilegedMode?: PrivilegedModeState;
 
+  /**
+   * Permission-derived capabilities that are effective after activation.
+   *
+   * @generated from field: chatto.api.v1.ViewerCapabilities capabilities = 2;
+   */
+  capabilities?: ViewerCapabilities;
+
+  /**
+   * Effective server permission decisions after activation.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 3;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
   constructor(data?: PartialMessage<ActivatePrivilegedModeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -541,6 +555,8 @@ export class ActivatePrivilegedModeResponse extends Message<ActivatePrivilegedMo
   static readonly typeName = "chatto.api.v1.ActivatePrivilegedModeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
+    { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
+    { no: 3, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivatePrivilegedModeResponse {
@@ -606,6 +622,20 @@ export class DeactivatePrivilegedModeResponse extends Message<DeactivatePrivileg
    */
   privilegedMode?: PrivilegedModeState;
 
+  /**
+   * Permission-derived capabilities that are effective after deactivation.
+   *
+   * @generated from field: chatto.api.v1.ViewerCapabilities capabilities = 2;
+   */
+  capabilities?: ViewerCapabilities;
+
+  /**
+   * Effective server permission decisions after deactivation.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 3;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
   constructor(data?: PartialMessage<DeactivatePrivilegedModeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -615,6 +645,8 @@ export class DeactivatePrivilegedModeResponse extends Message<DeactivatePrivileg
   static readonly typeName = "chatto.api.v1.DeactivatePrivilegedModeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
+    { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
+    { no: 3, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeactivatePrivilegedModeResponse {

@@ -22,6 +22,15 @@ server session when they need them.
   an action.
 - The user can deactivate the mode immediately.
 - Expiry, logout, and session revocation deactivate the mode.
+- The client updates effective server permissions from the activation or
+  deactivation response. It then discards its resume cursor and reconnects its
+  realtime projection to replace room-scoped permissions and retained data.
+- At the 15-minute deadline, the server closes each affected realtime
+  connection with a reconnect instruction. The replacement projection has
+  privileged mode inactive.
+- The event log records successful activation and explicit deactivation
+  transitions. The activation entry includes the fixed deadline. Automatic
+  expiry does not add a second event because the deadline is already durable.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
   privileged mode.
@@ -77,16 +86,19 @@ server session. Use does not extend it.
 
 **Tradeoff:** A long administration task can require another activation.
 
-### 4. Keep activation out of EVT
+### 4. Keep runtime authority out of EVT
 
-**Decision:** Activation is mutable runtime credential state. It is not a
-durable domain event.
+**Decision:** Activation is mutable runtime credential state. Minimal
+activation and explicit deactivation facts are also written to EVT for audit.
+These facts do not restore or change authority during replay.
 
 **Why:** The state has the same lifecycle as the session and must disappear
 with session revocation. Privileged domain actions already create their normal
 audit facts.
 
-**Tradeoff:** Chatto does not keep a durable activation history.
+**Tradeoff:** An EVT outage cannot prevent deactivation. If the runtime-state
+change succeeds and the audit append fails, Chatto keeps the safer runtime
+result and logs the audit failure.
 
 ## Compatibility
 

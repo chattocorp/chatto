@@ -62,8 +62,15 @@ func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.R
 	if err != nil {
 		return nil, connectError(err)
 	}
+	ctx = privilegedModeContext(ctx, deadline)
+	viewer, err := s.api.buildViewer(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&apiv1.ActivatePrivilegedModeResponse{
-		PrivilegedMode: privilegedModeState(true, deadline),
+		PrivilegedMode:    privilegedModeState(true, deadline),
+		Capabilities:      viewer.GetCapabilities(),
+		ViewerPermissions: viewer.GetViewerPermissions(),
 	}), nil
 }
 
@@ -79,9 +86,25 @@ func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect
 	if err != nil {
 		return nil, connectError(err)
 	}
+	ctx = privilegedModeContext(ctx, time.Time{})
+	viewer, err := s.api.buildViewer(ctx, caller.UserID)
+	if err != nil {
+		return nil, err
+	}
 	return connect.NewResponse(&apiv1.DeactivatePrivilegedModeResponse{
-		PrivilegedMode: privilegedModeState(available, time.Time{}),
+		PrivilegedMode:    privilegedModeState(available, time.Time{}),
+		Capabilities:      viewer.GetCapabilities(),
+		ViewerPermissions: viewer.GetViewerPermissions(),
 	}), nil
+}
+
+func privilegedModeContext(ctx context.Context, deadline time.Time) context.Context {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok {
+		return ctx
+	}
+	credential.PrivilegedModeExpiresAt = deadline
+	return authctx.WithCredential(ctx, credential)
 }
 
 func (a *API) setPrivilegedMode(ctx context.Context, userID string, active bool) (time.Time, error) {

@@ -250,6 +250,8 @@ message Event {
     OAuthClientPolicyChangedEvent oauth_client_policy_changed = 916;
     OAuthScopedConsentGrantedEvent oauth_scoped_consent_granted = 917;
     OAuthScopedConsentDeniedEvent oauth_scoped_consent_denied = 918;
+    PrivilegedModeActivatedEvent privileged_mode_activated = 919;
+    PrivilegedModeDeactivatedEvent privileged_mode_deactivated = 920;
 
     // ----- Invite links (930-939, durable, evt.invitation.{id}) -----
     InvitationCreatedEvent invitation_created = 930;
