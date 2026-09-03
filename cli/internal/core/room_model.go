@@ -232,12 +232,8 @@ func (m *RoomModel) latestBodyContext(ctx context.Context, eventID string) (*evt
 	return m.timeline.Projection().LatestBodyContext(ctx, eventID)
 }
 
-func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
-	return m.timeline.Projection().CurrentRoomAttachmentMessages(roomID)
-}
-
-func (m *RoomModel) currentRoomAttachmentMessagesContext(ctx context.Context, roomID string) ([]projectedRoomAttachmentMessage, error) {
-	return m.timeline.Projection().CurrentRoomAttachmentMessagesContext(ctx, roomID)
+func (m *RoomModel) currentRoomAttachmentMessageReferences(roomID string) []projectedRoomAttachmentMessageReference {
+	return m.timeline.Projection().CurrentRoomAttachmentMessageReferences(roomID)
 }
 
 func (m *RoomModel) isEcho(eventID string) bool {

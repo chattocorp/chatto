@@ -33,6 +33,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			BodyEventSequences:  appendBodySequences(nil, state),
 			CurrentBodySequence: state.currentSequence,
 			HasAttachments:      state.hasAttachments,
+			AttachmentCount:     uint32(state.attachmentCount),
 		}
 		snapshot.BodyReferences = append(snapshot.BodyReferences, row)
 	}
@@ -182,10 +183,15 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 				return fmt.Errorf("room timeline snapshot body %q has unordered sequence history", id)
 			}
 		}
+		attachmentCount := int(row.GetAttachmentCount())
+		if row.GetHasAttachments() != (attachmentCount > 0) {
+			return fmt.Errorf("room timeline snapshot body %q has inconsistent attachment metadata", id)
+		}
 		restored.bodyStates[id] = timelineBodyState{
 			currentSequence:     row.GetCurrentBodySequence(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
 			hasAttachments:      row.GetHasAttachments(),
+			attachmentCount:     attachmentCount,
 		}
 	}
 	for _, row := range snapshot.GetBuckets() {
@@ -330,7 +336,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		for _, messageID := range row.GetMessageEventIds() {
 			state := restored.bodyStates[messageID]
-			if messageID == "" || !state.hasAttachments || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
+			if messageID == "" || !state.hasAttachments || state.attachmentCount <= 0 || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
 				return fmt.Errorf("room timeline snapshot has invalid attachment message")
 			}
 			restored.attachmentMessageIDsByRoom[row.GetRoomId()] = append(restored.attachmentMessageIDsByRoom[row.GetRoomId()], messageID)

@@ -155,9 +155,9 @@ type RoomTimelineMessageHydrationState struct {
 	Pinned             bool
 }
 
-type projectedRoomAttachmentMessage struct {
-	Entry *TimelineEntry
-	Body  *evtv1.MessageBody
+type projectedRoomAttachmentMessageReference struct {
+	Entry           *TimelineEntry
+	AttachmentCount int
 }
 
 type timelineBodyState struct {
@@ -165,6 +165,7 @@ type timelineBodyState struct {
 	currentSequence     uint64
 	supersededSequences []uint64
 	hasAttachments      bool
+	attachmentCount     int
 }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
@@ -667,7 +668,8 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *evtv
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
 		p.removeCachedEventSequenceLocked(state.currentSequence)
 	}
-	state.hasAttachments = messageBodyReferencesAttachments(body)
+	state.attachmentCount = messageBodyAttachmentCount(body)
+	state.hasAttachments = state.attachmentCount > 0
 	if key, ok := p.messageBuckets[eventID]; p.eventSource == nil || (ok && (p.bucketPinnedLocked(key, p.now()) || p.cache[key] != nil)) {
 		state.body = body
 		if cached := p.cache[key]; ok && cached != nil {
@@ -696,6 +698,7 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 	}
 	state.body = nil
 	state.hasAttachments = false
+	state.attachmentCount = 0
 	p.bodyStates[eventID] = state
 }
 
@@ -982,7 +985,8 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 						continue
 					}
 					state.body = body
-					state.hasAttachments = messageBodyReferencesAttachments(state.body)
+					state.attachmentCount = messageBodyAttachmentCount(state.body)
+					state.hasAttachments = state.attachmentCount > 0
 					p.bodyStates[messageID] = state
 				}
 			}
@@ -1197,9 +1201,11 @@ func (p *RoomTimelineProjection) latestBodyLocked(eventID string) (body *evtv1.M
 	return nil, false, true
 }
 
-// CurrentRoomAttachmentMessages returns current, visible messages whose latest
-// body references attachments. Results are newest message first.
-func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
+// CurrentRoomAttachmentMessageReferences returns current, visible messages
+// whose latest bodies reference attachments. Results are newest message first.
+// The references contain no message-body payload and do not load timeline
+// buckets.
+func (p *RoomTimelineProjection) CurrentRoomAttachmentMessageReferences(roomID string) []projectedRoomAttachmentMessageReference {
 	p.RLock()
 	defer p.RUnlock()
 
@@ -1208,7 +1214,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 		return nil
 	}
 
-	out := make([]projectedRoomAttachmentMessage, 0, len(ids))
+	out := make([]projectedRoomAttachmentMessageReference, 0, len(ids))
 	for i := len(ids) - 1; i >= 0; i-- {
 		eventID := ids[i]
 		entry, _ := p.entryByEventIDLocked(eventID)
@@ -1223,35 +1229,16 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 				continue
 			}
 		}
-		body := p.bodyStates[eventID].body
-		if !messageBodyReferencesAttachments(body) {
+		state := p.bodyStates[eventID]
+		if !state.hasAttachments || state.attachmentCount <= 0 {
 			continue
 		}
-		out = append(out, projectedRoomAttachmentMessage{
-			Entry: entry,
-			Body:  cloneMessageBody(body),
+		out = append(out, projectedRoomAttachmentMessageReference{
+			Entry:           entry,
+			AttachmentCount: state.attachmentCount,
 		})
 	}
 	return out
-}
-
-// CurrentRoomAttachmentMessagesContext loads the buckets that own current
-// attachment messages before it returns their bodies.
-func (p *RoomTimelineProjection) CurrentRoomAttachmentMessagesContext(ctx context.Context, roomID string) ([]projectedRoomAttachmentMessage, error) {
-	p.RLock()
-	keys := make(map[timelineBucketKey]struct{})
-	for _, messageID := range p.attachmentMessageIDsByRoom[roomID] {
-		if key, ok := p.messageBuckets[messageID]; ok {
-			keys[key] = struct{}{}
-		}
-	}
-	p.RUnlock()
-	for key := range keys {
-		if err := p.loadBucket(ctx, key); err != nil {
-			return nil, err
-		}
-	}
-	return p.CurrentRoomAttachmentMessages(roomID), nil
 }
 
 func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID string, body *evtv1.MessageBody) {
@@ -1327,7 +1314,17 @@ func (p *RoomTimelineProjection) removeAttachmentMessageLocked(eventID string) {
 }
 
 func messageBodyReferencesAttachments(body *evtv1.MessageBody) bool {
-	return len(ownedAssetIDsFromBody(body)) > 0
+	return messageBodyAttachmentCount(body) > 0
+}
+
+func messageBodyAttachmentCount(body *evtv1.MessageBody) int {
+	count := 0
+	for _, assetID := range ownedAssetIDsFromBody(body) {
+		if assetID != "" {
+			count++
+		}
+	}
+	return count
 }
 
 // BodyEventSeqs returns all projected MessageBodyEvent stream sequences for

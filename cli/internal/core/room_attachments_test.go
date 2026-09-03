@@ -196,6 +196,14 @@ func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	if result.Items[1].MessageEventID != rootEvent.Id || result.Items[1].ThreadRootEventID != "" {
 		t.Fatalf("root item anchor = (%q, %q), want (%q, empty)", result.Items[1].MessageEventID, result.Items[1].ThreadRootEventID, rootEvent.Id)
 	}
+
+	middle, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 1)
+	if err != nil {
+		t.Fatalf("Get middle page: %v", err)
+	}
+	if middle.TotalCount != 3 || !middle.HasMore || len(middle.Items) != 1 || middle.Items[0].Attachment.GetFilename() != "root-a.png" {
+		t.Fatalf("middle page = %+v, want root-a.png as one of three attachments", middle)
+	}
 }
 
 func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {

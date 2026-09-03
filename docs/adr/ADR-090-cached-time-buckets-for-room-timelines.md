@@ -68,8 +68,8 @@ lookups. This includes:
 - the mapping from a message event ID to its original bucket;
 - timeline ordering and visibility metadata that a query needs to select the
   correct buckets;
-- current pin, echo, tombstone, attachment, and secure-delete metadata that
-  must be available before a bucket is loaded; and
+- current pin, echo, tombstone, attachment-locator, attachment-count, and
+  secure-delete metadata that must be available before a bucket is loaded; and
 - a bucket revision used to install a reconstructed bucket safely.
 
 The directory can retain bodyless public timeline facts that existing readers
@@ -192,9 +192,11 @@ storage I/O occurs while the content-view barrier is held.
 
 Focused projections can keep compact all-history indexes when current API
 behavior needs them. Thread reply lists, interaction relationships, current
-pins, and attachment locators can select message IDs or buckets without
-retaining a second copy of message event data. Those indexes remain derived
-state and stay consistent with the timeline bucket directory.
+pins, attachment locators, and attachment counts can select message IDs or
+buckets without retaining a second copy of message event data. The attachment
+list selects the requested page before it reconstructs message bodies. Those
+indexes remain derived state and stay consistent with the timeline bucket
+directory.
 
 ## Consequences
 

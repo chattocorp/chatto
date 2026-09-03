@@ -27,6 +27,12 @@ type RoomAttachmentsResult struct {
 	HasMore    bool
 }
 
+type roomAttachmentMessagePageSelection struct {
+	reference projectedRoomAttachmentMessageReference
+	skip      int
+	take      int
+}
+
 // ListRoomAttachmentsInput is the authorized room attachment list request.
 type ListRoomAttachmentsInput struct {
 	ActorID string
@@ -273,66 +279,109 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 		offset = 0
 	}
 
-	items := make([]*RoomAttachmentItem, 0)
-	messages, err := c.roomModel.currentRoomAttachmentMessagesContext(ctx, roomID)
+	references := c.roomModel.currentRoomAttachmentMessageReferences(roomID)
+	selections, totalCount, err := selectRoomAttachmentMessagePage(references, limit, offset, visible)
 	if err != nil {
-		return nil, fmt.Errorf("load room attachment timeline buckets: %w", err)
+		return nil, err
 	}
-	for _, message := range messages {
-		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
+
+	items := make([]*RoomAttachmentItem, 0, limit)
+	for _, selection := range selections {
+		entry := selection.reference.Entry
+		if entry == nil || entry.Event == nil {
 			continue
 		}
-		posted := message.Entry.Event.GetMessagePosted()
+		messageEventID := entry.Event.GetId()
+		body, retracted, ok, err := c.roomModel.latestBodyContext(ctx, messageEventID)
+		if err != nil {
+			return nil, fmt.Errorf("load room attachment timeline bucket: %w", err)
+		}
+		if !ok || retracted || body == nil {
+			continue
+		}
+		posted := entry.Event.GetMessagePosted()
 		if posted == nil {
 			continue
 		}
+		attachments := nonNilAttachments(c.mediaModel.MessageBodyAttachments(body))
+		if selection.skip >= len(attachments) {
+			continue
+		}
+		end := selection.skip + selection.take
+		if end > len(attachments) {
+			end = len(attachments)
+		}
+		for _, attachment := range attachments[selection.skip:end] {
+			cloned := proto.Clone(attachment).(*evtv1.Attachment)
+			cloned.RoomId = roomID
+			if cloned.MessageBodyId == "" {
+				cloned.MessageBodyId = messageEventID
+			}
+			items = append(items, &RoomAttachmentItem{
+				Attachment:        cloned,
+				MessageEventID:    messageEventID,
+				ThreadRootEventID: posted.GetInThread(),
+				CreatedAt:         entry.Event.GetCreatedAt(),
+			})
+		}
+	}
+
+	return &RoomAttachmentsResult{
+		Items:      items,
+		TotalCount: totalCount,
+		HasMore:    offset < totalCount && limit < totalCount-offset,
+	}, nil
+}
+
+func selectRoomAttachmentMessagePage(references []projectedRoomAttachmentMessageReference, limit, offset int, visible func(string) (bool, error)) ([]roomAttachmentMessagePageSelection, int, error) {
+	remainingOffset := offset
+	remainingLimit := limit
+	totalCount := 0
+	selections := make([]roomAttachmentMessagePageSelection, 0, limit)
+	for _, reference := range references {
+		if reference.Entry == nil || reference.Entry.Event == nil || reference.Entry.Event.GetMessagePosted() == nil || reference.AttachmentCount <= 0 {
+			continue
+		}
 		if visible != nil {
-			allowed, err := visible(message.Entry.Event.GetId())
+			allowed, err := visible(reference.Entry.Event.GetId())
 			if err != nil {
-				return nil, err
+				return nil, 0, err
 			}
 			if !allowed {
 				continue
 			}
 		}
-		attachments := c.mediaModel.MessageBodyAttachments(message.Body)
-		if len(attachments) == 0 {
+
+		attachmentCount := reference.AttachmentCount
+		totalCount += attachmentCount
+		if remainingOffset >= attachmentCount {
+			remainingOffset -= attachmentCount
 			continue
 		}
-		for _, attachment := range attachments {
-			if attachment == nil {
-				continue
-			}
-			cloned := proto.Clone(attachment).(*evtv1.Attachment)
-			cloned.RoomId = roomID
-			if cloned.MessageBodyId == "" {
-				cloned.MessageBodyId = message.Entry.Event.GetId()
-			}
-			items = append(items, &RoomAttachmentItem{
-				Attachment:        cloned,
-				MessageEventID:    message.Entry.Event.GetId(),
-				ThreadRootEventID: posted.GetInThread(),
-				CreatedAt:         message.Entry.Event.GetCreatedAt(),
-			})
+		if remainingLimit <= 0 {
+			continue
 		}
+		take := attachmentCount - remainingOffset
+		if take > remainingLimit {
+			take = remainingLimit
+		}
+		selections = append(selections, roomAttachmentMessagePageSelection{
+			reference: reference,
+			skip:      remainingOffset,
+			take:      take,
+		})
+		remainingOffset = 0
+		remainingLimit -= take
 	}
-
-	page, totalCount, hasMore := paginateCoreSlice(items, limit, offset)
-	return &RoomAttachmentsResult{
-		Items:      page,
-		TotalCount: totalCount,
-		HasMore:    hasMore,
-	}, nil
+	return selections, totalCount, nil
 }
 
-func paginateCoreSlice[T any](items []T, limit int, offset int) ([]T, int, bool) {
-	totalCount := len(items)
-	if offset >= totalCount {
-		return []T{}, totalCount, false
+func nonNilAttachments(attachments []*evtv1.Attachment) []*evtv1.Attachment {
+	out := make([]*evtv1.Attachment, 0, len(attachments))
+	for _, attachment := range attachments {
+		if attachment != nil {
+			out = append(out, attachment)
+		}
 	}
-	page := items[offset:]
-	if limit > 0 && len(page) > limit {
-		page = page[:limit]
-	}
-	return page, totalCount, offset+len(page) < totalCount
+	return out
 }

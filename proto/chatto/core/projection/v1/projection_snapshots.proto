@@ -433,6 +433,9 @@ message TimelineBodyReferenceSnapshot {
   repeated uint64 body_event_sequences = 3;
   uint64 current_body_sequence = 4;
   bool has_attachments = 5;
+  // Number of current attachment references. This permits attachment-page
+  // selection without loading the encrypted message body.
+  uint32 attachment_count = 6;
 }
 
 message TimelineBucketSnapshot {

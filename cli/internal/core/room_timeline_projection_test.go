@@ -576,11 +576,11 @@ func TestRoomTimeline_MessageBodyLifecycleRejectsLegacyLateBody(t *testing.T) {
 	if got := p.bodyStates["ENV-M1"].body; got != nil {
 		t.Fatal("late body ciphertext remained projected after retraction")
 	}
-	if p.bodyStates["ENV-M1"].hasAttachments {
+	if state := p.bodyStates["ENV-M1"]; state.hasAttachments || state.attachmentCount != 0 {
 		t.Fatal("retracted body retained attachment metadata")
 	}
-	if got := p.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
-		t.Fatalf("CurrentRoomAttachmentMessages after late body = %v, want empty", got)
+	if got := p.CurrentRoomAttachmentMessageReferences("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessageReferences after late body = %v, want empty", got)
 	}
 }
 
@@ -618,8 +618,8 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	if got := restored.bodyStates["ENV-M1"].body; got != nil {
 		t.Fatal("restored snapshot retained late body ciphertext after retraction")
 	}
-	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
-		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)
+	if got := restored.CurrentRoomAttachmentMessageReferences("R1"); len(got) != 0 {
+		t.Fatalf("CurrentRoomAttachmentMessageReferences after restore = %v, want empty", got)
 	}
 }
 
@@ -1081,6 +1081,25 @@ func (s timelineTestEventSource) EventAt(_ context.Context, sequence uint64) (*e
 	return s[sequence], nil
 }
 
+type countingTimelineEventSource struct {
+	mu        sync.Mutex
+	records   timelineTestEventSource
+	sequences []uint64
+}
+
+func (s *countingTimelineEventSource) EventAt(_ context.Context, sequence uint64) (*evtstream.SubjectEvent, error) {
+	s.mu.Lock()
+	s.sequences = append(s.sequences, sequence)
+	s.mu.Unlock()
+	return s.records[sequence], nil
+}
+
+func (s *countingTimelineEventSource) readSequences() []uint64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]uint64(nil), s.sequences...)
+}
+
 type timelineLogEntry struct {
 	level   string
 	message string
@@ -1231,6 +1250,79 @@ func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	mismatch := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{EventSource: source, Interval: 24 * time.Hour})
 	if err := mismatch.Restore(payload); err == nil {
 		t.Fatal("snapshot with a different bucket interval restored successfully")
+	}
+}
+
+func TestRoomTimeline_AttachmentPageLoadsOnlySelectedHistoricalBucket(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	records := make(timelineTestEventSource)
+	for index := range 3 {
+		messageID := fmt.Sprintf("MESSAGE-%d", index+1)
+		bodyID := fmt.Sprintf("BODY-%d", index+1)
+		created := time.Date(2025, 1, 8+index*14, 12, 0, 0, 0, time.UTC)
+		assetIDs := make([]string, index+1)
+		for assetIndex := range assetIDs {
+			assetIDs[assetIndex] = fmt.Sprintf("ASSET-%d-%d", index+1, assetIndex+1)
+		}
+		body := bodyEventWithAssets(bodyID, messageID, "R1", "U1", "ciphertext", assetIDs, index+1)
+		body.CreatedAt = timestamppb.New(created)
+		posted := bodylessPostedEvent(messageID, "R1", "U1", index+1)
+		posted.CreatedAt = timestamppb.New(created)
+		bodySequence := uint64(index*2 + 1)
+		postSequence := bodySequence + 1
+		records[bodySequence] = &evtstream.SubjectEvent{Subject: "evt.room.R1.message_body", Sequence: bodySequence, Event: body}
+		records[postSequence] = &evtstream.SubjectEvent{Subject: "evt.room.R1.message_posted", Sequence: postSequence, Event: posted}
+		if err := projection.Apply(body, bodySequence); err != nil {
+			t.Fatalf("Apply body %d: %v", index+1, err)
+		}
+		if err := projection.Apply(posted, postSequence); err != nil {
+			t.Fatalf("Apply post %d: %v", index+1, err)
+		}
+	}
+
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	source := &countingTimelineEventSource{records: records}
+	restored := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		IdleTimeout: time.Minute, Now: func() time.Time { return now },
+	})
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+
+	references := restored.CurrentRoomAttachmentMessageReferences("R1")
+	if len(references) != 3 || references[0].Entry.Event.GetId() != "MESSAGE-3" || references[0].AttachmentCount != 3 {
+		t.Fatalf("attachment references = %+v, want three references newest first", references)
+	}
+	if got := source.readSequences(); len(got) != 0 {
+		t.Fatalf("EVT reads while selecting references = %v, want none", got)
+	}
+	selections, totalCount, err := selectRoomAttachmentMessagePage(references, 1, 0, nil)
+	if err != nil || totalCount != 6 || len(selections) != 1 || selections[0].take != 1 {
+		t.Fatalf("select attachment page = (%+v, %d, %v), want one of six", selections, totalCount, err)
+	}
+	selectedID := selections[0].reference.Entry.Event.GetId()
+	if selectedID != "MESSAGE-3" {
+		t.Fatalf("selected message = %q, want MESSAGE-3", selectedID)
+	}
+	body, retracted, ok, err := restored.LatestBodyContext(context.Background(), selectedID)
+	if err != nil || !ok || retracted || body == nil {
+		t.Fatalf("LatestBodyContext = (%v, %v, %v, %v), want selected body", body, retracted, ok, err)
+	}
+	if got := source.readSequences(); !slices.Equal(got, []uint64{5, 6}) {
+		t.Fatalf("EVT reads = %v, want only selected bucket sequences [5 6]", got)
+	}
+	for _, messageID := range []string{"MESSAGE-1", "MESSAGE-2"} {
+		if restored.cache[restored.messageBuckets[messageID]] != nil {
+			t.Fatalf("unselected message %q bucket was materialized", messageID)
+		}
 	}
 }
 
