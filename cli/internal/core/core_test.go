@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"errors"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +12,8 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/internal/testutil"
 )
 

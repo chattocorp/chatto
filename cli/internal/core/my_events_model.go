@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -12,9 +10,12 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
+
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
 )
 

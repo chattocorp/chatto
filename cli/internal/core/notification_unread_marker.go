@@ -4,10 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -15,6 +11,10 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."

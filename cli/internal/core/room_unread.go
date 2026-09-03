@@ -3,12 +3,12 @@ package core
 import (
 	"context"
 	"fmt"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // ============================================================================

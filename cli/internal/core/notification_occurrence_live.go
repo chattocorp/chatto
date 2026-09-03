@@ -2,13 +2,13 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 func (c *ChattoCore) publishNotificationOccurrencesInvalidated(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, creationCandidate bool) {

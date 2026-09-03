@@ -2,10 +2,10 @@ package core
 
 import (
 	"context"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"hmans.de/chatto/internal/core/subjects"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // PublishTypingIndicator publishes a typing indicator event to other users in the room.
