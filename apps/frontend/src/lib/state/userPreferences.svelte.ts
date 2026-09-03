@@ -81,6 +81,9 @@ export function applyDisplayTheme(theme: DisplayTheme): void {
   root.dataset.theme = effective;
   root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
   root.style.colorScheme = effective;
+  document
+    .querySelector<HTMLMetaElement>('meta[name="theme-color"]')
+    ?.setAttribute('content', effective === 'dark' ? '#262626' : '#e5e7eb');
 }
 
 function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFilters {
