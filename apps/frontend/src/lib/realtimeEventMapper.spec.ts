@@ -3,10 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
 import { PublicEvent, RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { TransientEventKind } from '$lib/realtimeEvents';
-import {
-  publicEventToCanonicalEvent,
-  realtimeEventToEventEnvelope
-} from './realtimeEventMapper';
+import { publicEventToCanonicalEvent, realtimeEventToEventEnvelope } from './realtimeEventMapper';
 
 describe('realtime event mapping', () => {
   it('keeps public metadata and the canonical payload for local reducers', () => {

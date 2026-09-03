@@ -476,7 +476,7 @@ class EventBusManager {
                 const event = realtimeEventToEventEnvelope(frame.frame.value);
                 if (event) dispatchEvent(event);
                 try {
-              dispatchPublicEvent(frame.frame.value);
+                  dispatchPublicEvent(frame.frame.value);
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] projection reducer failed`, error);
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');

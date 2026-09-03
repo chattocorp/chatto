@@ -19,6 +19,9 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
 	}
 	sourceMessage := source.ProtoReflect()
 	sourceOneof := sourceMessage.Descriptor().Oneofs().ByName("event")
+	if sourceOneof == nil {
+		return nil
+	}
 	sourcePayload := sourceMessage.WhichOneof(sourceOneof)
 	if sourcePayload == nil {
 		return nil
@@ -27,7 +30,9 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
 	target := &realtimev1.PublicEvent{}
 	targetMessage := target.ProtoReflect()
 	targetPayload := targetMessage.Descriptor().Fields().ByNumber(sourcePayload.Number())
-	if targetPayload == nil || targetPayload.ContainingOneof() == nil ||
+	if targetPayload == nil || sourcePayload.Message() == nil || targetPayload.Message() == nil ||
+		targetPayload.Name() != sourcePayload.Name() ||
+		targetPayload.ContainingOneof() == nil ||
 		targetPayload.ContainingOneof().Name() != "event" ||
 		targetPayload.Message().FullName() != sourcePayload.Message().FullName() {
 		return nil
@@ -35,16 +40,29 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
 
 	for _, number := range []protoreflect.FieldNumber{1, 2, 3} {
 		sourceField := sourceMessage.Descriptor().Fields().ByNumber(number)
+		targetField := targetMessage.Descriptor().Fields().ByNumber(number)
+		if !matchingRealtimeField(sourceField, targetField) {
+			return nil
+		}
 		if !sourceMessage.Has(sourceField) {
 			continue
 		}
-		targetField := targetMessage.Descriptor().Fields().ByNumber(number)
 		copyRealtimeField(targetMessage, targetField, sourceMessage.Get(sourceField), true)
 	}
 	payload := targetMessage.NewField(targetPayload).Message()
 	copyRealtimeMessage(sourceMessage.Get(sourcePayload).Message(), payload, false)
 	targetMessage.Set(targetPayload, protoreflect.ValueOfMessage(payload))
 	return target
+}
+
+func matchingRealtimeField(source, target protoreflect.FieldDescriptor) bool {
+	if source == nil || target == nil || source.Name() != target.Name() || source.Kind() != target.Kind() {
+		return false
+	}
+	if source.Message() == nil || target.Message() == nil {
+		return source.Message() == nil && target.Message() == nil
+	}
+	return source.Message().FullName() == target.Message().FullName()
 }
 
 func copyRealtimeMessage(source, target protoreflect.Message, inheritUnspecified bool) {

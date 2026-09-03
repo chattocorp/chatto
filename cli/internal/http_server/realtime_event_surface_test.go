@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	eventv1 "hmans.de/chatto/internal/pb/chatto/core/event/v1"
@@ -135,6 +136,13 @@ func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) 
 	publicOneof := publicDescriptor.Oneofs().ByName("event")
 	if canonicalOneof == nil || publicOneof == nil {
 		t.Fatal("Event.event descriptor is missing")
+	}
+	for _, number := range []protoreflect.FieldNumber{1, 2, 3} {
+		canonicalField := canonicalDescriptor.Fields().ByNumber(number)
+		publicField := publicDescriptor.Fields().ByNumber(number)
+		if !matchingRealtimeField(canonicalField, publicField) {
+			t.Errorf("public metadata field %d does not match the canonical field", number)
+		}
 	}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
 		publicField := publicOneof.Fields().Get(index)
