@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -99,25 +100,28 @@ func TestStreamMessageReaderUsesSlidingIdleExpiry(t *testing.T) {
 			4: {Subject: "evt.room.room.user_joined", Sequence: 4, Data: []byte("four")},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: 10 * time.Minute})
-	now := time.Unix(100, 0)
-	reader.now = func() time.Time { return now }
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: 200 * time.Millisecond})
 
 	if _, err := reader.Message(context.Background(), 4); err != nil {
 		t.Fatalf("Message initial read: %v", err)
 	}
-	now = now.Add(9 * time.Minute)
-	if _, err := reader.Message(context.Background(), 4); err != nil {
-		t.Fatalf("Message before idle expiry: %v", err)
+	first := reader.cache.Get(4, ttlcache.WithDisableTouchOnHit[uint64, EncodedSubjectRecord]())
+	if first == nil {
+		t.Fatal("cache entry after initial read = nil")
 	}
-	now = now.Add(9 * time.Minute)
+	firstExpiry := first.ExpiresAt()
+	time.Sleep(50 * time.Millisecond)
 	if _, err := reader.Message(context.Background(), 4); err != nil {
-		t.Fatalf("Message after original expiry: %v", err)
+		t.Fatalf("Message touched read: %v", err)
+	}
+	second := reader.cache.Get(4, ttlcache.WithDisableTouchOnHit[uint64, EncodedSubjectRecord]())
+	if second == nil || !second.ExpiresAt().After(firstExpiry) {
+		t.Fatalf("expiration after cache hit = %v, want after %v", second, firstExpiry)
 	}
 	if source.reads[4] != 1 {
 		t.Fatalf("source reads after active use = %d, want 1", source.reads[4])
 	}
-	now = now.Add(11 * time.Minute)
+	time.Sleep(time.Until(second.ExpiresAt()) + 10*time.Millisecond)
 	if _, err := reader.Message(context.Background(), 4); err != nil {
 		t.Fatalf("Message after idle expiry: %v", err)
 	}
@@ -294,6 +298,13 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 		},
 	}
 	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: 20 * time.Millisecond})
+	expired := make(chan uint64, 2)
+	unsubscribe := reader.cache.OnEviction(func(_ context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[uint64, EncodedSubjectRecord]) {
+		if reason == ttlcache.EvictionReasonExpired {
+			expired <- item.Key()
+		}
+	})
+	defer unsubscribe()
 	if _, err := reader.Messages(context.Background(), []uint64{1, 2}); err != nil {
 		t.Fatalf("Messages: %v", err)
 	}
@@ -301,18 +312,12 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 	done := make(chan error, 1)
 	go func() { done <- reader.Run(ctx) }()
 
-	deadline := time.Now().Add(time.Second)
-	for {
-		reader.cacheMu.Lock()
-		remaining := len(reader.cache)
-		reader.cacheMu.Unlock()
-		if remaining == 0 {
-			break
+	for range 2 {
+		select {
+		case <-expired:
+		case <-time.After(time.Second):
+			t.Fatal("expired cache entry was not reclaimed")
 		}
-		if time.Now().After(deadline) {
-			t.Fatalf("expired cache entries were not reclaimed; remaining = %d", remaining)
-		}
-		time.Sleep(time.Millisecond)
 	}
 	if _, err := reader.Message(context.Background(), 1); err != nil {
 		t.Fatalf("Message after sweep: %v", err)
@@ -321,9 +326,7 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 	if err := <-done; !errors.Is(err, context.Canceled) {
 		t.Fatalf("Run error = %v, want context.Canceled", err)
 	}
-	reader.cacheMu.Lock()
-	remaining := len(reader.cache)
-	reader.cacheMu.Unlock()
+	remaining := reader.cache.Len()
 	if remaining != 0 {
 		t.Fatalf("cache entries after shutdown = %d, want 0", remaining)
 	}

@@ -94,6 +94,13 @@ reader supplies explicit sequence invalidation and complete clearing, and its
 run lifecycle removes expired entries. The cache is disposable and is not a
 projection, checkpoint, snapshot, or source of domain truth.
 
+The framework uses `github.com/jellydator/ttlcache/v3` for synchronized cache
+storage, sliding expiry, and expired-entry deletion. It keeps stream
+validation, read limits, byte copying, invalidation fencing, and lifecycle
+scheduling in the framework because those rules belong to the exact-read
+contract. This focused dependency replaces local cache storage and expiry
+mechanics.
+
 `TypedEventLog[E]` is the shared mechanical adapter over that boundary,
 extracted once Chatto and Authling had duplicated the same encode, batch,
 mutation, and paged-read plumbing in their per-application publishers. It maps

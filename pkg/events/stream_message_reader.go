@@ -5,16 +5,19 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/jellydator/ttlcache/v3"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
 	defaultStreamMessageReadConcurrency = 16
-	minimumCacheSweepInterval           = 10 * time.Millisecond
-	maximumCacheSweepInterval           = time.Minute
+	minimumCacheCleanupInterval         = 10 * time.Millisecond
+	maximumCacheCleanupInterval         = time.Minute
 )
 
 // ErrInvalidStreamMessageReaderConfig marks invalid exact-read concurrency or
@@ -37,11 +40,6 @@ type StreamMessageReaderConfig struct {
 	MaxConcurrentReads int
 }
 
-type cachedStreamMessage struct {
-	record    EncodedSubjectRecord
-	expiresAt time.Time
-}
-
 // StreamMessageReader loads opaque records at exact stream sequences. It can
 // retain successful reads in a disposable process-local cache with sliding
 // idle expiry. The cache is bound to the supplied stream handle, so sequence
@@ -54,14 +52,11 @@ type StreamMessageReader struct {
 	source        exactStreamMessageSource
 	cacheIdleTTL  time.Duration
 	readSemaphore chan struct{}
-	now           func() time.Time
+	cache         *ttlcache.Cache[uint64, EncodedSubjectRecord]
 
-	cacheMu     sync.Mutex
-	cache       map[uint64]cachedStreamMessage
-	inflight    map[uint64]int
-	invalidated map[uint64]struct{}
-	runMu       sync.Mutex
-	runStarted  bool
+	invalidationMu  sync.Mutex
+	cacheGeneration uint64
+	runStarted      atomic.Bool
 }
 
 // NewStreamMessageReader binds exact reads and an optional cache to one
@@ -88,12 +83,11 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 		source:        source,
 		cacheIdleTTL:  config.CacheIdleTTL,
 		readSemaphore: make(chan struct{}, maxConcurrentReads),
-		now:           time.Now,
 	}
 	if config.CacheIdleTTL > 0 {
-		reader.cache = make(map[uint64]cachedStreamMessage)
-		reader.inflight = make(map[uint64]int)
-		reader.invalidated = make(map[uint64]struct{})
+		reader.cache = ttlcache.New(
+			ttlcache.WithTTL[uint64, EncodedSubjectRecord](config.CacheIdleTTL),
+		)
 	}
 	return reader, nil
 }
@@ -120,28 +114,26 @@ func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (Enc
 	}
 
 	// A read that waited for capacity can reuse a record loaded meanwhile. The
-	// miss and in-flight registration are atomic with cache invalidation.
-	if record, ok := r.cachedOrBeginRead(sequence); ok {
+	// miss and cache-generation capture are atomic with cache invalidation.
+	record, ok, cacheGeneration := r.cachedOrBeginRead(sequence)
+	if ok {
 		return record, nil
 	}
 	message, err := r.source.GetMsg(ctx, sequence)
 	if err != nil {
-		r.finishRead(sequence, EncodedSubjectRecord{}, false)
 		return EncodedSubjectRecord{}, fmt.Errorf("read stream sequence %d: %w", sequence, err)
 	}
 	if message == nil {
-		r.finishRead(sequence, EncodedSubjectRecord{}, false)
 		return EncodedSubjectRecord{}, fmt.Errorf("read stream sequence %d: broker returned no record", sequence)
 	}
 	if message.Sequence != sequence {
-		r.finishRead(sequence, EncodedSubjectRecord{}, false)
 		return EncodedSubjectRecord{}, fmt.Errorf(
 			"read stream sequence %d: broker returned sequence %d",
 			sequence,
 			message.Sequence,
 		)
 	}
-	record := EncodedSubjectRecord{
+	record = EncodedSubjectRecord{
 		Subject:  message.Subject,
 		Sequence: message.Sequence,
 		Data:     message.Data,
@@ -149,7 +141,7 @@ func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (Enc
 	if message.Header != nil {
 		record.ID = message.Header.Get(nats.MsgIdHdr)
 	}
-	r.finishRead(sequence, record, true)
+	r.storeIfCurrent(record, cacheGeneration)
 	return cloneEncodedSubjectRecord(record), nil
 }
 
@@ -177,44 +169,20 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 		unique = append(unique, sequence)
 	}
 
-	readCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	jobs := make(chan uint64, len(unique))
-	for _, sequence := range unique {
-		jobs <- sequence
-	}
-	close(jobs)
-
 	loaded := make([]EncodedSubjectRecord, len(unique))
-	var firstErr error
-	var errOnce sync.Once
-	workerCount := min(cap(r.readSemaphore), len(unique))
-	var workers sync.WaitGroup
-	workers.Add(workerCount)
-	for range workerCount {
-		go func() {
-			defer workers.Done()
-			for sequence := range jobs {
-				if readCtx.Err() != nil {
-					return
-				}
-				record, err := r.Message(readCtx, sequence)
-				if err != nil {
-					errOnce.Do(func() {
-						firstErr = err
-						cancel()
-					})
-					return
-				}
-				loaded[uniqueIndex[sequence]] = record
+	reads, readCtx := errgroup.WithContext(ctx)
+	reads.SetLimit(cap(r.readSemaphore))
+	for index, sequence := range unique {
+		reads.Go(func() error {
+			record, err := r.Message(readCtx, sequence)
+			if err != nil {
+				return err
 			}
-		}()
+			loaded[index] = record
+			return nil
+		})
 	}
-	workers.Wait()
-	if firstErr != nil {
-		return nil, firstErr
-	}
-	if err := ctx.Err(); err != nil {
+	if err := reads.Wait(); err != nil {
 		return nil, err
 	}
 
@@ -228,16 +196,14 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 // Forget removes exact sequences from the local cache. It has no effect on
 // the durable stream.
 func (r *StreamMessageReader) Forget(sequences ...uint64) {
-	if r == nil || r.cache == nil {
+	if r == nil || r.cache == nil || len(sequences) == 0 {
 		return
 	}
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
+	r.invalidationMu.Lock()
+	defer r.invalidationMu.Unlock()
+	r.cacheGeneration++
 	for _, sequence := range sequences {
-		delete(r.cache, sequence)
-		if r.inflight[sequence] > 0 {
-			r.invalidated[sequence] = struct{}{}
-		}
+		r.cache.Delete(sequence)
 	}
 }
 
@@ -247,12 +213,10 @@ func (r *StreamMessageReader) Clear() {
 	if r == nil || r.cache == nil {
 		return
 	}
-	r.cacheMu.Lock()
-	clear(r.cache)
-	for sequence := range r.inflight {
-		r.invalidated[sequence] = struct{}{}
-	}
-	r.cacheMu.Unlock()
+	r.invalidationMu.Lock()
+	r.cacheGeneration++
+	r.cache.DeleteAll()
+	r.invalidationMu.Unlock()
 }
 
 // Run reclaims entries whose idle lifetime has elapsed. It returns ctx.Err
@@ -262,19 +226,15 @@ func (r *StreamMessageReader) Run(ctx context.Context) error {
 	if r == nil {
 		return fmt.Errorf("stream message reader is unavailable")
 	}
-	r.runMu.Lock()
-	if r.runStarted {
-		r.runMu.Unlock()
+	if !r.runStarted.CompareAndSwap(false, true) {
 		return ErrStreamMessageReaderAlreadyStarted
 	}
-	r.runStarted = true
-	r.runMu.Unlock()
-	if r.cacheIdleTTL == 0 {
+	if r.cache == nil {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	interval := max(r.cacheIdleTTL/2, minimumCacheSweepInterval)
-	interval = min(interval, maximumCacheSweepInterval)
+	interval := max(r.cacheIdleTTL/2, minimumCacheCleanupInterval)
+	interval = min(interval, maximumCacheCleanupInterval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	defer r.Clear()
@@ -282,8 +242,8 @@ func (r *StreamMessageReader) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case now := <-ticker.C:
-			r.removeExpired(now)
+		case <-ticker.C:
+			r.cache.DeleteExpired()
 		}
 	}
 }
@@ -292,71 +252,37 @@ func (r *StreamMessageReader) cached(sequence uint64) (EncodedSubjectRecord, boo
 	if r.cache == nil {
 		return EncodedSubjectRecord{}, false
 	}
-	now := r.now()
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	entry, ok := r.cache[sequence]
-	if !ok {
+	item := r.cache.Get(sequence)
+	if item == nil {
 		return EncodedSubjectRecord{}, false
 	}
-	if !now.Before(entry.expiresAt) {
-		delete(r.cache, sequence)
-		return EncodedSubjectRecord{}, false
-	}
-	entry.expiresAt = now.Add(r.cacheIdleTTL)
-	r.cache[sequence] = entry
-	return cloneEncodedSubjectRecord(entry.record), true
+	return cloneEncodedSubjectRecord(item.Value()), true
 }
 
-func (r *StreamMessageReader) cachedOrBeginRead(sequence uint64) (EncodedSubjectRecord, bool) {
+func (r *StreamMessageReader) cachedOrBeginRead(sequence uint64) (EncodedSubjectRecord, bool, uint64) {
 	if r.cache == nil {
-		return EncodedSubjectRecord{}, false
+		return EncodedSubjectRecord{}, false, 0
 	}
-	now := r.now()
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	if entry, ok := r.cache[sequence]; ok {
-		if now.Before(entry.expiresAt) {
-			entry.expiresAt = now.Add(r.cacheIdleTTL)
-			r.cache[sequence] = entry
-			return cloneEncodedSubjectRecord(entry.record), true
-		}
-		delete(r.cache, sequence)
+	r.invalidationMu.Lock()
+	defer r.invalidationMu.Unlock()
+	if item := r.cache.Get(sequence); item != nil {
+		return cloneEncodedSubjectRecord(item.Value()), true, 0
 	}
-	r.inflight[sequence]++
-	return EncodedSubjectRecord{}, false
+	return EncodedSubjectRecord{}, false, r.cacheGeneration
 }
 
-func (r *StreamMessageReader) finishRead(sequence uint64, record EncodedSubjectRecord, cacheRecord bool) {
+// storeIfCurrent does not let an in-flight read refill the cache after Forget
+// or Clear. Invalidation is rare, so it can discard unrelated concurrent fills.
+func (r *StreamMessageReader) storeIfCurrent(record EncodedSubjectRecord, cacheGeneration uint64) {
 	if r.cache == nil {
 		return
 	}
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	r.inflight[sequence]--
-	if r.inflight[sequence] == 0 {
-		delete(r.inflight, sequence)
+	r.invalidationMu.Lock()
+	defer r.invalidationMu.Unlock()
+	if cacheGeneration != r.cacheGeneration {
+		return
 	}
-	_, invalidated := r.invalidated[sequence]
-	if invalidated && r.inflight[sequence] == 0 {
-		delete(r.invalidated, sequence)
-	}
-	if cacheRecord && !invalidated {
-		r.cache[record.Sequence] = cachedStreamMessage{
-			record:    cloneEncodedSubjectRecord(record),
-			expiresAt: r.now().Add(r.cacheIdleTTL),
-		}
-	}
-}
-
-func (r *StreamMessageReader) removeExpired(now time.Time) {
-	r.cacheMu.Lock()
-	defer r.cacheMu.Unlock()
-	for sequence, entry := range r.cache {
-		if !now.Before(entry.expiresAt) {
-			delete(r.cache, sequence)
-		}
-	}
+	r.cache.Set(record.Sequence, cloneEncodedSubjectRecord(record), ttlcache.DefaultTTL)
 }
 
 func cloneEncodedSubjectRecord(record EncodedSubjectRecord) EncodedSubjectRecord {

@@ -20,7 +20,9 @@ domain types.
 concurrent broker reads across requests, removes duplicate sequences in one
 call, and preserves caller order. Set `CacheIdleTTL` to keep successful reads
 in a process-local cache with sliding idle expiry. The cache copies record
-bytes and never stores a decoded application object.
+bytes and never stores a decoded application object. The framework uses
+`ttlcache` for synchronized storage, touch-on-hit expiry, and expired-entry
+deletion.
 
 Run the reader once with the application lifecycle so expired entries are
 reclaimed when they are not accessed again. Use `Forget` after
