@@ -1794,6 +1794,58 @@ func TestRoomTimeline_SnapshotPreservesBodyReferenceBeforePost(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_SnapshotDeltaReplayDoesNotTreatPartialPinnedCacheAsComplete(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	delta := joinedEvent("JOINED", "R1", "U2", 3)
+	delta.CreatedAt = timestamppb.New(now.Add(time.Minute))
+	records := timelineTestEventSource{
+		1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+		2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		3: {Subject: "evt.room.R1.user_joined", Sequence: 3, Event: delta},
+	}
+	options := RoomTimelineProjectionOptions{
+		EventSource: records, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	}
+	projection := NewRoomTimelineProjectionWithOptions(options)
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := projection.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	source := &countingTimelineEventSource{records: records}
+	options.EventSource = source
+	restored := NewRoomTimelineProjectionWithOptions(options)
+	if err := restored.Restore(payload); err != nil {
+		t.Fatal(err)
+	}
+	if err := restored.Apply(delta, 3); err != nil {
+		t.Fatal(err)
+	}
+	key := restored.messageBuckets["MESSAGE"]
+	if cached := restored.cache[key]; cached == nil || cached.complete {
+		t.Fatalf("delta cache = %+v, want an incomplete pinned cache", cached)
+	}
+	if err := restored.WarmPinned(context.Background()); err != nil {
+		t.Fatalf("WarmPinned: %v", err)
+	}
+	body, retracted, ok := restored.LatestBody("MESSAGE")
+	if !ok || retracted || string(body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("LatestBody after warm = (%v, %v, %v), want restored ciphertext", body, retracted, ok)
+	}
+	if got := source.readSequences(); !slices.Equal(got, []uint64{1, 2, 3}) {
+		t.Fatalf("warm EVT reads = %v, want complete bucket [1 2 3]", got)
+	}
+}
+
 func TestRoomTimeline_BucketGetsFullIdlePeriodAfterPinningEnds(t *testing.T) {
 	now := time.Date(2026, 4, 8, 12, 0, 0, 0, time.UTC)
 	created := now

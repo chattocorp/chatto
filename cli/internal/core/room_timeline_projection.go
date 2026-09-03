@@ -115,6 +115,10 @@ type timelineBucketCache struct {
 	revision   uint64
 	lastAccess time.Time
 	pinned     bool
+	// complete is false for caches assembled incrementally during startup
+	// replay. A snapshot restore can start replay in the middle of a bucket, so
+	// matching revisions alone do not prove that all earlier records were read.
+	complete bool
 }
 
 type latestRoomPinState struct {
@@ -894,7 +898,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				p.Unlock()
 				return nil, nil
 			}
-			if cached := p.cache[key]; cached != nil && cached.revision == bucket.revision {
+			if cached := p.cache[key]; cached != nil && cached.complete && cached.revision == bucket.revision {
 				cached.lastAccess = p.now()
 				p.Unlock()
 				return nil, nil
@@ -963,7 +967,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 			pinned := p.bucketPinnedLocked(key, p.now())
 			p.cache[key] = &timelineBucketCache{
 				events: eventsBySequence, revision: revision, lastAccess: p.now(),
-				pinned: pinned,
+				pinned: pinned, complete: true,
 			}
 			for messageID := range p.bucketMessages[key] {
 				state := p.bodyStates[messageID]
