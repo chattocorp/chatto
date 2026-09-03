@@ -362,10 +362,12 @@ type isLiveEvent_Event interface {
 }
 
 type LiveEvent_UserCreated struct {
+	// ----- User lifecycle / preferences -----
 	UserCreated *UserCreatedSyncEvent `protobuf:"bytes,20,opt,name=user_created,json=userCreated,proto3,oneof"`
 }
 
 type LiveEvent_UserProfileUpdated struct {
+	// Transient current-profile snapshot derived after a durable profile change.
 	UserProfileUpdated *UserProfileSyncEvent `protobuf:"bytes,22,opt,name=user_profile_updated,json=userProfileUpdated,proto3,oneof"`
 }
 
@@ -378,6 +380,7 @@ type LiveEvent_ThreadFollowChanged struct {
 }
 
 type LiveEvent_ServerMemberDeleted struct {
+	// ----- Server membership / lifecycle -----
 	ServerMemberDeleted *ServerMemberDeletedEvent `protobuf:"bytes,30,opt,name=server_member_deleted,json=serverMemberDeleted,proto3,oneof"`
 }
 
@@ -386,14 +389,17 @@ type LiveEvent_ServerUpdated struct {
 }
 
 type LiveEvent_UserTyping struct {
+	// ----- Typing -----
 	UserTyping *UserTypingEvent `protobuf:"bytes,40,opt,name=user_typing,json=userTyping,proto3,oneof"`
 }
 
 type LiveEvent_PresenceChanged struct {
+	// ----- Presence -----
 	PresenceChanged *PresenceChangedEvent `protobuf:"bytes,45,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
 type LiveEvent_CallParticipantJoined struct {
+	// ----- Voice calls -----
 	CallParticipantJoined *CallParticipantJoinedEvent `protobuf:"bytes,60,opt,name=call_participant_joined,json=callParticipantJoined,proto3,oneof"`
 }
 
@@ -402,6 +408,7 @@ type LiveEvent_CallParticipantLeft struct {
 }
 
 type LiveEvent_NotificationOccurrencesInvalidated struct {
+	// ----- Notification sync -----
 	NotificationOccurrencesInvalidated *NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,72,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
 }
 
@@ -410,6 +417,7 @@ type LiveEvent_NotificationUnreadChanged struct {
 }
 
 type LiveEvent_RoomMarkedAsRead struct {
+	// ----- Unread indicators -----
 	RoomMarkedAsRead *RoomMarkedAsReadEvent `protobuf:"bytes,80,opt,name=room_marked_as_read,json=roomMarkedAsRead,proto3,oneof"`
 }
 
@@ -418,6 +426,7 @@ type LiveEvent_MentionStatusCleared struct {
 }
 
 type LiveEvent_SessionTerminated struct {
+	// ----- Session termination -----
 	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,100,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
 }
 
@@ -1415,8 +1424,8 @@ const file_chatto_core_live_v1_live_events_proto_rawDesc = "" +
 	"\x13room_marked_as_read\x18P \x01(\v2*.chatto.core.live.v1.RoomMarkedAsReadEventH\x00R\x10roomMarkedAsRead\x12f\n" +
 	"\x16mention_status_cleared\x18Q \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x14mentionStatusCleared\x12\\\n" +
 	"\x12session_terminated\x18d \x01(\v2+.chatto.core.live.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
-	"\x05eventJ\x04\bZ\x10[J\x04\b\n" +
-	"\x10\vJ\x04\b\x15\x10\x16J\x04\b\x18\x10\x19J\x04\b)\x10*J\x04\b2\x103J\x04\b3\x104J\x04\bF\x10GJ\x04\bG\x10HR\x13room_groups_updatedR\x0econfig_updatedR\x1anotification_level_changedR\x1avideo_processing_completedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\fuser_deleted\"\x10\n" +
+	"\x05eventJ\x04\b\n" +
+	"\x10\vJ\x04\b\x15\x10\x16J\x04\b\x18\x10\x19J\x04\b)\x10*J\x04\b2\x103J\x04\b3\x104J\x04\bF\x10GJ\x04\bG\x10HJ\x04\bZ\x10[R\x0econfig_updatedR\x1anotification_level_changedR\x1avideo_processing_completedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x14notification_createdR\x16notification_dismissedR\x13room_groups_updatedR\fuser_deleted\"\x10\n" +
 	"\x0eHeartbeatEvent\"C\n" +
 	"\x18ServerMemberDeletedEvent\x12\x17\n" +
 	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\x97\x01\n" +
