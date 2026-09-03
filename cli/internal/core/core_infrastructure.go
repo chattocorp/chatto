@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 // coreInfrastructure contains the storage and event-sourcing primitives that
@@ -69,6 +70,12 @@ func initializeCoreInfrastructure(
 		logger,
 	)
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
+	eventReader, err := evtstream.NewReader(storage.serverEvtStream, events.StreamMessageReaderConfig{
+		CacheIdleTTL: cfg.EVTReadCacheIdleTTLOrDefault(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize EVT reader: %w", err)
+	}
 
 	return &coreInfrastructure{
 		js:                    js,
@@ -77,7 +84,7 @@ func initializeCoreInfrastructure(
 		dekResolver:           dekResolver,
 		s3Client:              s3Client,
 		eventPublisher:        evtstream.NewPublisher(js, storage.serverEvtStream, logger),
-		eventReader:           evtstream.NewReader(storage.serverEvtStream),
+		eventReader:           eventReader,
 		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
 		snapshotRepository:    snapshotRepository,
 	}, nil

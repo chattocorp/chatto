@@ -5,13 +5,41 @@ repository-wide [Loom Architecture](../../docs/adr/ADR-073-define-the-loom-archi
 It is an envelope-neutral event-sourcing framework for NATS JetStream,
 providing optimistic-concurrency-controlled publication, ordered projection
 replay, startup and read-your-writes barriers, optional snapshot or checkpoint
-restore, bounded subject reads, and bounded durable pull-worker execution.
+restore, exact stream-message reads with optional process-local caching,
+bounded subject reads, and bounded durable pull-worker execution.
 
 The intended reader is an application integrator. This module owns ordering,
 OCC, replay, and delivery mechanics; the application owns event codecs,
 subjects, authorization, stream identity, consumer configuration, and domain
 completion rules. The package must not import an application's envelope or
 domain types.
+
+## Read exact stream messages
+
+`StreamMessageReader` loads opaque records by exact stream sequence. It limits
+concurrent broker reads across requests, removes duplicate sequences in one
+call, and preserves caller order. Set `CacheIdleTTL` to keep successful reads
+in a process-local cache with sliding idle expiry. The cache copies record
+bytes and never stores a decoded application object.
+
+Run the reader with the application lifecycle so expired entries are reclaimed
+when they are not accessed again. Use `Forget` after application-owned physical
+deletion and `Clear` when the complete local cache must be discarded.
+
+```go
+reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderConfig{
+	CacheIdleTTL: 15 * time.Minute,
+})
+if err != nil {
+	return err
+}
+go reader.Run(ctx)
+
+records, err := reader.Messages(ctx, sequences)
+```
+
+The cache is a disposable read accelerator. EVT or another application-owned
+stream remains the source of truth.
 
 ## Publish opaque events
 

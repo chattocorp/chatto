@@ -137,6 +137,7 @@ type CoreConfig struct {
 	ProjectionSnapshots         bool           `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
 	ProjectionSnapshotRetention Duration       `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
 	ProjectionSnapshotS3Cleanup *bool          `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
+	EVTReadCacheIdleTTL         Duration       `toml:"evt_read_cache_idle_ttl,commented" env:"CHATTO_CORE_EVT_READ_CACHE_IDLE_TTL" comment:"How long an EVT record stays in the process-local timeline read cache after its last access. Supports '15m', '1h', etc. Default: 15m."`
 	Assets                      AssetsConfig   `toml:"assets"`
 	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Human session renewal window and per-cookie lifetime, set from AuthConfig.TokenTTLOrDefault().
 	AuthAccessTokenTTL          time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.AccessTokenTTLOrDefault().
@@ -160,4 +161,13 @@ func (c *CoreConfig) ProjectionSnapshotRetentionOrDefault() time.Duration {
 // ProjectionSnapshotS3CleanupOrDefault reports whether Chatto owns S3 expiry.
 func (c *CoreConfig) ProjectionSnapshotS3CleanupOrDefault() bool {
 	return c.ProjectionSnapshotS3Cleanup == nil || *c.ProjectionSnapshotS3Cleanup
+}
+
+// EVTReadCacheIdleTTLOrDefault returns the configured sliding idle lifetime,
+// or 15 minutes when it is unset.
+func (c *CoreConfig) EVTReadCacheIdleTTLOrDefault() time.Duration {
+	if c.EVTReadCacheIdleTTL == 0 {
+		return 15 * time.Minute
+	}
+	return c.EVTReadCacheIdleTTL.Duration()
 }

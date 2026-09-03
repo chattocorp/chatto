@@ -3,123 +3,101 @@ package evtstream
 import (
 	"context"
 	"fmt"
-	"sync"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/pkg/events"
 )
 
-const exactReadConcurrency = 16
-
-type exactStreamReader interface {
-	GetMsg(context.Context, uint64, ...jetstream.GetMsgOpt) (*jetstream.RawStreamMsg, error)
+type encodedMessageReader interface {
+	Message(context.Context, uint64) (events.EncodedSubjectRecord, error)
+	Messages(context.Context, []uint64) ([]events.EncodedSubjectRecord, error)
 }
 
 // Reader loads complete Chatto events at exact EVT stream sequences. It is a
 // read boundary for derived indexes that retain sequences instead of event
 // payloads.
 type Reader struct {
-	stream exactStreamReader
+	messages *events.StreamMessageReader
+	reader   encodedMessageReader
 }
 
-// NewReader constructs an exact-sequence reader for the EVT stream.
-func NewReader(stream jetstream.Stream) *Reader {
-	return &Reader{stream: stream}
+// NewReader constructs an exact-sequence reader for the EVT stream. Successful
+// reads remain in a process-local cache until CacheIdleTTL elapses without an
+// access.
+func NewReader(stream jetstream.Stream, config events.StreamMessageReaderConfig) (*Reader, error) {
+	messages, err := events.NewStreamMessageReader(stream, config)
+	if err != nil {
+		return nil, err
+	}
+	return &Reader{messages: messages, reader: messages}, nil
 }
 
-// EventAt loads and decodes one EVT record through a leader-backed stream
+// Run maintains the process-local stream-message cache until ctx is canceled.
+func (r *Reader) Run(ctx context.Context) error {
+	if r == nil || r.messages == nil {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	return r.messages.Run(ctx)
+}
+
+// Forget removes exact EVT sequences from the process-local cache.
+func (r *Reader) Forget(sequences ...uint64) {
+	if r != nil && r.messages != nil {
+		r.messages.Forget(sequences...)
+	}
+}
+
+// Clear removes all EVT records from the process-local cache.
+func (r *Reader) Clear() {
+	if r != nil && r.messages != nil {
+		r.messages.Clear()
+	}
+}
+
+// EventAt loads and decodes one EVT record through the configured exact stream
 // read. The returned subject and sequence are authoritative broker metadata.
 func (r *Reader) EventAt(ctx context.Context, sequence uint64) (*SubjectEvent, error) {
-	if r == nil || r.stream == nil {
+	if r == nil || r.reader == nil {
 		return nil, fmt.Errorf("EVT reader is unavailable")
 	}
-	if sequence == 0 {
-		return nil, fmt.Errorf("EVT sequence must be positive")
-	}
-	msg, err := r.stream.GetMsg(ctx, sequence)
+	record, err := r.reader.Message(ctx, sequence)
 	if err != nil {
 		return nil, fmt.Errorf("read EVT sequence %d: %w", sequence, err)
 	}
-	if msg == nil {
-		return nil, fmt.Errorf("read EVT sequence %d: broker returned no record", sequence)
-	}
-	if msg.Sequence != sequence {
-		return nil, fmt.Errorf("read EVT sequence %d: broker returned sequence %d", sequence, msg.Sequence)
-	}
-	event, err := decodeEventData(msg.Data)
-	if err != nil {
-		return nil, fmt.Errorf("decode EVT sequence %d: %w", sequence, err)
-	}
-	if err := validateEvent(event); err != nil {
-		return nil, fmt.Errorf("validate EVT sequence %d: %w", sequence, err)
-	}
-	return &SubjectEvent{Subject: msg.Subject, Sequence: msg.Sequence, Event: event}, nil
+	return decodeSubjectEvent(record)
 }
 
 // EventsAt loads exact EVT sequences with bounded concurrency. Duplicate
 // sequences are read once, while the returned slice preserves caller order and
 // duplicate positions. The first failure cancels outstanding reads.
 func (r *Reader) EventsAt(ctx context.Context, sequences []uint64) ([]*SubjectEvent, error) {
-	if len(sequences) == 0 {
-		return nil, nil
+	if r == nil || r.reader == nil {
+		return nil, fmt.Errorf("EVT reader is unavailable")
 	}
-
-	unique := make([]uint64, 0, len(sequences))
-	uniqueIndex := make(map[uint64]int, len(sequences))
-	for _, sequence := range sequences {
-		if sequence == 0 {
-			return nil, fmt.Errorf("EVT sequence must be positive")
+	records, err := r.reader.Messages(ctx, sequences)
+	if err != nil {
+		return nil, fmt.Errorf("read EVT sequences: %w", err)
+	}
+	result := make([]*SubjectEvent, len(records))
+	for i, record := range records {
+		event, err := decodeSubjectEvent(record)
+		if err != nil {
+			return nil, err
 		}
-		if _, exists := uniqueIndex[sequence]; exists {
-			continue
-		}
-		uniqueIndex[sequence] = len(unique)
-		unique = append(unique, sequence)
-	}
-
-	readCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	jobs := make(chan uint64, len(unique))
-	for _, sequence := range unique {
-		jobs <- sequence
-	}
-	close(jobs)
-
-	loaded := make([]*SubjectEvent, len(unique))
-	var firstErr error
-	var errOnce sync.Once
-	workerCount := min(exactReadConcurrency, len(unique))
-	var workers sync.WaitGroup
-	workers.Add(workerCount)
-	for range workerCount {
-		go func() {
-			defer workers.Done()
-			for sequence := range jobs {
-				if readCtx.Err() != nil {
-					return
-				}
-				record, err := r.EventAt(readCtx, sequence)
-				if err != nil {
-					errOnce.Do(func() {
-						firstErr = err
-						cancel()
-					})
-					return
-				}
-				loaded[uniqueIndex[sequence]] = record
-			}
-		}()
-	}
-	workers.Wait()
-	if firstErr != nil {
-		return nil, firstErr
-	}
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-
-	result := make([]*SubjectEvent, len(sequences))
-	for i, sequence := range sequences {
-		result[i] = loaded[uniqueIndex[sequence]]
+		result[i] = event
 	}
 	return result, nil
+}
+
+func decodeSubjectEvent(record events.EncodedSubjectRecord) (*SubjectEvent, error) {
+	event, err := decodeEventData(record.Data)
+	if err != nil {
+		return nil, fmt.Errorf("decode EVT sequence %d: %w", record.Sequence, err)
+	}
+	if err := validateEvent(event); err != nil {
+		return nil, fmt.Errorf("validate EVT sequence %d: %w", record.Sequence, err)
+	}
+	return &SubjectEvent{Subject: record.Subject, Sequence: record.Sequence, Event: event}, nil
 }

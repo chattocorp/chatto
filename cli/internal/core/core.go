@@ -34,6 +34,7 @@ type ChattoCore struct {
 	encryption                *encryptionManager
 	dekResolver               *unwrappedDEKResolver
 	contentView               *ServerContentView
+	eventReader               *evtstream.Reader
 	configModel               *ConfigModel
 	roomModel                 *RoomModel
 	roomCommands              *RoomCommandModel
@@ -134,6 +135,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	natsStatus := c.nc.StatusChanged(nats.DISCONNECTED, nats.RECONNECTING, nats.CONNECTED, nats.CLOSED)
 	defer c.nc.RemoveStatusListener(natsStatus)
 	g.Go(func() error { return c.runNATSRecovery(gctx, natsStatus) })
+	if c.eventReader != nil {
+		g.Go(func() error { return c.eventReader.Run(gctx) })
+	}
 
 	for _, projection := range c.projections {
 		projection := projection

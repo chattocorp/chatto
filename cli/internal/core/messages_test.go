@@ -821,12 +821,18 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); err != nil {
 		t.Fatalf("original body event should exist before edit: %v", err)
 	}
+	if _, err := core.eventReader.EventAt(ctx, originalSeq); err != nil {
+		t.Fatalf("prime original body event cache: %v", err)
+	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
+	}
+	if _, err := core.eventReader.EventAt(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("cached original body event after edit error = %v, want ErrMsgNotFound", err)
 	}
 	_, editedSeq, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || editedSeq == 0 || editedSeq == originalSeq {
@@ -835,12 +841,18 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); err != nil {
 		t.Fatalf("edited body event should exist before delete: %v", err)
 	}
+	if _, err := core.eventReader.EventAt(ctx, editedSeq); err != nil {
+		t.Fatalf("prime edited body event cache: %v", err)
+	}
 
 	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("edited body event after delete error = %v, want ErrMsgNotFound", err)
+	}
+	if _, err := core.eventReader.EventAt(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("cached edited body event after delete error = %v, want ErrMsgNotFound", err)
 	}
 }
 

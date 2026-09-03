@@ -53,6 +53,7 @@ func assembleCore(
 		encryption:       infra.encryption,
 		dekResolver:      infra.dekResolver,
 		contentView:      projections.contentView,
+		eventReader:      infra.eventReader,
 		configModel:      configModel,
 		roomModel:        roomModel,
 		timelineHydrator: newRoomTimelineHydrator(infra.eventReader),

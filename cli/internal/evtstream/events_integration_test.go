@@ -185,7 +185,10 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 func TestReader_EventAtReadsNewlyAppendedEvent(t *testing.T) {
 	js, stream := setupTestStream(t)
 	publisher := NewPublisher(js, stream, testLogger())
-	reader := NewReader(stream)
+	reader, err := NewReader(stream, StreamMessageReaderConfig{})
+	if err != nil {
+		t.Fatalf("NewReader: %v", err)
+	}
 	ctx := testContext(t)
 	event := makeEvent("R1", "U1")
 	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)

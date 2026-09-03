@@ -57,6 +57,19 @@ implementation can use `DirectGet`, a broker batch operation, or another read
 method behind the same boundary. Such an implementation must preserve
 read-your-writes and must fall back when a replica is behind.
 
+The shared event framework wraps exact stream reads in an optional
+process-local message cache. The cache key is the exact sequence within its
+bound stream. It stores copied opaque record bytes and broker metadata, not
+decoded Chatto protobuf values. Successful reads extend the entry's idle
+lifetime. Failed, missing, and invalid broker responses are not cached.
+
+Chatto enables this cache for timeline hydration. The sliding idle lifetime is
+set by `core.evt_read_cache_idle_ttl` and defaults to 15 minutes. A background
+reader lifecycle removes expired entries. Secure deletion also removes the
+affected sequence from the local cache and prevents an in-progress read from
+putting it back. Each replica owns its cache. Cache loss or a cache miss causes
+a normal EVT read.
+
 ### Timeline hydration
 
 A room timeline hydrator converts compact projection references into complete
@@ -114,10 +127,11 @@ captured at `N`. This ADR does not implement that realtime protocol.
 
 ### Scope
 
-This decision does not add a payload cache. Every requested timeline payload
-is read from EVT. A later cache can wrap the exact EVT reader or timeline
-hydrator. It must remain disposable, bounded, and non-authoritative, and it
-must invalidate sensitive payloads after retraction or key shredding.
+This decision adds only the individual stream-message cache around the exact
+EVT reader. It does not cache completed timeline pages or time buckets. A later
+cache can retain completed timeline hydration buckets when measurement shows
+that the additional policy is useful. That cache must remain disposable,
+bounded, and non-authoritative.
 
 This decision also does not require time buckets for the in-memory index. Per-
 room sequence-ordered slices support bounded pagination and event-ID lookup.
@@ -132,6 +146,8 @@ cache.
   facts. A later local materialization can bound that index in RAM.
 - Timeline reads perform EVT I/O and can fail when EVT is unavailable or an
   indexed record is missing or corrupt.
+- Repeated timeline reads can use copied EVT records from the process-local
+  cache until their sliding idle lifetime expires.
 - Page reads can fetch only the records required for the page. Attachment reads
   can use projected counts to apply pagination before body hydration.
 - One hydration boundary makes a later cache, `DirectGet`, or broker batch read

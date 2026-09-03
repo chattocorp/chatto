@@ -427,6 +427,9 @@ func (c *ChattoConfig) Validate() error {
 	if c.Core.ProjectionSnapshotRetention.Duration() < 0 {
 		errs = append(errs, "core.projection_snapshot_retention must be positive")
 	}
+	if c.Core.EVTReadCacheIdleTTL.Duration() < 0 {
+		errs = append(errs, "core.evt_read_cache_idle_ttl must be positive")
+	}
 
 	// Storage backend validation
 	if c.Core.Assets.StorageBackend != "" &&

@@ -16,6 +16,7 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOTS", "true")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION", "10d")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP", "false")
+	t.Setenv("CHATTO_CORE_EVT_READ_CACHE_IDLE_TTL", "45m")
 
 	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
 	if err != nil {
@@ -30,6 +31,9 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	if cfg.Core.ProjectionSnapshotS3CleanupOrDefault() {
 		t.Error("expected S3 snapshot cleanup to be disabled from environment")
 	}
+	if cfg.Core.EVTReadCacheIdleTTLOrDefault() != 45*time.Minute {
+		t.Errorf("EVT read cache idle TTL = %s", cfg.Core.EVTReadCacheIdleTTLOrDefault())
+	}
 }
 
 func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
@@ -39,6 +43,9 @@ func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
 	}
 	if !cfg.ProjectionSnapshotS3CleanupOrDefault() {
 		t.Fatal("S3 projection snapshot cleanup should default to enabled")
+	}
+	if got := cfg.EVTReadCacheIdleTTLOrDefault(); got != 15*time.Minute {
+		t.Fatalf("default EVT read cache idle TTL = %s", got)
 	}
 }
 
@@ -99,6 +106,14 @@ func TestChattoConfig_ValidateProjectionSnapshotRetention(t *testing.T) {
 	cfg.Core.ProjectionSnapshotRetention = Duration(-time.Hour)
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.projection_snapshot_retention must be positive") {
 		t.Fatalf("Validate() error = %v, want projection snapshot retention error", err)
+	}
+}
+
+func TestChattoConfig_ValidateEVTReadCacheIdleTTL(t *testing.T) {
+	cfg := validTestConfig()
+	cfg.Core.EVTReadCacheIdleTTL = Duration(-time.Hour)
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.evt_read_cache_idle_ttl must be positive") {
+		t.Fatalf("Validate() error = %v, want EVT read cache idle TTL error", err)
 	}
 }
 

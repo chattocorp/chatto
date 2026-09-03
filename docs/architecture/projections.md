@@ -53,6 +53,10 @@ authorizes and selects references against `ServerContentView`. It then uses
 `RoomTimelineHydrator` to read the selected records from EVT outside the apply
 barrier. The hydrator validates the stored identity and routing metadata before
 it returns a payload. Mutable body references are checked again after the read.
+The shared `events.StreamMessageReader` keeps copied opaque records in a
+process-local cache with sliding idle expiry. The default idle lifetime is 15
+minutes and `core.evt_read_cache_idle_ttl` changes it. Cache misses use bounded
+exact stream reads. Secure deletion removes the affected local cache entries.
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
