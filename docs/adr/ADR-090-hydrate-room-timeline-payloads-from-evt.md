@@ -67,8 +67,9 @@ Chatto enables this cache for timeline hydration. The sliding idle lifetime is
 set by `core.evt_read_cache_idle_ttl` and defaults to 15 minutes. A background
 reader lifecycle removes expired entries. Secure deletion also removes the
 affected sequence from the local cache and prevents an in-progress read from
-putting it back. Each replica owns its cache. Cache loss or a cache miss causes
-a normal EVT read.
+putting it back. A NATS continuity loss clears the complete cache before
+application recovery. Each replica owns its cache. Cache loss or a cache miss
+causes a normal EVT read.
 
 ### Timeline hydration
 

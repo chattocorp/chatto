@@ -24,7 +24,8 @@ bytes and never stores a decoded application object.
 
 Run the reader with the application lifecycle so expired entries are reclaimed
 when they are not accessed again. Use `Forget` after application-owned physical
-deletion and `Clear` when the complete local cache must be discarded.
+deletion. Use `Clear` when the complete local cache must be discarded,
+including when a stream can be recreated with the same name.
 
 ```go
 reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderConfig{

@@ -82,6 +82,9 @@ func (r *Reader) EventsAt(ctx context.Context, sequences []uint64) ([]*SubjectEv
 	}
 	result := make([]*SubjectEvent, len(records))
 	for i, record := range records {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		event, err := decodeSubjectEvent(record)
 		if err != nil {
 			return nil, err
