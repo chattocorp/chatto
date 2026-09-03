@@ -51,6 +51,8 @@ describe('RealtimeProjectionSyncState', () => {
 
     expect(state.authorizationRefreshRequired).toBe(true);
     expect(state.pendingAuthorizationRefreshGeneration).toBe(2);
+    expect(state.phase).toBe('stale');
+    expect(state.lastCaughtUpAt).toBeNull();
 
     state.markCaughtUp('cursor-after', state.pendingAuthorizationRefreshGeneration);
     expect(state.authorizationRefreshRequired).toBe(false);
@@ -71,6 +73,7 @@ describe('RealtimeProjectionSyncState', () => {
     state.markCaughtUp('cursor-unrelated');
     await Promise.resolve();
     expect(settled).toBe(false);
+    expect(state.phase).toBe('stale');
 
     state.markCaughtUp('cursor-after', requestedGeneration);
     await expect(refreshed).resolves.toBe(true);

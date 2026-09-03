@@ -112,8 +112,9 @@ export class RealtimeProjectionSyncState {
       this.#completedAuthorizationRefreshGeneration,
       authorizationRefreshGeneration
     );
-    this.phase = 'ready';
-    this.lastCaughtUpAt = Date.now();
+    const authorizationCurrent = !this.authorizationRefreshRequired;
+    this.phase = authorizationCurrent ? 'ready' : 'stale';
+    this.lastCaughtUpAt = authorizationCurrent ? Date.now() : null;
     this.#caughtUpGeneration++;
     for (const waiter of this.#catchUpWaiters) {
       if (waiter.afterGeneration >= this.#caughtUpGeneration) continue;
