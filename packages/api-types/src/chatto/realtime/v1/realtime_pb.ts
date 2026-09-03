@@ -301,7 +301,7 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
   roomGroups: RoomGroup[] = [];
 
   /**
-   * Public users referenced by another snapshot family.
+   * The viewer and public users referenced by another snapshot family.
    *
    * @generated from field: repeated chatto.api.v1.DirectoryMember users = 4;
    */

@@ -97,7 +97,7 @@ snapshot and remain available through ConnectRPC.
 | `server` | `chatto.api.v1.ServerPublicProfile` | Current public server profile. |
 | `rooms` | `repeated chatto.api.v1.RoomWithViewerState` | All rooms visible to the caller at the snapshot boundary. |
 | `room_groups` | `repeated chatto.api.v1.RoomGroup` | All room groups visible to the caller at the snapshot boundary. |
-| `users` | `repeated chatto.api.v1.DirectoryMember` | Public users referenced by another snapshot family. |
+| `users` | `repeated chatto.api.v1.DirectoryMember` | The viewer and public users referenced by another snapshot family. |
 | `active_calls` | `repeated chatto.api.v1.ActiveCall` | All active calls visible to the caller at the snapshot boundary. |
 
 <a id="chatto-realtime-v1-RealtimeSubscribe"></a>

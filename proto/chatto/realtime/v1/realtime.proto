@@ -74,7 +74,7 @@ message RealtimeSnapshot {
   repeated chatto.api.v1.RoomWithViewerState rooms = 2;
   // All room groups visible to the caller at the snapshot boundary.
   repeated chatto.api.v1.RoomGroup room_groups = 3;
-  // Public users referenced by another snapshot family.
+  // The viewer and public users referenced by another snapshot family.
   repeated chatto.api.v1.DirectoryMember users = 4;
   // All active calls visible to the caller at the snapshot boundary.
   repeated chatto.api.v1.ActiveCall active_calls = 5;

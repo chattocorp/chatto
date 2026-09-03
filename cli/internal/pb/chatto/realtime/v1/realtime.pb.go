@@ -376,7 +376,7 @@ type RealtimeSnapshot struct {
 	Rooms []*v1.RoomWithViewerState `protobuf:"bytes,2,rep,name=rooms,proto3" json:"rooms,omitempty"`
 	// All room groups visible to the caller at the snapshot boundary.
 	RoomGroups []*v1.RoomGroup `protobuf:"bytes,3,rep,name=room_groups,json=roomGroups,proto3" json:"room_groups,omitempty"`
-	// Public users referenced by another snapshot family.
+	// The viewer and public users referenced by another snapshot family.
 	Users []*v1.DirectoryMember `protobuf:"bytes,4,rep,name=users,proto3" json:"users,omitempty"`
 	// All active calls visible to the caller at the snapshot boundary.
 	ActiveCalls   []*v1.ActiveCall `protobuf:"bytes,5,rep,name=active_calls,json=activeCalls,proto3" json:"active_calls,omitempty"`
