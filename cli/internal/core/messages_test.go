@@ -493,17 +493,19 @@ func TestPublishMessageEditRejectsRetractionCommittedDuringAttempt(t *testing.T)
 	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
 		attempts++
 		if attempts == 1 {
-			require.NoError(t, chattoCore.publishMessageRetract(ctx, user.Id, KindChannel, agg, room.Id, posted.Id, nil))
+			_, published, err := chattoCore.publishMessageRetract(ctx, user.Id, KindChannel, agg, room.Id, posted.Id, nil)
+			require.NoError(t, err)
+			require.True(t, published)
 		}
 		return "late edit", nil
 	})
 	require.ErrorIs(t, err, ErrMessageNotFound)
 	require.Equal(t, 1, attempts, "the retry must observe the tombstone before rebuilding a body")
 
-	body, retracted, ok := chattoCore.roomModel.latestBody(posted.Id)
+	body, retracted, ok := chattoCore.roomModel.latestBodyReference(posted.Id)
 	require.True(t, ok)
 	require.True(t, retracted)
-	require.Nil(t, body)
+	require.Zero(t, body.StreamSeq)
 	edits, _, err := chattoCore.EventPublisher.SubjectEvents(ctx, agg.Subject(evtstream.EventMessageEdited))
 	require.NoError(t, err)
 	require.Empty(t, edits, "the edit batch must be rejected when retraction advances the room lifecycle")
@@ -596,13 +598,11 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	originalBody, retracted, ok := chattoCore.roomModel.latestBody(reply.Id)
-	require.True(t, ok)
-	require.False(t, retracted)
+	originalBody, err := chattoCore.currentMessageBody(ctx, reply.Id)
+	require.NoError(t, err)
 	require.Equal(t, []string{attachmentB.Id}, originalBody.GetAssetIds())
-	echoBody, retracted, ok := chattoCore.roomModel.latestBody(echoID)
-	require.True(t, ok)
-	require.False(t, retracted)
+	echoBody, err := chattoCore.currentMessageBody(ctx, echoID)
+	require.NoError(t, err)
 	require.Empty(t, echoBody.GetAssetIds(), "propagation must not restore the independently removed attachment")
 }
 
@@ -625,9 +625,9 @@ func TestChattoCore_PostMessageSchedulesVideoProcessing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to post message: %v", err)
 	}
-	body, retracted, ok := core.roomModel.latestBody(roomEvent.Id)
-	if !ok || retracted || len(body.GetAssetIds()) != 1 || body.GetAssetIds()[0] != attachment.Id {
-		t.Fatalf("message asset ids = %v, retracted = %v; want one %q", body.GetAssetIds(), retracted, attachment.Id)
+	body, err := core.currentMessageBody(ctx, roomEvent.Id)
+	if err != nil || body == nil || len(body.GetAssetIds()) != 1 || body.GetAssetIds()[0] != attachment.Id {
+		t.Fatalf("message body = %v, error = %v; want one asset %q", body, err, attachment.Id)
 	}
 
 	manifest, ok := core.assetModel.VideoAttachmentManifest(attachment.Id)
@@ -705,8 +705,8 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	storedBody, retracted, ok := core.roomModel.latestBody(roomEvent.Id)
-	if !ok || retracted || storedBody == nil {
+	storedBody, err := core.currentMessageBody(ctx, roomEvent.Id)
+	if err != nil || storedBody == nil {
 		t.Fatal("Expected projected message body from MessageBodyEvent")
 	}
 
@@ -821,12 +821,18 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); err != nil {
 		t.Fatalf("original body event should exist before edit: %v", err)
 	}
+	if _, err := core.eventReader.EventAt(ctx, originalSeq); err != nil {
+		t.Fatalf("prime original body event cache: %v", err)
+	}
 
 	if err := core.EditMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, "edited"); err != nil {
 		t.Fatalf("EditMessage: %v", err)
 	}
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("original body event after edit error = %v, want ErrMsgNotFound", err)
+	}
+	if _, err := core.eventReader.EventAt(ctx, originalSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("cached original body event after edit error = %v, want ErrMsgNotFound", err)
 	}
 	_, editedSeq, ok := core.roomModel.bodyEventSeqs(posted.Id)
 	if !ok || editedSeq == 0 || editedSeq == originalSeq {
@@ -835,12 +841,18 @@ func TestChattoCore_MessageBodyEventsAreSecureDeletedAfterEditAndDelete(t *testi
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); err != nil {
 		t.Fatalf("edited body event should exist before delete: %v", err)
 	}
+	if _, err := core.eventReader.EventAt(ctx, editedSeq); err != nil {
+		t.Fatalf("prime edited body event cache: %v", err)
+	}
 
 	if err := core.DeleteMessage(ctx, user.Id, KindChannel, room.Id, posted.Id); err != nil {
 		t.Fatalf("DeleteMessage: %v", err)
 	}
 	if _, err := core.storage.serverEvtStream.GetMsg(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
 		t.Fatalf("edited body event after delete error = %v, want ErrMsgNotFound", err)
+	}
+	if _, err := core.eventReader.EventAt(ctx, editedSeq); !errors.Is(err, jetstream.ErrMsgNotFound) {
+		t.Fatalf("cached edited body event after delete error = %v, want ErrMsgNotFound", err)
 	}
 }
 

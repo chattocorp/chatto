@@ -32,22 +32,20 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 	}
 
 	entry, ok := c.roomModel.timelineEntry(eventID)
-	if !ok {
+	if !ok || !entry.IsMessagePost() {
 		return nil, nil
 	}
-	posted := entry.Event.GetMessagePosted()
-	if posted == nil {
-		return nil, nil
+	body, err := c.currentMessageBody(ctx, eventID)
+	if err != nil {
+		return nil, err
 	}
-
-	body, retracted, _ := c.roomModel.latestBody(eventID)
-	if retracted || body == nil {
+	if body == nil {
 		// Retracted message: same shape as a legacy GDPR delete —
 		// resolver renders "[Message unavailable]".
 		return nil, nil
 	}
 
-	plaintext, err := c.decryptMessageBody(ctx, eventID, posted.GetRoomId(), body)
+	plaintext, err := c.decryptMessageBody(ctx, eventID, entry.RoomID, body)
 	if err != nil {
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			return nil, nil // crypto-shredded
@@ -60,9 +58,9 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		Body:        string(plaintext),
 		Attachments: c.mediaModel.MessageBodyAttachments(body),
 		LinkPreview: body.GetLinkPreview(),
-		CreatedAt:   entry.Event.GetCreatedAt().AsTime(),
+		CreatedAt:   entry.CreatedAt,
 	}
-	// UpdatedAt: if LatestBody returned a body different from the
+	// UpdatedAt: if EVT hydration returned a body different from the
 	// original post's body, the message has been edited. The body
 	// proto carries its own UpdatedAt; surface that if set, otherwise
 	// derive from the most recent edit's envelope time.
@@ -71,6 +69,50 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		result.UpdatedAt = &t
 	}
 	return result, nil
+}
+
+func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*evtv1.MessageBody, error) {
+	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+		reference, retracted, known := c.roomModel.latestBodyReference(eventID)
+		if !known || retracted || reference.StreamSeq == 0 {
+			return nil, nil
+		}
+		body, err := c.timelineHydrator.body(ctx, reference)
+		if err != nil {
+			if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+				continue
+			}
+			return nil, err
+		}
+		if c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+			return body, nil
+		}
+	}
+	return nil, errTimelineReadPlanStale
+}
+
+func (c *ChattoCore) hydrateCurrentMessageBodies(ctx context.Context, references []TimelineBodyReference) ([]*evtv1.MessageBody, error) {
+	if len(references) == 0 {
+		return nil, nil
+	}
+	bodies, err := c.timelineHydrator.bodies(ctx, references)
+	if err != nil {
+		for _, reference := range references {
+			if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+				return nil, errTimelineReadPlanStale
+			}
+		}
+		return nil, err
+	}
+	for _, reference := range references {
+		if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+			// Callers select a fresh reference set because edits can also change
+			// attachment pagination. Returning a stale-plan marker prevents the
+			// old selection from being reused.
+			return nil, errTimelineReadPlanStale
+		}
+	}
+	return bodies, nil
 }
 
 // GetMessageBody is a thin wrapper returning just the plaintext body

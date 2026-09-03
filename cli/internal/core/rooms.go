@@ -19,45 +19,41 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// getRoomLastRootEvent returns the most recent root MessagePostedEvent
+// getRoomLastRootEntry returns the most recent root message entry
 // (excluding thread replies) in a room, or nil if none have been
 // projected yet. Bounded O(walk-until-found) via the projection's
 // LastVisibleRoomEntry helper.
-func (c *ChattoCore) getRoomLastRootEvent(roomID string) *evtv1.Event {
-	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, func(e *evtv1.Event) bool {
-		msg := e.GetMessagePosted()
-		return msg != nil && msg.GetInThread() == ""
+func (c *ChattoCore) getRoomLastRootEntry(roomID string) *TimelineEntry {
+	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, func(entry *TimelineEntry) bool {
+		return entry != nil && entry.IsMessagePost() && entry.InThreadEventID == ""
 	})
 	if !ok {
 		return nil
 	}
-	return entry.Event
+	return entry
 }
 
-// getRoomLastMessageEvent returns the most recent MessagePostedEvent
+// getRoomLastMessageEntry returns the most recent message entry
 // of any kind (root or thread reply) in a room, or nil. It uses the
 // projection's message-post index because thread replies are not part of the
 // visible room timeline.
-func (c *ChattoCore) getRoomLastMessageEvent(roomID string) *evtv1.Event {
+func (c *ChattoCore) getRoomLastMessageEntry(roomID string) *TimelineEntry {
 	entry, ok := c.roomModel.lastRoomMessageEntry(roomID)
 	if !ok {
 		return nil
 	}
-	return entry.Event
+	return entry
 }
 
 // GetRoomLastMessageAt returns the timestamp of the last message in a
 // room, including thread replies. Reads from the in-memory room
 // timeline projection.
 func (c *ChattoCore) GetRoomLastMessageAt(ctx context.Context, kind RoomKind, roomID string) (time.Time, error) {
-	ev := c.getRoomLastMessageEvent(roomID)
-	if ev == nil {
+	entry := c.getRoomLastMessageEntry(roomID)
+	if entry == nil {
 		return time.Time{}, nil
 	}
-	if ev.GetCreatedAt() == nil {
-		return time.Time{}, nil
-	}
-	return ev.GetCreatedAt().AsTime(), nil
+	return entry.CreatedAt, nil
 }
 
 // Room name validation constants

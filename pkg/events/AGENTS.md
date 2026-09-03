@@ -13,8 +13,11 @@ durable worker resource ownership.
 ## Boundary
 
 - Keep production code neutral to envelopes and applications.
-- Production imports are limited to the Go standard library and
-  `github.com/nats-io/nats.go`.
+- Production imports are limited to the Go standard library,
+  `github.com/nats-io/nats.go`, `github.com/jellydator/ttlcache/v3`, and
+  `golang.org/x/sync/errgroup`. Add another production dependency only after a
+  concrete framework use shows that maintaining the mechanic locally is less
+  safe or substantially more complex.
 - Do not import Chatto or Authling domain packages, protobuf envelopes,
   subjects, resource names, configuration, or lifecycle policy.
 - Tests may additionally use `github.com/nats-io/nats-server/v2`, but must not

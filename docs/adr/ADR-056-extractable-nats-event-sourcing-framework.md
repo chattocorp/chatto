@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-09-02
+**Updated:** 2026-09-03
 
 ADR-088 extends the shared framework with prepared reducers, coordinated
 components, one apply barrier, and projection snapshot cohorts. The framework
@@ -43,6 +43,8 @@ Framework-owned responsibilities are:
 - opaque-byte event-log reads, OCC-only publishing, and atomic append
   mechanics, including duplicate-aware results and optional per-record broker
   TTL;
+- exact-sequence stream-message reads with bounded concurrency and an optional
+  process-local cache with sliding idle expiry;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - bounded durable pull-worker execution over application-configured consumers,
@@ -82,6 +84,22 @@ application-owned stream enables per-message TTL, but semantic expiry remains
 application policy enforced by projections and APIs. Atomic batches report a
 typed duplicate-ID failure so an application can fall back to idempotent
 single-record appends without losing a committed prefix.
+
+`StreamMessageReader` is the envelope-neutral exact-read boundary. It binds
+stream sequences to one stream handle, limits concurrent broker reads, removes
+duplicate sequences in one request, and preserves request order. Its optional
+cache stores copied opaque bytes, not decoded application objects. Successful
+access extends an entry's idle lifetime. Failed reads are not cached. The
+reader supplies explicit sequence invalidation and complete clearing, and its
+run lifecycle removes expired entries. The cache is disposable and is not a
+projection, checkpoint, snapshot, or source of domain truth.
+
+The framework uses `github.com/jellydator/ttlcache/v3` for synchronized cache
+storage, sliding expiry, and expired-entry deletion. It keeps stream
+validation, read limits, byte copying, invalidation fencing, and lifecycle
+scheduling in the framework because those rules belong to the exact-read
+contract. This focused dependency replaces local cache storage and expiry
+mechanics.
 
 `TypedEventLog[E]` is the shared mechanical adapter over that boundary,
 extracted once Chatto and Authling had duplicated the same encode, batch,

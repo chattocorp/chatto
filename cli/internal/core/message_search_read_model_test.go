@@ -77,14 +77,14 @@ func TestMessageSearchReadModelHydratesThreadMessages(t *testing.T) {
 	require.NoError(t, err)
 	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, viewer.Id, "searchable thread reply", nil, root.Id, "", nil, false)
 	require.NoError(t, err)
-	body, retracted, ok := chattoCore.roomModel.latestBody(reply.Id)
+	body, retracted, ok := chattoCore.roomModel.latestBodyReference(reply.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
 	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
-		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.GetBodyEventId(), Score: 3.25,
+		MessageID: reply.Id, RoomID: room.Id, BodyEventID: body.BodyEventID, Score: 3.25,
 	}})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
@@ -119,10 +119,10 @@ func TestMessageSearchReadModelFiltersInteractionScopedHits(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, scope.RoomIDs, room.GetId())
 	hit := func(eventID string) MessageSearchHit {
-		body, retracted, ok := chattoCore.roomModel.latestBody(eventID)
+		body, retracted, ok := chattoCore.roomModel.latestBodyReference(eventID)
 		require.True(t, ok)
 		require.False(t, retracted)
-		return MessageSearchHit{MessageID: eventID, RoomID: room.GetId(), BodyEventID: body.GetBodyEventId()}
+		return MessageSearchHit{MessageID: eventID, RoomID: room.GetId(), BodyEventID: body.BodyEventID}
 	}
 	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, reader.GetId(), scope, []MessageSearchHit{
 		hit(unrelatedRoot.GetId()), hit(visibleRoot.GetId()), hit(mention.GetId()),
@@ -151,13 +151,13 @@ func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
-	visibleBody, retracted, ok := chattoCore.roomModel.latestBody(visibleMessage.Id)
+	visibleBody, retracted, ok := chattoCore.roomModel.latestBodyReference(visibleMessage.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
-	require.NotNil(t, visibleBody)
+	require.NotZero(t, visibleBody.StreamSeq)
 	results, err := chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{
-		{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.GetBodyEventId()},
-		{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.GetBodyEventId()},
+		{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.BodyEventID},
+		{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.BodyEventID},
 		{MessageID: staleMessage.Id, RoomID: visible.Id},
 		{MessageID: "hidden-message", RoomID: hidden.Id},
 		{MessageID: visibleMessage.Id, RoomID: hidden.Id},
@@ -167,21 +167,21 @@ func TestMessageSearchReadModelReauthorizesAndHydratesHits(t *testing.T) {
 	require.Equal(t, visibleMessage.Id, results[0].Event.GetId())
 	require.NoError(t, chattoCore.EditMessage(ctx, viewer.Id, KindChannel, visible.Id, visibleMessage.Id, "edited body no longer matching"))
 	results, err = chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
-		MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.GetBodyEventId(),
+		MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: visibleBody.BodyEventID,
 	}})
 	require.NoError(t, err)
 	require.Empty(t, results)
-	currentBody, retracted, ok := chattoCore.roomModel.latestBody(visibleMessage.Id)
+	currentBody, retracted, ok := chattoCore.roomModel.latestBodyReference(visibleMessage.Id)
 	require.True(t, ok)
 	require.False(t, retracted)
 	results, err = chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{
-		MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: currentBody.GetBodyEventId(),
+		MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: currentBody.BodyEventID,
 	}})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 
 	require.NoError(t, chattoCore.LeaveRoom(ctx, viewer.Id, KindChannel, viewer.Id, visible.Id))
-	results, err = chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: currentBody.GetBodyEventId()}})
+	results, err = chattoCore.MessageSearchReads().HydrateHits(ctx, viewer.Id, scope, []MessageSearchHit{{MessageID: visibleMessage.Id, RoomID: visible.Id, BodyEventID: currentBody.BodyEventID}})
 	require.NoError(t, err)
 	require.Empty(t, results)
 }

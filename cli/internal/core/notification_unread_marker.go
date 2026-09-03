@@ -156,10 +156,10 @@ func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context
 	}
 
 	entry, exists := m.core.roomModel.timelineEntry(message.GetEventId())
-	if !exists || entry.Event == nil || roomIDOfEvent(entry.Event) != message.GetRoomId() {
+	if !exists || entry.RoomID != message.GetRoomId() {
 		return false, nil
 	}
-	if _, retracted, known := m.core.roomModel.latestBody(message.GetEventId()); known && retracted {
+	if _, retracted, known := m.core.roomModel.latestBodyReference(message.GetEventId()); known && retracted {
 		return false, nil
 	}
 	if reaction := marker.GetSignal().GetReactionReceived(); reaction != nil {

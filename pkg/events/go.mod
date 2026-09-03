@@ -3,8 +3,10 @@ module hmans.de/chatto/pkg/events
 go 1.26.0
 
 require (
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/nats-io/nats-server/v2 v2.14.5
 	github.com/nats-io/nats.go v1.53.1
+	golang.org/x/sync v0.19.0
 )
 
 require (

@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-02
 
-**Status:** Accepted
+**Status:** Partially superseded by [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md)
 
 ## Context
 
@@ -50,7 +50,7 @@ The content view contains these state areas:
 | Server presentation and preferences | Server profile, branding, Neighbor records, and client-visible user preferences |
 | User directory | Account and profile state, custom status, verified-email state, bot ownership, and encrypted PII needed for authorized hydration |
 | Rooms | Room metadata, membership, bans, Universal-room behavior, Room Groups, and sidebar layout |
-| Timelines | Visible room entries, encrypted message bodies, tombstones, channel echoes, pins, and message hydration metadata |
+| Timelines | Compact visible room-entry and message-body references, tombstones, channel echoes, pins, and message hydration metadata |
 | Threads | Thread identity, replies, participants, follow state, and interaction relationships |
 | Reactions and calls | Current message reactions and active durable room-call state |
 | Assets | Asset declarations, ownership, processing state, derivative relationships, deletion state, and client-visible references |
@@ -153,14 +153,16 @@ Portable persistence stores `ServerContentView` as one projection snapshot
 cohort. Each included component has its own key, contract ID, and one or more
 bounded parts, but all parts share one EVT cutoff and stream incarnation.
 
-The initial migration uses one part for each current component. Each part
+The initial migration uses one part for each current component. The Room
+Timeline part stores compact EVT references and derived indexes, not complete
+event or message-body payloads. Each part
 keeps ADR-050's 64 MiB payload limit, 80 MiB encrypted-object limit, and 72 MiB
 decompression limit. The registered component set fixes the component-count
 limit, and each initial component contract fixes its part-count limit at one.
 The repository calculates the cumulative bound from those registered limits
 with checked arithmetic and processes stored parts one at a time. An oversized
-or invalid cohort selects cold replay. Time-based message parts are defined by
-the later message-history decision, not by this ADR.
+or invalid cohort selects cold replay. A later local index or payload cache can
+use time-based parts. This ADR does not define those parts.
 
 The snapshot repository installs only a complete compatible cohort. It does
 not mix old per-projection snapshots, components from different cutoffs, or a
@@ -230,3 +232,4 @@ ADR-054.
 - [ADR-073](ADR-073-define-the-loom-architecture.md)
 - [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md)
 - [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md)
+- [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md)

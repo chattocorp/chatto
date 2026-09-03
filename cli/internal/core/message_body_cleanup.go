@@ -17,6 +17,10 @@ func (c *ChattoCore) secureDeleteMessageBodyEvents(ctx context.Context, seqs []u
 		seen[seq] = struct{}{}
 		if err := c.storage.serverEvtStream.SecureDeleteMsg(ctx, seq); err != nil {
 			c.logger.Warn("Failed to secure-delete message body event", "seq", seq, "error", err)
+			continue
+		}
+		if c.eventReader != nil {
+			c.eventReader.Forget(seq)
 		}
 	}
 }

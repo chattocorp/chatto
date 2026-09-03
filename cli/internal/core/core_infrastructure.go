@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/kms"
 	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
+	"hmans.de/chatto/pkg/events"
 )
 
 // coreInfrastructure contains the storage and event-sourcing primitives that
@@ -26,6 +27,7 @@ type coreInfrastructure struct {
 	dekResolver           *unwrappedDEKResolver
 	s3Client              *S3Client
 	eventPublisher        *evtstream.Publisher
+	eventReader           *evtstream.Reader
 	notificationPublisher *notificationstream.Publisher
 	snapshotRepository    *projectionsnapshot.Repository
 }
@@ -68,6 +70,10 @@ func initializeCoreInfrastructure(
 		logger,
 	)
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
+	eventReader, err := evtstream.NewReader(storage.serverEvtStream, evtReadCacheConfig(cfg, logger))
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize EVT reader: %w", err)
+	}
 
 	return &coreInfrastructure{
 		js:                    js,
@@ -76,9 +82,30 @@ func initializeCoreInfrastructure(
 		dekResolver:           dekResolver,
 		s3Client:              s3Client,
 		eventPublisher:        evtstream.NewPublisher(js, storage.serverEvtStream, logger),
+		eventReader:           eventReader,
 		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
 		snapshotRepository:    snapshotRepository,
 	}, nil
+}
+
+func evtReadCacheConfig(cfg config.CoreConfig, logger *log.Logger) events.StreamMessageReaderConfig {
+	cacheLogger := logger.WithPrefix("core.EVTReadCache")
+	idleTTL := cfg.EVTReadCacheIdleTTLOrDefault()
+	maxBytes := cfg.EVTReadCacheMaxBytesOrDefault()
+	cacheLogger.Info(
+		"EVT read cache configured",
+		"idle_ttl", idleTTL,
+		"max_bytes", maxBytes,
+	)
+	var frameworkMaxBytes uint64
+	if maxBytes > 0 {
+		frameworkMaxBytes = uint64(maxBytes)
+	}
+	return events.StreamMessageReaderConfig{
+		CacheIdleTTL:  idleTTL,
+		CacheMaxBytes: frameworkMaxBytes,
+		Logger:        cacheLogger,
+	}
 }
 
 func initializeCoreS3(

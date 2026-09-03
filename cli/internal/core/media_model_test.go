@@ -834,9 +834,9 @@ func TestMediaModelMessageBodyAttachmentLookups(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	body, retracted, ok := core.roomModel.latestBody(event.GetId())
-	if !ok || retracted {
-		t.Fatalf("LatestBody ok=%v retracted=%v, want ok true retracted false", ok, retracted)
+	body, err := core.currentMessageBody(ctx, event.GetId())
+	if err != nil || body == nil {
+		t.Fatalf("currentMessageBody = %v, %v; want body", body, err)
 	}
 
 	attachments := service.MessageBodyAttachments(body)

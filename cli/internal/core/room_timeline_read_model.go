@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"hmans.de/chatto/internal/encryption"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -135,8 +136,7 @@ func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID,
 	if err != nil {
 		return nil, err
 	}
-	event, err := s.messageEvent(ctx, kind, room.Id, eventID)
-	if err != nil {
+	if _, err := s.timelineMessageEntry(room.Id, eventID, false); err != nil {
 		return nil, err
 	}
 	allowed, err := s.core.CanReadMessage(ctx, actorID, kind, room.Id, eventID)
@@ -145,6 +145,10 @@ func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID,
 	}
 	if !allowed {
 		return nil, ErrPermissionDenied
+	}
+	event, err := s.messageEvent(ctx, kind, room.Id, eventID)
+	if err != nil {
+		return nil, err
 	}
 	return &MessageReadResult{Kind: kind, Event: event}, nil
 }
@@ -158,8 +162,7 @@ func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, r
 	if err != nil {
 		return nil, err
 	}
-	event, err := s.timelineMessageEvent(ctx, kind, room.Id, eventID)
-	if err != nil {
+	if _, err := s.timelineMessageEntry(room.Id, eventID, true); err != nil {
 		return nil, err
 	}
 	allowed, err := s.core.CanReadMessage(ctx, actorID, kind, room.Id, eventID)
@@ -168,6 +171,10 @@ func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, r
 	}
 	if !allowed {
 		return nil, ErrPermissionDenied
+	}
+	event, err := s.timelineMessageEvent(ctx, kind, room.Id, eventID)
+	if err != nil {
+		return nil, err
 	}
 	return &MessageReadResult{Kind: kind, Event: event}, nil
 }
@@ -178,31 +185,82 @@ func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, r
 		return nil, err
 	}
 
-	seen := make(map[string]struct{}, len(eventIDs))
-	events := make([]*evtv1.Event, 0, len(eventIDs))
-	for _, eventID := range eventIDs {
-		if _, ok := seen[eventID]; ok {
-			continue
-		}
-		seen[eventID] = struct{}{}
+	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+		seen := make(map[string]struct{}, len(eventIDs))
+		entries := make([]*TimelineEntry, 0, len(eventIDs))
+		bodyReferences := make([]TimelineBodyReference, 0, len(eventIDs))
+		for _, eventID := range eventIDs {
+			if _, ok := seen[eventID]; ok {
+				continue
+			}
+			seen[eventID] = struct{}{}
 
-		event, err := s.messageEvent(ctx, kind, room.Id, eventID)
-		if err != nil {
+			entry, err := s.timelineMessageEntry(room.Id, eventID, false)
 			if errors.Is(err, ErrMessageNotFound) {
 				continue
 			}
-			return nil, err
+			if err != nil {
+				return nil, err
+			}
+			allowed, err := s.core.CanReadMessage(ctx, actorID, kind, room.Id, eventID)
+			if err != nil {
+				return nil, err
+			}
+			if !allowed {
+				continue
+			}
+			bodyReference, retracted, known := s.core.roomModel.latestBodyReference(eventID)
+			if !known || retracted || bodyReference.StreamSeq == 0 {
+				continue
+			}
+			entries = append(entries, entry)
+			bodyReferences = append(bodyReferences, bodyReference)
 		}
-		allowed, err := s.core.CanReadMessage(ctx, actorID, kind, room.Id, eventID)
+
+		bodies, err := s.core.hydrateCurrentMessageBodies(ctx, bodyReferences)
+		if errors.Is(err, errTimelineReadPlanStale) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
-		if !allowed {
+		readableEntries := make([]*TimelineEntry, 0, len(entries))
+		readableBodyReferences := make([]TimelineBodyReference, 0, len(entries))
+		for i, body := range bodies {
+			_, err := s.core.decryptMessageBody(ctx, entries[i].EventID, entries[i].RoomID, body)
+			if errors.Is(err, encryption.ErrKeyNotFound) {
+				continue
+			}
+			if err != nil {
+				return nil, fmt.Errorf("failed to decrypt message body: %w", err)
+			}
+			readableEntries = append(readableEntries, entries[i])
+			readableBodyReferences = append(readableBodyReferences, bodyReferences[i])
+		}
+		hydrated, err := s.core.hydrateTimelineEntries(ctx, readableEntries)
+		if errors.Is(err, errTimelineReadPlanStale) {
 			continue
 		}
-		events = append(events, event)
+		if err != nil {
+			return nil, err
+		}
+		current := true
+		for _, reference := range readableBodyReferences {
+			if !s.core.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+				current = false
+				break
+			}
+		}
+		if !current {
+			continue
+		}
+		events := make([]*evtv1.Event, len(hydrated))
+		for i, event := range hydrated {
+			events[i] = event.Event
+		}
+		return &BatchMessagesReadResult{Kind: kind, Events: events}, nil
 	}
-	return &BatchMessagesReadResult{Kind: kind, Events: events}, nil
+	return nil, errTimelineReadPlanStale
 }
 
 func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {
@@ -263,7 +321,7 @@ func (s *RoomTimelineReadModel) GetThreadEventsAround(ctx context.Context, actor
 	}, nil
 }
 
-func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, actorID string, kind RoomKind, roomID string) (func(*evtv1.Event) bool, error) {
+func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, actorID string, kind RoomKind, roomID string) (func(*TimelineEntry) bool, error) {
 	broad, err := s.core.CanReadMessages(ctx, actorID, kind, roomID)
 	if err != nil {
 		return nil, err
@@ -278,9 +336,11 @@ func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, acto
 	if !interactions {
 		return nil, ErrPermissionDenied
 	}
-	return func(event *evtv1.Event) bool {
-		rootID, ok := s.core.MessageEventThreadRoot(roomID, event)
-		return ok && s.core.roomModel.hasThreadInteraction(actorID, roomID, rootID)
+	return func(entry *TimelineEntry) bool {
+		if entry == nil || entry.ThreadRootEventID == "" {
+			return false
+		}
+		return s.core.roomModel.hasThreadInteraction(actorID, roomID, entry.ThreadRootEventID)
 	}, nil
 }
 
@@ -315,8 +375,8 @@ func (s *RoomTimelineReadModel) messageEvent(ctx context.Context, kind RoomKind,
 }
 
 func (s *RoomTimelineReadModel) timelineMessageEvent(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
-	if strings.TrimSpace(eventID) == "" {
-		return nil, invalidArgument("event_id is required")
+	if _, err := s.timelineMessageEntry(roomID, eventID, true); err != nil {
+		return nil, err
 	}
 	event, err := s.core.GetRoomEventByEventID(ctx, kind, roomID, eventID)
 	if err != nil {
@@ -326,6 +386,23 @@ func (s *RoomTimelineReadModel) timelineMessageEvent(ctx context.Context, kind R
 		return nil, ErrMessageNotFound
 	}
 	return event, nil
+}
+
+func (s *RoomTimelineReadModel) timelineMessageEntry(roomID, eventID string, allowRetracted bool) (*TimelineEntry, error) {
+	if strings.TrimSpace(eventID) == "" {
+		return nil, invalidArgument("event_id is required")
+	}
+	entry, ok := s.core.roomModel.timelineEntry(eventID)
+	if !ok || entry == nil || !entry.IsMessagePost() || entry.RoomID != roomID || s.core.roomModel.isHiddenEcho(eventID) {
+		return nil, ErrMessageNotFound
+	}
+	if !allowRetracted {
+		reference, retracted, known := s.core.roomModel.latestBodyReference(eventID)
+		if !known || retracted || reference.StreamSeq == 0 {
+			return nil, ErrMessageNotFound
+		}
+	}
+	return entry, nil
 }
 
 func threadTimelineTargetIndex(rootEventID, targetEventID string, replies []*RoomEvent) int {

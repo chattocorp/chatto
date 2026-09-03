@@ -3734,11 +3734,22 @@ func (x *LatestRoomPinSnapshot) GetPinSequence() uint64 {
 }
 
 type TimelineEntrySnapshot struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Exact EVT stream position of the complete event payload.
 	StreamSequence uint64                 `protobuf:"varint,1,opt,name=stream_sequence,json=streamSequence,proto3" json:"stream_sequence,omitempty"`
-	Event          *v1.Event              `protobuf:"bytes,2,opt,name=event,proto3" json:"event,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	EventId        string                 `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	RoomId         string                 `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	ActorId        string                 `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	CreatedAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Stable EVT subject event-type token.
+	EventType string `protobuf:"bytes,6,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	// Canonical authorization root. A root message names itself.
+	ThreadRootEventId string `protobuf:"bytes,7,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	EchoOfEventId     string `protobuf:"bytes,8,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
+	// Direct thread parent. Empty for room-visible entries.
+	InThreadEventId string `protobuf:"bytes,9,opt,name=in_thread_event_id,json=inThreadEventId,proto3" json:"in_thread_event_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TimelineEntrySnapshot) Reset() {
@@ -3778,21 +3789,76 @@ func (x *TimelineEntrySnapshot) GetStreamSequence() uint64 {
 	return 0
 }
 
-func (x *TimelineEntrySnapshot) GetEvent() *v1.Event {
+func (x *TimelineEntrySnapshot) GetEventId() string {
 	if x != nil {
-		return x.Event
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
 	}
 	return nil
 }
 
+func (x *TimelineEntrySnapshot) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetEchoOfEventId() string {
+	if x != nil {
+		return x.EchoOfEventId
+	}
+	return ""
+}
+
+func (x *TimelineEntrySnapshot) GetInThreadEventId() string {
+	if x != nil {
+		return x.InThreadEventId
+	}
+	return ""
+}
+
 type TimelineBodySnapshot struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	MessageEventId      string                 `protobuf:"bytes,1,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	Body                *v1.MessageBody        `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	BodyEventSequences  []uint64               `protobuf:"varint,3,rep,packed,name=body_event_sequences,json=bodyEventSequences,proto3" json:"body_event_sequences,omitempty"`
-	CurrentBodySequence uint64                 `protobuf:"varint,4,opt,name=current_body_sequence,json=currentBodySequence,proto3" json:"current_body_sequence,omitempty"`
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	MessageEventId string                 `protobuf:"bytes,1,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// All body-event sequences in commit order, including the current one.
+	BodyEventSequences  []uint64 `protobuf:"varint,2,rep,packed,name=body_event_sequences,json=bodyEventSequences,proto3" json:"body_event_sequences,omitempty"`
+	CurrentBodySequence uint64   `protobuf:"varint,3,opt,name=current_body_sequence,json=currentBodySequence,proto3" json:"current_body_sequence,omitempty"`
+	CurrentBodyEventId  string   `protobuf:"bytes,4,opt,name=current_body_event_id,json=currentBodyEventId,proto3" json:"current_body_event_id,omitempty"`
+	AuthorId            string   `protobuf:"bytes,5,opt,name=author_id,json=authorId,proto3" json:"author_id,omitempty"`
+	// Number of non-empty attachment references in the current body.
+	AttachmentCount uint32 `protobuf:"varint,6,opt,name=attachment_count,json=attachmentCount,proto3" json:"attachment_count,omitempty"`
+	// False after retraction or key shredding. Sequence history remains stored.
+	Active        bool `protobuf:"varint,7,opt,name=active,proto3" json:"active,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TimelineBodySnapshot) Reset() {
@@ -3832,13 +3898,6 @@ func (x *TimelineBodySnapshot) GetMessageEventId() string {
 	return ""
 }
 
-func (x *TimelineBodySnapshot) GetBody() *v1.MessageBody {
-	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
 func (x *TimelineBodySnapshot) GetBodyEventSequences() []uint64 {
 	if x != nil {
 		return x.BodyEventSequences
@@ -3851,6 +3910,34 @@ func (x *TimelineBodySnapshot) GetCurrentBodySequence() uint64 {
 		return x.CurrentBodySequence
 	}
 	return 0
+}
+
+func (x *TimelineBodySnapshot) GetCurrentBodyEventId() string {
+	if x != nil {
+		return x.CurrentBodyEventId
+	}
+	return ""
+}
+
+func (x *TimelineBodySnapshot) GetAuthorId() string {
+	if x != nil {
+		return x.AuthorId
+	}
+	return ""
+}
+
+func (x *TimelineBodySnapshot) GetAttachmentCount() uint32 {
+	if x != nil {
+		return x.AttachmentCount
+	}
+	return 0
+}
+
+func (x *TimelineBodySnapshot) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
 }
 
 type StringTimestampSnapshot struct {
@@ -4288,15 +4375,27 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12 \n" +
 	"\fpin_event_id\x18\x02 \x01(\tR\n" +
 	"pinEventId\x12!\n" +
-	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"q\n" +
+	"\fpin_sequence\x18\x03 \x01(\x04R\vpinSequence\"\xf0\x02\n" +
 	"\x15TimelineEntrySnapshot\x12'\n" +
-	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12/\n" +
-	"\x05event\x18\x02 \x01(\v2\x19.chatto.core.evt.v1.EventR\x05event\"\xdb\x01\n" +
+	"\x0fstream_sequence\x18\x01 \x01(\x04R\x0estreamSequence\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x17\n" +
+	"\aroom_id\x18\x03 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bactor_id\x18\x04 \x01(\tR\aactorId\x129\n" +
+	"\n" +
+	"created_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x06 \x01(\tR\teventType\x12/\n" +
+	"\x14thread_root_event_id\x18\a \x01(\tR\x11threadRootEventId\x12'\n" +
+	"\x10echo_of_event_id\x18\b \x01(\tR\rechoOfEventId\x12+\n" +
+	"\x12in_thread_event_id\x18\t \x01(\tR\x0finThreadEventId\"\xb9\x02\n" +
 	"\x14TimelineBodySnapshot\x12(\n" +
-	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x123\n" +
-	"\x04body\x18\x02 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyR\x04body\x120\n" +
-	"\x14body_event_sequences\x18\x03 \x03(\x04R\x12bodyEventSequences\x122\n" +
-	"\x15current_body_sequence\x18\x04 \x01(\x04R\x13currentBodySequence\"]\n" +
+	"\x10message_event_id\x18\x01 \x01(\tR\x0emessageEventId\x120\n" +
+	"\x14body_event_sequences\x18\x02 \x03(\x04R\x12bodyEventSequences\x122\n" +
+	"\x15current_body_sequence\x18\x03 \x01(\x04R\x13currentBodySequence\x121\n" +
+	"\x15current_body_event_id\x18\x04 \x01(\tR\x12currentBodyEventId\x12\x1b\n" +
+	"\tauthor_id\x18\x05 \x01(\tR\bauthorId\x12)\n" +
+	"\x10attachment_count\x18\x06 \x01(\rR\x0fattachmentCount\x12\x16\n" +
+	"\x06active\x18\a \x01(\bR\x06active\"]\n" +
 	"\x17StringTimestampSnapshot\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x120\n" +
 	"\x05value\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x05value\"\x96\x01\n" +
@@ -4397,7 +4496,6 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_goTypes = []any{
 	(*v1.User)(nil),                                // 73: chatto.core.evt.v1.User
 	(*v1.ServerUserPreferences)(nil),               // 74: chatto.core.evt.v1.ServerUserPreferences
 	(*v1.EncryptedUserString)(nil),                 // 75: chatto.core.evt.v1.EncryptedUserString
-	(*v1.MessageBody)(nil),                         // 76: chatto.core.evt.v1.MessageBody
 }
 var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	57, // 0: chatto.core.projection.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
@@ -4494,14 +4592,13 @@ var file_chatto_core_projection_v1_projection_snapshots_proto_depIdxs = []int32{
 	12, // 91: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.replay_guard:type_name -> chatto.core.projection.v1.ProjectionReplayGuardSnapshot
 	51, // 92: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.pinned_messages:type_name -> chatto.core.projection.v1.PinnedMessageSnapshot
 	52, // 93: chatto.core.projection.v1.RoomTimelineProjectionSnapshot.latest_room_pins:type_name -> chatto.core.projection.v1.LatestRoomPinSnapshot
-	72, // 94: chatto.core.projection.v1.TimelineEntrySnapshot.event:type_name -> chatto.core.evt.v1.Event
-	76, // 95: chatto.core.projection.v1.TimelineBodySnapshot.body:type_name -> chatto.core.evt.v1.MessageBody
-	57, // 96: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
-	97, // [97:97] is the sub-list for method output_type
-	97, // [97:97] is the sub-list for method input_type
-	97, // [97:97] is the sub-list for extension type_name
-	97, // [97:97] is the sub-list for extension extendee
-	0,  // [0:97] is the sub-list for field type_name
+	57, // 94: chatto.core.projection.v1.TimelineEntrySnapshot.created_at:type_name -> google.protobuf.Timestamp
+	57, // 95: chatto.core.projection.v1.StringTimestampSnapshot.value:type_name -> google.protobuf.Timestamp
+	96, // [96:96] is the sub-list for method output_type
+	96, // [96:96] is the sub-list for method input_type
+	96, // [96:96] is the sub-list for extension type_name
+	96, // [96:96] is the sub-list for extension extendee
+	0,  // [0:96] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_projection_v1_projection_snapshots_proto_init() }

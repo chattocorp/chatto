@@ -149,8 +149,8 @@ func TestChattoCore_PostMessage_Threading(t *testing.T) {
 		if !ok {
 			t.Fatalf("reply %s was not projected", reply.Id)
 		}
-		if replyEntry.Event.GetMessagePosted().GetInThread() != root.Id {
-			t.Fatalf("reply in_thread = %q, want %q", replyEntry.Event.GetMessagePosted().GetInThread(), root.Id)
+		if replyEntry.InThreadEventID != root.Id {
+			t.Fatalf("reply in_thread = %q, want %q", replyEntry.InThreadEventID, root.Id)
 		}
 		if !core.roomModel.threadExists(root.Id) {
 			t.Fatalf("thread projection does not know root %s exists", root.Id)
@@ -1577,8 +1577,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 
 		// Echo and reply each have their own envelope id and encryption
 		// context, but decrypt to the same visible content.
-		replyBody, retracted, ok := core.roomModel.latestBody(replyEvent.Id)
-		if !ok || retracted || replyBody == nil {
+		replyBody, err := core.currentMessageBody(ctx, replyEvent.Id)
+		if err != nil || replyBody == nil {
 			t.Fatal("reply has no projected body")
 		}
 
@@ -1592,8 +1592,8 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			}
 		}
 		if echoID != "" {
-			echoBody, retracted, ok = core.roomModel.latestBody(echoID)
-			if !ok || retracted {
+			echoBody, err = core.currentMessageBody(ctx, echoID)
+			if err != nil {
 				echoBody = nil
 			}
 		}

@@ -1336,7 +1336,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 	if err != nil {
 		return err
 	}
-	if entry.Event.GetActorId() != actorID {
+	if entry.ActorID != actorID {
 		canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
 		if err != nil {
 			return err
@@ -1380,15 +1380,15 @@ func (c *ChattoCore) validateMessageMutationIdentity(
 	now time.Time,
 ) (*TimelineEntry, error) {
 	entry, ok := c.roomModel.timelineEntry(eventID)
-	if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
+	if !ok || !entry.IsMessagePost() || entry.RoomID != roomID {
 		return nil, ErrMessageNotFound
 	}
-	current, retracted, _ := c.roomModel.latestBody(eventID)
-	if retracted || current == nil {
+	current, retracted, _ := c.roomModel.latestBodyReference(eventID)
+	if retracted || current.StreamSeq == 0 {
 		return nil, ErrMessageNotFound
 	}
-	if entry.Event.GetActorId() == actorID {
-		if policy.enforceEditWindow && now.After(entry.Event.GetCreatedAt().AsTime().Add(MessageEditWindow)) {
+	if entry.ActorID == actorID {
+		if policy.enforceEditWindow && now.After(entry.CreatedAt.Add(MessageEditWindow)) {
 			canManage, err := c.CanManageOthersMessage(ctx, actorID, kind, roomID)
 			if err != nil {
 				return nil, err
@@ -1418,9 +1418,6 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 		return ErrMessageNotFound
 	}
 
-	// Snapshot the projection state for attachment cleanup before
-	// emitting the retract event. After retract, LatestBody returns
-	// nil (the message is tombstoned), so we need a copy first.
 	originalEntry, ok := c.roomModel.timelineEntry(eventID)
 	if !ok {
 		c.logger.Debug("Delete on unknown message — no-op", "event_id", eventID)
@@ -1430,7 +1427,7 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if isEcho && c.roomModel.isHiddenEcho(eventID) {
 		return nil
 	}
-	body, retracted, _ := c.roomModel.latestBody(eventID)
+	_, retracted, _ := c.roomModel.latestBodyReference(eventID)
 	if retracted {
 		// Already tombstoned.
 		return nil
@@ -1445,8 +1442,12 @@ func (c *ChattoCore) DeleteMessage(ctx context.Context, actorID string, kind Roo
 	if options.commitAuthorize != nil {
 		authorize = options.commitAuthorize
 	}
-	if err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID, authorize); err != nil {
+	body, published, err := c.publishMessageRetract(ctx, actorID, kind, agg, roomID, eventID, authorize)
+	if err != nil {
 		return err
+	}
+	if !published {
+		return nil
 	}
 	c.secureDeleteAllMessageBodyEvents(ctx, eventID)
 	if isEcho {
@@ -1531,8 +1532,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	if !ok {
 		return ErrMessageNotFound
 	}
-	origPost := originalEntry.Event.GetMessagePosted()
-	if origPost == nil {
+	if !originalEntry.IsMessagePost() {
 		return ErrMessageNotFound
 	}
 
@@ -1545,36 +1545,34 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 	channelEchoRetractionTargetID := ""
 	channelEchoExistedBefore := false
 	if options.channelEcho != nil {
-		echoTargetEvent := originalEntry.Event
-		echoTargetPost := origPost
-		if echoOf := origPost.GetEchoOfEventId(); echoOf != "" {
+		echoTarget := originalEntry
+		if echoOf := originalEntry.EchoOfEventID; echoOf != "" {
 			origEchoEntry, ok := c.roomModel.timelineEntry(echoOf)
-			if !ok || origEchoEntry.Event == nil {
+			if !ok {
 				return ErrMessageNotFound
 			}
-			echoTargetEvent = origEchoEntry.Event
-			echoTargetPost = echoTargetEvent.GetMessagePosted()
+			echoTarget = origEchoEntry
 		}
-		if echoTargetPost == nil || echoTargetPost.GetEchoOfEventId() != "" || echoTargetPost.GetInThread() == "" {
+		if !echoTarget.IsMessagePost() || echoTarget.EchoOfEventID != "" || echoTarget.InThreadEventID == "" {
 			return invalidArgument("channel echo state can only be changed for thread replies")
 		}
-		if roomIDOfEvent(echoTargetEvent) != roomID {
+		if echoTarget.RoomID != roomID {
 			return ErrMessageNotFound
 		}
-		if echoTargetEvent.GetActorId() != actorID {
+		if echoTarget.ActorID != actorID {
 			return ErrNotMessageAuthor
 		}
-		if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, echoTargetEvent.GetId(), messageMutationAuthorization{authorOnly: true, enforceEditWindow: true}, now()); err != nil {
+		if _, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, echoTarget.EventID, messageMutationAuthorization{authorOnly: true, enforceEditWindow: true}, now()); err != nil {
 			return err
 		}
-		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
+		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTarget.EventID)
 		if *options.channelEcho {
 			if kind == KindChannel && EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED && !channelEchoExistedBefore {
 				return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 			}
-			channelEchoCreationTargetID = echoTargetEvent.GetId()
+			channelEchoCreationTargetID = echoTarget.EventID
 		} else {
-			channelEchoRetractionTargetID = echoTargetEvent.GetId()
+			channelEchoRetractionTargetID = echoTarget.EventID
 		}
 	}
 
@@ -1663,7 +1661,7 @@ func (c *ChattoCore) publishMessageRetract(
 	agg evtstream.Aggregate,
 	roomID, eventID string,
 	authorize func(context.Context) error,
-) error {
+) (*evtv1.MessageBody, bool, error) {
 	event := newEvent(actorID, &evtv1.Event{
 		Event: &evtv1.Event_MessageRetracted{
 			MessageRetracted: &evtv1.MessageRetractedEvent{
@@ -1677,15 +1675,23 @@ func (c *ChattoCore) publishMessageRetract(
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
 		roomFilter, roomSeq, err := c.prepareMessageRetractionAttempt(ctx, agg, authorize)
 		if err != nil {
-			return err
+			return nil, false, err
 		}
 		entry, ok := c.roomModel.timelineEntry(eventID)
-		if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
-			return ErrMessageNotFound
+		if !ok || !entry.IsMessagePost() || entry.RoomID != roomID {
+			return nil, false, ErrMessageNotFound
 		}
-		_, retracted, _ := c.roomModel.latestBody(eventID)
+		_, retracted, _ := c.roomModel.latestBodyReference(eventID)
 		if retracted {
-			return nil
+			return nil, false, nil
+		}
+		// Load the body after reading the OCC cursor. A successful append then
+		// proves that no edit replaced this body before the retraction landed.
+		// DeleteMessage needs the detached payload for attachment cleanup after
+		// the projection has made it unavailable.
+		body, err := c.currentMessageBody(ctx, eventID)
+		if err != nil {
+			return nil, false, err
 		}
 
 		entries := []evtstream.BatchEntry{{
@@ -1699,25 +1705,25 @@ func (c *ChattoCore) publishMessageRetract(
 		if err == nil {
 			lastIndex := len(entries) - 1
 			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(entries[lastIndex].Subject, seqs[lastIndex])); err != nil {
-				return err
+				return nil, false, err
 			}
 			if err := c.notificationMaterializer.WaitThrough(ctx, seqs[lastIndex]); err != nil {
 				c.logger.Warn("Notification cleanup did not reach the message retraction before the request completed",
 					"room_id", roomID, "event_id", eventID, "error", err)
 			}
-			return nil
+			return body, true, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
-			return fmt.Errorf("publish MessageRetractedEvent: %w", err)
+			return nil, false, fmt.Errorf("publish MessageRetractedEvent: %w", err)
 		}
 		lastErr = err
 		select {
 		case <-ctx.Done():
-			return ctx.Err()
+			return nil, false, ctx.Err()
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return fmt.Errorf("publish MessageRetractedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
+	return nil, false, fmt.Errorf("publish MessageRetractedEvent after %d attempts: %w", maxThreadCreateAppendAttempts, lastErr)
 }
 
 // publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
@@ -1794,11 +1800,14 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 		}
 
 		entry, ok := c.roomModel.timelineEntry(eventID)
-		if !ok || entry.Event == nil || entry.Event.GetMessagePosted() == nil || roomIDOfEvent(entry.Event) != roomID {
+		if !ok || !entry.IsMessagePost() || entry.RoomID != roomID {
 			return "", ErrMessageNotFound
 		}
-		current, retracted, _ := c.roomModel.latestBody(eventID)
-		if retracted || current == nil {
+		current, err := c.currentMessageBody(ctx, eventID)
+		if err != nil {
+			return "", err
+		}
+		if current == nil {
 			return "", ErrMessageNotFound
 		}
 		updated := proto.Clone(current).(*evtv1.MessageBody)
@@ -1854,14 +1863,20 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 					return "", ErrMessageNotFound
 				}
 				targetEntry, ok := c.roomModel.timelineEntry(channelEchoCreationTargetID)
-				if !ok || targetEntry.Event == nil {
+				if !ok {
 					return "", ErrMessageNotFound
 				}
-				targetPost := targetEntry.Event.GetMessagePosted()
-				if targetPost == nil || targetPost.GetEchoOfEventId() != "" || targetPost.GetInThread() == "" || targetPost.GetRoomId() != roomID {
+				if !targetEntry.IsMessagePost() || targetEntry.EchoOfEventID != "" || targetEntry.InThreadEventID == "" || targetEntry.RoomID != roomID {
 					return "", invalidArgument("channel echo state can only be changed for thread replies")
 				}
-				echoID, echoBodyEvent, echoEvent, err := c.buildThreadReplyEchoEventsWithIDs(ctx, actorID, targetEntry.Event, targetPost, updated, plaintext, echoEventID, echoBodyEventID)
+				targetEvent, err := c.GetRoomEventByEventID(ctx, KindChannel, roomID, targetEntry.EventID)
+				if err != nil || targetEvent == nil || targetEvent.GetMessagePosted() == nil {
+					if err != nil {
+						return "", err
+					}
+					return "", ErrMessageNotFound
+				}
+				echoID, echoBodyEvent, echoEvent, err := c.buildThreadReplyEchoEventsWithIDs(ctx, actorID, targetEvent, targetEvent.GetMessagePosted(), updated, plaintext, echoEventID, echoBodyEventID)
 				if err != nil {
 					return "", err
 				}

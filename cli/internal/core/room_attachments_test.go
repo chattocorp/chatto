@@ -212,6 +212,8 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "new", []string{newAttachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post new message: %v", err)
 	}
+	reader := &recordingTimelineEventReader{delegate: core.timelineHydrator.reader}
+	core.timelineHydrator = newRoomTimelineHydrator(reader)
 
 	first, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 0)
 	if err != nil {
@@ -220,6 +222,9 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	if first.TotalCount != 2 || !first.HasMore || len(first.Items) != 1 || first.Items[0].Attachment.Filename != "new.png" {
 		t.Fatalf("first page = count %d hasMore %v names %v, want count 2 hasMore true [new.png]", first.TotalCount, first.HasMore, attachmentNames(first.Items))
 	}
+	if len(reader.reads) != 1 || len(reader.reads[0]) != 1 {
+		t.Fatalf("first page EVT reads = %v, want one selected body", reader.reads)
+	}
 
 	second, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 1)
 	if err != nil {
@@ -227,6 +232,20 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	}
 	if second.TotalCount != 2 || second.HasMore || len(second.Items) != 1 || second.Items[0].Attachment.Filename != "old.png" {
 		t.Fatalf("second page = count %d hasMore %v names %v, want count 2 hasMore false [old.png]", second.TotalCount, second.HasMore, attachmentNames(second.Items))
+	}
+	if len(reader.reads) != 2 || len(reader.reads[1]) != 1 {
+		t.Fatalf("second page EVT reads = %v, want one selected body per page", reader.reads)
+	}
+
+	pastEnd, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 99)
+	if err != nil {
+		t.Fatalf("Get page past end: %v", err)
+	}
+	if pastEnd.TotalCount != 2 || pastEnd.HasMore || len(pastEnd.Items) != 0 {
+		t.Fatalf("past-end page = count %d hasMore %v items %d, want count 2 hasMore false no items", pastEnd.TotalCount, pastEnd.HasMore, len(pastEnd.Items))
+	}
+	if len(reader.reads) != 2 {
+		t.Fatalf("past-end page EVT reads = %v, want no additional read", reader.reads)
 	}
 }
 
