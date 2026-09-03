@@ -225,12 +225,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		messages[row.GetMessageEventId()] = struct{}{}
 	}
-	allBucketSequences := make(map[uint64]struct{})
-	for _, bucket := range restored.buckets {
-		for _, sequence := range bucket.sequences {
-			allBucketSequences[sequence] = struct{}{}
-		}
-	}
+	unmappedBodySequences := make(map[uint64]string)
 	for messageID, state := range restored.bodyStates {
 		key, mapped := restored.messageBuckets[messageID]
 		if !mapped {
@@ -239,15 +234,23 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 		for _, sequence := range appendBodySequences(nil, state) {
-			found := false
 			if mapped {
-				_, found = slices.BinarySearch(restored.buckets[key].sequences, sequence)
-			} else {
-				_, found = allBucketSequences[sequence]
+				if _, found := slices.BinarySearch(restored.buckets[key].sequences, sequence); !found {
+					return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
+				}
+				continue
 			}
-			if !found {
-				return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
+			unmappedBodySequences[sequence] = messageID
+		}
+	}
+	if len(unmappedBodySequences) > 0 {
+		for _, bucket := range restored.buckets {
+			for _, sequence := range bucket.sequences {
+				delete(unmappedBodySequences, sequence)
 			}
+		}
+		for sequence, messageID := range unmappedBodySequences {
+			return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
 		}
 	}
 	restoreTimes := func(rows []*projectionv1.StringTimestampSnapshot) (map[string]time.Time, error) {
