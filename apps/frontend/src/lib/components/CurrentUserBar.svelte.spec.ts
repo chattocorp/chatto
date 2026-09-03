@@ -245,6 +245,20 @@ describe('CurrentUserBar', () => {
     expect(privilegedModeActions.set).toHaveBeenCalledWith(false);
   });
 
+  it('expires privileged mode when its server deadline is reached', async () => {
+    projectionState.viewer = {
+      privilegedMode: {
+        available: true,
+        active: true,
+        expiresAt: { toDate: () => new Date(Date.now() - 1) }
+      }
+    };
+
+    render(CurrentUserBarTestHarness);
+
+    await expect.poll(() => privilegedModeActions.expire.mock.calls.length).toBe(1);
+  });
+
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {
     const { container } = render(CurrentUserBarTestHarness);
 

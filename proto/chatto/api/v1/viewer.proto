@@ -72,7 +72,8 @@ message ServerViewerState {
 
 // State of explicit privileged-mode activation for this authenticated session.
 message PrivilegedModeState {
-  // Whether the user has an elevation-required server permission.
+  // Whether the user has an elevation-required permission entitlement. This
+  // includes owner entitlement and explicit allows at any supported scope.
   bool available = 1;
   // Whether elevated permissions are effective for this session now.
   bool active = 2;
@@ -105,6 +106,7 @@ message ActivatePrivilegedModeRequest {}
 
 // Result of activating privileged mode for the current session.
 message ActivatePrivilegedModeResponse {
+  // Current privileged-mode state after activation.
   PrivilegedModeState privileged_mode = 1;
 }
 
@@ -113,6 +115,7 @@ message DeactivatePrivilegedModeRequest {}
 
 // Result of deactivating privileged mode for the current session.
 message DeactivatePrivilegedModeResponse {
+  // Current privileged-mode state after deactivation.
   PrivilegedModeState privileged_mode = 1;
 }
 
@@ -122,7 +125,10 @@ service ViewerService {
   // user; unauthenticated callers receive an UNAUTHENTICATED error.
   rpc GetViewer(GetViewerRequest) returns (GetViewerResponse);
   // Activates elevation-required permissions for a fixed, non-sliding window.
+  // Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
+  // permission entitlement.
   rpc ActivatePrivilegedMode(ActivatePrivilegedModeRequest) returns (ActivatePrivilegedModeResponse);
-  // Deactivates elevation-required permissions immediately.
+  // Deactivates elevation-required permissions immediately. Returns
+  // FAILED_PRECONDITION when the caller is a bot.
   rpc DeactivatePrivilegedMode(DeactivatePrivilegedModeRequest) returns (DeactivatePrivilegedModeResponse);
 }

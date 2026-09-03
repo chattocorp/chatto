@@ -12,8 +12,9 @@ server session when they need them.
 ## Behavior
 
 - The control appears in the current-user area of the selected server when the
-  user has an explicit elevation-required allow at any scope. A deny can still
-  prevent that permission from becoming effective.
+  user has an elevation-required permission entitlement. This includes owner
+  entitlement and explicit allows at any scope. A deny can still prevent an
+  explicit allow from becoming effective.
 - Activating the mode requires a confirmation.
 - The mode activates all elevation-required permissions that the user is
   entitled to use. It does not activate a role and does not add a grant.

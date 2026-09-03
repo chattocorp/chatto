@@ -28,6 +28,8 @@ export const ViewerService = {
     },
     /**
      * Activates elevation-required permissions for a fixed, non-sliding window.
+     * Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
+     * permission entitlement.
      *
      * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedMode
      */
@@ -38,7 +40,8 @@ export const ViewerService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Deactivates elevation-required permissions immediately.
+     * Deactivates elevation-required permissions immediately. Returns
+     * FAILED_PRECONDITION when the caller is a bot.
      *
      * @generated from rpc chatto.api.v1.ViewerService.DeactivatePrivilegedMode
      */

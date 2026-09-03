@@ -18,6 +18,7 @@ import {
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
   GetViewerResponse,
+  PrivilegedModeState,
   ServerViewerPermissions,
   ViewerCapabilities,
   ViewerUser
@@ -86,6 +87,12 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     joinCall: vi.fn(() => Promise.resolve(true)),
     getCallToken: vi.fn(() => Promise.resolve(null)),
     leaveCall: vi.fn(() => Promise.resolve(true)),
+    activatePrivilegedMode: vi.fn(() =>
+      Promise.resolve(new PrivilegedModeState({ available: true, active: true }))
+    ),
+    deactivatePrivilegedMode: vi.fn(() =>
+      Promise.resolve(new PrivilegedModeState({ available: true, active: false }))
+    ),
     getAuthenticatedServerState: vi.fn<() => Promise<AuthenticatedServerState>>(() =>
       Promise.resolve({
         name: 'Store Event Test',
@@ -252,8 +259,8 @@ vi.mock('$lib/api-client/serverState', () => ({
 
 vi.mock('$lib/api-client/viewer', () => ({
   createPrivilegedModeAPI: vi.fn(() => ({
-    activate: vi.fn(),
-    deactivate: vi.fn()
+    activate: apiMocks.activatePrivilegedMode,
+    deactivate: apiMocks.deactivatePrivilegedMode
   })),
   getViewerStateViaConnect: apiMocks.getViewerStateViaConnect,
   getCurrentUserViaConnect: apiMocks.getCurrentUserViaConnect,
@@ -290,6 +297,7 @@ class FakeServerConnection {
   setRealtimeConnectionStatus = vi.fn();
   registerRealtimeReconnect = vi.fn(() => () => {});
   handleAuthenticationRequired = vi.fn();
+  forceReconnect = vi.fn();
   query = vi.fn();
   results: unknown[];
 
@@ -478,6 +486,14 @@ beforeEach(() => {
   apiMocks.joinCall.mockResolvedValue(true);
   apiMocks.getCallToken.mockResolvedValue(null);
   apiMocks.leaveCall.mockResolvedValue(true);
+  apiMocks.activatePrivilegedMode.mockReset();
+  apiMocks.activatePrivilegedMode.mockResolvedValue(
+    new PrivilegedModeState({ available: true, active: true })
+  );
+  apiMocks.deactivatePrivilegedMode.mockReset();
+  apiMocks.deactivatePrivilegedMode.mockResolvedValue(
+    new PrivilegedModeState({ available: true, active: false })
+  );
   apiMocks.getAuthenticatedServerState.mockResolvedValue({
     name: 'Store Event Test',
     version: 'test',
@@ -572,6 +588,38 @@ afterEach(() => {
   setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
+});
+
+describe('ServerStateStore privileged mode', () => {
+  it('applies the activation result and refreshes realtime projections', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    });
+
+    await store.setPrivilegedMode(true);
+
+    expect(apiMocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(true);
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+  });
+
+  it('clears expired activation and refreshes realtime projections', () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    });
+
+    store.expirePrivilegedMode();
+
+    expect(store.projection.viewer?.privilegedMode?.available).toBe(true);
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
+  });
 });
 
 describe('ServerStateStore authentication state', () => {

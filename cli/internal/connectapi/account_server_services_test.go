@@ -85,6 +85,38 @@ func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
 	}
 }
 
+func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	credentials, err := env.core.CreateBearerSessionWithSource(env.ctx, env.viewer.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	humanContext := withBearerCredential(env.ctx, env.viewer, credentials.AccessToken)
+	if _, err := env.viewerService.ActivatePrivilegedMode(humanContext, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("unentitled activation code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	validated, err := env.core.ValidatePublicBearerCredential(env.ctx, credentials.AccessToken)
+	if err != nil {
+		t.Fatalf("ValidatePublicBearerCredential: %v", err)
+	}
+	if !validated.PrivilegedModeExpiresAt.IsZero() {
+		t.Fatalf("unentitled activation wrote deadline %v", validated.PrivilegedModeExpiresAt)
+	}
+
+	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "privileged_mode_bot", "Privileged Mode Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botContext := authctx.WithCredential(withCaller(env.ctx, bot.User), authctx.RuntimeCredential{
+		Kind:   authctx.RuntimeCredentialKindBotAPIKey,
+		UserID: bot.User.Id,
+		Handle: bot.APIKey,
+	})
+	if _, err := env.viewerService.ActivatePrivilegedMode(botContext, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot activation code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+}
+
 func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

@@ -58,6 +58,8 @@ Authenticated viewer snapshot needed by application shells.
 ### ActivatePrivilegedMode
 
 Activates elevation-required permissions for a fixed, non-sliding window.
+Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
+permission entitlement.
 
 ```http
 POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
@@ -78,14 +80,15 @@ Result of activating privileged mode for the current session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | No field description provided. |
+| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after activation. |
 
 
 <a id="chatto-api-v1-ViewerService-DeactivatePrivilegedMode"></a>
 
 ### DeactivatePrivilegedMode
 
-Deactivates elevation-required permissions immediately.
+Deactivates elevation-required permissions immediately. Returns
+FAILED_PRECONDITION when the caller is a bot.
 
 ```http
 POST /api/connect/chatto.api.v1.ViewerService/DeactivatePrivilegedMode
@@ -106,7 +109,7 @@ Result of deactivating privileged mode for the current session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | No field description provided. |
+| `privileged_mode` | [`PrivilegedModeState`](#chatto-api-v1-PrivilegedModeState) | Current privileged-mode state after deactivation. |
 
 
 <a id="chatto-api-v1-MyAccountService"></a>
@@ -4241,7 +4244,7 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required server permission. |
+| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
 | `active` | `bool` | Whether elevated permissions are effective for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
 

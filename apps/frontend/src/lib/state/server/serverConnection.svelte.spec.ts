@@ -212,7 +212,7 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('is a no-op while a connection attempt is already in flight', () => {
+  it('queues a forced reconnect while a connection attempt is already in flight', () => {
     const client = new ServerConnection(makeConfig());
     const reconnect = vi.fn();
 
@@ -221,6 +221,22 @@ describe('ServerConnection', () => {
     client.forceReconnect('second');
 
     expect(reconnect).not.toHaveBeenCalled();
+    client.setRealtimeConnectionStatus('connected');
+    expect(reconnect).toHaveBeenCalledOnce();
+    expect(reconnect).toHaveBeenCalledWith('second');
+    client.dispose();
+  });
+
+  it('keeps a queued reconnect until the realtime handler is registered', () => {
+    const client = new ServerConnection(makeConfig());
+    const reconnect = vi.fn();
+
+    client.forceReconnect('privileged mode changed');
+    client.setRealtimeConnectionStatus('connected');
+    expect(reconnect).not.toHaveBeenCalled();
+
+    client.registerRealtimeReconnect(reconnect);
+    expect(reconnect).toHaveBeenCalledWith('privileged mode changed');
     client.dispose();
   });
 

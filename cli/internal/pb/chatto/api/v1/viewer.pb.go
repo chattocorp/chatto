@@ -387,7 +387,8 @@ func (x *ServerViewerState) GetHasUnreadRooms() bool {
 // State of explicit privileged-mode activation for this authenticated session.
 type PrivilegedModeState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the user has an elevation-required server permission.
+	// Whether the user has an elevation-required permission entitlement. This
+	// includes owner entitlement and explicit allows at any supported scope.
 	Available bool `protobuf:"varint,1,opt,name=available,proto3" json:"available,omitempty"`
 	// Whether elevated permissions are effective for this session now.
 	Active bool `protobuf:"varint,2,opt,name=active,proto3" json:"active,omitempty"`
@@ -606,8 +607,9 @@ func (*ActivatePrivilegedModeRequest) Descriptor() ([]byte, []int) {
 
 // Result of activating privileged mode for the current session.
 type ActivatePrivilegedModeResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PrivilegedMode *PrivilegedModeState   `protobuf:"bytes,1,opt,name=privileged_mode,json=privilegedMode,proto3" json:"privileged_mode,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current privileged-mode state after activation.
+	PrivilegedMode *PrivilegedModeState `protobuf:"bytes,1,opt,name=privileged_mode,json=privilegedMode,proto3" json:"privileged_mode,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -688,8 +690,9 @@ func (*DeactivatePrivilegedModeRequest) Descriptor() ([]byte, []int) {
 
 // Result of deactivating privileged mode for the current session.
 type DeactivatePrivilegedModeResponse struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	PrivilegedMode *PrivilegedModeState   `protobuf:"bytes,1,opt,name=privileged_mode,json=privilegedMode,proto3" json:"privileged_mode,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Current privileged-mode state after deactivation.
+	PrivilegedMode *PrivilegedModeState `protobuf:"bytes,1,opt,name=privileged_mode,json=privilegedMode,proto3" json:"privileged_mode,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

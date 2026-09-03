@@ -174,7 +174,7 @@ State of explicit privileged-mode activation for this authenticated session.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `available` | `bool` | Whether the user has an elevation-required server permission. |
+| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
 | `active` | `bool` | Whether elevated permissions are effective for this session now. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
 

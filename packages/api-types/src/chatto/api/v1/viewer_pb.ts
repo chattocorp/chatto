@@ -329,7 +329,8 @@ export class ServerViewerState extends Message<ServerViewerState> {
  */
 export class PrivilegedModeState extends Message<PrivilegedModeState> {
   /**
-   * Whether the user has an elevation-required server permission.
+   * Whether the user has an elevation-required permission entitlement. This
+   * includes owner entitlement and explicit allows at any supported scope.
    *
    * @generated from field: bool available = 1;
    */
@@ -525,6 +526,8 @@ export class ActivatePrivilegedModeRequest extends Message<ActivatePrivilegedMod
  */
 export class ActivatePrivilegedModeResponse extends Message<ActivatePrivilegedModeResponse> {
   /**
+   * Current privileged-mode state after activation.
+   *
    * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 1;
    */
   privilegedMode?: PrivilegedModeState;
@@ -597,6 +600,8 @@ export class DeactivatePrivilegedModeRequest extends Message<DeactivatePrivilege
  */
 export class DeactivatePrivilegedModeResponse extends Message<DeactivatePrivilegedModeResponse> {
   /**
+   * Current privileged-mode state after deactivation.
+   *
    * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 1;
    */
   privilegedMode?: PrivilegedModeState;

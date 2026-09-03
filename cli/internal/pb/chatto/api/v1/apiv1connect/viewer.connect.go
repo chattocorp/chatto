@@ -49,8 +49,11 @@ type ViewerServiceClient interface {
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
 	// Activates elevation-required permissions for a fixed, non-sliding window.
+	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
+	// permission entitlement.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Deactivates elevation-required permissions immediately.
+	// Deactivates elevation-required permissions immediately. Returns
+	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
 }
 
@@ -114,8 +117,11 @@ type ViewerServiceHandler interface {
 	// user; unauthenticated callers receive an UNAUTHENTICATED error.
 	GetViewer(context.Context, *connect.Request[v1.GetViewerRequest]) (*connect.Response[v1.GetViewerResponse], error)
 	// Activates elevation-required permissions for a fixed, non-sliding window.
+	// Returns FAILED_PRECONDITION when the caller is a bot or has no eligible
+	// permission entitlement.
 	ActivatePrivilegedMode(context.Context, *connect.Request[v1.ActivatePrivilegedModeRequest]) (*connect.Response[v1.ActivatePrivilegedModeResponse], error)
-	// Deactivates elevation-required permissions immediately.
+	// Deactivates elevation-required permissions immediately. Returns
+	// FAILED_PRECONDITION when the caller is a bot.
 	DeactivatePrivilegedMode(context.Context, *connect.Request[v1.DeactivatePrivilegedModeRequest]) (*connect.Response[v1.DeactivatePrivilegedModeResponse], error)
 }
 

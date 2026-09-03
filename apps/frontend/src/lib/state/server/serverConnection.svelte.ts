@@ -69,6 +69,7 @@ export class ServerConnection {
   #browserRenewAfter: number | null = null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
+  #pendingForcedReconnectReason: string | null = null;
   #apis = new WeakMap<object, unknown>();
   readonly #queryScope = `connection-${++nextQueryScope}`;
 
@@ -130,11 +131,12 @@ export class ServerConnection {
 
   /** Force-terminate and immediately reconnect the WebSocket. */
   forceReconnect(reason: string) {
+    if (this.status === 'connecting') {
+      this.#pendingForcedReconnectReason = reason;
+      console.log('[ws:%s] Force reconnect queued — already connecting: %s', this.#host, reason);
+      return;
+    }
     if (this.#realtimeReconnect) {
-      if (this.status === 'connecting') {
-        console.log('[ws:%s] Force reconnect skipped — already connecting: %s', this.#host, reason);
-        return;
-      }
       console.log(
         '[ws:%s] Force realtime reconnect: %s (status: %s)',
         this.#host,
@@ -143,11 +145,6 @@ export class ServerConnection {
       );
       this.#failedAttempts = 0;
       this.#realtimeReconnect(reason);
-      return;
-    }
-
-    if (this.status === 'connecting') {
-      console.log('[ws:%s] Force reconnect skipped — already connecting: %s', this.#host, reason);
       return;
     }
     console.log(
@@ -164,6 +161,11 @@ export class ServerConnection {
 
   registerRealtimeReconnect(handler: (reason: string) => void): () => void {
     this.#realtimeReconnect = handler;
+    const pendingReason = this.#pendingForcedReconnectReason;
+    if (pendingReason && this.status !== 'connecting') {
+      this.#pendingForcedReconnectReason = null;
+      this.forceReconnect(pendingReason);
+    }
     return () => {
       if (this.#realtimeReconnect === handler) {
         this.#realtimeReconnect = null;
@@ -182,6 +184,11 @@ export class ServerConnection {
       console.log('[ws:%s] Connected', this.#host);
       this.status = 'connected';
       this.#failedAttempts = 0;
+      const pendingReason = this.#pendingForcedReconnectReason;
+      if (pendingReason && this.#realtimeReconnect) {
+        this.#pendingForcedReconnectReason = null;
+        this.forceReconnect(pendingReason);
+      }
       return;
     }
 
@@ -401,6 +408,7 @@ export class ServerConnection {
   /** Clean up event listeners owned by the connection state object. */
   dispose() {
     this.#apis = new WeakMap();
+    this.#pendingForcedReconnectReason = null;
     if (this.#visibilityHandler && typeof document !== 'undefined') {
       document.removeEventListener('visibilitychange', this.#visibilityHandler);
       this.#visibilityHandler = null;
