@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -272,52 +273,80 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 		offset = 0
 	}
 
-	items := make([]*RoomAttachmentItem, 0)
-	for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
-		if message.Entry == nil || message.Entry.Event == nil || message.Body == nil {
-			continue
-		}
-		posted := message.Entry.Event.GetMessagePosted()
-		if posted == nil {
-			continue
-		}
-		if visible != nil {
-			allowed, err := visible(message.Entry.Event.GetId())
-			if err != nil {
-				return nil, err
-			}
-			if !allowed {
-				continue
-			}
-		}
-		attachments := c.mediaModel.MessageBodyAttachments(message.Body)
-		if len(attachments) == 0 {
-			continue
-		}
-		for _, attachment := range attachments {
-			if attachment == nil {
-				continue
-			}
-			cloned := proto.Clone(attachment).(*evtv1.Attachment)
-			cloned.RoomId = roomID
-			if cloned.MessageBodyId == "" {
-				cloned.MessageBodyId = message.Entry.Event.GetId()
-			}
-			items = append(items, &RoomAttachmentItem{
-				Attachment:        cloned,
-				MessageEventID:    message.Entry.Event.GetId(),
-				ThreadRootEventID: posted.GetInThread(),
-				CreatedAt:         message.Entry.Event.GetCreatedAt(),
-			})
-		}
+	type selectedMessage struct {
+		projectedRoomAttachmentMessage
+		skip int
+		take int
 	}
+	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+		selected := make([]selectedMessage, 0)
+		totalCount := 0
+		pageEnd := offset + limit
+		for _, message := range c.roomModel.currentRoomAttachmentMessages(roomID) {
+			if message.Entry == nil || !message.Entry.IsMessagePost() || message.AttachmentCount <= 0 {
+				continue
+			}
+			if visible != nil {
+				allowed, err := visible(message.Entry.EventID)
+				if err != nil {
+					return nil, err
+				}
+				if !allowed {
+					continue
+				}
+			}
+			start := totalCount
+			end := start + message.AttachmentCount
+			totalCount = end
+			if end <= offset || start >= pageEnd {
+				continue
+			}
+			skip := max(offset-start, 0)
+			take := min(end, pageEnd) - (start + skip)
+			selected = append(selected, selectedMessage{projectedRoomAttachmentMessage: message, skip: skip, take: take})
+		}
 
-	page, totalCount, hasMore := paginateCoreSlice(items, limit, offset)
-	return &RoomAttachmentsResult{
-		Items:      page,
-		TotalCount: totalCount,
-		HasMore:    hasMore,
-	}, nil
+		references := make([]TimelineBodyReference, len(selected))
+		for i, message := range selected {
+			references[i] = TimelineBodyReference{
+				MessageEventID:  message.Entry.EventID,
+				BodyEventID:     message.BodyEventID,
+				RoomID:          message.Entry.RoomID,
+				AuthorID:        message.BodyAuthorID,
+				StreamSeq:       message.BodySequence,
+				AttachmentCount: message.AttachmentCount,
+			}
+		}
+		bodies, err := c.hydrateCurrentMessageBodies(ctx, references)
+		if errors.Is(err, errTimelineReadPlanStale) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		itemCapacity := min(limit, max(totalCount-offset, 0))
+		items := make([]*RoomAttachmentItem, 0, itemCapacity)
+		for i, message := range selected {
+			attachments := c.mediaModel.MessageBodyAttachments(bodies[i])
+			if len(attachments) != message.AttachmentCount {
+				return nil, fmt.Errorf("message %q attachment index changed during hydration", message.Entry.EventID)
+			}
+			for _, attachment := range attachments[message.skip : message.skip+message.take] {
+				cloned := proto.Clone(attachment).(*evtv1.Attachment)
+				cloned.RoomId = roomID
+				if cloned.MessageBodyId == "" {
+					cloned.MessageBodyId = message.Entry.EventID
+				}
+				items = append(items, &RoomAttachmentItem{
+					Attachment: cloned, MessageEventID: message.Entry.EventID,
+					ThreadRootEventID: message.Entry.InThreadEventID,
+					CreatedAt:         timestamppb.New(message.Entry.CreatedAt),
+				})
+			}
+		}
+		return &RoomAttachmentsResult{Items: items, TotalCount: totalCount, HasMore: offset+len(items) < totalCount}, nil
+	}
+	return nil, errTimelineReadPlanStale
 }
 
 func paginateCoreSlice[T any](items []T, limit int, offset int) ([]T, int, bool) {

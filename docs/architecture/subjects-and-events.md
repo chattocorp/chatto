@@ -21,7 +21,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
 [ADR-076](../adr/ADR-076-deterministic-notification-occurrences.md), and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
-[ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-092](../adr/ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 ## Event envelopes
 
@@ -172,8 +172,8 @@ The bundled web client watches server heartbeats for silent stalls. Its
 in-memory server projection resumes a short socket gap or rebuilds from an
 exact WebSocket snapshot; page reload starts without a cursor. Protocol 4
 creates no per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
-and [ADR-090](../adr/ADR-090-semantic-realtime-events-with-bounded-resume.md),
-and [ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+and [ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md),
+and [ADR-092](../adr/ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 ## Durable and live subject patterns
 

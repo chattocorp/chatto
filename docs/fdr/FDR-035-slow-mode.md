@@ -89,7 +89,7 @@ is needed.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-090 (semantic realtime events)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-091 (semantic realtime events)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-019 (Room Lifecycle), FDR-045 (Realtime Event Stream)
 - **Issue:** [#999](https://github.com/chattocorp/chatto/issues/999)
 

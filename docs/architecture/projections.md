@@ -1,6 +1,6 @@
 # Projection Inventory
 
-Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/core/server_content_view.go`](../../cli/internal/core/server_content_view.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/component_projection.go`](../../pkg/events/component_projection.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/projectionsnapshot/cohort.go`](../../cli/internal/projectionsnapshot/cohort.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go), and [`proto/chatto/core/projection/v1`](../../proto/chatto/core/projection/v1)
+Key files: [`cli/internal/core/projection_wiring.go`](../../cli/internal/core/projection_wiring.go), [`cli/internal/core/server_content_view.go`](../../cli/internal/core/server_content_view.go), [`cli/internal/core/room_timeline_projection.go`](../../cli/internal/core/room_timeline_projection.go), [`cli/internal/core/room_timeline_hydrator.go`](../../cli/internal/core/room_timeline_hydrator.go), [`cli/internal/evtstream/reader.go`](../../cli/internal/evtstream/reader.go), [`pkg/events/projector.go`](../../pkg/events/projector.go), [`pkg/events/component_projection.go`](../../pkg/events/component_projection.go), [`pkg/events/projection_checkpoint.go`](../../pkg/events/projection_checkpoint.go), [`cli/internal/projectionsnapshot/cohort.go`](../../cli/internal/projectionsnapshot/cohort.go), [`cli/internal/search/bleve/projection.go`](../../cli/internal/search/bleve/projection.go), [`cli/internal/core/asset_processing_runtime.go`](../../cli/internal/core/asset_processing_runtime.go), [`cli/internal/core/projection_subjects_test.go`](../../cli/internal/core/projection_subjects_test.go), and [`proto/chatto/core/projection/v1`](../../proto/chatto/core/projection/v1)
 
 Projections are derived read models rebuilt from an event log. Most live in
 memory. Optional providers can own disposable locally checkpointed indexes.
@@ -47,12 +47,28 @@ cold-replayed projection. Call token access material binds the call ID and E2EE
 key to one revalidated content-view generation. Active-call and asset API
 mapping use detached component snapshots.
 
-Room timeline message hydration obtains deletion and channel-echo metadata as
-one detached snapshot through `RoomTimelineReadModel`; ConnectAPI does not read
-that component directly. `RoomModel` is the sole production owner of the Room
-Directory, Room Group Layout, Room Timeline, Threads, and Reactions component
-APIs. These components use the shared content-view projector. Threads also
-derives channel message-to-root
+Room Timeline stores compact EVT references and small derived indexes. It does
+not store complete timeline events or message bodies. `RoomTimelineReadModel`
+authorizes and selects references against `ServerContentView`. It then uses
+`RoomTimelineHydrator` to read the selected records from EVT outside the apply
+barrier. The hydrator validates the stored identity and routing metadata before
+it returns a payload. Mutable body references are checked again after the read.
+
+The shared `events.StreamMessageReader` keeps copied opaque records in a
+process-local cache with sliding idle expiry and byte-costed LRU eviction. The
+default idle lifetime is 15 minutes and the default approximate byte limit is
+256 MiB per server process. `core.evt_read_cache_idle_ttl` and
+`core.evt_read_cache_max_bytes` change these values. A maximum of `-1` disables
+the byte limit. Cache misses use bounded exact stream reads. Secure deletion
+removes the affected local cache entries. An info log reports both effective
+settings at startup. Debug logs report direct misses, batch hits and misses,
+read durations, LRU evictions, expired entry counts, and cache clears. They do
+not report subjects or payloads.
+
+ConnectAPI does not read the component directly. `RoomModel` is the sole
+production owner of the Room Directory, Room Group Layout, Room Timeline,
+Threads, and Reactions component APIs. These components use the shared
+content-view projector. Threads also derives channel message-to-root
 mappings and account-to-thread interaction relationships from message-post
 facts. Membership, message, thread, reaction, asset, realtime, room-group OCC,
 and sidebar-ordering paths use focused `RoomModel` operations instead of
@@ -193,7 +209,9 @@ edits and retractions do not erase the original successful-post timestamp.
 older snapshots omitted those rows and therefore cold-replay under the new
 contract. Its current schema also stores active pinned-message associations by room.
 Those associations reference canonical timeline messages instead of copying
-message content; retraction removes the association during projection.
+message content; retraction removes the association during projection. The
+current Room Timeline schema stores only compact timeline and body references.
+Its schema fingerprint rejects the earlier `v7` payload-bearing schema.
 
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A
@@ -211,10 +229,11 @@ and shared cutoff. The repository publishes one pointer only after all objects
 are durable. It retains current and previous complete cohorts and uses KV
 revision OCC for publication.
 
-Room Timeline retains one body-state entry per message: the current encrypted
-envelope and EVT sequence are inline, while a sequence slice is allocated only
-after an edit. Its component codec preserves the complete body-event sequence
-history.
+Room Timeline retains one body-state entry per message. It stores the current
+body-event ID and EVT sequence, the author ID, the current attachment count,
+and an active flag. A sequence slice is allocated only after an edit. Its
+component codec preserves the complete body-event sequence history. Complete
+encrypted body payloads remain in EVT and are not part of the snapshot cohort.
 
 Mentionables retains encrypted login source events and wrapped DEK records
 rather than plaintext handles or lookup digests. The Users codec retains
@@ -306,9 +325,9 @@ one projection generation. Explicit asset attachments establish immutable
 message, room, and author ownership; message-body facts supply an uploader-
 matched first-reference fallback for older histories plus public link-preview
 references. Room Timeline retains only timeline rendering, body lifecycle,
-tombstone, echo, and current
-room-file indexes; it does not duplicate asset lifecycle state. Message-body
-writers use the one content-view wait before they return.
+tombstone, echo, and current room-file indexes; it does not duplicate asset
+lifecycle state or complete message-body payloads. Message-body writers use the
+one content-view wait before they return.
 
 `UserProjection` retains encrypted user fields and their AAD metadata. The user
 and mentionable components decrypt login and email values during mutation

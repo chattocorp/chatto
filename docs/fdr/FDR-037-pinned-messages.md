@@ -77,7 +77,7 @@ the room and message references that clients need to refresh or update their
 authorized pin view.
 **Why:** The event describes the domain change directly for bots and the
 frontend. Clients can ignore an event type they do not use and still advance
-the common cursor. See ADR-090.
+the common cursor. See ADR-091.
 **Tradeoff:** A pin change causes the loaded room pin store to refresh its
 canonical page rather than apply an untrusted partial message payload.
 
@@ -131,7 +131,7 @@ snapshot schema receives a new fingerprinted contract namespace automatically.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-090 (semantic realtime events)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-019 (Room Lifecycle), FDR-031 (Client–Server Compatibility Discovery), FDR-033 (Message Search), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)
 - **Issue:** [#1982](https://github.com/chattocorp/chatto/issues/1982)
 

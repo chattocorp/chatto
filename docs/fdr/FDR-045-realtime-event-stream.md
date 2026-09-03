@@ -66,7 +66,7 @@ layout. Chatto does not provide a frontend-only mutation feed.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. The public union and payload file make all exposure
 visible in the schema. Exhaustive descriptor tests keep the public catalogue
-and explicit mapper aligned. See ADR-092 and ADR-093.
+and explicit mapper aligned. See ADR-093 and ADR-094.
 **Tradeoff:** A new client-visible event needs a public payload declaration,
 union member, mapper coverage, reducer handling, generated clients, and
 documentation. This small duplication keeps storage fields out of the public
@@ -184,9 +184,9 @@ discovery metadata or a new behavioral protocol version.
 - **ADRs:** ADR-012 (two-tier realtime events), ADR-026 (event identity),
   ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-042
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
-  (process-wide realtime event hub), ADR-090 (semantic realtime events),
-  ADR-091 (superseded one event vocabulary), ADR-092 (public realtime event
-  union), ADR-093 (separate durable and live event envelopes)
+  (process-wide realtime event hub), ADR-091 (semantic realtime events),
+  ADR-092 (superseded one event vocabulary), ADR-093 (public realtime event
+  union), ADR-094 (separate durable and live event envelopes)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

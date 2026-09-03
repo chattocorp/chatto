@@ -148,6 +148,11 @@ func (c *ChattoCore) suspendForNATSRecovery() {
 	if previous != natsRecoveryInProgress {
 		c.natsRecoveryStartedAt.CompareAndSwap(0, time.Now().UnixNano())
 	}
+	if c.eventReader != nil {
+		// A reconnect can expose a recreated stream with reused sequence
+		// numbers. Discard records from the previous continuity generation.
+		c.eventReader.Clear()
+	}
 	if c.myEventsModel != nil && c.myEventsModel.hub != nil {
 		c.myEventsModel.hub.quarantine("NATS connection interrupted")
 	}

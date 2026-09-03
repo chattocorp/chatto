@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-03
 
 ## Overview
 
@@ -83,8 +83,15 @@ Users can attach files to messages — images, videos, documents — via drag-an
 
 ### 9. Room Files panel is a read projection, not durable attachment state
 
-**Decision:** `Room.attachments` exposes a paginated list of current message attachments for a room. The read walks the visible room timeline projection, folds current message bodies, includes thread replies, preserves attachment order within each message, and sorts by newest message first. The bundled client owns one lazy file cache per room in its server-scoped state. Opening Files hydrates it once. Later canonical message and asset events refresh a visible cache through the same ConnectRPC read.
-**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the server read from the existing room/message projections and using semantic events as refresh hints keeps both surfaces consistent without duplicate durable state or realtime-specific message snapshots.
+**Decision:** `Room.attachments` exposes a paginated list of current message
+attachments for a room. The read uses the Room Timeline projection's compact
+attachment index to select a page before it loads current message bodies from
+EVT. It includes thread replies, preserves attachment order within each
+message, and sorts by newest message first. The bundled client owns one lazy
+file cache per room in its server-scoped state: opening Files hydrates it once,
+after which authoritative timeline message snapshots reconcile attachment rows
+already in the cache and newly posted attachments are inserted directly.
+**Why:** Files should disappear from the sidebar when their message body is retracted or the attachment is removed. Deriving the server read from the existing room/message projections and updating the client cache from the same realtime message snapshots keeps both surfaces consistent without duplicate durable state or repeated full-list reads.
 **Tradeoff:** There is no search or media filtering in this iteration. Hydrated room caches consume client memory for the server session, and attachment changes beyond a partially loaded page converge when that page is loaded.
 
 ### 10. Displayed images use bounded derivatives
@@ -119,5 +126,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
+- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop), FDR-039 (Message Access & Interactions)

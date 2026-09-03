@@ -1,16 +1,16 @@
-# ADR-092: Use a Public Realtime Event Union with Dedicated Payloads
+# ADR-093: Use a Public Realtime Event Union with Dedicated Payloads
 
 **Status:** Accepted
 
 **Date:** 2026-09-03
 
 **Supersedes:** The public-envelope part of
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-093 supersedes ADR-091 for the internal durable and transient envelopes.
+[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+ADR-094 supersedes ADR-092 for the internal durable and transient envelopes.
 
 ## Context
 
-ADR-091 first put `chatto.core.evt.v1.Event` directly inside the public
+ADR-092 first put `chatto.core.evt.v1.Event` directly inside the public
 realtime wrapper. The server sent a new authorized copy, not stored bytes. A
 runtime allowlist selected the public variants, and custom protobuf field
 options selected the public fields.
@@ -37,7 +37,7 @@ Tests can enforce the catalog relationship and mapper coverage.
 `chatto.core.evt.v1.Event` is the internal envelope for stored EVT facts.
 `chatto.core.live.v1.LiveEvent` is the internal envelope for transient NATS
 Core signals. Existing stored event tags, payload messages, and bytes do not
-change. See ADR-093.
+change. See ADR-094.
 
 The realtime API uses `chatto.realtime.v1.RealtimeEvent`. This message
 contains:

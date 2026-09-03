@@ -1,9 +1,9 @@
 # ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
 **Status:** Partially superseded by
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-The single durable stream remains active. ADR-091 replaces the separate
-transient envelope. [ADR-092](ADR-092-use-a-public-realtime-event-union.md)
+[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+The single durable stream remains active. ADR-092 replaces the separate
+transient envelope. [ADR-093](ADR-093-use-a-public-realtime-event-union.md)
 defines the current public mapping.
 
 **Date:** 2026-05-24
@@ -116,7 +116,7 @@ EVT-backed mutations must not publish direct event-envelope live mirrors.
 public realtime stream. Durable facts reach the mapper through EVT republish.
 Ephemeral activity and latest-value invalidations reach it as transient
 `LiveEvent` values. Both become authorized public events with dedicated public
-payload messages. See ADR-093.
+payload messages. See ADR-094.
 
 ### Replication and retention
 

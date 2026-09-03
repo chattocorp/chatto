@@ -360,6 +360,6 @@ separate permission to manage another user's notification list.
 ## Related
 
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-069, ADR-076, ADR-077,
-  ADR-080, ADR-082, ADR-087, ADR-089, ADR-090
+  ADR-080, ADR-082, ADR-087, ADR-089, ADR-091
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
   FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039, FDR-044, FDR-045

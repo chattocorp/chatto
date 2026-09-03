@@ -317,6 +317,7 @@ func TestChattoCore_GetDMRoomEventsUsesDerivedVisibleTimeline(t *testing.T) {
 func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()
+	events := make([]*evtv1.Event, 0, count)
 	for i := 1; i <= count; i++ {
 		eventID := fmt.Sprintf("M%d", i)
 		event := postedEvent(postedOpts{
@@ -330,15 +331,22 @@ func testCoreWithRoomTimeline(t *testing.T, roomID string, count int) *ChattoCor
 		if err := projection.Apply(event, uint64(i)); err != nil {
 			t.Fatalf("apply event %s: %v", eventID, err)
 		}
+		events = append(events, event)
 	}
-	return &ChattoCore{roomModel: newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
+	return &ChattoCore{
+		roomModel:        newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil),
+		timelineHydrator: newRoomTimelineHydrator(testTimelineEventReader(events)),
+	}
 }
 
 func testCoreWithRoomTimelineEvents(t *testing.T, events []*evtv1.Event) *ChattoCore {
 	t.Helper()
 	projection := NewRoomTimelineProjection()
 	applyAll(t, projection, events)
-	return &ChattoCore{roomModel: newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil)}
+	return &ChattoCore{
+		roomModel:        newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil),
+		timelineHydrator: newRoomTimelineHydrator(testTimelineEventReader(events)),
+	}
 }
 
 func reactionAddedEvent(envID, roomID, messageID, actorID, emoji string) *evtv1.Event {

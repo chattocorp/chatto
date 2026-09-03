@@ -1,21 +1,21 @@
-# ADR-093: Separate Durable and Live Event Envelopes
+# ADR-094: Separate Durable and Live Event Envelopes
 
 **Status:** Accepted
 
 **Date:** 2026-09-03
 
 **Supersedes:** The single internal envelope decision in
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
 
 ## Context
 
-ADR-091 put durable EVT facts and transient NATS Core signals in one internal
+ADR-092 put durable EVT facts and transient NATS Core signals in one internal
 `Event` union. Callers selected storage after they built the event. This gave
 both paths one envelope, but it made durability a rule outside the type. It
 also added a large transient-only number range and live payload imports to the
 stored EVT schema.
 
-ADR-092 later gave the public realtime API its own event union and payloads.
+ADR-093 later gave the public realtime API its own event union and payloads.
 The public API no longer needs one internal envelope to provide one semantic
 event catalogue. The durable and transient internal paths have different
 compatibility and recovery rules, so separate envelopes now give a clearer

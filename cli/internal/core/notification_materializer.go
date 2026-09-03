@@ -592,7 +592,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if message == nil || message.GetEchoOfEventId() != "" {
 		return nil
 	}
-	if _, retracted, known := m.core.roomModel.latestBody(event.GetId()); known && retracted {
+	if _, retracted, known := m.core.roomModel.latestBodyReference(event.GetId()); known && retracted {
 		return nil
 	}
 	room, err := m.core.FindRoomByID(ctx, message.GetRoomId())

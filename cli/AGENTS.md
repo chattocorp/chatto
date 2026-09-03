@@ -141,11 +141,11 @@ authorization, live events, backup and restore, and backend tests.
   envelope-aware effect consumers belong in `internal/evtstream`.
   The framework lives in the independently versioned `../pkg/events` module.
   It remains an unstable incubation surface and must not import Chatto
-  protobufs or `internal/evtstream`. Keep its production imports limited to
-  the Go standard library and `github.com/nats-io/nats.go`; application-wide
-  helpers must not become hidden extraction dependencies. Keep its tests
-  portable too: test infrastructure may add `nats-server/v2`, but must not
-  borrow other Chatto packages or unrelated third-party helpers.
+  protobufs or `internal/evtstream`. Keep its production imports within the
+  reviewed allowlist in `../pkg/events/AGENTS.md`; application-wide helpers
+  must not become hidden extraction dependencies. Keep its tests portable too:
+  test infrastructure may add `nats-server/v2`, but must not borrow other
+  Chatto packages or unrelated third-party helpers.
 - Drive reusable framework API changes from external-package consumer
   contracts with non-Chatto envelopes. Do not add generic framework surface
   merely to shorten Chatto wiring.

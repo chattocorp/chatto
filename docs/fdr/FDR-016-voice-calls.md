@@ -117,7 +117,7 @@ Voice calling doesn't have a dedicated permission today; room membership is the 
 
 ## Related
 
-- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-072 (optional host capabilities), ADR-090 (semantic realtime events)
+- **ADRs:** ADR-009 (webhook-driven voice call state), ADR-012 (two-tier real-time events), ADR-020 (build-tag gated test endpoints), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-072 (optional host capabilities), ADR-091 (semantic realtime events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-019 (Room Lifecycle), FDR-034 (Chatto Desktop), FDR-045 (Realtime Event Stream)
 
 ## Open Questions

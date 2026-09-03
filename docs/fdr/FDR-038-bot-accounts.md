@@ -286,7 +286,7 @@ the DM.
 **Decision:** Bots receive every authorized public realtime event type through
 the normal client stream. Notification occurrences remain a separate current
 state and triage feature. They do not limit which message, reaction, room,
-membership, profile, or call changes a bot can observe. See ADR-090 and
+membership, profile, or call changes a bot can observe. See ADR-091 and
 FDR-045.
 
 **Why:** A bot author should react to what happened in Chatto instead of
@@ -402,7 +402,7 @@ service, and send the target user ID.
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
   permissions), ADR-083 (action-limited bot incoming webhooks), ADR-085
   (user-scoped MCP integration), ADR-087 (request-time authorization with
-  aggregate OCC), ADR-089 (server content view), ADR-090 (semantic realtime
+  aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime
   events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018

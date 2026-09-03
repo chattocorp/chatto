@@ -32,6 +32,7 @@ func TestPackageDependenciesArePortable(t *testing.T) {
 				}
 				if isStandardLibraryImport(importPath, directory) ||
 					isNATSImport(importPath) ||
+					isApprovedFrameworkImport(importPath) ||
 					isTest && (isNATSServerImport(importPath) ||
 						importPath == frameworkImportPath) {
 					continue
@@ -40,6 +41,12 @@ func TestPackageDependenciesArePortable(t *testing.T) {
 			}
 		}
 	}
+}
+
+func isApprovedFrameworkImport(importPath string) bool {
+	return importPath == "github.com/jellydator/ttlcache/v3" ||
+		strings.HasPrefix(importPath, "github.com/jellydator/ttlcache/v3/") ||
+		importPath == "golang.org/x/sync/errgroup"
 }
 
 func TestFrameworkConsumerUsesOnlyPublicFrameworkPackage(t *testing.T) {

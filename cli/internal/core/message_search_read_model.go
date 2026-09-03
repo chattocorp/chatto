@@ -160,8 +160,8 @@ func (s *MessageSearchReadModel) HydrateHits(ctx context.Context, actorID string
 		if !ok {
 			continue
 		}
-		body, retracted, bodyKnown := s.core.roomModel.latestBody(hit.MessageID)
-		if !bodyKnown || retracted || body == nil || body.GetBodyEventId() != hit.BodyEventID {
+		body, retracted, bodyKnown := s.core.roomModel.latestBodyReference(hit.MessageID)
+		if !bodyKnown || retracted || body.StreamSeq == 0 || body.BodyEventID != hit.BodyEventID {
 			continue
 		}
 		seen[key] = struct{}{}

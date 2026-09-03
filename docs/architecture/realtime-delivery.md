@@ -13,9 +13,9 @@ Key files:
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
-[ADR-090](../adr/ADR-090-semantic-realtime-events-with-bounded-resume.md),
-[ADR-092](../adr/ADR-092-use-a-public-realtime-event-union.md), and
-[ADR-093](../adr/ADR-093-separate-durable-and-live-event-envelopes.md).
+[ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md),
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md), and
+[ADR-094](../adr/ADR-094-separate-durable-and-live-event-envelopes.md).
 
 ## Public protocol
 

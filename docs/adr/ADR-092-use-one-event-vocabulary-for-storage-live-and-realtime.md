@@ -1,14 +1,14 @@
-# ADR-091: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
+# ADR-092: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
 
 **Status:** Superseded by
-[ADR-092](ADR-092-use-a-public-realtime-event-union.md) for the public event
+[ADR-093](ADR-093-use-a-public-realtime-event-union.md) for the public event
 shape and by
-[ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md) for the
+[ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md) for the
 internal durable and transient envelopes.
 **Date:** 2026-08-31
 
 **Supersedes:** The separate-public-schema rule in
-[ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md), and the
+[ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md), and the
 separate durable and transient envelope rule in
 [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md). It also
 supersedes the two-envelope part of
@@ -61,10 +61,10 @@ would add source churn without changing the one-envelope runtime model.
 
 ### Public delivery experiment (superseded)
 
-This section is superseded by ADR-092. It records the first protocol 4 design.
+This section is superseded by ADR-093. It records the first protocol 4 design.
 
 The first protocol 4 design used an authorized copy of the canonical event and
-custom field-surface options. ADR-092 replaces that design. The field options
+custom field-surface options. ADR-093 replaces that design. The field options
 and client-only fields in EVT messages are removed. Realtime now owns dedicated
 public payloads and plaintext fields. The canonical envelope remains internal.
 
@@ -108,7 +108,7 @@ lazy data out of the WebSocket protocol.
 ### Protocol version 4 public shape (superseded)
 
 This subsection records the first protocol version 4 design and is superseded
-by ADR-092. That design carried the complete canonical `Event`. The current
+by ADR-093. That design carried the complete canonical `Event`. The current
 protocol version 4 carries the explicit public `RealtimeEvent` union and its
 dedicated payload messages. It rejects older handshakes. The protobuf package
 remains `chatto.realtime.v1`; that suffix is a namespace and is not the
@@ -156,4 +156,4 @@ not affected.
 - [ADR-045](ADR-045-public-api-stability-tiers.md)
 - [ADR-049](ADR-049-process-wide-realtime-event-hub.md)
 - [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md)
-- [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md)
+- [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)

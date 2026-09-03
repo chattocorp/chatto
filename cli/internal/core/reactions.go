@@ -220,19 +220,18 @@ func (c *ChattoCore) canonicalReactionMessageEventID(roomID, messageEventID stri
 		return messageEventID, nil
 	}
 	entry, ok := c.roomModel.timelineEntry(messageEventID)
-	if !ok || entry == nil || entry.Event == nil {
+	if !ok || entry == nil || !entry.IsMessagePost() {
 		return messageEventID, nil
 	}
-	if roomID != "" && roomIDOfEvent(entry.Event) != roomID {
+	if roomID != "" && entry.RoomID != roomID {
 		return "", ErrMessageNotFound
 	}
-	posted := entry.Event.GetMessagePosted()
-	if posted == nil || posted.GetEchoOfEventId() == "" {
+	if entry.EchoOfEventID == "" {
 		return messageEventID, nil
 	}
-	originalID := posted.GetEchoOfEventId()
+	originalID := entry.EchoOfEventID
 	if roomID != "" {
-		if originalEntry, ok := c.roomModel.timelineEntry(originalID); ok && originalEntry != nil && originalEntry.Event != nil && roomIDOfEvent(originalEntry.Event) != roomID {
+		if originalEntry, ok := c.roomModel.timelineEntry(originalID); ok && originalEntry != nil && originalEntry.RoomID != roomID {
 			return "", ErrMessageNotFound
 		}
 	}

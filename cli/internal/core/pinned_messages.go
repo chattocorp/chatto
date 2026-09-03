@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -53,43 +54,64 @@ func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input Pi
 	if kind == KindDM {
 		return nil, invalidArgument("DM rooms do not support pinned messages")
 	}
-	pins, latestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
 	broad, err := s.core.CanReadMessages(ctx, input.ActorID, kind, room.GetId())
 	if err != nil {
 		return nil, err
 	}
-	readablePins := make([]PinnedMessageState, 0, len(pins))
-	for _, pin := range pins {
-		allowed, err := s.core.CanReadMessage(ctx, input.ActorID, kind, room.GetId(), pin.MessageEventID)
+	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
+		projectedPins, projectedLatestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
+		pins := make([]PinnedMessageState, 0, len(projectedPins))
+		for _, pin := range projectedPins {
+			allowed, err := s.core.CanReadMessage(ctx, input.ActorID, kind, room.GetId(), pin.MessageEventID)
+			if err != nil {
+				return nil, err
+			}
+			if allowed {
+				pins = append(pins, pin)
+			}
+		}
+		latestPinEventID := projectedLatestPinEventID
+		if !broad {
+			latestPinEventID = ""
+			if len(pins) > 0 {
+				latestPinEventID = pins[0].PinEventID
+			}
+		}
+		total := len(pins)
+		start := min(max(input.Offset, 0), total)
+		end := total
+		if input.Limit > 0 {
+			end = min(start+input.Limit, total)
+		}
+		items := make([]PinnedMessageItem, 0, end-start)
+		pagePins := pins[start:end]
+		refs := make([]*TimelineEntry, 0, len(pagePins))
+		validPins := make([]PinnedMessageState, 0, len(pagePins))
+		for _, pin := range pagePins {
+			entry, ok := s.core.roomModel.timelineEntry(pin.MessageEventID)
+			if !ok || entry == nil || !entry.IsMessagePost() {
+				continue
+			}
+			refs = append(refs, entry)
+			validPins = append(validPins, pin)
+		}
+		hydrated, err := s.core.hydrateTimelineEntries(ctx, refs)
+		if errors.Is(err, errTimelineReadPlanStale) {
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
-		if allowed {
-			readablePins = append(readablePins, pin)
-		}
-	}
-	pins = readablePins
-	if !broad {
-		latestPinEventID = ""
-		if len(pins) > 0 {
-			latestPinEventID = pins[0].PinEventID
-		}
-	}
-	total := len(pins)
-	start := min(max(input.Offset, 0), total)
-	end := total
-	if input.Limit > 0 {
-		end = min(start+input.Limit, total)
-	}
-	items := make([]PinnedMessageItem, 0, end-start)
-	for _, pin := range pins[start:end] {
-		entry, ok := s.core.roomModel.timelineEntry(pin.MessageEventID)
-		if !ok || entry == nil || entry.Event == nil || entry.Event.GetMessagePosted() == nil {
+		currentPins, currentLatestPinEventID := s.core.roomModel.pinnedMessagesWithLatest(room.GetId())
+		if currentLatestPinEventID != projectedLatestPinEventID || !slices.Equal(currentPins, projectedPins) {
 			continue
 		}
-		items = append(items, PinnedMessageItem{Pin: pin, Event: entry.Event})
+		for i, event := range hydrated {
+			items = append(items, PinnedMessageItem{Pin: validPins[i], Event: event.Event})
+		}
+		return &PinnedMessageListResult{Items: items, TotalCount: total, HasMore: end < total, LatestPinEventID: latestPinEventID}, nil
 	}
-	return &PinnedMessageListResult{Items: items, TotalCount: total, HasMore: end < total, LatestPinEventID: latestPinEventID}, nil
+	return nil, errTimelineReadPlanStale
 }
 
 // CreatePinnedMessage adds a canonical message to a channel's current pin set.
@@ -166,10 +188,10 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 		current, exists := s.core.roomModel.pinnedMessage(input.RoomID, canonicalID)
 		if create {
 			entry, ok := s.core.roomModel.timelineEntry(canonicalID)
-			if !ok || entry == nil || entry.Event == nil || entry.Event.GetMessagePosted() == nil {
+			if !ok || entry == nil || !entry.IsMessagePost() {
 				return PinnedMessageState{}, ErrMessageNotFound
 			}
-			if _, retracted, ok := s.core.roomModel.timeline.Projection().LatestBody(canonicalID); !ok || retracted {
+			if body, retracted, ok := s.core.roomModel.timeline.Projection().LatestBodyReference(canonicalID); !ok || retracted || body.StreamSeq == 0 {
 				return PinnedMessageState{}, ErrMessageNotFound
 			}
 			if exists {

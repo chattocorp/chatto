@@ -1,10 +1,10 @@
-# ADR-090: Use Semantic Realtime Events with Bounded Resume
+# ADR-091: Use Semantic Realtime Events with Bounded Resume
 
 **Status:** Partially superseded by
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md),
-[ADR-092](ADR-092-use-a-public-realtime-event-union.md), and
-[ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md). ADR-092
-defines the public union and dedicated payload catalogue. ADR-093 defines the
+[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md),
+[ADR-093](ADR-093-use-a-public-realtime-event-union.md), and
+[ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md). ADR-093
+defines the public union and dedicated payload catalogue. ADR-094 defines the
 current internal envelopes and protocol 4 frame set. The authorization,
 bounded-resume, snapshot, and transport rules that this ADR introduced remain
 active.
@@ -90,7 +90,7 @@ The implementation and future protocol changes must preserve these invariants:
     a capability matrix to restate required frame semantics. A change that
     requires every client to behave differently uses a new behavioral protocol
     version.
-13. **Public delivery does not expose stored bytes.** Per ADR-092, public
+13. **Public delivery does not expose stored bytes.** Per ADR-093, public
     delivery uses an explicit public union with dedicated payload messages.
     The server creates a fresh authorized value. Storage-only fields do not
     exist in its public schema.

@@ -293,8 +293,8 @@ func isAssetLifecycleEvent(event *evtv1.Event) bool {
 //     GetThreadEvents.
 //
 //   - MessageEditedEvent / MessageRetractedEvent — folded onto the original
-//     post via projection.LatestBody; not surfaced as separate timeline
-//     entries.
+//     post through the current body reference; not surfaced as separate
+//     timeline entries.
 //
 //   - ReactionAddedEvent / ReactionRemovedEvent — folded into the reaction
 //     projection.

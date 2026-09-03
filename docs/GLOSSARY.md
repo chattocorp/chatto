@@ -188,7 +188,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
 domain fact. EVT stores this value. See
-[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
+[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
@@ -222,7 +222,7 @@ domain fact. EVT stores this value. See
 on `live.sync.>` through NATS Core. It is not stored in EVT. Durable Events
 reach the internal live ingress separately through EVT republish on
 `live.evt.>`. See
-[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
+[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
@@ -234,7 +234,7 @@ fields do not exist in the public schema. The server can add authorized
 public-only plaintext fields. Raw
 EVT bytes, subjects, stream identities, and sequence numbers are not public
 API. See
-[ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md) and
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
 [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Client Projection** — Authenticated, server-scoped current state that a client
@@ -242,16 +242,16 @@ builds from an exact realtime snapshot and maintains with Public Realtime
 Events plus targeted resource reads. It is a convergence view, not an audit
 log. It does not replace the resource-oriented `chatto.api.v1` API for
 explicit reads, commands, pagination, and history. See
-[ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
-[ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md) and
-[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
+[ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
+[ADR-094](adr/ADR-094-separate-durable-and-live-event-envelopes.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after
 that snapshot. A client can also use the opaque
 Resume Cursor for `E` as the
 minimum consistency token for a targeted ConnectRPC read. See
-[ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md).
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md).
 
 **Resume Cursor** — Signed, viewer-bound JWT for bounded recovery after a
 recent realtime disconnect. Its opaque `p` claim is an HMAC of the internal
@@ -259,7 +259,7 @@ stream incarnation, viewer, subscription scope, and EVT sequence. It does not
 expose that position and does not promise arbitrary history. It expires after
 15 minutes. When safe resume is not possible, Chatto uses the subscription's
 snapshot or live-only fallback. See
-[ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
+[ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
 [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).

@@ -1,7 +1,7 @@
 # ADR-084: Separate Internal Protobufs by Storage Contract
 
-**Status:** Accepted. ADR-093 restores and reaffirms the separate durable and
-transient envelope rule after ADR-091 temporarily superseded it.
+**Status:** Accepted. ADR-094 restores and reaffirms the separate durable and
+transient envelope rule after ADR-092 temporarily superseded it.
 **Date:** 2026-08-28
 
 ## Context

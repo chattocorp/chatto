@@ -5,17 +5,17 @@
 **Updated:** 2026-09-03
 
 **Partially superseded by:**
-[ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md) for the
+[ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md) for the
 public realtime behavior and
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
+[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md)
 for the former canonical envelope,
-[ADR-092](ADR-092-use-a-public-realtime-event-union.md) for the public union,
-and [ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md) for the
+[ADR-093](ADR-093-use-a-public-realtime-event-union.md) for the public union,
+and [ADR-094](ADR-094-separate-durable-and-live-event-envelopes.md) for the
 current internal envelope split.
 The durable `EVT` and transient `live.sync.>`
 delivery split remains in effect.
 
-**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), ADR-042 (protobuf-first public API), and ADR-093 (separate internal envelopes), the live equivalents are `live.evt.>` for republished durable `Event` facts, `live.sync.>` for transient `LiveEvent` signals, and realtime WebSocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
+**Naming note:** This ADR refers to `space.{id}.>` and `live.space.{id}.>` subject patterns and the `StreamMySpaceEvents` fan-in function. After ADR-029 (Instance -> Server rename), ADR-030 (Space tier retired), ADR-034 (EVT), ADR-042 (protobuf-first public API), and ADR-094 (separate internal envelopes), the live equivalents are `live.evt.>` for republished durable `Event` facts, `live.sync.>` for transient `LiveEvent` signals, and realtime WebSocket delivery for the public app-session stream. `SERVER_EVENTS` no longer republishes to a live subject. The two-tier split itself (durable JetStream vs. transient NATS Core) and the per-event-type channel decision are unchanged.
 
 **Update:** Reactions moved from the original live-only examples into durable
 room facts during the event-sourcing rollout. `ReactionAddedEvent` and
@@ -42,7 +42,7 @@ semantic public events. Genuinely non-replayable activity, such as typing and
 presence transitions, becomes transient public events. Latest-value
 invalidations produce semantic public events; clients can then use canonical
 snapshot resources or ConnectRPC reads to refresh current state. See ADR-076,
-ADR-077, ADR-090, and ADR-091.
+ADR-077, ADR-091, and ADR-092.
 
 ## Consequences
 
