@@ -57,6 +57,8 @@ The shared `events.StreamMessageReader` keeps copied opaque records in a
 process-local cache with sliding idle expiry. The default idle lifetime is 15
 minutes and `core.evt_read_cache_idle_ttl` changes it. Cache misses use bounded
 exact stream reads. Secure deletion removes the affected local cache entries.
+Debug logs report direct misses, batch hits and misses, read durations, expired
+entry counts, and cache clears. They do not report subjects or payloads.
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared

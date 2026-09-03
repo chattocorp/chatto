@@ -33,11 +33,14 @@ type exactStreamMessageSource interface {
 }
 
 // StreamMessageReaderConfig controls exact stream reads and the optional
-// process-local message cache. A zero CacheIdleTTL disables the cache. A zero
-// MaxConcurrentReads uses a default of 16.
+// process-local message cache.
 type StreamMessageReaderConfig struct {
-	CacheIdleTTL       time.Duration
+	// CacheIdleTTL sets sliding idle expiry. Zero disables the cache.
+	CacheIdleTTL time.Duration
+	// MaxConcurrentReads limits broker reads across calls. Zero uses 16.
 	MaxConcurrentReads int
+	// Logger receives cache-miss, batch, expiry, and clearing diagnostics.
+	Logger Logger
 }
 
 // StreamMessageReader loads opaque records at exact stream sequences. It can
@@ -53,6 +56,7 @@ type StreamMessageReader struct {
 	cacheIdleTTL  time.Duration
 	readSemaphore chan struct{}
 	cache         *ttlcache.Cache[uint64, EncodedSubjectRecord]
+	logger        Logger
 
 	invalidationMu  sync.Mutex
 	cacheGeneration uint64
@@ -83,6 +87,7 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 		source:        source,
 		cacheIdleTTL:  config.CacheIdleTTL,
 		readSemaphore: make(chan struct{}, maxConcurrentReads),
+		logger:        normalizeLogger(config.Logger),
 	}
 	if config.CacheIdleTTL > 0 {
 		reader.cache = ttlcache.New(
@@ -96,38 +101,52 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 // entry's idle lifetime. Returned payload bytes do not alias the cache or the
 // NATS client response.
 func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (EncodedSubjectRecord, error) {
+	startedAt := time.Now()
+	record, cacheMiss, err := r.message(ctx, sequence)
+	if cacheMiss && r.cache != nil {
+		r.logger.Debug(
+			"Stream message cache miss",
+			"stream_sequence", sequence,
+			"entries", r.cache.Len(),
+			"duration", time.Since(startedAt),
+		)
+	}
+	return record, err
+}
+
+func (r *StreamMessageReader) message(ctx context.Context, sequence uint64) (EncodedSubjectRecord, bool, error) {
 	if r == nil || r.source == nil {
-		return EncodedSubjectRecord{}, fmt.Errorf("stream message reader is unavailable")
+		return EncodedSubjectRecord{}, false, fmt.Errorf("stream message reader is unavailable")
 	}
 	if sequence == 0 {
-		return EncodedSubjectRecord{}, fmt.Errorf("stream sequence must be positive")
+		return EncodedSubjectRecord{}, false, fmt.Errorf("stream sequence must be positive")
 	}
 	if record, ok := r.cached(sequence); ok {
-		return record, nil
+		return record, false, nil
 	}
 
 	select {
 	case r.readSemaphore <- struct{}{}:
 		defer func() { <-r.readSemaphore }()
 	case <-ctx.Done():
-		return EncodedSubjectRecord{}, ctx.Err()
+		return EncodedSubjectRecord{}, false, ctx.Err()
 	}
 
 	// A read that waited for capacity can reuse a record loaded meanwhile. The
 	// miss and cache-generation capture are atomic with cache invalidation.
 	record, ok, cacheGeneration := r.cachedOrBeginRead(sequence)
 	if ok {
-		return record, nil
+		return record, false, nil
 	}
 	message, err := r.source.GetMsg(ctx, sequence)
 	if err != nil {
-		return EncodedSubjectRecord{}, fmt.Errorf("read stream sequence %d: %w", sequence, err)
+		return EncodedSubjectRecord{}, true, fmt.Errorf("read stream sequence %d: %w", sequence, err)
 	}
 	if message == nil {
-		return EncodedSubjectRecord{}, fmt.Errorf("read stream sequence %d: broker returned no record", sequence)
+		return EncodedSubjectRecord{}, true, fmt.Errorf("read stream sequence %d: broker returned no record", sequence)
 	}
 	if message.Sequence != sequence {
-		return EncodedSubjectRecord{}, fmt.Errorf(
+		return EncodedSubjectRecord{}, true, fmt.Errorf(
 			"read stream sequence %d: broker returned sequence %d",
 			sequence,
 			message.Sequence,
@@ -142,7 +161,7 @@ func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (Enc
 		record.ID = message.Header.Get(nats.MsgIdHdr)
 	}
 	r.storeIfCurrent(record, cacheGeneration)
-	return cloneEncodedSubjectRecord(record), nil
+	return cloneEncodedSubjectRecord(record), true, nil
 }
 
 // Messages loads exact stream sequences with bounded process-wide
@@ -170,15 +189,18 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 	}
 
 	loaded := make([]EncodedSubjectRecord, len(unique))
+	cacheMisses := make([]bool, len(unique))
+	startedAt := time.Now()
 	reads, readCtx := errgroup.WithContext(ctx)
 	reads.SetLimit(cap(r.readSemaphore))
 	for index, sequence := range unique {
 		reads.Go(func() error {
-			record, err := r.Message(readCtx, sequence)
+			record, cacheMiss, err := r.message(readCtx, sequence)
 			if err != nil {
 				return err
 			}
 			loaded[index] = record
+			cacheMisses[index] = cacheMiss
 			return nil
 		})
 	}
@@ -187,6 +209,23 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 	}
 	if err := ctx.Err(); err != nil {
 		return nil, err
+	}
+	if r.cache != nil {
+		missCount := 0
+		for _, cacheMiss := range cacheMisses {
+			if cacheMiss {
+				missCount++
+			}
+		}
+		r.logger.Debug(
+			"Stream message cache batch read",
+			"requested", len(sequences),
+			"unique", len(unique),
+			"hits", len(unique)-missCount,
+			"misses", missCount,
+			"entries", r.cache.Len(),
+			"duration", time.Since(startedAt),
+		)
 	}
 
 	result := make([]EncodedSubjectRecord, len(sequences))
@@ -217,9 +256,13 @@ func (r *StreamMessageReader) Clear() {
 		return
 	}
 	r.invalidationMu.Lock()
+	entries := r.cache.Len()
 	r.cacheGeneration++
 	r.cache.DeleteAll()
 	r.invalidationMu.Unlock()
+	if entries > 0 {
+		r.logger.Debug("Stream message cache cleared", "entries", entries)
+	}
 }
 
 // Run reclaims entries whose idle lifetime has elapsed. It returns ctx.Err
@@ -246,8 +289,24 @@ func (r *StreamMessageReader) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ticker.C:
-			r.cache.DeleteExpired()
+			r.deleteExpired()
 		}
+	}
+}
+
+func (r *StreamMessageReader) deleteExpired() {
+	r.invalidationMu.Lock()
+	before := r.cache.Metrics().Evictions
+	r.cache.DeleteExpired()
+	expired := r.cache.Metrics().Evictions - before
+	entries := r.cache.Len()
+	r.invalidationMu.Unlock()
+	if expired > 0 {
+		r.logger.Debug(
+			"Stream message cache entries expired",
+			"count", expired,
+			"entries", entries,
+		)
 	}
 }
 

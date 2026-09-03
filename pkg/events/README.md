@@ -28,11 +28,14 @@ Run the reader once with the application lifecycle so expired entries are
 reclaimed when they are not accessed again. Use `Forget` after
 application-owned physical deletion. Use `Clear` when the complete local cache
 must be discarded, including when a stream can be recreated with the same
-name.
+name. Pass a `Logger` to get debug summaries for direct cache misses, batch
+hits and misses, expiry cleanup, and cache clearing. These summaries include
+counts and read durations. They do not include subjects or payloads.
 
 ```go
 reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderConfig{
 	CacheIdleTTL: 15 * time.Minute,
+	Logger:       logger,
 })
 if err != nil {
 	return err

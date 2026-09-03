@@ -3,6 +3,7 @@ package events
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -11,6 +12,49 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
+
+type recordedStreamMessageLog struct {
+	message string
+	fields  map[string]interface{}
+}
+
+type recordingStreamMessageLogger struct {
+	mu     sync.Mutex
+	logs   []recordedStreamMessageLog
+	logged chan recordedStreamMessageLog
+}
+
+func newRecordingStreamMessageLogger() *recordingStreamMessageLogger {
+	return &recordingStreamMessageLogger{logged: make(chan recordedStreamMessageLog, 16)}
+}
+
+func (l *recordingStreamMessageLogger) Debug(message interface{}, keyvals ...interface{}) {
+	fields := make(map[string]interface{}, len(keyvals)/2)
+	for i := 0; i+1 < len(keyvals); i += 2 {
+		fields[fmt.Sprint(keyvals[i])] = keyvals[i+1]
+	}
+	entry := recordedStreamMessageLog{message: fmt.Sprint(message), fields: fields}
+	l.mu.Lock()
+	l.logs = append(l.logs, entry)
+	l.mu.Unlock()
+	l.logged <- entry
+}
+
+func (*recordingStreamMessageLogger) Info(interface{}, ...interface{})  {}
+func (*recordingStreamMessageLogger) Warn(interface{}, ...interface{})  {}
+func (*recordingStreamMessageLogger) Error(interface{}, ...interface{}) {}
+
+func (l *recordingStreamMessageLogger) matching(message string) []recordedStreamMessageLog {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	var result []recordedStreamMessageLog
+	for _, entry := range l.logs {
+		if entry.message == message {
+			result = append(result, entry)
+		}
+	}
+	return result
+}
 
 type exactMessageSourceStub struct {
 	mu      sync.Mutex
@@ -90,6 +134,35 @@ func TestStreamMessageReaderCachesClonedRecords(t *testing.T) {
 	}
 	if source.reads[7] != 1 {
 		t.Fatalf("source reads = %d, want 1", source.reads[7])
+	}
+}
+
+func TestStreamMessageReaderLogsDirectCacheMiss(t *testing.T) {
+	logger := newRecordingStreamMessageLogger()
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			7: {Subject: "evt.test", Sequence: 7, Data: []byte("payload")},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+		CacheIdleTTL: time.Minute,
+		Logger:       logger,
+	})
+	for range 2 {
+		if _, err := reader.Message(context.Background(), 7); err != nil {
+			t.Fatalf("Message: %v", err)
+		}
+	}
+	logs := logger.matching("Stream message cache miss")
+	if len(logs) != 1 {
+		t.Fatalf("cache miss logs = %d, want 1", len(logs))
+	}
+	if logs[0].fields["stream_sequence"] != uint64(7) || logs[0].fields["entries"] != 1 {
+		t.Fatalf("cache miss fields = %v", logs[0].fields)
+	}
+	if _, ok := logs[0].fields["duration"].(time.Duration); !ok {
+		t.Fatalf("cache miss duration = %T, want time.Duration", logs[0].fields["duration"])
 	}
 }
 
@@ -214,6 +287,49 @@ func TestStreamMessageReaderMessagesDeduplicateAndPreserveOrder(t *testing.T) {
 	}
 }
 
+func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
+	logger := newRecordingStreamMessageLogger()
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1},
+			2: {Subject: "evt.two", Sequence: 2},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+		CacheIdleTTL: time.Minute,
+		Logger:       logger,
+	})
+	for range 2 {
+		if _, err := reader.Messages(context.Background(), []uint64{1, 2, 1}); err != nil {
+			t.Fatalf("Messages: %v", err)
+		}
+	}
+	logs := logger.matching("Stream message cache batch read")
+	if len(logs) != 2 {
+		t.Fatalf("batch read logs = %d, want 2", len(logs))
+	}
+	for key, want := range map[string]interface{}{
+		"requested": 3,
+		"unique":    2,
+		"hits":      0,
+		"misses":    2,
+		"entries":   2,
+	} {
+		if got := logs[0].fields[key]; got != want {
+			t.Errorf("first batch %s = %v, want %v", key, got, want)
+		}
+	}
+	if logs[1].fields["hits"] != 2 || logs[1].fields["misses"] != 0 {
+		t.Fatalf("second batch fields = %v", logs[1].fields)
+	}
+	for i, entry := range logs {
+		if _, ok := entry.fields["duration"].(time.Duration); !ok {
+			t.Errorf("batch %d duration = %T, want time.Duration", i, entry.fields["duration"])
+		}
+	}
+}
+
 func TestStreamMessageReaderMessagesHonorsCancellationWithCachedRecords(t *testing.T) {
 	source := &exactMessageSourceStub{
 		reads: make(map[uint64]int),
@@ -315,6 +431,7 @@ func TestStreamMessageReaderConfigValidation(t *testing.T) {
 }
 
 func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testing.T) {
+	logger := newRecordingStreamMessageLogger()
 	source := &exactMessageSourceStub{
 		reads: make(map[uint64]int),
 		msgs: map[uint64]*jetstream.RawStreamMsg{
@@ -322,7 +439,10 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 			2: {Subject: "evt.two", Sequence: 2},
 		},
 	}
-	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: 20 * time.Millisecond})
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+		CacheIdleTTL: 20 * time.Millisecond,
+		Logger:       logger,
+	})
 	expired := make(chan uint64, 2)
 	unsubscribe := reader.cache.OnEviction(func(_ context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[uint64, EncodedSubjectRecord]) {
 		if reason == ttlcache.EvictionReasonExpired {
@@ -344,6 +464,24 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 			t.Fatal("expired cache entry was not reclaimed")
 		}
 	}
+	var loggedExpirations uint64
+	for loggedExpirations < 2 {
+		select {
+		case entry := <-logger.logged:
+			if entry.message == "Stream message cache entries expired" {
+				count, ok := entry.fields["count"].(uint64)
+				if !ok || count == 0 {
+					t.Fatalf("expiration count = %v, want a positive uint64", entry.fields["count"])
+				}
+				loggedExpirations += count
+				if loggedExpirations == 2 && entry.fields["entries"] != 0 {
+					t.Fatalf("final expiration fields = %v", entry.fields)
+				}
+			}
+		case <-time.After(time.Second):
+			t.Fatal("cache expiration was not logged")
+		}
+	}
 	if _, err := reader.Message(context.Background(), 1); err != nil {
 		t.Fatalf("Message after sweep: %v", err)
 	}
@@ -354,6 +492,10 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 	remaining := reader.cache.Len()
 	if remaining != 0 {
 		t.Fatalf("cache entries after shutdown = %d, want 0", remaining)
+	}
+	clearLogs := logger.matching("Stream message cache cleared")
+	if len(clearLogs) != 1 || clearLogs[0].fields["entries"] != 1 {
+		t.Fatalf("cache clear logs = %v, want one log for one entry", clearLogs)
 	}
 }
 

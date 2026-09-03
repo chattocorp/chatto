@@ -72,6 +72,7 @@ func initializeCoreInfrastructure(
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
 	eventReader, err := evtstream.NewReader(storage.serverEvtStream, events.StreamMessageReaderConfig{
 		CacheIdleTTL: cfg.EVTReadCacheIdleTTLOrDefault(),
+		Logger:       logger.WithPrefix("core.EVTReadCache"),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize EVT reader: %w", err)
