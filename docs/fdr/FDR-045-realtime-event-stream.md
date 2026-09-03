@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-03
 
 ## Overview
 
@@ -21,8 +21,8 @@ the stream to build and maintain its local server projection.
   including messages, edits, retractions, reactions, membership, rooms,
   profiles, calls, and other public domain changes.
 - Public events contain the canonical event ID, source time, visible actor ID,
-  a canonical payload message, and an opaque resume cursor in the transport
-  wrapper.
+  a canonical payload message, and an optional opaque resume cursor. These are
+  sibling fields in the public event shape.
 - The server omits internal events, removes storage-only fields, and can add
   authorized client-only `_plaintext` fields. It never sends raw EVT bytes.
 - A client can ignore an event type that it does not use and still retain the
@@ -104,9 +104,10 @@ canonical `chatto.api.v1` resource messages.
 
 The snapshot contains the public server profile, complete visible room
 directory, complete visible room-group layout, complete visible active-call
-state, the viewer, and users referenced by snapshot resources. It does not
-contain the complete user directory, timelines, search results, files, pins,
-notifications, presence, read markers, or account-security state.
+state, the viewer's directory member resource, and users referenced by snapshot
+resources. It does not contain the complete user directory, timelines, search
+results, files, pins, notifications, presence, read markers, or account-security
+state.
 
 **Why:** The same replica owns the snapshot and event handoff. This removes the
 cross-replica bootstrap race and the client-driven second catch-up interval.

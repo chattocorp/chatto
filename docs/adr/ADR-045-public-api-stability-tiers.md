@@ -139,7 +139,7 @@ the `api-breaking-change` label and states the compatibility plan. That label
 only suppresses public API breaking checks for `chatto/auth/v1`,
 `chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
 `chatto/realtime/v1`, plus the explicitly transient
-`chatto/core/live/v1/live_events.proto` wire envelope. Storage and other
+`chatto/core/live/v1/live_events.proto` payload messages. Storage and other
 internal protobuf checks, including the persisted packages under
 `chatto/core`, still run.
 The local root-equivalent `chatto.operator.v1`

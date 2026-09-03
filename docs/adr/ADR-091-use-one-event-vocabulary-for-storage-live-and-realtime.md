@@ -145,11 +145,14 @@ Room and thread history does not use realtime snapshot messages. Clients
 read timelines through the paginated ConnectRPC services. This keeps large and
 lazy data out of the WebSocket protocol.
 
-### Protocol version 4
+### Protocol version 4 public shape (superseded)
 
-Behavioral realtime protocol version 4 carries the canonical Event. It rejects
-older handshakes. The protobuf package remains `chatto.realtime.v1`; that suffix
-is a namespace and is not the behavioral protocol version.
+This subsection records the first protocol version 4 design and is superseded
+by ADR-092. That design carried the complete canonical `Event`. The current
+protocol version 4 carries the explicit public `RealtimeEvent` union and reuses
+canonical payload messages. It rejects older handshakes. The protobuf package
+remains `chatto.realtime.v1`; that suffix is a namespace and is not the
+behavioral protocol version.
 
 ## Compatibility
 

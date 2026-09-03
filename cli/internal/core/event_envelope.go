@@ -30,13 +30,6 @@ type evtEventEnvelope struct {
 	transient   bool
 }
 
-func NewEVTEventEnvelope(event *evtv1.Event) EventEnvelope {
-	if event == nil {
-		return nil
-	}
-	return &evtEventEnvelope{event: event}
-}
-
 func NewEVTEventEnvelopeWithDeliverySeq(event *evtv1.Event, seq uint64) EventEnvelope {
 	if event == nil {
 		return nil
@@ -88,16 +81,6 @@ func (e *heartbeatEventEnvelope) DeliverySeq() uint64                    { retur
 func (e *heartbeatEventEnvelope) CanonicalEvent() *evtv1.Event           { return nil }
 func (e *heartbeatEventEnvelope) EVTEvent() *evtv1.Event                 { return nil }
 func (e *heartbeatEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return e.event }
-
-func WrapEVTEventEnvelopes(events []*evtv1.Event) []EventEnvelope {
-	wrapped := make([]EventEnvelope, 0, len(events))
-	for _, event := range events {
-		if wrappedEvent := NewEVTEventEnvelope(event); wrappedEvent != nil {
-			wrapped = append(wrapped, wrappedEvent)
-		}
-	}
-	return wrapped
-}
 
 func EventSessionTerminated(event EventEnvelope) *livev1.SessionTerminatedEvent {
 	if event == nil || event.CanonicalEvent() == nil {
