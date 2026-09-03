@@ -140,29 +140,18 @@ message RealtimeEvent {
     SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 44;
     RoomGroupsReorderedEvent room_groups_reordered = 45;
     UserAccountCreatedEvent user_account_created = 46;
-    UserLoginChangedEvent user_login_changed = 47;
-    UserDisplayNameChangedEvent user_display_name_changed = 48;
-    UserAvatarSetEvent user_avatar_set = 49;
-    UserAvatarClearedEvent user_avatar_cleared = 50;
-    UserAccountDeletedEvent user_account_deleted = 51;
-    UserCustomStatusSetEvent user_custom_status_set = 52;
-    UserCustomStatusClearedEvent user_custom_status_cleared = 53;
-    UserBioChangedEvent user_bio_changed = 54;
-    RoomMemberBannedEvent room_member_banned = 55;
-    RoomMemberUnbannedEvent room_member_unbanned = 56;
-    RoomMemberAddedEvent room_member_added = 57;
-    RoomMemberRemovedEvent room_member_removed = 58;
-    ReactionAddedEvent reaction_added = 59;
-    ReactionRemovedEvent reaction_removed = 60;
-    UserProfileChangedEvent user_profile_changed = 61;
-    ViewerPreferencesChangedEvent viewer_preferences_changed = 62;
-    ThreadViewerStateChangedEvent thread_viewer_state_changed = 63;
-    ServerProfileChangedEvent server_profile_changed = 64;
-    UserTypingEvent user_typing = 65;
-    PresenceChangedEvent presence_changed = 66;
-    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 67;
-    NotificationUnreadChangedEvent notification_unread_changed = 68;
-    RoomReadStateChangedEvent room_read_state_changed = 69;
+    UserProfileChangedEvent user_profile_changed = 47;
+    UserAccountDeletedEvent user_account_deleted = 48;
+    ReactionAddedEvent reaction_added = 49;
+    ReactionRemovedEvent reaction_removed = 50;
+    ViewerPreferencesChangedEvent viewer_preferences_changed = 51;
+    ThreadViewerStateChangedEvent thread_viewer_state_changed = 52;
+    ServerProfileChangedEvent server_profile_changed = 53;
+    UserTypingEvent user_typing = 54;
+    PresenceChangedEvent presence_changed = 55;
+    NotificationOccurrencesChangedEvent notification_occurrences_changed = 56;
+    NotificationUnreadStateChangedEvent notification_unread_state_changed = 57;
+    RoomReadStateChangedEvent room_read_state_changed = 58;
   }
 }
 

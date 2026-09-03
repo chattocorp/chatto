@@ -57,7 +57,6 @@ func (c *ChattoCore) UpdateServerConfig(ctx context.Context, actorID string, inp
 		return nil, err
 	}
 
-	c.PublishServerUpdated(ctx, actorID)
 	return cfg, nil
 }
 

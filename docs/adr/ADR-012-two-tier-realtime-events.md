@@ -6,9 +6,7 @@
 
 **Partially superseded by:**
 [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md) for the
-public realtime behavior and
-[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md)
-for the former canonical envelope,
+public realtime behavior,
 [ADR-093](ADR-093-use-a-public-realtime-event-union.md) for the public union,
 and [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) for the
 current internal envelope split.
@@ -39,10 +37,10 @@ Split events into two channels based on persistence:
 The realtime delivery layer merges both internal channels, then maps authorized
 input to the public protocol. Durable facts with a public meaning become
 semantic public events. Genuinely non-replayable activity, such as typing and
-presence transitions, becomes transient public events. Latest-value
-invalidations produce semantic public events; clients can then use canonical
-snapshot resources or ConnectRPC reads to refresh current state. See ADR-076,
-ADR-077, ADR-091, and ADR-092.
+presence transitions, becomes transient public events. Latest-value signals
+produce semantic public events; clients then use canonical snapshot resources
+or ConnectRPC reads to refresh current state. See ADR-076, ADR-077, ADR-091,
+ADR-093, and ADR-094.
 
 ## Consequences
 

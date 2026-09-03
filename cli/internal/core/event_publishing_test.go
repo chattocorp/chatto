@@ -24,12 +24,29 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	core := &ChattoCore{}
 	ctx := testContext(t)
 
-	t.Run("publishPubSubEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishPubSubEvent(ctx, "live.sync.test", &pubsubv1.PubSubEvent{})
+	t.Run("publishUserPubSubEvent rejects invalid payload", func(t *testing.T) {
+		err := core.publishUserPubSubEvent(ctx, "user-id", &pubsubv1.PubSubEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
+}
+
+func TestPubSubPublicationScopeRejectsMismatches(t *testing.T) {
+	typing := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
+	}})
+	if _, err := userPubSubEventPublication("user-id", typing).subject(); err == nil {
+		t.Fatal("user-scoped typing publication succeeded")
+	}
+	if _, err := roomPubSubEventPublication(KindChannel, "other-room", typing).subject(); err == nil {
+		t.Fatal("room-scoped publication accepted a mismatched payload room")
+	}
+	if got, err := roomPubSubEventPublication(KindChannel, "room-id", typing).subject(); err != nil {
+		t.Fatalf("valid room-scoped publication: %v", err)
+	} else if got != "live.sync.room.channel.room-id.user_typing" {
+		t.Fatalf("subject = %q, want canonical typing subject", got)
+	}
 }
 
 func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {

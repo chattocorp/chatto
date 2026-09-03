@@ -18,8 +18,9 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md),
 [ADR-076](../adr/ADR-076-deterministic-notification-occurrences.md),
-[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
-[ADR-092](../adr/ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md), and
+[ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 ## Event envelopes
 
@@ -54,7 +55,8 @@ durable EVT fact, a pubsub event, or a heartbeat.
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room pubsub                 | NATS Core  | UserTyping | Ephemeral room activity where another store or projection is the source of truth |
-| Server pubsub (user/config) | NATS Core  | ServerProfileChanged, NotificationOccurrencesInvalidated, NotificationUnreadChanged, PresenceChanged | Cross-tab state convergence and ephemeral activity |
+| User pubsub | NATS Core | NotificationOccurrencesChanged, NotificationUnreadStateChanged, RoomReadStateChanged, ThreadViewerStateChanged, SessionTerminated | Private latest-value convergence and session control |
+| Process-local transient | In-memory hub | PresenceChanged | Ephemeral current presence changes |
 
 The separate `Event` and `PubSubEvent` wrapper types make the distinction
 between stored and non-durable events explicit. Client-facing `PubSubEvent`
@@ -174,7 +176,7 @@ in-memory server projection resumes a short socket gap or rebuilds from an
 exact WebSocket snapshot; page reload starts without a cursor. Protocol 4
 creates no per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
 [ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md), and
-[ADR-092](../adr/ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md).
 
 ## Durable and pubsub subject patterns
 
@@ -411,15 +413,18 @@ for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar/bio/shared-time-zone updates; custom status set/clear is delivered from `live.evt.>`) |
-| `live.sync.config.server_updated`                        | Public server profile changed (name, logo, banner, or description) |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
 | `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement. A thread marker contributes to its parent room state |
-| `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
-| `live.sync.user.{userId}.settings_updated`               | Private user preferences, including the stored time zone and its sharing setting, changed |
+| `live.sync.user.{userId}.thread_viewer_state`            | Current thread follow or read state changed outside the durable follow command |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
+
+User profile, private preference, public server profile, and durable thread
+follow changes use their EVT facts on `live.evt.>`. The realtime mapper groups
+related facts into `UserProfileChangedEvent`, `ViewerPreferencesChangedEvent`,
+`ServerProfileChangedEvent`, or `ThreadViewerStateChangedEvent`. Presence comes
+from the process-local `PresenceHub`; it does not use a `live.sync.>` subject.
 
 Room-group and sidebar-layout changes use durable group or layout facts only.
 The command path waits until the local `ServerContentView` applies the final

@@ -91,16 +91,16 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_RoomGroupsReordered{RoomGroupsReordered: &realtimev1.RoomGroupsReorderedEvent{GroupIds: append([]string(nil), e.RoomGroupsReordered.GetGroupIds()...)}}
 	case *evtv1.Event_VoiceCallParticipantJoined:
 		v := e.VoiceCallParticipantJoined
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &realtimev1.VoiceCallParticipantJoinedEvent{RoomId: v.GetRoomId(), Source: realtimeCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &realtimev1.VoiceCallParticipantJoinedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_VoiceCallParticipantLeft:
 		v := e.VoiceCallParticipantLeft
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantLeft{VoiceCallParticipantLeft: &realtimev1.VoiceCallParticipantLeftEvent{RoomId: v.GetRoomId(), Source: realtimeCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantLeft{VoiceCallParticipantLeft: &realtimev1.VoiceCallParticipantLeftEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_VoiceCallStarted:
 		v := e.VoiceCallStarted
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallStarted{VoiceCallStarted: &realtimev1.VoiceCallStartedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeCallParticipantSource(v.GetSource())}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallStarted{VoiceCallStarted: &realtimev1.VoiceCallStartedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_VoiceCallEnded:
 		v := e.VoiceCallEnded
-		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId(), Source: realtimeCallParticipantSource(v.GetSource())}}
+		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_MessagePosted:
 		v := e.MessagePosted
 		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), InThread: v.GetInThread(), MentionedUserIds: append([]string(nil), v.GetMentionedUserIds()...), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(v.GetMentions())}}
@@ -132,38 +132,34 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_AssetDeleted{AssetDeleted: &realtimev1.AssetDeletedEvent{AssetId: e.AssetDeleted.GetAssetId()}}
 	case *evtv1.Event_ServerMotdChanged:
 		target.Event = &realtimev1.RealtimeEvent_ServerMotdChanged{ServerMotdChanged: &realtimev1.ServerMotdChangedEvent{Motd: e.ServerMotdChanged.GetMotd()}}
+	case *evtv1.Event_ServerNameChanged,
+		*evtv1.Event_ServerDescriptionChanged,
+		*evtv1.Event_ServerLogoSet,
+		*evtv1.Event_ServerLogoCleared,
+		*evtv1.Event_ServerBannerSet,
+		*evtv1.Event_ServerBannerCleared:
+		target.Event = &realtimev1.RealtimeEvent_ServerProfileChanged{ServerProfileChanged: &realtimev1.ServerProfileChangedEvent{}}
 	case *evtv1.Event_UserAccountCreated:
 		v := e.UserAccountCreated
-		target.Event = &realtimev1.RealtimeEvent_UserAccountCreated{UserAccountCreated: &realtimev1.UserAccountCreatedEvent{UserId: v.GetUserId(), IsBot: v.GetIsBot(), BotOwnerUserId: v.GetBotOwnerUserId()}}
-	case *evtv1.Event_UserLoginChanged:
-		target.Event = &realtimev1.RealtimeEvent_UserLoginChanged{UserLoginChanged: &realtimev1.UserLoginChangedEvent{UserId: e.UserLoginChanged.GetUserId()}}
-	case *evtv1.Event_UserDisplayNameChanged:
-		target.Event = &realtimev1.RealtimeEvent_UserDisplayNameChanged{UserDisplayNameChanged: &realtimev1.UserDisplayNameChangedEvent{UserId: e.UserDisplayNameChanged.GetUserId()}}
-	case *evtv1.Event_UserAvatarSet:
-		target.Event = &realtimev1.RealtimeEvent_UserAvatarSet{UserAvatarSet: &realtimev1.UserAvatarSetEvent{UserId: e.UserAvatarSet.GetUserId()}}
-	case *evtv1.Event_UserAvatarCleared:
-		target.Event = &realtimev1.RealtimeEvent_UserAvatarCleared{UserAvatarCleared: &realtimev1.UserAvatarClearedEvent{UserId: e.UserAvatarCleared.GetUserId()}}
+		target.Event = &realtimev1.RealtimeEvent_UserAccountCreated{UserAccountCreated: &realtimev1.UserAccountCreatedEvent{UserId: v.GetUserId(), IsBot: v.GetIsBot()}}
+	case *evtv1.Event_UserLoginChanged,
+		*evtv1.Event_UserDisplayNameChanged,
+		*evtv1.Event_UserAvatarSet,
+		*evtv1.Event_UserAvatarCleared,
+		*evtv1.Event_UserCustomStatusSet,
+		*evtv1.Event_UserCustomStatusCleared,
+		*evtv1.Event_UserBioChanged,
+		*evtv1.Event_AssetCreated:
+		userID := core.UserIDOfPublicProfileEvent(source)
+		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: userID}}
 	case *evtv1.Event_UserAccountDeleted:
 		target.Event = &realtimev1.RealtimeEvent_UserAccountDeleted{UserAccountDeleted: &realtimev1.UserAccountDeletedEvent{UserId: e.UserAccountDeleted.GetUserId()}}
-	case *evtv1.Event_UserCustomStatusSet:
-		v := e.UserCustomStatusSet
-		target.Event = &realtimev1.RealtimeEvent_UserCustomStatusSet{UserCustomStatusSet: &realtimev1.UserCustomStatusSetEvent{UserId: v.GetUserId(), Status: realtimeCustomStatus(v.GetStatus())}}
-	case *evtv1.Event_UserCustomStatusCleared:
-		target.Event = &realtimev1.RealtimeEvent_UserCustomStatusCleared{UserCustomStatusCleared: &realtimev1.UserCustomStatusClearedEvent{UserId: e.UserCustomStatusCleared.GetUserId()}}
-	case *evtv1.Event_UserBioChanged:
-		target.Event = &realtimev1.RealtimeEvent_UserBioChanged{UserBioChanged: &realtimev1.UserBioChangedEvent{UserId: e.UserBioChanged.GetUserId()}}
-	case *evtv1.Event_RoomMemberBanned:
-		v := e.RoomMemberBanned
-		target.Event = &realtimev1.RealtimeEvent_RoomMemberBanned{RoomMemberBanned: &realtimev1.RoomMemberBannedEvent{RoomId: v.GetRoomId(), UserId: v.GetUserId(), ExpiresAt: v.GetExpiresAt()}}
-	case *evtv1.Event_RoomMemberUnbanned:
-		v := e.RoomMemberUnbanned
-		target.Event = &realtimev1.RealtimeEvent_RoomMemberUnbanned{RoomMemberUnbanned: &realtimev1.RoomMemberUnbannedEvent{RoomId: v.GetRoomId(), UserId: v.GetUserId()}}
-	case *evtv1.Event_RoomMemberAdded:
-		v := e.RoomMemberAdded
-		target.Event = &realtimev1.RealtimeEvent_RoomMemberAdded{RoomMemberAdded: &realtimev1.RoomMemberAddedEvent{RoomId: v.GetRoomId(), UserId: v.GetUserId()}}
-	case *evtv1.Event_RoomMemberRemoved:
-		v := e.RoomMemberRemoved
-		target.Event = &realtimev1.RealtimeEvent_RoomMemberRemoved{RoomMemberRemoved: &realtimev1.RoomMemberRemovedEvent{RoomId: v.GetRoomId(), UserId: v.GetUserId()}}
+	case *evtv1.Event_ThreadFollowed:
+		v := e.ThreadFollowed
+		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: true}}
+	case *evtv1.Event_ThreadUnfollowed:
+		v := e.ThreadUnfollowed
+		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: false}}
 	case *evtv1.Event_ReactionAdded:
 		v := e.ReactionAdded
 		target.Event = &realtimev1.RealtimeEvent_ReactionAdded{ReactionAdded: &realtimev1.ReactionAddedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId(), Emoji: v.GetEmoji()}}
@@ -189,22 +185,16 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 		target.ActorId = proto.String(source.GetActorId())
 	}
 	switch e := source.GetEvent().(type) {
-	case *pubsubv1.PubSubEvent_UserProfileChanged:
-		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: e.UserProfileChanged}
-	case *pubsubv1.PubSubEvent_ViewerPreferencesChanged:
-		target.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: e.ViewerPreferencesChanged}
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
 		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: e.ThreadViewerStateChanged}
-	case *pubsubv1.PubSubEvent_ServerProfileChanged:
-		target.Event = &realtimev1.RealtimeEvent_ServerProfileChanged{ServerProfileChanged: e.ServerProfileChanged}
 	case *pubsubv1.PubSubEvent_UserTyping:
 		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: e.UserTyping}
 	case *pubsubv1.PubSubEvent_PresenceChanged:
 		target.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: e.PresenceChanged}
-	case *pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated:
-		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: e.NotificationOccurrencesInvalidated}
-	case *pubsubv1.PubSubEvent_NotificationUnreadChanged:
-		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadChanged{NotificationUnreadChanged: e.NotificationUnreadChanged}
+	case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:
+		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesChanged{NotificationOccurrencesChanged: e.NotificationOccurrencesChanged}
+	case *pubsubv1.PubSubEvent_NotificationUnreadStateChanged:
+		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadStateChanged{NotificationUnreadStateChanged: e.NotificationUnreadStateChanged}
 	case *pubsubv1.PubSubEvent_RoomReadStateChanged:
 		target.Event = &realtimev1.RealtimeEvent_RoomReadStateChanged{RoomReadStateChanged: e.RoomReadStateChanged}
 	default:
@@ -247,19 +237,6 @@ func realtimeSidebarGroupEntryKind(value evtv1.SidebarGroupEntry_Kind) realtimev
 		return realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK
 	default:
 		return realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED
-	}
-}
-
-func realtimeCallParticipantSource(value evtv1.CallParticipantEventSource) realtimev1.CallParticipantEventSource {
-	switch value {
-	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER
-	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT
-	case evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION
-	default:
-		return realtimev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED
 	}
 }
 
@@ -317,13 +294,6 @@ func realtimeProcessedVideo(v *evtv1.AssetProcessedVideo) *realtimev1.AssetProce
 	return r
 }
 
-func realtimeCustomStatus(v *evtv1.CustomUserStatus) *apiv1.CustomUserStatus {
-	if v == nil {
-		return nil
-	}
-	return &apiv1.CustomUserStatus{Emoji: v.GetEmoji(), Text: v.GetText(), ExpiresAt: v.GetExpiresAt()}
-}
-
 func applyRealtimePlaintext(target *realtimev1.RealtimeEvent, plaintext *core.EventPlaintext) {
 	if target == nil || plaintext == nil {
 		return
@@ -331,14 +301,5 @@ func applyRealtimePlaintext(target *realtimev1.RealtimeEvent, plaintext *core.Ev
 	switch p := target.GetEvent().(type) {
 	case *realtimev1.RealtimeEvent_MessagePosted:
 		p.MessagePosted.BodyPlaintext = plaintext.MessageBody
-	case *realtimev1.RealtimeEvent_UserAccountCreated:
-		p.UserAccountCreated.LoginPlaintext = plaintext.Login
-		p.UserAccountCreated.DisplayNamePlaintext = plaintext.DisplayName
-	case *realtimev1.RealtimeEvent_UserLoginChanged:
-		p.UserLoginChanged.LoginPlaintext = plaintext.Login
-	case *realtimev1.RealtimeEvent_UserDisplayNameChanged:
-		p.UserDisplayNameChanged.DisplayNamePlaintext = plaintext.DisplayName
-	case *realtimev1.RealtimeEvent_UserBioChanged:
-		p.UserBioChanged.BioPlaintext = plaintext.Bio
 	}
 }

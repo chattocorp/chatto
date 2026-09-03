@@ -16,7 +16,6 @@ import (
 )
 
 func TestProjectRealtimeEventUsesDedicatedPublicShape(t *testing.T) {
-	plaintext := "public-login"
 	source := &evtv1.Event{
 		Id:      "event-id",
 		ActorId: "actor-id",
@@ -36,28 +35,26 @@ func TestProjectRealtimeEventUsesDedicatedPublicShape(t *testing.T) {
 	source.GetUserLoginChanged().ProtoReflect().SetUnknown(unknown)
 
 	projected := projectRealtimeEvent(source)
-	applyRealtimePlaintext(projected, &core.EventPlaintext{Login: &plaintext})
 	if projected == nil {
 		t.Fatal("projectRealtimeEvent() = nil, want a public event")
 	}
 	if projected.GetId() != source.GetId() || projected.GetActorId() != source.GetActorId() {
 		t.Fatalf("projected metadata = %+v, want source metadata", projected)
 	}
-	login := projected.GetUserLoginChanged()
-	if login.GetUserId() != "user-id" || login.GetLoginPlaintext() != plaintext {
-		t.Fatalf("projected login = %+v, want public fields", login)
+	profile := projected.GetUserProfileChanged()
+	if profile.GetUserId() != "user-id" {
+		t.Fatalf("projected profile hint = %+v, want user ID", profile)
 	}
-	if field := login.ProtoReflect().Descriptor().Fields().ByName("encrypted_login"); field != nil {
-		t.Fatalf("public login schema contains storage field %s", field.FullName())
+	if fields := profile.ProtoReflect().Descriptor().Fields(); fields.Len() != 1 {
+		t.Fatalf("public profile hint has %d fields, want only user_id", fields.Len())
 	}
-	if len(login.ProtoReflect().GetUnknown()) != 0 {
-		t.Fatalf("projected login retained unknown fields: %x", login.ProtoReflect().GetUnknown())
+	if len(profile.ProtoReflect().GetUnknown()) != 0 {
+		t.Fatalf("projected profile hint retained unknown fields: %x", profile.ProtoReflect().GetUnknown())
 	}
-
-	withoutPlaintext := projectRealtimeEvent(source)
-	plaintextField := withoutPlaintext.GetUserLoginChanged().ProtoReflect().Descriptor().Fields().ByName("login_plaintext")
-	if withoutPlaintext.GetUserLoginChanged().ProtoReflect().Has(plaintextField) {
-		t.Fatal("public login retained an untrusted source value in login_plaintext")
+	if wire, err := proto.Marshal(projected); err != nil {
+		t.Fatalf("marshal projected event: %v", err)
+	} else if containsBytes(wire, []byte("ciphertext")) || containsBytes(wire, []byte("untrusted-source-plaintext")) {
+		t.Fatalf("public profile hint contains stored or untrusted values: %x", wire)
 	}
 }
 
@@ -112,16 +109,136 @@ func TestProjectRealtimeEventDoesNotExposeLegacyAvatarStoragePointer(t *testing.
 			}}},
 		}},
 	})
-	if projected.GetUserAvatarSet().GetUserId() != "user-id" {
-		t.Fatalf("user_avatar_set = %+v, want user ID", projected.GetUserAvatarSet())
+	if projected.GetUserProfileChanged().GetUserId() != "user-id" {
+		t.Fatalf("user_profile_changed = %+v, want user ID", projected.GetUserProfileChanged())
 	}
-	if fields := projected.GetUserAvatarSet().ProtoReflect().Descriptor().Fields(); fields.Len() != 1 {
-		t.Fatalf("public avatar payload has %d fields, want only user_id", fields.Len())
+	if fields := projected.GetUserProfileChanged().ProtoReflect().Descriptor().Fields(); fields.Len() != 1 {
+		t.Fatalf("public profile payload has %d fields, want only user_id", fields.Len())
 	}
 	if wire, err := proto.Marshal(projected); err != nil {
 		t.Fatalf("marshal projected event: %v", err)
 	} else if containsBytes(wire, []byte("private/key")) || containsBytes(wire, []byte("private-bucket")) {
 		t.Fatalf("public avatar event contains storage coordinates: %x", wire)
+	}
+}
+
+func TestProjectRealtimeEventCollapsesDurableProfileFacts(t *testing.T) {
+	tests := []struct {
+		name  string
+		event *evtv1.Event
+	}{
+		{name: "login", event: &evtv1.Event{Event: &evtv1.Event_UserLoginChanged{UserLoginChanged: &evtv1.UserLoginChangedEvent{UserId: "U1"}}}},
+		{name: "display name", event: &evtv1.Event{Event: &evtv1.Event_UserDisplayNameChanged{UserDisplayNameChanged: &evtv1.UserDisplayNameChangedEvent{UserId: "U1"}}}},
+		{name: "legacy avatar", event: &evtv1.Event{Event: &evtv1.Event_UserAvatarSet{UserAvatarSet: &evtv1.UserAvatarSetEvent{UserId: "U1"}}}},
+		{name: "avatar cleared", event: &evtv1.Event{Event: &evtv1.Event_UserAvatarCleared{UserAvatarCleared: &evtv1.UserAvatarClearedEvent{UserId: "U1"}}}},
+		{name: "current avatar", event: &evtv1.Event{Event: &evtv1.Event_AssetCreated{AssetCreated: &evtv1.AssetCreatedEvent{UserId: "U1", Asset: &evtv1.AssetRecord{Id: "A1"}}}}},
+		{name: "custom status", event: &evtv1.Event{Event: &evtv1.Event_UserCustomStatusSet{UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "U1"}}}},
+		{name: "custom status cleared", event: &evtv1.Event{Event: &evtv1.Event_UserCustomStatusCleared{UserCustomStatusCleared: &evtv1.UserCustomStatusClearedEvent{UserId: "U1"}}}},
+		{name: "bio", event: &evtv1.Event{Event: &evtv1.Event_UserBioChanged{UserBioChanged: &evtv1.UserBioChangedEvent{UserId: "U1"}}}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			projected := projectRealtimeEvent(test.event)
+			if got := projected.GetUserProfileChanged().GetUserId(); got != "U1" {
+				t.Fatalf("user_profile_changed.user_id = %q, want U1", got)
+			}
+		})
+	}
+}
+
+func TestProjectRealtimeEventOmitsModerationAuditFacts(t *testing.T) {
+	for name, event := range map[string]*evtv1.Event{
+		"ban":    {Event: &evtv1.Event_RoomMemberBanned{RoomMemberBanned: &evtv1.RoomMemberBannedEvent{RoomId: "R1", UserId: "U1", Reason: "private"}}},
+		"add":    {Event: &evtv1.Event_RoomMemberAdded{RoomMemberAdded: &evtv1.RoomMemberAddedEvent{RoomId: "R1", UserId: "U1"}}},
+		"remove": {Event: &evtv1.Event_RoomMemberRemoved{RoomMemberRemoved: &evtv1.RoomMemberRemovedEvent{RoomId: "R1", UserId: "U1"}}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if projected := projectRealtimeEvent(event); projected != nil {
+				t.Fatalf("projectRealtimeEvent() = %+v, want private audit omission", projected)
+			}
+		})
+	}
+}
+
+func TestPublicRealtimeEventProjectsViewerSpecificSemantics(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "semantic-owner", "Semantic Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "semantic-other", "Semantic Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+
+	privateFormat := &evtv1.Event{Id: "E1", Event: &evtv1.Event_UserTimeFormatChanged{
+		UserTimeFormatChanged: &evtv1.UserTimeFormatChangedEvent{UserId: owner.GetId(), TimeFormat: evtv1.TimeFormat_TIME_FORMAT_24H},
+	}}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, owner.GetId(), privateFormat); err != nil || projected.GetViewerPreferencesChanged() == nil {
+		t.Fatalf("owner preference projection = %+v, %v; want viewer hint", projected, err)
+	}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, other.GetId(), privateFormat); err != nil || projected != nil {
+		t.Fatalf("other preference projection = %+v, %v; want omission", projected, err)
+	}
+
+	sharing := &evtv1.Event{Id: "E2", Event: &evtv1.Event_UserTimezoneSharingChanged{
+		UserTimezoneSharingChanged: &evtv1.UserTimezoneSharingChangedEvent{UserId: owner.GetId()},
+	}}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, other.GetId(), sharing); err != nil || projected.GetUserProfileChanged().GetUserId() != owner.GetId() {
+		t.Fatalf("public sharing projection = %+v, %v; want profile hint", projected, err)
+	}
+
+	thread := &evtv1.Event{Id: "E3", Event: &evtv1.Event_ThreadFollowed{
+		ThreadFollowed: &evtv1.ThreadFollowedEvent{RoomId: "R1", ThreadRootEventId: "M1", UserId: owner.GetId()},
+	}}
+	if projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, other.GetId(), thread); err != nil || projected != nil {
+		t.Fatalf("other thread projection = %+v, %v; want omission", projected, err)
+	}
+}
+
+func TestPublicRealtimeEventTranslatesEffectiveUnbanToOrdinaryJoin(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "unban-owner", "Unban Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "unban-target", "Unban Target", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "unban-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, owner.GetId(), core.KindChannel, room.GetId(), true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	event := &evtv1.Event{Id: "E-UNBAN", ActorId: owner.GetId(), Event: &evtv1.Event_RoomMemberUnbanned{
+		RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{RoomId: room.GetId(), UserId: target.GetId(), Reason: "private"},
+	}}
+	projected, err := env.httpServer.projectViewerRealtimeEvent(env.ctx, owner.GetId(), event)
+	if err != nil {
+		t.Fatalf("projectViewerRealtimeEvent: %v", err)
+	}
+	if projected.GetUserJoinedRoom().GetRoomId() != room.GetId() || projected.GetActorId() != target.GetId() {
+		t.Fatalf("projected unban = %+v, want ordinary target-authored join", projected)
+	}
+}
+
+func TestPublicRealtimeSchemaOmitsInternalFields(t *testing.T) {
+	accountFields := (&realtimev1.UserAccountCreatedEvent{}).ProtoReflect().Descriptor().Fields()
+	if accountFields.ByName("bot_owner_user_id") != nil {
+		t.Fatal("public user account event exposes bot_owner_user_id")
+	}
+	for _, message := range []proto.Message{
+		&realtimev1.VoiceCallParticipantJoinedEvent{},
+		&realtimev1.VoiceCallParticipantLeftEvent{},
+		&realtimev1.VoiceCallStartedEvent{},
+		&realtimev1.VoiceCallEndedEvent{},
+	} {
+		if message.ProtoReflect().Descriptor().Fields().ByName("source") != nil {
+			t.Fatalf("public call event %s exposes internal source", message.ProtoReflect().Descriptor().FullName())
+		}
 	}
 }
 
@@ -201,20 +318,26 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		t.Fatal("event catalogue descriptor is missing")
 	}
 	pubsubSourceNames := map[string]string{
-		"user_profile_changed":                 "user_profile_changed",
-		"viewer_preferences_changed":           "viewer_preferences_changed",
-		"thread_viewer_state_changed":          "thread_viewer_state_changed",
-		"server_profile_changed":               "server_profile_changed",
-		"user_typing":                          "user_typing",
-		"presence_changed":                     "presence_changed",
-		"notification_occurrences_invalidated": "notification_occurrences_invalidated",
-		"notification_unread_changed":          "notification_unread_changed",
-		"room_read_state_changed":              "room_read_state_changed",
+		"thread_viewer_state_changed":       "thread_viewer_state_changed",
+		"user_typing":                       "user_typing",
+		"presence_changed":                  "presence_changed",
+		"notification_occurrences_changed":  "notification_occurrences_changed",
+		"notification_unread_state_changed": "notification_unread_state_changed",
+		"room_read_state_changed":           "room_read_state_changed",
+	}
+	evtSourceNames := map[string]string{
+		"user_profile_changed":       "user_login_changed",
+		"viewer_preferences_changed": "user_time_format_changed",
+		"server_profile_changed":     "server_name_changed",
 	}
 	mappedPubSubFields := map[protoreflect.Name]bool{}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
 		publicField := publicOneof.Fields().Get(index)
-		canonicalField := canonicalOneof.Fields().ByName(publicField.Name())
+		canonicalName := string(publicField.Name())
+		if sourceName := evtSourceNames[canonicalName]; sourceName != "" {
+			canonicalName = sourceName
+		}
+		canonicalField := canonicalOneof.Fields().ByName(protoreflect.Name(canonicalName))
 		if got := publicField.Message().ParentFile().Package(); got != "chatto.realtime.v1" {
 			t.Errorf("public payload %s is owned by package %s", publicField.Message().FullName(), got)
 		}
@@ -231,7 +354,11 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			if err := proto.Unmarshal(wire, &event); err != nil {
 				t.Fatalf("unmarshal %s: %v", canonicalField.FullName(), err)
 			}
-			projected = projectRealtimeEvent(&event)
+			if publicField.Name() == "viewer_preferences_changed" {
+				projected = &realtimev1.RealtimeEvent{Event: &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}}
+			} else {
+				projected = projectRealtimeEvent(&event)
+			}
 		} else {
 			pubsubName, ok := pubsubSourceNames[string(publicField.Name())]
 			if !ok {

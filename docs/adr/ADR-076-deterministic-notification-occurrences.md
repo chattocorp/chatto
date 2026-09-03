@@ -212,7 +212,7 @@ root event, in addition to advancing the Message Read Cursor. This operation
 makes older Badge attention inactive and uses the same repair handshake as an
 explicit room read.
 
-Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
+Realtime `NotificationOccurrencesChanged` messages are transient hints.
 They can carry one opaque sound-candidate notification ID but never expose
 JetStream coordinates. The receiving replica fences the notification
 projection, revalidates any candidate, and sends an authoritative finite

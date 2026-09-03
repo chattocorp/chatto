@@ -701,7 +701,6 @@ func TestPlanRealtimeReplayIncludesDMMessagesDespiteMessageReadDenial(t *testing
 
 func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) {
 	for _, subject := range []string{
-		"evt.config.server.server_name_changed",
 		"evt.group.G1.room_group_updated",
 		"evt.layout.default.room_moved",
 	} {
@@ -709,8 +708,46 @@ func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) 
 			t.Fatalf("realtimeReplayRequiresReset(%q) = false", subject)
 		}
 	}
+	if realtimeReplayRequiresReset("evt.config.server.server_name_changed") {
+		t.Fatal("public server profile event unexpectedly requires reset")
+	}
 	if realtimeReplayRequiresReset("evt.room.R1.message_posted") {
 		t.Fatal("room message unexpectedly requires reset")
+	}
+}
+
+func TestPlanRealtimeReplayIncludesDurableUserPreferences(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "replay-preferences", "Replay Preferences", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	before, err := chatto.PlanRealtimeReplay(ctx, user.GetId(), "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	format := evtv1.TimeFormat_TIME_FORMAT_24H
+	if _, err := chatto.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{TimeFormat: &format}); err != nil {
+		t.Fatalf("UpdateUserSettings: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, user.GetId(), before.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if plan.Reset {
+		t.Fatal("durable preference replay requested a snapshot reset")
+	}
+	found := false
+	for _, envelope := range plan.Events {
+		if event := envelope.EVTEvent(); event != nil && event.GetUserTimeFormatChanged().GetUserId() == user.GetId() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatal("durable preference replay omitted user_time_format_changed")
 	}
 }
 

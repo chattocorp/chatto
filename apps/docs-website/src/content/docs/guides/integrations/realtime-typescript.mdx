@@ -114,7 +114,7 @@ type ChattoRealtimeClientOptions = {
   initialState?: RealtimeInitialState;
   beginSnapshot?: () => void | Promise<void>;
   applySnapshot?: (snapshot: RealtimeSnapshot) => void | Promise<void>;
-  completeSnapshot?: (cursor: string, signal: AbortSignal) => Promise<void>;
+  completeCatchUp?: (cursor: string, signal: AbortSignal) => Promise<void>;
 };
 
 export class ChattoRealtimeClient {
@@ -247,11 +247,9 @@ export class ChattoRealtimeClient {
 
       case "caughtUp": {
         const cursor = frame.frame.value.cursor;
-        if (this.#snapshotInProgress) {
-          await this.options.completeSnapshot?.(cursor, connectionSignal);
-          connectionSignal.throwIfAborted();
-          this.#snapshotInProgress = false;
-        }
+        await this.options.completeCatchUp?.(cursor, connectionSignal);
+        connectionSignal.throwIfAborted();
+        this.#snapshotInProgress = false;
         this.#resumeCursor = cursor;
         this.#reconnectAttempt = 0;
         return;
@@ -365,7 +363,7 @@ const projectionClient = new ChattoRealtimeClient(
       replaceReferencedUsers(snapshot.users);
       replaceActiveCalls(snapshot.activeCalls);
     },
-    completeSnapshot: async (cursor, signal) => {
+    completeCatchUp: async (cursor, signal) => {
       const headers = { "Chatto-Realtime-Minimum-Cursor": cursor };
       const [runtime, viewer, notifications] = await Promise.all([
         serverClient.getRuntimeConfig(
@@ -394,10 +392,12 @@ Load other users with bounded `BatchGetUsers` calls when later events reference
 them.
 
 Notifications, runtime settings, and some viewer state are not part of the
-exact content snapshot. The example reads them after `caught_up` with the same
-cursor as a minimum boundary. Use a finite deadline for every cursor-bounded
-call. Associate each snapshot with a local generation or abort signal. When a
-newer snapshot starts, discard responses from the earlier generation.
+exact content snapshot. The example reads them after every `caught_up`,
+including a successful resume, with the same cursor as a minimum boundary.
+This restores latest-value state whose transient change events cannot replay.
+Use a finite deadline for every cursor-bounded call. Associate each snapshot
+with a local generation or abort signal. When a newer snapshot starts, discard
+responses from the earlier generation.
 
 A targeted ConnectRPC response can include changes after its minimum cursor.
 Make direct reducers idempotent, or use the event to read and replace the

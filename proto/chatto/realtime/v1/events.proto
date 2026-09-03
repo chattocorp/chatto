@@ -3,10 +3,8 @@ syntax = "proto3";
 package chatto.realtime.v1;
 
 import "chatto/api/v1/common.proto";
+import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/rooms.proto";
-import "chatto/api/v1/user_status.proto";
-import "chatto/api/v1/viewer.proto";
-import "google/protobuf/timestamp.proto";
 
 // RoomCreatedEvent reports a new room that is visible to the caller.
 message RoomCreatedEvent {
@@ -68,44 +66,28 @@ message UserLeftRoomEvent {
   string room_id = 1;
 }
 
-// CallParticipantEventSource identifies what caused a call-participant change.
-enum CallParticipantEventSource {
-  // The event source is not known.
-  CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
-  // A user action caused the change.
-  CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
-  // LiveKit reported the change.
-  CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
-  // Server reconciliation caused the change.
-  CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
-}
-
 // VoiceCallParticipantJoinedEvent reports that the actor joined a call session.
 message VoiceCallParticipantJoinedEvent {
   string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string call_id = 2;
 }
 
 // VoiceCallParticipantLeftEvent reports that the actor left a call session.
 message VoiceCallParticipantLeftEvent {
   string room_id = 1;
-  CallParticipantEventSource source = 2;
-  string call_id = 3;
+  string call_id = 2;
 }
 
 // VoiceCallStartedEvent reports a new call session.
 message VoiceCallStartedEvent {
   string room_id = 1;
   string call_id = 2;
-  CallParticipantEventSource source = 3;
 }
 
 // VoiceCallEndedEvent reports the end of a call session.
 message VoiceCallEndedEvent {
   string room_id = 1;
   string call_id = 2;
-  CallParticipantEventSource source = 3;
 }
 
 // MessagePostedEvent reports a new room message.
@@ -255,79 +237,11 @@ message ServerMotdChangedEvent {
 message UserAccountCreatedEvent {
   string user_id = 1;
   bool is_bot = 2;
-  string bot_owner_user_id = 3;
-  optional string login_plaintext = 4;
-  optional string display_name_plaintext = 5;
-}
-
-// UserLoginChangedEvent reports a changed public login name.
-message UserLoginChangedEvent {
-  string user_id = 1;
-  optional string login_plaintext = 2;
-}
-
-// UserDisplayNameChangedEvent reports a changed public display name.
-message UserDisplayNameChangedEvent {
-  string user_id = 1;
-  optional string display_name_plaintext = 2;
-}
-
-// UserAvatarSetEvent reports that a user avatar changed.
-message UserAvatarSetEvent {
-  string user_id = 1;
-}
-
-// UserAvatarClearedEvent reports that a user avatar was removed.
-message UserAvatarClearedEvent {
-  string user_id = 1;
 }
 
 // UserAccountDeletedEvent reports a deleted user account.
 message UserAccountDeletedEvent {
   string user_id = 1;
-}
-
-// UserCustomStatusSetEvent reports the current public custom status.
-message UserCustomStatusSetEvent {
-  string user_id = 1;
-  chatto.api.v1.CustomUserStatus status = 2;
-}
-
-// UserCustomStatusClearedEvent reports a cleared custom status.
-message UserCustomStatusClearedEvent {
-  string user_id = 1;
-}
-
-// UserBioChangedEvent reports a changed public biography.
-message UserBioChangedEvent {
-  string user_id = 1;
-  // Plaintext biography. The field is absent after key shredding.
-  optional string bio_plaintext = 2;
-}
-
-// RoomMemberBannedEvent reports a room ban without its private moderation reason.
-message RoomMemberBannedEvent {
-  string room_id = 1;
-  string user_id = 2;
-  optional google.protobuf.Timestamp expires_at = 3;
-}
-
-// RoomMemberUnbannedEvent reports removal of a room ban.
-message RoomMemberUnbannedEvent {
-  string room_id = 1;
-  string user_id = 2;
-}
-
-// RoomMemberAddedEvent reports that a manager added a room member.
-message RoomMemberAddedEvent {
-  string room_id = 1;
-  string user_id = 2;
-}
-
-// RoomMemberRemovedEvent reports that a manager removed a room member.
-message RoomMemberRemovedEvent {
-  string room_id = 1;
-  string user_id = 2;
 }
 
 // ReactionAddedEvent reports a new message reaction.
@@ -430,25 +344,17 @@ message RoomGroupsReorderedEvent {
   repeated string group_ids = 1;
 }
 
-// UserProfileChangedEvent reports the current public profile after a change.
+// UserProfileChangedEvent reports that the current public user resource changed.
+// Read the user through UserService with this event's resume cursor as the
+// minimum boundary.
 message UserProfileChangedEvent {
   string user_id = 1;
-  string display_name = 2;
-  string avatar_url = 3;
-  string login = 4;
-  string bio = 5;
-  // Current public time zone, or empty when sharing is disabled.
-  string timezone = 6;
 }
 
-// ViewerPreferencesChangedEvent reports the caller's current display preferences.
-message ViewerPreferencesChangedEvent {
-  // Current private IANA time-zone preference.
-  string timezone = 1;
-  chatto.api.v1.TimeFormat time_format = 2;
-  // Whether the caller shares the time zone in their public profile.
-  bool share_timezone = 3;
-}
+// ViewerPreferencesChangedEvent reports that the caller's private user
+// preferences changed. Read ViewerService with this event's resume cursor as
+// the minimum boundary.
+message ViewerPreferencesChangedEvent {}
 
 // ThreadViewerStateChangedEvent reports the caller's current thread state.
 message ThreadViewerStateChangedEvent {
@@ -457,14 +363,9 @@ message ThreadViewerStateChangedEvent {
   bool is_following = 3;
 }
 
-// ServerProfileChangedEvent reports the current public server profile.
-message ServerProfileChangedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
-  string logo_url = 4;
-  string banner_url = 5;
-}
+// ServerProfileChangedEvent reports that the public server profile changed.
+// Read ServerService with this event's resume cursor as the minimum boundary.
+message ServerProfileChangedEvent {}
 
 // UserTypingEvent reports current typing activity.
 message UserTypingEvent {
@@ -474,17 +375,19 @@ message UserTypingEvent {
 
 // PresenceChangedEvent reports the actor's current presence.
 message PresenceChangedEvent {
-  string status = 1;
+  chatto.api.v1.PresenceStatus status = 1;
 }
 
-// NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
-message NotificationOccurrencesInvalidatedEvent {
+// NotificationOccurrencesChangedEvent reports that the caller's current
+// notification occurrences changed and requests an authoritative resource read.
+message NotificationOccurrencesChangedEvent {
   // Notification that can cause a sound after reconciliation.
   optional string sound_candidate_notification_id = 1;
 }
 
-// NotificationUnreadChangedEvent requests unread-state reconciliation.
-message NotificationUnreadChangedEvent {
+// NotificationUnreadStateChangedEvent reports that the caller's notification
+// unread state changed and requests authoritative notification and room reads.
+message NotificationUnreadStateChangedEvent {
   string room_id = 1;
   // Event ID of the affected thread root, or empty for room state.
   string thread_root_event_id = 2;

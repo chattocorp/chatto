@@ -11,7 +11,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core/subjects"
 )
 
 var (
@@ -475,6 +474,5 @@ func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reaso
 			},
 		},
 	})
-	subject := subjects.LiveSyncUserEvent(userID, "session_terminated")
-	return c.publishPubSubEvent(ctx, subject, event)
+	return c.publishUserPubSubEvent(ctx, userID, event)
 }

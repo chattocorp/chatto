@@ -5,12 +5,11 @@
 **Updated:** 2026-09-02
 
 **Superseded by:** [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md)
-and [ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-091 replaced frontend-shaped live projection operations with semantic
-public events. ADR-092 then replaced realtime-specific state items, retained
-timelines, and room hydration with canonical resource shapes in an exact
-WebSocket snapshot. The text below records the former protocol 2 design. It
-does not describe protocol 4.
+and [ADR-093](ADR-093-use-a-public-realtime-event-union.md). ADR-091 replaced
+frontend-shaped live projection operations with semantic public events.
+ADR-093 defines the independent public event catalogue and canonical resource
+references. The text below records the former protocol 2 design. It does not
+describe protocol 4.
 
 [ADR-089](ADR-089-server-content-view.md) separately replaces the former
 server-side multi-projection readiness and capture mechanism with

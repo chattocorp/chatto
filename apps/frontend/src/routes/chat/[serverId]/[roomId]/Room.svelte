@@ -371,21 +371,11 @@
     switch (semantic.case) {
       case 'userJoinedRoom':
       case 'userLeftRoom':
-      case 'roomMemberAdded':
-      case 'roomMemberRemoved':
-      case 'roomMemberBanned':
-      case 'roomMemberUnbanned':
         if (semantic.value.roomId === roomId) void roomMembersStore.refresh();
         return;
       case 'userAccountDeleted':
       case 'userProfileChanged':
       case 'userAccountCreated':
-      case 'userLoginChanged':
-      case 'userDisplayNameChanged':
-      case 'userAvatarSet':
-      case 'userAvatarCleared':
-      case 'userCustomStatusSet':
-      case 'userCustomStatusCleared':
         void roomMembersStore.refresh();
         return;
     }

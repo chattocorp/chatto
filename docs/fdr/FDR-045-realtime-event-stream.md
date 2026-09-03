@@ -27,8 +27,9 @@ the stream to build and maintain its local server projection.
   payloads. The server never sends raw EVT bytes.
 - A client can ignore an event type that it does not use and still retain the
   event cursor.
-- Typing, presence transitions, and other cursorless activity are live-only.
-  ConnectRPC supplies current state when clients need it.
+- Typing, presence transitions, notification occurrence signals, read-state
+  signals, and other cursorless activity are live-only. ConnectRPC supplies
+  current state when clients need it.
 - A recently disconnected client can reconnect with its last safe cursor. The
   server sends authorized replayable events after that cursor before it
   continues live.
@@ -128,19 +129,24 @@ its content view includes that boundary. Clients must give these reads finite
 deadlines and must not retain the event cursor until required reconciliation
 succeeds.
 
-The bundled frontend reads notifications and other auxiliary state after the
-snapshot. It reloads only mounted room or thread timelines. Unmounted
-timelines remain lazy. A new snapshot invalidates any late response from an
-earlier projection generation.
+After every catch-up, the bundled frontend reads notifications and other
+latest-value state. After snapshot fallback, it also reloads only mounted room
+or thread timelines. Unmounted timelines remain lazy. A new snapshot
+invalidates any late response from an earlier projection generation.
 
 ### 5. Cursor-bearing and cursorless activity have different recovery
 
 **Decision:** Public events with cursors can resume from EVT. Cursorless
-activity is live-only, and current values are reconciled through resource
-reads.
+activity is live-only. After every `caught_up`, the bundled client reconciles
+the current server runtime state, viewer, rooms, notifications, and displayed
+user presence through cursor-bounded resource reads. It replaces mounted
+timelines only after snapshot fallback. Durable replay already repairs their
+changes.
 **Why:** Typing and presence transitions have no useful historical meaning.
 Durable domain changes need ordering and short-gap recovery.
 **Tradeoff:** A reconnect does not recreate cursorless presentation effects.
+The bundled client does bounded reconciliation work after every catch-up, even
+when durable resume succeeded.
 
 ### 6. ConnectRPC remains the explicit resource API
 
@@ -189,8 +195,8 @@ discovery metadata or a new behavioral protocol version.
   ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-042
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-091 (semantic realtime events),
-  ADR-092 (superseded one event vocabulary), ADR-093 (public realtime event
-  union), ADR-094 (separate durable and pubsub event envelopes)
+  ADR-093 (public realtime event union), ADR-094 (separate durable and pubsub
+  event envelopes)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

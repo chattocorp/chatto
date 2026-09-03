@@ -1598,8 +1598,8 @@ type Event_AssetAttached struct {
 type Event_ServerNameChanged struct {
 	// ----- Config / preferences (500-599, durable) -----
 	// These variants live on the EVT stream (subjects under evt.config.>)
-	// per ADRs 033/034/035. Member-visible server profile/config live
-	// invalidation uses PubSubEvent.ServerProfileChangedEvent instead.
+	// per ADRs 033/034/035. The realtime mapper converts selected committed
+	// facts into a public ServerProfileChangedEvent.
 	ServerNameChanged *ServerNameChangedEvent `protobuf:"bytes,501,opt,name=server_name_changed,json=serverNameChanged,proto3,oneof"`
 }
 

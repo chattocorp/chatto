@@ -953,12 +953,12 @@ func TestDMNotifications(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
 			t.Fatalf("unmarshal pubsub event: %v", err)
 		}
-		event := pubsub.GetNotificationOccurrencesInvalidated()
+		event := pubsub.GetNotificationOccurrencesChanged()
 		if event == nil {
-			t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", pubsub.Event)
+			t.Fatalf("expected NotificationOccurrencesChangedEvent, got %T", pubsub.Event)
 		}
 		if event.GetSoundCandidateNotificationId() != "" {
-			t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+			t.Fatal("NotificationOccurrencesChangedEvent has a sound candidate during DND")
 		}
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {

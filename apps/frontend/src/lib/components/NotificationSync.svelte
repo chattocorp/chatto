@@ -47,7 +47,7 @@ Include this component once in the application root so signed-out pages also cle
         const semantic = event.event?.event;
         if (
           eventId &&
-          semantic?.case === 'notificationOccurrencesInvalidated' &&
+          semantic?.case === 'notificationOccurrencesChanged' &&
           semantic.value.soundCandidateNotificationId &&
           !soundedEventIds.includes(eventId)
         ) {

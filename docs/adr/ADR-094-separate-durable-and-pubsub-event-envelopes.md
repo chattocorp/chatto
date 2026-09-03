@@ -4,18 +4,18 @@
 
 **Date:** 2026-09-03
 
-**Supersedes:** The single internal envelope decision in
-[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+**Restores and refines:** The internal storage-contract boundary in
+[ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
 ## Context
 
-ADR-092 put durable EVT facts and transient NATS Core signals in one internal
-`Event` union. Callers selected storage after they built the event. This gave
-both paths one envelope, but it made durability a rule outside the type. It
-also added a large transient-only number range and live payload imports to the
-stored EVT schema.
+An unpublished protocol 4 iteration put durable EVT facts and transient NATS
+Core signals in one internal `Event` union. Callers selected storage after they
+built the event. This gave both paths one envelope, but it made durability a
+rule outside the type. It also added a large transient-only number range and
+live payload imports to the stored EVT schema.
 
-ADR-093 later gave the public realtime API its own event union and payloads.
+ADR-093 gives the public realtime API its own event union and payloads.
 The public API no longer needs one internal envelope to provide one semantic
 event catalogue. The durable and pubsub internal paths have different
 compatibility and recovery rules, so separate envelopes now give a clearer
@@ -32,17 +32,20 @@ change the result of a subscription.
 EVT. Its existing stored field numbers, payloads, and wire layout stay
 compatible with supported Chatto data.
 
-`chatto.core.pubsub.v1.PubSubEvent` contains only events that are sent on
-`live.sync.>` through NATS Core. It is never stored in EVT. Its field numbers
-are local to `PubSubEvent`; they do not use the public realtime union
-numbers. Variants that exist for authorized client delivery reference their
-`chatto.realtime.v1` payload type directly. Private control variants keep a
-private payload. Session termination is the current private control variant.
+`chatto.core.pubsub.v1.PubSubEvent` contains only transient signals. Most
+signals are sent on `live.sync.>` through NATS Core. The process-local presence
+hub also uses this envelope when it fans out a presence change. A
+`PubSubEvent` is never stored in EVT. Its field numbers are local to this
+envelope; they do not use the public realtime union numbers. Variants that
+exist for authorized client delivery reference their `chatto.realtime.v1`
+payload type directly. Private control variants keep a private payload.
+Session termination is the current private control variant.
 
 Both envelopes have the common event ID, creation time, and actor ID. Backend
-publishers and event-delivery code use typed accessors so that code must select
-the durable or pubsub source. Durable EVT replay cannot contain a
-`PubSubEvent`.
+publishers use typed, scope-specific accessors. A user-scoped publisher accepts
+only user signals, and a room-scoped publisher accepts only typing signals with
+a matching room ID. Consumers validate the subject and payload scope before
+authorization. Durable EVT replay cannot contain a `PubSubEvent`.
 
 The public `chatto.realtime.v1.RealtimeEvent` union stays independent from both
 internal envelopes. The server maps selected `Event` facts into dedicated

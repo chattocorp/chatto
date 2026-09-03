@@ -230,7 +230,13 @@ authorization, live events, backup and restore, and backend tests.
 - Durable facts publish to `evt.>` through `EventPublisher`; JetStream republish
   exposes committed facts on `live.evt.>`.
 - Non-durable pubsub activity publishes `pubsubv1.PubSubEvent` values on
-  `live.sync.>` through `publishPubSubEvent`.
+  `live.sync.>` through `publishUserPubSubEvent`,
+  `publishRoomPubSubEvent`, or a typed batch of the same scopes. Do not let a
+  caller supply an arbitrary pubsub subject. The publisher must derive the
+  subject from the payload type and verify all scope IDs.
+- A `live.sync.>` consumer must verify that the subject family, scope, suffix,
+  and payload IDs agree before it performs authorization. Reject wildcards,
+  extra tokens, unknown suffixes, and cross-user or cross-room mismatches.
 - Pick one delivery path per conceptual update. Do not double-publish both a
   durable event and a pubsub event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.

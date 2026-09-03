@@ -369,16 +369,14 @@ func TestParseEventIDFromSubject(t *testing.T) {
 
 func TestLiveSubjects(t *testing.T) {
 	cases := map[string]string{
-		"LiveSyncAllEvents":   "live.sync.>",
-		"LiveSyncUserEvent":   "live.sync.user.U1.settings_updated",
-		"LiveSyncRoomEvent":   "live.sync.room.channel.R1.typing",
-		"LiveSyncConfigEvent": "live.sync.config.server_updated",
+		"LiveSyncAllEvents": "live.sync.>",
+		"LiveSyncUserEvent": "live.sync.user.U1.settings_updated",
+		"LiveSyncRoomEvent": "live.sync.room.channel.R1.typing",
 	}
 	got := map[string]string{
-		"LiveSyncAllEvents":   LiveSyncAllEvents(),
-		"LiveSyncUserEvent":   LiveSyncUserEvent("U1", "settings_updated"),
-		"LiveSyncRoomEvent":   LiveSyncRoomEvent("channel", "R1", "typing"),
-		"LiveSyncConfigEvent": LiveSyncConfigEvent("server_updated"),
+		"LiveSyncAllEvents": LiveSyncAllEvents(),
+		"LiveSyncUserEvent": LiveSyncUserEvent("U1", "settings_updated"),
+		"LiveSyncRoomEvent": LiveSyncRoomEvent("channel", "R1", "typing"),
 	}
 	for k, want := range cases {
 		if got[k] != want {

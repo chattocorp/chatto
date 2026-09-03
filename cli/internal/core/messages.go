@@ -1159,10 +1159,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
-	if options.createThread {
-		c.publishThreadViewerStateChangedEvent(ctx, user_id, kind, room_id, event.Id, true)
-	}
-
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
@@ -1269,7 +1265,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// poster's read boundary and Slow Mode state above are current. Publish one
 	// transient, user-scoped reconciliation only after those post-commit updates
 	// run. Recipient Badge decisions publish their own invalidations.
-	c.NotifyNotificationUnreadChanged(ctx, user_id, user_id, room_id, "")
+	c.NotifyNotificationUnreadStateChanged(ctx, user_id, user_id, room_id, "")
 
 	return event, nil
 }

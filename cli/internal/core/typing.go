@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 
-	"hmans.de/chatto/internal/core/subjects"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
@@ -27,9 +26,7 @@ func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string,
 		},
 	})
 
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSyncRoomEvent(string(kind), roomID, "user_typing")
-	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
+	if err := c.publishRoomPubSubEvent(ctx, kind, roomID, event); err != nil {
 		c.logger.Warn("Failed to publish typing indicator", "error", err)
 		return err
 	}

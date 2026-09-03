@@ -492,104 +492,33 @@ func TestChattoCore_FullWorkflow(t *testing.T) {
 // Instance Event Authorization Tests
 // ============================================================================
 
-// TestChattoCore_isAuthorizedForPubSubEvent verifies the authorization logic
-// for server-level events based on subject patterns.
-func TestChattoCore_isAuthorizedForPubSubEvent(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-
-	// Create two users for testing
-	userA, _ := core.CreateUser(ctx, "system", "userA", "User A", "")
-	userB, _ := core.CreateUser(ctx, "system", "userB", "User B", "")
-
+func TestPubSubSubjectPayloadScope(t *testing.T) {
+	userEvent := &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_SessionTerminated{
+		SessionTerminated: &pubsubv1.SessionTerminatedEvent{Reason: "logout"},
+	}}
+	typingEvent := &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: "R1"},
+	}}
 	tests := []struct {
-		name       string
-		userID     string
-		subject    string
-		wantResult bool
+		name    string
+		subject string
+		event   *pubsubv1.PubSubEvent
+		want    bool
 	}{
-		// User-scoped events: private by default
-		{
-			name:       "user event - same user receives their own registration_completed",
-			userID:     userA.Id,
-			subject:    "live.sync.user." + userA.Id + ".registration_completed",
-			wantResult: true,
-		},
-		{
-			name:       "user event - other user does NOT receive registration_completed",
-			userID:     userB.Id,
-			subject:    "live.sync.user." + userA.Id + ".registration_completed",
-			wantResult: false,
-		},
-		{
-			name:       "user event - same user receives their own session_terminated",
-			userID:     userA.Id,
-			subject:    "live.sync.user." + userA.Id + ".session_terminated",
-			wantResult: true,
-		},
-		{
-			name:       "user event - other user does NOT receive session_terminated",
-			userID:     userB.Id,
-			subject:    "live.sync.user." + userA.Id + ".session_terminated",
-			wantResult: false,
-		},
-
-		// Profile updates: broadcast to everyone (since profiles are public)
-		{
-			name:       "profile_updated - same user receives it",
-			userID:     userA.Id,
-			subject:    "live.sync.user." + userA.Id + ".profile_updated",
-			wantResult: true,
-		},
-		{
-			name:       "profile_updated - other user ALSO receives it (broadcast)",
-			userID:     userB.Id,
-			subject:    "live.sync.user." + userA.Id + ".profile_updated",
-			wantResult: true,
-		},
-
-		// Config-scoped events (incl. server branding + room layout):
-		// every authenticated user is implicitly a member, so both receive.
-		{
-			name:       "config event - user A receives it",
-			userID:     userA.Id,
-			subject:    "live.sync.config.server_updated",
-			wantResult: true,
-		},
-		{
-			name:       "config event - user B also receives it",
-			userID:     userB.Id,
-			subject:    "live.sync.config.server_updated",
-			wantResult: true,
-		},
-
-		// Invalid subjects
-		{
-			name:       "invalid subject format - too few parts",
-			userID:     userA.Id,
-			subject:    "live.sync.user",
-			wantResult: false,
-		},
-		{
-			name:       "invalid subject format - wrong prefix",
-			userID:     userA.Id,
-			subject:    "wrong.prefix.user." + userA.Id + ".event",
-			wantResult: false,
-		},
-		{
-			name:       "unknown scope",
-			userID:     userA.Id,
-			subject:    "live.sync.unknown.someid.event",
-			wantResult: false,
-		},
+		{name: "user scope", subject: "live.sync.user.U1.session_terminated", event: userEvent, want: true},
+		{name: "user token mismatch", subject: "live.sync.user.U1.room_read", event: userEvent},
+		{name: "global scope rejected", subject: "live.sync.config.server_updated", event: userEvent},
+		{name: "room scope", subject: "live.sync.room.channel.R1.user_typing", event: typingEvent, want: true},
+		{name: "room payload mismatch", subject: "live.sync.room.channel.R2.user_typing", event: typingEvent},
+		{name: "room type mismatch", subject: "live.sync.room.channel.R1.session_terminated", event: userEvent},
+		{name: "wildcard target rejected", subject: "live.sync.user.*.session_terminated", event: userEvent},
+		{name: "extra token rejected", subject: "live.sync.user.U1.session_terminated.extra", event: userEvent},
 	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := core.isAuthorizedForPubSubEvent(ctx, tt.userID, tt.subject)
-			if result != tt.wantResult {
-				t.Errorf("isAuthorizedForPubSubEvent(%s, %s) = %v, want %v",
-					tt.userID, tt.subject, result, tt.wantResult)
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, _, _, got := pubSubSubjectPayloadScope(test.subject, test.event)
+			if got != test.want {
+				t.Fatalf("pubSubSubjectPayloadScope(%q) accepted = %v, want %v", test.subject, got, test.want)
 			}
 		})
 	}

@@ -286,9 +286,3 @@ func LiveSyncUserEvent(userID, eventType string) string {
 func LiveSyncRoomEvent(kind, roomID, eventType string) string {
 	return fmt.Sprintf("live.sync.room.%s.%s.%s", kind, roomID, eventType)
 }
-
-// LiveSyncConfigEvent returns the pubsub subject for a deployment-wide
-// config event. Pattern: `live.sync.config.{eventType}`.
-func LiveSyncConfigEvent(eventType string) string {
-	return fmt.Sprintf("live.sync.config.%s", eventType)
-}

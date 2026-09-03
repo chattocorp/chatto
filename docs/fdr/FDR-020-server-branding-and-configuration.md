@@ -1,7 +1,7 @@
 # FDR-020: Server Branding & Configuration
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-03
 
 ## Overview
 
@@ -29,14 +29,18 @@ Operators can customize how their Chatto server presents itself. The server's na
 **Why:** Partial-update semantics let UI forms send only changed fields without GET-then-PUT round-trips and without overwriting other fields with whatever defaults the form thinks they should be. It also makes API clients (CLI tools, scripts) safer.
 **Tradeoff:** Two ways to "clear" a string field: empty-string vs unset. The API treats empty string as a clear and nil as "leave alone". Documented; consistent across all string fields.
 
-### 2. Public profile/config changes publish one internal live signal
+### 2. Durable profile facts map to one public change event
 
-**Decision:** Public server profile and config changes publish one transient
-`ServerProfileChangedEvent` `PubSubEvent` on `live.sync.config.server_updated`. The
-realtime service maps that signal to a dedicated public event with
-authoritative current server state for each authenticated client.
-**Why:** Server name, MOTD, logo, banner, description, and welcome copy are visible across the UI. One internal signal keeps profile/config live behavior clear, avoids duplicate broadcasts from text updates, and lets the public stream converge without a client-side refetch.
-**Tradeoff:** Every connected client rebuilds the small projected server resource when public profile/config changes, including fields it may not render. Volume is low (operators don't tweak branding constantly), so this is preferable to exposing invalidation mechanics to clients.
+**Decision:** Public server profile changes stay as durable config facts in
+EVT. The realtime service maps the applicable facts to one content-free
+`ServerProfileChangedEvent`. The client reads the canonical server resource at
+the event cursor. Blocked usernames and other private operator values do not
+produce this public event.
+**Why:** The durable fact is already the ordered source of truth. A second
+transient publication can be lost and can disagree with replay. One public
+resource-change event also hides internal config fact names from clients.
+**Tradeoff:** A connected client makes a small cursor-bounded resource read
+when the public server profile changes. These changes are infrequent.
 
 ### 3. Logo and banner have their own upload mutations
 

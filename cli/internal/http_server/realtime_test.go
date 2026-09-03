@@ -188,15 +188,15 @@ func TestRealtimeDurableEventHasPublicShapeAndOpaqueCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeServerFrameForEvent: %v", err)
 	}
-	bioChanged := frame.GetEvent().GetUserBioChanged()
-	if bioChanged == nil {
-		t.Fatal("realtime event omitted public user_bio_changed fact")
+	profileChanged := frame.GetEvent().GetUserProfileChanged()
+	if profileChanged == nil {
+		t.Fatal("realtime event omitted public user_profile_changed hint")
 	}
-	if bioChanged.GetBioPlaintext() != "new bio" {
-		t.Fatalf("bio_plaintext = %q, want decrypted delivery value", bioChanged.GetBioPlaintext())
+	if profileChanged.GetUserId() != viewer.GetId() {
+		t.Fatalf("profile user_id = %q, want %q", profileChanged.GetUserId(), viewer.GetId())
 	}
-	if field := bioChanged.ProtoReflect().Descriptor().Fields().ByName("encrypted_bio"); field != nil {
-		t.Fatalf("realtime event schema exposes %s", field.FullName())
+	if fields := profileChanged.ProtoReflect().Descriptor().Fields(); fields.Len() != 1 {
+		t.Fatalf("user profile hint has %d fields, want only user_id", fields.Len())
 	}
 	resumeCursor := frame.GetEvent().GetResumeCursor()
 	if resumeCursor == "" || resumeCursor == "42" {
@@ -429,14 +429,62 @@ func TestRealtimeWebSocketSnapshotHandsOffToSubsequentBufferedEvent(t *testing.T
 
 	for {
 		event := readPublicRealtimeEvent(t, conn)
-		bio := event.GetUserBioChanged()
-		if bio == nil {
+		profile := event.GetUserProfileChanged()
+		if profile == nil {
 			continue
 		}
-		if bio.GetBioPlaintext() != "after snapshot boundary" || event.GetResumeCursor() == "" {
-			t.Fatalf("buffered event = %+v, want post-snapshot bio with cursor", event)
+		if profile.GetUserId() != viewer.GetId() || event.GetResumeCursor() == "" {
+			t.Fatalf("buffered event = %+v, want post-snapshot profile hint with cursor", event)
 		}
 		return
+	}
+}
+
+func TestRealtimeWebSocketDeliversDurableViewerAndPublicPreferenceHints(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "preference-owner", "Preference Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "preference-other", "Preference Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	ownerToken, err := env.core.CreateAuthToken(env.ctx, owner.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken owner: %v", err)
+	}
+	otherToken, err := env.core.CreateAuthToken(env.ctx, other.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken other: %v", err)
+	}
+	ownerConn := env.dialRealtime(t)
+	subscribeRealtime(t, ownerConn, ownerToken, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, ownerConn)
+	otherConn := env.dialRealtime(t)
+	subscribeRealtime(t, otherConn, otherToken, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	readRealtimeCaughtUp(t, otherConn)
+
+	format := evtv1.TimeFormat_TIME_FORMAT_24H
+	if _, err := env.core.UpdateUserSettings(env.ctx, owner.GetId(), core.UserSettingsInput{TimeFormat: &format}); err != nil {
+		t.Fatalf("UpdateUserSettings time format: %v", err)
+	}
+	privateEvent := readPublicRealtimeEvent(t, ownerConn)
+	if privateEvent.GetViewerPreferencesChanged() == nil || privateEvent.GetResumeCursor() == "" {
+		t.Fatalf("owner event = %+v, want cursor-bearing viewer preference hint", privateEvent)
+	}
+
+	share := true
+	if _, err := env.core.UpdateUserSettings(env.ctx, owner.GetId(), core.UserSettingsInput{ShareTimezone: &share}); err != nil {
+		t.Fatalf("UpdateUserSettings sharing: %v", err)
+	}
+	ownerEvent := readPublicRealtimeEvent(t, ownerConn)
+	if ownerEvent.GetViewerPreferencesChanged() == nil || ownerEvent.GetResumeCursor() == "" {
+		t.Fatalf("owner sharing event = %+v, want cursor-bearing viewer hint", ownerEvent)
+	}
+	publicEvent := readPublicRealtimeEvent(t, otherConn)
+	if publicEvent.GetUserProfileChanged().GetUserId() != owner.GetId() || publicEvent.GetResumeCursor() == "" {
+		t.Fatalf("other sharing event = %+v, want cursor-bearing public profile hint", publicEvent)
 	}
 }
 
@@ -630,10 +678,10 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 	}
 	for {
 		event := readPublicRealtimeEvent(t, secondConn)
-		if event.GetUserBioChanged() == nil {
+		if event.GetUserProfileChanged() == nil {
 			continue
 		}
-		if event.GetUserBioChanged().GetBioPlaintext() != "second key still active" {
+		if event.GetUserProfileChanged().GetUserId() != bot.User.GetId() {
 			t.Fatalf("second bot API key socket event = %+v, want continued delivery", event)
 		}
 		break

@@ -5,12 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // ============================================================================
@@ -85,12 +81,8 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	changed := false
-	timezoneChanged := false
-	sharingChanged := false
 	if err := c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*evtv1.Event, error) {
 		changed = false
-		timezoneChanged = false
-		sharingChanged = false
 		current, _ := c.configModel.userSettings(userID)
 		var evs []*evtv1.Event
 		if input.Timezone != nil {
@@ -100,13 +92,11 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 					evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneCleared{
 						UserTimezoneCleared: &evtv1.UserTimezoneClearedEvent{UserId: userID},
 					}}))
-					timezoneChanged = true
 				}
 			} else if current == nil || current.GetTimezone() != tz {
 				evs = append(evs, newEvent(userID, &evtv1.Event{Event: &evtv1.Event_UserTimezoneChanged{
 					UserTimezoneChanged: &evtv1.UserTimezoneChangedEvent{UserId: userID, Timezone: tz},
 				}}))
-				timezoneChanged = true
 			}
 		}
 		if input.TimeFormat != nil && (current == nil || current.GetTimeFormat() != *input.TimeFormat) {
@@ -125,7 +115,6 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 					ShareTimezone: *input.ShareTimezone,
 				},
 			}}))
-			sharingChanged = true
 		}
 		changed = len(evs) > 0
 		return evs, nil
@@ -145,47 +134,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	}
 
 	c.logger.Info("Updated user settings", "user_id", userID)
-	c.publishViewerPreferencesChanged(ctx, userID, settings)
-	if sharingChanged || (timezoneChanged && settings.GetShareTimezone()) {
-		c.publishUserProfileChanged(ctx, userID)
-	}
-
 	return settings, nil
-}
-
-// publishViewerPreferencesChanged publishes the user's current preferences so
-// their active clients converge.
-func (c *ChattoCore) publishViewerPreferencesChanged(ctx context.Context, userID string, settings *evtv1.ServerUserPreferences) {
-	tz := ""
-	if settings.Timezone != nil {
-		tz = *settings.Timezone
-	}
-
-	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
-		Event: &pubsubv1.PubSubEvent_ViewerPreferencesChanged{
-			ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{
-				Timezone:      tz,
-				TimeFormat:    publicTimeFormat(settings.GetTimeFormat()),
-				ShareTimezone: settings.GetShareTimezone(),
-			},
-		},
-	})
-
-	subject := subjects.LiveSyncUserEvent(userID, "settings_updated")
-	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
-	}
-}
-
-func publicTimeFormat(value evtv1.TimeFormat) apiv1.TimeFormat {
-	switch value {
-	case evtv1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
-	case evtv1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
-	default:
-		return apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
-	}
 }
 
 // deleteUserSettings removes a user's settings. Called during account deletion.

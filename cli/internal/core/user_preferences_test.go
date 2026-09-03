@@ -2,14 +2,8 @@ package core
 
 import (
 	"testing"
-	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"hmans.de/chatto/internal/core/subjects"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 // ============================================================================
@@ -31,26 +25,6 @@ func TestUserPreferencesKey(t *testing.T) {
 			result := userPreferencesKey(tt.userID)
 			if result != tt.expected {
 				t.Errorf("userPreferencesKey(%q) = %q, want %q", tt.userID, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestPublicTimeFormat(t *testing.T) {
-	tests := []struct {
-		name string
-		in   evtv1.TimeFormat
-		want apiv1.TimeFormat
-	}{
-		{name: "unspecified", in: evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED, want: apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED},
-		{name: "12 hour", in: evtv1.TimeFormat_TIME_FORMAT_12H, want: apiv1.TimeFormat_TIME_FORMAT_12_HOUR},
-		{name: "24 hour", in: evtv1.TimeFormat_TIME_FORMAT_24H, want: apiv1.TimeFormat_TIME_FORMAT_24_HOUR},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			if got := publicTimeFormat(test.in); got != test.want {
-				t.Fatalf("publicTimeFormat(%v) = %v, want %v", test.in, got, test.want)
 			}
 		})
 	}
@@ -102,96 +76,6 @@ func TestChattoCore_UpdateUserSettings_SetTimezone(t *testing.T) {
 	}
 	if settings.Timezone == nil || *settings.Timezone != tz {
 		t.Errorf("Expected persisted timezone %q, got %v", tz, settings.Timezone)
-	}
-}
-
-func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *testing.T) {
-	core, nc := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "timezone-live", "Timezone Live", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-
-	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(user.GetId(), "profile_updated"))
-	if err != nil {
-		t.Fatalf("SubscribeSync profile update: %v", err)
-	}
-	defer sub.Unsubscribe()
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("Flush subscription: %v", err)
-	}
-
-	tz := "Europe/Berlin"
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &tz}); err != nil {
-		t.Fatalf("UpdateUserSettings timezone: %v", err)
-	}
-	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatalf("unexpected profile update for private timezone: %s", msg.Subject)
-	}
-
-	share := true
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{ShareTimezone: &share}); err != nil {
-		t.Fatalf("UpdateUserSettings share timezone: %v", err)
-	}
-	msg, err := sub.NextMsg(2 * time.Second)
-	if err != nil {
-		t.Fatalf("waiting for profile update: %v", err)
-	}
-	var pubsub pubsubv1.PubSubEvent
-	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
-		t.Fatalf("unmarshal profile update: %v", err)
-	}
-	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != tz {
-		t.Fatalf("profile timezone = %q, want %q", got, tz)
-	}
-
-	newTZ := "Asia/Tokyo"
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &newTZ}); err != nil {
-		t.Fatalf("UpdateUserSettings shared timezone: %v", err)
-	}
-	msg, err = sub.NextMsg(2 * time.Second)
-	if err != nil {
-		t.Fatalf("waiting for shared timezone profile update: %v", err)
-	}
-	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
-		t.Fatalf("unmarshal shared timezone profile update: %v", err)
-	}
-	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != newTZ {
-		t.Fatalf("profile timezone = %q, want %q", got, newTZ)
-	}
-
-	share = false
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{ShareTimezone: &share}); err != nil {
-		t.Fatalf("UpdateUserSettings hide timezone: %v", err)
-	}
-	msg, err = sub.NextMsg(2 * time.Second)
-	if err != nil {
-		t.Fatalf("waiting for hidden timezone profile update: %v", err)
-	}
-	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
-		t.Fatalf("unmarshal hidden timezone profile update: %v", err)
-	}
-	if got := pubsub.GetUserProfileChanged().GetTimezone(); got != "" {
-		t.Fatalf("hidden profile timezone = %q, want empty", got)
-	}
-	settings, err := core.GetUserSettings(ctx, user.GetId())
-	if err != nil {
-		t.Fatalf("GetUserSettings: %v", err)
-	}
-	if settings.GetTimezone() != newTZ {
-		t.Fatalf("stored timezone = %q, want %q", settings.GetTimezone(), newTZ)
-	}
-
-	format := evtv1.TimeFormat_TIME_FORMAT_24H
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{TimeFormat: &format}); err != nil {
-		t.Fatalf("UpdateUserSettings time format: %v", err)
-	}
-	if _, err := core.UpdateUserSettings(ctx, user.GetId(), UserSettingsInput{Timezone: &newTZ}); err != nil {
-		t.Fatalf("UpdateUserSettings timezone no-op: %v", err)
-	}
-	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatalf("unexpected profile update for private or no-op setting: %s", msg.Subject)
 	}
 }
 

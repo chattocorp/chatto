@@ -120,9 +120,9 @@ it needs them.
 
 Notifications, presence, read markers, account-security state, and process
 runtime configuration do not use the EVT boundary owned by
-`ServerContentView`. The bundled frontend reads its required auxiliary state
-through ConnectRPC before it accepts `caught_up`. These reads do not redefine
-the EVT snapshot boundary.
+`ServerContentView`. After every `caught_up`, the bundled frontend reads its
+required auxiliary state through ConnectRPC before it saves the cursor. These
+reads do not redefine the EVT snapshot boundary.
 
 After a durable event, a targeted ConnectRPC request can set
 `Chatto-Realtime-Minimum-Cursor` to that event's resume cursor. The common API
@@ -236,9 +236,11 @@ consumers.
 
 `live.sync.>` messages use `chatto.core.pubsub.v1.PubSubEvent`. Durable
 `live.evt.>` messages use `chatto.core.evt.v1.Event`. The hub decodes each
-subject root with its matching envelope. Pubsub events have no replay contract.
-Durable facts continue through `live.evt.>`, and a reconnect snapshot restores
-current content state.
+subject root with its matching envelope. Publishers derive the NATS subject
+from a typed user or room scope. Consumers verify that the subject and payload
+have the same scope before authorization. Pubsub events have no replay
+contract. Durable facts continue through `live.evt.>`, and catch-up resource
+reads restore current latest-value state.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after
@@ -255,8 +257,12 @@ client from continuing with state that the server can no longer validate.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
 it receives a snapshot and applies all resource families from that one frame.
-It saves the `caught_up` cursor only after the snapshot, auxiliary reads, lazy
-timeline refreshes, and all earlier event-triggered resource reads succeed.
+After every `caught_up`, including a successful resume, it replaces the server
+runtime state, viewer, visible rooms, notifications, and displayed user
+presence with cursor-bounded ConnectRPC results. It replaces mounted timelines
+only after snapshot fallback because durable replay already repairs timeline
+changes. It saves the `caught_up` cursor only after this reconciliation and all
+earlier event-triggered resource reads succeed.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 

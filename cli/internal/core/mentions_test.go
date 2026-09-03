@@ -575,12 +575,12 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
 		t.Fatalf("unmarshal pubsub event: %v", err)
 	}
-	event := pubsub.GetNotificationOccurrencesInvalidated()
+	event := pubsub.GetNotificationOccurrencesChanged()
 	if event == nil {
-		t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", pubsub.Event)
+		t.Fatalf("expected NotificationOccurrencesChangedEvent, got %T", pubsub.Event)
 	}
 	if event.GetSoundCandidateNotificationId() != "" {
-		t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+		t.Fatal("NotificationOccurrencesChangedEvent has a sound candidate during DND")
 	}
 	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {

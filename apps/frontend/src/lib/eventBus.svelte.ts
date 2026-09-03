@@ -97,7 +97,7 @@ export function onPresenceChange(serverId: string, handler: PresenceHandler): ()
   if (!bus) return () => {};
   const wrapper: EventHandler = (event) => {
     if (event.event.case !== 'presenceChanged' || !event.actorId) return;
-    handler(event.actorId, presenceStatus(event.event.value.status));
+    handler(event.actorId, event.event.value.status);
   };
   bus.handlers.add(wrapper);
   return () => bus.handlers.delete(wrapper);
@@ -128,17 +128,4 @@ export function onTypingEvent(serverId: string, handler: TypingHandler): () => v
   return () => {
     bus.handlers.delete(wrapper);
   };
-}
-
-function presenceStatus(status: string): PresenceStatus {
-  switch (status) {
-    case 'ONLINE':
-      return PresenceStatus.ONLINE;
-    case 'AWAY':
-      return PresenceStatus.AWAY;
-    case 'DO_NOT_DISTURB':
-      return PresenceStatus.DO_NOT_DISTURB;
-    default:
-      return PresenceStatus.OFFLINE;
-  }
 }

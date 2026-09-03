@@ -11,11 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/assets"
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
-	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // Historical INSTANCE KV keys for server branding.
@@ -114,8 +111,8 @@ func (c *ChattoCore) SetServerBanner(ctx context.Context, actorID string, asset 
 }
 
 // setServerBrandingAsset is the shared OCC swap implementation backing
-// SetServerLogo / SetServerBanner. Publishes ServerProfileChangedEvent on
-// success so subscribers can refetch the updated branding.
+// SetServerLogo and SetServerBanner. The durable config fact is also the
+// source of the public realtime profile-change event.
 func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind string, asset *evtv1.AssetRecord) error {
 	if c.configModel == nil {
 		return fmt.Errorf("config model not configured")
@@ -151,7 +148,6 @@ func (c *ChattoCore) setServerBrandingAsset(ctx context.Context, actorID, kind s
 	if oldAsset != nil {
 		c.deleteAsset(ctx, assetStorageFromAsset(oldAsset), kind, "server")
 	}
-	c.PublishServerUpdated(ctx, actorID)
 	c.logger.Info("Updated server "+kind, "asset_id", asset.GetId())
 	return nil
 }
@@ -271,54 +267,8 @@ func (c *ChattoCore) deleteServerBrandingAsset(ctx context.Context, actorID, kin
 		return nil
 	}
 	c.deleteAsset(ctx, assetStorageFromAsset(asset), kind, "server")
-	c.PublishServerUpdated(ctx, actorID)
 	c.logger.Info("Deleted server " + kind)
 	return nil
-}
-
-// PublishServerUpdated publishes the member-visible server profile/config
-// refresh signal. It carries only public presentation fields; clients should
-// treat arrival as a refetch trigger for Server.profile.
-//
-// Best-effort: a publish failure does not roll back the underlying config
-// change.
-func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
-	name := ""
-	description := ""
-	if cm := c.ConfigModel(); cm != nil {
-		name = cm.GetEffectiveServerName()
-		if cfg := cm.GetServerConfig(); cfg != nil {
-			description = cfg.Description
-		}
-	}
-
-	logoURL, err := c.GetServerLogoURL(ctx, nil, nil, "")
-	if err != nil {
-		c.logger.Warn("failed to get instance logo URL for update event", "error", err)
-		logoURL = ""
-	}
-	bannerURL, err := c.GetServerBannerURL(ctx, nil, nil, "")
-	if err != nil {
-		c.logger.Warn("failed to get instance banner URL for update event", "error", err)
-		bannerURL = ""
-	}
-
-	event := newPubSubEvent(actorID, &pubsubv1.PubSubEvent{
-		Event: &pubsubv1.PubSubEvent_ServerProfileChanged{
-			ServerProfileChanged: &realtimev1.ServerProfileChangedEvent{
-				ServerId:    LegacyServerSpaceID,
-				Name:        name,
-				Description: description,
-				LogoUrl:     logoURL,
-				BannerUrl:   bannerURL,
-			},
-		},
-	})
-
-	subject := subjects.LiveSyncConfigEvent("server_updated")
-	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("failed to publish server update event", "error", err)
-	}
 }
 
 // assetIDFromAsset extracts the asset ID from a NATS- or S3-backed asset

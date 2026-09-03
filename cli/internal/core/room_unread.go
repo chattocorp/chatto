@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
@@ -50,9 +49,7 @@ func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, 
 		},
 	})
 
-	// Publish to user's server event stream (only they need to know)
-	subject := subjects.LiveSyncUserEvent(userID, "room_read")
-	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
+	if err := c.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
 			"kind", kind,

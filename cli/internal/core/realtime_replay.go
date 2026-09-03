@@ -16,6 +16,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -223,6 +224,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
 		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		userIDFromSubject, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		configSubjectID, configSubject := liveEVTConfigSubjectID(msg.Subject)
 		switch {
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -291,6 +293,40 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
 			}
+			if event.GetUserServerPreferencesChanged() != nil {
+				waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+				err = c.configModel.waitFor(waitCtx, events.SubjectPosition(msg.Subject, seq))
+				cancel()
+				if err != nil {
+					return RealtimeReplayPlan{}, fmt.Errorf("wait for replay legacy preference sequence %d: %w", seq, err)
+				}
+			}
+		case configSubject:
+			if configSubjectID == evtstream.ConfigSingletonID {
+				if !isDeliverableLiveEVTServerConfigEvent(&event) {
+					if isKnownNonSnapshotServerConfigEventType(evtstream.EventTypeOf(&event)) {
+						continue
+					}
+					plan.Reset = true
+					plan.Events = nil
+					return plan, nil
+				}
+			} else {
+				if !isDeliverableLiveEVTUserConfigEvent(&event) {
+					continue
+				}
+				if userIDOfUserConfigEvent(&event) != configSubjectID {
+					plan.Reset = true
+					plan.Events = nil
+					return plan, nil
+				}
+			}
+			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+			err = c.configModel.waitFor(waitCtx, events.SubjectPosition(msg.Subject, seq))
+			cancel()
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay config sequence %d: %w", seq, err)
+			}
 		default:
 			if !isKnownNonRealtimeEVTSubject(msg.Subject) {
 				// A newer server can introduce an aggregate that contributes to
@@ -356,7 +392,7 @@ func realtimeReplayRequiresReset(subject string) bool {
 		return false
 	}
 	switch parts[1] {
-	case evtstream.AggregateConfig, evtstream.AggregateGroup, evtstream.AggregateLayout:
+	case evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:
 		return false

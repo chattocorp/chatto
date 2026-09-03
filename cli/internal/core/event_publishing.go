@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
@@ -24,16 +26,39 @@ import (
 // indefinitely instead of surfacing as a normal error.
 const natsPublishFlushTimeout = 5 * time.Second
 
-// publishPubSubEvent publishes a PubSubEvent directly to a live.sync.>
-// subject, bypassing JetStream storage. The subject should already include
-// the "live.sync." prefix.
-func (c *ChattoCore) publishPubSubEvent(ctx context.Context, subject string, event *pubsubv1.PubSubEvent) error {
-	return c.publishPubSubEvents(ctx, []pubsubEventPublication{{subject: subject, event: event}})
-}
+type pubsubPublicationScope uint8
+
+const (
+	pubsubPublicationScopeUser pubsubPublicationScope = iota + 1
+	pubsubPublicationScopeRoom
+)
 
 type pubsubEventPublication struct {
-	subject string
-	event   *pubsubv1.PubSubEvent
+	scope    pubsubPublicationScope
+	userID   string
+	roomKind RoomKind
+	roomID   string
+	event    *pubsubv1.PubSubEvent
+}
+
+func userPubSubEventPublication(userID string, event *pubsubv1.PubSubEvent) pubsubEventPublication {
+	return pubsubEventPublication{scope: pubsubPublicationScopeUser, userID: userID, event: event}
+}
+
+func roomPubSubEventPublication(kind RoomKind, roomID string, event *pubsubv1.PubSubEvent) pubsubEventPublication {
+	return pubsubEventPublication{scope: pubsubPublicationScopeRoom, roomKind: kind, roomID: roomID, event: event}
+}
+
+// publishUserPubSubEvent publishes one private latest-value signal to a
+// single user's live subject.
+func (c *ChattoCore) publishUserPubSubEvent(ctx context.Context, userID string, event *pubsubv1.PubSubEvent) error {
+	return c.publishPubSubEvents(ctx, []pubsubEventPublication{userPubSubEventPublication(userID, event)})
+}
+
+// publishRoomPubSubEvent publishes one transient room signal to current room
+// members. Only typing events are valid at this scope.
+func (c *ChattoCore) publishRoomPubSubEvent(ctx context.Context, kind RoomKind, roomID string, event *pubsubv1.PubSubEvent) error {
+	return c.publishPubSubEvents(ctx, []pubsubEventPublication{roomPubSubEventPublication(kind, roomID, event)})
 }
 
 // publishPubSubEvents publishes a related set of pubsub events and flushes
@@ -46,14 +71,15 @@ func (c *ChattoCore) publishPubSubEvents(_ context.Context, publications []pubsu
 	}
 	encoded := make([]encodedPublication, 0, len(publications))
 	for index, publication := range publications {
-		if err := validatePubSubEvent(publication.event); err != nil {
+		subject, err := publication.subject()
+		if err != nil {
 			return fmt.Errorf("pubsub publication %d: %w", index, err)
 		}
 		eventData, err := proto.Marshal(publication.event)
 		if err != nil {
 			return fmt.Errorf("marshal pubsub publication %d: %w", index, err)
 		}
-		encoded = append(encoded, encodedPublication{subject: publication.subject, data: eventData})
+		encoded = append(encoded, encodedPublication{subject: subject, data: eventData})
 	}
 	if len(encoded) == 0 {
 		return nil
@@ -67,6 +93,48 @@ func (c *ChattoCore) publishPubSubEvents(_ context.Context, publications []pubsu
 		return fmt.Errorf("flush %d pubsub events: %w", len(encoded), err)
 	}
 	return nil
+}
+
+func (publication pubsubEventPublication) subject() (string, error) {
+	if err := validatePubSubEvent(publication.event); err != nil {
+		return "", err
+	}
+	validToken := func(value string) bool {
+		return value != "" && !strings.ContainsAny(value, ".*>")
+	}
+	switch publication.scope {
+	case pubsubPublicationScopeUser:
+		if !validToken(publication.userID) {
+			return "", fmt.Errorf("invalid user-scoped pubsub target")
+		}
+		var eventType string
+		switch publication.event.GetEvent().(type) {
+		case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:
+			eventType = "notification_v2"
+		case *pubsubv1.PubSubEvent_NotificationUnreadStateChanged:
+			eventType = "notification_unread"
+		case *pubsubv1.PubSubEvent_RoomReadStateChanged:
+			eventType = "room_read"
+		case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
+			eventType = "thread_viewer_state"
+		case *pubsubv1.PubSubEvent_SessionTerminated:
+			eventType = "session_terminated"
+		default:
+			return "", fmt.Errorf("pubsub payload is not valid for user scope")
+		}
+		return subjects.LiveSyncUserEvent(publication.userID, eventType), nil
+	case pubsubPublicationScopeRoom:
+		if (publication.roomKind != KindChannel && publication.roomKind != KindDM) || !validToken(publication.roomID) {
+			return "", fmt.Errorf("invalid room-scoped pubsub target")
+		}
+		typing := publication.event.GetUserTyping()
+		if typing == nil || typing.GetRoomId() != publication.roomID {
+			return "", fmt.Errorf("pubsub payload does not match room scope")
+		}
+		return subjects.LiveSyncRoomEvent(string(publication.roomKind), publication.roomID, "user_typing"), nil
+	default:
+		return "", fmt.Errorf("invalid pubsub publication scope")
+	}
 }
 
 func validateEvent(event *evtv1.Event) error {

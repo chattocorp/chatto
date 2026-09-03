@@ -4,16 +4,15 @@
 
 **Date:** 2026-09-03
 
-**Supersedes:** The public-envelope part of
-[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-094 supersedes ADR-092 for the internal durable and transient envelopes.
+**Refines:** The public event decision in
+[ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md).
 
 ## Context
 
-ADR-092 first put `chatto.core.evt.v1.Event` directly inside the public
-realtime wrapper. The server sent a new authorized copy, not stored bytes. A
-runtime allowlist selected the public variants, and custom protobuf field
-options selected the public fields.
+An unpublished protocol 4 iteration put `chatto.core.evt.v1.Event` directly
+inside the public realtime wrapper. The server sent a new authorized copy, not
+stored bytes. A runtime allowlist selected the public variants, and custom
+protobuf field options selected the public fields.
 
 This design shared all payload messages, but it made the complete internal EVT
 union part of the generated public type. An API reader could not use the schema
@@ -27,11 +26,10 @@ public top-level field could make a nested storage pointer public through
 inherited rules. The generated public API still showed the complete stored
 message, including fields that the server removed at runtime.
 
-A dedicated public payload catalogue duplicates durable EVT declarations, but
-it does not need a second semantic event model. Public names and compact union
-numbers can stay independent from the internal source. Payload layouts can
-evolve independently from stored facts. Pubsub variants that exist only for
-client delivery can use the public payload type directly. Tests can enforce
+A dedicated public payload catalogue does not need to copy every durable EVT
+fact. Several related internal facts can map to one public change event. Public
+names and compact union numbers can stay independent from the internal source.
+Payload layouts can evolve independently from stored facts. Tests can enforce
 the catalogue relationship and mapper coverage.
 
 ## Decision
@@ -60,14 +58,22 @@ The cursor and common metadata remain outside the payload oneof. A client can
 therefore ignore an unknown additive payload and still accept the complete
 event boundary.
 
-The server uses an exhaustive typed switch to admit approved values into a new
-public event. Durable EVT facts use field-by-field mapping into the independent
-public payload. Client-facing `PubSubEvent` variants reference the public
-payload type directly, so the switch only selects the matching public union
+The server uses explicit typed mapping to admit approved values into a new
+public event. Durable EVT facts can map to a detailed public event or to one
+resource-change hint. Client-facing `PubSubEvent` variants reference the public
+payload type directly, so the mapper only selects the matching public union
 member. It deep-copies the result before caller-specific filtering. If the
 public union has no matching member, the server omits the event. The public
-union and mapper are the complete exposure catalogue. There are no
-field-surface options and no payload wire transcoding.
+union and mapper are the complete exposure catalogue. There are no field
+surface options and no payload wire transcoding.
+
+The public catalogue describes useful client semantics, not internal audit
+detail. For example, profile facts map to `UserProfileChangedEvent`, server
+branding facts map to `ServerProfileChangedEvent`, and private viewer
+preferences map to `ViewerPreferencesChangedEvent`. The client reads the
+canonical resource at the event cursor. Public moderation events do not expose
+the moderator, reason, or internal membership operation. An effective return
+to universal-room membership appears as an ordinary join.
 
 The server applies current event authorization before it resolves plaintext or
 maps the event. Public `_plaintext` fields exist only in the realtime payloads.
@@ -103,7 +109,7 @@ Their type system exposes only the public contract.
 - `RealtimeServerFrame` provides the transport wrapper around the event.
 - The protobuf schema shows only client-visible event fields.
 - Adding a public event requires a dedicated payload, one public union member,
-  and an explicit mapper case. A pubsub source also needs one restricted
+  and explicit mapper coverage. A pubsub source also needs one restricted
   private union member that references that payload.
 - Adding an internal event does not enlarge the public API.
 - Caller-specific field authorization is explicit at the delivery boundary.

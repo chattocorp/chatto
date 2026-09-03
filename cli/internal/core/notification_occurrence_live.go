@@ -5,13 +5,12 @@ import (
 
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-func (c *ChattoCore) publishNotificationOccurrencesInvalidated(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, creationCandidate bool) {
+func (c *ChattoCore) publishNotificationOccurrencesChanged(ctx context.Context, occurrence *notificationv1.NotificationOccurrence, creationCandidate bool) {
 	c.publishNotificationOccurrenceInvalidations(ctx, []*notificationv1.NotificationOccurrence{occurrence}, creationCandidate)
 }
 
@@ -45,16 +44,16 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 		if creationCandidate && !occurrence.GetRead() && presences[occurrence.GetRecipientId()] != PresenceStatusDoNotDisturb {
 			soundCandidateID = proto.String(occurrence.GetId())
 		}
-		publications = append(publications, pubsubEventPublication{
-			subject: subjects.LiveSyncUserEvent(occurrence.GetRecipientId(), "notification_v2"),
-			event: newPubSubEvent(occurrence.GetActorId(), &pubsubv1.PubSubEvent{
-				Event: &pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated{
-					NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{
+		publications = append(publications, userPubSubEventPublication(
+			occurrence.GetRecipientId(),
+			newPubSubEvent(occurrence.GetActorId(), &pubsubv1.PubSubEvent{
+				Event: &pubsubv1.PubSubEvent_NotificationOccurrencesChanged{
+					NotificationOccurrencesChanged: &realtimev1.NotificationOccurrencesChangedEvent{
 						SoundCandidateNotificationId: soundCandidateID,
 					},
 				},
 			}),
-		})
+		))
 	}
 	if err := c.publishPubSubEvents(ctx, publications); err != nil {
 		c.logger.Warn("Failed to publish notification occurrence invalidations",

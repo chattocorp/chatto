@@ -258,17 +258,31 @@ export class ServerStateStore {
 
   /** Complete auxiliary reads and event reconciliation through `cursor`. */
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    const batches = await Promise.all(
+      (['serverState', 'viewer', 'rooms', 'notifications'] as RealtimeResourceFamily[]).map(
+        (family) => this.#realtimeResources.read(family, cursor)
+      )
+    );
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of batches.flat()) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+
+    // Presence and other user current values are not durable replay events.
+    // Refresh every user that the retained projection still references after
+    // the authoritative room read has been applied.
+    const userIds = new SvelteSet(this.projection.users.keys());
+    for (const room of this.projection.rooms.values()) {
+      for (const userId of room.memberUserIds) userIds.add(userId);
+    }
+    const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of userResources) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+
     if (this.#realtimeSnapshotPending) {
-      const generation = this.#realtimeProjectionGeneration;
-      const batches = await Promise.all(
-        (['serverState', 'viewer', 'notifications'] as RealtimeResourceFamily[]).map((family) =>
-          this.#realtimeResources.read(family, cursor)
-        )
-      );
-      this.requireCurrentRealtimeProjection(generation);
-      for (const resource of batches.flat()) {
-        this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
-      }
       await Promise.all(
         [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
           (store) =>
@@ -714,12 +728,7 @@ export class ServerStateStore {
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'userLeftRoom':
-      case 'roomMemberRemoved':
-      case 'roomMemberBanned':
-        if (
-          (!!rawValue?.userId && rawValue.userId === this.currentUser.user?.id) ||
-          (payload.case === 'userLeftRoom' && event.actorId === this.currentUser.user?.id)
-        ) {
+        if (event.actorId === this.currentUser.user?.id) {
           if (roomId) this.clearRoomAccess(roomId);
         }
         if (payload.case === 'userLeftRoom') {
@@ -824,10 +833,10 @@ export class ServerStateStore {
         );
         this.refreshRealtimeResource('activeCalls');
         return;
-      case 'notificationOccurrencesInvalidated':
+      case 'notificationOccurrencesChanged':
         this.refreshRealtimeResource('notifications');
         return;
-      case 'notificationUnreadChanged':
+      case 'notificationUnreadStateChanged':
         this.refreshRealtimeResource('notifications');
         this.refreshRealtimeResource('rooms');
         return;
@@ -839,8 +848,6 @@ export class ServerStateStore {
       case 'roomSlowModeChanged':
       case 'roomThreadingModeChanged':
       case 'userJoinedRoom':
-      case 'roomMemberAdded':
-      case 'roomMemberUnbanned':
         if (payload.case === 'userJoinedRoom') {
           this.refreshLoadedMessageWindows(roomId, event.id || null);
         }
@@ -871,18 +878,12 @@ export class ServerStateStore {
         return;
       case 'userProfileChanged':
       case 'userAccountCreated':
-      case 'userLoginChanged':
-      case 'userDisplayNameChanged':
-      case 'userAvatarSet':
-      case 'userAvatarCleared':
-      case 'userCustomStatusSet':
-      case 'userCustomStatusCleared':
-      case 'userBioChanged':
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         return;
       case 'viewerPreferencesChanged':
         this.refreshRealtimeResource('viewer');
         this.refreshRealtimeResource('rooms');
+        if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
         return;
       case 'roomReadStateChanged':
         this.refreshRealtimeResource('rooms');

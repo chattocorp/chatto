@@ -10,7 +10,6 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -531,7 +530,6 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 			if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, err
 			}
-			c.publishThreadViewerStateChangedEvent(ctx, userID, kind, roomID, threadRootEventID, target == ThreadFollowStateFollowing)
 			return true, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -605,8 +603,7 @@ func (c *ChattoCore) publishThreadViewerStateChangedEvent(ctx context.Context, u
 		},
 	})
 
-	subject := subjects.LiveSyncUserEvent(userID, "thread_follow_changed")
-	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
+	if err := c.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		c.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}
 }

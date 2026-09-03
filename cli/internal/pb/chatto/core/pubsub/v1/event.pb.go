@@ -41,15 +41,12 @@ type PubSubEvent struct {
 	ActorId string `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	// Types that are valid to be assigned to Event:
 	//
-	//	*PubSubEvent_UserProfileChanged
-	//	*PubSubEvent_ViewerPreferencesChanged
-	//	*PubSubEvent_ThreadViewerStateChanged
-	//	*PubSubEvent_ServerProfileChanged
 	//	*PubSubEvent_UserTyping
 	//	*PubSubEvent_PresenceChanged
-	//	*PubSubEvent_NotificationOccurrencesInvalidated
-	//	*PubSubEvent_NotificationUnreadChanged
+	//	*PubSubEvent_NotificationOccurrencesChanged
+	//	*PubSubEvent_NotificationUnreadStateChanged
 	//	*PubSubEvent_RoomReadStateChanged
+	//	*PubSubEvent_ThreadViewerStateChanged
 	//	*PubSubEvent_SessionTerminated
 	Event         isPubSubEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -114,42 +111,6 @@ func (x *PubSubEvent) GetEvent() isPubSubEvent_Event {
 	return nil
 }
 
-func (x *PubSubEvent) GetUserProfileChanged() *v1.UserProfileChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_UserProfileChanged); ok {
-			return x.UserProfileChanged
-		}
-	}
-	return nil
-}
-
-func (x *PubSubEvent) GetViewerPreferencesChanged() *v1.ViewerPreferencesChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_ViewerPreferencesChanged); ok {
-			return x.ViewerPreferencesChanged
-		}
-	}
-	return nil
-}
-
-func (x *PubSubEvent) GetThreadViewerStateChanged() *v1.ThreadViewerStateChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_ThreadViewerStateChanged); ok {
-			return x.ThreadViewerStateChanged
-		}
-	}
-	return nil
-}
-
-func (x *PubSubEvent) GetServerProfileChanged() *v1.ServerProfileChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_ServerProfileChanged); ok {
-			return x.ServerProfileChanged
-		}
-	}
-	return nil
-}
-
 func (x *PubSubEvent) GetUserTyping() *v1.UserTypingEvent {
 	if x != nil {
 		if x, ok := x.Event.(*PubSubEvent_UserTyping); ok {
@@ -168,19 +129,19 @@ func (x *PubSubEvent) GetPresenceChanged() *v1.PresenceChangedEvent {
 	return nil
 }
 
-func (x *PubSubEvent) GetNotificationOccurrencesInvalidated() *v1.NotificationOccurrencesInvalidatedEvent {
+func (x *PubSubEvent) GetNotificationOccurrencesChanged() *v1.NotificationOccurrencesChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_NotificationOccurrencesInvalidated); ok {
-			return x.NotificationOccurrencesInvalidated
+		if x, ok := x.Event.(*PubSubEvent_NotificationOccurrencesChanged); ok {
+			return x.NotificationOccurrencesChanged
 		}
 	}
 	return nil
 }
 
-func (x *PubSubEvent) GetNotificationUnreadChanged() *v1.NotificationUnreadChangedEvent {
+func (x *PubSubEvent) GetNotificationUnreadStateChanged() *v1.NotificationUnreadStateChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*PubSubEvent_NotificationUnreadChanged); ok {
-			return x.NotificationUnreadChanged
+		if x, ok := x.Event.(*PubSubEvent_NotificationUnreadStateChanged); ok {
+			return x.NotificationUnreadStateChanged
 		}
 	}
 	return nil
@@ -190,6 +151,15 @@ func (x *PubSubEvent) GetRoomReadStateChanged() *v1.RoomReadStateChangedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*PubSubEvent_RoomReadStateChanged); ok {
 			return x.RoomReadStateChanged
+		}
+	}
+	return nil
+}
+
+func (x *PubSubEvent) GetThreadViewerStateChanged() *v1.ThreadViewerStateChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*PubSubEvent_ThreadViewerStateChanged); ok {
+			return x.ThreadViewerStateChanged
 		}
 	}
 	return nil
@@ -208,71 +178,50 @@ type isPubSubEvent_Event interface {
 	isPubSubEvent_Event()
 }
 
-type PubSubEvent_UserProfileChanged struct {
-	// ----- User lifecycle / preferences -----
-	// Current-profile snapshot derived after a durable profile change.
-	UserProfileChanged *v1.UserProfileChangedEvent `protobuf:"bytes,10,opt,name=user_profile_changed,json=userProfileChanged,proto3,oneof"`
-}
-
-type PubSubEvent_ViewerPreferencesChanged struct {
-	ViewerPreferencesChanged *v1.ViewerPreferencesChangedEvent `protobuf:"bytes,11,opt,name=viewer_preferences_changed,json=viewerPreferencesChanged,proto3,oneof"`
-}
-
-type PubSubEvent_ThreadViewerStateChanged struct {
-	ThreadViewerStateChanged *v1.ThreadViewerStateChangedEvent `protobuf:"bytes,12,opt,name=thread_viewer_state_changed,json=threadViewerStateChanged,proto3,oneof"`
-}
-
-type PubSubEvent_ServerProfileChanged struct {
-	// ----- Server profile -----
-	ServerProfileChanged *v1.ServerProfileChangedEvent `protobuf:"bytes,13,opt,name=server_profile_changed,json=serverProfileChanged,proto3,oneof"`
-}
-
 type PubSubEvent_UserTyping struct {
 	// ----- Typing -----
-	UserTyping *v1.UserTypingEvent `protobuf:"bytes,14,opt,name=user_typing,json=userTyping,proto3,oneof"`
+	UserTyping *v1.UserTypingEvent `protobuf:"bytes,10,opt,name=user_typing,json=userTyping,proto3,oneof"`
 }
 
 type PubSubEvent_PresenceChanged struct {
 	// ----- Presence -----
-	PresenceChanged *v1.PresenceChangedEvent `protobuf:"bytes,15,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
+	PresenceChanged *v1.PresenceChangedEvent `protobuf:"bytes,11,opt,name=presence_changed,json=presenceChanged,proto3,oneof"`
 }
 
-type PubSubEvent_NotificationOccurrencesInvalidated struct {
+type PubSubEvent_NotificationOccurrencesChanged struct {
 	// ----- Notification sync -----
-	NotificationOccurrencesInvalidated *v1.NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,16,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
+	NotificationOccurrencesChanged *v1.NotificationOccurrencesChangedEvent `protobuf:"bytes,12,opt,name=notification_occurrences_changed,json=notificationOccurrencesChanged,proto3,oneof"`
 }
 
-type PubSubEvent_NotificationUnreadChanged struct {
-	NotificationUnreadChanged *v1.NotificationUnreadChangedEvent `protobuf:"bytes,17,opt,name=notification_unread_changed,json=notificationUnreadChanged,proto3,oneof"`
+type PubSubEvent_NotificationUnreadStateChanged struct {
+	NotificationUnreadStateChanged *v1.NotificationUnreadStateChangedEvent `protobuf:"bytes,13,opt,name=notification_unread_state_changed,json=notificationUnreadStateChanged,proto3,oneof"`
 }
 
 type PubSubEvent_RoomReadStateChanged struct {
-	// ----- Unread indicators -----
-	RoomReadStateChanged *v1.RoomReadStateChangedEvent `protobuf:"bytes,18,opt,name=room_read_state_changed,json=roomReadStateChanged,proto3,oneof"`
+	// ----- Viewer read state -----
+	RoomReadStateChanged *v1.RoomReadStateChangedEvent `protobuf:"bytes,14,opt,name=room_read_state_changed,json=roomReadStateChanged,proto3,oneof"`
+}
+
+type PubSubEvent_ThreadViewerStateChanged struct {
+	ThreadViewerStateChanged *v1.ThreadViewerStateChangedEvent `protobuf:"bytes,15,opt,name=thread_viewer_state_changed,json=threadViewerStateChanged,proto3,oneof"`
 }
 
 type PubSubEvent_SessionTerminated struct {
 	// ----- Session termination -----
-	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,19,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
+	SessionTerminated *SessionTerminatedEvent `protobuf:"bytes,16,opt,name=session_terminated,json=sessionTerminated,proto3,oneof"`
 }
-
-func (*PubSubEvent_UserProfileChanged) isPubSubEvent_Event() {}
-
-func (*PubSubEvent_ViewerPreferencesChanged) isPubSubEvent_Event() {}
-
-func (*PubSubEvent_ThreadViewerStateChanged) isPubSubEvent_Event() {}
-
-func (*PubSubEvent_ServerProfileChanged) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_UserTyping) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_PresenceChanged) isPubSubEvent_Event() {}
 
-func (*PubSubEvent_NotificationOccurrencesInvalidated) isPubSubEvent_Event() {}
+func (*PubSubEvent_NotificationOccurrencesChanged) isPubSubEvent_Event() {}
 
-func (*PubSubEvent_NotificationUnreadChanged) isPubSubEvent_Event() {}
+func (*PubSubEvent_NotificationUnreadStateChanged) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_RoomReadStateChanged) isPubSubEvent_Event() {}
+
+func (*PubSubEvent_ThreadViewerStateChanged) isPubSubEvent_Event() {}
 
 func (*PubSubEvent_SessionTerminated) isPubSubEvent_Event() {}
 
@@ -328,24 +277,21 @@ var File_chatto_core_pubsub_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_pubsub_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/core/pubsub/v1/event.proto\x12\x15chatto.core.pubsub.v1\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x9a\t\n" +
+	"!chatto/core/pubsub/v1/event.proto\x12\x15chatto.core.pubsub.v1\x1a\x1fchatto/realtime/v1/events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe4\x06\n" +
 	"\vPubSubEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
-	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12_\n" +
-	"\x14user_profile_changed\x18\n" +
-	" \x01(\v2+.chatto.realtime.v1.UserProfileChangedEventH\x00R\x12userProfileChanged\x12q\n" +
-	"\x1aviewer_preferences_changed\x18\v \x01(\v21.chatto.realtime.v1.ViewerPreferencesChangedEventH\x00R\x18viewerPreferencesChanged\x12r\n" +
-	"\x1bthread_viewer_state_changed\x18\f \x01(\v21.chatto.realtime.v1.ThreadViewerStateChangedEventH\x00R\x18threadViewerStateChanged\x12e\n" +
-	"\x16server_profile_changed\x18\r \x01(\v2-.chatto.realtime.v1.ServerProfileChangedEventH\x00R\x14serverProfileChanged\x12F\n" +
-	"\vuser_typing\x18\x0e \x01(\v2#.chatto.realtime.v1.UserTypingEventH\x00R\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12F\n" +
+	"\vuser_typing\x18\n" +
+	" \x01(\v2#.chatto.realtime.v1.UserTypingEventH\x00R\n" +
 	"userTyping\x12U\n" +
-	"\x10presence_changed\x18\x0f \x01(\v2(.chatto.realtime.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12\x8f\x01\n" +
-	"$notification_occurrences_invalidated\x18\x10 \x01(\v2;.chatto.realtime.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12t\n" +
-	"\x1bnotification_unread_changed\x18\x11 \x01(\v22.chatto.realtime.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12f\n" +
-	"\x17room_read_state_changed\x18\x12 \x01(\v2-.chatto.realtime.v1.RoomReadStateChangedEventH\x00R\x14roomReadStateChanged\x12^\n" +
-	"\x12session_terminated\x18\x13 \x01(\v2-.chatto.core.pubsub.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
+	"\x10presence_changed\x18\v \x01(\v2(.chatto.realtime.v1.PresenceChangedEventH\x00R\x0fpresenceChanged\x12\x83\x01\n" +
+	" notification_occurrences_changed\x18\f \x01(\v27.chatto.realtime.v1.NotificationOccurrencesChangedEventH\x00R\x1enotificationOccurrencesChanged\x12\x84\x01\n" +
+	"!notification_unread_state_changed\x18\r \x01(\v27.chatto.realtime.v1.NotificationUnreadStateChangedEventH\x00R\x1enotificationUnreadStateChanged\x12f\n" +
+	"\x17room_read_state_changed\x18\x0e \x01(\v2-.chatto.realtime.v1.RoomReadStateChangedEventH\x00R\x14roomReadStateChanged\x12r\n" +
+	"\x1bthread_viewer_state_changed\x18\x0f \x01(\v21.chatto.realtime.v1.ThreadViewerStateChangedEventH\x00R\x18threadViewerStateChanged\x12^\n" +
+	"\x12session_terminated\x18\x10 \x01(\v2-.chatto.core.pubsub.v1.SessionTerminatedEventH\x00R\x11sessionTerminatedB\a\n" +
 	"\x05event\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reasonB\xda\x01\n" +
@@ -366,36 +312,30 @@ func file_chatto_core_pubsub_v1_event_proto_rawDescGZIP() []byte {
 
 var file_chatto_core_pubsub_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_core_pubsub_v1_event_proto_goTypes = []any{
-	(*PubSubEvent)(nil),                                // 0: chatto.core.pubsub.v1.PubSubEvent
-	(*SessionTerminatedEvent)(nil),                     // 1: chatto.core.pubsub.v1.SessionTerminatedEvent
-	(*timestamppb.Timestamp)(nil),                      // 2: google.protobuf.Timestamp
-	(*v1.UserProfileChangedEvent)(nil),                 // 3: chatto.realtime.v1.UserProfileChangedEvent
-	(*v1.ViewerPreferencesChangedEvent)(nil),           // 4: chatto.realtime.v1.ViewerPreferencesChangedEvent
-	(*v1.ThreadViewerStateChangedEvent)(nil),           // 5: chatto.realtime.v1.ThreadViewerStateChangedEvent
-	(*v1.ServerProfileChangedEvent)(nil),               // 6: chatto.realtime.v1.ServerProfileChangedEvent
-	(*v1.UserTypingEvent)(nil),                         // 7: chatto.realtime.v1.UserTypingEvent
-	(*v1.PresenceChangedEvent)(nil),                    // 8: chatto.realtime.v1.PresenceChangedEvent
-	(*v1.NotificationOccurrencesInvalidatedEvent)(nil), // 9: chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
-	(*v1.NotificationUnreadChangedEvent)(nil),          // 10: chatto.realtime.v1.NotificationUnreadChangedEvent
-	(*v1.RoomReadStateChangedEvent)(nil),               // 11: chatto.realtime.v1.RoomReadStateChangedEvent
+	(*PubSubEvent)(nil),                            // 0: chatto.core.pubsub.v1.PubSubEvent
+	(*SessionTerminatedEvent)(nil),                 // 1: chatto.core.pubsub.v1.SessionTerminatedEvent
+	(*timestamppb.Timestamp)(nil),                  // 2: google.protobuf.Timestamp
+	(*v1.UserTypingEvent)(nil),                     // 3: chatto.realtime.v1.UserTypingEvent
+	(*v1.PresenceChangedEvent)(nil),                // 4: chatto.realtime.v1.PresenceChangedEvent
+	(*v1.NotificationOccurrencesChangedEvent)(nil), // 5: chatto.realtime.v1.NotificationOccurrencesChangedEvent
+	(*v1.NotificationUnreadStateChangedEvent)(nil), // 6: chatto.realtime.v1.NotificationUnreadStateChangedEvent
+	(*v1.RoomReadStateChangedEvent)(nil),           // 7: chatto.realtime.v1.RoomReadStateChangedEvent
+	(*v1.ThreadViewerStateChangedEvent)(nil),       // 8: chatto.realtime.v1.ThreadViewerStateChangedEvent
 }
 var file_chatto_core_pubsub_v1_event_proto_depIdxs = []int32{
-	2,  // 0: chatto.core.pubsub.v1.PubSubEvent.created_at:type_name -> google.protobuf.Timestamp
-	3,  // 1: chatto.core.pubsub.v1.PubSubEvent.user_profile_changed:type_name -> chatto.realtime.v1.UserProfileChangedEvent
-	4,  // 2: chatto.core.pubsub.v1.PubSubEvent.viewer_preferences_changed:type_name -> chatto.realtime.v1.ViewerPreferencesChangedEvent
-	5,  // 3: chatto.core.pubsub.v1.PubSubEvent.thread_viewer_state_changed:type_name -> chatto.realtime.v1.ThreadViewerStateChangedEvent
-	6,  // 4: chatto.core.pubsub.v1.PubSubEvent.server_profile_changed:type_name -> chatto.realtime.v1.ServerProfileChangedEvent
-	7,  // 5: chatto.core.pubsub.v1.PubSubEvent.user_typing:type_name -> chatto.realtime.v1.UserTypingEvent
-	8,  // 6: chatto.core.pubsub.v1.PubSubEvent.presence_changed:type_name -> chatto.realtime.v1.PresenceChangedEvent
-	9,  // 7: chatto.core.pubsub.v1.PubSubEvent.notification_occurrences_invalidated:type_name -> chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent
-	10, // 8: chatto.core.pubsub.v1.PubSubEvent.notification_unread_changed:type_name -> chatto.realtime.v1.NotificationUnreadChangedEvent
-	11, // 9: chatto.core.pubsub.v1.PubSubEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
-	1,  // 10: chatto.core.pubsub.v1.PubSubEvent.session_terminated:type_name -> chatto.core.pubsub.v1.SessionTerminatedEvent
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	2, // 0: chatto.core.pubsub.v1.PubSubEvent.created_at:type_name -> google.protobuf.Timestamp
+	3, // 1: chatto.core.pubsub.v1.PubSubEvent.user_typing:type_name -> chatto.realtime.v1.UserTypingEvent
+	4, // 2: chatto.core.pubsub.v1.PubSubEvent.presence_changed:type_name -> chatto.realtime.v1.PresenceChangedEvent
+	5, // 3: chatto.core.pubsub.v1.PubSubEvent.notification_occurrences_changed:type_name -> chatto.realtime.v1.NotificationOccurrencesChangedEvent
+	6, // 4: chatto.core.pubsub.v1.PubSubEvent.notification_unread_state_changed:type_name -> chatto.realtime.v1.NotificationUnreadStateChangedEvent
+	7, // 5: chatto.core.pubsub.v1.PubSubEvent.room_read_state_changed:type_name -> chatto.realtime.v1.RoomReadStateChangedEvent
+	8, // 6: chatto.core.pubsub.v1.PubSubEvent.thread_viewer_state_changed:type_name -> chatto.realtime.v1.ThreadViewerStateChangedEvent
+	1, // 7: chatto.core.pubsub.v1.PubSubEvent.session_terminated:type_name -> chatto.core.pubsub.v1.SessionTerminatedEvent
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_pubsub_v1_event_proto_init() }
@@ -404,15 +344,12 @@ func file_chatto_core_pubsub_v1_event_proto_init() {
 		return
 	}
 	file_chatto_core_pubsub_v1_event_proto_msgTypes[0].OneofWrappers = []any{
-		(*PubSubEvent_UserProfileChanged)(nil),
-		(*PubSubEvent_ViewerPreferencesChanged)(nil),
-		(*PubSubEvent_ThreadViewerStateChanged)(nil),
-		(*PubSubEvent_ServerProfileChanged)(nil),
 		(*PubSubEvent_UserTyping)(nil),
 		(*PubSubEvent_PresenceChanged)(nil),
-		(*PubSubEvent_NotificationOccurrencesInvalidated)(nil),
-		(*PubSubEvent_NotificationUnreadChanged)(nil),
+		(*PubSubEvent_NotificationOccurrencesChanged)(nil),
+		(*PubSubEvent_NotificationUnreadStateChanged)(nil),
 		(*PubSubEvent_RoomReadStateChanged)(nil),
+		(*PubSubEvent_ThreadViewerStateChanged)(nil),
 		(*PubSubEvent_SessionTerminated)(nil),
 	}
 	type x struct{}

@@ -37,8 +37,9 @@ integration needs.
    the values from that atomic frame.
 5. Process replayed events, if any. The server sends `caught_up` when recovery
    reaches the live boundary.
-6. Save the `caught_up` cursor after all earlier work succeeds. Continue to
-   process realtime events.
+6. Reconcile the latest-value resources that your client retains. Save the
+   `caught_up` cursor after all earlier work succeeds. Continue to process
+   realtime events.
 
 Treat the stream as live only after `caught_up`. The frames that precede it
 show whether the server selected snapshot, resume, or live-only startup.
@@ -101,6 +102,13 @@ Event authorization makes every delivered field safe for that viewer. The
 protocol does not currently define viewer-specific visibility for one field
 inside an otherwise authorized event.
 
+Some related durable facts become one resource-change event. Profile facts use
+`UserProfileChangedEvent`, private preference facts use
+`ViewerPreferencesChangedEvent`, and public server profile facts use
+`ServerProfileChangedEvent`. Read the applicable canonical resource with the
+event cursor. Internal moderation audit facts do not appear in the public
+catalogue.
+
 `MessagePostedEvent.body_plaintext` lets a client show a new message without
 waiting for another request. The event does not duplicate the complete message
 resource. Use `MessageService.GetMessage` to load attachments, link previews,
@@ -140,10 +148,19 @@ message and thread history, search results, files, pins, notifications,
 presence, read markers, and account-security state. Read these resources
 through ConnectRPC only when your integration needs them.
 
-Treat each snapshot list as a complete replacement. Do not expose the new
-state as current before `caught_up`. If the socket closes first, discard the
-snapshot generation and reconnect without its cursor. Events after `E` follow
-the snapshot in order, so no client-driven second replay is required.
+Treat each snapshot list as a complete replacement. Do not expose the new state
+as current before `caught_up` and the resource reconciliation that your client
+requires. If the socket closes first, discard the snapshot generation and
+reconnect without its cursor. Events after `E` follow the snapshot in order,
+so no client-driven second replay is required.
+
+Cursorless events are not replayed. A client that retains their effects must
+read the related latest-value resources after every `caught_up`, not only after
+a snapshot. The bundled frontend replaces its server runtime state, viewer,
+visible rooms, notifications, and displayed user presence. It replaces mounted
+timelines only after snapshot fallback because durable replay already repairs
+timeline changes. A smaller integration can read only the resource families
+that it retains.
 
 ## Bind a targeted resource read to an event
 

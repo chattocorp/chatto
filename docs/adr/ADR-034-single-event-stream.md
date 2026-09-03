@@ -1,10 +1,9 @@
 # ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
-**Status:** Partially superseded by
-[ADR-092](ADR-092-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-The single durable stream remains active. ADR-092 replaces the separate
-transient envelope. [ADR-093](ADR-093-use-a-public-realtime-event-union.md)
-defines the current public mapping.
+**Status:** Accepted. [ADR-093](ADR-093-use-a-public-realtime-event-union.md)
+defines the public realtime mapping, and
+[ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) defines the
+separate transient envelope.
 
 **Date:** 2026-05-24
 

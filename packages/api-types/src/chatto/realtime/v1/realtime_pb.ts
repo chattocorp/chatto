@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesInvalidatedEvent, NotificationUnreadChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomAddedToGroupEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomGroupCreatedEvent, RoomGroupDeletedEvent, RoomGroupsReorderedEvent, RoomGroupUpdatedEvent, RoomMemberAddedEvent, RoomMemberBannedEvent, RoomMemberRemovedEvent, RoomMemberUnbannedEvent, RoomReadStateChangedEvent, RoomRemovedFromGroupEvent, RoomsInGroupReorderedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, SidebarGroupEntriesReorderedEvent, SidebarLinkAddedToGroupEvent, SidebarLinkRemovedFromGroupEvent, SidebarLinkUpdatedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserAvatarClearedEvent, UserAvatarSetEvent, UserBioChangedEvent, UserCustomStatusClearedEvent, UserCustomStatusSetEvent, UserDisplayNameChangedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserLoginChangedEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomAddedToGroupEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomGroupCreatedEvent, RoomGroupDeletedEvent, RoomGroupsReorderedEvent, RoomGroupUpdatedEvent, RoomReadStateChangedEvent, RoomRemovedFromGroupEvent, RoomsInGroupReorderedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, SidebarGroupEntriesReorderedEvent, SidebarLinkAddedToGroupEvent, SidebarLinkRemovedFromGroupEvent, SidebarLinkUpdatedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -665,139 +665,73 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     case: "userAccountCreated";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.UserLoginChangedEvent user_login_changed = 47;
-     */
-    value: UserLoginChangedEvent;
-    case: "userLoginChanged";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserDisplayNameChangedEvent user_display_name_changed = 48;
-     */
-    value: UserDisplayNameChangedEvent;
-    case: "userDisplayNameChanged";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserAvatarSetEvent user_avatar_set = 49;
-     */
-    value: UserAvatarSetEvent;
-    case: "userAvatarSet";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserAvatarClearedEvent user_avatar_cleared = 50;
-     */
-    value: UserAvatarClearedEvent;
-    case: "userAvatarCleared";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserAccountDeletedEvent user_account_deleted = 51;
-     */
-    value: UserAccountDeletedEvent;
-    case: "userAccountDeleted";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserCustomStatusSetEvent user_custom_status_set = 52;
-     */
-    value: UserCustomStatusSetEvent;
-    case: "userCustomStatusSet";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserCustomStatusClearedEvent user_custom_status_cleared = 53;
-     */
-    value: UserCustomStatusClearedEvent;
-    case: "userCustomStatusCleared";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserBioChangedEvent user_bio_changed = 54;
-     */
-    value: UserBioChangedEvent;
-    case: "userBioChanged";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomMemberBannedEvent room_member_banned = 55;
-     */
-    value: RoomMemberBannedEvent;
-    case: "roomMemberBanned";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomMemberUnbannedEvent room_member_unbanned = 56;
-     */
-    value: RoomMemberUnbannedEvent;
-    case: "roomMemberUnbanned";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomMemberAddedEvent room_member_added = 57;
-     */
-    value: RoomMemberAddedEvent;
-    case: "roomMemberAdded";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomMemberRemovedEvent room_member_removed = 58;
-     */
-    value: RoomMemberRemovedEvent;
-    case: "roomMemberRemoved";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.ReactionAddedEvent reaction_added = 59;
-     */
-    value: ReactionAddedEvent;
-    case: "reactionAdded";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.ReactionRemovedEvent reaction_removed = 60;
-     */
-    value: ReactionRemovedEvent;
-    case: "reactionRemoved";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.UserProfileChangedEvent user_profile_changed = 61;
+     * @generated from field: chatto.realtime.v1.UserProfileChangedEvent user_profile_changed = 47;
      */
     value: UserProfileChangedEvent;
     case: "userProfileChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.ViewerPreferencesChangedEvent viewer_preferences_changed = 62;
+     * @generated from field: chatto.realtime.v1.UserAccountDeletedEvent user_account_deleted = 48;
+     */
+    value: UserAccountDeletedEvent;
+    case: "userAccountDeleted";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.ReactionAddedEvent reaction_added = 49;
+     */
+    value: ReactionAddedEvent;
+    case: "reactionAdded";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.ReactionRemovedEvent reaction_removed = 50;
+     */
+    value: ReactionRemovedEvent;
+    case: "reactionRemoved";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.ViewerPreferencesChangedEvent viewer_preferences_changed = 51;
      */
     value: ViewerPreferencesChangedEvent;
     case: "viewerPreferencesChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 63;
+     * @generated from field: chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 52;
      */
     value: ThreadViewerStateChangedEvent;
     case: "threadViewerStateChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.ServerProfileChangedEvent server_profile_changed = 64;
+     * @generated from field: chatto.realtime.v1.ServerProfileChangedEvent server_profile_changed = 53;
      */
     value: ServerProfileChangedEvent;
     case: "serverProfileChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.UserTypingEvent user_typing = 65;
+     * @generated from field: chatto.realtime.v1.UserTypingEvent user_typing = 54;
      */
     value: UserTypingEvent;
     case: "userTyping";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.PresenceChangedEvent presence_changed = 66;
+     * @generated from field: chatto.realtime.v1.PresenceChangedEvent presence_changed = 55;
      */
     value: PresenceChangedEvent;
     case: "presenceChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 67;
+     * @generated from field: chatto.realtime.v1.NotificationOccurrencesChangedEvent notification_occurrences_changed = 56;
      */
-    value: NotificationOccurrencesInvalidatedEvent;
-    case: "notificationOccurrencesInvalidated";
+    value: NotificationOccurrencesChangedEvent;
+    case: "notificationOccurrencesChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.NotificationUnreadChangedEvent notification_unread_changed = 68;
+     * @generated from field: chatto.realtime.v1.NotificationUnreadStateChangedEvent notification_unread_state_changed = 57;
      */
-    value: NotificationUnreadChangedEvent;
-    case: "notificationUnreadChanged";
+    value: NotificationUnreadStateChangedEvent;
+    case: "notificationUnreadStateChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 69;
+     * @generated from field: chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 58;
      */
     value: RoomReadStateChangedEvent;
     case: "roomReadStateChanged";
@@ -852,29 +786,18 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 44, name: "sidebar_group_entries_reordered", kind: "message", T: SidebarGroupEntriesReorderedEvent, oneof: "event" },
     { no: 45, name: "room_groups_reordered", kind: "message", T: RoomGroupsReorderedEvent, oneof: "event" },
     { no: 46, name: "user_account_created", kind: "message", T: UserAccountCreatedEvent, oneof: "event" },
-    { no: 47, name: "user_login_changed", kind: "message", T: UserLoginChangedEvent, oneof: "event" },
-    { no: 48, name: "user_display_name_changed", kind: "message", T: UserDisplayNameChangedEvent, oneof: "event" },
-    { no: 49, name: "user_avatar_set", kind: "message", T: UserAvatarSetEvent, oneof: "event" },
-    { no: 50, name: "user_avatar_cleared", kind: "message", T: UserAvatarClearedEvent, oneof: "event" },
-    { no: 51, name: "user_account_deleted", kind: "message", T: UserAccountDeletedEvent, oneof: "event" },
-    { no: 52, name: "user_custom_status_set", kind: "message", T: UserCustomStatusSetEvent, oneof: "event" },
-    { no: 53, name: "user_custom_status_cleared", kind: "message", T: UserCustomStatusClearedEvent, oneof: "event" },
-    { no: 54, name: "user_bio_changed", kind: "message", T: UserBioChangedEvent, oneof: "event" },
-    { no: 55, name: "room_member_banned", kind: "message", T: RoomMemberBannedEvent, oneof: "event" },
-    { no: 56, name: "room_member_unbanned", kind: "message", T: RoomMemberUnbannedEvent, oneof: "event" },
-    { no: 57, name: "room_member_added", kind: "message", T: RoomMemberAddedEvent, oneof: "event" },
-    { no: 58, name: "room_member_removed", kind: "message", T: RoomMemberRemovedEvent, oneof: "event" },
-    { no: 59, name: "reaction_added", kind: "message", T: ReactionAddedEvent, oneof: "event" },
-    { no: 60, name: "reaction_removed", kind: "message", T: ReactionRemovedEvent, oneof: "event" },
-    { no: 61, name: "user_profile_changed", kind: "message", T: UserProfileChangedEvent, oneof: "event" },
-    { no: 62, name: "viewer_preferences_changed", kind: "message", T: ViewerPreferencesChangedEvent, oneof: "event" },
-    { no: 63, name: "thread_viewer_state_changed", kind: "message", T: ThreadViewerStateChangedEvent, oneof: "event" },
-    { no: 64, name: "server_profile_changed", kind: "message", T: ServerProfileChangedEvent, oneof: "event" },
-    { no: 65, name: "user_typing", kind: "message", T: UserTypingEvent, oneof: "event" },
-    { no: 66, name: "presence_changed", kind: "message", T: PresenceChangedEvent, oneof: "event" },
-    { no: 67, name: "notification_occurrences_invalidated", kind: "message", T: NotificationOccurrencesInvalidatedEvent, oneof: "event" },
-    { no: 68, name: "notification_unread_changed", kind: "message", T: NotificationUnreadChangedEvent, oneof: "event" },
-    { no: 69, name: "room_read_state_changed", kind: "message", T: RoomReadStateChangedEvent, oneof: "event" },
+    { no: 47, name: "user_profile_changed", kind: "message", T: UserProfileChangedEvent, oneof: "event" },
+    { no: 48, name: "user_account_deleted", kind: "message", T: UserAccountDeletedEvent, oneof: "event" },
+    { no: 49, name: "reaction_added", kind: "message", T: ReactionAddedEvent, oneof: "event" },
+    { no: 50, name: "reaction_removed", kind: "message", T: ReactionRemovedEvent, oneof: "event" },
+    { no: 51, name: "viewer_preferences_changed", kind: "message", T: ViewerPreferencesChangedEvent, oneof: "event" },
+    { no: 52, name: "thread_viewer_state_changed", kind: "message", T: ThreadViewerStateChangedEvent, oneof: "event" },
+    { no: 53, name: "server_profile_changed", kind: "message", T: ServerProfileChangedEvent, oneof: "event" },
+    { no: 54, name: "user_typing", kind: "message", T: UserTypingEvent, oneof: "event" },
+    { no: 55, name: "presence_changed", kind: "message", T: PresenceChangedEvent, oneof: "event" },
+    { no: 56, name: "notification_occurrences_changed", kind: "message", T: NotificationOccurrencesChangedEvent, oneof: "event" },
+    { no: 57, name: "notification_unread_state_changed", kind: "message", T: NotificationUnreadStateChangedEvent, oneof: "event" },
+    { no: 58, name: "room_read_state_changed", kind: "message", T: RoomReadStateChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {

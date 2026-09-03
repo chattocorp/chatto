@@ -11,8 +11,8 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
@@ -111,7 +111,8 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //     message.read. DM membership authorizes DM delivery. The membership set is
 //     pre-loaded across both kinds (channel + dm) and updated as
 //     join/leave/room-deleted events arrive.
-//   - User/config/member subjects are filtered by isAuthorizedForPubSubEvent.
+//   - User-scoped PubSub subjects are delivered only to their target user.
+//     Room-scoped PubSub subjects must match their typing payload and room.
 //   - Presence updates from the per-process PresenceHub are deployment-wide;
 //     the hub dedups status flapping.
 //
@@ -246,7 +247,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 				}
 				pubsub := newPubSubEvent(update.UserID, &pubsubv1.PubSubEvent{
 					Event: &pubsubv1.PubSubEvent_PresenceChanged{
-						PresenceChanged: &realtimev1.PresenceChangedEvent{Status: update.Status},
+						PresenceChanged: &realtimev1.PresenceChangedEvent{Status: publicPresenceStatus(update.Status)},
 					},
 				})
 				if !send(NewPubSubEventEnvelope(pubsub)) {
@@ -262,6 +263,19 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 	}()
 
 	return eventChan, nil
+}
+
+func publicPresenceStatus(status string) apiv1.PresenceStatus {
+	switch status {
+	case PresenceStatusOffline:
+		return apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
+	case PresenceStatusAway:
+		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
+	case PresenceStatusDoNotDisturb:
+		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
+	default:
+		return apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
+	}
 }
 
 // populateMemberRoomsCache (re)builds one user's room visibility set in place.
@@ -304,11 +318,12 @@ func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, me
 		return nil, false
 	}
 
-	if kind := subjects.ParseKindFromRoomSubject(msg.Subject); kind != "" {
-		roomID := subjects.ParseRoomIDFromSubject(msg.Subject)
-		if roomID == "" {
-			return nil, false
-		}
+	kind, roomID, targetUserID, ok := pubSubSubjectPayloadScope(msg.Subject, event)
+	if !ok {
+		s.core.logger.Warn("Dropping live sync event with mismatched subject and payload", "subject", msg.Subject)
+		return nil, false
+	}
+	if roomID != "" {
 
 		_, isMember := memberRooms[roomID]
 
@@ -325,9 +340,9 @@ func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, me
 			var canRead bool
 			var err error
 			if typing.GetThreadRootEventId() != "" {
-				canRead, err = s.core.CanReadThreadMessages(ctx, userID, RoomKind(kind), roomID, typing.GetThreadRootEventId())
+				canRead, err = s.core.CanReadThreadMessages(ctx, userID, kind, roomID, typing.GetThreadRootEventId())
 			} else {
-				canRead, err = s.core.CanReadMessages(ctx, userID, RoomKind(kind), roomID)
+				canRead, err = s.core.CanReadMessages(ctx, userID, kind, roomID)
 			}
 			if err != nil || !canRead {
 				return nil, false
@@ -336,7 +351,7 @@ func (s *MyEventsModel) filterPubSubEvent(ctx context.Context, userID string, me
 		return NewPubSubEventEnvelope(event), true
 	}
 
-	if !s.isAuthorizedForPubSubEvent(ctx, userID, msg.Subject) {
+	if targetUserID != userID {
 		return nil, false
 	}
 
@@ -411,6 +426,12 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		}
 	case *evtv1.Event_RoomDeleted:
 		delete(memberRooms, roomID)
+	}
+	if followed := event.GetThreadFollowed(); followed != nil && followed.GetUserId() != userID {
+		return nil, false
+	}
+	if unfollowed := event.GetThreadUnfollowed(); unfollowed != nil && unfollowed.GetUserId() != userID {
+		return nil, false
 	}
 	if !isMember {
 		return nil, false
@@ -497,36 +518,46 @@ func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject str
 	return s.core.userModel.waitForUsers(ctx, events.SubjectPosition(subject, seq))
 }
 
-// isAuthorizedForPubSubEvent checks whether a user can receive a non-room
-// pubsub event based on its live.sync subject.
-func (c *ChattoCore) isAuthorizedForPubSubEvent(ctx context.Context, userID, subject string) bool {
-	return c.myEventsModel.isAuthorizedForPubSubEvent(ctx, userID, subject)
-}
-
-func (s *MyEventsModel) isAuthorizedForPubSubEvent(_ context.Context, userID, subject string) bool {
+func pubSubSubjectPayloadScope(subject string, event *pubsubv1.PubSubEvent) (RoomKind, string, string, bool) {
 	parts := strings.Split(subject, ".")
-	if len(parts) < 3 || parts[0] != "live" || parts[1] != "sync" {
-		s.core.logger.Warn("Invalid live event subject format", "subject", subject)
-		return false
+	if event == nil || event.GetEvent() == nil || len(parts) < 3 || parts[0] != "live" || parts[1] != "sync" {
+		return "", "", "", false
 	}
-
 	switch parts[2] {
-	case "config":
-		return true
 	case "user":
-		if len(parts) < 5 {
-			s.core.logger.Warn("Invalid user-scoped live event subject", "subject", subject)
-			return false
+		if len(parts) != 5 || parts[3] == "" || strings.ContainsAny(parts[3], ".*>") {
+			return "", "", "", false
 		}
-		if parts[4] == "profile_updated" {
-			return true
+		var eventType string
+		switch event.GetEvent().(type) {
+		case *pubsubv1.PubSubEvent_NotificationOccurrencesChanged:
+			eventType = "notification_v2"
+		case *pubsubv1.PubSubEvent_NotificationUnreadStateChanged:
+			eventType = "notification_unread"
+		case *pubsubv1.PubSubEvent_RoomReadStateChanged:
+			eventType = "room_read"
+		case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
+			eventType = "thread_viewer_state"
+		case *pubsubv1.PubSubEvent_SessionTerminated:
+			eventType = "session_terminated"
+		default:
+			return "", "", "", false
 		}
-		return parts[3] == userID
+		return "", "", parts[3], parts[4] == eventType
 	case "room":
-		s.core.logger.Warn("Room subject reached isAuthorizedForPubSubEvent - should be filtered upstream", "subject", subject)
-		return false
+		if len(parts) != 6 || parts[4] == "" || strings.ContainsAny(parts[4], ".*>") || parts[5] != "user_typing" {
+			return "", "", "", false
+		}
+		kind := RoomKind(parts[3])
+		if kind != KindChannel && kind != KindDM {
+			return "", "", "", false
+		}
+		typing := event.GetUserTyping()
+		if typing == nil || typing.GetRoomId() != parts[4] {
+			return "", "", "", false
+		}
+		return kind, parts[4], "", true
 	default:
-		s.core.logger.Warn("Unknown live event scope", "scope", parts[2], "subject", subject)
-		return false
+		return "", "", "", false
 	}
 }

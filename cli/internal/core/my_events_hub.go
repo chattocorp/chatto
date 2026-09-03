@@ -402,7 +402,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
 		_, groupSubject := evtstream.ParseGroupSubject(msg.Subject)
 		layoutSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.LayoutSubjectFilter(), ">"))
-		serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
+		configSubjectID, configSubject := liveEVTConfigSubjectID(evtSubject)
+		serverConfigSubject := configSubject && configSubjectID == evtstream.ConfigSingletonID
 		if roomSubject && isKnownPrivateLiveEVTRoomEventType(eventType) {
 			h.prefiltered.Add(1)
 			return false
@@ -415,7 +416,11 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 			h.prefiltered.Add(1)
 			return false
 		}
-		if !roomSubject && !assetSubject && !userSubject && !groupSubject && !layoutSubject && !serverConfigSubject {
+		if configSubject && !serverConfigSubject && !isDeliverableLiveEVTUserConfigEventType(eventType) {
+			h.prefiltered.Add(1)
+			return false
+		}
+		if !roomSubject && !assetSubject && !userSubject && !groupSubject && !layoutSubject && !configSubject {
 			if isKnownNonRealtimeEVTSubject(evtSubject) {
 				h.prefiltered.Add(1)
 				return false
@@ -458,7 +463,8 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 	roomID, roomSubject := evtstream.ParseRoomSubject(msg.Subject)
 	_, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 	userID, userSubject := evtstream.ParseUserSubject(msg.Subject)
-	serverConfigSubject := isLiveEVTServerConfigSubject(evtSubject)
+	configSubjectID, configSubject := liveEVTConfigSubjectID(evtSubject)
+	serverConfigSubject := configSubject && configSubjectID == evtstream.ConfigSingletonID
 	_, groupSubject := evtstream.ParseGroupSubject(msg.Subject)
 	layoutSubject := strings.HasPrefix(evtSubject, strings.TrimSuffix(evtstream.LayoutSubjectFilter(), ">"))
 
@@ -483,14 +489,18 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
 		return false
 	}
-	if serverConfigSubject {
-		if !isDeliverableLiveEVTServerConfigEvent(&event) {
+	if configSubject {
+		if serverConfigSubject {
+			if !isDeliverableLiveEVTServerConfigEvent(&event) {
+				return true
+			}
+		} else if !isDeliverableLiveEVTUserConfigEvent(&event) || userIDOfUserConfigEvent(&event) != configSubjectID {
 			return true
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
 		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
-			h.model.core.logger.Warn("Live EVT server config projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			h.model.core.logger.Warn("Live EVT config projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}
 		h.fanoutAll(NewEVTEventEnvelopeWithDeliverySeq(&event, seq), bytes)
@@ -542,6 +552,12 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		h.model.core.logger.Warn("Live EVT user projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 		return true
 	}
+	if event.GetUserServerPreferencesChanged() != nil {
+		if err := h.model.core.configModel.waitFor(waitCtx, events.SubjectPosition(evtSubject, seq)); err != nil {
+			h.model.core.logger.Warn("Live EVT legacy preference projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
+			return true
+		}
+	}
 	if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 		// One shredded author can invalidate plaintext in many room windows.
 		// Reconnect all clients so protocol 4 snapshots current tombstones.
@@ -586,8 +602,16 @@ func isKnownNonSnapshotServerConfigEventType(eventType string) bool {
 }
 
 func isLiveEVTServerConfigSubject(subject string) bool {
+	configSubjectID, ok := liveEVTConfigSubjectID(subject)
+	return ok && configSubjectID == evtstream.ConfigSingletonID
+}
+
+func liveEVTConfigSubjectID(subject string) (string, bool) {
 	parts := strings.Split(subject, ".")
-	return len(parts) == 4 && parts[0] == "evt" && parts[1] == evtstream.AggregateConfig && parts[2] == evtstream.ConfigSingletonID
+	if len(parts) != 4 || parts[0] != "evt" || parts[1] != evtstream.AggregateConfig || parts[2] == "" || parts[3] == "" {
+		return "", false
+	}
+	return parts[2], true
 }
 
 // isKnownPrivateLiveEVTRoomEventType reports room facts that this server
@@ -597,8 +621,9 @@ func isLiveEVTServerConfigSubject(subject string) bool {
 func isKnownPrivateLiveEVTRoomEventType(eventType string) bool {
 	switch eventType {
 	case evtstream.EventMessageBody,
-		evtstream.EventThreadFollowed,
-		evtstream.EventThreadUnfollowed,
+		evtstream.EventRoomMemberAdded,
+		evtstream.EventRoomMemberRemoved,
+		evtstream.EventRoomMemberBanned,
 		evtstream.EventAssetCreated,
 		evtstream.EventAssetAttached:
 		return true

@@ -798,7 +798,10 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			return nil, core.ErrPermissionDenied
 		}
 	}
-	projected := projectRealtimeEvent(durable)
+	projected, err := s.projectViewerRealtimeEvent(ctx, viewerID, durable)
+	if err != nil {
+		return nil, err
+	}
 	if pubsub != nil {
 		projected = projectRealtimePubSubEvent(pubsub)
 	}
@@ -812,7 +815,7 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if !visible {
 		return nil, errRealtimeEventOmitted
 	}
-	if durable != nil {
+	if durable != nil && durable.GetMessagePosted() != nil {
 		plaintext, err := s.core.ResolveEventPlaintext(ctx, durable)
 		if err != nil {
 			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
@@ -827,6 +830,111 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		projected.ResumeCursor = &cursor
 	}
 	return projected, nil
+}
+
+// projectViewerRealtimeEvent maps one durable fact to its public semantic
+// event. Viewer-specific cases are handled here because one stored fact can
+// invalidate a private viewer resource, a public user resource, or neither.
+func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID string, event *evtv1.Event) (*realtimev1.RealtimeEvent, error) {
+	if event == nil || event.GetEvent() == nil {
+		return nil, nil
+	}
+	base := func() *realtimev1.RealtimeEvent {
+		result := &realtimev1.RealtimeEvent{Id: event.GetId(), CreatedAt: event.GetCreatedAt()}
+		if event.GetActorId() != "" {
+			result.ActorId = proto.String(event.GetActorId())
+		}
+		return result
+	}
+	viewerPreferences := func() *realtimev1.RealtimeEvent {
+		result := base()
+		result.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}
+		return result
+	}
+	userProfile := func(userID string) *realtimev1.RealtimeEvent {
+		result := base()
+		result.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: userID}}
+		return result
+	}
+
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserTimezoneChanged:
+		userID := payload.UserTimezoneChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		settings, err := s.core.GetUserSettings(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("read user settings for realtime projection: %w", err)
+		}
+		if settings != nil && settings.GetShareTimezone() {
+			return userProfile(userID), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimezoneCleared:
+		userID := payload.UserTimezoneCleared.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		settings, err := s.core.GetUserSettings(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("read user settings for realtime projection: %w", err)
+		}
+		if settings != nil && settings.GetShareTimezone() {
+			return userProfile(userID), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimezoneSharingChanged:
+		userID := payload.UserTimezoneSharingChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		return userProfile(userID), nil
+	case *evtv1.Event_UserTimeFormatChanged:
+		if viewerID == payload.UserTimeFormatChanged.GetUserId() {
+			return viewerPreferences(), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimeFormatCleared:
+		if viewerID == payload.UserTimeFormatCleared.GetUserId() {
+			return viewerPreferences(), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserServerPreferencesChanged:
+		userID := payload.UserServerPreferencesChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		// A historical composite preference fact can either expose or hide the
+		// public time zone. Refresh the public user resource in both cases.
+		return userProfile(userID), nil
+	case *evtv1.Event_RoomMemberUnbanned:
+		roomID := payload.RoomMemberUnbanned.GetRoomId()
+		userID := payload.RoomMemberUnbanned.GetUserId()
+		isMember, err := s.core.RoomMembershipExists(ctx, core.KindChannel, userID, roomID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve unbanned room membership: %w", err)
+		}
+		if !isMember {
+			return nil, nil
+		}
+		result := base()
+		result.ActorId = proto.String(userID)
+		result.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: roomID}}
+		return result, nil
+	case *evtv1.Event_ThreadFollowed:
+		if viewerID != payload.ThreadFollowed.GetUserId() {
+			return nil, nil
+		}
+		return projectRealtimeEvent(event), nil
+	case *evtv1.Event_ThreadUnfollowed:
+		if viewerID != payload.ThreadUnfollowed.GetUserId() {
+			return nil, nil
+		}
+		return projectRealtimeEvent(event), nil
+	default:
+		return projectRealtimeEvent(event), nil
+	}
 }
 
 // filterRealtimeEventFields applies viewer-dependent authorization to fields

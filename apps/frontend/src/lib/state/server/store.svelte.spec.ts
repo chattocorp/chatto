@@ -25,8 +25,8 @@ import {
   UserLeftRoomEvent,
   MessagePostedEvent,
   UserAccountDeletedEvent,
-  UserDisplayNameChangedEvent,
-  NotificationUnreadChangedEvent,
+  UserProfileChangedEvent,
+  NotificationUnreadStateChangedEvent,
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -57,7 +57,9 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     readRealtimeResource: vi.fn<
       (family: RealtimeResourceFamily, cursor?: string) => Promise<RealtimeResourceUpdate[]>
     >(() => Promise.resolve([])),
-    readRealtimeUsers: vi.fn(() => Promise.resolve([] as RealtimeResourceUpdate[])),
+    readRealtimeUsers: vi.fn<
+      (userIds: Iterable<string>, cursor?: string) => Promise<RealtimeResourceUpdate[]>
+    >(() => Promise.resolve([])),
     listRooms: vi.fn(() => Promise.resolve([])),
     listRoomGroups: vi.fn(() => Promise.resolve([])),
     listRoomMembers: vi.fn(() =>
@@ -674,8 +676,8 @@ describe('ServerStateStore unified realtime resources', () => {
         new RealtimeProjectionUpdate({
           event: new RealtimeEvent({
             event: {
-              case: 'userDisplayNameChanged',
-              value: new UserDisplayNameChangedEvent({ userId })
+              case: 'userProfileChanged',
+              value: new UserProfileChangedEvent({ userId })
             }
           })
         })
@@ -732,8 +734,8 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         event: new RealtimeEvent({
           event: {
-            case: 'notificationUnreadChanged',
-            value: new NotificationUnreadChangedEvent({ roomId: 'R1' })
+            case: 'notificationUnreadStateChanged',
+            value: new NotificationUnreadStateChangedEvent({ roomId: 'R1' })
           }
         })
       })
@@ -746,6 +748,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     expect(roomCalls).toEqual([
       ['rooms', 'cursor-join-1'],
+      ['rooms', 'cursor-final'],
       ['rooms', 'cursor-join-2']
     ]);
     expect(store.projection.rooms.get('R1')?.memberUserIds).toEqual(['U1', 'U2']);
@@ -777,7 +780,7 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(store.projection.serverState?.motd).toBe('Current MOTD');
   });
 
-  it('includes mounted timelines in the cursor-bounded reset', async () => {
+  it('reconciles latest-value resources and snapshot timelines at catch-up', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
     const timelineRead = deferred<boolean>();
@@ -785,10 +788,27 @@ describe('ServerStateStore unified realtime resources', () => {
       .spyOn(messages, 'hydrateRealtimeProjection')
       .mockReturnValue(timelineRead.promise);
     await flushPromises();
-
     store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    store.projection.users.set(
+      'U2',
+      new DirectoryMember({ user: new User({ id: 'U2', login: 'bob' }) })
+    );
+
     const bootstrap = store.completeRealtimeCatchUp('opaque-reset-cursor');
     await flushPromises();
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+      'serverState',
+      'opaque-reset-cursor'
+    );
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('viewer', 'opaque-reset-cursor');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('rooms', 'opaque-reset-cursor');
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+      'notifications',
+      'opaque-reset-cursor'
+    );
+    const [catchUpUserIds, catchUpUserCursor] = apiMocks.readRealtimeUsers.mock.calls[0];
+    expect([...catchUpUserIds]).toEqual(['U2']);
+    expect(catchUpUserCursor).toBe('opaque-reset-cursor');
     expect(hydrate).toHaveBeenCalledWith('opaque-reset-cursor', expect.any(Function));
 
     let completed = false;
@@ -800,6 +820,21 @@ describe('ServerStateStore unified realtime resources', () => {
 
     timelineRead.resolve(true);
     await bootstrap;
+  });
+
+  it('does not replace mounted timelines after an ordinary resume', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    const hydrate = vi.spyOn(messages, 'hydrateRealtimeProjection');
+    await flushPromises();
+
+    await store.completeRealtimeCatchUp('opaque-resume-cursor');
+
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith(
+      'notifications',
+      'opaque-resume-cursor'
+    );
+    expect(hydrate).not.toHaveBeenCalled();
   });
 
   it('does not complete a durable cursor when message hydration fails', async () => {
@@ -869,11 +904,8 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         event: new RealtimeEvent({
           event: {
-            case: 'userDisplayNameChanged',
-            value: new UserDisplayNameChangedEvent({
-              userId: 'U2',
-              displayNamePlaintext: 'Robert'
-            })
+            case: 'userProfileChanged',
+            value: new UserProfileChangedEvent({ userId: 'U2' })
           }
         })
       })
@@ -1117,8 +1149,8 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         event: new RealtimeEvent({
           event: {
-            case: 'notificationUnreadChanged',
-            value: new NotificationUnreadChangedEvent({ roomId: 'R1' })
+            case: 'notificationUnreadStateChanged',
+            value: new NotificationUnreadStateChangedEvent({ roomId: 'R1' })
           }
         })
       })

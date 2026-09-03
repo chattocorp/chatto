@@ -36,30 +36,22 @@ message PubSubEvent {
   string actor_id = 3;
 
   oneof event {
-    // ----- User lifecycle / preferences -----
-    // Current-profile snapshot derived after a durable profile change.
-    chatto.realtime.v1.UserProfileChangedEvent user_profile_changed = 10;
-    chatto.realtime.v1.ViewerPreferencesChangedEvent viewer_preferences_changed = 11;
-    chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 12;
-
-    // ----- Server profile -----
-    chatto.realtime.v1.ServerProfileChangedEvent server_profile_changed = 13;
-
     // ----- Typing -----
-    chatto.realtime.v1.UserTypingEvent user_typing = 14;
+    chatto.realtime.v1.UserTypingEvent user_typing = 10;
 
     // ----- Presence -----
-    chatto.realtime.v1.PresenceChangedEvent presence_changed = 15;
+    chatto.realtime.v1.PresenceChangedEvent presence_changed = 11;
 
     // ----- Notification sync -----
-    chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 16;
-    chatto.realtime.v1.NotificationUnreadChangedEvent notification_unread_changed = 17;
+    chatto.realtime.v1.NotificationOccurrencesChangedEvent notification_occurrences_changed = 12;
+    chatto.realtime.v1.NotificationUnreadStateChangedEvent notification_unread_state_changed = 13;
 
-    // ----- Unread indicators -----
-    chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 18;
+    // ----- Viewer read state -----
+    chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 14;
+    chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 15;
 
     // ----- Session termination -----
-    SessionTerminatedEvent session_terminated = 19;
+    SessionTerminatedEvent session_terminated = 16;
   }
 }
 
