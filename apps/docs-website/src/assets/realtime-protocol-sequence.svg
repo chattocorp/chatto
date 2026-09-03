@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 680" role="img" aria-labelledby="title desc" style="display:block;width:100%;height:auto;min-width:42rem;max-width:920px;margin-inline:auto">
   <title id="title">Chatto realtime protocol sequence</title>
-  <desc id="desc">A client opens a WebSocket, subscribes, receives an exact resource snapshot or bounded replay through boundary E, receives the caught-up cursor, and then receives live canonical events.</desc>
+  <desc id="desc">A client opens a WebSocket, subscribes, receives an exact resource snapshot or bounded replay through boundary E, receives the caught-up cursor, and then receives live public events.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3, #64748b)"/>
@@ -49,9 +49,9 @@
   <text x="460" y="476" text-anchor="middle" class="text">caught_up · safe resume cursor E</text>
 
   <line x1="750" y1="535" x2="172" y2="535" class="flow durable"/>
-  <text x="460" y="526" text-anchor="middle" class="text">authorized canonical events after E</text>
+  <text x="460" y="526" text-anchor="middle" class="text">authorized public events after E</text>
 
   <line x1="750" y1="585" x2="172" y2="585" class="flow durable"/>
-  <text x="460" y="576" text-anchor="middle" class="text">live authorized canonical events</text>
+  <text x="460" y="576" text-anchor="middle" class="text">live authorized public events</text>
   <text x="460" y="655" text-anchor="middle" class="small">Save a cursor only after the event and its required resource reads succeed.</text>
 </svg>

@@ -19,10 +19,6 @@
       "types": "./dist/chatto/*.d.ts",
       "import": "./dist/chatto/*.js"
     },
-    "./core/*": {
-      "types": "./dist/chatto/core/*.d.ts",
-      "import": "./dist/chatto/core/*.js"
-    },
     "./realtime/*": {
       "types": "./dist/chatto/realtime/*.d.ts",
       "import": "./dist/chatto/realtime/*.js"

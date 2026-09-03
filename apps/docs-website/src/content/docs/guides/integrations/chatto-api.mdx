@@ -21,7 +21,7 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 | --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                                       |
 | Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                                           |
-| Realtime WebSocket    | `/api/realtime`                                 | Exact resource snapshots, canonical protobuf events, and bounded resume for authenticated clients.            |
+| Realtime WebSocket    | `/api/realtime`                                 | Exact resource snapshots, public semantic events, and bounded resume for authenticated clients.                |
 | MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                                         |
 | Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                                |
 
