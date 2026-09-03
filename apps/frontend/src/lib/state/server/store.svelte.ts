@@ -235,8 +235,7 @@ export class ServerStateStore {
     });
   }
 
-  /** Change privilege activation for this server session and rehydrate every
-   * effective viewer permission through a fresh authenticated transport. */
+  /** Change privilege activation and reconcile effective viewer permissions in place. */
   async setPrivilegedMode(active: boolean): Promise<void> {
     const update = active
       ? await this.#privilegedModeAPI.activate()
@@ -247,8 +246,10 @@ export class ServerStateStore {
     viewer.capabilities = update.capabilities;
     viewer.viewerPermissions = update.viewerPermissions;
     this.applyViewerSnapshot(viewer);
-    this.realtimeSync.invalidateAuthorization();
-    const projectionRefreshed = this.realtimeSync.waitForNextCaughtUp();
+    const authorizationRefreshGeneration = this.realtimeSync.invalidateAuthorization();
+    const projectionRefreshed = this.realtimeSync.waitForAuthorizationRefresh(
+      authorizationRefreshGeneration
+    );
     this.#serverConnection.forceReconnect('privileged mode changed');
     await projectionRefreshed;
   }

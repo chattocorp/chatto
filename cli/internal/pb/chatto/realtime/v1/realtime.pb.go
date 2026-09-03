@@ -599,8 +599,12 @@ type RealtimeSubscribeEvents struct {
 	// notification, and call state remains server-wide. At most 64 room IDs
 	// may be supplied in one subscription.
 	RetainedRoomIds []string `protobuf:"bytes,2,rep,name=retained_room_ids,json=retainedRoomIds,proto3" json:"retained_room_ids,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Request complete effective viewer-state replacement for projected rooms
+	// while resuming the existing projection. Use this after session authority
+	// changes without an EVT event, such as privileged-mode activation.
+	RefreshAuthorization bool `protobuf:"varint,3,opt,name=refresh_authorization,json=refreshAuthorization,proto3" json:"refresh_authorization,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *RealtimeSubscribeEvents) Reset() {
@@ -645,6 +649,13 @@ func (x *RealtimeSubscribeEvents) GetRetainedRoomIds() []string {
 		return x.RetainedRoomIds
 	}
 	return nil
+}
+
+func (x *RealtimeSubscribeEvents) GetRefreshAuthorization() bool {
+	if x != nil {
+		return x.RefreshAuthorization
+	}
+	return false
 }
 
 // Requests lazy materialisation of one joined room's recent timeline.
@@ -2997,10 +3008,11 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12%\n" +
 	"\x0eserver_version\x18\x02 \x01(\tR\rserverVersion\x12<\n" +
 	"\x1aheartbeat_interval_seconds\x18\x04 \x01(\rR\x18heartbeatIntervalSeconds\x12\"\n" +
-	"\fcapabilities\x18\x05 \x03(\tR\fcapabilitiesJ\x04\b\x03\x10\x04R\x10resume_supported\"\x81\x01\n" +
+	"\fcapabilities\x18\x05 \x03(\tR\fcapabilitiesJ\x04\b\x03\x10\x04R\x10resume_supported\"\xb6\x01\n" +
 	"\x17RealtimeSubscribeEvents\x12(\n" +
 	"\rresume_cursor\x18\x01 \x01(\tH\x00R\fresumeCursor\x88\x01\x01\x12*\n" +
-	"\x11retained_room_ids\x18\x02 \x03(\tR\x0fretainedRoomIdsB\x10\n" +
+	"\x11retained_room_ids\x18\x02 \x03(\tR\x0fretainedRoomIds\x123\n" +
+	"\x15refresh_authorization\x18\x03 \x01(\bR\x14refreshAuthorizationB\x10\n" +
 	"\x0e_resume_cursor\".\n" +
 	"\x13RealtimeHydrateRoom\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"[\n" +

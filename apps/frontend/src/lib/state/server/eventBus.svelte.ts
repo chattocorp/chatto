@@ -94,13 +94,18 @@ function clientHelloFrame(token: string | null): Uint8Array {
   }).toBinary();
 }
 
-function subscribeEventsFrame(resumeCursor: string | null, retainedRoomIds: string[]): Uint8Array {
+function subscribeEventsFrame(
+  resumeCursor: string | null,
+  retainedRoomIds: string[],
+  refreshAuthorization: boolean
+): Uint8Array {
   return new RealtimeClientFrame({
     frame: {
       case: 'subscribeEvents',
       value: new RealtimeSubscribeEvents({
         resumeCursor: resumeCursor ?? undefined,
-        retainedRoomIds
+        retainedRoomIds,
+        refreshAuthorization
       })
     }
   }).toBinary();
@@ -384,6 +389,7 @@ class EventBusManager {
       clearReconnectTimer();
       generation++;
       const socketGeneration = generation;
+      let requestedAuthorizationRefreshGeneration = 0;
       lastEventAt = Date.now();
       sync.beginCatchUp();
       if (mode === 'live') {
@@ -428,7 +434,15 @@ class EventBusManager {
                 frame.frame.value.heartbeatIntervalSeconds
               );
               requestedRoomIds = new SvelteSet(sync.retainedRoomIds);
-              nextSocket.send(subscribeEventsFrame(sync.resumeCursor, [...requestedRoomIds]));
+              requestedAuthorizationRefreshGeneration =
+                sync.pendingAuthorizationRefreshGeneration;
+              nextSocket.send(
+                subscribeEventsFrame(
+                  sync.resumeCursor,
+                  [...requestedRoomIds],
+                  requestedAuthorizationRefreshGeneration > 0
+                )
+              );
               return;
             case 'subscribed':
               socketSubscribed = true;
@@ -469,7 +483,10 @@ class EventBusManager {
               }
               return;
             case 'caughtUp': {
-              sync.markCaughtUp(frame.frame.value.cursor);
+              sync.markCaughtUp(
+                frame.frame.value.cursor,
+                requestedAuthorizationRefreshGeneration
+              );
               const completedPoll = pollResolution !== null;
               resolvePoll(true);
               if (mode === 'polling') {
@@ -523,6 +540,9 @@ class EventBusManager {
               if (frame.frame.value.code === 'session_renewal_required') {
                 void renewBrowserSession(nextSocket);
                 return;
+              }
+              if (frame.frame.value.code === 'privileged_mode_expired') {
+                sync.invalidateAuthorization();
               }
               nextSocket.onclose = null;
               if (socket === nextSocket) socket = null;

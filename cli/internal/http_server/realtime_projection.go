@@ -93,6 +93,14 @@ func realtimeProjectionRoomViewerOperation(roomID string, viewerState *apiv1.Roo
 	}}
 }
 
+func realtimeProjectionRoomViewerStateOperation(roomID string, viewerState *apiv1.RoomViewerState) *realtimev1.RealtimeProjectionOperation {
+	return &realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+		RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
+			RoomId: roomID, ViewerState: viewerState,
+		},
+	}}
+}
+
 func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, viewerID, roomID string) (*realtimev1.RealtimeServerFrame, error) {
 	room, err := s.connectAPI.BuildRealtimeProjectionRoom(ctx, viewerID, roomID)
 	if err != nil {
@@ -123,10 +131,11 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 // that is not fully represented by an EVT gap: room/thread read markers,
 // notification list state, and presence. Viewer config is included as a cheap
 // authoritative replacement so all self-only fields converge together.
-// Room viewer state is needed after incremental replay. A compacted reset
-// supplies it in snapshot room upserts and repairs only markers that changed
-// while that snapshot was assembled.
-func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, roomMarkerFence *uint64) (*realtimev1.RealtimeServerFrame, error) {
+// Room viewer state is needed after incremental replay. An authorization
+// refresh replaces complete state for all projected rooms. A compacted reset
+// supplies complete state in snapshot room upserts and repairs only markers
+// that changed while that snapshot was assembled.
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, roomMarkerFence *uint64, refreshAuthorization bool) (*realtimev1.RealtimeServerFrame, error) {
 	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
@@ -172,7 +181,11 @@ func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, 
 		ViewerUpsert: viewer,
 	}})
 	for _, state := range roomStates {
-		operations = append(operations, realtimeProjectionRoomViewerOperation(state.RoomID, state.ViewerState))
+		if refreshAuthorization {
+			operations = append(operations, realtimeProjectionRoomViewerStateOperation(state.RoomID, state.ViewerState))
+		} else {
+			operations = append(operations, realtimeProjectionRoomViewerOperation(state.RoomID, state.ViewerState))
+		}
 	}
 	operations = append(operations,
 		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{

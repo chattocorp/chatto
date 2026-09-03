@@ -23,11 +23,12 @@ server session when they need them.
 - The user can deactivate the mode immediately.
 - Expiry, logout, and session revocation deactivate the mode.
 - The client updates effective server permissions from the activation or
-  deactivation response. It then discards its resume cursor and reconnects its
-  realtime projection to replace room-scoped permissions and retained data.
+  deactivation response. It keeps its resume cursor and mounted realtime
+  projection. The resumed subscription replaces effective room permissions in
+  place.
 - At the 15-minute deadline, the server closes each affected realtime
-  connection with a reconnect instruction. The replacement projection has
-  privileged mode inactive.
+  connection with a reconnect instruction. The resumed subscription replaces
+  effective permissions with privileged mode inactive.
 - The event log records successful activation and explicit deactivation
   transitions. The activation entry includes the fixed deadline. Automatic
   expiry does not add a second event because the deadline is already durable.

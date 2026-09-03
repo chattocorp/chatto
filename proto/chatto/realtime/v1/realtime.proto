@@ -102,6 +102,10 @@ message RealtimeSubscribeEvents {
   // notification, and call state remains server-wide. At most 64 room IDs
   // may be supplied in one subscription.
   repeated string retained_room_ids = 2;
+  // Request complete effective viewer-state replacement for projected rooms
+  // while resuming the existing projection. Use this after session authority
+  // changes without an EVT event, such as privileged-mode activation.
+  bool refresh_authorization = 3;
 }
 
 // Requests lazy materialisation of one joined room's recent timeline.

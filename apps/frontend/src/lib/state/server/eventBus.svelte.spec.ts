@@ -566,6 +566,38 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribeFrame.frame.value.resumeCursor).toBe('cursor-boundary');
   });
 
+  it('requests in-place authorization reconciliation without discarding its cursor', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(subscribedFrame());
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'cursor-before' }) })
+    );
+
+    sync.invalidateAuthorization();
+    fake.forceReconnect('privileged mode changed');
+    await vi.advanceTimersByTimeAsync(0);
+
+    const replacement = sockets.at(-1)!;
+    replacement.open();
+    await replacement.receive(helloFrame());
+    const subscribe = RealtimeClientFrame.fromBinary(replacement.sent[1]);
+    expect(subscribe.frame.case).toBe('subscribeEvents');
+    if (subscribe.frame.case !== 'subscribeEvents') throw new Error('expected subscribe frame');
+    expect(subscribe.frame.value.resumeCursor).toBe('cursor-before');
+    expect(subscribe.frame.value.refreshAuthorization).toBe(true);
+
+    await replacement.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'cursor-after' }) })
+    );
+    expect(sync.authorizationRefreshRequired).toBe(false);
+  });
+
   it('accepts a compacted reset when a retained resume cursor is no longer usable', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.retainRoom('room-retained');

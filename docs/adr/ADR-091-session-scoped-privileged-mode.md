@@ -57,10 +57,11 @@ effective permission grants in viewer and room state describe permissions that
 can be used now. The bundled client puts the control in the current-user area
 for the selected server. Each mutation response includes the new effective
 server capabilities and permissions, which the client applies immediately. It
-then discards the authorization-bound resume cursor and requests a complete
-realtime projection. A normal cursor resume contains only later EVT changes and
-cannot represent this runtime-state mutation. The complete projection replaces
-room-scoped state with the new session permissions.
+then keeps its realtime projection and resume cursor and reconnects. The
+resumed subscription requests a complete replacement of effective room viewer
+state. A normal cursor resume contains only later EVT changes and cannot
+represent this runtime-state mutation. The replacement operations update
+room-scoped permissions without unmounting the current interface.
 
 The realtime connection retains the privilege deadline accepted during its
 hello. At that deadline, the server cancels authorized work and sends a
@@ -82,6 +83,11 @@ The protobuf additions use new fields and RPCs. An older server ignores the
 new client feature because its viewer response cannot report availability. An
 older client on a newer server cannot activate elevated permissions. This is
 an intentional Chatto 0.5 authorization behavior change.
+
+The authorization-refresh subscription field is additive. An older client
+does not request the replacement operations. An older server ignores the field
+from a new client. No released client and server pair depends on the temporary
+cursor-reset behavior that existed during development.
 
 A deployment must update all replicas before it relies on this boundary. An
 old replica does not apply the new request-time gate.

@@ -618,6 +618,7 @@ describe('ServerStateStore privileged mode', () => {
       privilegedMode: new PrivilegedModeState({ available: true, active: false })
     });
     store.setPermissions({ canAdminViewSystem: false } as never);
+    store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.activatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: true }),
       capabilities: new ViewerCapabilities({
@@ -625,13 +626,20 @@ describe('ServerStateStore privileged mode', () => {
       }),
       viewerPermissions: new ServerViewerPermissions()
     });
-    fake.forceReconnect.mockImplementationOnce(() => store.realtimeSync.markCaughtUp(undefined));
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
 
     await store.setPrivilegedMode(true);
 
     expect(apiMocks.activatePrivilegedMode).toHaveBeenCalledOnce();
     expect(store.projection.viewer?.privilegedMode?.active).toBe(true);
     expect(store.permissions.canAdminViewSystem).toBe(true);
+    expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
   });
 
@@ -646,6 +654,7 @@ describe('ServerStateStore privileged mode', () => {
       privilegedMode: new PrivilegedModeState({ available: true, active: true })
     });
     store.setPermissions({ canAdminViewSystem: true } as never);
+    store.realtimeSync.markCaughtUp('cursor-before');
     apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
       privilegedMode: new PrivilegedModeState({ available: true, active: false }),
       capabilities: new ViewerCapabilities({
@@ -653,13 +662,19 @@ describe('ServerStateStore privileged mode', () => {
       }),
       viewerPermissions: new ServerViewerPermissions()
     });
-    fake.forceReconnect.mockImplementationOnce(() => store.realtimeSync.markCaughtUp(undefined));
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
 
     await store.setPrivilegedMode(false);
 
     expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
     expect(store.permissions.canAdminViewSystem).toBe(false);
-    expect(store.realtimeSync.resumeCursor).toBeNull();
+    expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
   });
 

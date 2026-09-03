@@ -419,6 +419,15 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
    */
   retainedRoomIds: string[] = [];
 
+  /**
+   * Request complete effective viewer-state replacement for projected rooms
+   * while resuming the existing projection. Use this after session authority
+   * changes without an EVT event, such as privileged-mode activation.
+   *
+   * @generated from field: bool refresh_authorization = 3;
+   */
+  refreshAuthorization = false;
+
   constructor(data?: PartialMessage<RealtimeSubscribeEvents>) {
     super();
     proto3.util.initPartial(data, this);
@@ -429,6 +438,7 @@ export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "retained_room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "refresh_authorization", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribeEvents {

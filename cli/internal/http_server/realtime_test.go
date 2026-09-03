@@ -1480,7 +1480,7 @@ func TestRealtimeProjectionCompactedReconciliationRepairsOnlyRoomMarkersChangedD
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &snapshot.RoomMarkerFence)
+	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &snapshot.RoomMarkerFence, false)
 	if err != nil {
 		t.Fatalf("realtimeProjectionReconciliationFrame: %v", err)
 	}
@@ -1492,6 +1492,24 @@ func TestRealtimeProjectionCompactedReconciliationRepairsOnlyRoomMarkersChangedD
 	}
 	if len(replacements) != 1 || replacements[0].GetRoomId() != rooms[0].Id || replacements[0].GetHasUnread() {
 		t.Fatalf("changed room replacements = %+v, want only current state for %q", replacements, rooms[0].Id)
+	}
+
+	authorizationFrame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, nil, true)
+	if err != nil {
+		t.Fatalf("authorization realtimeProjectionReconciliationFrame: %v", err)
+	}
+	foundRoomAuthorization := false
+	for _, operation := range authorizationFrame.GetProjectionEvent().GetOperations() {
+		if operation.GetRoomViewerActivityReplace() != nil {
+			t.Fatal("authorization reconciliation used focused viewer activity")
+		}
+		replacement := operation.GetRoomViewerStateReplace()
+		if replacement.GetRoomId() == rooms[0].Id {
+			foundRoomAuthorization = len(replacement.GetViewerState().GetPermissions()) > 0
+		}
+	}
+	if !foundRoomAuthorization {
+		t.Fatalf("authorization reconciliation omitted complete state for room %q", rooms[0].Id)
 	}
 }
 

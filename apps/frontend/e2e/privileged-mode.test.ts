@@ -10,6 +10,12 @@ test('owner explicitly activates and deactivates privileged mode', async ({ page
   await page.goto(routes.chat);
 
   const enable = page.getByRole('button', { name: 'Enable privileged mode' });
+  await page.getByRole('link', { name: '# general', exact: true }).click();
+  const roomHeading = page.getByRole('heading', { name: '# general' });
+  await expect(roomHeading).toBeVisible();
+  await roomHeading.evaluate((element) => {
+    element.setAttribute('data-privileged-mode-mount', 'original');
+  });
   await expect(enable).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).not.toBeVisible();
 
@@ -23,10 +29,12 @@ test('owner explicitly activates and deactivates privileged mode', async ({ page
   const disable = page.getByRole('button', { name: 'Disable privileged mode' });
   await expect(disable).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).toBeVisible();
+  await expect(roomHeading).toHaveAttribute('data-privileged-mode-mount', 'original');
 
   await disable.click();
   await expect(enable).toBeVisible();
   await expect(page.getByRole('button', { name: 'New Group' })).not.toBeVisible();
+  await expect(roomHeading).toHaveAttribute('data-privileged-mode-mount', 'original');
 
   await enable.click();
   await page
