@@ -261,6 +261,40 @@ func TestRealtimeInternalDurableEventIsOmitted(t *testing.T) {
 	}
 }
 
+func TestRealtimeInternalEncryptedEventIsOmittedBeforePlaintextPopulation(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "internal-email", "Internal Email", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	event := &evtv1.Event{
+		Id: "internal-email-event",
+		Event: &evtv1.Event_UserVerifiedEmailAdded{
+			UserVerifiedEmailAdded: &evtv1.UserVerifiedEmailAddedEvent{
+				UserId: viewer.GetId(),
+				EncryptedEmail: &evtv1.EncryptedUserString{
+					EncryptedValue:  []byte("invalid ciphertext"),
+					Nonce:           []byte("invalid nonce"),
+					ContentKeyEpoch: 1,
+				},
+			},
+		},
+	}
+	plaintextCandidate := proto.Clone(event).(*evtv1.Event)
+	if err := env.core.PopulateEventPlaintext(env.ctx, plaintextCandidate); err == nil {
+		t.Fatal("PopulateEventPlaintext() accepted malformed ciphertext; test does not exercise the ordering invariant")
+	}
+
+	_, err = env.httpServer.realtimeServerFrameForEvent(
+		env.ctx,
+		viewer.GetId(),
+		core.NewEVTEventEnvelopeWithDeliverySeq(event, 42),
+	)
+	if !errors.Is(err, errRealtimeEventOmitted) {
+		t.Fatalf("realtimeServerFrameForEvent() error = %v, want omission before malformed ciphertext is decrypted", err)
+	}
+}
+
 func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	event := &evtv1.Event{

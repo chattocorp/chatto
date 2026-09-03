@@ -14,30 +14,13 @@ import (
 // The public union field number and payload type must match the canonical
 // event. The function never mutates or copies unclassified source fields.
 func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
-	if source == nil || source.GetEvent() == nil {
-		return nil
-	}
-	sourceMessage := source.ProtoReflect()
-	sourceOneof := sourceMessage.Descriptor().Oneofs().ByName("event")
-	if sourceOneof == nil {
-		return nil
-	}
-	sourcePayload := sourceMessage.WhichOneof(sourceOneof)
-	if sourcePayload == nil {
+	sourceMessage, sourcePayload, targetPayload, ok := realtimePublicPayload(source)
+	if !ok {
 		return nil
 	}
 
 	target := &realtimev1.PublicEvent{}
 	targetMessage := target.ProtoReflect()
-	targetPayload := targetMessage.Descriptor().Fields().ByNumber(sourcePayload.Number())
-	if targetPayload == nil || sourcePayload.Message() == nil || targetPayload.Message() == nil ||
-		targetPayload.Name() != sourcePayload.Name() ||
-		targetPayload.ContainingOneof() == nil ||
-		targetPayload.ContainingOneof().Name() != "event" ||
-		targetPayload.Message().FullName() != sourcePayload.Message().FullName() {
-		return nil
-	}
-
 	for _, number := range []protoreflect.FieldNumber{1, 2, 3} {
 		sourceField := sourceMessage.Descriptor().Fields().ByNumber(number)
 		targetField := targetMessage.Descriptor().Fields().ByNumber(number)
@@ -53,6 +36,35 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
 	copyRealtimeMessage(sourceMessage.Get(sourcePayload).Message(), payload, false)
 	targetMessage.Set(targetPayload, protoreflect.ValueOfMessage(payload))
 	return target
+}
+
+func hasRealtimePublicVariant(source *evtv1.Event) bool {
+	_, _, _, ok := realtimePublicPayload(source)
+	return ok
+}
+
+func realtimePublicPayload(source *evtv1.Event) (protoreflect.Message, protoreflect.FieldDescriptor, protoreflect.FieldDescriptor, bool) {
+	if source == nil || source.GetEvent() == nil {
+		return nil, nil, nil, false
+	}
+	sourceMessage := source.ProtoReflect()
+	sourceOneof := sourceMessage.Descriptor().Oneofs().ByName("event")
+	if sourceOneof == nil {
+		return nil, nil, nil, false
+	}
+	sourcePayload := sourceMessage.WhichOneof(sourceOneof)
+	if sourcePayload == nil {
+		return nil, nil, nil, false
+	}
+	targetPayload := (&realtimev1.PublicEvent{}).ProtoReflect().Descriptor().Fields().ByNumber(sourcePayload.Number())
+	if targetPayload == nil || sourcePayload.Message() == nil || targetPayload.Message() == nil ||
+		targetPayload.Name() != sourcePayload.Name() ||
+		targetPayload.ContainingOneof() == nil ||
+		targetPayload.ContainingOneof().Name() != "event" ||
+		targetPayload.Message().FullName() != sourcePayload.Message().FullName() {
+		return nil, nil, nil, false
+	}
+	return sourceMessage, sourcePayload, targetPayload, true
 }
 
 func matchingRealtimeField(source, target protoreflect.FieldDescriptor) bool {

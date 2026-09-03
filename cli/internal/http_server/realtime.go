@@ -820,6 +820,9 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
+	if !hasRealtimePublicVariant(canonical) {
+		return nil, errRealtimeEventOmitted
+	}
 	if typing := canonical.GetUserTypingSignal(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
