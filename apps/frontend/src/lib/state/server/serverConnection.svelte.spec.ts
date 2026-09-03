@@ -240,6 +240,22 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
+  it('lets an immediate reconnect supersede an older queued reason', () => {
+    const client = new ServerConnection(makeConfig());
+    const reconnect = vi.fn();
+
+    client.registerRealtimeReconnect(reconnect);
+    client.forceReconnect('privileged mode activated');
+    client.setRealtimeConnectionStatus('disconnected');
+    client.forceReconnect('privileged mode deactivated');
+    expect(reconnect).toHaveBeenCalledOnce();
+    expect(reconnect).toHaveBeenCalledWith('privileged mode deactivated');
+
+    client.setRealtimeConnectionStatus('connected');
+    expect(reconnect).toHaveBeenCalledOnce();
+    client.dispose();
+  });
+
   it('forces reconnect on browser online events even while marked connected', () => {
     const client = new ServerConnection(makeConfig());
     const reconnect = vi.fn();

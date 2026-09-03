@@ -137,6 +137,7 @@ export class ServerConnection {
       return;
     }
     if (this.#realtimeReconnect) {
+      this.#pendingForcedReconnectReason = null;
       console.log(
         '[ws:%s] Force realtime reconnect: %s (status: %s)',
         this.#host,
