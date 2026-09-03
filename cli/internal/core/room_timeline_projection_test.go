@@ -1177,6 +1177,46 @@ func (s *blockingTimelineEventSource) EventAt(ctx context.Context, sequence uint
 	return s.records[sequence], ctx.Err()
 }
 
+type growingTimelineEventSource struct {
+	mu            sync.Mutex
+	records       timelineTestEventSource
+	projection    *RoomTimelineProjection
+	remaining     int
+	nextSequence  uint64
+	bucketTime    time.Time
+	readSequences []uint64
+}
+
+func (s *growingTimelineEventSource) EventAt(ctx context.Context, sequence uint64) (*evtstream.SubjectEvent, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	s.mu.Lock()
+	record := s.records[sequence]
+	s.readSequences = append(s.readSequences, sequence)
+	var added *evtv1.Event
+	var addedSequence uint64
+	if s.remaining > 0 {
+		addedSequence = s.nextSequence
+		s.nextSequence++
+		s.remaining--
+		added = joinedEvent(fmt.Sprintf("JOINED-%d", addedSequence), "R1", fmt.Sprintf("U%d", addedSequence), int(addedSequence))
+		added.CreatedAt = timestamppb.New(s.bucketTime.Add(time.Duration(addedSequence) * time.Millisecond))
+		s.records[addedSequence] = &evtstream.SubjectEvent{
+			Subject:  "evt.room.R1.user_joined",
+			Sequence: addedSequence,
+			Event:    added,
+		}
+	}
+	s.mu.Unlock()
+	if added != nil {
+		if err := s.projection.Apply(added, addedSequence); err != nil {
+			return nil, err
+		}
+	}
+	return record, nil
+}
+
 func TestRoomTimeline_ReconstructsAndEvictsHistoricalBodyBucket(t *testing.T) {
 	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
 	created := time.Date(2025, 1, 8, 12, 0, 0, 0, time.UTC)
@@ -1843,6 +1883,42 @@ func TestRoomTimeline_SnapshotDeltaReplayDoesNotTreatPartialPinnedCacheAsComplet
 	}
 	if got := source.readSequences(); !slices.Equal(got, []uint64{1, 2, 3}) {
 		t.Fatalf("warm EVT reads = %v, want complete bucket [1 2 3]", got)
+	}
+}
+
+func TestRoomTimeline_PinnedBucketLoadCatchesUpWithContinuedApplies(t *testing.T) {
+	now := time.Date(2026, 9, 2, 12, 0, 0, 0, time.UTC)
+	bodyEvent := &evtv1.Event{Id: "BODY", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessageBody{MessageBody: &evtv1.MessageBodyEvent{RoomId: "R1", EventId: "MESSAGE", Body: &evtv1.MessageBody{AuthorId: "U1", BodyEventId: "BODY", EncryptedBody: []byte("ciphertext")}}}}
+	posted := &evtv1.Event{Id: "MESSAGE", ActorId: "U1", CreatedAt: timestamppb.New(now), Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{RoomId: "R1"}}}
+	source := &growingTimelineEventSource{
+		records: timelineTestEventSource{
+			1: {Subject: "evt.room.R1.message_body", Sequence: 1, Event: bodyEvent},
+			2: {Subject: "evt.room.R1.message_posted", Sequence: 2, Event: posted},
+		},
+		remaining: 7, nextSequence: 3, bucketTime: now,
+	}
+	projection := NewRoomTimelineProjectionWithOptions(RoomTimelineProjectionOptions{
+		EventSource: source, Interval: 7 * 24 * time.Hour, PinnedPeriod: 4 * 7 * 24 * time.Hour,
+		Now: func() time.Time { return now },
+	})
+	source.projection = projection
+	if err := projection.Apply(bodyEvent, 1); err != nil {
+		t.Fatal(err)
+	}
+	if err := projection.Apply(posted, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := projection.WarmPinned(context.Background()); err != nil {
+		t.Fatalf("WarmPinned while bucket grows: %v", err)
+	}
+	key := projection.messageBuckets["MESSAGE"]
+	if cached := projection.cache[key]; cached == nil || !cached.complete || cached.revision != projection.buckets[key].revision {
+		t.Fatalf("cache after catch-up = %+v, bucket revision %d", cached, projection.buckets[key].revision)
+	}
+	body, retracted, ok := projection.LatestBody("MESSAGE")
+	if !ok || retracted || string(body.GetEncryptedBody()) != "ciphertext" {
+		t.Fatalf("LatestBody after catch-up = (%v, %v, %v), want restored ciphertext", body, retracted, ok)
 	}
 }
 

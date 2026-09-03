@@ -890,8 +890,13 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 		case <-loadCtx.Done():
 			return nil, loadCtx.Err()
 		}
-		for attempt := 0; attempt < 3; attempt++ {
-			attempts = attempt + 1
+		eventsBySequence := make(map[uint64]*evtv1.Event)
+		fetchedSequences := make(map[uint64]struct{})
+		for {
+			if err := loadCtx.Err(); err != nil {
+				return nil, err
+			}
+			attempts++
 			p.Lock()
 			bucket := p.buckets[key]
 			if bucket == nil {
@@ -917,8 +922,11 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 				p.logger.Debug("Room timeline bucket reconstruction started", fields...)
 			}
 
-			eventsBySequence := make(map[uint64]*evtv1.Event, len(sequences))
 			for _, sequence := range sequences {
+				if _, fetched := fetchedSequences[sequence]; fetched {
+					continue
+				}
+				fetchedSequences[sequence] = struct{}{}
 				record, readErr := p.eventSource.EventAt(loadCtx, sequence)
 				if errors.Is(readErr, jetstream.ErrMsgNotFound) {
 					// Secure deletion can remove obsolete private body records.
@@ -1007,7 +1015,6 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 			}
 			return nil, nil
 		}
-		return nil, fmt.Errorf("room timeline bucket changed during reconstruction")
 	})
 	select {
 	case completed := <-result:
