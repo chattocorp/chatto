@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Aktivera privilegierat läge",
+      "disable": "Inaktivera privilegierat läge",
+      "confirmation": "I 15 minuter aktiverar detta de ytterligare behörigheter som du har tilldelats på den här servern."
+    },
     "notifications": {
       "title": "Aviseringar",
       "subtitle": "Här är vad som är nytt",

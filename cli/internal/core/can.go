@@ -48,7 +48,11 @@ func (c *ChattoCore) CanManageRoles(ctx context.Context, userID string) (bool, e
 // owner-only, so this mirrors GetAdminDiagnostics instead of any grantable
 // RBAC permission.
 func (c *ChattoCore) CanAdminSystemView(ctx context.Context, userID string) (bool, error) {
-	return c.IsServerOwner(ctx, userID)
+	isOwner, err := c.IsServerOwner(ctx, userID)
+	if err != nil || !isOwner {
+		return isOwner, err
+	}
+	return privilegedModeAllows(ctx, userID, time.Now()), nil
 }
 
 // CanAdminAuditView checks if a user can view the audit log (event log)
@@ -165,7 +169,7 @@ func (c *ChattoCore) HasAnyAdminPermission(ctx context.Context, userID string) (
 
 func (c *ChattoCore) hasAnyAdminPermission(ctx context.Context, userID string) (bool, error) {
 	for _, perm := range adminPermissions {
-		decision, err := c.permissionResolver.resolveWithGroup(ctx, userID, KindChannel, "", "", perm)
+		decision, err := c.permissionResolver.resolveEntitlementWithGroup(ctx, userID, KindChannel, "", "", perm)
 		if err != nil {
 			return false, err
 		}
@@ -174,6 +178,27 @@ func (c *ChattoCore) hasAnyAdminPermission(ctx context.Context, userID string) (
 		}
 	}
 	return false, nil
+}
+
+// HasAnyPrivilegedModeEntitlement reports whether a user has at least one
+// permission entitlement that an authenticated human session must activate.
+// It intentionally ignores the current session state. The any-scope fallback
+// detects explicit resource-scoped allows for discovery; effective checks can
+// still resolve a deny.
+func (c *ChattoCore) HasAnyPrivilegedModeEntitlement(ctx context.Context, userID string) (bool, error) {
+	for _, metadata := range AllPermissions() {
+		if !metadata.RequiresPrivilegedMode || !permissionMetadataHasScope(metadata, ScopeServer) {
+			continue
+		}
+		decision, err := c.permissionResolver.resolveEntitlementWithGroup(ctx, userID, KindChannel, "", "", metadata.Permission)
+		if err != nil {
+			return false, err
+		}
+		if decision == DecisionAllow {
+			return true, nil
+		}
+	}
+	return c.rbacModel.hasAnyPrivilegedModeAllow(userID), nil
 }
 
 // CanManageServer checks if a user can update server settings (name, description, logo).

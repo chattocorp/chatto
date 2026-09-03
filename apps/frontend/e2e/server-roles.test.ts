@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
+  activatePrivilegedMode,
   createAndLoginTestUser,
   denyPermission as denyServerPermission,
   generateRoleName,
@@ -516,6 +517,7 @@ test.describe('Roles Management', () => {
       const regularUser = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, regularUser.login, regularUser.password);
+      await activatePrivilegedMode(page);
       // Navigate to roles list - should have create/manage access via everyone role grant.
       // The matrix itself is intentionally hidden from non-admins because role
       // permission inspection is still restricted.
@@ -596,6 +598,7 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
+      await activatePrivilegedMode(page);
       // Navigate to roles list
       await serverRolesPage.gotoRolesList(server.id);
 
@@ -862,6 +865,7 @@ test.describe('Server Permission Enforcement', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
+      await activatePrivilegedMode(page);
       await joinRoomViaAPI(page, server.id, roomId);
 
       // Navigate to the room

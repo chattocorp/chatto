@@ -7,6 +7,7 @@ import (
 	"connectrpc.com/connect"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -42,11 +43,79 @@ func (s *viewerService) GetViewer(ctx context.Context, _ *connect.Request[apiv1.
 	return connect.NewResponse(response), nil
 }
 
+func (s *viewerService) ActivatePrivilegedMode(ctx context.Context, _ *connect.Request[apiv1.ActivatePrivilegedModeRequest]) (*connect.Response[apiv1.ActivatePrivilegedModeResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
+		return nil, connectError(core.ErrHumanAccountRequired)
+	}
+	available, err := s.api.core.HasAnyPrivilegedModeEntitlement(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !available {
+		return nil, connectError(core.ErrPrivilegedModeUnavailable)
+	}
+	deadline, err := s.api.setPrivilegedMode(ctx, caller.UserID, true)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ActivatePrivilegedModeResponse{
+		PrivilegedMode: privilegedModeState(true, deadline),
+	}), nil
+}
+
+func (s *viewerService) DeactivatePrivilegedMode(ctx context.Context, _ *connect.Request[apiv1.DeactivatePrivilegedModeRequest]) (*connect.Response[apiv1.DeactivatePrivilegedModeResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.api.setPrivilegedMode(ctx, caller.UserID, false); err != nil {
+		return nil, connectError(err)
+	}
+	available, err := s.api.core.HasAnyPrivilegedModeEntitlement(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeactivatePrivilegedModeResponse{
+		PrivilegedMode: privilegedModeState(available, time.Time{}),
+	}), nil
+}
+
+func (a *API) setPrivilegedMode(ctx context.Context, userID string, active bool) (time.Time, error) {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok || credential.UserID != userID {
+		return time.Time{}, core.ErrNotAuthenticated
+	}
+	switch credential.Kind {
+	case authctx.RuntimeCredentialKindBearerToken:
+		return a.core.SetBearerPrivilegedMode(ctx, credential.Handle, active)
+	case authctx.RuntimeCredentialKindCookieSession:
+		return a.core.SetCookiePrivilegedMode(ctx, credential.Handle, active)
+	case authctx.RuntimeCredentialKindBotAPIKey:
+		return time.Time{}, core.ErrHumanAccountRequired
+	default:
+		return time.Time{}, core.ErrNotAuthenticated
+	}
+}
+
+func privilegedModeState(available bool, deadline time.Time) *apiv1.PrivilegedModeState {
+	active := available && time.Now().Before(deadline)
+	state := &apiv1.PrivilegedModeState{Available: available, Active: active}
+	if active {
+		state.ExpiresAt = timestamppb.New(deadline)
+	}
+	return state
+}
+
 func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerResponse, error) {
 	user, err := a.core.GetUser(ctx, userID)
 	if err != nil {
 		return nil, connectError(err)
 	}
+	credential, hasCredential := authctx.CredentialForContext(ctx)
 
 	// Assemble independent projection and runtime-state reads concurrently so
 	// one slow source does not serialize the entire viewer response.
@@ -55,6 +124,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 		capabilities      *apiv1.ViewerCapabilities
 		viewerPermissions *apiv1.ServerViewerPermissions
 		viewerState       *apiv1.ServerViewerState
+		privilegedMode    *apiv1.PrivilegedModeState
 	)
 	group, groupCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
@@ -72,6 +142,22 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 		viewerPermissions, viewerState, err = a.serverViewerState(groupCtx, userID)
 		return err
 	})
+	group.Go(func() error {
+		if hasCredential && credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
+			privilegedMode = privilegedModeState(false, time.Time{})
+			return nil
+		}
+		available, err := a.core.HasAnyPrivilegedModeEntitlement(groupCtx, userID)
+		if err != nil {
+			return connectError(err)
+		}
+		deadline := time.Time{}
+		if hasCredential && credential.UserID == userID {
+			deadline = credential.PrivilegedModeExpiresAt
+		}
+		privilegedMode = privilegedModeState(available, deadline)
+		return nil
+	})
 	if err := group.Wait(); err != nil {
 		return nil, err
 	}
@@ -81,6 +167,7 @@ func (a *API) buildViewer(ctx context.Context, userID string) (*apiv1.GetViewerR
 		Capabilities:      capabilities,
 		ViewerPermissions: viewerPermissions,
 		ViewerState:       viewerState,
+		PrivilegedMode:    privilegedMode,
 	}, nil
 }
 

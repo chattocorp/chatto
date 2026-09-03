@@ -20,4 +20,6 @@ message CookieSession {
   google.protobuf.Timestamp fresh_auth_at = 7;
   string fresh_auth_method = 8;
   string fresh_auth_source = 9;
+  // Absolute end of the current explicit privileged-mode activation.
+  google.protobuf.Timestamp privileged_mode_expires_at = 10;
 }

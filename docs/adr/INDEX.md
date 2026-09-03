@@ -106,3 +106,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
 | [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Partially superseded | 2026-09-02 |
 | [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md) | Hydrate Room Timeline Payloads from EVT | Accepted | 2026-09-03 |
+| [ADR-091](ADR-091-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |

@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Privilegierten Modus aktivieren",
+      "disable": "Privilegierten Modus deaktivieren",
+      "confirmation": "Damit aktivierst du für 15 Minuten die zusätzlichen Berechtigungen, die dir auf diesem Server zugewiesen sind."
+    },
     "notifications": {
       "title": "Benachrichtigungen",
       "subtitle": "Das ist neu",

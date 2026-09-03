@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Ŝalti privilegian reĝimon",
+      "disable": "Malŝalti privilegian reĝimon",
+      "confirmation": "Dum 15 minutoj tio ŝaltas la aldonajn permesojn asignitajn al vi en ĉi tiu servilo."
+    },
     "notifications": {
       "title": "Sciigoj",
       "subtitle": "Jen kio estas nova",

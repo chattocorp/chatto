@@ -22,7 +22,9 @@ sidebar. Shows the avatar with presence and the live display name.
   import { prefersTouchActions, supportsHoverActions } from '$lib/utils/inputCapabilities';
   import BottomSheet from '$lib/ui/BottomSheet.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
-  import { Dialog } from '$lib/ui';
+  import { ConfirmDialog, Dialog } from '$lib/ui';
+  import Deadline from '$lib/lifecycle/Deadline.svelte';
+  import { toast } from '$lib/ui/toast';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
   import UserAvatar from './UserAvatar.svelte';
@@ -100,6 +102,12 @@ sidebar. Shows the avatar with presence and the live display name.
   const presenceLabel = $derived.by(() => presenceStatusLabel(currentPresence));
   let statusMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
   let customStatusDialogVisible = $state(false);
+  let privilegedModeDialogVisible = $state(false);
+  let privilegedModeLoading = $state(false);
+  const privilegedMode = $derived(activeStore.projection.viewer?.privilegedMode);
+  const privilegedModeDeadline = $derived(
+    privilegedMode?.active ? (privilegedMode.expiresAt?.toDate().getTime() ?? null) : null
+  );
 
   function customStatusAPIConfig() {
     return { ...serverScope.connection.apiConfig, serverId: activeServerId };
@@ -180,7 +188,24 @@ sidebar. Shows the avatar with presence and the live display name.
       })
     );
   }
+
+  async function setPrivilegedMode(active: boolean): Promise<void> {
+    if (privilegedModeLoading) return;
+    privilegedModeLoading = true;
+    try {
+      await activeStore.setPrivilegedMode(active);
+      privilegedModeDialogVisible = false;
+    } catch {
+      toast.error(m('common.error.generic'));
+    } finally {
+      privilegedModeLoading = false;
+    }
+  }
 </script>
+
+{#if privilegedModeDeadline !== null}
+  <Deadline at={privilegedModeDeadline} onreached={() => activeStore.expirePrivilegedMode()} />
+{/if}
 
 {#snippet customStatusEditor(sheet = false)}
   {#if activeServerUser && customStatusDialogVisible}
@@ -282,9 +307,53 @@ sidebar. Shows the avatar with presence and the live display name.
           <bdi dir="ltr">@{login}</bdi>
         </span>
       </div>
+      {#if privilegedMode?.available}
+        <button
+          type="button"
+          class={[
+            'grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg transition-colors',
+            privilegedMode.active
+              ? 'bg-warning/15 text-warning hover:bg-warning/25'
+              : 'hover:bg-elevated text-muted hover:text-text'
+          ]}
+          title={privilegedMode.active
+            ? m('chat.privileged_mode.disable')
+            : m('chat.privileged_mode.enable')}
+          aria-label={privilegedMode.active
+            ? m('chat.privileged_mode.disable')
+            : m('chat.privileged_mode.enable')}
+          data-testid="privileged-mode-toggle"
+          disabled={privilegedModeLoading}
+          onclick={() =>
+            privilegedMode.active
+              ? void setPrivilegedMode(false)
+              : (privilegedModeDialogVisible = true)}
+        >
+          <span
+            class={[
+              'iconify text-lg',
+              privilegedMode.active ? 'icon-[uil--shield-check]' : 'icon-[uil--shield]'
+            ]}
+            aria-hidden="true"
+          ></span>
+        </button>
+      {/if}
     </div>
   </div>
 {/if}
+
+<ConfirmDialog
+  bind:visible={privilegedModeDialogVisible}
+  title={m('chat.privileged_mode.enable')}
+  tone="warning"
+  actionLabel={m('chat.privileged_mode.enable')}
+  actionIcon="iconify icon-[uil--shield-check]"
+  loading={privilegedModeLoading}
+  onconfirm={() => void setPrivilegedMode(true)}
+  onclose={() => (privilegedModeDialogVisible = false)}
+>
+  {m('chat.privileged_mode.confirmation')}
+</ConfirmDialog>
 
 {#if statusMenuAnchor && activeServerUser}
   <ContextMenu

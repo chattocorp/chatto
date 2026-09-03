@@ -1,7 +1,11 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  TimeFormat,
+  type GetViewerResponse,
+  type PrivilegedModeState
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
@@ -56,7 +60,36 @@ export type ViewerState = ViewerCapabilities & {
   user: CurrentUser;
   viewerPermissions: Record<string, boolean>;
   viewerHasUnreadRooms: boolean;
+  privilegedMode: {
+    available: boolean;
+    active: boolean;
+    expiresAt: string | null;
+  };
 };
+
+export type PrivilegedModeAPI = {
+  activate(): Promise<PrivilegedModeState>;
+  deactivate(): Promise<PrivilegedModeState>;
+};
+
+export function createPrivilegedModeAPI(config: ViewerAPIConfig): PrivilegedModeAPI {
+  const client = createChattoClient(ViewerService, config);
+  const options = () => ({ headers: authHeaders(config) });
+  return {
+    async activate() {
+      const response = await client.activatePrivilegedMode({}, options());
+      if (!response.privilegedMode)
+        throw new Error('privileged-mode response did not include state');
+      return response.privilegedMode;
+    },
+    async deactivate() {
+      const response = await client.deactivatePrivilegedMode({}, options());
+      if (!response.privilegedMode)
+        throw new Error('privileged-mode response did not include state');
+      return response.privilegedMode;
+    }
+  };
+}
 
 const capabilityKeys = {
   adminView: 'admin.view',
@@ -138,7 +171,12 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     canManageInvites: can(capabilityKeys.manageInvites),
     viewerPermissions,
-    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false
+    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
+    privilegedMode: {
+      available: response.privilegedMode?.available ?? false,
+      active: response.privilegedMode?.active ?? false,
+      expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null
+    }
   };
 }
 

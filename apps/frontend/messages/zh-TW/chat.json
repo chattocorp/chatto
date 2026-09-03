@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "啟用特權模式",
+      "disable": "停用特權模式",
+      "confirmation": "這會在 15 分鐘內啟用你在此伺服器上獲得的額外權限。"
+    },
     "notifications": {
       "title": "通知",
       "subtitle": "最新消息",

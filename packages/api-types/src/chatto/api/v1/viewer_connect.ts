@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
+import { ActivatePrivilegedModeRequest, ActivatePrivilegedModeResponse, DeactivatePrivilegedModeRequest, DeactivatePrivilegedModeResponse, GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,6 +24,28 @@ export const ViewerService = {
       name: "GetViewer",
       I: GetViewerRequest,
       O: GetViewerResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Activates elevation-required permissions for a fixed, non-sliding window.
+     *
+     * @generated from rpc chatto.api.v1.ViewerService.ActivatePrivilegedMode
+     */
+    activatePrivilegedMode: {
+      name: "ActivatePrivilegedMode",
+      I: ActivatePrivilegedModeRequest,
+      O: ActivatePrivilegedModeResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Deactivates elevation-required permissions immediately.
+     *
+     * @generated from rpc chatto.api.v1.ViewerService.DeactivatePrivilegedMode
+     */
+    deactivatePrivilegedMode: {
+      name: "DeactivatePrivilegedMode",
+      I: DeactivatePrivilegedModeRequest,
+      O: DeactivatePrivilegedModeResponse,
       kind: MethodKind.Unary,
     },
   }

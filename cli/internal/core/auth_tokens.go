@@ -59,44 +59,46 @@ func isBearerPresentation(presentation AuthTokenPresentation) bool {
 // transport. The name is kept for compatibility with the existing auth-token
 // service API.
 type AuthTokenData struct {
-	UserID             string                      `json:"user_id"`
-	ClientID           string                      `json:"client_id,omitempty"`
-	Resource           string                      `json:"resource,omitempty"`
-	Scopes             []string                    `json:"scopes,omitempty"`
-	Kind               AuthTokenKind               `json:"kind,omitempty"`
-	Presentation       AuthTokenPresentation       `json:"presentation,omitempty"`
-	Source             string                      `json:"source,omitempty"`
-	Request            *evtv1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt          time.Time                   `json:"created_at"`
-	ExpiresAt          time.Time                   `json:"expires_at,omitempty"`
-	AuthGeneration     uint64                      `json:"auth_generation,omitempty"`
-	RenewableSessionID string                      `json:"renewable_session_id,omitempty"`
-	AccessGeneration   uint64                      `json:"access_generation,omitempty"`
-	FreshAuthAt        time.Time                   `json:"fresh_auth_at,omitempty"`
-	FreshAuthMethod    string                      `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource    string                      `json:"fresh_auth_source,omitempty"`
+	UserID                  string                      `json:"user_id"`
+	ClientID                string                      `json:"client_id,omitempty"`
+	Resource                string                      `json:"resource,omitempty"`
+	Scopes                  []string                    `json:"scopes,omitempty"`
+	Kind                    AuthTokenKind               `json:"kind,omitempty"`
+	Presentation            AuthTokenPresentation       `json:"presentation,omitempty"`
+	Source                  string                      `json:"source,omitempty"`
+	Request                 *evtv1.AuditRequestMetadata `json:"request,omitempty"`
+	CreatedAt               time.Time                   `json:"created_at"`
+	ExpiresAt               time.Time                   `json:"expires_at,omitempty"`
+	AuthGeneration          uint64                      `json:"auth_generation,omitempty"`
+	RenewableSessionID      string                      `json:"renewable_session_id,omitempty"`
+	AccessGeneration        uint64                      `json:"access_generation,omitempty"`
+	FreshAuthAt             time.Time                   `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod         string                      `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource         string                      `json:"fresh_auth_source,omitempty"`
+	PrivilegedModeExpiresAt time.Time                   `json:"privileged_mode_expires_at,omitempty"`
 }
 
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
 // runtime credential handle from a specific presentation channel.
 type ValidatedRuntimeCredential struct {
-	Handle             string
-	UserID             string
-	ClientID           string
-	Resource           string
-	Scopes             []string
-	Kind               AuthTokenKind
-	Presentation       AuthTokenPresentation
-	Source             string
-	Request            *evtv1.AuditRequestMetadata
-	CreatedAt          time.Time
-	ExpiresAt          time.Time
-	AuthGeneration     uint64
-	RenewableSessionID string
-	AccessGeneration   uint64
-	FreshAuthAt        time.Time
-	FreshAuthMethod    string
-	FreshAuthSource    string
+	Handle                  string
+	UserID                  string
+	ClientID                string
+	Resource                string
+	Scopes                  []string
+	Kind                    AuthTokenKind
+	Presentation            AuthTokenPresentation
+	Source                  string
+	Request                 *evtv1.AuditRequestMetadata
+	CreatedAt               time.Time
+	ExpiresAt               time.Time
+	AuthGeneration          uint64
+	RenewableSessionID      string
+	AccessGeneration        uint64
+	FreshAuthAt             time.Time
+	FreshAuthMethod         string
+	FreshAuthSource         string
+	PrivilegedModeExpiresAt time.Time
 }
 
 func authTokenKindForSource(source string) AuthTokenKind {
@@ -122,23 +124,24 @@ func (d AuthTokenData) presentationOrDefault() AuthTokenPresentation {
 
 func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) ValidatedRuntimeCredential {
 	return ValidatedRuntimeCredential{
-		Handle:             handle,
-		UserID:             data.UserID,
-		ClientID:           data.ClientID,
-		Resource:           data.Resource,
-		Scopes:             append([]string(nil), data.Scopes...),
-		Kind:               data.kindOrDefault(),
-		Presentation:       data.presentationOrDefault(),
-		Source:             data.Source,
-		Request:            data.Request,
-		CreatedAt:          data.CreatedAt,
-		ExpiresAt:          data.ExpiresAt,
-		AuthGeneration:     data.AuthGeneration,
-		RenewableSessionID: data.RenewableSessionID,
-		AccessGeneration:   data.AccessGeneration,
-		FreshAuthAt:        data.FreshAuthAt,
-		FreshAuthMethod:    data.FreshAuthMethod,
-		FreshAuthSource:    data.FreshAuthSource,
+		Handle:                  handle,
+		UserID:                  data.UserID,
+		ClientID:                data.ClientID,
+		Resource:                data.Resource,
+		Scopes:                  append([]string(nil), data.Scopes...),
+		Kind:                    data.kindOrDefault(),
+		Presentation:            data.presentationOrDefault(),
+		Source:                  data.Source,
+		Request:                 data.Request,
+		CreatedAt:               data.CreatedAt,
+		ExpiresAt:               data.ExpiresAt,
+		AuthGeneration:          data.AuthGeneration,
+		RenewableSessionID:      data.RenewableSessionID,
+		AccessGeneration:        data.AccessGeneration,
+		FreshAuthAt:             data.FreshAuthAt,
+		FreshAuthMethod:         data.FreshAuthMethod,
+		FreshAuthSource:         data.FreshAuthSource,
+		PrivilegedModeExpiresAt: data.PrivilegedModeExpiresAt,
 	}
 }
 
@@ -222,6 +225,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		tokenData.FreshAuthAt = session.FreshAuthAt
 		tokenData.FreshAuthMethod = session.FreshAuthMethod
 		tokenData.FreshAuthSource = session.FreshAuthSource
+		tokenData.PrivilegedModeExpiresAt = session.PrivilegedModeExpiresAt
 		return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
 	}
 	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken {

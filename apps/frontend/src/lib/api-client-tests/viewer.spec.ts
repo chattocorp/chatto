@@ -4,12 +4,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 
-import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-client/viewer';
+import {
+  createPrivilegedModeAPI,
+  getCurrentUserViaConnect,
+  getViewerStateViaConnect
+} from '$lib/api-client/viewer';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  getViewer: vi.fn()
+  getViewer: vi.fn(),
+  activatePrivilegedMode: vi.fn(),
+  deactivatePrivilegedMode: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -30,7 +36,13 @@ describe('getCurrentUserViaConnect', () => {
     mocks.createConnectTransport.mockReset();
     mocks.getViewer.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
-    mocks.createClient.mockReturnValue({ getViewer: mocks.getViewer });
+    mocks.activatePrivilegedMode.mockReset();
+    mocks.deactivatePrivilegedMode.mockReset();
+    mocks.createClient.mockReturnValue({
+      getViewer: mocks.getViewer,
+      activatePrivilegedMode: mocks.activatePrivilegedMode,
+      deactivatePrivilegedMode: mocks.deactivatePrivilegedMode
+    });
   });
 
   it('loads current user state with bearer auth and maps protobuf fields', async () => {
@@ -184,6 +196,28 @@ describe('getCurrentUserViaConnect', () => {
         canManageUserPermissions: true,
         canManageInvites: true
       })
+    );
+  });
+
+  it('activates and deactivates privileged mode through the viewer service', async () => {
+    const active = { available: true, active: true };
+    const inactive = { available: true, active: false };
+    mocks.activatePrivilegedMode.mockResolvedValue({ privilegedMode: active });
+    mocks.deactivatePrivilegedMode.mockResolvedValue({ privilegedMode: inactive });
+    const api = createPrivilegedModeAPI({
+      baseUrl: '/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.activate()).resolves.toBe(active);
+    await expect(api.deactivate()).resolves.toBe(inactive);
+    expect(mocks.activatePrivilegedMode).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.deactivatePrivilegedMode).toHaveBeenCalledWith(
+      {},
+      { headers: { Authorization: 'Bearer token' } }
     );
   });
 });

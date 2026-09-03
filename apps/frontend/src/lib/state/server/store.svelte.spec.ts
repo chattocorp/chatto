@@ -251,6 +251,10 @@ vi.mock('$lib/api-client/serverState', () => ({
 }));
 
 vi.mock('$lib/api-client/viewer', () => ({
+  createPrivilegedModeAPI: vi.fn(() => ({
+    activate: vi.fn(),
+    deactivate: vi.fn()
+  })),
   getViewerStateViaConnect: apiMocks.getViewerStateViaConnect,
   getCurrentUserViaConnect: apiMocks.getCurrentUserViaConnect,
   viewerResponseToState: (viewer: unknown) => viewer

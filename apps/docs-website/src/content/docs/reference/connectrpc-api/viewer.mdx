@@ -50,3 +50,60 @@ Authenticated viewer snapshot needed by application shells.
 | `capabilities` | [`ViewerCapabilities`](/reference/connectrpc-api/types/#chatto-api-v1-ViewerCapabilities) | Permission-derived capabilities. |
 | `viewer_permissions` | [`ServerViewerPermissions`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerPermissions) | Effective server/channel permission decisions for the authenticated user. |
 | `viewer_state` | [`ServerViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-ServerViewerState) | Non-permission server state for the authenticated user. |
+| `privileged_mode` | [`PrivilegedModeState`](/reference/connectrpc-api/types/#chatto-api-v1-PrivilegedModeState) | Explicit privilege activation state for this authenticated session. |
+
+
+<a id="chatto-api-v1-ViewerService-ActivatePrivilegedMode"></a>
+
+### ActivatePrivilegedMode
+
+Activates elevation-required permissions for a fixed, non-sliding window.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/ActivatePrivilegedMode
+```
+
+<a id="chatto-api-v1-ActivatePrivilegedModeRequest"></a>
+
+#### Input: ActivatePrivilegedModeRequest
+
+Request to activate all currently entitled elevation-required permissions.
+
+
+<a id="chatto-api-v1-ActivatePrivilegedModeResponse"></a>
+
+#### Result: ActivatePrivilegedModeResponse
+
+Result of activating privileged mode for the current session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `privileged_mode` | [`PrivilegedModeState`](/reference/connectrpc-api/types/#chatto-api-v1-PrivilegedModeState) | No field description provided. |
+
+
+<a id="chatto-api-v1-ViewerService-DeactivatePrivilegedMode"></a>
+
+### DeactivatePrivilegedMode
+
+Deactivates elevation-required permissions immediately.
+
+```http
+POST /api/connect/chatto.api.v1.ViewerService/DeactivatePrivilegedMode
+```
+
+<a id="chatto-api-v1-DeactivatePrivilegedModeRequest"></a>
+
+#### Input: DeactivatePrivilegedModeRequest
+
+Request to deactivate all elevation-required permissions for this session.
+
+
+<a id="chatto-api-v1-DeactivatePrivilegedModeResponse"></a>
+
+#### Result: DeactivatePrivilegedModeResponse
+
+Result of deactivating privileged mode for the current session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `privileged_mode` | [`PrivilegedModeState`](/reference/connectrpc-api/types/#chatto-api-v1-PrivilegedModeState) | No field description provided. |

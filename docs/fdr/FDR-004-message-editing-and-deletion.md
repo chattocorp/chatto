@@ -107,7 +107,7 @@ message's thread summary contains a reply.
 ## Permissions
 
 - `message.manage` — edit messages at any time, and edit and delete other users'
-  messages.
+  messages. A human session must also have privileged mode active.
 - `message.read` — read and edit any channel-room message.
 - `message.read-interactions` — read and edit a channel-room message in a
   related thread. DM membership authorizes DM reads without either permission.
@@ -119,4 +119,4 @@ message's thread summary contains a reply.
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-090 (EVT timeline payload hydration)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications), FDR-039 (Message Access & Interactions), FDR-045 (Privileged Mode)

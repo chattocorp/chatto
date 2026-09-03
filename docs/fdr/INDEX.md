@@ -54,3 +54,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-042](FDR-042-chatto-neighbors.md) | Chatto Neighbors | Experimental | 2026-08-30 |
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
 | [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-08-30 |
+| [FDR-045](FDR-045-privileged-mode.md) | Privileged Mode | Active | 2026-09-03 |

@@ -163,24 +163,25 @@ const (
 // permissions that an allow for this permission also grants. Each relationship
 // is direct and explicit. Denials do not follow inclusion relationships.
 type PermissionMetadata struct {
-	Permission Permission
-	Category   PermissionCategory
-	Scopes     []PermissionScope // Scopes where this permission can be configured
-	Includes   []Permission      // Permissions granted by an allow for this permission
+	Permission             Permission
+	Category               PermissionCategory
+	Scopes                 []PermissionScope // Scopes where this permission can be configured
+	Includes               []Permission      // Permissions granted by an allow for this permission
+	RequiresPrivilegedMode bool              // Whether a human session must explicitly activate this permission
 }
 
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
 	// Server
-	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, Includes: []Permission{PermServerManageNeighbors}},
-	{Permission: PermServerManageNeighbors, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermServerManage, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, Includes: []Permission{PermServerManageNeighbors}, RequiresPrivilegedMode: true},
+	{Permission: PermServerManageNeighbors, Category: CategoryServer, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
 	// Room
-	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}},
+	{Permission: PermRoomCreate, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomJoin, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
+	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 
 	// Message
 	{Permission: PermMessageRead, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, Includes: []Permission{PermMessageReadInteractions}},
@@ -188,28 +189,28 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermMessagePost, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermMessagePostInThread, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Role management
-	{Permission: PermRoleManage, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermRoleAssign, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermRoleManage, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermRoleAssign, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
 	// Admin
-	{Permission: PermAdminUsersView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermAdminAuditView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermAdminUsersView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermAdminAuditView, Category: CategoryAdmin, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
 	// User management
-	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserDeleteAny, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 	{Permission: PermUserDeleteSelf, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermUserInvite, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermUserManageAccounts, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
+	{Permission: PermUserManagePermissions, Category: CategoryUser, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 
 	// Bot accounts
 	{Permission: PermBotCreate, Category: CategoryBot, Scopes: []PermissionScope{ScopeServer}},
-	{Permission: PermBotManage, Category: CategoryBot, Scopes: []PermissionScope{ScopeServer}},
+	{Permission: PermBotManage, Category: CategoryBot, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
@@ -248,6 +249,9 @@ func validatePermissionCatalog(catalog []PermissionMetadata) (map[Permission]Per
 			}
 			if !samePermissionScopes(metadata.Scopes, included.Scopes) {
 				return nil, fmt.Errorf("permission %s and included permission %s use different scopes", metadata.Permission, includedPermission)
+			}
+			if metadata.RequiresPrivilegedMode != included.RequiresPrivilegedMode {
+				return nil, fmt.Errorf("permission %s and included permission %s use different privileged-mode requirements", metadata.Permission, includedPermission)
 			}
 		}
 	}

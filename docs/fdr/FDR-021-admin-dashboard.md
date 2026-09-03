@@ -90,10 +90,15 @@ even if its durable consumer remains retained.
 - `room.manage` — gates general room and room-group settings at the effective resource scope; server-scope grants also gate global room-group creation and ordering.
 - `user.manage-accounts` — gates user creation, cross-user identity edits, password resets, verified-email attachment, and login-cooldown resets.
 
+These administrative permissions and owner-only diagnostics require active
+privileged mode for a human session. The server configuration entry remains
+discoverable from entitlement while protected pages and actions use effective
+permissions.
+
 ## Related
 
 - **ADRs:** ADR-001 (NATS JetStream as primary data store), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-069 (explicit durable consumer lifecycle)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-020 (Server Branding & Configuration), FDR-022 (User Profile), FDR-024 (Permission Inspection Tool), FDR-025 (User Search & Member Directory)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-020 (Server Branding & Configuration), FDR-022 (User Profile), FDR-024 (Permission Inspection Tool), FDR-025 (User Search & Member Directory), FDR-045 (Privileged Mode)
 
 ## Open Questions
 

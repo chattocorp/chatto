@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Ieslēgt privileģēto režīmu",
+      "disable": "Izslēgt privileģēto režīmu",
+      "confirmation": "Tas uz 15 minūtēm aktivizē tev šajā serverī piešķirtās papildu atļaujas."
+    },
     "notifications": {
       "title": "Paziņojumi",
       "subtitle": "Lūk, kas jauns",

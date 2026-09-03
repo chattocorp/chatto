@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Włącz tryb uprzywilejowany",
+      "disable": "Wyłącz tryb uprzywilejowany",
+      "confirmation": "Na 15 minut włączy to dodatkowe uprawnienia przypisane do ciebie na tym serwerze."
+    },
     "notifications": {
       "title": "Powiadomienia",
       "subtitle": "Oto nowości",

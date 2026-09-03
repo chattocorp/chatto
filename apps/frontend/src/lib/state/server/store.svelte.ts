@@ -36,7 +36,11 @@ import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
-import { viewerResponseToState } from '$lib/api-client/viewer';
+import {
+  createPrivilegedModeAPI,
+  viewerResponseToState,
+  type PrivilegedModeAPI
+} from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
 import {
   clearUserSummaryCache,
@@ -47,6 +51,7 @@ import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import {
@@ -164,6 +169,7 @@ export class ServerStateStore {
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
+  readonly #privilegedModeAPI: PrivilegedModeAPI;
 
   constructor(
     registration: ServerRegistration,
@@ -191,6 +197,7 @@ export class ServerStateStore {
     this.#messageSearchAPI = messageSearchAPI;
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
+    this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
@@ -226,6 +233,35 @@ export class ServerStateStore {
         };
       });
     });
+  }
+
+  /** Change privilege activation for this server session and rehydrate every
+   * effective viewer permission through a fresh authenticated transport. */
+  async setPrivilegedMode(active: boolean): Promise<void> {
+    const state = active
+      ? await this.#privilegedModeAPI.activate()
+      : await this.#privilegedModeAPI.deactivate();
+    this.applyPrivilegedModeState(state);
+    this.#serverConnection.forceReconnect('privileged mode changed');
+  }
+
+  /** Reflect local expiry immediately; the reconnect obtains authoritative
+   * effective permissions and catches role changes made during activation. */
+  expirePrivilegedMode(): void {
+    this.applyPrivilegedModeState(
+      new PrivilegedModeState({
+        available: this.projection.viewer?.privilegedMode?.available ?? false,
+        active: false
+      })
+    );
+    this.#serverConnection.forceReconnect('privileged mode expired');
+  }
+
+  private applyPrivilegedModeState(state: PrivilegedModeState): void {
+    const viewer = this.projection.viewer?.clone();
+    if (!viewer) return;
+    viewer.privilegedMode = state;
+    this.projection.viewer = viewer;
   }
 
   /** Stable room timeline owner used by routes as a rendering selector. */

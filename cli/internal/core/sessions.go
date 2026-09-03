@@ -401,6 +401,9 @@ func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential Valid
 		record.FreshAuthMethod = credential.FreshAuthMethod
 		record.FreshAuthSource = credential.FreshAuthSource
 	}
+	if !credential.PrivilegedModeExpiresAt.IsZero() {
+		record.PrivilegedModeExpiresAt = timestamppb.New(credential.PrivilegedModeExpiresAt)
+	}
 	return record
 }
 

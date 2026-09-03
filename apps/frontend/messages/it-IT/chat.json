@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Attiva modalità privilegiata",
+      "disable": "Disattiva modalità privilegiata",
+      "confirmation": "Per 15 minuti, questa azione attiva le autorizzazioni aggiuntive che ti sono state assegnate su questo server."
+    },
     "notifications": {
       "title": "Notifiche",
       "subtitle": "Ecco le novità",
