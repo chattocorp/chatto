@@ -437,11 +437,6 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	for messageID, key := range p.messageBuckets {
 		messageBucketBytes += projectionMapEntryOverhead + int64(len(messageID)+len(key.roomID)) + 8 + 1
 	}
-	var pendingBodyBytes, pendingBodySequences int64
-	for messageID, sequences := range p.pendingBodySequences {
-		pendingBodySequences += int64(len(sequences))
-		pendingBodyBytes += projectionMapEntryOverhead + int64(len(messageID)) + 24 + int64(cap(sequences))*8
-	}
 	var bucketMessageBytes int64
 	for key, messages := range p.bucketMessages {
 		bucketMessageBytes += projectionMapEntryOverhead + int64(len(key.roomID)) + 8 + 1
@@ -460,7 +455,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		appliedEventIDsBytes + bodyStateBytes + retractedBytes +
 		tombstonedAtBytes + shreddedAtBytes + hiddenEchoBytes + echoBytes + shreddedUserBytes +
 		pinnedMessageBytes + latestPinBytes + bucketDirectoryBytes + messageBucketBytes +
-		pendingBodyBytes + bucketMessageBytes + cacheBytes
+		bucketMessageBytes + cacheBytes
 	return entries, totalBytes, []ProjectionAdminMetric{
 		{Name: "rooms", Value: int64(len(p.byRoom)), Bytes: 0},
 		{Name: "timeline_entries", Value: entries, Bytes: rawBytes},
@@ -484,7 +479,6 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "timeline_buckets", Value: int64(len(p.buckets)), Bytes: bucketDirectoryBytes},
 		{Name: "bucket_event_sequences", Value: bucketSequences, Bytes: 0},
 		{Name: "message_bucket_locators", Value: int64(len(p.messageBuckets)), Bytes: messageBucketBytes},
-		{Name: "pending_body_sequences", Value: pendingBodySequences, Bytes: pendingBodyBytes},
 		{Name: "bucket_message_index", Value: int64(len(p.bucketMessages)), Bytes: bucketMessageBytes},
 		{Name: "materialized_buckets", Value: int64(len(p.cache)), Bytes: cacheBytes},
 		{Name: "materialized_bucket_events", Value: cachedEvents, Bytes: 0},

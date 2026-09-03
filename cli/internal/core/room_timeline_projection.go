@@ -67,19 +67,18 @@ type RoomTimelineProjection struct {
 
 	// buckets is the always-resident reconstruction directory. The cache owns
 	// decoded EVT payloads only while a bucket is pinned or recently used.
-	bucketInterval       time.Duration
-	pinnedPeriod         time.Duration
-	idleTimeout          time.Duration
-	now                  func() time.Time
-	logger               events.Logger
-	eventSource          timelineEventSource
-	buckets              map[timelineBucketKey]*timelineBucketState
-	messageBuckets       map[string]timelineBucketKey
-	pendingBodySequences map[string][]uint64
-	bucketMessages       map[timelineBucketKey]map[string]struct{}
-	cache                map[timelineBucketKey]*timelineBucketCache
-	loads                singleflight.Group
-	loadSemaphore        chan struct{}
+	bucketInterval time.Duration
+	pinnedPeriod   time.Duration
+	idleTimeout    time.Duration
+	now            func() time.Time
+	logger         events.Logger
+	eventSource    timelineEventSource
+	buckets        map[timelineBucketKey]*timelineBucketState
+	messageBuckets map[string]timelineBucketKey
+	bucketMessages map[timelineBucketKey]map[string]struct{}
+	cache          map[timelineBucketKey]*timelineBucketCache
+	loads          singleflight.Group
+	loadSemaphore  chan struct{}
 }
 
 type timelineEventSource interface {
@@ -244,7 +243,6 @@ func NewRoomTimelineProjectionWithOptions(options RoomTimelineProjectionOptions)
 		eventSource:                options.EventSource,
 		buckets:                    make(map[timelineBucketKey]*timelineBucketState),
 		messageBuckets:             make(map[string]timelineBucketKey),
-		pendingBodySequences:       make(map[string][]uint64),
 		bucketMessages:             make(map[timelineBucketKey]map[string]struct{}),
 		cache:                      make(map[timelineBucketKey]*timelineBucketCache),
 		loadSemaphore:              make(chan struct{}, 4),
@@ -358,7 +356,7 @@ func (p *RoomTimelineProjection) linkMessageBucketLocked(messageID string, key t
 		p.bucketMessages[key] = messages
 	}
 	messages[messageID] = struct{}{}
-	for _, sequence := range p.pendingBodySequences[messageID] {
+	for _, sequence := range appendBodySequences(nil, p.bodyStates[messageID]) {
 		p.addBucketSequenceLocked(key, sequence)
 		for cachedKey, cached := range p.cache {
 			if cachedKey != key {
@@ -366,7 +364,6 @@ func (p *RoomTimelineProjection) linkMessageBucketLocked(messageID string, key t
 			}
 		}
 	}
-	delete(p.pendingBodySequences, messageID)
 	state, exists := p.bodyStates[messageID]
 	if !exists || state.body != nil || state.currentSequence == 0 {
 		return
@@ -444,8 +441,6 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if targetBucket, ok := p.messageBuckets[targetID]; ok {
 			p.addBucketSequenceLocked(targetBucket, seq)
 			p.cacheAppliedEventLocked(targetBucket, seq, event)
-		} else if event.GetMessageBody() != nil {
-			p.pendingBodySequences[targetID] = append(p.pendingBodySequences[targetID], seq)
 		}
 	}
 	if !eventMutatesRoomTimelineProjection(event) {

@@ -72,11 +72,6 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			MessageEventId: messageID, RoomId: key.roomID, StartUnixNanoseconds: key.startUnixNs, Undated: key.undated,
 		})
 	}
-	for _, messageID := range sortedMapKeys(p.pendingBodySequences) {
-		snapshot.PendingBodyReferences = append(snapshot.PendingBodyReferences, &projectionv1.PendingBodyReferenceSnapshot{
-			MessageEventId: messageID, EventSequences: append([]uint64(nil), p.pendingBodySequences[messageID]...),
-		})
-	}
 	appendTimes := func(values map[string]time.Time) []*projectionv1.StringTimestampSnapshot {
 		rows := make([]*projectionv1.StringTimestampSnapshot, 0, len(values))
 		for _, key := range sortedMapKeys(values) {
@@ -230,32 +225,27 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		}
 		messages[row.GetMessageEventId()] = struct{}{}
 	}
-	for _, row := range snapshot.GetPendingBodyReferences() {
-		if row.GetMessageEventId() == "" || len(row.GetEventSequences()) == 0 {
-			return fmt.Errorf("room timeline snapshot has invalid pending body reference")
+	allBucketSequences := make(map[uint64]struct{})
+	for _, bucket := range restored.buckets {
+		for _, sequence := range bucket.sequences {
+			allBucketSequences[sequence] = struct{}{}
 		}
-		if _, duplicate := restored.pendingBodySequences[row.GetMessageEventId()]; duplicate {
-			return fmt.Errorf("room timeline snapshot repeats pending body reference %q", row.GetMessageEventId())
-		}
-		for index, sequence := range row.GetEventSequences() {
-			if sequence == 0 || (index > 0 && sequence <= row.GetEventSequences()[index-1]) {
-				return fmt.Errorf("room timeline snapshot has invalid pending body sequence")
-			}
-		}
-		restored.pendingBodySequences[row.GetMessageEventId()] = append([]uint64(nil), row.GetEventSequences()...)
 	}
 	for messageID, state := range restored.bodyStates {
 		key, mapped := restored.messageBuckets[messageID]
-		pending, hasPending := restored.pendingBodySequences[messageID]
-		if mapped == hasPending {
-			return fmt.Errorf("room timeline snapshot body %q must have exactly one bucket association", messageID)
-		}
-		indexed := pending
-		if mapped {
-			indexed = restored.buckets[key].sequences
+		if !mapped {
+			if entry, exists := restored.entryByEventIDLocked(messageID); exists && entry.Event.GetMessagePosted() != nil {
+				return fmt.Errorf("room timeline snapshot body %q has no message bucket", messageID)
+			}
 		}
 		for _, sequence := range appendBodySequences(nil, state) {
-			if _, found := slices.BinarySearch(indexed, sequence); !found {
+			found := false
+			if mapped {
+				_, found = slices.BinarySearch(restored.buckets[key].sequences, sequence)
+			} else {
+				_, found = allBucketSequences[sequence]
+			}
+			if !found {
 				return fmt.Errorf("room timeline snapshot body %q has unindexed sequence %d", messageID, sequence)
 			}
 		}
@@ -357,7 +347,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
-	p.buckets, p.messageBuckets, p.pendingBodySequences, p.bucketMessages, p.cache = restored.buckets, restored.messageBuckets, restored.pendingBodySequences, restored.bucketMessages, restored.cache
+	p.buckets, p.messageBuckets, p.bucketMessages, p.cache = restored.buckets, restored.messageBuckets, restored.bucketMessages, restored.cache
 	p.Unlock()
 	return nil
 }

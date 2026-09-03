@@ -95,9 +95,10 @@ events in stream order. It does not retain reconstructed message data for an
 inactive bucket. It can populate a bucket that the cache already contains.
 
 A `MessageBodyEvent` for a new message precedes its `MessagePostedEvent` in the
-atomic write. The component keeps the body sequence as a pending reference
-until the post arrives and selects the canonical bucket. A projection snapshot
-must include pending references when its cutoff falls between these records.
+atomic write. The body lifecycle keeps the accepted body sequence without a
+message-bucket mapping until the post arrives and selects the canonical bucket.
+A projection snapshot includes this unmapped body reference when its cutoff
+falls between these records.
 
 An edit or retraction uses the message-ID locator to add the new sequence to
 the bucket of the target message. A linked echo adds the sequence to the echo's
@@ -124,8 +125,8 @@ visible message causes the bucket load to fail.
 
 The room-timeline part of a `ServerContentView` snapshot cohort stores the
 bucket directory, exact room-event sequence slices, target-bucket mutation
-references, message locators, pending references, and other required compact
-metadata at the cohort cutoff.
+references, message locators, unmapped body references, and other required
+compact metadata at the cohort cutoff.
 
 It does not store the bucket cache, raw `MessageBodyEvent` records, or encrypted
 message bodies. It can store the bodyless public timeline facts that form part

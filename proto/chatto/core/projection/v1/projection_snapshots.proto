@@ -404,7 +404,6 @@ message RoomTimelineProjectionSnapshot {
   int64 bucket_interval_nanoseconds = 11;
   repeated TimelineBucketSnapshot buckets = 12;
   repeated MessageBucketSnapshot message_buckets = 13;
-  repeated PendingBodyReferenceSnapshot pending_body_references = 14;
 }
 
 message PinnedMessageSnapshot {
@@ -452,11 +451,6 @@ message MessageBucketSnapshot {
   string room_id = 2;
   int64 start_unix_nanoseconds = 3;
   bool undated = 4;
-}
-
-message PendingBodyReferenceSnapshot {
-  string message_event_id = 1;
-  repeated uint64 event_sequences = 2;
 }
 
 message StringTimestampSnapshot {
