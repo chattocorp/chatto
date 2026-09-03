@@ -7,6 +7,7 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
@@ -259,7 +260,7 @@ func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context,
 			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
 			event: newPubSubEvent(invalidation.actorID, &pubsubv1.PubSubEvent{
 				Event: &pubsubv1.PubSubEvent_NotificationUnreadChanged{
-					NotificationUnreadChanged: &pubsubv1.NotificationUnreadChangedEvent{
+					NotificationUnreadChanged: &realtimev1.NotificationUnreadChangedEvent{
 						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
 					},
 				},

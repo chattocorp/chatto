@@ -41,7 +41,7 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 | ---- | -------- | ------ |
 | `chatto.core.evt.v1` | `Event` wrapper, durable facts, and fact-owned values | Existing field numbers and structures are stored in JetStream and need storage compatibility |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
-| `chatto.core.pubsub.v1` | `PubSubEvent` wrapper and non-durable payload messages | Records are not stored, but changes need rolling-wire review |
+| `chatto.core.pubsub.v1` | Restricted `PubSubEvent` wrapper and private control payloads; client-facing variants reference public realtime payloads | Records are not stored, but changes need rolling-wire review |
 | `chatto.realtime.v1` | Public event union and dedicated public payload catalogue | Contains only client-visible fields; names and compact field numbers do not expose the internal source |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
@@ -57,7 +57,10 @@ durable EVT fact, a pubsub event, or a heartbeat.
 | Server pubsub (user/config) | NATS Core  | ServerProfileChanged, NotificationOccurrencesInvalidated, NotificationUnreadChanged, PresenceChanged | Cross-tab state convergence and ephemeral activity |
 
 The separate `Event` and `PubSubEvent` wrapper types make the distinction
-between stored and non-durable events explicit. The publishers enforce this boundary.
+between stored and non-durable events explicit. Client-facing `PubSubEvent`
+variants reuse public payload messages, while the restricted private union
+prevents durable-only variants from entering the cursorless path. The
+publishers enforce this boundary.
 Room queries and server subscriptions are delivery contexts.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:

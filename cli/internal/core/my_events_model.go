@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -244,7 +245,7 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 				}
 				pubsub := newPubSubEvent(update.UserID, &pubsubv1.PubSubEvent{
 					Event: &pubsubv1.PubSubEvent_PresenceChanged{
-						PresenceChanged: &pubsubv1.PresenceChangedEvent{Status: update.Status},
+						PresenceChanged: &realtimev1.PresenceChangedEvent{Status: update.Status},
 					},
 				})
 				if !send(NewPubSubEventEnvelope(pubsub)) {

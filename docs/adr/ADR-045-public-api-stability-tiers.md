@@ -74,9 +74,10 @@ Protocol 4 uses `chatto.realtime.v1.RealtimeEvent.event` as its public event
 union. Each member uses a dedicated public payload. Public names and compact
 field numbers do not expose whether an internal source is a durable EVT fact or
 a transient pubsub event. Shared semantic values use suitable public types, but
-payload field numbers stay independent. Stored EVT payloads keep their stronger
-storage compatibility, while the public union and its payloads are part of the
-experimental realtime API.
+payload field numbers stay independent from EVT. Client-facing pubsub variants
+reference public payload messages directly. Stored EVT payloads keep their
+stronger storage compatibility, while the public union and its payloads are
+part of the experimental realtime API.
 
 `ServerDiscoveryService.GetServer` reports the server software version. The
 bundled web client maintains explicit minimum server versions for features that

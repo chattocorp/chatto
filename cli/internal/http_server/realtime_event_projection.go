@@ -176,8 +176,10 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 	return target
 }
 
-// projectRealtimePubSubEvent explicitly maps one internal pubsub event to the
-// source-independent public catalogue.
+// projectRealtimePubSubEvent admits one restricted pubsub variant into the
+// public union. Pubsub variants use public payload types directly, but the
+// returned event is a deep copy because later authorization can remove fields
+// for one viewer.
 func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.RealtimeEvent {
 	if source == nil || source.GetEvent() == nil {
 		return nil
@@ -188,34 +190,27 @@ func projectRealtimePubSubEvent(source *pubsubv1.PubSubEvent) *realtimev1.Realti
 	}
 	switch e := source.GetEvent().(type) {
 	case *pubsubv1.PubSubEvent_UserProfileChanged:
-		v := e.UserProfileChanged
-		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: v.GetUserId(), DisplayName: v.GetDisplayName(), AvatarUrl: v.GetAvatarUrl(), Login: v.GetLogin(), Bio: v.GetBio(), Timezone: v.GetTimezone()}}
+		target.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: e.UserProfileChanged}
 	case *pubsubv1.PubSubEvent_ViewerPreferencesChanged:
-		v := e.ViewerPreferencesChanged
-		target.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{Timezone: v.GetTimezone(), TimeFormat: realtimeTimeFormat(v.GetTimeFormat()), ShareTimezone: v.GetShareTimezone()}}
+		target.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: e.ViewerPreferencesChanged}
 	case *pubsubv1.PubSubEvent_ThreadViewerStateChanged:
-		v := e.ThreadViewerStateChanged
-		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: v.GetIsFollowing()}}
+		target.Event = &realtimev1.RealtimeEvent_ThreadViewerStateChanged{ThreadViewerStateChanged: e.ThreadViewerStateChanged}
 	case *pubsubv1.PubSubEvent_ServerProfileChanged:
-		v := e.ServerProfileChanged
-		target.Event = &realtimev1.RealtimeEvent_ServerProfileChanged{ServerProfileChanged: &realtimev1.ServerProfileChangedEvent{ServerId: v.GetServerId(), Name: v.GetName(), Description: v.GetDescription(), LogoUrl: v.GetLogoUrl(), BannerUrl: v.GetBannerUrl()}}
+		target.Event = &realtimev1.RealtimeEvent_ServerProfileChanged{ServerProfileChanged: e.ServerProfileChanged}
 	case *pubsubv1.PubSubEvent_UserTyping:
-		v := e.UserTyping
-		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: &realtimev1.UserTypingEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.ThreadRootEventId}}
+		target.Event = &realtimev1.RealtimeEvent_UserTyping{UserTyping: e.UserTyping}
 	case *pubsubv1.PubSubEvent_PresenceChanged:
-		target.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: &realtimev1.PresenceChangedEvent{Status: e.PresenceChanged.GetStatus()}}
+		target.Event = &realtimev1.RealtimeEvent_PresenceChanged{PresenceChanged: e.PresenceChanged}
 	case *pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated:
-		v := e.NotificationOccurrencesInvalidated
-		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{SoundCandidateNotificationId: v.SoundCandidateNotificationId}}
+		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: e.NotificationOccurrencesInvalidated}
 	case *pubsubv1.PubSubEvent_NotificationUnreadChanged:
-		v := e.NotificationUnreadChanged
-		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadChanged{NotificationUnreadChanged: &realtimev1.NotificationUnreadChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
+		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadChanged{NotificationUnreadChanged: e.NotificationUnreadChanged}
 	case *pubsubv1.PubSubEvent_RoomReadStateChanged:
-		target.Event = &realtimev1.RealtimeEvent_RoomReadStateChanged{RoomReadStateChanged: &realtimev1.RoomReadStateChangedEvent{RoomId: e.RoomReadStateChanged.GetRoomId()}}
+		target.Event = &realtimev1.RealtimeEvent_RoomReadStateChanged{RoomReadStateChanged: e.RoomReadStateChanged}
 	default:
 		return nil
 	}
-	return target
+	return proto.Clone(target).(*realtimev1.RealtimeEvent)
 }
 
 func realtimeRoomKind(value evtv1.RoomKind) apiv1.RoomKind {
@@ -276,17 +271,6 @@ func realtimeAssetProcessingFailureCode(value evtv1.AssetProcessingFailureCode) 
 		return realtimev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING
 	default:
 		return realtimev1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED
-	}
-}
-
-func realtimeTimeFormat(value pubsubv1.TimeFormat) apiv1.TimeFormat {
-	switch value {
-	case pubsubv1.TimeFormat_TIME_FORMAT_12H:
-		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
-	case pubsubv1.TimeFormat_TIME_FORMAT_24H:
-		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
-	default:
-		return apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }
 

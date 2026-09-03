@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"hmans.de/chatto/internal/core/subjects"
 )
@@ -13,7 +14,7 @@ import (
 //
 // Authorization: Caller must verify room membership before calling.
 func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string, kind RoomKind, roomID string, threadRootEventID *string) error {
-	typingEvent := &pubsubv1.UserTypingEvent{
+	typingEvent := &realtimev1.UserTypingEvent{
 		RoomId: roomID,
 	}
 	if threadRootEventID != nil {

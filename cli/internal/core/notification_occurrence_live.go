@@ -4,6 +4,7 @@ import (
 	"context"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 
 	"google.golang.org/protobuf/proto"
 
@@ -48,7 +49,7 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 			subject: subjects.LiveSyncUserEvent(occurrence.GetRecipientId(), "notification_v2"),
 			event: newPubSubEvent(occurrence.GetActorId(), &pubsubv1.PubSubEvent{
 				Event: &pubsubv1.PubSubEvent_NotificationOccurrencesInvalidated{
-					NotificationOccurrencesInvalidated: &pubsubv1.NotificationOccurrencesInvalidatedEvent{
+					NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{
 						SoundCandidateNotificationId: soundCandidateID,
 					},
 				},

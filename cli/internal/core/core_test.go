@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"strings"
 	"testing"
 	"time"
@@ -848,7 +849,7 @@ func TestFilterPubSubEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 	}
 
 	pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
-		UserTyping: &pubsubv1.UserTypingEvent{RoomId: room.GetId()},
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: room.GetId()},
 	}})
 	event, ok := chatto.filterPubSubEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -898,7 +899,7 @@ func TestFilterPubSubEventAllowsRelatedThreadTyping(t *testing.T) {
 	memberRooms := map[string]struct{}{room.GetId(): {}}
 	typing := func(threadRootEventID string) (EventEnvelope, bool) {
 		pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
-			UserTyping: &pubsubv1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+			UserTyping: &realtimev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
 		}})
 		return chatto.filterPubSubEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
 			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -934,7 +935,7 @@ func TestFilterPubSubEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 	}
 
 	pubsub := newPubSubEvent(author.GetId(), &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
-		UserTyping: &pubsubv1.UserTypingEvent{RoomId: dm.GetId()},
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: dm.GetId()},
 	}})
 	event, ok := chatto.filterPubSubEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),

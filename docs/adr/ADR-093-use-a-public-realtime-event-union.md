@@ -27,11 +27,12 @@ public top-level field could make a nested storage pointer public through
 inherited rules. The generated public API still showed the complete stored
 message, including fields that the server removed at runtime.
 
-A dedicated public payload catalogue duplicates protobuf declarations, but it
-does not need a second semantic event model. Public names and compact union
+A dedicated public payload catalogue duplicates durable EVT declarations, but
+it does not need a second semantic event model. Public names and compact union
 numbers can stay independent from the internal source. Payload layouts can
-evolve independently. Tests can enforce the catalogue relationship and mapper
-coverage.
+evolve independently from stored facts. Pubsub variants that exist only for
+client delivery can use the public payload type directly. Tests can enforce
+the catalogue relationship and mapper coverage.
 
 ## Decision
 
@@ -59,11 +60,14 @@ The cursor and common metadata remain outside the payload oneof. A client can
 therefore ignore an unknown additive payload and still accept the complete
 event boundary.
 
-The server uses an exhaustive typed switch to copy approved values from a
-canonical event into a new public event. If the public union has no matching
-member, the server omits the event. The public union and mapper are the complete
-exposure catalogue. There are no field-surface options and no payload wire
-transcoding.
+The server uses an exhaustive typed switch to admit approved values into a new
+public event. Durable EVT facts use field-by-field mapping into the independent
+public payload. Client-facing `PubSubEvent` variants reference the public
+payload type directly, so the switch only selects the matching public union
+member. It deep-copies the result before caller-specific filtering. If the
+public union has no matching member, the server omits the event. The public
+union and mapper are the complete exposure catalogue. There are no
+field-surface options and no payload wire transcoding.
 
 The server applies current event authorization before it resolves plaintext or
 maps the event. Public `_plaintext` fields exist only in the realtime payloads.
@@ -84,19 +88,23 @@ Realtime protocol version 4 keeps this refined shape. Protocol 4 is not yet in
 a Chatto release. The pull request that introduces it updates the server,
 bundled client, generated clients, and public documentation together.
 
-The public payload bytes are independent from EVT bytes. Clients must
-regenerate when the public schema changes. Their type system exposes only the
-public contract.
+The public payload bytes are independent from EVT bytes. The private pubsub
+envelope can carry the same public payload submessage, but it is not a public
+transport wrapper. Clients must regenerate when the public schema changes.
+Their type system exposes only the public contract.
 
 ## Consequences
 
 - EVT and transient NATS Core signals use separate internal envelopes.
+- Client-facing pubsub variants reuse public payload messages without exposing
+  the private pubsub envelope.
 - Realtime has one public event shape and one dedicated public payload
   catalogue.
 - `RealtimeServerFrame` provides the transport wrapper around the event.
 - The protobuf schema shows only client-visible event fields.
-- Adding a public event requires a dedicated payload, one union member, and an
-  explicit mapper case.
+- Adding a public event requires a dedicated payload, one public union member,
+  and an explicit mapper case. A pubsub source also needs one restricted
+  private union member that references that payload.
 - Adding an internal event does not enlarge the public API.
 - Caller-specific field authorization is explicit at the delivery boundary.
 - Public union evolution and stored EVT envelope evolution can be reviewed as

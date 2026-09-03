@@ -89,8 +89,8 @@ does not contain broker coordinates.
 The public union contains only event variants that are part of the realtime
 API. Each union member uses a dedicated public payload. Public names and
 compact field numbers describe event semantics, not the internal delivery
-source. Public payload fields have an independent wire layout. The complete
-stored `Event` union is not part of the public API.
+source. Public payload fields have an independent wire layout from stored EVT
+payloads. The complete stored `Event` union is not part of the public API.
 
 Internal event variants and storage-only fields do not exist in the public
 schema. The server can add authorized public-only `_plaintext` fields. It never

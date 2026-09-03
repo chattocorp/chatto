@@ -7,6 +7,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
@@ -30,6 +31,26 @@ func TestUserPreferencesKey(t *testing.T) {
 			result := userPreferencesKey(tt.userID)
 			if result != tt.expected {
 				t.Errorf("userPreferencesKey(%q) = %q, want %q", tt.userID, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestPublicTimeFormat(t *testing.T) {
+	tests := []struct {
+		name string
+		in   evtv1.TimeFormat
+		want apiv1.TimeFormat
+	}{
+		{name: "unspecified", in: evtv1.TimeFormat_TIME_FORMAT_UNSPECIFIED, want: apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED},
+		{name: "12 hour", in: evtv1.TimeFormat_TIME_FORMAT_12H, want: apiv1.TimeFormat_TIME_FORMAT_12_HOUR},
+		{name: "24 hour", in: evtv1.TimeFormat_TIME_FORMAT_24H, want: apiv1.TimeFormat_TIME_FORMAT_24_HOUR},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := publicTimeFormat(test.in); got != test.want {
+				t.Fatalf("publicTimeFormat(%v) = %v, want %v", test.in, got, test.want)
 			}
 		})
 	}

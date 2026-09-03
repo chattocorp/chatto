@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.core.pubsub.v1;
 
+import "chatto/realtime/v1/events.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1;pubsubv1";
@@ -15,13 +16,14 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1;pubsubv1"
 // ============================================================================
 
 /*
-   PubSubEvent is the wire-format envelope for NATS Core pubsub signals.
-   These events are never stored in EVT and are not projection input. They
-   are delivered over the live.sync.> subject family and mapped into public
-   realtime events.
+   PubSubEvent is the restricted wire-format envelope for NATS Core pubsub
+   signals. These events are never stored in EVT and are not projection input.
+   They are delivered over the live.sync.> subject family.
 
    Durable facts belong in Event on the EVT stream. Do not add pubsub-only
-   variants to Event.
+   variants to Event. Client-visible variants use their public realtime
+   payload type directly. The separate envelope limits which public event
+   kinds can use the cursorless pubsub path.
 */
 message PubSubEvent {
   // Universal event identifier (NanoID) for dedupe and client-side idempotency.
@@ -36,158 +38,29 @@ message PubSubEvent {
   oneof event {
     // ----- User lifecycle / preferences -----
     // Current-profile snapshot derived after a durable profile change.
-    UserProfileChangedEvent user_profile_changed = 10;
-    ViewerPreferencesChangedEvent viewer_preferences_changed = 11;
-    ThreadViewerStateChangedEvent thread_viewer_state_changed = 12;
+    chatto.realtime.v1.UserProfileChangedEvent user_profile_changed = 10;
+    chatto.realtime.v1.ViewerPreferencesChangedEvent viewer_preferences_changed = 11;
+    chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 12;
 
     // ----- Server profile -----
-    ServerProfileChangedEvent server_profile_changed = 13;
+    chatto.realtime.v1.ServerProfileChangedEvent server_profile_changed = 13;
 
     // ----- Typing -----
-    UserTypingEvent user_typing = 14;
+    chatto.realtime.v1.UserTypingEvent user_typing = 14;
 
     // ----- Presence -----
-    PresenceChangedEvent presence_changed = 15;
+    chatto.realtime.v1.PresenceChangedEvent presence_changed = 15;
 
     // ----- Notification sync -----
-    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 16;
-    NotificationUnreadChangedEvent notification_unread_changed = 17;
+    chatto.realtime.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 16;
+    chatto.realtime.v1.NotificationUnreadChangedEvent notification_unread_changed = 17;
 
     // ----- Unread indicators -----
-    RoomReadStateChangedEvent room_read_state_changed = 18;
+    chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 18;
 
     // ----- Session termination -----
     SessionTerminatedEvent session_terminated = 19;
   }
-}
-
-// TimeFormat is the preference value used by pubsub synchronization.
-// Durable preference facts use the independent EVT enum.
-enum TimeFormat {
-  TIME_FORMAT_UNSPECIFIED = 0;
-  TIME_FORMAT_12H = 1;
-  TIME_FORMAT_24H = 2;
-}
-
-// ============================================================================
-// USER PROFILE AND PREFERENCES
-// ============================================================================
-
-// UserProfileChangedEvent is a projection-derived pubsub snapshot. It
-// is published after a public profile field changes and is never stored in EVT.
-// Durable user events remain the authoritative profile facts.
-message UserProfileChangedEvent {
-  string user_id = 1;
-  string display_name = 2;
-  // URL to the user's avatar, or empty if no avatar is set.
-  string avatar_url = 3;
-  // The user's current login/username.
-  string login = 4;
-  // The user's current public bio, or empty when unset.
-  string bio = 5;
-  // The user's shared IANA time zone, or empty when none is shared.
-  string timezone = 6;
-}
-
-// ViewerPreferencesChangedEvent reports updated display preferences to the
-// user's active clients.
-message ViewerPreferencesChangedEvent {
-  // IANA time zone name. An empty value selects the browser default.
-  string timezone = 1;
-  // Preferred time display format.
-  TimeFormat time_format = 2;
-  // Whether the stored time zone may appear on the user's public profile.
-  bool share_timezone = 3;
-}
-
-// ============================================================================
-// SERVER LIFECYCLE EVENTS (deployment-scoped)
-// ============================================================================
-
-message ServerProfileChangedEvent {
-  string server_id = 1;
-  string name = 2;
-  string description = 3;
-  // URL to the server's logo, or empty if no logo is set.
-  string logo_url = 4;
-  // URL to the server's banner, or empty if no banner is set.
-  string banner_url = 5;
-}
-
-// ============================================================================
-// TYPING INDICATOR EVENTS (room-scoped)
-// ============================================================================
-
-// Notifies clients that a user is typing in a room or thread.
-// Published directly to NATS Core (bypasses JetStream storage).
-// Clients should implement timeout-based clearing (e.g., 6 seconds).
-message UserTypingEvent {
-  // Room ID where the user is typing
-  string room_id = 1;
-
-  // Thread root event ID (optional). If set, the user is typing a reply in this thread.
-  // If empty, the user is typing in the main room view.
-  optional string thread_root_event_id = 2;
-}
-
-// ============================================================================
-// PRESENCE EVENTS (server-scoped, constructed from KV watcher)
-// ============================================================================
-
-// Notifies clients that a user's presence status changed.
-// Published when a user comes online, goes offline, or changes their status.
-// The user whose presence changed is identified by the parent envelope's actor_id.
-// Presence is server-wide; the server context is implicit in the subscription.
-message PresenceChangedEvent {
-  // The user's new presence status ("ONLINE", "OFFLINE", "AWAY", "DO_NOT_DISTURB")
-  string status = 1;
-}
-
-// ============================================================================
-// NOTIFICATION SYNC EVENTS (server-scoped)
-// ============================================================================
-
-// User-scoped invalidation for Notifications 2.0 authoritative replacement.
-message NotificationOccurrencesInvalidatedEvent {
-  // Candidate occurrence for one-shot in-app sound.
-  optional string sound_candidate_notification_id = 1;
-}
-
-// ============================================================================
-// THREAD FOLLOW EVENTS (user-scoped)
-// ============================================================================
-
-// ThreadViewerStateChangedEvent invalidates one user's viewer-specific thread state.
-// It is published for follow/unfollow and read-marker changes and is user-scoped
-// for multi-tab/multi-device projection convergence.
-message ThreadViewerStateChangedEvent {
-  // The room containing the thread.
-  string room_id = 1;
-  // The root event ID of the thread.
-  string thread_root_event_id = 2;
-  // Whether the user is now following (true) or not following (false).
-  bool is_following = 3;
-}
-
-// ============================================================================
-// UNREAD INDICATOR EVENTS (server-scoped)
-// ============================================================================
-
-// Published to the user who marked a room as read. This enables real-time
-// updates to other tabs/devices for the same user.
-message RoomReadStateChangedEvent {
-  // Room ID that was marked as read
-  string room_id = 1;
-}
-
-// Invalidates neutral unread attention after a Badge delivery decision or a
-// read/visibility change. The signal is user-scoped and carries no message
-// content. Projection transports hydrate authoritative room and thread state.
-message NotificationUnreadChangedEvent {
-  // Room whose unread state changed.
-  string room_id = 1;
-  // Thread root whose unread state changed. Empty means room-level activity.
-  string thread_root_event_id = 2;
 }
 
 // ============================================================================

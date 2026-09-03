@@ -5,6 +5,7 @@ import (
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // EventEnvelope is the in-process envelope used by StreamMyEvents and the
@@ -115,14 +116,14 @@ func EventMessageRetracted(event EventEnvelope) *evtv1.MessageRetractedEvent {
 	return event.EVTEvent().GetMessageRetracted()
 }
 
-func EventUserTyping(event EventEnvelope) *pubsubv1.UserTypingEvent {
+func EventUserTyping(event EventEnvelope) *realtimev1.UserTypingEvent {
 	if event == nil || event.PubSubEvent() == nil {
 		return nil
 	}
 	return event.PubSubEvent().GetUserTyping()
 }
 
-func EventPresenceChanged(event EventEnvelope) *pubsubv1.PresenceChangedEvent {
+func EventPresenceChanged(event EventEnvelope) *realtimev1.PresenceChangedEvent {
 	if event == nil || event.PubSubEvent() == nil {
 		return nil
 	}

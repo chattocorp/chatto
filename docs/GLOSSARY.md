@@ -218,20 +218,22 @@ domain fact. EVT stores this value. See
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Pubsub Event** — A non-durable `pubsubv1.PubSubEvent` envelope and payload
-published on `live.sync.>` through NATS Core. It is not stored in EVT. Durable Events
-reach the internal live ingress separately through EVT republish on
-`live.evt.>`. See
+**Pubsub Event** — A non-durable `pubsubv1.PubSubEvent` envelope published on
+`live.sync.>` through NATS Core. Its client-facing variants reference public
+realtime payloads. Private control variants can keep private payloads. It is not
+stored in EVT. Durable Events reach the internal live ingress separately through
+EVT republish on `live.evt.>`. See
 [ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
 union and dedicated payloads in `events.proto` form the public event catalogue.
 Its names and compact field numbers do not expose whether an internal source
-is EVT or pubsub. Public payload field numbers are independent. An optional
-cursor remains outside the payload union. Internal variants and storage-only
-fields do not exist in the public schema. The server can add authorized
-public-only plaintext fields. Raw
+is EVT or pubsub. Public payload field numbers are independent from EVT. A
+client-facing Pubsub Event can reuse the public payload type. An optional cursor
+remains outside the payload union. Internal variants and storage-only fields do
+not exist in the public schema. The server can add authorized public-only
+plaintext fields. Raw
 EVT bytes, subjects, stream identities, and sequence numbers are not public
 API. See
 [ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and

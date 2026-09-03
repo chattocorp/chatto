@@ -52,7 +52,7 @@ together. Protocol 4 uses one
 `RealtimeSubscribe` client message and does not use hello or subscribed frames.
 The server sends only snapshot, event, caught-up, heartbeat, and close frames.
 
-Public payload field numbers are independent from internal event payloads. The
+Public payload field numbers are independent from stored EVT payloads. The
 optional cursor uses a separate field. Integrations must regenerate their
 clients for the dedicated realtime payload messages.
 

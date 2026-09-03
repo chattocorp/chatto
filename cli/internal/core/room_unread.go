@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -43,7 +44,7 @@ type LastReadEventIDAdvance struct {
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
 	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
 		Event: &pubsubv1.PubSubEvent_RoomReadStateChanged{
-			RoomReadStateChanged: &pubsubv1.RoomReadStateChangedEvent{
+			RoomReadStateChanged: &realtimev1.RoomReadStateChangedEvent{
 				RoomId: roomID,
 			},
 		},

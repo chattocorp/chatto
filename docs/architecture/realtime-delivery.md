@@ -43,7 +43,9 @@ are `event`, `heartbeat`, and `close`. All terminal protocol results use
 ## Public events
 
 `chatto.core.evt.v1.Event` contains durable EVT facts.
-`chatto.core.pubsub.v1.PubSubEvent` contains NATS Core pubsub events.
+`chatto.core.pubsub.v1.PubSubEvent` contains a restricted set of NATS Core
+pubsub events. Client-facing variants reference the public payload messages
+directly. Private controls, such as session termination, keep private payloads.
 `chatto.realtime.v1.RealtimeEvent` is the authorized public event shape for
 both sources. It contains common metadata, one public payload variant, and an
 optional opaque resume cursor. It does not contain resource state.
@@ -60,14 +62,17 @@ complete frame.
 
 The `RealtimeEvent.event` union and `events.proto` are the public catalogue.
 Public names and compact field numbers do not expose whether the internal
-source is EVT or pubsub. Public payload field numbers are independent from
-both internal envelopes. A missing union member keeps an internal variant out of
-the public API. A missing public payload field keeps an internal field out of
-the generated client types.
+source is EVT or pubsub. Public payload field numbers are independent from EVT
+and from both envelope unions. A missing union member keeps an internal variant
+out of the public API. A missing public payload field keeps an internal field
+out of the generated client types.
 
-After event authorization, an exhaustive typed mapper copies approved values
-into a new dedicated public payload. It then adds trusted decrypted values to
-public-only `_plaintext` fields. Public events do not
+After event authorization, an exhaustive typed mapper copies approved durable
+values into a new dedicated public payload. For pubsub, the restricted private
+union already contains the public payload type. The mapper selects the public
+union arm and deep-copies the complete event before caller-specific filtering.
+It adds trusted decrypted values to public-only `_plaintext` fields for durable
+events. Public events do not
 expose raw EVT bytes, ciphertext, nonces, storage pointers, private moderation
 data, subjects, stream identities, or sequence numbers.
 

@@ -243,9 +243,11 @@ authorization, live events, backup and restore, and backend tests.
   `proto/chatto/realtime/v1/events.proto`, a matching `RealtimeEvent` union
   member, authorization and mapping coverage, frontend subscription handling,
   generated clients, documentation, and tests. Public names and compact field
-  numbers must not expose whether the source is `Event` or `PubSubEvent`. If a visible
-  room timeline event is added, also update the Connect timeline assembler and
-  mapping tests.
+  numbers must not expose whether the source is `Event` or `PubSubEvent`.
+  Client-facing `PubSubEvent` variants must reference the public payload
+  directly, while the explicit mapper keeps the private union as the allow-list
+  for cursorless events. If a visible room timeline event is added, also update
+  the Connect timeline assembler and mapping tests.
 
 ## Authorization And RBAC
 

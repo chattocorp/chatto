@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"io"
 
 	"github.com/nats-io/nats.go"
@@ -304,7 +305,7 @@ func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 
 	event := newPubSubEvent(actorID, &pubsubv1.PubSubEvent{
 		Event: &pubsubv1.PubSubEvent_ServerProfileChanged{
-			ServerProfileChanged: &pubsubv1.ServerProfileChangedEvent{
+			ServerProfileChanged: &realtimev1.ServerProfileChangedEvent{
 				ServerId:    LegacyServerSpaceID,
 				Name:        name,
 				Description: description,

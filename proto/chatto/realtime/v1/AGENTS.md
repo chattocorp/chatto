@@ -48,6 +48,9 @@ protocol at `/api/realtime`.
   exhaustive tests, the frontend event
   reducer or reconciliation path, generated clients, architecture and public
   documentation, and compatibility notes in the same change.
+- A client-facing `PubSubEvent` variant must reference its public payload from
+  `events.proto`. Keep the private pubsub union as the allow-list for cursorless
+  delivery. Deep-copy the public event before caller-specific filtering.
 - Live delivery and replay must use the same internal-to-public mapping path.
   A public union member without a valid mapping must fail tests and fail closed
   at runtime. A `PubSubEvent` is public only when the catalogue contains an

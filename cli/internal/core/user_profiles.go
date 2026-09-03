@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -52,7 +53,7 @@ func (c *ChattoCore) publishUserProfileChanged(ctx context.Context, userID strin
 
 	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
 		Event: &pubsubv1.PubSubEvent_UserProfileChanged{
-			UserProfileChanged: &pubsubv1.UserProfileChangedEvent{
+			UserProfileChanged: &realtimev1.UserProfileChangedEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,

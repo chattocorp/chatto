@@ -35,20 +35,24 @@ compatible with supported Chatto data.
 `chatto.core.pubsub.v1.PubSubEvent` contains only events that are sent on
 `live.sync.>` through NATS Core. It is never stored in EVT. Its field numbers
 are local to `PubSubEvent`; they do not use the public realtime union
-numbers.
+numbers. Variants that exist for authorized client delivery reference their
+`chatto.realtime.v1` payload type directly. Private control variants keep a
+private payload. Session termination is the current private control variant.
 
 Both envelopes have the common event ID, creation time, and actor ID. Backend
 publishers and event-delivery code use typed accessors so that code must select
 the durable or pubsub source. Durable EVT replay cannot contain a
 `PubSubEvent`.
 
-The public `chatto.realtime.v1.RealtimeEvent` union stays independent. The
-server maps selected `Event` and `PubSubEvent` variants to dedicated public
-payloads after authorization. Public field names and compact field numbers do
-not expose the internal source. An exhaustive descriptor test fails when a
-public variant has no mapping. Internal events can remain private. Internal
-control events can map to protocol frames. In particular, session termination
-maps to `RealtimeClose` and is not a public event.
+The public `chatto.realtime.v1.RealtimeEvent` union stays independent from both
+internal envelopes. The server maps selected `Event` facts into dedicated
+public payloads after authorization. The restricted `PubSubEvent` union uses
+those public payload types and maps them into a fresh, deep-copied
+`RealtimeEvent`. Public field names and compact field numbers do not expose the
+internal source. An exhaustive descriptor test fails when a public variant has
+no mapping. Internal events can remain private. Internal control events can map
+to protocol frames. In particular, session termination maps to `RealtimeClose`
+and is not a public event.
 
 The protocol 4 startup has one client message. The client sends
 `RealtimeSubscribe` as the first binary WebSocket message and sends no more
@@ -90,9 +94,11 @@ resource reads and a new snapshot restore the related client state.
 - Pubsub NATS Core wire changes need mixed-version review, but they do not add
   fields to the stored EVT union.
 - The public realtime catalogue keeps one semantic view across both internal
-  sources without importing either internal payload schema.
+  sources without importing either internal envelope.
+- Client-facing pubsub variants do not duplicate public payload declarations.
 - A new public event needs an explicit public mapping from its internal source.
-- A new `PubSubEvent` is not public unless the public catalogue includes it.
+- A new client-facing `PubSubEvent` must reference a payload in the public
+  catalogue and have an explicit public union mapping.
 - Realtime startup has fewer messages, frame types, and partial states.
 - An atomic snapshot is larger than one resource-family frame, but it is
   bounded, compressed when useful, and cannot be partly accepted.

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"sort"
 	"time"
 
@@ -596,7 +597,7 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 func (c *ChattoCore) publishThreadViewerStateChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
 	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
 		Event: &pubsubv1.PubSubEvent_ThreadViewerStateChanged{
-			ThreadViewerStateChanged: &pubsubv1.ThreadViewerStateChangedEvent{
+			ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,

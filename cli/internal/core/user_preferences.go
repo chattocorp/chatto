@@ -3,7 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"time"
 
 	"hmans.de/chatto/internal/core/subjects"
@@ -161,9 +163,9 @@ func (c *ChattoCore) publishViewerPreferencesChanged(ctx context.Context, userID
 
 	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
 		Event: &pubsubv1.PubSubEvent_ViewerPreferencesChanged{
-			ViewerPreferencesChanged: &pubsubv1.ViewerPreferencesChangedEvent{
+			ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{
 				Timezone:      tz,
-				TimeFormat:    pubsubv1.TimeFormat(settings.TimeFormat),
+				TimeFormat:    publicTimeFormat(settings.GetTimeFormat()),
 				ShareTimezone: settings.GetShareTimezone(),
 			},
 		},
@@ -172,6 +174,17 @@ func (c *ChattoCore) publishViewerPreferencesChanged(ctx context.Context, userID
 	subject := subjects.LiveSyncUserEvent(userID, "settings_updated")
 	if err := c.publishPubSubEvent(ctx, subject, event); err != nil {
 		c.logger.Warn("failed to publish user settings updated event", "error", err, "user_id", userID)
+	}
+}
+
+func publicTimeFormat(value evtv1.TimeFormat) apiv1.TimeFormat {
+	switch value {
+	case evtv1.TimeFormat_TIME_FORMAT_12H:
+		return apiv1.TimeFormat_TIME_FORMAT_12_HOUR
+	case evtv1.TimeFormat_TIME_FORMAT_24H:
+		return apiv1.TimeFormat_TIME_FORMAT_24_HOUR
+	default:
+		return apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED
 	}
 }
 

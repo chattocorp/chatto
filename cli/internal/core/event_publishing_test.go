@@ -16,6 +16,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -33,7 +34,7 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 
 func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
 	event := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
-		UserTyping: &pubsubv1.UserTypingEvent{RoomId: "room-id"},
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
 	}})
 	wire, err := proto.Marshal(event)
 	if err != nil {

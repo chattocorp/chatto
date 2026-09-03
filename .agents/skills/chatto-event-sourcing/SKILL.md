@@ -254,15 +254,18 @@ When adding or moving deliverable events:
   meaning. If it does, add its dedicated payload to
   `proto/chatto/realtime/v1/events.proto` and add its matching member to
   `RealtimeEvent.event`. Keep public names and compact union numbers independent
-  from the internal source. Keep public payload layouts independent.
+  from the internal source. Keep public payload layouts independent from EVT.
+  A client-facing `PubSubEvent` variant must reference the public payload
+  directly. Keep its restricted union and explicit mapper case as the
+  cursorless-delivery allow-list.
 - Update the deliverable event switch in core live filtering.
 - Ensure authorization can be resolved from projections.
 - If the subject is not room-scoped, add a path to resolve room/user visibility from payload/projections.
 - Include the event family in reconnect replay if clients need to recover it after disconnect.
 - Update public mapping tests, consuming reducers or reconciliation, generated
   clients, the architecture inventory, public documentation, and compatibility
-  notes in the same change. Do not use core payload types as public realtime
-  payloads.
+  notes in the same change. Do not use EVT or private core payload types as
+  public realtime payloads.
 - Keep replay ordered by global stream sequence and deduplicate by event ID where room and non-room projections can both see legacy facts.
 - Internal stream positions may back a public resume cursor, but must never be
   exposed directly or through reversible encoding. Seal cursors with

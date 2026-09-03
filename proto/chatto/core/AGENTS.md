@@ -5,10 +5,11 @@ contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs
 
 ## Public Realtime Boundary
 
-Do not use messages from this package as public realtime payloads. Realtime
-protocol 4 maps selected `Event` and `PubSubEvent` values to dedicated payloads
-in `chatto/realtime/v1/events.proto`. A stored field must not become public only
-because it exists in an `Event`.
+Do not use EVT or private control messages from this package as public realtime
+payloads. Realtime protocol 4 maps selected `Event` values to dedicated
+payloads in `chatto/realtime/v1/events.proto`. Client-facing `PubSubEvent`
+variants reference those public payloads directly. A stored field must not
+become public only because it exists in an `Event`.
 
 ## Package Ownership
 
@@ -20,8 +21,9 @@ because it exists in an `Event`.
 - `key_material/v1` owns KMS records in `ENCRYPTION_KEYS`.
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.
-- `pubsub/v1` owns the `PubSubEvent` envelope and payload messages sent through
-  NATS Core. A `PubSubEvent` must not enter EVT.
+- `pubsub/v1` owns the restricted `PubSubEvent` envelope and private control
+  payloads sent through NATS Core. Client-facing variants reference public
+  realtime payloads. A `PubSubEvent` must not enter EVT.
 
 Do not put a type in a package because one consumer uses it. Put the type in the
 package that owns its authoritative lifecycle.

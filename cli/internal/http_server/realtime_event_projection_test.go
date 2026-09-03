@@ -140,6 +140,29 @@ func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 	}
 }
 
+func TestProjectRealtimePubSubEventReturnsIsolatedPublicCopy(t *testing.T) {
+	payload := &realtimev1.UserTypingEvent{RoomId: "room-id"}
+	source := &pubsubv1.PubSubEvent{
+		Id: "typing-id",
+		Event: &pubsubv1.PubSubEvent_UserTyping{
+			UserTyping: payload,
+		},
+	}
+
+	projected := projectRealtimePubSubEvent(source)
+	if projected == nil || projected.GetUserTyping() == nil {
+		t.Fatalf("projectRealtimePubSubEvent() = %+v, want typing event", projected)
+	}
+	if projected.GetUserTyping() == payload {
+		t.Fatal("projected payload aliases the private pubsub message")
+	}
+
+	projected.GetUserTyping().RoomId = "viewer-filtered-room"
+	if got := source.GetUserTyping().GetRoomId(); got != "room-id" {
+		t.Fatalf("source room_id = %q after public mutation, want room-id", got)
+	}
+}
+
 func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 	publicEvent := &realtimev1.RealtimeEvent{Id: "event-id", ActorId: proto.String("actor-id")}
 	unknown := protowire.AppendTag(nil, 25000, protowire.BytesType)
@@ -219,6 +242,9 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			if pubsubField == nil {
 				t.Errorf("public field %s refers to missing PubSubEvent field %s", publicField.FullName(), pubsubName)
 				continue
+			}
+			if got, want := pubsubField.Message().FullName(), publicField.Message().FullName(); got != want {
+				t.Errorf("PubSubEvent field %s uses payload %s, want public payload %s", pubsubField.FullName(), got, want)
 			}
 			mappedPubSubFields[pubsubField.Name()] = true
 			dynamicEvent := dynamicpb.NewMessage(pubsubDescriptor)

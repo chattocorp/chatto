@@ -59,8 +59,11 @@ pubsub uses `chatto.core.pubsub.v1.PubSubEvent`. Realtime uses the explicit
 `chatto.realtime.v1.RealtimeEvent.event` union and dedicated payloads in
 `chatto/realtime/v1/events.proto`. Public names and compact field numbers do
 not expose which internal source produced an event. Each payload has an
-independent public layout. Chatto does not provide a frontend-only mutation
-feed. Session termination is a close frame, not an event.
+independent public layout relative to EVT. Client-facing pubsub variants reuse
+the public payload type because they exist only for authorized client delivery.
+The restricted private pubsub union still controls which variants can use the
+cursorless path. Chatto does not provide a frontend-only mutation feed. Session
+termination is a close frame, not an event.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. The public union and payload file make all exposure
@@ -68,11 +71,13 @@ visible in the schema. Exhaustive descriptor tests keep the public catalogue
 and explicit mapper aligned. See ADR-093 and ADR-094.
 **Tradeoff:** A new client-visible event needs a public payload declaration,
 union member, mapper coverage, reducer handling, generated clients, and
-documentation. This small duplication keeps storage fields out of the public
-type system and removes field decorators from the EVT schema. Viewer-specific
-field policy is not part of this version. Event authorization must make every
-delivered field safe. A future narrower field needs an explicit viewer-aware
-mapping rule or a separate authorized shape.
+documentation. Durable events also need explicit field mapping. A pubsub event
+needs a restricted private union member, but not a duplicate payload. This
+design keeps storage fields out of the public type system and removes field
+decorators from the EVT schema. Viewer-specific field policy is not part of
+this version. Event authorization must make every delivered field safe. A
+future narrower field needs an explicit viewer-aware mapping rule or a separate
+authorized shape.
 
 ### 2. Initial state is explicit
 
