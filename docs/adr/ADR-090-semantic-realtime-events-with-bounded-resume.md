@@ -136,8 +136,8 @@ The bundled frontend keeps one authenticated, server-scoped projection. A
 subscription explicitly selects `SNAPSHOT` or `LIVE_ONLY` initial state. The
 frontend selects `SNAPSHOT`. A simple bot can select `LIVE_ONLY` and use
 ConnectRPC for resources that it needs. The snapshot avoids a fan-out of
-startup resource requests. It uses bounded resource chunks and lazy data for
-large collections.
+startup resource requests. It uses a bounded set of resource-family frames and
+keeps large collections lazy.
 
 After the snapshot, the frontend applies semantic public events to its local
 projection. ConnectRPC remains available for commands, explicit reads,

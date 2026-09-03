@@ -96,8 +96,11 @@ save the event cursor if either read fails.
 `ServerContentView` supplies one exact EVT boundary `E`. The server captures
 the complete visible room directory, room-group layout, active calls, public
 server profile, and users that these resources reference while the view is at
-that boundary. It releases the read barrier before protobuf encoding or
-WebSocket writes.
+that boundary. User captures contain encrypted PII, avatar references,
+preferences, and roles from the same generation. The server releases the read
+barrier before it resolves data-encryption keys, assembles user resources,
+encodes protobuf messages, or writes to the WebSocket. Slow key storage or a
+KMS cannot stop content-view event application.
 
 Each `snapshot` frame contains one canonical `chatto.api.v1` resource shape.
 The resource families are:
