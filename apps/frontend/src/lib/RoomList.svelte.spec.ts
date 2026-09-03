@@ -1211,6 +1211,7 @@ describe('RoomList', () => {
     expect(control.previousElementSibling?.getAttribute('data-testid')).toBe(
       'room-groups-dropzone'
     );
+    expect(control.previousElementSibling?.classList).toContain('sidebar-drop-target');
     expect(control.nextElementSibling?.getAttribute('data-testid')).toBe('room-group-section');
   });
 

@@ -82,6 +82,7 @@ describe('RoomGroupSection', () => {
     const dropzone = q(container, '[data-testid="room-group-items-dropzone"]');
     await expect.element(dropzone).toBeInTheDocument();
     expect(dropzone?.classList).toContain('min-h-8');
+    expect(dropzone?.classList).toContain('sidebar-drop-target');
     expect(itemsAttachment).toHaveBeenCalledOnce();
   });
 });

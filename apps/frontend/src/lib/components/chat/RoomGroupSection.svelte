@@ -155,7 +155,11 @@ navigation, member presence groups, and attachment date groups.
 
     {#if visibleItems.length > 0 || (itemsAttachment && !collapsed)}
       <div
-        class={['flex flex-col gap-0.5', visibleItems.length === 0 ? 'min-h-8' : '']}
+        class={[
+          'flex flex-col gap-0.5',
+          visibleItems.length === 0 ? 'min-h-8' : '',
+          itemsAttachment ? 'sidebar-drop-target' : ''
+        ]}
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
       >
