@@ -54,7 +54,7 @@ func decodeNotificationReadBoundary(value []byte) (notificationReadBoundary, err
 // without incorrectly treating reactions that arrive afterwards as read.
 func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (notificationReadBoundary, error) {
 	entry, ok := m.core.roomModel.timelineEntry(targetEventID)
-	if !ok || entry.Event == nil || roomIDOfEvent(entry.Event) != roomID {
+	if !ok || entry.RoomID != roomID {
 		return notificationReadBoundary{}, ErrNotFound
 	}
 	// Reactions are coverable only through the local reaction projection's

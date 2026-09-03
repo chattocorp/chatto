@@ -474,10 +474,10 @@ func (s *MyEventsModel) waitForLiveMessageAuthorization(ctx context.Context, eve
 		return nil
 	}
 	entry, ok := s.core.roomModel.timelineEntry(messageEventID)
-	if !ok || entry == nil || entry.Event == nil || entry.StreamSeq == 0 {
+	if !ok || entry == nil || entry.RoomID != roomID || entry.StreamSeq == 0 {
 		return fmt.Errorf("message authorization source %q is not projected", messageEventID)
 	}
-	position := events.SubjectPosition(evtstream.RoomAggregate(roomID).SubjectFor(entry.Event), entry.StreamSeq)
+	position := events.SubjectPosition(evtstream.RoomAggregate(roomID).Subject(entry.EventType), entry.StreamSeq)
 	if err := s.core.roomModel.waitForThreads(ctx, position); err != nil {
 		return fmt.Errorf("wait for message authorization source %q: %w", messageEventID, err)
 	}

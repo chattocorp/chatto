@@ -2,13 +2,13 @@ package core
 
 import (
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/evtstream"
+	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
 var roomTimelineSnapshotContractID = snapshotContractID("v7", &projectionv1.RoomTimelineProjectionSnapshot{})
@@ -22,7 +22,20 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 	defer p.RUnlock()
 	snapshot := &projectionv1.RoomTimelineProjectionSnapshot{ReplayGuard: snapshotReplayGuard(p.replayGuard), RetractedEventIds: sortedMapKeys(p.retractedFlags), HiddenEchoEventIds: sortedMapKeys(p.hiddenEchoes), ShreddedUserIds: sortedMapKeys(p.shreddedUsers)}
 	for _, entry := range p.entries {
-		snapshot.Entries = append(snapshot.Entries, &projectionv1.TimelineEntrySnapshot{StreamSequence: entry.StreamSeq, Event: proto.Clone(entry.Event).(*evtv1.Event)})
+		row := &projectionv1.TimelineEntrySnapshot{
+			StreamSequence:    entry.StreamSeq,
+			EventId:           entry.EventID,
+			RoomId:            entry.RoomID,
+			ActorId:           entry.ActorID,
+			EventType:         entry.EventType,
+			ThreadRootEventId: entry.ThreadRootEventID,
+			EchoOfEventId:     entry.EchoOfEventID,
+			InThreadEventId:   entry.InThreadEventID,
+		}
+		if !entry.CreatedAt.IsZero() {
+			row.CreatedAt = timestamppb.New(entry.CreatedAt)
+		}
+		snapshot.Entries = append(snapshot.Entries, row)
 	}
 	for _, id := range sortedMapKeys(p.bodyStates) {
 		state := p.bodyStates[id]
@@ -30,9 +43,10 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			MessageEventId:      id,
 			BodyEventSequences:  appendBodySequences(nil, state),
 			CurrentBodySequence: state.currentSequence,
-		}
-		if state.body != nil {
-			row.Body = cloneMessageBody(state.body)
+			CurrentBodyEventId:  state.currentEventID,
+			AuthorId:            state.authorID,
+			AttachmentCount:     uint32(state.attachmentCount),
+			Active:              state.active,
 		}
 		snapshot.Bodies = append(snapshot.Bodies, row)
 	}
@@ -78,36 +92,57 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 	}
 	restored := NewRoomTimelineProjection()
 	restored.replayGuard = guard
+	var previousEntrySequence uint64
 	for _, row := range snapshot.GetEntries() {
-		if row.GetStreamSequence() == 0 || row.GetEvent().GetId() == "" {
+		if row.GetStreamSequence() == 0 || row.GetEventId() == "" || row.GetRoomId() == "" || !isIndexedRoomTimelineEventType(row.GetEventType()) {
 			return fmt.Errorf("room timeline snapshot has invalid timeline entry")
 		}
-		event := proto.Clone(row.GetEvent()).(*evtv1.Event)
-		index := restored.appendEntryLocked(row.GetStreamSequence(), event)
-		if _, duplicate := restored.byEventID[event.GetId()]; duplicate {
-			return fmt.Errorf("room timeline snapshot repeats event %q", event.GetId())
+		if row.GetStreamSequence() <= previousEntrySequence {
+			return fmt.Errorf("room timeline snapshot entries are not in stream order")
 		}
-		if shouldIndexRoomTimelineEvent(event) {
-			restored.byEventID[event.GetId()] = index
+		previousEntrySequence = row.GetStreamSequence()
+		if row.GetEventType() == evtstream.EventMessagePosted {
+			if row.GetThreadRootEventId() == "" {
+				return fmt.Errorf("room timeline snapshot message %q has no thread root", row.GetEventId())
+			}
+			if row.GetInThreadEventId() != "" && row.GetThreadRootEventId() != row.GetInThreadEventId() {
+				return fmt.Errorf("room timeline snapshot message %q has inconsistent thread routing", row.GetEventId())
+			}
+		} else if row.GetThreadRootEventId() != "" || row.GetInThreadEventId() != "" || row.GetEchoOfEventId() != "" {
+			return fmt.Errorf("room timeline snapshot event %q has unexpected message routing", row.GetEventId())
 		}
-		roomID := roomIDOfEvent(event)
-		if event.GetMessagePosted() != nil {
-			if roomID == "" {
-				return fmt.Errorf("room timeline snapshot message %q has no room", event.GetId())
+		createdAt, err := snapshotTime(row.GetCreatedAt())
+		if err != nil {
+			return fmt.Errorf("room timeline snapshot event %q created time: %w", row.GetEventId(), err)
+		}
+		entry := TimelineEntry{
+			StreamSeq:         row.GetStreamSequence(),
+			EventID:           row.GetEventId(),
+			RoomID:            row.GetRoomId(),
+			ActorID:           row.GetActorId(),
+			CreatedAt:         createdAt,
+			EventType:         row.GetEventType(),
+			ThreadRootEventID: row.GetThreadRootEventId(),
+			EchoOfEventID:     row.GetEchoOfEventId(),
+			InThreadEventID:   row.GetInThreadEventId(),
+		}
+		index := len(restored.entries)
+		restored.entries = append(restored.entries, entry)
+		if _, duplicate := restored.byEventID[entry.EventID]; duplicate {
+			return fmt.Errorf("room timeline snapshot repeats event %q", entry.EventID)
+		}
+		restored.byEventID[entry.EventID] = index
+		if entry.IsMessagePost() {
+			restored.messagePostsByRoom[entry.RoomID] = append(restored.messagePostsByRoom[entry.RoomID], index)
+			if entry.EchoOfEventID == "" && entry.ActorID != "" {
+				restored.latestOriginalPostAt[roomActorKey{roomID: entry.RoomID, actorID: entry.ActorID}] = entry.CreatedAt
 			}
-			restored.messagePostsByRoom[roomID] = append(restored.messagePostsByRoom[roomID], index)
-			if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
-				restored.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
-			}
-			if originalID := event.GetMessagePosted().GetEchoOfEventId(); originalID != "" {
-				restored.echoLinks[originalID] = append(restored.echoLinks[originalID], event.GetId())
+			if entry.EchoOfEventID != "" {
+				restored.echoLinks[entry.EchoOfEventID] = append(restored.echoLinks[entry.EchoOfEventID], entry.EventID)
 			}
 		}
-		if isVisibleRoomTimelineEntry(event) {
-			if roomID == "" {
-				return fmt.Errorf("room timeline snapshot event %q has no room", event.GetId())
-			}
-			restored.byRoom[roomID] = append(restored.byRoom[roomID], index)
+		if entry.InThreadEventID == "" {
+			restored.byRoom[entry.RoomID] = append(restored.byRoom[entry.RoomID], index)
 		}
 	}
 	for _, row := range snapshot.GetBodies() {
@@ -122,9 +157,23 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if len(sequences) == 0 || sequences[len(sequences)-1] != row.GetCurrentBodySequence() {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent sequence history", id)
 		}
+		for i, sequence := range sequences {
+			if sequence == 0 || (i > 0 && sequence <= sequences[i-1]) {
+				return fmt.Errorf("room timeline snapshot body %q has invalid sequence history", id)
+			}
+		}
+		if row.GetCurrentBodyEventId() == "" || row.GetAuthorId() == "" {
+			return fmt.Errorf("room timeline snapshot body %q has incomplete current reference", id)
+		}
+		if !row.GetActive() && row.GetAttachmentCount() != 0 {
+			return fmt.Errorf("room timeline snapshot inactive body %q has attachments", id)
+		}
 		restored.bodyStates[id] = timelineBodyState{
-			body:                cloneMessageBody(row.GetBody()),
 			currentSequence:     row.GetCurrentBodySequence(),
+			currentEventID:      row.GetCurrentBodyEventId(),
+			authorID:            row.GetAuthorId(),
+			attachmentCount:     int(row.GetAttachmentCount()),
+			active:              row.GetActive(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
 		}
 	}
@@ -220,11 +269,10 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			continue
 		}
 		entry, ok := restored.entryByEventIDLocked(messageID)
-		if !ok || entry.Event == nil || state.body == nil {
+		if !ok || !state.active || state.attachmentCount == 0 {
 			continue
 		}
-		roomID := roomIDOfEvent(entry.Event)
-		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
+		restored.refreshAttachmentMessageLocked(entry.RoomID, messageID)
 	}
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom

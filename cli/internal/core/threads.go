@@ -60,7 +60,7 @@ const maxThreadParticipants = 50
 // events targeting them — currently we surface only MessagePostedEvent
 // replies here so legacy callers see the same shape as the
 // SERVER_EVENTS-backed implementation. Edits / retracts are folded
-// onto the original via LatestBody at body-resolve time.
+// onto the original through current-body EVT hydration at resolve time.
 //
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id string, threadRootEventId string) ([]*evtv1.Event, error) {
@@ -68,20 +68,26 @@ func (c *ChattoCore) GetThreadEvents(ctx context.Context, kind RoomKind, room_id
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventId)
 	}
-	if rootEntry.Event.GetMessagePosted() == nil {
+	if !rootEntry.IsMessagePost() {
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventId)
 	}
 
 	replies := c.roomModel.threadEvents(threadRootEventId)
-	events := make([]*evtv1.Event, 0, 1+len(replies))
-	events = append(events, rootEntry.Event)
+	refs := make([]*TimelineEntry, 0, 1+len(replies))
+	refs = append(refs, rootEntry)
 	for _, r := range replies {
-		// Skip edit/retract entries — the body resolver folds them via
-		// LatestBody. The thread pane only wants the post events.
-		if r.Event.GetMessagePosted() == nil {
+		if !r.IsMessagePost() {
 			continue
 		}
-		events = append(events, r.Event)
+		refs = append(refs, r)
+	}
+	hydrated, err := c.hydrateTimelineEntries(ctx, refs)
+	if err != nil {
+		return nil, err
+	}
+	events := make([]*evtv1.Event, len(hydrated))
+	for i, event := range hydrated {
+		events[i] = event.Event
 	}
 	return events, nil
 }
@@ -98,16 +104,16 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
-	if rootEntry.Event.GetMessagePosted() == nil {
+	if !rootEntry.IsMessagePost() {
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventID)
 	}
-	if roomIDOfEvent(rootEntry.Event) != roomID {
+	if rootEntry.RoomID != roomID {
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
 	entries := c.roomModel.threadEvents(threadRootEventID)
 	if afterSeq != nil && *afterSeq > 0 {
-		return threadReplyEventsAfter(entries, *afterSeq, limit), nil
+		return c.threadReplyEventsAfter(ctx, entries, *afterSeq, limit)
 	}
 
 	var before uint64
@@ -115,8 +121,8 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 		before = *beforeSeq
 	}
 
-	raw := make([]*RoomEvent, 0, limit+1)
-	for i := len(entries) - 1; i >= 0 && len(raw) < limit+1; i-- {
+	refs := make([]*TimelineEntry, 0, limit+1)
+	for i := len(entries) - 1; i >= 0 && len(refs) < limit+1; i-- {
 		entry := entries[i]
 		if !isThreadReplyEventForPage(entry) {
 			continue
@@ -124,20 +130,24 @@ func (c *ChattoCore) GetThreadReplyEvents(ctx context.Context, kind RoomKind, ro
 		if before > 0 && entry.StreamSeq >= before {
 			continue
 		}
-		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
+		refs = append(refs, entry)
 	}
 
-	hasOlder := len(raw) > limit
+	hasOlder := len(refs) > limit
 	if hasOlder {
-		raw = raw[:limit]
+		refs = refs[:limit]
 	}
 
-	for i, j := 0, len(raw)-1; i < j; i, j = i+1, j-1 {
-		raw[i], raw[j] = raw[j], raw[i]
+	for i, j := 0, len(refs)-1; i < j; i, j = i+1, j-1 {
+		refs[i], refs[j] = refs[j], refs[i]
 	}
 
+	hydrated, err := c.hydrateTimelineEntries(ctx, refs)
+	if err != nil {
+		return nil, err
+	}
 	result := &RoomEventsResult{
-		Events:   raw,
+		Events:   hydrated,
 		HasOlder: hasOlder,
 		HasNewer: beforeSeq != nil,
 	}
@@ -156,10 +166,10 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 	if !ok {
 		return nil, fmt.Errorf("thread root message not found: event ID %s", threadRootEventID)
 	}
-	if rootEntry.Event.GetMessagePosted() == nil {
+	if !rootEntry.IsMessagePost() {
 		return nil, fmt.Errorf("event ID %s is not a message event", threadRootEventID)
 	}
-	if roomIDOfEvent(rootEntry.Event) != roomID {
+	if rootEntry.RoomID != roomID {
 		return nil, fmt.Errorf("thread root message not found in room %s: event ID %s", roomID, threadRootEventID)
 	}
 
@@ -171,7 +181,7 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		if !isThreadReplyEventForPage(entry) {
 			continue
 		}
-		if entry.Event.GetId() == anchorEventID {
+		if entry.EventID == anchorEventID {
 			targetIndex = len(replies)
 			foundAnchor = true
 		}
@@ -203,9 +213,9 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 		}
 	}
 
-	raw := make([]*RoomEvent, 0, end-start)
-	for _, entry := range replies[start:end] {
-		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
+	raw, err := c.hydrateTimelineEntries(ctx, replies[start:end])
+	if err != nil {
+		return nil, err
 	}
 
 	result := &RoomEventsResult{
@@ -217,8 +227,8 @@ func (c *ChattoCore) GetThreadReplyEventsAround(ctx context.Context, kind RoomKi
 	return result, nil
 }
 
-func threadReplyEventsAfter(entries []*TimelineEntry, afterSeq uint64, limit int) *RoomEventsResult {
-	raw := make([]*RoomEvent, 0, limit+1)
+func (c *ChattoCore) threadReplyEventsAfter(ctx context.Context, entries []*TimelineEntry, afterSeq uint64, limit int) (*RoomEventsResult, error) {
+	refs := make([]*TimelineEntry, 0, limit+1)
 	for _, entry := range entries {
 		if !isThreadReplyEventForPage(entry) {
 			continue
@@ -226,15 +236,19 @@ func threadReplyEventsAfter(entries []*TimelineEntry, afterSeq uint64, limit int
 		if entry.StreamSeq <= afterSeq {
 			continue
 		}
-		raw = append(raw, &RoomEvent{Event: entry.Event, Sequence: entry.StreamSeq})
-		if len(raw) >= limit+1 {
+		refs = append(refs, entry)
+		if len(refs) >= limit+1 {
 			break
 		}
 	}
 
-	hasNewer := len(raw) > limit
+	hasNewer := len(refs) > limit
 	if hasNewer {
-		raw = raw[:limit]
+		refs = refs[:limit]
+	}
+	raw, err := c.hydrateTimelineEntries(ctx, refs)
+	if err != nil {
+		return nil, err
 	}
 
 	result := &RoomEventsResult{
@@ -243,11 +257,11 @@ func threadReplyEventsAfter(entries []*TimelineEntry, afterSeq uint64, limit int
 		HasNewer: hasNewer,
 	}
 	setRoomEventsResultCursors(result)
-	return result
+	return result, nil
 }
 
 func isThreadReplyEventForPage(entry *TimelineEntry) bool {
-	return entry != nil && entry.Event != nil && entry.Event.GetMessagePosted() != nil
+	return entry != nil && entry.IsMessagePost()
 }
 
 func setRoomEventsResultCursors(result *RoomEventsResult) {
@@ -451,11 +465,11 @@ func (c *ChattoCore) threadReadMarkerTime(ctx context.Context, kind RoomKind, ro
 func (c *ChattoCore) latestThreadMessageEventID(threadRootEventID string) string {
 	entries := c.roomModel.threadEvents(threadRootEventID)
 	for i := len(entries) - 1; i >= 0; i-- {
-		event := entries[i].Event
-		if event == nil || event.GetMessagePosted() == nil {
+		entry := entries[i]
+		if entry == nil || !entry.IsMessagePost() {
 			continue
 		}
-		if id := event.GetId(); id != "" {
+		if id := entry.EventID; id != "" {
 			return id
 		}
 	}

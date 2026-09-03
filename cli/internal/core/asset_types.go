@@ -52,3 +52,28 @@ func ownedAssetIDsFromBody(body *evtv1.MessageBody) []string {
 	}
 	return out
 }
+
+// messageBodyAttachmentCount returns the number of non-empty attachment
+// references that a message body declares. It does not require the asset
+// projection to have materialized those assets yet.
+func messageBodyAttachmentCount(body *evtv1.MessageBody) int {
+	if body == nil {
+		return 0
+	}
+	if ids := body.GetAssetIds(); len(ids) > 0 {
+		count := 0
+		for _, id := range ids {
+			if id != "" {
+				count++
+			}
+		}
+		return count
+	}
+	count := 0
+	for _, attachment := range body.GetAttachments() {
+		if attachment != nil {
+			count++
+		}
+	}
+	return count
+}

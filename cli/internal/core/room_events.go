@@ -2,9 +2,15 @@ package core
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+var errTimelineReadPlanStale = errors.New("room timeline read plan changed")
+
+const maxTimelineHydrationAttempts = 3
 
 // RoomEvent pairs a *evtv1.Event with its stream sequence so the
 // pagination layer can build opaque cursors without re-deriving the
@@ -57,7 +63,7 @@ func (c *ChattoCore) GetRoomEvents(ctx context.Context, kind RoomKind, room_id s
 	return c.getRoomEvents(ctx, kind, room_id, limit, beforeSeq, nil)
 }
 
-func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64, visibleFilter func(*evtv1.Event) bool) (*RoomEventsResult, error) {
+func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id string, limit int, beforeSeq *uint64, visibleFilter func(*TimelineEntry) bool) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 	var before uint64
 	if beforeSeq != nil {
@@ -71,9 +77,9 @@ func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id s
 	if hasOlder {
 		raw = raw[:limit]
 	}
-	visible := make([]*RoomEvent, len(raw))
-	for i, e := range raw {
-		visible[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
+	visible, err := c.hydrateTimelineEntries(ctx, raw)
+	if err != nil {
+		return nil, err
 	}
 
 	// Reverse newest-first → oldest-first to match legacy callers +
@@ -101,21 +107,14 @@ func (c *ChattoCore) getRoomEvents(ctx context.Context, kind RoomKind, room_id s
 // Authorization: caller must verify room membership before calling.
 func (c *ChattoCore) GetRoomEventByEventID(ctx context.Context, kind RoomKind, roomID, eventID string) (*evtv1.Event, error) {
 	entry, ok := c.roomModel.timelineEntry(eventID)
-	if !ok {
+	if !ok || entry.RoomID != roomID || c.roomModel.isHiddenEcho(eventID) {
 		return nil, nil
 	}
-	if entry.Event.GetEvent() == nil {
-		return nil, nil
+	events, err := c.hydrateTimelineEntries(ctx, []*TimelineEntry{entry})
+	if err != nil {
+		return nil, err
 	}
-	if c.roomModel.isHiddenEcho(eventID) {
-		return nil, nil
-	}
-	// Honour the roomID scope — looking up an event in the wrong
-	// room should be a clean miss, not a leak.
-	if roomIDOfEvent(entry.Event) != roomID {
-		return nil, nil
-	}
-	return entry.Event, nil
+	return events[0].Event, nil
 }
 
 // GetRoomEventsAround returns a window of events centered on a target
@@ -127,24 +126,21 @@ func (c *ChattoCore) GetRoomEventsAround(ctx context.Context, kind RoomKind, roo
 	return c.getRoomEventsAround(ctx, kind, roomID, eventID, limit, nil)
 }
 
-func (c *ChattoCore) getRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int, visibleFilter func(*evtv1.Event) bool) (*RoomEventsAroundResult, error) {
+func (c *ChattoCore) getRoomEventsAround(ctx context.Context, kind RoomKind, roomID, eventID string, limit int, visibleFilter func(*TimelineEntry) bool) (*RoomEventsAroundResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
 	target, ok := c.roomModel.timelineEntry(eventID)
-	if !ok {
+	if !ok || c.roomModel.isHiddenEcho(eventID) {
 		return nil, ErrMessageNotFound
 	}
-	if c.roomModel.isHiddenEcho(eventID) {
-		return nil, ErrMessageNotFound
-	}
-	if !isVisibleRoomTimelineEntry(target.Event) {
+	if target.RoomID != roomID || target.InThreadEventID != "" {
 		// Target is a thread reply or otherwise filtered from the
 		// room timeline. The legacy implementation returned an
 		// "event not found in room root events" error here; preserve
 		// that posture.
 		return nil, ErrMessageNotFound
 	}
-	if visibleFilter != nil && !visibleFilter(target.Event) {
+	if visibleFilter != nil && !visibleFilter(target) {
 		return nil, ErrPermissionDenied
 	}
 
@@ -152,9 +148,9 @@ func (c *ChattoCore) getRoomEventsAround(ctx context.Context, kind RoomKind, roo
 	if !ok {
 		return nil, ErrMessageNotFound
 	}
-	window := make([]*RoomEvent, len(raw))
-	for i, e := range raw {
-		window[i] = &RoomEvent{Event: e.Event, Sequence: e.StreamSeq}
+	window, err := c.hydrateTimelineEntries(ctx, raw)
+	if err != nil {
+		return nil, err
 	}
 	return &RoomEventsAroundResult{
 		Events:      window,
@@ -173,7 +169,7 @@ func (c *ChattoCore) GetRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	return c.getRoomEventsAfter(ctx, kind, roomID, afterSeq, limit, nil)
 }
 
-func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int, visibleFilter func(*evtv1.Event) bool) (*RoomEventsResult, error) {
+func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, roomID string, afterSeq uint64, limit int, visibleFilter func(*TimelineEntry) bool) (*RoomEventsResult, error) {
 	limit = clampHistoricalMessageLimit(limit)
 
 	// Walk visible entries oldest-first from the cursor so forward
@@ -184,14 +180,14 @@ func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, room
 	if hasNewer {
 		raw = raw[:limit]
 	}
-	newer := make([]*RoomEvent, 0, len(raw))
-	for _, e := range raw {
-		newer = append(newer, &RoomEvent{Event: e.Event, Sequence: e.StreamSeq})
+	newer, err := c.hydrateTimelineEntries(ctx, raw)
+	if err != nil {
+		return nil, err
 	}
 
 	r := &RoomEventsResult{
 		Events:   newer,
-		HasOlder: true, // forward pagination always has older content (everything <= afterSeq).
+		HasOlder: true, // Forward pagination always has older content (everything <= afterSeq).
 		HasNewer: hasNewer,
 	}
 	if len(newer) > 0 {
@@ -199,6 +195,24 @@ func (c *ChattoCore) getRoomEventsAfter(ctx context.Context, kind RoomKind, room
 		r.EndCursorSeq = newer[len(newer)-1].Sequence
 	}
 	return r, nil
+}
+
+func (c *ChattoCore) hydrateTimelineEntries(ctx context.Context, entries []*TimelineEntry) ([]*RoomEvent, error) {
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	if c.timelineHydrator == nil {
+		return nil, fmt.Errorf("room timeline hydrator is unavailable")
+	}
+	hydrated, err := c.timelineHydrator.events(ctx, entries)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]*RoomEvent, len(entries))
+	for i, event := range hydrated {
+		result[i] = &RoomEvent{Event: event, Sequence: entries[i].StreamSeq}
+	}
+	return result, nil
 }
 
 func clampHistoricalMessageLimit(limit int) int {

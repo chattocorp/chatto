@@ -216,8 +216,8 @@ func (m *RoomModel) timelineEntry(eventID string) (*TimelineEntry, bool) {
 	return m.timeline.Projection().Get(eventID)
 }
 
-func (m *RoomModel) latestBody(eventID string) (*evtv1.MessageBody, bool, bool) {
-	return m.timeline.Projection().LatestBody(eventID)
+func (m *RoomModel) latestBodyReference(eventID string) (TimelineBodyReference, bool, bool) {
+	return m.timeline.Projection().LatestBodyReference(eventID)
 }
 
 func (m *RoomModel) currentRoomAttachmentMessages(roomID string) []projectedRoomAttachmentMessage {
@@ -276,7 +276,7 @@ func (m *RoomModel) messageTombstoned(eventID string) bool {
 	return m.timeline.Projection().MessageTombstoned(eventID)
 }
 
-func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*evtv1.Event) bool) (*TimelineEntry, bool) {
+func (m *RoomModel) lastVisibleRoomEntry(roomID string, visible func(*TimelineEntry) bool) (*TimelineEntry, bool) {
 	return m.timeline.Projection().LastVisibleRoomEntry(roomID, visible)
 }
 
@@ -288,7 +288,7 @@ func (m *RoomModel) latestOriginalPostAt(roomID, actorID string) (time.Time, boo
 	return m.timeline.Projection().LatestOriginalPostAt(roomID, actorID)
 }
 
-func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*evtv1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimeline(roomID string, limit int, beforeStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {
 	return m.timeline.Projection().VisibleRoomTimeline(roomID, limit, beforeStreamSeq, visible)
 }
 
@@ -296,11 +296,11 @@ func (m *RoomModel) roomEventCount(roomID string) int {
 	return m.timeline.Projection().RoomEventCount(roomID)
 }
 
-func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*evtv1.Event) bool) []*TimelineEntry {
+func (m *RoomModel) visibleRoomTimelineAfter(roomID string, limit int, afterStreamSeq uint64, visible func(*TimelineEntry) bool) []*TimelineEntry {
 	return m.timeline.Projection().VisibleRoomTimelineAfter(roomID, limit, afterStreamSeq, visible)
 }
 
-func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int, visible func(*evtv1.Event) bool) ([]*TimelineEntry, int, bool, bool, bool) {
+func (m *RoomModel) visibleRoomTimelineAround(roomID, eventID string, limit int, visible func(*TimelineEntry) bool) ([]*TimelineEntry, int, bool, bool, bool) {
 	return m.timeline.Projection().VisibleRoomTimelineAround(roomID, eventID, limit, visible)
 }
 

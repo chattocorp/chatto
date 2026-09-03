@@ -349,8 +349,8 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 			entries++
 			eventBytes := timelineEntryEstimatedBytes(entry)
 			roomBytes += eventBytes
-			if entry != nil && entry.Event != nil && entry.Event.GetId() != "" {
-				timelineEventIDs[entry.Event.GetId()] = struct{}{}
+			if entry != nil && entry.EventID != "" {
+				timelineEventIDs[entry.EventID] = struct{}{}
 			}
 		}
 		rawBytes += roomBytes
@@ -375,15 +375,12 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	}
 	retainedEventIDs := p.replayGuard.retainedEventIDs()
 	appliedEventIDsBytes := estimateStringSetBytes(retainedEventIDs)
-	var bodyStateBytes, latestBodyBytes, latestBodies, supersededSeqBytes, supersededSeqs int64
+	var bodyStateBytes, activeBodyReferenceBytes, activeBodyReferences, supersededSeqBytes, supersededSeqs int64
 	for eventID, state := range p.bodyStates {
-		// The body pointer, current sequence, and slice header live inline in
-		// the map value. Only edited messages allocate the slice backing array.
-		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8 + 8 + 24
-		if state.body != nil {
-			latestBodies++
-			latestBodyBytes += int64(proto.Size(state.body))
-			bodyStateBytes += int64(proto.Size(state.body))
+		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)+len(state.currentEventID)+len(state.authorID)) + 8 + 8 + 1 + 24
+		if state.active {
+			activeBodyReferences++
+			activeBodyReferenceBytes += int64(len(state.currentEventID)+len(state.authorID)) + 17
 		}
 		supersededSeqs += int64(len(state.supersededSequences))
 		supersededSeqBytes += int64(cap(state.supersededSequences)) * 8
@@ -438,7 +435,7 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 		{Name: "applied_event_ids", Value: int64(len(retainedEventIDs)), Bytes: appliedEventIDsBytes},
 		{Name: "event_id_compatibility_mode", Value: p.replayGuard.compatibilityValue(), Bytes: 0},
 		{Name: "body_state_index", Value: int64(len(p.bodyStates)), Bytes: bodyStateBytes},
-		{Name: "latest_bodies", Value: latestBodies, Bytes: latestBodyBytes},
+		{Name: "active_body_references", Value: activeBodyReferences, Bytes: activeBodyReferenceBytes},
 		{Name: "superseded_body_event_seqs", Value: supersededSeqs, Bytes: supersededSeqBytes},
 		{Name: "retracted_flags", Value: int64(len(p.retractedFlags)), Bytes: retractedBytes},
 		{Name: "tombstoned_at_index", Value: int64(len(p.tombstonedAt)), Bytes: tombstonedAtBytes},
@@ -753,10 +750,10 @@ func (p *ContentKeyProjection) adminProjectionEstimate() (int64, int64, []Projec
 }
 
 func timelineEntryEstimatedBytes(entry *TimelineEntry) int64 {
-	if entry == nil || entry.Event == nil {
+	if entry == nil {
 		return projectionSliceEntryOverhead
 	}
-	return projectionSliceEntryOverhead + int64(proto.Size(entry.Event)) + 8
+	return projectionSliceEntryOverhead + 8 + 24 + int64(len(entry.EventID)+len(entry.RoomID)+len(entry.ActorID)+len(entry.EventType)+len(entry.ThreadRootEventID)+len(entry.InThreadEventID)+len(entry.EchoOfEventID))
 }
 
 func estimateStringSetBytes(values map[string]struct{}) int64 {

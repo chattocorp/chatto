@@ -961,10 +961,10 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 		return member, err
 	}
 	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-	if !ok || entry == nil || entry.Event == nil {
+	if !ok || entry == nil || entry.RoomID != room.GetId() {
 		return false, nil
 	}
-	messagePosition := events.SubjectPosition(evtstream.RoomAggregate(room.GetId()).SubjectFor(entry.Event), entry.StreamSeq)
+	messagePosition := events.SubjectPosition(evtstream.RoomAggregate(room.GetId()).Subject(entry.EventType), entry.StreamSeq)
 	if err := m.core.roomModel.waitForThreads(ctx, messagePosition); err != nil {
 		return false, fmt.Errorf("wait for notification message relationship: %w", err)
 	}
@@ -974,10 +974,10 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	}
 	messageVisible := func(eventID string) bool {
 		entry, ok := m.core.roomModel.timelineEntry(eventID)
-		if !ok || entry.Event == nil || roomIDOfEvent(entry.Event) != room.GetId() {
+		if !ok || entry.RoomID != room.GetId() {
 			return false
 		}
-		_, retracted, known := m.core.roomModel.latestBody(eventID)
+		_, retracted, known := m.core.roomModel.latestBodyReference(eventID)
 		return known && !retracted
 	}
 	if !messageVisible(message.GetEventId()) || (message.GetThreadRootEventId() != "" && !messageVisible(message.GetThreadRootEventId())) {

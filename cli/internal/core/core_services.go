@@ -55,6 +55,7 @@ func assembleCore(
 		contentView:      projections.contentView,
 		configModel:      configModel,
 		roomModel:        roomModel,
+		timelineHydrator: newRoomTimelineHydrator(infra.eventReader),
 		userModel:        userModel,
 		rbacModel:        newRBACModel(projections.rbac),
 		mentionables:     newMentionablesModel(projections.mentionables),

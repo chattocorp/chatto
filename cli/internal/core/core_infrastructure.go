@@ -26,6 +26,7 @@ type coreInfrastructure struct {
 	dekResolver           *unwrappedDEKResolver
 	s3Client              *S3Client
 	eventPublisher        *evtstream.Publisher
+	eventReader           *evtstream.Reader
 	notificationPublisher *notificationstream.Publisher
 	snapshotRepository    *projectionsnapshot.Repository
 }
@@ -76,6 +77,7 @@ func initializeCoreInfrastructure(
 		dekResolver:           dekResolver,
 		s3Client:              s3Client,
 		eventPublisher:        evtstream.NewPublisher(js, storage.serverEvtStream, logger),
+		eventReader:           evtstream.NewReader(storage.serverEvtStream),
 		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
 		snapshotRepository:    snapshotRepository,
 	}, nil

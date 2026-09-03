@@ -182,6 +182,27 @@ func TestPublisher_Append_HappyPath(t *testing.T) {
 	}
 }
 
+func TestReader_EventAtReadsNewlyAppendedEvent(t *testing.T) {
+	js, stream := setupTestStream(t)
+	publisher := NewPublisher(js, stream, testLogger())
+	reader := NewReader(stream)
+	ctx := testContext(t)
+	event := makeEvent("R1", "U1")
+	subject := RoomAggregate("R1").Subject(EventUserJoinedRoom)
+
+	sequence, err := publisher.Append(ctx, subject, event)
+	if err != nil {
+		t.Fatalf("Append: %v", err)
+	}
+	record, err := reader.EventAt(ctx, sequence)
+	if err != nil {
+		t.Fatalf("EventAt: %v", err)
+	}
+	if record.Sequence != sequence || record.Subject != subject || !proto.Equal(record.Event, event) {
+		t.Fatalf("EventAt = %+v, want sequence %d subject %q event %q", record, sequence, subject, event.GetId())
+	}
+}
+
 func TestPublisher_Append_SetsNATSMsgID(t *testing.T) {
 	js, stream := setupTestStream(t)
 	pub := NewPublisher(js, stream, testLogger())

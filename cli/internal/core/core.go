@@ -42,6 +42,7 @@ type ChattoCore struct {
 	messageSearchReads        *MessageSearchReadModel
 	notificationPolicy        *NotificationPolicyModel
 	roomTimelineReads         *RoomTimelineReadModel
+	timelineHydrator          *RoomTimelineHydrator
 	readStateModel            *ReadStateModel
 	notificationBoundaries    *notificationBoundaryIndex
 	notificationOccurrences   *NotificationOccurrenceModel
