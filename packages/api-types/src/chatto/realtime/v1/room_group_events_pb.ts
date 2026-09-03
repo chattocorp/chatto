@@ -294,7 +294,7 @@ export class RoomRemovedFromGroupEvent extends Message<RoomRemovedFromGroupEvent
 }
 
 /**
- * RoomsInGroupReorderedEvent reports the complete room order in a group.
+ * RoomsInGroupReorderedEvent reports the visible room order in a group.
  *
  * @generated from message chatto.realtime.v1.RoomsInGroupReorderedEvent
  */
@@ -307,7 +307,7 @@ export class RoomsInGroupReorderedEvent extends Message<RoomsInGroupReorderedEve
   groupId = "";
 
   /**
-   * Complete ordered list of room IDs.
+   * Complete ordered list of room IDs that the caller can see.
    *
    * @generated from field: repeated string room_ids = 2;
    */
@@ -571,7 +571,7 @@ export class SidebarGroupEntryReference extends Message<SidebarGroupEntryReferen
 }
 
 /**
- * SidebarGroupEntriesReorderedEvent reports the complete mixed group order.
+ * SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
  *
  * @generated from message chatto.realtime.v1.SidebarGroupEntriesReorderedEvent
  */
@@ -584,7 +584,7 @@ export class SidebarGroupEntriesReorderedEvent extends Message<SidebarGroupEntri
   groupId = "";
 
   /**
-   * Complete mixed order of rooms and sidebar links.
+   * Complete mixed order of visible rooms and sidebar links.
    *
    * @generated from field: repeated chatto.realtime.v1.SidebarGroupEntryReference entries = 2;
    */

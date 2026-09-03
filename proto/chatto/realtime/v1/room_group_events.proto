@@ -39,11 +39,11 @@ message RoomRemovedFromGroupEvent {
   // ID of the removed room.
   string room_id = 2;
 }
-// RoomsInGroupReorderedEvent reports the complete room order in a group.
+// RoomsInGroupReorderedEvent reports the visible room order in a group.
 message RoomsInGroupReorderedEvent {
   // ID of the reordered room group.
   string group_id = 1;
-  // Complete ordered list of room IDs.
+  // Complete ordered list of room IDs that the caller can see.
   repeated string room_ids = 2;
 }
 // SidebarLinkAddedToGroupEvent reports a new link in a room group.
@@ -94,11 +94,11 @@ message SidebarGroupEntryReference {
   string id = 2;
 }
 
-// SidebarGroupEntriesReorderedEvent reports the complete mixed group order.
+// SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
 message SidebarGroupEntriesReorderedEvent {
   // ID of the reordered room group.
   string group_id = 1;
-  // Complete mixed order of rooms and sidebar links.
+  // Complete mixed order of visible rooms and sidebar links.
   repeated SidebarGroupEntryReference entries = 2;
 }
 // RoomGroupsReorderedEvent reports the complete room-group order.

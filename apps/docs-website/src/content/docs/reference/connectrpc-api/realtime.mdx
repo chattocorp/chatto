@@ -650,23 +650,23 @@ RoomRemovedFromGroupEvent reports that a room was removed from a group.
 
 ### RoomsInGroupReorderedEvent
 
-RoomsInGroupReorderedEvent reports the complete room order in a group.
+RoomsInGroupReorderedEvent reports the visible room order in a group.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_id` | `string` | ID of the reordered room group. |
-| `room_ids` | `repeated string` | Complete ordered list of room IDs. |
+| `room_ids` | `repeated string` | Complete ordered list of room IDs that the caller can see. |
 
 <a id="chatto-realtime-v1-SidebarGroupEntriesReorderedEvent"></a>
 
 ### SidebarGroupEntriesReorderedEvent
 
-SidebarGroupEntriesReorderedEvent reports the complete mixed group order.
+SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `group_id` | `string` | ID of the reordered room group. |
-| `entries` | repeated [`SidebarGroupEntryReference`](#chatto-realtime-v1-SidebarGroupEntryReference) | Complete mixed order of rooms and sidebar links. |
+| `entries` | repeated [`SidebarGroupEntryReference`](#chatto-realtime-v1-SidebarGroupEntryReference) | Complete mixed order of visible rooms and sidebar links. |
 
 <a id="chatto-realtime-v1-SidebarGroupEntryReference"></a>
 

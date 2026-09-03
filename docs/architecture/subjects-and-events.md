@@ -156,11 +156,12 @@ Visibility changes processed during hydration force a retry. Late
 cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
-Canonical transient events remain live-only. Protocol 4 sends a censored,
-authorized copy of canonical durable and transient events. Durable events can
-have an opaque resume cursor. Fresh or unsafe subscriptions use an exact
-authorized content snapshot or the caller's live-only fallback. Subscriber
-overflow closes only that session.
+Canonical transient events remain live-only. Protocol 4 maps selected
+canonical durable and transient events to an authorized public event
+catalogue. The delivery boundary removes caller-specific hidden room
+references. Durable events can have an opaque resume cursor. Fresh or unsafe
+subscriptions use an exact authorized content snapshot or the caller's
+live-only fallback. Subscriber overflow closes only that session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old

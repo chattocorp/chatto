@@ -358,12 +358,12 @@ func (x *RoomRemovedFromGroupEvent) GetRoomId() string {
 	return ""
 }
 
-// RoomsInGroupReorderedEvent reports the complete room order in a group.
+// RoomsInGroupReorderedEvent reports the visible room order in a group.
 type RoomsInGroupReorderedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the reordered room group.
 	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	// Complete ordered list of room IDs.
+	// Complete ordered list of room IDs that the caller can see.
 	RoomIds       []string `protobuf:"bytes,2,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -669,12 +669,12 @@ func (x *SidebarGroupEntryReference) GetId() string {
 	return ""
 }
 
-// SidebarGroupEntriesReorderedEvent reports the complete mixed group order.
+// SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
 type SidebarGroupEntriesReorderedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the reordered room group.
 	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	// Complete mixed order of rooms and sidebar links.
+	// Complete mixed order of visible rooms and sidebar links.
 	Entries       []*SidebarGroupEntryReference `protobuf:"bytes,2,rep,name=entries,proto3" json:"entries,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

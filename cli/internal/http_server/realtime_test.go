@@ -261,6 +261,64 @@ func TestRealtimeInternalDurableEventIsOmitted(t *testing.T) {
 	}
 }
 
+func TestRealtimeRoomGroupEventsDoNotExposeHiddenRoomIDs(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "group-owner", "Group Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := env.core.AssignServerRole(env.ctx, core.SystemActorID, owner.GetId(), core.RoleOwner); err != nil {
+		t.Fatalf("AssignServerRole: %v", err)
+	}
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "group-viewer", "Group Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	visibleRoom, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "Visible", "")
+	if err != nil {
+		t.Fatalf("CreateRoom visible: %v", err)
+	}
+	hiddenRoom, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "Hidden", "")
+	if err != nil {
+		t.Fatalf("CreateRoom hidden: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, hiddenRoom.GetId(), core.RoleEveryone, core.PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	hiddenAdded := &evtv1.Event{Event: &evtv1.Event_RoomAddedToGroup{
+		RoomAddedToGroup: &evtv1.RoomAddedToGroupEvent{GroupId: "group", RoomId: hiddenRoom.GetId()},
+	}}
+	_, err = env.httpServer.realtimeServerFrameForEvent(env.ctx, viewer.GetId(), core.NewEVTEventEnvelopeWithDeliverySeq(hiddenAdded, 42))
+	if !errors.Is(err, errRealtimeEventOmitted) {
+		t.Fatalf("hidden room-added event error = %v, want intentional omission", err)
+	}
+
+	mixedOrder := &evtv1.Event{Event: &evtv1.Event_SidebarGroupEntriesReordered{
+		SidebarGroupEntriesReordered: &evtv1.SidebarGroupEntriesReorderedEvent{
+			GroupId: "group",
+			Entries: []*evtv1.SidebarGroupEntry{
+				{Kind: evtv1.SidebarGroupEntry_ROOM, Id: visibleRoom.GetId()},
+				{Kind: evtv1.SidebarGroupEntry_ROOM, Id: hiddenRoom.GetId()},
+				{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: "link"},
+			},
+		},
+	}}
+	frame, err := env.httpServer.realtimeServerFrameForEvent(env.ctx, viewer.GetId(), core.NewEVTEventEnvelopeWithDeliverySeq(mixedOrder, 43))
+	if err != nil {
+		t.Fatalf("mixed room-group event: %v", err)
+	}
+	entries := frame.GetEvent().GetSidebarGroupEntriesReordered().GetEntries()
+	if len(entries) != 2 || entries[0].GetId() != visibleRoom.GetId() || entries[1].GetId() != "link" {
+		t.Fatalf("authorized entries = %+v, want visible room and link only", entries)
+	}
+	for _, entry := range entries {
+		if entry.GetId() == hiddenRoom.GetId() {
+			t.Fatalf("authorized entries expose hidden room ID %q", hiddenRoom.GetId())
+		}
+	}
+}
+
 func TestRealtimeInternalEncryptedEventIsOmitted(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "internal-email", "Internal Email", "password123")

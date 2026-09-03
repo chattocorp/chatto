@@ -886,6 +886,13 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
+	visible, err := s.filterRealtimeEventFields(ctx, viewerID, projected)
+	if err != nil {
+		return nil, fmt.Errorf("authorize realtime event fields: %w", err)
+	}
+	if !visible {
+		return nil, errRealtimeEventOmitted
+	}
 	plaintext, err := s.core.ResolveEventPlaintext(ctx, canonical)
 	if err != nil {
 		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
@@ -899,4 +906,68 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		projected.ResumeCursor = &cursor
 	}
 	return projected, nil
+}
+
+// filterRealtimeEventFields applies viewer-dependent authorization to fields
+// in a newly projected public event. It returns false when no authorized
+// payload remains. Event-level authorization remains in the event hub.
+func (s *HTTPServer) filterRealtimeEventFields(ctx context.Context, viewerID string, event *realtimev1.RealtimeEvent) (bool, error) {
+	if event == nil {
+		return false, nil
+	}
+	switch event.GetEvent().(type) {
+	case *realtimev1.RealtimeEvent_RoomAddedToGroup,
+		*realtimev1.RealtimeEvent_RoomRemovedFromGroup,
+		*realtimev1.RealtimeEvent_RoomsInGroupReordered,
+		*realtimev1.RealtimeEvent_SidebarGroupEntriesReordered:
+		// These payloads can contain room IDs that the canonical event knows
+		// about but the current viewer cannot see. Use the same visibility
+		// source as the room and room-group resource APIs.
+	default:
+		return true, nil
+	}
+
+	rooms, err := s.core.RoomDirectoryReads().ListRooms(ctx, viewerID, core.RoomDirectoryListOptions{
+		IncludeChannels: true,
+	})
+	if err != nil {
+		return false, err
+	}
+	visibleRoomIDs := make(map[string]struct{}, len(rooms))
+	for _, room := range rooms {
+		if room != nil && room.Room != nil && room.Room.GetId() != "" {
+			visibleRoomIDs[room.Room.GetId()] = struct{}{}
+		}
+	}
+	isVisible := func(roomID string) bool {
+		_, ok := visibleRoomIDs[roomID]
+		return ok
+	}
+
+	switch payload := event.GetEvent().(type) {
+	case *realtimev1.RealtimeEvent_RoomAddedToGroup:
+		return isVisible(payload.RoomAddedToGroup.GetRoomId()), nil
+	case *realtimev1.RealtimeEvent_RoomRemovedFromGroup:
+		return isVisible(payload.RoomRemovedFromGroup.GetRoomId()), nil
+	case *realtimev1.RealtimeEvent_RoomsInGroupReordered:
+		roomIDs := payload.RoomsInGroupReordered.GetRoomIds()
+		visible := make([]string, 0, len(roomIDs))
+		for _, roomID := range roomIDs {
+			if isVisible(roomID) {
+				visible = append(visible, roomID)
+			}
+		}
+		payload.RoomsInGroupReordered.RoomIds = visible
+	case *realtimev1.RealtimeEvent_SidebarGroupEntriesReordered:
+		entries := payload.SidebarGroupEntriesReordered.GetEntries()
+		visible := make([]*realtimev1.SidebarGroupEntryReference, 0, len(entries))
+		for _, entry := range entries {
+			if entry.GetKind() == realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_ROOM && !isVisible(entry.GetId()) {
+				continue
+			}
+			visible = append(visible, entry)
+		}
+		payload.SidebarGroupEntriesReordered.Entries = visible
+	}
+	return true, nil
 }
