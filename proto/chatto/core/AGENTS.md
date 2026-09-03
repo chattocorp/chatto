@@ -3,17 +3,12 @@
 The nearest package directory identifies each message's lifecycle and storage
 contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
-## Public Realtime Payloads
+## Public Realtime Boundary
 
-Realtime protocol 4 uses selected payload messages from this package in the
-public `chatto.realtime.v1.RealtimeEvent` union. The union and
-`event_field_surface` options define what the server can send. Do not publish
-the complete core Event union or storage-only fields as a public reference.
-
-Payload messages in the public union have both contracts: they must remain
-readable as stored data, and public protocol changes need the realtime
-compatibility review. The package name does not authorize all core messages
-for public delivery.
+Do not use messages from this package as public realtime payloads. Realtime
+protocol 4 maps selected canonical events to dedicated payloads in
+`chatto/realtime/v1/events.proto`. A stored field must not become public only
+because it exists in a canonical event.
 
 ## Package Ownership
 
@@ -21,8 +16,6 @@ for public delivery.
   event variants, and values that are part of those events. Durable variants
   keep their stored compatibility contract. Transient variants use the
   reserved 20000 through 29999 oneof tag range and must not enter EVT.
-- `event/v1` owns protobuf options that classify Event fields for storage and
-  authorized public delivery.
 - `notification/v1` owns the bounded `NOTIFICATIONS` envelope and lifecycle
   facts.
 - `runtime_state/v1` owns durable latest-value records in `RUNTIME_STATE`.

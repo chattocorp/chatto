@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -278,19 +277,19 @@ var File_chatto_core_evt_v1_thread_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_thread_events_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/core/evt/v1/thread_events.proto\x12\x12chatto.core.evt.v1\x1a\"chatto/core/event/v1/options.proto\"j\n" +
-	"\x12ThreadCreatedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x125\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x11threadRootEventId\"\xd0\x01\n" +
-	"\x13ThreadFollowedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x125\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x11threadRootEventId\x12\x1d\n" +
-	"\auser_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12D\n" +
-	"\x06source\x18\x04 \x01(\x0e2&.chatto.core.evt.v1.ThreadFollowSourceB\x04\x88\xb5\x18\x01R\x06source\"\x8c\x01\n" +
-	"\x15ThreadUnfollowedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x125\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x11threadRootEventId\x12\x1d\n" +
-	"\auser_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId*\xff\x01\n" +
+	"&chatto/core/evt/v1/thread_events.proto\x12\x12chatto.core.evt.v1\"^\n" +
+	"\x12ThreadCreatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"\xb8\x01\n" +
+	"\x13ThreadFollowedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId\x12>\n" +
+	"\x06source\x18\x04 \x01(\x0e2&.chatto.core.evt.v1.ThreadFollowSourceR\x06source\"z\n" +
+	"\x15ThreadUnfollowedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x12\x17\n" +
+	"\auser_id\x18\x03 \x01(\tR\x06userId*\xff\x01\n" +
 	"\x12ThreadFollowSource\x12$\n" +
 	" THREAD_FOLLOW_SOURCE_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bTHREAD_FOLLOW_SOURCE_MANUAL\x10\x01\x12%\n" +

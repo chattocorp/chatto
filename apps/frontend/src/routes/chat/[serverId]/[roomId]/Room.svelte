@@ -378,7 +378,6 @@
         if (semantic.value.roomId === roomId) void roomMembersStore.refresh();
         return;
       case 'userAccountDeleted':
-      case 'serverMemberDeleted':
       case 'serverMemberDeletedSync':
       case 'userCreatedSync':
       case 'userProfileSync':

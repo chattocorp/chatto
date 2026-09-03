@@ -159,8 +159,5 @@ func validateEvent(event *evtv1.Event) error {
 	if EventTypeOf(event) == "" {
 		return fmt.Errorf("%w: %T is not a durable EVT event type", ErrInvalidEvent, event.GetEvent())
 	}
-	if err := validateStoredEventFields(event.ProtoReflect(), "event"); err != nil {
-		return err
-	}
 	return nil
 }

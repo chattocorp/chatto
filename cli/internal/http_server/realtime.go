@@ -848,14 +848,14 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			return nil, core.ErrPermissionDenied
 		}
 	}
-	deliverySource, ok := proto.Clone(canonical).(*evtv1.Event)
-	if !ok {
-		return nil, errors.New("clone canonical realtime event")
+	plaintext, err := s.core.ResolveEventPlaintext(ctx, canonical)
+	if err != nil {
+		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
 	}
-	if err := s.core.PopulateEventPlaintext(ctx, deliverySource); err != nil {
-		return nil, fmt.Errorf("populate realtime event plaintext: %w", err)
+	projected, err := projectRealtimeEvent(canonical, plaintext)
+	if err != nil {
+		return nil, err
 	}
-	projected := projectRealtimeEvent(deliverySource)
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}

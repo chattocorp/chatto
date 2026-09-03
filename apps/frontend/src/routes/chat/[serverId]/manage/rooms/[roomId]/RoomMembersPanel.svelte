@@ -198,7 +198,6 @@
     const semantic = event.event?.event;
     if (
       semantic?.case === 'userAccountDeleted' ||
-      semantic?.case === 'serverMemberDeleted' ||
       semantic?.case === 'serverMemberDeletedSync'
     ) {
       const userId = semantic.value.userId;

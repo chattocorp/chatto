@@ -1,4 +1,3 @@
-import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TransientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
@@ -45,16 +44,6 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEve
     default:
       return null;
   }
-}
-
-/** Convert the public wire union to the canonical shape used by local reducers. */
-export function realtimeEventToCanonicalEvent(source: RealtimeEvent): Event {
-  return new Event({
-    id: source.id,
-    createdAt: source.createdAt,
-    actorId: source.actorId,
-    event: source.event
-  });
 }
 
 function presenceStatusFromSignal(status: string): PresenceStatus {

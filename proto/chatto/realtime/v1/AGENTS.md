@@ -10,6 +10,13 @@ protocol at `/api/realtime`.
 - Do not add unary ConnectRPC services here.
 - Prefer importing stable public enums/messages from `chatto.api.v1` over
   duplicating shared client-visible semantics.
+- Keep all client-visible event payloads in `events.proto`. These messages are
+  the public event catalogue and must not import `chatto.core` payload types.
+- Public payloads contain only fields that a client can receive. Do not add
+  storage placeholders, encrypted fields, key references, private moderation
+  data, or runtime field-redaction annotations.
+- Put decrypted delivery values in public `*_plaintext` fields. Do not add
+  those fields to EVT messages.
 - In comments, describe wire behavior, connection lifecycle, authentication,
   and reconnect or catch-up behavior.
 
@@ -33,7 +40,12 @@ protocol at `/api/realtime`.
   because common event metadata and the cursor remain outside the event
   `oneof`. Use a new behavioral protocol version when a new variant needs
   required client behavior.
-- `RealtimeEvent.event` is the public variant catalogue. Each member must use
-  the same name, field number, and payload message as its matching canonical
-  Event member. Do not add a second public payload message for the same
-  semantics.
+- `RealtimeEvent.event` is the public variant catalogue. Keep each member's
+  name and field number aligned with its matching canonical Event member.
+- When a new canonical event must reach clients, update `events.proto`, the
+  `RealtimeEvent.event` union, the exhaustive mapper tests, the frontend event
+  reducer or reconciliation path, generated clients, architecture and public
+  documentation, and compatibility notes in the same change.
+- Live delivery and replay must use the same canonical-to-public mapper. A
+  public union member without a valid mapping must fail tests and fail closed
+  at runtime.

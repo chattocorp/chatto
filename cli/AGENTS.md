@@ -239,10 +239,12 @@ authorization, live events, backup and restore, and backend tests.
   and stale-event suppression to authoritative EVT stream sequences.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
-- New live event types usually require protobuf, publishing, authorization,
-  realtime mapping, frontend subscription handling, and tests. If a visible room
-  timeline event is added, update the Connect timeline assembler and mapping
-  tests.
+- New client-visible event types require a dedicated payload in
+  `proto/chatto/realtime/v1/events.proto`, a matching `RealtimeEvent` union
+  member, authorization and mapping coverage, frontend subscription handling,
+  generated clients, documentation, and tests. Keep the public union member's
+  name and number aligned with the canonical event. If a visible room timeline
+  event is added, also update the Connect timeline assembler and mapping tests.
 
 ## Authorization And RBAC
 

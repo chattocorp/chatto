@@ -89,17 +89,19 @@ The optional `resume_cursor` is outside the payload `oneof`. A public event
 does not contain broker coordinates.
 
 The public union contains only event variants that are part of the realtime
-API. Each union member reuses the canonical EVT or live payload message and
-field number. The complete stored Event union is not part of the public API.
+API. Each union member uses a dedicated public payload and keeps the matching
+canonical event name and field number. Shared payload fields keep compatible
+wire numbers and types. The complete stored Event union is not part of the
+public API.
 
-The server omits internal event variants and storage-only fields. It can add
-authorized delivery-only `_plaintext` fields. It never sends raw EVT bytes,
-ciphertext, credential data, subjects, or JetStream sequences.
+Internal event variants and storage-only fields do not exist in the public
+schema. The server can add authorized public-only `_plaintext` fields. It never
+sends raw EVT bytes, ciphertext, credential data, storage pointers, subjects,
+or JetStream sequences.
 
-Field surfaces are static exposure classes. Event authorization makes every
-delivered shared or client-only field safe for that viewer. The protocol does
-not currently define viewer-specific visibility for one field inside an
-otherwise authorized event.
+Event authorization makes every delivered field safe for that viewer. The
+protocol does not currently define viewer-specific visibility for one field
+inside an otherwise authorized event.
 
 `MessagePostedEvent.body_plaintext` lets a client show a new message without
 waiting for another request. The event does not duplicate the complete message

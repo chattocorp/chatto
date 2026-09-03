@@ -21,7 +21,7 @@ import {
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { BatchGetUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
-import { UserTypingEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
+import { UserTypingSignalEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import {
   eventBusManager,
   setRealtimePollRandomForTests,
@@ -218,7 +218,7 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
       actorId: 'user-1',
       event: {
         case: 'userTypingSignal',
-        value: new UserTypingEvent({ roomId: 'room-1' })
+        value: new UserTypingSignalEvent({ roomId: 'room-1' })
       }
     })
   });

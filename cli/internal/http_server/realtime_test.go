@@ -226,8 +226,8 @@ func TestRealtimeDurableEventHasPublicShapeAndOpaqueCursor(t *testing.T) {
 	if bioChanged.GetBioPlaintext() != "new bio" {
 		t.Fatalf("bio_plaintext = %q, want decrypted delivery value", bioChanged.GetBioPlaintext())
 	}
-	if bioChanged.GetEncryptedBio() != nil {
-		t.Fatal("realtime event exposed encrypted_bio")
+	if field := bioChanged.ProtoReflect().Descriptor().Fields().ByName("encrypted_bio"); field != nil {
+		t.Fatalf("realtime event schema exposes %s", field.FullName())
 	}
 	resumeCursor := frame.GetEvent().GetResumeCursor()
 	if resumeCursor == "" || resumeCursor == "42" {
@@ -261,7 +261,7 @@ func TestRealtimeInternalDurableEventIsOmitted(t *testing.T) {
 	}
 }
 
-func TestRealtimeInternalEncryptedEventIsOmittedBeforePlaintextPopulation(t *testing.T) {
+func TestRealtimeInternalEncryptedEventIsOmitted(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "internal-email", "Internal Email", "password123")
 	if err != nil {
@@ -280,18 +280,13 @@ func TestRealtimeInternalEncryptedEventIsOmittedBeforePlaintextPopulation(t *tes
 			},
 		},
 	}
-	plaintextCandidate := proto.Clone(event).(*evtv1.Event)
-	if err := env.core.PopulateEventPlaintext(env.ctx, plaintextCandidate); err == nil {
-		t.Fatal("PopulateEventPlaintext() accepted malformed ciphertext; test does not exercise the ordering invariant")
-	}
-
 	_, err = env.httpServer.realtimeServerFrameForEvent(
 		env.ctx,
 		viewer.GetId(),
 		core.NewEVTEventEnvelopeWithDeliverySeq(event, 42),
 	)
 	if !errors.Is(err, errRealtimeEventOmitted) {
-		t.Fatalf("realtimeServerFrameForEvent() error = %v, want omission before malformed ciphertext is decrypted", err)
+		t.Fatalf("realtimeServerFrameForEvent() error = %v, want internal event omission", err)
 	}
 }
 

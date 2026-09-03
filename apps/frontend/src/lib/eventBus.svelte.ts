@@ -10,7 +10,7 @@
 import { SvelteSet } from 'svelte/reactivity';
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { eventBusManager } from './state/server/eventBus.svelte';
-import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RealtimeResource, RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import {
   TransientEventKind,
@@ -20,10 +20,10 @@ import {
 } from '$lib/realtimeEvents';
 
 export type EventHandler = (event: TransientEventEnvelope) => void;
-/** One ordered event or canonical resource response consumed by the frontend. */
+/** One ordered public event or canonical resource response consumed by the frontend. */
 export class RealtimeProjectionUpdate {
   /** Semantic source event. Resource responses do not have one. */
-  readonly event: Event | null;
+  readonly event: RealtimeEvent | null;
   /** Authorized canonical resource response, when this is a resource update. */
   readonly resource: RealtimeResource | null;
   /** Whether this response replaces the complete resource family. */
@@ -35,7 +35,7 @@ export class RealtimeProjectionUpdate {
 
   constructor(
     init: {
-      event?: Event | null;
+      event?: RealtimeEvent | null;
       resource?: RealtimeResourceUpdate | null;
       cursor?: string | null;
       reset?: boolean;
@@ -49,7 +49,7 @@ export class RealtimeProjectionUpdate {
     this.reset = init.reset ?? false;
     this.event =
       init.event ??
-      (init.id || init.actorId ? new Event({ id: init.id, actorId: init.actorId }) : null);
+      (init.id || init.actorId ? new RealtimeEvent({ id: init.id, actorId: init.actorId }) : null);
   }
 }
 export type ProjectionHandler = (update: RealtimeProjectionUpdate) => void;

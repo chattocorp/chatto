@@ -5,8 +5,8 @@ import { render } from 'vitest-browser-svelte';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
-import { RoomDeletedEvent } from '@chatto/api-types/core/evt/v1/room_events_pb';
+import { RoomDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -190,7 +190,7 @@ function roomSnapshot(present = true): RealtimeProjectionUpdate {
 
 function roomRemoved(): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new CanonicalEvent({
+    event: new PublicRealtimeEvent({
       event: {
         case: 'roomDeleted',
         value: new RoomDeletedEvent({ roomId: 'shared-room' })

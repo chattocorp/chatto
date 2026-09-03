@@ -10,7 +10,6 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	v1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	reflect "reflect"
 	sync "sync"
@@ -2577,12 +2576,12 @@ var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a\"chatto/core/event/v1/options.proto\x1a%chatto/core/live/v1/live_events.proto\"\x8a\x81\x01\n" +
-	"\x05Event\x12\x14\n" +
-	"\x02id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x02id\x12?\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a%chatto/core/live/v1/live_events.proto\"\xf8\x80\x01\n" +
+	"\x05Event\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
-	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x04\x88\xb5\x18\x01R\tcreatedAt\x12\x1f\n" +
-	"\bactor_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\aactorId\x12J\n" +
+	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12J\n" +
 	"\froom_created\x18\xac\x02 \x01(\v2$.chatto.core.evt.v1.RoomCreatedEventH\x00R\vroomCreated\x12J\n" +
 	"\froom_updated\x18\xad\x02 \x01(\v2$.chatto.core.evt.v1.RoomUpdatedEventH\x00R\vroomUpdated\x12J\n" +
 	"\froom_deleted\x18\xae\x02 \x01(\v2$.chatto.core.evt.v1.RoomDeletedEventH\x00R\vroomDeleted\x12M\n" +

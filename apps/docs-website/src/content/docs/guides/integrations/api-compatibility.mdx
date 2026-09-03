@@ -44,14 +44,15 @@ the 0.5 alpha. It uses exact canonical-resource snapshots, authorized public
 events, explicit `SNAPSHOT` or `LIVE_ONLY` startup, targeted cursor-bounded
 ConnectRPC reads, and bounded cursor resume. Normal event frames contain one
 `chatto.realtime.v1.RealtimeEvent`. Its public payload union and optional opaque
-cursor are sibling fields. Public union members reuse canonical payload
-messages. Regenerate clients and update the handshake and reducers together.
+cursor are sibling fields. Public union members use dedicated public payloads
+and keep the matching canonical event names and numbers. Regenerate clients
+and update the handshake and reducers together.
 
 Existing public event variants keep the canonical protobuf field encoding
 because their metadata and payload fields keep the canonical numbers and
 types. The optional cursor uses a separate field. The generated source type
-changes from the complete canonical Event to `RealtimeEvent`, so integrations
-must still regenerate their clients.
+changes from canonical payload messages to dedicated realtime payload
+messages, so integrations must regenerate their clients.
 
 The `chatto.realtime.v1` protobuf package name does not select behavioral
 protocol version 1. The `hello.protocol_version` field selects the complete

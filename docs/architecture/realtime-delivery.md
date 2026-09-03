@@ -3,6 +3,7 @@
 Key files:
 
 - [`realtime.proto`](../../proto/chatto/realtime/v1/realtime.proto)
+- [`events.proto`](../../proto/chatto/realtime/v1/events.proto)
 - [`realtime.go`](../../cli/internal/http_server/realtime.go)
 - [`realtime_consistency.go`](../../cli/internal/connectapi/realtime_consistency.go)
 - [`eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
@@ -61,19 +62,23 @@ Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the
 complete frame.
 
-The `RealtimeEvent.event` union is the event-level catalogue. Each member has
-the same name, field number, and payload message as its canonical event. A
-missing member keeps an internal variant out of the public API. Protobuf
-field-surface options allow shared, storage-only, and client-only fields.
-Unspecified payload fields are denied by default. The server creates a fresh
-public value and does not retain unknown fields. Authorized delivery-only
-decrypted values use `_plaintext` fields. Public events do not expose raw EVT
-bytes, ciphertext, subjects, stream identities, or sequence numbers.
+The `RealtimeEvent.event` union and `events.proto` are the public catalogue.
+Each union member has the same name and field number as its canonical event.
+Shared payload fields keep compatible names, numbers, types, cardinality,
+presence, and oneof membership. A missing union member keeps an internal
+variant out of the public API. A missing public payload field keeps an internal
+field out of the generated client types.
 
-Field surfaces are static. They do not make viewer-specific authorization
-decisions. Event-level authorization must make every delivered shared or
-client-only field safe for that viewer. A future field with narrower visibility
-needs an explicit viewer-aware projection rule or a separate authorized shape.
+After event authorization, the server serializes the canonical payload into a
+new dedicated public payload and discards undeclared fields. It then adds
+trusted decrypted values to public-only `_plaintext` fields. The matching EVT
+messages reserve these public-only names and numbers. Public events do not
+expose raw EVT bytes, ciphertext, nonces, storage pointers, private moderation
+data, subjects, stream identities, or sequence numbers.
+
+Event authorization must make every delivered field safe for that viewer. A
+future field with narrower visibility needs an explicit viewer-aware mapping
+rule or a separate authorized shape.
 
 An authorized message-post event carries `body_plaintext` for immediate
 display. EVT does not store this field. The frontend inserts a temporary

@@ -374,10 +374,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   notifications as phantom DMs.
 - App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
-- Realtime uses one canonical payload vocabulary for stored, live, and public events. An
-  explicit public union excludes internal event variants. The WebSocket sends an exact, bounded
-  resource snapshot and then sends public events. Clients use ConnectRPC for resources that are
-  not in the snapshot and for details that are not in an event.
+- Realtime uses one canonical internal event envelope and a dedicated public payload catalogue.
+  The explicit public union excludes internal event variants and storage-only fields. The
+  WebSocket sends an exact, bounded resource snapshot and then sends public events. Clients use
+  ConnectRPC for resources that are not in the snapshot and for details that are not in an event.
 
 ### Administration and interface polish
 

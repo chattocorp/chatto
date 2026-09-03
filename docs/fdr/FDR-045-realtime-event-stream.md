@@ -21,10 +21,11 @@ the stream to build and maintain its local server projection.
   including messages, edits, retractions, reactions, membership, rooms,
   profiles, calls, and other public domain changes.
 - Public events contain the canonical event ID, source time, visible actor ID,
-  a canonical payload message, and an optional opaque resume cursor. These are
-  sibling fields in the public event shape.
-- The server omits internal events, removes storage-only fields, and can add
-  authorized client-only `_plaintext` fields. It never sends raw EVT bytes.
+  a dedicated public payload message, and an optional opaque resume cursor.
+  These are sibling fields in the public event shape.
+- The server omits internal events. Storage-only fields do not exist in the
+  public payload schema. Authorized `_plaintext` fields exist only in public
+  payloads. The server never sends raw EVT bytes.
 - A client can ignore an event type that it does not use and still retain the
   event cursor.
 - Typing, presence transitions, and other transient activity are live-only.
@@ -52,24 +53,26 @@ the stream to build and maintain its local server projection.
 
 ## Design Decisions
 
-### 1. One semantic event vocabulary serves all clients
+### 1. One semantic event catalogue serves all clients
 
 **Decision:** Durable EVT facts and transient NATS Core signals use
 `chatto.core.evt.v1.Event`. Realtime uses the explicit
-`chatto.realtime.v1.RealtimeEvent.event` union. Each public member reuses the
-matching canonical payload message, name, and field number. Chatto does not
-provide a frontend-only mutation feed or duplicate public payload messages.
+`chatto.realtime.v1.RealtimeEvent.event` union and dedicated payloads in
+`chatto/realtime/v1/events.proto`. Each public member keeps the matching
+canonical event name and field number. Shared fields keep compatible wire
+numbers and types. Chatto does not provide a frontend-only mutation feed.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
-models from disagreeing. Existing EVT compatibility also gives reused payload
-messages a strong additive contract. The public union makes event exposure
-visible in the schema. See ADR-091 and ADR-092.
-**Tradeoff:** Every public event and field needs an explicit authorization and
-surface decision. The storage publisher must reject delivery-only fields.
-Field surfaces are static exposure classes. Viewer-specific field policy is not
-part of this version. Event authorization must make all delivered fields safe;
-a future narrower field needs an explicit viewer-aware projection rule or a
-separate authorized shape.
+models from disagreeing. The public union and payload file make all exposure
+visible in the schema. Exhaustive descriptor tests keep the public and
+canonical wire relationships aligned. See ADR-091 and ADR-092.
+**Tradeoff:** A new client-visible event needs a public payload declaration,
+union member, mapper coverage, reducer handling, generated clients, and
+documentation. This small duplication keeps storage fields out of the public
+type system and removes field decorators from the EVT schema. Viewer-specific
+field policy is not part of this version. Event authorization must make every
+delivered field safe. A future narrower field needs an explicit viewer-aware
+mapping rule or a separate authorized shape.
 
 ### 2. Initial state is explicit
 

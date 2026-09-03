@@ -6,9 +6,9 @@ Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/s
 [`pkg/events/mutation.go`](../../pkg/events/mutation.go),
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/evt/v1/event.proto`](../../proto/chatto/core/evt/v1/event.proto),
-[`proto/chatto/core/event/v1/options.proto`](../../proto/chatto/core/event/v1/options.proto),
 [`proto/chatto/core/notification/v1/notification.proto`](../../proto/chatto/core/notification/v1/notification.proto),
 [`proto/chatto/core/live/v1/live_events.proto`](../../proto/chatto/core/live/v1/live_events.proto),
+[`proto/chatto/realtime/v1/events.proto`](../../proto/chatto/realtime/v1/events.proto),
 and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
@@ -25,7 +25,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 
 Chatto uses `evtv1.Event` as the canonical wrapper for durable EVT facts and
 transient NATS Core signals. The publisher selects durability. The EVT storage
-boundary rejects transient variants and client-only fields.
+boundary rejects transient variants.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
 - **Concrete event**: `event` oneof on the canonical envelope; contextual fields (`room_id`, etc.) live on the concrete payloads.
@@ -40,9 +40,9 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 | Package | Contents | Safety |
 | ---- | -------- | ------ |
 | `chatto.core.evt.v1` | Canonical `Event` wrapper, durable facts, transient variants, and fact-owned values | Existing durable field numbers and structures are stored in JetStream and need storage compatibility; transient variants cannot enter EVT |
-| `chatto.core.event.v1` | Event field-surface protobuf options | Options control storage and authorized realtime projection |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
 | `chatto.core.live.v1` | Transient payload messages carried by the canonical Event | Records are not stored, but changes need rolling-wire review |
+| `chatto.realtime.v1` | Public event union and dedicated public payload catalogue | Contains only client-visible fields; names, union numbers, and shared field wire shapes stay aligned with selected canonical events |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
 in-process realtime delivery interface. Private implementations let it carry a

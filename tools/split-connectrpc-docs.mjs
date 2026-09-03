@@ -301,8 +301,8 @@ function dedupeInlineMethodTypes(content) {
   return output;
 }
 
-function isRealtimeType(name) {
-  return name.startsWith('Realtime');
+function isRealtimeType(section) {
+  return section.anchor.startsWith('chatto-realtime-v1-');
 }
 
 function renderPage(title, description, body) {
@@ -551,14 +551,10 @@ function renderServicePage(service, serviceSections) {
 
 function renderTypesPage(typeSections, enumSections) {
   const normalTypes = [...typeSections.entries()]
-    .filter(([, section]) => !isRealtimeType(section.name))
+    .filter(([, section]) => !isRealtimeType(section))
     .map(([, section]) => section.content);
   const normalEnums = [...enumSections.entries()]
-    .filter(
-      ([, section]) =>
-        !isRealtimeType(section.name) &&
-        section.anchor !== 'chatto-core-event-v1-EventFieldSurface'
-    )
+    .filter(([, section]) => !isRealtimeType(section))
     .map(([, section]) => section.content);
 
   const body = [
@@ -582,10 +578,10 @@ function renderTypesPage(typeSections, enumSections) {
 
 function renderRealtimePage(typeSections, enumSections) {
   const realtimeTypes = [...typeSections.entries()]
-    .filter(([, section]) => isRealtimeType(section.name))
+    .filter(([, section]) => isRealtimeType(section))
     .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
   const realtimeEnums = [...enumSections.entries()]
-    .filter(([, section]) => isRealtimeType(section.name))
+    .filter(([, section]) => isRealtimeType(section))
     .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
 
   const body = [
@@ -593,7 +589,7 @@ function renderRealtimePage(typeSections, enumSections) {
     '',
     'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
     '',
-    'This page is the field-level frame reference. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists the public event variants. Generated clients provide the reused canonical payload types.',
+    'This page is the field-level frame reference. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists the public event variants. Their dedicated public payload types are defined on this page.',
     '',
     'Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',

@@ -3,8 +3,8 @@ import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { render } from 'vitest-browser-svelte';
 import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
-import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
-import { NotificationOccurrencesInvalidatedEvent } from '@chatto/api-types/core/live/v1/live_events_pb';
+import { NotificationOccurrencesInvalidatedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => ({
@@ -105,7 +105,7 @@ function dispatch(
   serverId: 'origin' | 'remote' = 'origin'
 ) {
   const event = new RealtimeProjectionUpdate({
-    event: new Event({
+    event: new RealtimeEvent({
       id: eventId,
       event: {
         case: 'notificationOccurrencesInvalidated',

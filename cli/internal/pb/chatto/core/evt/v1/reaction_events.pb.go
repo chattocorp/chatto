@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -152,15 +151,15 @@ var File_chatto_core_evt_v1_reaction_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_reaction_events_proto_rawDesc = "" +
 	"\n" +
-	"(chatto/core/evt/v1/reaction_events.proto\x12\x12chatto.core.evt.v1\x1a\"chatto/core/event/v1/options.proto\"\x8f\x01\n" +
-	"\x12ReactionAddedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12.\n" +
-	"\x10message_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\x12\x1a\n" +
-	"\x05emoji\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x91\x01\n" +
-	"\x14ReactionRemovedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12.\n" +
-	"\x10message_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\x12\x1a\n" +
-	"\x05emoji\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x05emojiJ\x04\b\x01\x10\x02R\bspace_idB\xce\x01\n" +
+	"(chatto/core/evt/v1/reaction_events.proto\x12\x12chatto.core.evt.v1\"}\n" +
+	"\x12ReactionAddedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x7f\n" +
+	"\x14ReactionRemovedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_idB\xce\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x13ReactionEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (

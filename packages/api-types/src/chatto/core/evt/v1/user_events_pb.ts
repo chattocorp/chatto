@@ -114,16 +114,6 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
    */
   encryptedDisplayName?: EncryptedUserString;
 
-  /**
-   * @generated from field: optional string login_plaintext = 12;
-   */
-  loginPlaintext?: string;
-
-  /**
-   * @generated from field: optional string display_name_plaintext = 13;
-   */
-  displayNamePlaintext?: string;
-
   constructor(data?: PartialMessage<UserAccountCreatedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -137,8 +127,6 @@ export class UserAccountCreatedEvent extends Message<UserAccountCreatedEvent> {
     { no: 3, name: "bot_owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "encrypted_login", kind: "message", T: EncryptedUserString },
     { no: 11, name: "encrypted_display_name", kind: "message", T: EncryptedUserString },
-    { no: 12, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 13, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserAccountCreatedEvent {
@@ -623,11 +611,6 @@ export class UserLoginChangedEvent extends Message<UserLoginChangedEvent> {
    */
   encryptedLogin?: EncryptedUserString;
 
-  /**
-   * @generated from field: optional string login_plaintext = 11;
-   */
-  loginPlaintext?: string;
-
   constructor(data?: PartialMessage<UserLoginChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -638,7 +621,6 @@ export class UserLoginChangedEvent extends Message<UserLoginChangedEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "encrypted_login", kind: "message", T: EncryptedUserString },
-    { no: 11, name: "login_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserLoginChangedEvent {
@@ -672,11 +654,6 @@ export class UserDisplayNameChangedEvent extends Message<UserDisplayNameChangedE
    */
   encryptedDisplayName?: EncryptedUserString;
 
-  /**
-   * @generated from field: optional string display_name_plaintext = 11;
-   */
-  displayNamePlaintext?: string;
-
   constructor(data?: PartialMessage<UserDisplayNameChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -687,7 +664,6 @@ export class UserDisplayNameChangedEvent extends Message<UserDisplayNameChangedE
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "encrypted_display_name", kind: "message", T: EncryptedUserString },
-    { no: 11, name: "display_name_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserDisplayNameChangedEvent {
@@ -725,11 +701,6 @@ export class UserBioChangedEvent extends Message<UserBioChangedEvent> {
    */
   encryptedBio?: EncryptedUserString;
 
-  /**
-   * @generated from field: optional string bio_plaintext = 11;
-   */
-  bioPlaintext?: string;
-
   constructor(data?: PartialMessage<UserBioChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -740,7 +711,6 @@ export class UserBioChangedEvent extends Message<UserBioChangedEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "encrypted_bio", kind: "message", T: EncryptedUserString },
-    { no: 11, name: "bio_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserBioChangedEvent {
@@ -858,11 +828,6 @@ export class UserVerifiedEmailAddedEvent extends Message<UserVerifiedEmailAddedE
    */
   encryptedEmail?: EncryptedUserString;
 
-  /**
-   * @generated from field: optional string email_plaintext = 11;
-   */
-  emailPlaintext?: string;
-
   constructor(data?: PartialMessage<UserVerifiedEmailAddedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -873,7 +838,6 @@ export class UserVerifiedEmailAddedEvent extends Message<UserVerifiedEmailAddedE
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "encrypted_email", kind: "message", T: EncryptedUserString },
-    { no: 11, name: "email_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UserVerifiedEmailAddedEvent {

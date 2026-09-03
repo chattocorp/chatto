@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1210,15 +1209,15 @@ var File_chatto_core_evt_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_config_events_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/core/evt/v1/config_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a)chatto/core/evt/v1/user_preferences.proto\x1a\"chatto/core/event/v1/options.proto\",\n" +
+	"&chatto/core/evt/v1/config_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a,chatto/core/evt/v1/notification_policy.proto\x1a)chatto/core/evt/v1/user_preferences.proto\",\n" +
 	"\x16ServerNameChangedEvent\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\"A\n" +
 	"\x1dServerDescriptionChangedEvent\x12 \n" +
 	"\vdescription\x18\x01 \x01(\tR\vdescription\"K\n" +
 	" ServerWelcomeMessageChangedEvent\x12'\n" +
-	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\"2\n" +
-	"\x16ServerMotdChangedEvent\x12\x18\n" +
-	"\x04motd\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x04motd\"Q\n" +
+	"\x0fwelcome_message\x18\x01 \x01(\tR\x0ewelcomeMessage\",\n" +
+	"\x16ServerMotdChangedEvent\x12\x12\n" +
+	"\x04motd\x18\x01 \x01(\tR\x04motd\"Q\n" +
 	"\"ServerBlockedUsernamesChangedEvent\x12+\n" +
 	"\x11blocked_usernames\x18\x01 \x01(\tR\x10blockedUsernames\"K\n" +
 	"\x12ServerLogoSetEvent\x125\n" +

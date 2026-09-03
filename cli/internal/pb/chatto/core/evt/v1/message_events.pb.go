@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -46,10 +45,7 @@ type MessagePostedEvent struct {
 	// a direct, role, presence-scoped, or room-wide mention. Derived consumers
 	// can therefore apply the correct policy without re-parsing message content
 	// or consulting newer room state.
-	Mentions []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
-	// Decrypted message text for authorized realtime delivery. EVT rejects this
-	// client-only companion, so stored MessagePostedEvent bytes stay bodyless.
-	BodyPlaintext *string `protobuf:"bytes,11,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
+	Mentions      []*MessageMention `protobuf:"bytes,10,rep,name=mentions,proto3" json:"mentions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -131,13 +127,6 @@ func (x *MessagePostedEvent) GetMentions() []*MessageMention {
 		return x.Mentions
 	}
 	return nil
-}
-
-func (x *MessagePostedEvent) GetBodyPlaintext() string {
-	if x != nil && x.BodyPlaintext != nil {
-		return *x.BodyPlaintext
-	}
-	return ""
 }
 
 type DirectUserMention struct {
@@ -889,59 +878,57 @@ var File_chatto_core_evt_v1_message_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_message_events_proto_rawDesc = "" +
 	"\n" +
-	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\"chatto/core/event/v1/options.proto\"\xe6\x03\n" +
-	"\x12MessagePostedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12$\n" +
-	"\vin_reply_to\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\tinReplyTo\x12!\n" +
-	"\tin_thread\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\binThread\x122\n" +
-	"\x12mentioned_user_ids\x18\x06 \x03(\tB\x04\x88\xb5\x18\x01R\x10mentionedUserIds\x12-\n" +
-	"\x10echo_of_event_id\x18\a \x01(\tB\x04\x88\xb5\x18\x01R\rechoOfEventId\x12G\n" +
-	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tB\x04\x88\xb5\x18\x01R\x19echoFromThreadRootEventId\x12D\n" +
+	"'chatto/core/evt/v1/message_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\x8d\x03\n" +
+	"\x12MessagePostedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1e\n" +
+	"\vin_reply_to\x18\x04 \x01(\tR\tinReplyTo\x12\x1b\n" +
+	"\tin_thread\x18\x05 \x01(\tR\binThread\x12,\n" +
+	"\x12mentioned_user_ids\x18\x06 \x03(\tR\x10mentionedUserIds\x12'\n" +
+	"\x10echo_of_event_id\x18\a \x01(\tR\rechoOfEventId\x12A\n" +
+	"\x1eecho_from_thread_root_event_id\x18\b \x01(\tR\x19echoFromThreadRootEventId\x12>\n" +
 	"\bmentions\x18\n" +
-	" \x03(\v2\".chatto.core.evt.v1.MessageMentionB\x04\x88\xb5\x18\x01R\bmentions\x120\n" +
-	"\x0ebody_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\rbodyPlaintext\x88\x01\x01B\x11\n" +
-	"\x0f_body_plaintextJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
-	"R\bspace_idR\x0fmessage_body_idR\x04body\"\x13\n" +
-	"\x11DirectUserMention\"7\n" +
-	"\x12RoleMessageMention\x12!\n" +
-	"\trole_name\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\broleName\"\x14\n" +
+	" \x03(\v2\".chatto.core.evt.v1.MessageMentionR\bmentionsJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04J\x04\b\t\x10\n" +
+	"J\x04\b\v\x10\fR\bspace_idR\x0fmessage_body_idR\x04bodyR\x0ebody_plaintext\"\x13\n" +
+	"\x11DirectUserMention\"1\n" +
+	"\x12RoleMessageMention\x12\x1b\n" +
+	"\trole_name\x18\x01 \x01(\tR\broleName\"\x14\n" +
 	"\x12HereMessageMention\"\x13\n" +
-	"\x11AllMessageMention\"\xc8\x02\n" +
-	"\x0eMessageMention\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12E\n" +
-	"\x06direct\x18\x02 \x01(\v2%.chatto.core.evt.v1.DirectUserMentionB\x04\x88\xb5\x18\x01H\x00R\x06direct\x12B\n" +
-	"\x04role\x18\x03 \x01(\v2&.chatto.core.evt.v1.RoleMessageMentionB\x04\x88\xb5\x18\x01H\x00R\x04role\x12B\n" +
-	"\x04here\x18\x04 \x01(\v2&.chatto.core.evt.v1.HereMessageMentionB\x04\x88\xb5\x18\x01H\x00R\x04here\x12?\n" +
-	"\x03all\x18\x05 \x01(\v2%.chatto.core.evt.v1.AllMessageMentionB\x04\x88\xb5\x18\x01H\x00R\x03allB\a\n" +
-	"\x05cause\"\x8d\x01\n" +
-	"\x10MessageBodyEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1f\n" +
-	"\bevent_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\aeventId\x129\n" +
-	"\x04body\x18\x03 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyB\x04\x88\xb5\x18\x02R\x04body\"`\n" +
-	"\x12MessageEditedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1f\n" +
-	"\bevent_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\aeventIdJ\x04\b\x03\x10\x04R\x04body\"u\n" +
-	"\x15MessageRetractedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1f\n" +
-	"\bevent_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\aeventId\x12\x1c\n" +
-	"\x06reason\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\x06reason\"c\n" +
-	"\x12MessagePinnedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12.\n" +
-	"\x10message_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\"e\n" +
-	"\x14MessageUnpinnedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12.\n" +
-	"\x10message_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\"\xa0\x02\n" +
-	"\x13MessageUpdatedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12,\n" +
-	"\x0fmessage_body_id\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\rmessageBodyId\x12$\n" +
-	"\vin_reply_to\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\tinReplyTo\x12!\n" +
-	"\tin_thread\x18\x06 \x01(\tB\x04\x88\xb5\x18\x01R\binThread\x12.\n" +
-	"\x10message_event_id\x18\a \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventId\x12 \n" +
-	"\bevent_id\x18\xe8\a \x01(\tB\x04\x88\xb5\x18\x01R\aeventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_idR\vsequence_id\"\xa2\x01\n" +
-	"\x13MessageDeletedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12,\n" +
-	"\x0fmessage_body_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\rmessageBodyId\x12.\n" +
-	"\x10message_event_id\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_idB\xcd\x01\n" +
+	"\x11AllMessageMention\"\xaa\x02\n" +
+	"\x0eMessageMention\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12?\n" +
+	"\x06direct\x18\x02 \x01(\v2%.chatto.core.evt.v1.DirectUserMentionH\x00R\x06direct\x12<\n" +
+	"\x04role\x18\x03 \x01(\v2&.chatto.core.evt.v1.RoleMessageMentionH\x00R\x04role\x12<\n" +
+	"\x04here\x18\x04 \x01(\v2&.chatto.core.evt.v1.HereMessageMentionH\x00R\x04here\x129\n" +
+	"\x03all\x18\x05 \x01(\v2%.chatto.core.evt.v1.AllMessageMentionH\x00R\x03allB\a\n" +
+	"\x05cause\"{\n" +
+	"\x10MessageBodyEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x123\n" +
+	"\x04body\x18\x03 \x01(\v2\x1f.chatto.core.evt.v1.MessageBodyR\x04body\"T\n" +
+	"\x12MessageEditedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventIdJ\x04\b\x03\x10\x04R\x04body\"c\n" +
+	"\x15MessageRetractedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\"W\n" +
+	"\x12MessagePinnedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Y\n" +
+	"\x14MessageUnpinnedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\xfc\x01\n" +
+	"\x13MessageUpdatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
+	"\x0fmessage_body_id\x18\x04 \x01(\tR\rmessageBodyId\x12\x1e\n" +
+	"\vin_reply_to\x18\x05 \x01(\tR\tinReplyTo\x12\x1b\n" +
+	"\tin_thread\x18\x06 \x01(\tR\binThread\x12(\n" +
+	"\x10message_event_id\x18\a \x01(\tR\x0emessageEventId\x12\x1a\n" +
+	"\bevent_id\x18\xe8\a \x01(\tR\aeventIdJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\bspace_idR\vsequence_id\"\x90\x01\n" +
+	"\x13MessageDeletedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12&\n" +
+	"\x0fmessage_body_id\x18\x03 \x01(\tR\rmessageBodyId\x12(\n" +
+	"\x10message_event_id\x18\x04 \x01(\tR\x0emessageEventIdJ\x04\b\x01\x10\x02R\bspace_idB\xcd\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x12MessageEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
@@ -993,7 +980,6 @@ func file_chatto_core_evt_v1_message_events_proto_init() {
 		return
 	}
 	file_chatto_core_evt_v1_models_proto_init()
-	file_chatto_core_evt_v1_message_events_proto_msgTypes[0].OneofWrappers = []any{}
 	file_chatto_core_evt_v1_message_events_proto_msgTypes[5].OneofWrappers = []any{
 		(*MessageMention_Direct)(nil),
 		(*MessageMention_Role)(nil),

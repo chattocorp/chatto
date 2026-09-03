@@ -226,11 +226,13 @@ directly on `live.sync.>`. Both paths use the canonical Event envelope. See
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
-union reuses canonical payload messages and field numbers. An optional cursor
-shares the event message but remains outside the payload union. The server
-omits internal variants and storage-only fields and can add client-only
-plaintext fields. Raw EVT bytes, subjects, stream identities, and sequence
-numbers are not public API. See
+union and dedicated payload file form the public event catalogue. Union names,
+numbers, and shared field wire shapes stay aligned with selected canonical
+events. An optional cursor shares the event message but remains outside the
+payload union. Internal variants and storage-only fields do not exist in the
+public schema. The server can add authorized public-only plaintext fields. Raw
+EVT bytes, subjects, stream identities, and sequence numbers are not public
+API. See
 [ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md) and
 [FDR-045](fdr/FDR-045-realtime-event-stream.md).
 

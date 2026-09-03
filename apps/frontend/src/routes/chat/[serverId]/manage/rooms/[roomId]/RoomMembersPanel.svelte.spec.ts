@@ -7,8 +7,8 @@ import {
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
-import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
-import { UserAccountDeletedEvent } from '@chatto/api-types/core/evt/v1/user_events_pb';
+import { UserAccountDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
@@ -205,7 +205,7 @@ function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdat
 
 function userRemoved(userId: string): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new CanonicalEvent({
+    event: new PublicRealtimeEvent({
       event: {
         case: 'userAccountDeleted',
         value: new UserAccountDeletedEvent({ userId })

@@ -3,9 +3,9 @@
 **Status:** Partially superseded by
 [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
 and [ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-091 selects
-one canonical payload vocabulary and protocol 4. ADR-092 defines its public
-union. The authorization, bounded-resume, snapshot, and transport rules that
-this ADR introduced remain active.
+one canonical internal envelope and protocol 4. ADR-092 defines its public
+union and dedicated payload catalogue. The authorization, bounded-resume,
+snapshot, and transport rules that this ADR introduced remain active.
 
 **Date:** 2026-08-30
 
@@ -89,8 +89,9 @@ The implementation and future protocol changes must preserve these invariants:
     requires every client to behave differently uses a new behavioral protocol
     version.
 13. **Public delivery does not expose stored bytes.** Per ADR-092, public
-    delivery uses an explicit public union with canonical payload messages.
-    The server creates a fresh authorized copy and removes storage-only fields.
+    delivery uses an explicit public union with dedicated payload messages.
+    The server creates a fresh authorized value. Storage-only fields do not
+    exist in its public schema.
 14. **Long-offline reliable automation is separate.** If Chatto later promises
     eventual processing of every durable trigger, that promise uses an
     acknowledged webhook or paged activity contract. It does not change the

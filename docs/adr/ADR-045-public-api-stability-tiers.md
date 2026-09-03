@@ -71,10 +71,10 @@ plan, generated-client updates, public documentation updates, and release-note
 guidance. Persisted internal messages under `chatto.core` remain subject to the
 stronger non-breaking storage contract regardless of this public API posture.
 Protocol 4 uses `chatto.realtime.v1.RealtimeEvent.event` as its public event
-union. Each member reuses a canonical EVT or live payload message and field
-number. Durable payload fields keep their storage compatibility, while the
-public union and client-visible fields are part of the experimental realtime
-API.
+union. Each member uses a dedicated public payload and keeps the matching
+canonical event name and field number. Shared fields keep compatible wire
+shapes. Stored EVT payloads keep their stronger storage compatibility, while
+the public union and its payloads are part of the experimental realtime API.
 
 `ServerDiscoveryService.GetServer` reports the server software version. The
 bundled web client maintains explicit minimum server versions for features that

@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -24,13 +23,13 @@ message ReactionAddedEvent {
   reserved "space_id";
 
   // Room ID - identifies the room containing the message
-  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 2;
 
   // Event ID of the message being reacted to (NanoID)
-  string message_event_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string message_event_id = 3;
 
   // The emoji used for the reaction (shortcode name)
-  string emoji = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string emoji = 4;
 }
 
 message ReactionRemovedEvent {
@@ -38,11 +37,11 @@ message ReactionRemovedEvent {
   reserved "space_id";
 
   // Room ID - identifies the room containing the message
-  string room_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 2;
 
   // Event ID of the message the reaction was removed from (NanoID)
-  string message_event_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string message_event_id = 3;
 
   // The emoji shortcode that was removed
-  string emoji = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string emoji = 4;
 }

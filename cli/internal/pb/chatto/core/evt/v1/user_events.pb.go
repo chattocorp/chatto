@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -139,8 +138,6 @@ type UserAccountCreatedEvent struct {
 	BotOwnerUserId       string               `protobuf:"bytes,3,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
 	EncryptedLogin       *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
 	EncryptedDisplayName *EncryptedUserString `protobuf:"bytes,11,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
-	LoginPlaintext       *string              `protobuf:"bytes,12,opt,name=login_plaintext,json=loginPlaintext,proto3,oneof" json:"login_plaintext,omitempty"`
-	DisplayNamePlaintext *string              `protobuf:"bytes,13,opt,name=display_name_plaintext,json=displayNamePlaintext,proto3,oneof" json:"display_name_plaintext,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -208,20 +205,6 @@ func (x *UserAccountCreatedEvent) GetEncryptedDisplayName() *EncryptedUserString
 		return x.EncryptedDisplayName
 	}
 	return nil
-}
-
-func (x *UserAccountCreatedEvent) GetLoginPlaintext() string {
-	if x != nil && x.LoginPlaintext != nil {
-		return *x.LoginPlaintext
-	}
-	return ""
-}
-
-func (x *UserAccountCreatedEvent) GetDisplayNamePlaintext() string {
-	if x != nil && x.DisplayNamePlaintext != nil {
-		return *x.DisplayNamePlaintext
-	}
-	return ""
 }
 
 // BotApiKeyCreatedEvent records the verifier for a bot's initial API key. The
@@ -760,7 +743,6 @@ type UserLoginChangedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedLogin *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
-	LoginPlaintext *string                `protobuf:"bytes,11,opt,name=login_plaintext,json=loginPlaintext,proto3,oneof" json:"login_plaintext,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -809,18 +791,10 @@ func (x *UserLoginChangedEvent) GetEncryptedLogin() *EncryptedUserString {
 	return nil
 }
 
-func (x *UserLoginChangedEvent) GetLoginPlaintext() string {
-	if x != nil && x.LoginPlaintext != nil {
-		return *x.LoginPlaintext
-	}
-	return ""
-}
-
 type UserDisplayNameChangedEvent struct {
 	state                protoimpl.MessageState `protogen:"open.v1"`
 	UserId               string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedDisplayName *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_display_name,json=encryptedDisplayName,proto3" json:"encrypted_display_name,omitempty"`
-	DisplayNamePlaintext *string                `protobuf:"bytes,11,opt,name=display_name_plaintext,json=displayNamePlaintext,proto3,oneof" json:"display_name_plaintext,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -869,13 +843,6 @@ func (x *UserDisplayNameChangedEvent) GetEncryptedDisplayName() *EncryptedUserSt
 	return nil
 }
 
-func (x *UserDisplayNameChangedEvent) GetDisplayNamePlaintext() string {
-	if x != nil && x.DisplayNamePlaintext != nil {
-		return *x.DisplayNamePlaintext
-	}
-	return ""
-}
-
 // UserBioChangedEvent is the authoritative durable fact for a change to a
 // user's self-authored bio. An empty encrypted value clears the bio. Bio text
 // is user PII and stays encrypted at rest.
@@ -883,7 +850,6 @@ type UserBioChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedBio  *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_bio,json=encryptedBio,proto3" json:"encrypted_bio,omitempty"`
-	BioPlaintext  *string                `protobuf:"bytes,11,opt,name=bio_plaintext,json=bioPlaintext,proto3,oneof" json:"bio_plaintext,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -930,13 +896,6 @@ func (x *UserBioChangedEvent) GetEncryptedBio() *EncryptedUserString {
 		return x.EncryptedBio
 	}
 	return nil
-}
-
-func (x *UserBioChangedEvent) GetBioPlaintext() string {
-	if x != nil && x.BioPlaintext != nil {
-		return *x.BioPlaintext
-	}
-	return ""
 }
 
 type UserAvatarSetEvent struct {
@@ -1042,7 +1001,6 @@ type UserVerifiedEmailAddedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	EncryptedEmail *EncryptedUserString   `protobuf:"bytes,10,opt,name=encrypted_email,json=encryptedEmail,proto3" json:"encrypted_email,omitempty"`
-	EmailPlaintext *string                `protobuf:"bytes,11,opt,name=email_plaintext,json=emailPlaintext,proto3,oneof" json:"email_plaintext,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1089,13 +1047,6 @@ func (x *UserVerifiedEmailAddedEvent) GetEncryptedEmail() *EncryptedUserString {
 		return x.EncryptedEmail
 	}
 	return nil
-}
-
-func (x *UserVerifiedEmailAddedEvent) GetEmailPlaintext() string {
-	if x != nil && x.EmailPlaintext != nil {
-		return *x.EmailPlaintext
-	}
-	return ""
 }
 
 type UserPasswordHashChangedEvent struct {
@@ -1854,135 +1805,123 @@ var File_chatto_core_evt_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_user_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a\"chatto/core/event/v1/options.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\x92\x01\n" +
-	"\x13EncryptedUserString\x12-\n" +
-	"\x0fencrypted_value\x18\x01 \x01(\fB\x04\x88\xb5\x18\x02R\x0eencryptedValue\x12\x1a\n" +
-	"\x05nonce\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\x05nonce\x120\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05B\x04\x88\xb5\x18\x02R\x0fcontentKeyEpoch\"\xe7\x03\n" +
-	"\x17UserAccountCreatedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1b\n" +
-	"\x06is_bot\x18\x02 \x01(\bB\x04\x88\xb5\x18\x01R\x05isBot\x12/\n" +
-	"\x11bot_owner_user_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x0ebotOwnerUserId\x12V\n" +
+	"$chatto/core/evt/v1/user_events.proto\x12\x12chatto.core.evt.v1\x1a)chatto/core/evt/v1/user_preferences.proto\x1a\x1fchatto/core/evt/v1/models.proto\"\x80\x01\n" +
+	"\x13EncryptedUserString\x12'\n" +
+	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
+	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xda\x02\n" +
+	"\x17UserAccountCreatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
+	"\x06is_bot\x18\x02 \x01(\bR\x05isBot\x12)\n" +
+	"\x11bot_owner_user_id\x18\x03 \x01(\tR\x0ebotOwnerUserId\x12P\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\x0eencryptedLogin\x12c\n" +
-	"\x16encrypted_display_name\x18\v \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\x14encryptedDisplayName\x122\n" +
-	"\x0flogin_plaintext\x18\f \x01(\tB\x04\x88\xb5\x18\x03H\x00R\x0eloginPlaintext\x88\x01\x01\x12?\n" +
-	"\x16display_name_plaintext\x18\r \x01(\tB\x04\x88\xb5\x18\x03H\x01R\x14displayNamePlaintext\x88\x01\x01B\x12\n" +
-	"\x10_login_plaintextB\x19\n" +
-	"\x17_display_name_plaintext\"\x8f\x01\n" +
-	"\x15BotApiKeyCreatedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12 \n" +
-	"\bverifier\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\bverifier\x12\x1b\n" +
-	"\x06key_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x05keyId\x12\x18\n" +
-	"\x04name\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\"\xbb\x01\n" +
-	"\x15BotApiKeyRotatedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12 \n" +
-	"\bverifier\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\bverifier\x12\x1b\n" +
-	"\x06key_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x05keyId\x12\x18\n" +
-	"\x04name\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\x12*\n" +
-	"\x0erevoked_key_id\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\frevokedKeyId\"\x8d\x01\n" +
-	"\x13BotApiKeyAddedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1b\n" +
-	"\x06key_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x05keyId\x12\x18\n" +
-	"\x04name\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\x12 \n" +
-	"\bverifier\x18\x04 \x01(\fB\x04\x88\xb5\x18\x02R\bverifier\"S\n" +
-	"\x15BotApiKeyRevokedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1b\n" +
-	"\x06key_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x05keyId\"\x9d\x01\n" +
-	"\x17BotOwnerReassignedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x129\n" +
-	"\x16previous_owner_user_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x13previousOwnerUserId\x12(\n" +
-	"\rowner_user_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\vownerUserId\"\xa0\x01\n" +
-	"\x1eBotIncomingWebhookCreatedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12 \n" +
-	"\bverifier\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\bverifier\x12#\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedLogin\x12]\n" +
+	"\x16encrypted_display_name\x18\v \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\f\x10\rJ\x04\b\r\x10\x0eR\x0flogin_plaintextR\x16display_name_plaintext\"w\n" +
+	"\x15BotApiKeyCreatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x15\n" +
+	"\x06key_id\x18\x03 \x01(\tR\x05keyId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"\x9d\x01\n" +
+	"\x15BotApiKeyRotatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x15\n" +
+	"\x06key_id\x18\x03 \x01(\tR\x05keyId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\x12$\n" +
+	"\x0erevoked_key_id\x18\x05 \x01(\tR\frevokedKeyId\"u\n" +
+	"\x13BotApiKeyAddedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
+	"\x06key_id\x18\x02 \x01(\tR\x05keyId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1a\n" +
+	"\bverifier\x18\x04 \x01(\fR\bverifier\"G\n" +
+	"\x15BotApiKeyRevokedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
+	"\x06key_id\x18\x02 \x01(\tR\x05keyId\"\x8b\x01\n" +
+	"\x17BotOwnerReassignedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x123\n" +
+	"\x16previous_owner_user_id\x18\x02 \x01(\tR\x13previousOwnerUserId\x12\"\n" +
+	"\rowner_user_id\x18\x03 \x01(\tR\vownerUserId\"\x88\x01\n" +
+	"\x1eBotIncomingWebhookCreatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x1d\n" +
 	"\n" +
-	"webhook_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\twebhookId\x12\x18\n" +
-	"\x04name\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\"\x86\x01\n" +
-	"\x1eBotIncomingWebhookRotatedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12 \n" +
-	"\bverifier\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\bverifier\x12#\n" +
+	"webhook_id\x18\x03 \x01(\tR\twebhookId\x12\x12\n" +
+	"\x04name\x18\x04 \x01(\tR\x04name\"t\n" +
+	"\x1eBotIncomingWebhookRotatedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1a\n" +
+	"\bverifier\x18\x02 \x01(\fR\bverifier\x12\x1d\n" +
 	"\n" +
-	"webhook_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\twebhookId\"d\n" +
-	"\x1eBotIncomingWebhookRevokedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12#\n" +
+	"webhook_id\x18\x03 \x01(\tR\twebhookId\"X\n" +
+	"\x1eBotIncomingWebhookRevokedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1d\n" +
 	"\n" +
-	"webhook_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\twebhookId\"\xd6\x01\n" +
-	"\x15UserLoginChangedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12V\n" +
+	"webhook_id\x18\x02 \x01(\tR\twebhookId\"\x99\x01\n" +
+	"\x15UserLoginChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12P\n" +
 	"\x0fencrypted_login\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\x0eencryptedLogin\x122\n" +
-	"\x0flogin_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\x0eloginPlaintext\x88\x01\x01B\x12\n" +
-	"\x10_login_plaintext\"\xfd\x01\n" +
-	"\x1bUserDisplayNameChangedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12c\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedLoginJ\x04\b\v\x10\fR\x0flogin_plaintext\"\xb3\x01\n" +
+	"\x1bUserDisplayNameChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12]\n" +
 	"\x16encrypted_display_name\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\x14encryptedDisplayName\x12?\n" +
-	"\x16display_name_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\x14displayNamePlaintext\x88\x01\x01B\x19\n" +
-	"\x17_display_name_plaintext\"\xca\x01\n" +
-	"\x13UserBioChangedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12R\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x14encryptedDisplayNameJ\x04\b\v\x10\fR\x16display_name_plaintext\"\x91\x01\n" +
+	"\x13UserBioChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12L\n" +
 	"\rencrypted_bio\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\fencryptedBio\x12.\n" +
-	"\rbio_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\fbioPlaintext\x88\x01\x01B\x10\n" +
-	"\x0e_bio_plaintext\"v\n" +
-	"\x12UserAvatarSetEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12A\n" +
-	"\x06avatar\x18\x02 \x01(\v2#.chatto.core.evt.v1.DeprecatedAssetB\x04\x88\xb5\x18\x01R\x06avatar\"7\n" +
-	"\x16UserAvatarClearedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"\xdc\x01\n" +
-	"\x1bUserVerifiedEmailAddedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12V\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\fencryptedBioJ\x04\b\v\x10\fR\rbio_plaintext\"j\n" +
+	"\x12UserAvatarSetEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12;\n" +
+	"\x06avatar\x18\x02 \x01(\v2#.chatto.core.evt.v1.DeprecatedAssetR\x06avatar\"1\n" +
+	"\x16UserAvatarClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\x9f\x01\n" +
+	"\x1bUserVerifiedEmailAddedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12P\n" +
 	"\x0fencrypted_email\x18\n" +
-	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringB\x04\x88\xb5\x18\x02R\x0eencryptedEmail\x122\n" +
-	"\x0femail_plaintext\x18\v \x01(\tB\x04\x88\xb5\x18\x03H\x00R\x0eemailPlaintext\x88\x01\x01B\x12\n" +
-	"\x10_email_plaintext\"\xb2\x01\n" +
-	"\x1cUserPasswordHashChangedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12)\n" +
-	"\rpassword_hash\x18\x02 \x01(\fB\x04\x88\xb5\x18\x02R\fpasswordHash\x12H\n" +
-	"\x1dpreserve_existing_credentials\x18\x03 \x01(\bB\x04\x88\xb5\x18\x01R\x1bpreserveExistingCredentials\"\xa2\x01\n" +
-	"\x1aUserOIDCSubjectLinkedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1c\n" +
-	"\x06issuer\x18\x02 \x01(\tB\x04\x88\xb5\x18\x02R\x06issuer\x12\x1e\n" +
-	"\asubject\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\asubject\x12'\n" +
-	"\fsubject_hash\x18\x04 \x01(\tB\x04\x88\xb5\x18\x02R\vsubjectHash\"\xf9\x01\n" +
-	"\x1fUserExternalIdentityLinkedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1c\n" +
-	"\x06issuer\x18\x02 \x01(\tB\x04\x88\xb5\x18\x02R\x06issuer\x12\x1e\n" +
-	"\asubject\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\asubject\x12'\n" +
-	"\fsubject_hash\x18\x04 \x01(\tB\x04\x88\xb5\x18\x02R\vsubjectHash\x12%\n" +
-	"\vprovider_id\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\n" +
-	"providerId\x12)\n" +
-	"\rprovider_type\x18\x06 \x01(\tB\x04\x88\xb5\x18\x01R\fproviderType\"k\n" +
-	"!UserExternalIdentityUnlinkedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12'\n" +
-	"\fsubject_hash\x18\x02 \x01(\tB\x04\x88\xb5\x18\x02R\vsubjectHash\"\x95\x01\n" +
-	"!UserServerPreferencesChangedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12Q\n" +
-	"\vpreferences\x18\x02 \x01(\v2).chatto.core.evt.v1.ServerUserPreferencesB\x04\x88\xb5\x18\x01R\vpreferences\">\n" +
-	"\x1dUserLoginCooldownStartedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\">\n" +
-	"\x1dUserLoginCooldownClearedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"8\n" +
-	"\x17UserAccountDeletedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"}\n" +
-	"\x18UserCustomStatusSetEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12B\n" +
-	"\x06status\x18\x02 \x01(\v2$.chatto.core.evt.v1.CustomUserStatusB\x04\x88\xb5\x18\x01R\x06status\"=\n" +
-	"\x1cUserCustomStatusClearedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"5\n" +
-	"\x14UserKeyShreddedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"?\n" +
-	"\x1eUserKeyShreddingRequestedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\"\xdc\x02\n" +
-	"\x15UserDEKGeneratedEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12B\n" +
-	"\apurpose\x18\x02 \x01(\x0e2\".chatto.core.evt.v1.UserDEKPurposeB\x04\x88\xb5\x18\x01R\apurpose\x12\x1a\n" +
-	"\x05epoch\x18\x03 \x01(\x05B\x04\x88\xb5\x18\x01R\x05epoch\x12,\n" +
-	"\x0fcontent_key_ref\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\rcontentKeyRef\x12.\n" +
-	"\x10wrapping_key_ref\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\x0ewrappingKeyRef\x123\n" +
-	"\x12wrapping_algorithm\x18\x06 \x01(\tB\x04\x88\xb5\x18\x01R\x11wrappingAlgorithm\x121\n" +
-	"\x11wrapping_metadata\x18\a \x01(\fB\x04\x88\xb5\x18\x01R\x10wrappingMetadata*t\n" +
+	" \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\x0eencryptedEmailJ\x04\b\v\x10\fR\x0femail_plaintext\"\xa0\x01\n" +
+	"\x1cUserPasswordHashChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12#\n" +
+	"\rpassword_hash\x18\x02 \x01(\fR\fpasswordHash\x12B\n" +
+	"\x1dpreserve_existing_credentials\x18\x03 \x01(\bR\x1bpreserveExistingCredentials\"\x8a\x01\n" +
+	"\x1aUserOIDCSubjectLinkedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12!\n" +
+	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\"\xd5\x01\n" +
+	"\x1fUserExternalIdentityLinkedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
+	"\x06issuer\x18\x02 \x01(\tR\x06issuer\x12\x18\n" +
+	"\asubject\x18\x03 \x01(\tR\asubject\x12!\n" +
+	"\fsubject_hash\x18\x04 \x01(\tR\vsubjectHash\x12\x1f\n" +
+	"\vprovider_id\x18\x05 \x01(\tR\n" +
+	"providerId\x12#\n" +
+	"\rprovider_type\x18\x06 \x01(\tR\fproviderType\"_\n" +
+	"!UserExternalIdentityUnlinkedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
+	"\fsubject_hash\x18\x02 \x01(\tR\vsubjectHash\"\x89\x01\n" +
+	"!UserServerPreferencesChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12K\n" +
+	"\vpreferences\x18\x02 \x01(\v2).chatto.core.evt.v1.ServerUserPreferencesR\vpreferences\"8\n" +
+	"\x1dUserLoginCooldownStartedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"8\n" +
+	"\x1dUserLoginCooldownClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"2\n" +
+	"\x17UserAccountDeletedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"q\n" +
+	"\x18UserCustomStatusSetEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
+	"\x06status\x18\x02 \x01(\v2$.chatto.core.evt.v1.CustomUserStatusR\x06status\"7\n" +
+	"\x1cUserCustomStatusClearedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"/\n" +
+	"\x14UserKeyShreddedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"9\n" +
+	"\x1eUserKeyShreddingRequestedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"\xb2\x02\n" +
+	"\x15UserDEKGeneratedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12<\n" +
+	"\apurpose\x18\x02 \x01(\x0e2\".chatto.core.evt.v1.UserDEKPurposeR\apurpose\x12\x14\n" +
+	"\x05epoch\x18\x03 \x01(\x05R\x05epoch\x12&\n" +
+	"\x0fcontent_key_ref\x18\x04 \x01(\tR\rcontentKeyRef\x12(\n" +
+	"\x10wrapping_key_ref\x18\x05 \x01(\tR\x0ewrappingKeyRef\x12-\n" +
+	"\x12wrapping_algorithm\x18\x06 \x01(\tR\x11wrappingAlgorithm\x12+\n" +
+	"\x11wrapping_metadata\x18\a \x01(\fR\x10wrappingMetadata*t\n" +
 	"\x0eUserDEKPurpose\x12 \n" +
 	"\x1cUSER_DEK_PURPOSE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dUSER_DEK_PURPOSE_MESSAGE_BODY\x10\x01\x12\x1d\n" +
@@ -2063,11 +2002,6 @@ func file_chatto_core_evt_v1_user_events_proto_init() {
 	}
 	file_chatto_core_evt_v1_user_preferences_proto_init()
 	file_chatto_core_evt_v1_models_proto_init()
-	file_chatto_core_evt_v1_user_events_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_core_evt_v1_user_events_proto_msgTypes[10].OneofWrappers = []any{}
-	file_chatto_core_evt_v1_user_events_proto_msgTypes[11].OneofWrappers = []any{}
-	file_chatto_core_evt_v1_user_events_proto_msgTypes[12].OneofWrappers = []any{}
-	file_chatto_core_evt_v1_user_events_proto_msgTypes[15].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

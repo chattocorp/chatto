@@ -4,7 +4,7 @@ import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import type {
   MessagePinnedEvent,
   MessageUnpinnedEvent
-} from '@chatto/api-types/core/evt/v1/message_events_pb';
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { SvelteMap } from 'svelte/reactivity';
 import { createPinnedMessagesAPI, type PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';

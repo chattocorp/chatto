@@ -18,22 +18,18 @@ import {
   type RealtimeResourceFamily
 } from '$lib/api-client/realtimeResources';
 import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
-import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
 import {
-  CallParticipantJoinedEvent,
+  VoiceCallParticipantJoinedEvent,
   RoomThreadingModeChangedEvent,
   UserJoinedRoomEvent,
-  UserLeftRoomEvent
-} from '@chatto/api-types/core/evt/v1/room_events_pb';
-import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
-import {
+  UserLeftRoomEvent,
+  MessagePostedEvent,
   NotificationUnreadChangedEvent,
-  ThreadFollowChangedEvent
-} from '@chatto/api-types/core/live/v1/live_events_pb';
-import {
+  ThreadFollowChangedSyncEvent,
   UserAccountDeletedEvent,
   UserDisplayNameChangedEvent
-} from '@chatto/api-types/core/evt/v1/user_events_pb';
+} from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   soundMocks: {
@@ -402,7 +398,7 @@ function roomResource(rooms: RoomWithViewerState[]): RealtimeResourceUpdate {
 
 function userDeleted(userId: string): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new Event({
+    event: new RealtimeEvent({
       event: { case: 'userAccountDeleted', value: new UserAccountDeletedEvent({ userId }) }
     })
   });
@@ -410,7 +406,7 @@ function userDeleted(userId: string): RealtimeProjectionUpdate {
 
 function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimeProjectionUpdate {
   return new RealtimeProjectionUpdate({
-    event: new Event({
+    event: new RealtimeEvent({
       id: eventId,
       actorId,
       event: { case: 'userLeftRoom', value: new UserLeftRoomEvent({ roomId }) }
@@ -676,7 +672,7 @@ describe('ServerStateStore unified realtime resources', () => {
     for (const userId of ['U2', 'U3']) {
       store.realtimeProjectionHandler(
         new RealtimeProjectionUpdate({
-          event: new Event({
+          event: new RealtimeEvent({
             event: {
               case: 'userDisplayNameChanged',
               value: new UserDisplayNameChangedEvent({ userId })
@@ -713,14 +709,14 @@ describe('ServerStateStore unified realtime resources', () => {
       new RealtimeProjectionUpdate({
         cursor,
         event: joined
-          ? new Event({
+          ? new RealtimeEvent({
               actorId: 'U2',
               event: {
                 case: 'userJoinedRoom',
                 value: new UserJoinedRoomEvent({ roomId: 'R1' })
               }
             })
-          : new Event({
+          : new RealtimeEvent({
               actorId: 'U2',
               event: {
                 case: 'userLeftRoom',
@@ -734,7 +730,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(membership(true, 'cursor-join-2'));
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           event: {
             case: 'notificationUnreadChanged',
             value: new NotificationUnreadChangedEvent({ roomId: 'R1' })
@@ -816,7 +812,7 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
         cursor: 'opaque-message-cursor',
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-POST',
           event: {
             case: 'messagePosted',
@@ -871,7 +867,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           event: {
             case: 'userDisplayNameChanged',
             value: new UserDisplayNameChangedEvent({
@@ -930,7 +926,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-JOIN',
           actorId: 'U2',
           event: {
@@ -961,7 +957,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-THREADING-MODE',
           event: {
             case: 'roomThreadingModeChanged',
@@ -1006,10 +1002,10 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           event: {
             case: 'threadFollowChangedSync',
-            value: new ThreadFollowChangedEvent({
+            value: new ThreadFollowChangedSyncEvent({
               roomId: 'R1',
               threadRootEventId: 'E-ROOT',
               isFollowing: true
@@ -1024,7 +1020,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-REPLY',
           event: {
             case: 'messagePosted',
@@ -1059,7 +1055,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-POST',
           event: {
             case: 'messagePosted',
@@ -1098,12 +1094,12 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           id: 'E-CALL-JOIN',
           actorId: 'U2',
           event: {
             case: 'voiceCallParticipantJoined',
-            value: new CallParticipantJoinedEvent({ roomId: 'R1', callId: 'CALL-1' })
+            value: new VoiceCallParticipantJoinedEvent({ roomId: 'R1', callId: 'CALL-1' })
           }
         })
       })
@@ -1119,7 +1115,7 @@ describe('ServerStateStore unified realtime resources', () => {
 
     store.realtimeProjectionHandler(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           event: {
             case: 'notificationUnreadChanged',
             value: new NotificationUnreadChangedEvent({ roomId: 'R1' })

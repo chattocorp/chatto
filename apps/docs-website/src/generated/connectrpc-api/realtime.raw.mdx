@@ -17,6 +17,870 @@ Use this reference when building clients against Chatto's public ConnectRPC API.
 
 ## Supporting Types
 
+<a id="chatto-realtime-v1-AllMessageMention"></a>
+
+### AllMessageMention
+
+AllMessageMention identifies a room-wide mention.
+
+
+
+<a id="chatto-realtime-v1-AssetDeletedEvent"></a>
+
+### AssetDeletedEvent
+
+AssetDeletedEvent reports a deleted asset.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetHLSRendition"></a>
+
+### AssetHLSRendition
+
+AssetHLSRendition describes one HLS rendition.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `width` | `int32` | No field description provided. |
+| `height` | `int32` | No field description provided. |
+| `bandwidth` | `int64` | No field description provided. |
+| `segments` | repeated [`AssetHLSSegment`](#chatto-realtime-v1-AssetHLSSegment) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetHLSSegment"></a>
+
+### AssetHLSSegment
+
+AssetHLSSegment identifies one HLS media segment.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | No field description provided. |
+| `duration_ms` | `int64` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetProcessedHLS"></a>
+
+### AssetProcessedHLS
+
+AssetProcessedHLS describes the public asset IDs used by one HLS manifest.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `renditions` | repeated [`AssetHLSRendition`](#chatto-realtime-v1-AssetHLSRendition) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetProcessedVideo"></a>
+
+### AssetProcessedVideo
+
+AssetProcessedVideo describes completed video derivatives by public asset ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `duration_ms` | `int64` | No field description provided. |
+| `width` | `int32` | No field description provided. |
+| `height` | `int32` | No field description provided. |
+| `thumbnail_asset_id` | `string` | No field description provided. |
+| `variants` | repeated [`AssetVideoVariant`](#chatto-realtime-v1-AssetVideoVariant) | No field description provided. |
+| `hls` | [`AssetProcessedHLS`](#chatto-realtime-v1-AssetProcessedHLS) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetProcessingFailedEvent"></a>
+
+### AssetProcessingFailedEvent
+
+AssetProcessingFailedEvent reports failed message-asset processing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | No field description provided. |
+| `failure_code` | [`AssetProcessingFailureCode`](#chatto-realtime-v1-AssetProcessingFailureCode) | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetProcessingStartedEvent"></a>
+
+### AssetProcessingStartedEvent
+
+AssetProcessingStartedEvent reports that message-asset processing started.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetProcessingSucceededEvent"></a>
+
+### AssetProcessingSucceededEvent
+
+AssetProcessingSucceededEvent reports successful message-asset processing.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | No field description provided. |
+| `video` | [`AssetProcessedVideo`](#chatto-realtime-v1-AssetProcessedVideo) | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-AssetVideoVariant"></a>
+
+### AssetVideoVariant
+
+AssetVideoVariant identifies one processed rendition.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `quality` | `string` | No field description provided. |
+| `asset_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-CallParticipantJoinedSignalEvent"></a>
+
+### CallParticipantJoinedSignalEvent
+
+CallParticipantJoinedSignalEvent reports a transient call join update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-CallParticipantLeftSignalEvent"></a>
+
+### CallParticipantLeftSignalEvent
+
+CallParticipantLeftSignalEvent reports a transient call leave update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-DirectUserMention"></a>
+
+### DirectUserMention
+
+DirectUserMention identifies a direct user mention.
+
+
+
+<a id="chatto-realtime-v1-HereMessageMention"></a>
+
+### HereMessageMention
+
+HereMessageMention identifies a presence-scoped mention.
+
+
+
+<a id="chatto-realtime-v1-MentionStatusClearedSyncEvent"></a>
+
+### MentionStatusClearedSyncEvent
+
+MentionStatusClearedSyncEvent reports a cleared room mention indicator.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-MessageEditedEvent"></a>
+
+### MessageEditedEvent
+
+MessageEditedEvent reports changed message content or metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-MessageMention"></a>
+
+### MessageMention
+
+MessageMention identifies one resolved mention recipient and cause.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `cause.direct` | [`DirectUserMention`](#chatto-realtime-v1-DirectUserMention) | No field description provided. |
+| `cause.role` | [`RoleMessageMention`](#chatto-realtime-v1-RoleMessageMention) | No field description provided. |
+| `cause.here` | [`HereMessageMention`](#chatto-realtime-v1-HereMessageMention) | No field description provided. |
+| `cause.all` | [`AllMessageMention`](#chatto-realtime-v1-AllMessageMention) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-MessagePinnedEvent"></a>
+
+### MessagePinnedEvent
+
+MessagePinnedEvent reports a newly pinned message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-MessagePostedEvent"></a>
+
+### MessagePostedEvent
+
+MessagePostedEvent reports a new room message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `in_reply_to` | `string` | No field description provided. |
+| `in_thread` | `string` | No field description provided. |
+| `mentioned_user_ids` | `repeated string` | No field description provided. |
+| `echo_of_event_id` | `string` | No field description provided. |
+| `echo_from_thread_root_event_id` | `string` | No field description provided. |
+| `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | No field description provided. |
+| `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
+
+
+
+<a id="chatto-realtime-v1-MessageRetractedEvent"></a>
+
+### MessageRetractedEvent
+
+MessageRetractedEvent reports a retracted message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-MessageUnpinnedEvent"></a>
+
+### MessageUnpinnedEvent
+
+MessageUnpinnedEvent reports a message that is no longer pinned.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-NotificationOccurrencesInvalidatedEvent"></a>
+
+### NotificationOccurrencesInvalidatedEvent
+
+NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `alert_candidate_notification_id` | `optional string` | No field description provided. |
+| `sound_candidate_notification_id` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-NotificationUnreadChangedEvent"></a>
+
+### NotificationUnreadChangedEvent
+
+NotificationUnreadChangedEvent requests unread-state reconciliation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-PresenceChangedSignalEvent"></a>
+
+### PresenceChangedSignalEvent
+
+PresenceChangedSignalEvent reports the actor's current presence status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `status` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ReactionAddedEvent"></a>
+
+### ReactionAddedEvent
+
+ReactionAddedEvent reports a new message reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+| `emoji` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ReactionRemovedEvent"></a>
+
+### ReactionRemovedEvent
+
+ReactionRemovedEvent reports a removed message reaction.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
+| `emoji` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoleMessageMention"></a>
+
+### RoleMessageMention
+
+RoleMessageMention identifies the role that caused a mention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `role_name` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomArchivedEvent"></a>
+
+### RoomArchivedEvent
+
+RoomArchivedEvent reports a room that became archived.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomCreatedEvent"></a>
+
+### RoomCreatedEvent
+
+RoomCreatedEvent reports a new room that is visible to the caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+| `kind` | `chatto.api.v1.RoomKind` | No field description provided. |
+| `universal` | `bool` | No field description provided. |
+| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomDeletedEvent"></a>
+
+### RoomDeletedEvent
+
+RoomDeletedEvent reports a deleted room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomGroupsUpdatedSyncEvent"></a>
+
+### RoomGroupsUpdatedSyncEvent
+
+RoomGroupsUpdatedSyncEvent requests room-group reconciliation.
+
+
+
+<a id="chatto-realtime-v1-RoomMarkedAsReadSyncEvent"></a>
+
+### RoomMarkedAsReadSyncEvent
+
+RoomMarkedAsReadSyncEvent reports a viewer read-state change from another session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomMemberAddedEvent"></a>
+
+### RoomMemberAddedEvent
+
+RoomMemberAddedEvent reports that a manager added a room member.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomMemberBannedEvent"></a>
+
+### RoomMemberBannedEvent
+
+RoomMemberBannedEvent reports a room ban without its private moderation reason.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `user_id` | `string` | No field description provided. |
+| `expires_at` | `optional google.protobuf.Timestamp` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomMemberRemovedEvent"></a>
+
+### RoomMemberRemovedEvent
+
+RoomMemberRemovedEvent reports that a manager removed a room member.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomMemberUnbannedEvent"></a>
+
+### RoomMemberUnbannedEvent
+
+RoomMemberUnbannedEvent reports removal of a room ban.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomSlowModeChangedEvent"></a>
+
+### RoomSlowModeChangedEvent
+
+RoomSlowModeChangedEvent reports the current slow-mode interval.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `slow_mode_seconds` | `uint32` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomThreadingModeChangedEvent"></a>
+
+### RoomThreadingModeChangedEvent
+
+RoomThreadingModeChangedEvent reports the current room threading policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `threading_mode` | `chatto.api.v1.RoomThreadingMode` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomUnarchivedEvent"></a>
+
+### RoomUnarchivedEvent
+
+RoomUnarchivedEvent reports a room that became active again.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomUniversalChangedEvent"></a>
+
+### RoomUniversalChangedEvent
+
+RoomUniversalChangedEvent reports the current universal-membership setting.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `universal` | `bool` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-RoomUpdatedEvent"></a>
+
+### RoomUpdatedEvent
+
+RoomUpdatedEvent reports changed room metadata.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ServerMemberDeletedSyncEvent"></a>
+
+### ServerMemberDeletedSyncEvent
+
+ServerMemberDeletedSyncEvent invalidates cached data for a deleted member.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ServerMotdChangedEvent"></a>
+
+### ServerMotdChangedEvent
+
+ServerMotdChangedEvent reports the current message of the day.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `motd` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ServerUpdatedSyncEvent"></a>
+
+### ServerUpdatedSyncEvent
+
+ServerUpdatedSyncEvent carries the current public server profile fields.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_id` | `string` | No field description provided. |
+| `name` | `string` | No field description provided. |
+| `description` | `string` | No field description provided. |
+| `logo_url` | `string` | No field description provided. |
+| `banner_url` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ServerUserPreferencesSyncEvent"></a>
+
+### ServerUserPreferencesSyncEvent
+
+ServerUserPreferencesSyncEvent reports current client display preferences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `timezone` | `string` | No field description provided. |
+| `time_format` | [`RealtimeTimeFormat`](#chatto-realtime-v1-RealtimeTimeFormat) | No field description provided. |
+| `share_timezone` | `bool` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-SessionTerminatedSignalEvent"></a>
+
+### SessionTerminatedSignalEvent
+
+SessionTerminatedSignalEvent reports that the current session was terminated.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `reason` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ThreadCreatedEvent"></a>
+
+### ThreadCreatedEvent
+
+ThreadCreatedEvent reports a new message thread.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-ThreadFollowChangedSyncEvent"></a>
+
+### ThreadFollowChangedSyncEvent
+
+ThreadFollowChangedSyncEvent reports the viewer's current thread follow state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `string` | No field description provided. |
+| `is_following` | `bool` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserAccountCreatedEvent"></a>
+
+### UserAccountCreatedEvent
+
+UserAccountCreatedEvent reports a new public user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `is_bot` | `bool` | No field description provided. |
+| `bot_owner_user_id` | `string` | No field description provided. |
+| `login_plaintext` | `optional string` | No field description provided. |
+| `display_name_plaintext` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserAccountDeletedEvent"></a>
+
+### UserAccountDeletedEvent
+
+UserAccountDeletedEvent reports a deleted user account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserAvatarClearedEvent"></a>
+
+### UserAvatarClearedEvent
+
+UserAvatarClearedEvent reports that a user avatar was removed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserAvatarSetEvent"></a>
+
+### UserAvatarSetEvent
+
+UserAvatarSetEvent reports that a user avatar changed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserBioChangedEvent"></a>
+
+### UserBioChangedEvent
+
+UserBioChangedEvent reports a changed public biography.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `bio_plaintext` | `optional string` | Plaintext biography. The field is absent after key shredding. |
+
+
+
+<a id="chatto-realtime-v1-UserCreatedSyncEvent"></a>
+
+### UserCreatedSyncEvent
+
+UserCreatedSyncEvent reports a newly materialized public user profile.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `login` | `string` | No field description provided. |
+| `display_name` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserCustomStatusClearedEvent"></a>
+
+### UserCustomStatusClearedEvent
+
+UserCustomStatusClearedEvent reports a cleared custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserCustomStatusSetEvent"></a>
+
+### UserCustomStatusSetEvent
+
+UserCustomStatusSetEvent reports the current public custom status.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `status` | `chatto.api.v1.CustomUserStatus` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserDisplayNameChangedEvent"></a>
+
+### UserDisplayNameChangedEvent
+
+UserDisplayNameChangedEvent reports a changed public display name.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `display_name_plaintext` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserJoinedRoomEvent"></a>
+
+### UserJoinedRoomEvent
+
+UserJoinedRoomEvent reports that the actor joined a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserLeftRoomEvent"></a>
+
+### UserLeftRoomEvent
+
+UserLeftRoomEvent reports that the actor left a room.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserLoginChangedEvent"></a>
+
+### UserLoginChangedEvent
+
+UserLoginChangedEvent reports a changed public login name.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `login_plaintext` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserProfileSyncEvent"></a>
+
+### UserProfileSyncEvent
+
+UserProfileSyncEvent carries the current public profile after a profile change.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
+| `display_name` | `string` | No field description provided. |
+| `avatar_url` | `string` | No field description provided. |
+| `login` | `string` | No field description provided. |
+| `bio` | `string` | No field description provided. |
+| `timezone` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-UserTypingSignalEvent"></a>
+
+### UserTypingSignalEvent
+
+UserTypingSignalEvent reports current typing activity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `thread_root_event_id` | `optional string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-VoiceCallEndedEvent"></a>
+
+### VoiceCallEndedEvent
+
+VoiceCallEndedEvent reports the end of a durable call session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-VoiceCallParticipantJoinedEvent"></a>
+
+### VoiceCallParticipantJoinedEvent
+
+VoiceCallParticipantJoinedEvent reports that the actor joined a durable call session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-VoiceCallParticipantLeftEvent"></a>
+
+### VoiceCallParticipantLeftEvent
+
+VoiceCallParticipantLeftEvent reports that the actor left a durable call session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+
+
+
+<a id="chatto-realtime-v1-VoiceCallStartedEvent"></a>
+
+### VoiceCallStartedEvent
+
+VoiceCallStartedEvent reports a new durable call session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | No field description provided. |
+| `call_id` | `string` | No field description provided. |
+| `source` | [`CallParticipantEventSource`](#chatto-realtime-v1-CallParticipantEventSource) | No field description provided. |
+
+
+
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
 ### RealtimeCaughtUp
@@ -100,11 +964,11 @@ Protocol error.
 
 One authorized public event with its optional resume cursor.
 
-Each payload field reuses the canonical payload message and field number.
-The union is the public event catalogue. A canonical event that is absent
-from this union is not part of the realtime API. The server creates a fresh
-caller-specific value and omits events and fields that the caller cannot see.
-Durable events have a resume cursor. Transient events do not.
+Each payload uses a realtime-owned public message. The union is the public
+event catalogue. A canonical event that is absent from this union is not
+part of the realtime API. The server creates a fresh caller-specific value
+after authorization. Durable events have a resume cursor. Transient events
+do not.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -112,62 +976,62 @@ Durable events have a resume cursor. Transient events do not.
 | `created_at` | `google.protobuf.Timestamp` | Time when the source event was created. |
 | `actor_id` | `string` | ID of the user that caused the event. An empty value means no user actor. |
 | `resume_cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
-| `event.room_created` | `chatto.core.evt.v1.RoomCreatedEvent` | No field description provided. |
-| `event.room_updated` | `chatto.core.evt.v1.RoomUpdatedEvent` | No field description provided. |
-| `event.room_deleted` | `chatto.core.evt.v1.RoomDeletedEvent` | No field description provided. |
-| `event.room_archived` | `chatto.core.evt.v1.RoomArchivedEvent` | No field description provided. |
-| `event.room_unarchived` | `chatto.core.evt.v1.RoomUnarchivedEvent` | No field description provided. |
-| `event.room_universal_changed` | `chatto.core.evt.v1.RoomUniversalChangedEvent` | No field description provided. |
-| `event.room_slow_mode_changed` | `chatto.core.evt.v1.RoomSlowModeChangedEvent` | No field description provided. |
-| `event.room_threading_mode_changed` | `chatto.core.evt.v1.RoomThreadingModeChangedEvent` | No field description provided. |
-| `event.user_joined_room` | `chatto.core.evt.v1.UserJoinedRoomEvent` | No field description provided. |
-| `event.user_left_room` | `chatto.core.evt.v1.UserLeftRoomEvent` | No field description provided. |
-| `event.voice_call_participant_joined` | `chatto.core.evt.v1.CallParticipantJoinedEvent` | No field description provided. |
-| `event.voice_call_participant_left` | `chatto.core.evt.v1.CallParticipantLeftEvent` | No field description provided. |
-| `event.voice_call_started` | `chatto.core.evt.v1.CallStartedEvent` | No field description provided. |
-| `event.voice_call_ended` | `chatto.core.evt.v1.CallEndedEvent` | No field description provided. |
-| `event.message_posted` | `chatto.core.evt.v1.MessagePostedEvent` | No field description provided. |
-| `event.message_edited` | `chatto.core.evt.v1.MessageEditedEvent` | No field description provided. |
-| `event.message_retracted` | `chatto.core.evt.v1.MessageRetractedEvent` | No field description provided. |
-| `event.message_pinned` | `chatto.core.evt.v1.MessagePinnedEvent` | No field description provided. |
-| `event.message_unpinned` | `chatto.core.evt.v1.MessageUnpinnedEvent` | No field description provided. |
-| `event.thread_created` | `chatto.core.evt.v1.ThreadCreatedEvent` | No field description provided. |
-| `event.asset_processing_started` | `chatto.core.evt.v1.AssetProcessingStartedEvent` | No field description provided. |
-| `event.asset_processing_succeeded` | `chatto.core.evt.v1.AssetProcessingSucceededEvent` | No field description provided. |
-| `event.asset_processing_failed` | `chatto.core.evt.v1.AssetProcessingFailedEvent` | No field description provided. |
-| `event.asset_deleted` | `chatto.core.evt.v1.AssetDeletedEvent` | No field description provided. |
-| `event.server_motd_changed` | `chatto.core.evt.v1.ServerMotdChangedEvent` | No field description provided. |
-| `event.user_account_created` | `chatto.core.evt.v1.UserAccountCreatedEvent` | No field description provided. |
-| `event.user_login_changed` | `chatto.core.evt.v1.UserLoginChangedEvent` | No field description provided. |
-| `event.user_display_name_changed` | `chatto.core.evt.v1.UserDisplayNameChangedEvent` | No field description provided. |
-| `event.user_avatar_set` | `chatto.core.evt.v1.UserAvatarSetEvent` | No field description provided. |
-| `event.user_avatar_cleared` | `chatto.core.evt.v1.UserAvatarClearedEvent` | No field description provided. |
-| `event.user_account_deleted` | `chatto.core.evt.v1.UserAccountDeletedEvent` | No field description provided. |
-| `event.user_custom_status_set` | `chatto.core.evt.v1.UserCustomStatusSetEvent` | No field description provided. |
-| `event.user_custom_status_cleared` | `chatto.core.evt.v1.UserCustomStatusClearedEvent` | No field description provided. |
-| `event.user_bio_changed` | `chatto.core.evt.v1.UserBioChangedEvent` | No field description provided. |
-| `event.room_member_banned` | `chatto.core.evt.v1.RoomMemberBannedEvent` | No field description provided. |
-| `event.room_member_unbanned` | `chatto.core.evt.v1.RoomMemberUnbannedEvent` | No field description provided. |
-| `event.room_member_added` | `chatto.core.evt.v1.RoomMemberAddedEvent` | No field description provided. |
-| `event.room_member_removed` | `chatto.core.evt.v1.RoomMemberRemovedEvent` | No field description provided. |
-| `event.reaction_added` | `chatto.core.evt.v1.ReactionAddedEvent` | No field description provided. |
-| `event.reaction_removed` | `chatto.core.evt.v1.ReactionRemovedEvent` | No field description provided. |
-| `event.user_created_sync` | `chatto.core.live.v1.UserCreatedSyncEvent` | No field description provided. |
-| `event.user_profile_sync` | `chatto.core.live.v1.UserProfileSyncEvent` | No field description provided. |
-| `event.server_user_preferences_sync` | `chatto.core.live.v1.ServerUserPreferencesSyncEvent` | No field description provided. |
-| `event.thread_follow_changed_sync` | `chatto.core.live.v1.ThreadFollowChangedEvent` | No field description provided. |
-| `event.server_member_deleted_sync` | `chatto.core.live.v1.ServerMemberDeletedEvent` | No field description provided. |
-| `event.server_updated_sync` | `chatto.core.live.v1.ServerUpdatedEvent` | No field description provided. |
-| `event.user_typing_signal` | `chatto.core.live.v1.UserTypingEvent` | No field description provided. |
-| `event.presence_changed_signal` | `chatto.core.live.v1.PresenceChangedEvent` | No field description provided. |
-| `event.call_participant_joined_signal` | `chatto.core.live.v1.CallParticipantJoinedEvent` | No field description provided. |
-| `event.call_participant_left_signal` | `chatto.core.live.v1.CallParticipantLeftEvent` | No field description provided. |
-| `event.notification_occurrences_invalidated` | `chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent` | No field description provided. |
-| `event.notification_unread_changed` | `chatto.core.live.v1.NotificationUnreadChangedEvent` | No field description provided. |
-| `event.room_marked_as_read_sync` | `chatto.core.live.v1.RoomMarkedAsReadEvent` | No field description provided. |
-| `event.mention_status_cleared_sync` | `chatto.core.live.v1.MentionStatusClearedEvent` | No field description provided. |
-| `event.room_groups_updated_sync` | `chatto.core.live.v1.RoomGroupsUpdatedEvent` | No field description provided. |
-| `event.session_terminated_signal` | `chatto.core.live.v1.SessionTerminatedEvent` | No field description provided. |
+| `event.room_created` | [`RoomCreatedEvent`](#chatto-realtime-v1-RoomCreatedEvent) | No field description provided. |
+| `event.room_updated` | [`RoomUpdatedEvent`](#chatto-realtime-v1-RoomUpdatedEvent) | No field description provided. |
+| `event.room_deleted` | [`RoomDeletedEvent`](#chatto-realtime-v1-RoomDeletedEvent) | No field description provided. |
+| `event.room_archived` | [`RoomArchivedEvent`](#chatto-realtime-v1-RoomArchivedEvent) | No field description provided. |
+| `event.room_unarchived` | [`RoomUnarchivedEvent`](#chatto-realtime-v1-RoomUnarchivedEvent) | No field description provided. |
+| `event.room_universal_changed` | [`RoomUniversalChangedEvent`](#chatto-realtime-v1-RoomUniversalChangedEvent) | No field description provided. |
+| `event.room_slow_mode_changed` | [`RoomSlowModeChangedEvent`](#chatto-realtime-v1-RoomSlowModeChangedEvent) | No field description provided. |
+| `event.room_threading_mode_changed` | [`RoomThreadingModeChangedEvent`](#chatto-realtime-v1-RoomThreadingModeChangedEvent) | No field description provided. |
+| `event.user_joined_room` | [`UserJoinedRoomEvent`](#chatto-realtime-v1-UserJoinedRoomEvent) | No field description provided. |
+| `event.user_left_room` | [`UserLeftRoomEvent`](#chatto-realtime-v1-UserLeftRoomEvent) | No field description provided. |
+| `event.voice_call_participant_joined` | [`VoiceCallParticipantJoinedEvent`](#chatto-realtime-v1-VoiceCallParticipantJoinedEvent) | No field description provided. |
+| `event.voice_call_participant_left` | [`VoiceCallParticipantLeftEvent`](#chatto-realtime-v1-VoiceCallParticipantLeftEvent) | No field description provided. |
+| `event.voice_call_started` | [`VoiceCallStartedEvent`](#chatto-realtime-v1-VoiceCallStartedEvent) | No field description provided. |
+| `event.voice_call_ended` | [`VoiceCallEndedEvent`](#chatto-realtime-v1-VoiceCallEndedEvent) | No field description provided. |
+| `event.message_posted` | [`MessagePostedEvent`](#chatto-realtime-v1-MessagePostedEvent) | No field description provided. |
+| `event.message_edited` | [`MessageEditedEvent`](#chatto-realtime-v1-MessageEditedEvent) | No field description provided. |
+| `event.message_retracted` | [`MessageRetractedEvent`](#chatto-realtime-v1-MessageRetractedEvent) | No field description provided. |
+| `event.message_pinned` | [`MessagePinnedEvent`](#chatto-realtime-v1-MessagePinnedEvent) | No field description provided. |
+| `event.message_unpinned` | [`MessageUnpinnedEvent`](#chatto-realtime-v1-MessageUnpinnedEvent) | No field description provided. |
+| `event.thread_created` | [`ThreadCreatedEvent`](#chatto-realtime-v1-ThreadCreatedEvent) | No field description provided. |
+| `event.asset_processing_started` | [`AssetProcessingStartedEvent`](#chatto-realtime-v1-AssetProcessingStartedEvent) | No field description provided. |
+| `event.asset_processing_succeeded` | [`AssetProcessingSucceededEvent`](#chatto-realtime-v1-AssetProcessingSucceededEvent) | No field description provided. |
+| `event.asset_processing_failed` | [`AssetProcessingFailedEvent`](#chatto-realtime-v1-AssetProcessingFailedEvent) | No field description provided. |
+| `event.asset_deleted` | [`AssetDeletedEvent`](#chatto-realtime-v1-AssetDeletedEvent) | No field description provided. |
+| `event.server_motd_changed` | [`ServerMotdChangedEvent`](#chatto-realtime-v1-ServerMotdChangedEvent) | No field description provided. |
+| `event.user_account_created` | [`UserAccountCreatedEvent`](#chatto-realtime-v1-UserAccountCreatedEvent) | No field description provided. |
+| `event.user_login_changed` | [`UserLoginChangedEvent`](#chatto-realtime-v1-UserLoginChangedEvent) | No field description provided. |
+| `event.user_display_name_changed` | [`UserDisplayNameChangedEvent`](#chatto-realtime-v1-UserDisplayNameChangedEvent) | No field description provided. |
+| `event.user_avatar_set` | [`UserAvatarSetEvent`](#chatto-realtime-v1-UserAvatarSetEvent) | No field description provided. |
+| `event.user_avatar_cleared` | [`UserAvatarClearedEvent`](#chatto-realtime-v1-UserAvatarClearedEvent) | No field description provided. |
+| `event.user_account_deleted` | [`UserAccountDeletedEvent`](#chatto-realtime-v1-UserAccountDeletedEvent) | No field description provided. |
+| `event.user_custom_status_set` | [`UserCustomStatusSetEvent`](#chatto-realtime-v1-UserCustomStatusSetEvent) | No field description provided. |
+| `event.user_custom_status_cleared` | [`UserCustomStatusClearedEvent`](#chatto-realtime-v1-UserCustomStatusClearedEvent) | No field description provided. |
+| `event.user_bio_changed` | [`UserBioChangedEvent`](#chatto-realtime-v1-UserBioChangedEvent) | No field description provided. |
+| `event.room_member_banned` | [`RoomMemberBannedEvent`](#chatto-realtime-v1-RoomMemberBannedEvent) | No field description provided. |
+| `event.room_member_unbanned` | [`RoomMemberUnbannedEvent`](#chatto-realtime-v1-RoomMemberUnbannedEvent) | No field description provided. |
+| `event.room_member_added` | [`RoomMemberAddedEvent`](#chatto-realtime-v1-RoomMemberAddedEvent) | No field description provided. |
+| `event.room_member_removed` | [`RoomMemberRemovedEvent`](#chatto-realtime-v1-RoomMemberRemovedEvent) | No field description provided. |
+| `event.reaction_added` | [`ReactionAddedEvent`](#chatto-realtime-v1-ReactionAddedEvent) | No field description provided. |
+| `event.reaction_removed` | [`ReactionRemovedEvent`](#chatto-realtime-v1-ReactionRemovedEvent) | No field description provided. |
+| `event.user_created_sync` | [`UserCreatedSyncEvent`](#chatto-realtime-v1-UserCreatedSyncEvent) | No field description provided. |
+| `event.user_profile_sync` | [`UserProfileSyncEvent`](#chatto-realtime-v1-UserProfileSyncEvent) | No field description provided. |
+| `event.server_user_preferences_sync` | [`ServerUserPreferencesSyncEvent`](#chatto-realtime-v1-ServerUserPreferencesSyncEvent) | No field description provided. |
+| `event.thread_follow_changed_sync` | [`ThreadFollowChangedSyncEvent`](#chatto-realtime-v1-ThreadFollowChangedSyncEvent) | No field description provided. |
+| `event.server_member_deleted_sync` | [`ServerMemberDeletedSyncEvent`](#chatto-realtime-v1-ServerMemberDeletedSyncEvent) | No field description provided. |
+| `event.server_updated_sync` | [`ServerUpdatedSyncEvent`](#chatto-realtime-v1-ServerUpdatedSyncEvent) | No field description provided. |
+| `event.user_typing_signal` | [`UserTypingSignalEvent`](#chatto-realtime-v1-UserTypingSignalEvent) | No field description provided. |
+| `event.presence_changed_signal` | [`PresenceChangedSignalEvent`](#chatto-realtime-v1-PresenceChangedSignalEvent) | No field description provided. |
+| `event.call_participant_joined_signal` | [`CallParticipantJoinedSignalEvent`](#chatto-realtime-v1-CallParticipantJoinedSignalEvent) | No field description provided. |
+| `event.call_participant_left_signal` | [`CallParticipantLeftSignalEvent`](#chatto-realtime-v1-CallParticipantLeftSignalEvent) | No field description provided. |
+| `event.notification_occurrences_invalidated` | [`NotificationOccurrencesInvalidatedEvent`](#chatto-realtime-v1-NotificationOccurrencesInvalidatedEvent) | No field description provided. |
+| `event.notification_unread_changed` | [`NotificationUnreadChangedEvent`](#chatto-realtime-v1-NotificationUnreadChangedEvent) | No field description provided. |
+| `event.room_marked_as_read_sync` | [`RoomMarkedAsReadSyncEvent`](#chatto-realtime-v1-RoomMarkedAsReadSyncEvent) | No field description provided. |
+| `event.mention_status_cleared_sync` | [`MentionStatusClearedSyncEvent`](#chatto-realtime-v1-MentionStatusClearedSyncEvent) | No field description provided. |
+| `event.room_groups_updated_sync` | [`RoomGroupsUpdatedSyncEvent`](#chatto-realtime-v1-RoomGroupsUpdatedSyncEvent) | No field description provided. |
+| `event.session_terminated_signal` | [`SessionTerminatedSignalEvent`](#chatto-realtime-v1-SessionTerminatedSignalEvent) | No field description provided. |
 
 
 
@@ -293,19 +1157,44 @@ Confirms that event streaming has started.
 
 ## Enums
 
-<a id="chatto-core-event-v1-EventFieldSurface"></a>
+<a id="chatto-realtime-v1-AssetProcessingFailureCode"></a>
 
-### EventFieldSurface
+### AssetProcessingFailureCode
 
-EventFieldSurface controls whether an Event payload field can exist in
-stored EVT bytes, an authorized public event, or both.
+AssetProcessingFailureCode identifies a stable processing failure class.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `EVENT_FIELD_SURFACE_UNSPECIFIED` | `0` | The field has no explicit public surface. EVT can store it. Public projection omits it at a payload root; nested fields can inherit a classified parent message's surface. This default-deny value is intentional: a new persisted field must not become public by accident. |
-| `EVENT_FIELD_SURFACE_SHARED` | `1` | The field can exist in EVT and in an authorized public event. |
-| `EVENT_FIELD_SURFACE_STORAGE_ONLY` | `2` | The field can exist only in EVT. Public projection removes it. |
-| `EVENT_FIELD_SURFACE_CLIENT_ONLY` | `3` | The field can exist only in an authorized public event. EVT rejects it. |
+| `ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED` | `0` | No value description provided. |
+| `ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED` | `1` | No value description provided. |
+| `ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING` | `2` | No value description provided. |
+
+
+<a id="chatto-realtime-v1-CallParticipantEventSource"></a>
+
+### CallParticipantEventSource
+
+CallParticipantEventSource identifies what caused a call-participant change.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED` | `0` | No value description provided. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_USER` | `1` | No value description provided. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT` | `2` | No value description provided. |
+| `CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION` | `3` | No value description provided. |
+
+
+<a id="chatto-realtime-v1-RealtimeTimeFormat"></a>
+
+### RealtimeTimeFormat
+
+RealtimeTimeFormat identifies the transient client time-display preference.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_TIME_FORMAT_UNSPECIFIED` | `0` | No value description provided. |
+| `REALTIME_TIME_FORMAT_12H` | `1` | No value description provided. |
+| `REALTIME_TIME_FORMAT_24H` | `2` | No value description provided. |
 
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>

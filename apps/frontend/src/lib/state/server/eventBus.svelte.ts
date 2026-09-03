@@ -13,10 +13,7 @@ import {
   type EventBus
 } from '$lib/eventBus.svelte';
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
-import {
-  realtimeEventToCanonicalEvent,
-  realtimeEventToEventEnvelope
-} from '$lib/realtimeEventMapper';
+import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
   RealtimeClientFrame,
   RealtimeClientHello,
@@ -337,7 +334,7 @@ class EventBusManager {
     const dispatchRealtimeEvent = (event: RealtimeEvent) => {
       dispatchProjectionUpdate(
         new RealtimeProjectionUpdate({
-          event: realtimeEventToCanonicalEvent(event),
+          event,
           cursor: event.resumeCursor ?? null
         })
       );

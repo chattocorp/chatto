@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -934,57 +933,57 @@ var File_chatto_core_evt_v1_room_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_room_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\"chatto/core/event/v1/options.proto\"\xb3\x02\n" +
-	"\x10RoomCreatedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x18\n" +
-	"\x04name\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\x12&\n" +
-	"\vdescription\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\vdescription\x126\n" +
-	"\x04kind\x18\x05 \x01(\x0e2\x1c.chatto.core.evt.v1.RoomKindB\x04\x88\xb5\x18\x01R\x04kind\x12\"\n" +
-	"\tuniversal\x18\x06 \x01(\bB\x04\x88\xb5\x18\x01R\tuniversal\x12R\n" +
-	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeB\x04\x88\xb5\x18\x01R\rthreadingModeJ\x04\b\x01\x10\x02R\bspace_id\"\x83\x01\n" +
-	"\x10RoomUpdatedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x18\n" +
-	"\x04name\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\x12&\n" +
-	"\vdescription\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\vdescriptionJ\x04\b\x01\x10\x02R\bspace_id\"A\n" +
-	"\x10RoomDeletedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"B\n" +
-	"\x11RoomArchivedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"D\n" +
-	"\x13RoomUnarchivedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"^\n" +
-	"\x19RoomUniversalChangedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\"\n" +
-	"\tuniversal\x18\x02 \x01(\bB\x04\x88\xb5\x18\x01R\tuniversal\"k\n" +
-	"\x18RoomSlowModeChangedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x120\n" +
-	"\x11slow_mode_seconds\x18\x02 \x01(\rB\x04\x88\xb5\x18\x01R\x0fslowModeSeconds\"\x92\x01\n" +
-	"\x1dRoomThreadingModeChangedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12R\n" +
-	"\x0ethreading_mode\x18\x02 \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeB\x04\x88\xb5\x18\x01R\rthreadingMode\"D\n" +
-	"\x13UserJoinedRoomEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"B\n" +
-	"\x11UserLeftRoomEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"I\n" +
-	"\x18ServerMemberDeletedEvent\x12\x1d\n" +
-	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\xa8\x01\n" +
-	"\x1aCallParticipantJoinedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12L\n" +
-	"\x06source\x18\x02 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source\x12\x1d\n" +
-	"\acall_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\"\xa6\x01\n" +
-	"\x18CallParticipantLeftEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12L\n" +
-	"\x06source\x18\x02 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source\x12\x1d\n" +
-	"\acall_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\"\xc6\x01\n" +
-	"\x10CallStartedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
-	"\acall_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\x12&\n" +
-	"\fe2ee_key_ref\x18\x03 \x01(\tB\x04\x88\xb5\x18\x02R\n" +
-	"e2eeKeyRef\x12L\n" +
-	"\x06source\x18\x04 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source\"\x9c\x01\n" +
-	"\x0eCallEndedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12\x1d\n" +
-	"\acall_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\x12L\n" +
-	"\x06source\x18\x03 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source*\xd0\x01\n" +
+	"$chatto/core/evt/v1/room_events.proto\x12\x12chatto.core.evt.v1\x1a\x1fchatto/core/evt/v1/models.proto\"\x8f\x02\n" +
+	"\x10RoomCreatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescription\x120\n" +
+	"\x04kind\x18\x05 \x01(\x0e2\x1c.chatto.core.evt.v1.RoomKindR\x04kind\x12\x1c\n" +
+	"\tuniversal\x18\x06 \x01(\bR\tuniversal\x12L\n" +
+	"\x0ethreading_mode\x18\a \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingModeJ\x04\b\x01\x10\x02R\bspace_id\"q\n" +
+	"\x10RoomUpdatedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x04 \x01(\tR\vdescriptionJ\x04\b\x01\x10\x02R\bspace_id\";\n" +
+	"\x10RoomDeletedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
+	"\x11RoomArchivedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\">\n" +
+	"\x13RoomUnarchivedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"R\n" +
+	"\x19RoomUniversalChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x1c\n" +
+	"\tuniversal\x18\x02 \x01(\bR\tuniversal\"_\n" +
+	"\x18RoomSlowModeChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12*\n" +
+	"\x11slow_mode_seconds\x18\x02 \x01(\rR\x0fslowModeSeconds\"\x86\x01\n" +
+	"\x1dRoomThreadingModeChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12L\n" +
+	"\x0ethreading_mode\x18\x02 \x01(\x0e2%.chatto.core.evt.v1.RoomThreadingModeR\rthreadingMode\">\n" +
+	"\x13UserJoinedRoomEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"<\n" +
+	"\x11UserLeftRoomEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"C\n" +
+	"\x18ServerMemberDeletedEvent\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\x96\x01\n" +
+	"\x1aCallParticipantJoinedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12F\n" +
+	"\x06source\x18\x02 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x94\x01\n" +
+	"\x18CallParticipantLeftEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12F\n" +
+	"\x06source\x18\x02 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\xae\x01\n" +
+	"\x10CallStartedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12 \n" +
+	"\fe2ee_key_ref\x18\x03 \x01(\tR\n" +
+	"e2eeKeyRef\x12F\n" +
+	"\x06source\x18\x04 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source\"\x8a\x01\n" +
+	"\x0eCallEndedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x17\n" +
+	"\acall_id\x18\x02 \x01(\tR\x06callId\x12F\n" +
+	"\x06source\x18\x03 \x01(\x0e2..chatto.core.evt.v1.CallParticipantEventSourceR\x06source*\xd0\x01\n" +
 	"\x1aCallParticipantEventSource\x12-\n" +
 	")CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CALL_PARTICIPANT_EVENT_SOURCE_USER\x10\x01\x12)\n" +

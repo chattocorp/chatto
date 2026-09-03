@@ -94,8 +94,7 @@ session termination are transient and do not have resume cursors. Snapshot
 frames reuse canonical public resource messages. Clients use event variants as
 refresh hints and read additional resources through ConnectRPC. See the
 [`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
-reference for the public variants. Generated clients provide the reused
-canonical payload types.
+reference for the public variants and their dedicated public payload types.
 
 Realtime does not replace `chatto.api.v1`. Use the resource-oriented
 ConnectRPC services for explicit reads, pagination, commands, and

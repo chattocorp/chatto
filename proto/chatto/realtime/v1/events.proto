@@ -1,0 +1,444 @@
+syntax = "proto3";
+
+package chatto.realtime.v1;
+
+import "chatto/api/v1/common.proto";
+import "chatto/api/v1/rooms.proto";
+import "chatto/api/v1/user_status.proto";
+import "google/protobuf/timestamp.proto";
+
+// RoomCreatedEvent reports a new room that is visible to the caller.
+message RoomCreatedEvent {
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+  chatto.api.v1.RoomKind kind = 5;
+  bool universal = 6;
+  chatto.api.v1.RoomThreadingMode threading_mode = 7;
+}
+
+// RoomUpdatedEvent reports changed room metadata.
+message RoomUpdatedEvent {
+  string room_id = 2;
+  string name = 3;
+  string description = 4;
+}
+
+// RoomDeletedEvent reports a deleted room.
+message RoomDeletedEvent {
+  string room_id = 2;
+}
+
+// RoomArchivedEvent reports a room that became archived.
+message RoomArchivedEvent {
+  string room_id = 2;
+}
+
+// RoomUnarchivedEvent reports a room that became active again.
+message RoomUnarchivedEvent {
+  string room_id = 2;
+}
+
+// RoomUniversalChangedEvent reports the current universal-membership setting.
+message RoomUniversalChangedEvent {
+  string room_id = 1;
+  bool universal = 2;
+}
+
+// RoomSlowModeChangedEvent reports the current slow-mode interval.
+message RoomSlowModeChangedEvent {
+  string room_id = 1;
+  uint32 slow_mode_seconds = 2;
+}
+
+// RoomThreadingModeChangedEvent reports the current room threading policy.
+message RoomThreadingModeChangedEvent {
+  string room_id = 1;
+  chatto.api.v1.RoomThreadingMode threading_mode = 2;
+}
+
+// UserJoinedRoomEvent reports that the actor joined a room.
+message UserJoinedRoomEvent {
+  string room_id = 2;
+}
+
+// UserLeftRoomEvent reports that the actor left a room.
+message UserLeftRoomEvent {
+  string room_id = 2;
+}
+
+// CallParticipantEventSource identifies what caused a call-participant change.
+enum CallParticipantEventSource {
+  CALL_PARTICIPANT_EVENT_SOURCE_UNSPECIFIED = 0;
+  CALL_PARTICIPANT_EVENT_SOURCE_USER = 1;
+  CALL_PARTICIPANT_EVENT_SOURCE_LIVEKIT = 2;
+  CALL_PARTICIPANT_EVENT_SOURCE_RECONCILIATION = 3;
+}
+
+// VoiceCallParticipantJoinedEvent reports that the actor joined a durable call session.
+message VoiceCallParticipantJoinedEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// VoiceCallParticipantLeftEvent reports that the actor left a durable call session.
+message VoiceCallParticipantLeftEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// VoiceCallStartedEvent reports a new durable call session.
+message VoiceCallStartedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  CallParticipantEventSource source = 4;
+}
+
+// VoiceCallEndedEvent reports the end of a durable call session.
+message VoiceCallEndedEvent {
+  string room_id = 1;
+  string call_id = 2;
+  CallParticipantEventSource source = 3;
+}
+
+// MessagePostedEvent reports a new room message.
+message MessagePostedEvent {
+  string room_id = 2;
+  string in_reply_to = 4;
+  string in_thread = 5;
+  repeated string mentioned_user_ids = 6;
+  string echo_of_event_id = 7;
+  string echo_from_thread_root_event_id = 8;
+  repeated MessageMention mentions = 10;
+  // Plaintext message text. The field is absent after key shredding.
+  optional string body_plaintext = 11;
+}
+
+// DirectUserMention identifies a direct user mention.
+message DirectUserMention {}
+
+// RoleMessageMention identifies the role that caused a mention.
+message RoleMessageMention {
+  string role_name = 1;
+}
+
+// HereMessageMention identifies a presence-scoped mention.
+message HereMessageMention {}
+
+// AllMessageMention identifies a room-wide mention.
+message AllMessageMention {}
+
+// MessageMention identifies one resolved mention recipient and cause.
+message MessageMention {
+  string user_id = 1;
+  oneof cause {
+    DirectUserMention direct = 2;
+    RoleMessageMention role = 3;
+    HereMessageMention here = 4;
+    AllMessageMention all = 5;
+  }
+}
+
+// MessageEditedEvent reports changed message content or metadata.
+message MessageEditedEvent {
+  string room_id = 1;
+  string event_id = 2;
+}
+
+// MessageRetractedEvent reports a retracted message.
+message MessageRetractedEvent {
+  string room_id = 1;
+  string event_id = 2;
+}
+
+// MessagePinnedEvent reports a newly pinned message.
+message MessagePinnedEvent {
+  string room_id = 1;
+  string message_event_id = 2;
+}
+
+// MessageUnpinnedEvent reports a message that is no longer pinned.
+message MessageUnpinnedEvent {
+  string room_id = 1;
+  string message_event_id = 2;
+}
+
+// ThreadCreatedEvent reports a new message thread.
+message ThreadCreatedEvent {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+// AssetProcessingStartedEvent reports that message-asset processing started.
+message AssetProcessingStartedEvent {
+  string asset_id = 1;
+  string message_event_id = 2;
+}
+
+// AssetProcessedVideo describes completed video derivatives by public asset ID.
+message AssetProcessedVideo {
+  int64 duration_ms = 1;
+  int32 width = 2;
+  int32 height = 3;
+  string thumbnail_asset_id = 4;
+  repeated AssetVideoVariant variants = 5;
+  AssetProcessedHLS hls = 6;
+}
+
+// AssetVideoVariant identifies one processed rendition.
+message AssetVideoVariant {
+  string quality = 1;
+  string asset_id = 2;
+}
+
+// AssetProcessedHLS describes the public asset IDs used by one HLS manifest.
+message AssetProcessedHLS {
+  repeated AssetHLSRendition renditions = 1;
+}
+
+// AssetHLSRendition describes one HLS rendition.
+message AssetHLSRendition {
+  int32 width = 2;
+  int32 height = 3;
+  int64 bandwidth = 4;
+  repeated AssetHLSSegment segments = 5;
+}
+
+// AssetHLSSegment identifies one HLS media segment.
+message AssetHLSSegment {
+  string asset_id = 1;
+  int64 duration_ms = 2;
+}
+
+// AssetProcessingSucceededEvent reports successful message-asset processing.
+message AssetProcessingSucceededEvent {
+  string asset_id = 1;
+  AssetProcessedVideo video = 2;
+  string message_event_id = 3;
+}
+
+// AssetProcessingFailureCode identifies a stable processing failure class.
+enum AssetProcessingFailureCode {
+  ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED = 0;
+  ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED = 1;
+  ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING = 2;
+}
+
+// AssetProcessingFailedEvent reports failed message-asset processing.
+message AssetProcessingFailedEvent {
+  string asset_id = 1;
+  AssetProcessingFailureCode failure_code = 2;
+  string message_event_id = 3;
+}
+
+// AssetDeletedEvent reports a deleted asset.
+message AssetDeletedEvent {
+  string asset_id = 1;
+}
+
+// ServerMotdChangedEvent reports the current message of the day.
+message ServerMotdChangedEvent {
+  string motd = 1;
+}
+
+// UserAccountCreatedEvent reports a new public user account.
+message UserAccountCreatedEvent {
+  string user_id = 1;
+  bool is_bot = 2;
+  string bot_owner_user_id = 3;
+  optional string login_plaintext = 12;
+  optional string display_name_plaintext = 13;
+}
+
+// UserLoginChangedEvent reports a changed public login name.
+message UserLoginChangedEvent {
+  string user_id = 1;
+  optional string login_plaintext = 11;
+}
+
+// UserDisplayNameChangedEvent reports a changed public display name.
+message UserDisplayNameChangedEvent {
+  string user_id = 1;
+  optional string display_name_plaintext = 11;
+}
+
+// UserAvatarSetEvent reports that a user avatar changed.
+message UserAvatarSetEvent {
+  string user_id = 1;
+}
+
+// UserAvatarClearedEvent reports that a user avatar was removed.
+message UserAvatarClearedEvent {
+  string user_id = 1;
+}
+
+// UserAccountDeletedEvent reports a deleted user account.
+message UserAccountDeletedEvent {
+  string user_id = 1;
+}
+
+// UserCustomStatusSetEvent reports the current public custom status.
+message UserCustomStatusSetEvent {
+  string user_id = 1;
+  chatto.api.v1.CustomUserStatus status = 2;
+}
+
+// UserCustomStatusClearedEvent reports a cleared custom status.
+message UserCustomStatusClearedEvent {
+  string user_id = 1;
+}
+
+// UserBioChangedEvent reports a changed public biography.
+message UserBioChangedEvent {
+  string user_id = 1;
+  // Plaintext biography. The field is absent after key shredding.
+  optional string bio_plaintext = 11;
+}
+
+// RoomMemberBannedEvent reports a room ban without its private moderation reason.
+message RoomMemberBannedEvent {
+  string room_id = 1;
+  string user_id = 2;
+  optional google.protobuf.Timestamp expires_at = 4;
+}
+
+// RoomMemberUnbannedEvent reports removal of a room ban.
+message RoomMemberUnbannedEvent {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+// RoomMemberAddedEvent reports that a manager added a room member.
+message RoomMemberAddedEvent {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+// RoomMemberRemovedEvent reports that a manager removed a room member.
+message RoomMemberRemovedEvent {
+  string room_id = 1;
+  string user_id = 2;
+}
+
+// ReactionAddedEvent reports a new message reaction.
+message ReactionAddedEvent {
+  string room_id = 2;
+  string message_event_id = 3;
+  string emoji = 4;
+}
+
+// ReactionRemovedEvent reports a removed message reaction.
+message ReactionRemovedEvent {
+  string room_id = 2;
+  string message_event_id = 3;
+  string emoji = 4;
+}
+
+// UserCreatedSyncEvent reports a newly materialized public user profile.
+message UserCreatedSyncEvent {
+  string user_id = 1;
+  string login = 2;
+  string display_name = 3;
+}
+
+// UserProfileSyncEvent carries the current public profile after a profile change.
+message UserProfileSyncEvent {
+  string user_id = 1;
+  string display_name = 2;
+  string avatar_url = 3;
+  string login = 4;
+  string bio = 5;
+  string timezone = 6;
+}
+
+// RealtimeTimeFormat identifies the transient client time-display preference.
+enum RealtimeTimeFormat {
+  REALTIME_TIME_FORMAT_UNSPECIFIED = 0;
+  REALTIME_TIME_FORMAT_12H = 1;
+  REALTIME_TIME_FORMAT_24H = 2;
+}
+
+// ServerUserPreferencesSyncEvent reports current client display preferences.
+message ServerUserPreferencesSyncEvent {
+  string timezone = 1;
+  RealtimeTimeFormat time_format = 2;
+  bool share_timezone = 3;
+}
+
+// ThreadFollowChangedSyncEvent reports the viewer's current thread follow state.
+message ThreadFollowChangedSyncEvent {
+  string room_id = 2;
+  string thread_root_event_id = 3;
+  bool is_following = 4;
+}
+
+// ServerMemberDeletedSyncEvent invalidates cached data for a deleted member.
+message ServerMemberDeletedSyncEvent {
+  string user_id = 2;
+}
+
+// ServerUpdatedSyncEvent carries the current public server profile fields.
+message ServerUpdatedSyncEvent {
+  string server_id = 1;
+  string name = 2;
+  string description = 3;
+  string logo_url = 4;
+  string banner_url = 5;
+}
+
+// UserTypingSignalEvent reports current typing activity.
+message UserTypingSignalEvent {
+  string room_id = 2;
+  optional string thread_root_event_id = 3;
+}
+
+// PresenceChangedSignalEvent reports the actor's current presence status.
+message PresenceChangedSignalEvent {
+  string status = 1;
+}
+
+// CallParticipantJoinedSignalEvent reports a transient call join update.
+message CallParticipantJoinedSignalEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// CallParticipantLeftSignalEvent reports a transient call leave update.
+message CallParticipantLeftSignalEvent {
+  string room_id = 1;
+  CallParticipantEventSource source = 2;
+  string call_id = 3;
+}
+
+// NotificationOccurrencesInvalidatedEvent requests notification reconciliation.
+message NotificationOccurrencesInvalidatedEvent {
+  optional string alert_candidate_notification_id = 1;
+  optional string sound_candidate_notification_id = 2;
+}
+
+// NotificationUnreadChangedEvent requests unread-state reconciliation.
+message NotificationUnreadChangedEvent {
+  string room_id = 1;
+  string thread_root_event_id = 2;
+}
+
+// RoomMarkedAsReadSyncEvent reports a viewer read-state change from another session.
+message RoomMarkedAsReadSyncEvent {
+  string room_id = 2;
+}
+
+// MentionStatusClearedSyncEvent reports a cleared room mention indicator.
+message MentionStatusClearedSyncEvent {
+  string room_id = 1;
+}
+
+// RoomGroupsUpdatedSyncEvent requests room-group reconciliation.
+message RoomGroupsUpdatedSyncEvent {}
+
+// SessionTerminatedSignalEvent reports that the current session was terminated.
+message SessionTerminatedSignalEvent {
+  string reason = 1;
+}

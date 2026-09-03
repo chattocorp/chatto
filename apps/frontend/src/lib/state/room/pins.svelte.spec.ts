@@ -3,7 +3,7 @@ import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   MessagePinnedEvent,
   MessageUnpinnedEvent
-} from '@chatto/api-types/core/evt/v1/message_events_pb';
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';

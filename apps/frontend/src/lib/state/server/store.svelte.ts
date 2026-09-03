@@ -38,7 +38,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { Event } from '@chatto/api-types/core/evt/v1/event_pb';
+import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState } from '$lib/api-client/viewer';
@@ -563,7 +563,7 @@ export class ServerStateStore {
     if (sourceEvent) {
       this.#currentEventMinimumCursor = update.cursor ?? undefined;
       try {
-        this.invalidateCanonicalEvent(sourceEvent);
+        this.invalidateRealtimeEvent(sourceEvent);
       } finally {
         this.#currentEventMinimumCursor = undefined;
       }
@@ -693,7 +693,7 @@ export class ServerStateStore {
     }
   }
 
-  private invalidateCanonicalEvent(event: Event): void {
+  private invalidateRealtimeEvent(event: RealtimeEvent): void {
     const payload = event.event;
     const rawValue = payload.value as
       { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
@@ -701,7 +701,6 @@ export class ServerStateStore {
 
     switch (payload.case) {
       case 'userAccountDeleted':
-      case 'serverMemberDeleted':
       case 'serverMemberDeletedSync': {
         const userId = payload.value.userId;
         this.projection.removeUser(userId);
@@ -732,10 +731,8 @@ export class ServerStateStore {
       case 'messagePosted':
       case 'messageEdited':
       case 'messageRetracted':
-      case 'messageBody':
       case 'reactionAdded':
       case 'reactionRemoved':
-      case 'assetAttached':
       case 'assetDeleted': {
         const anchorEventId =
           rawValue?.eventId ??
@@ -745,7 +742,7 @@ export class ServerStateStore {
           payload.case === 'messagePosted' && payload.value.inThread
             ? payload.value.inThread
             : anchorEventId;
-        if (payload.case === 'messagePosted') this.ingestCanonicalMessagePost(event);
+        if (payload.case === 'messagePosted') this.ingestRealtimeMessagePost(event);
         this.refreshLoadedMessageWindows(
           roomId,
           anchorEventId,
@@ -856,28 +853,10 @@ export class ServerStateStore {
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
-      case 'roomGroupCreated':
-      case 'roomGroupUpdated':
-      case 'roomGroupDeleted':
-      case 'roomAddedToGroup':
-      case 'roomRemovedFromGroup':
-      case 'roomsInGroupReordered':
-      case 'sidebarLinkAddedToGroup':
-      case 'sidebarLinkUpdated':
-      case 'sidebarLinkRemovedFromGroup':
-      case 'sidebarGroupEntriesReordered':
-      case 'roomGroupsReordered':
       case 'roomGroupsUpdatedSync':
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'serverUpdatedSync':
-      case 'serverNameChanged':
-      case 'serverDescriptionChanged':
-      case 'serverWelcomeMessageChanged':
-      case 'serverLogoSet':
-      case 'serverLogoCleared':
-      case 'serverBannerSet':
-      case 'serverBannerCleared':
         this.refreshRealtimeResource('server');
         return;
       case 'serverMotdChanged':
@@ -892,33 +871,16 @@ export class ServerStateStore {
       case 'userAvatarCleared':
       case 'userCustomStatusSet':
       case 'userCustomStatusCleared':
+      case 'userBioChanged':
         if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
         return;
       case 'serverUserPreferencesSync':
-      case 'userServerPreferencesChanged':
-      case 'rbacRoleAssigned':
-      case 'rbacRoleRevoked':
-      case 'rbacPermissionGranted':
-      case 'rbacPermissionDenied':
-      case 'rbacPermissionCleared':
         this.refreshRealtimeResource('viewer');
         this.refreshRealtimeResource('rooms');
         return;
       case 'roomMarkedAsReadSync':
         this.refreshRealtimeResource('rooms');
         return;
-      case 'threadFollowed':
-      case 'threadUnfollowed': {
-        if (payload.value.userId === this.currentUser.user?.id) {
-          this.applyThreadFollowChange(
-            roomId,
-            payload.value.threadRootEventId,
-            payload.case === 'threadFollowed'
-          );
-        }
-        refreshRegisteredFollowedThreadQueries(this.serverId);
-        return;
-      }
       case 'threadFollowChangedSync': {
         this.applyThreadFollowChange(
           roomId,
@@ -933,8 +895,8 @@ export class ServerStateStore {
     }
   }
 
-  /** Render an authorized canonical post while its resource hydration runs. */
-  private ingestCanonicalMessagePost(event: Event): void {
+  /** Render an authorized public post while its resource hydration runs. */
+  private ingestRealtimeMessagePost(event: RealtimeEvent): void {
     const posted = event.event.case === 'messagePosted' ? event.event.value : null;
     if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
     const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;

@@ -9,7 +9,6 @@ package livev1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "hmans.de/chatto/internal/pb/chatto/core/event/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1109,67 +1108,67 @@ var File_chatto_core_live_v1_live_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_live_v1_live_events_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/live/v1/live_events.proto\x12\x13chatto.core.live.v1\x1a\"chatto/core/event/v1/options.proto\"\x10\n" +
-	"\x0eHeartbeatEvent\"I\n" +
-	"\x18ServerMemberDeletedEvent\x12\x1d\n" +
-	"\auser_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\xa9\x01\n" +
-	"\x1aCallParticipantJoinedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12M\n" +
-	"\x06source\x18\x02 \x01(\x0e2/.chatto.core.live.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source\x12\x1d\n" +
-	"\acall_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\"\xa7\x01\n" +
-	"\x18CallParticipantLeftEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12M\n" +
-	"\x06source\x18\x02 \x01(\x0e2/.chatto.core.live.v1.CallParticipantEventSourceB\x04\x88\xb5\x18\x01R\x06source\x12\x1d\n" +
-	"\acall_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x06callId\"z\n" +
-	"\x14UserCreatedSyncEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12\x1a\n" +
-	"\x05login\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x05login\x12'\n" +
-	"\fdisplay_name\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\vdisplayName\"\xd9\x01\n" +
-	"\x14UserProfileSyncEvent\x12\x1d\n" +
-	"\auser_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06userId\x12'\n" +
-	"\fdisplay_name\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\vdisplayName\x12#\n" +
+	"%chatto/core/live/v1/live_events.proto\x12\x13chatto.core.live.v1\"\x10\n" +
+	"\x0eHeartbeatEvent\"C\n" +
+	"\x18ServerMemberDeletedEvent\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userIdJ\x04\b\x01\x10\x02R\bspace_id\"\x97\x01\n" +
+	"\x1aCallParticipantJoinedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12G\n" +
+	"\x06source\x18\x02 \x01(\x0e2/.chatto.core.live.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x95\x01\n" +
+	"\x18CallParticipantLeftEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12G\n" +
+	"\x06source\x18\x02 \x01(\x0e2/.chatto.core.live.v1.CallParticipantEventSourceR\x06source\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"h\n" +
+	"\x14UserCreatedSyncEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
+	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\xb5\x01\n" +
+	"\x14UserProfileSyncEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12!\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x1d\n" +
 	"\n" +
-	"avatar_url\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\tavatarUrl\x12\x1a\n" +
-	"\x05login\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\x05login\x12\x16\n" +
-	"\x03bio\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\x03bio\x12 \n" +
-	"\btimezone\x18\x06 \x01(\tB\x04\x88\xb5\x18\x01R\btimezone\"\xb7\x01\n" +
-	"\x1eServerUserPreferencesSyncEvent\x12 \n" +
-	"\btimezone\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\btimezone\x12F\n" +
-	"\vtime_format\x18\x02 \x01(\x0e2\x1f.chatto.core.live.v1.TimeFormatB\x04\x88\xb5\x18\x01R\n" +
-	"timeFormat\x12+\n" +
-	"\x0eshare_timezone\x18\x03 \x01(\bB\x04\x88\xb5\x18\x01R\rshareTimezone\"\xbf\x01\n" +
-	"\x12ServerUpdatedEvent\x12!\n" +
-	"\tserver_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\bserverId\x12\x18\n" +
-	"\x04name\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x04name\x12&\n" +
-	"\vdescription\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\vdescription\x12\x1f\n" +
-	"\blogo_url\x18\x04 \x01(\tB\x04\x88\xb5\x18\x01R\alogoUrl\x12#\n" +
+	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\x12\x14\n" +
+	"\x05login\x18\x04 \x01(\tR\x05login\x12\x10\n" +
+	"\x03bio\x18\x05 \x01(\tR\x03bio\x12\x1a\n" +
+	"\btimezone\x18\x06 \x01(\tR\btimezone\"\xa5\x01\n" +
+	"\x1eServerUserPreferencesSyncEvent\x12\x1a\n" +
+	"\btimezone\x18\x01 \x01(\tR\btimezone\x12@\n" +
+	"\vtime_format\x18\x02 \x01(\x0e2\x1f.chatto.core.live.v1.TimeFormatR\n" +
+	"timeFormat\x12%\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bR\rshareTimezone\"\xa1\x01\n" +
+	"\x12ServerUpdatedEvent\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x19\n" +
+	"\blogo_url\x18\x04 \x01(\tR\alogoUrl\x12\x1d\n" +
 	"\n" +
-	"banner_url\x18\x05 \x01(\tB\x04\x88\xb5\x18\x01R\tbannerUrl\"\x95\x01\n" +
-	"\x0fUserTypingEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x12:\n" +
-	"\x14thread_root_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01H\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
-	"\x15_thread_root_event_idJ\x04\b\x01\x10\x02R\bspace_id\"4\n" +
-	"\x14PresenceChangedEvent\x12\x1c\n" +
-	"\x06status\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06status\"\x95\x02\n" +
-	"'NotificationOccurrencesInvalidatedEvent\x12P\n" +
-	"\x1falert_candidate_notification_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01H\x00R\x1calertCandidateNotificationId\x88\x01\x01\x12P\n" +
-	"\x1fsound_candidate_notification_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01H\x01R\x1csoundCandidateNotificationId\x88\x01\x01B\"\n" +
+	"banner_url\x18\x05 \x01(\tR\tbannerUrl\"\x89\x01\n" +
+	"\x0fUserTypingEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x124\n" +
+	"\x14thread_root_event_id\x18\x03 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
+	"\x15_thread_root_event_idJ\x04\b\x01\x10\x02R\bspace_id\".\n" +
+	"\x14PresenceChangedEvent\x12\x16\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x89\x02\n" +
+	"'NotificationOccurrencesInvalidatedEvent\x12J\n" +
+	"\x1falert_candidate_notification_id\x18\x01 \x01(\tH\x00R\x1calertCandidateNotificationId\x88\x01\x01\x12J\n" +
+	"\x1fsound_candidate_notification_id\x18\x02 \x01(\tH\x01R\x1csoundCandidateNotificationId\x88\x01\x01B\"\n" +
 	" _alert_candidate_notification_idB\"\n" +
-	" _sound_candidate_notification_id\"\xa9\x01\n" +
-	"\x18ThreadFollowChangedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x125\n" +
-	"\x14thread_root_event_id\x18\x03 \x01(\tB\x04\x88\xb5\x18\x01R\x11threadRootEventId\x12'\n" +
-	"\fis_following\x18\x04 \x01(\bB\x04\x88\xb5\x18\x01R\visFollowingJ\x04\b\x01\x10\x02R\bspace_id\"F\n" +
-	"\x15RoomMarkedAsReadEvent\x12\x1d\n" +
-	"\aroom_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"v\n" +
-	"\x1eNotificationUnreadChangedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\x125\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\x04\x88\xb5\x18\x01R\x11threadRootEventId\":\n" +
-	"\x19MentionStatusClearedEvent\x12\x1d\n" +
-	"\aroom_id\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06roomId\"(\n" +
-	"\x16RoomGroupsUpdatedEventJ\x04\b\x01\x10\x02R\bspace_id\"6\n" +
-	"\x16SessionTerminatedEvent\x12\x1c\n" +
-	"\x06reason\x18\x01 \x01(\tB\x04\x88\xb5\x18\x01R\x06reason*S\n" +
+	" _sound_candidate_notification_id\"\x97\x01\n" +
+	"\x18ThreadFollowChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12!\n" +
+	"\fis_following\x18\x04 \x01(\bR\visFollowingJ\x04\b\x01\x10\x02R\bspace_id\"@\n" +
+	"\x15RoomMarkedAsReadEvent\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomIdJ\x04\b\x01\x10\x02R\bspace_id\"j\n" +
+	"\x1eNotificationUnreadChangedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +
+	"\x19MentionStatusClearedEvent\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"(\n" +
+	"\x16RoomGroupsUpdatedEventJ\x04\b\x01\x10\x02R\bspace_id\"0\n" +
+	"\x16SessionTerminatedEvent\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*S\n" +
 	"\n" +
 	"TimeFormat\x12\x1b\n" +
 	"\x17TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x13\n" +

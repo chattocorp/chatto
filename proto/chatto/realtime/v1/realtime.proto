@@ -6,15 +6,7 @@ import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/server.proto";
 import "chatto/api/v1/user_service.proto";
 import "chatto/api/v1/voice_calls.proto";
-import "chatto/core/evt/v1/asset_events.proto";
-import "chatto/core/evt/v1/config_events.proto";
-import "chatto/core/evt/v1/message_events.proto";
-import "chatto/core/evt/v1/moderation_events.proto";
-import "chatto/core/evt/v1/reaction_events.proto";
-import "chatto/core/evt/v1/room_events.proto";
-import "chatto/core/evt/v1/thread_events.proto";
-import "chatto/core/evt/v1/user_events.proto";
-import "chatto/core/live/v1/live_events.proto";
+import "chatto/realtime/v1/events.proto";
 import "google/protobuf/timestamp.proto";
 
 // Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
@@ -162,11 +154,11 @@ message RealtimeCaughtUp {
 
 // One authorized public event with its optional resume cursor.
 //
-// Each payload field reuses the canonical payload message and field number.
-// The union is the public event catalogue. A canonical event that is absent
-// from this union is not part of the realtime API. The server creates a fresh
-// caller-specific value and omits events and fields that the caller cannot see.
-// Durable events have a resume cursor. Transient events do not.
+// Each payload uses a realtime-owned public message. The union is the public
+// event catalogue. A canonical event that is absent from this union is not
+// part of the realtime API. The server creates a fresh caller-specific value
+// after authorization. Durable events have a resume cursor. Transient events
+// do not.
 message RealtimeEvent {
   reserved "state";
 
@@ -181,63 +173,63 @@ message RealtimeEvent {
 
   // Authorized semantic payload.
   oneof event {
-    chatto.core.evt.v1.RoomCreatedEvent room_created = 300;
-    chatto.core.evt.v1.RoomUpdatedEvent room_updated = 301;
-    chatto.core.evt.v1.RoomDeletedEvent room_deleted = 302;
-    chatto.core.evt.v1.RoomArchivedEvent room_archived = 303;
-    chatto.core.evt.v1.RoomUnarchivedEvent room_unarchived = 304;
-    chatto.core.evt.v1.RoomUniversalChangedEvent room_universal_changed = 305;
-    chatto.core.evt.v1.RoomSlowModeChangedEvent room_slow_mode_changed = 307;
-    chatto.core.evt.v1.RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
-    chatto.core.evt.v1.UserJoinedRoomEvent user_joined_room = 310;
-    chatto.core.evt.v1.UserLeftRoomEvent user_left_room = 311;
-    chatto.core.evt.v1.CallParticipantJoinedEvent voice_call_participant_joined = 330;
-    chatto.core.evt.v1.CallParticipantLeftEvent voice_call_participant_left = 331;
-    chatto.core.evt.v1.CallStartedEvent voice_call_started = 332;
-    chatto.core.evt.v1.CallEndedEvent voice_call_ended = 333;
-    chatto.core.evt.v1.MessagePostedEvent message_posted = 400;
-    chatto.core.evt.v1.MessageEditedEvent message_edited = 401;
-    chatto.core.evt.v1.MessageRetractedEvent message_retracted = 402;
-    chatto.core.evt.v1.MessagePinnedEvent message_pinned = 405;
-    chatto.core.evt.v1.MessageUnpinnedEvent message_unpinned = 406;
-    chatto.core.evt.v1.ThreadCreatedEvent thread_created = 425;
-    chatto.core.evt.v1.AssetProcessingStartedEvent asset_processing_started = 451;
-    chatto.core.evt.v1.AssetProcessingSucceededEvent asset_processing_succeeded = 452;
-    chatto.core.evt.v1.AssetProcessingFailedEvent asset_processing_failed = 453;
-    chatto.core.evt.v1.AssetDeletedEvent asset_deleted = 454;
-    chatto.core.evt.v1.ServerMotdChangedEvent server_motd_changed = 504;
-    chatto.core.evt.v1.UserAccountCreatedEvent user_account_created = 700;
-    chatto.core.evt.v1.UserLoginChangedEvent user_login_changed = 701;
-    chatto.core.evt.v1.UserDisplayNameChangedEvent user_display_name_changed = 702;
-    chatto.core.evt.v1.UserAvatarSetEvent user_avatar_set = 703;
-    chatto.core.evt.v1.UserAvatarClearedEvent user_avatar_cleared = 704;
-    chatto.core.evt.v1.UserAccountDeletedEvent user_account_deleted = 710;
-    chatto.core.evt.v1.UserCustomStatusSetEvent user_custom_status_set = 715;
-    chatto.core.evt.v1.UserCustomStatusClearedEvent user_custom_status_cleared = 716;
-    chatto.core.evt.v1.UserBioChangedEvent user_bio_changed = 722;
-    chatto.core.evt.v1.RoomMemberBannedEvent room_member_banned = 840;
-    chatto.core.evt.v1.RoomMemberUnbannedEvent room_member_unbanned = 841;
-    chatto.core.evt.v1.RoomMemberAddedEvent room_member_added = 842;
-    chatto.core.evt.v1.RoomMemberRemovedEvent room_member_removed = 843;
-    chatto.core.evt.v1.ReactionAddedEvent reaction_added = 1050;
-    chatto.core.evt.v1.ReactionRemovedEvent reaction_removed = 1051;
+    RoomCreatedEvent room_created = 300;
+    RoomUpdatedEvent room_updated = 301;
+    RoomDeletedEvent room_deleted = 302;
+    RoomArchivedEvent room_archived = 303;
+    RoomUnarchivedEvent room_unarchived = 304;
+    RoomUniversalChangedEvent room_universal_changed = 305;
+    RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+    RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
+    UserJoinedRoomEvent user_joined_room = 310;
+    UserLeftRoomEvent user_left_room = 311;
+    VoiceCallParticipantJoinedEvent voice_call_participant_joined = 330;
+    VoiceCallParticipantLeftEvent voice_call_participant_left = 331;
+    VoiceCallStartedEvent voice_call_started = 332;
+    VoiceCallEndedEvent voice_call_ended = 333;
+    MessagePostedEvent message_posted = 400;
+    MessageEditedEvent message_edited = 401;
+    MessageRetractedEvent message_retracted = 402;
+    MessagePinnedEvent message_pinned = 405;
+    MessageUnpinnedEvent message_unpinned = 406;
+    ThreadCreatedEvent thread_created = 425;
+    AssetProcessingStartedEvent asset_processing_started = 451;
+    AssetProcessingSucceededEvent asset_processing_succeeded = 452;
+    AssetProcessingFailedEvent asset_processing_failed = 453;
+    AssetDeletedEvent asset_deleted = 454;
+    ServerMotdChangedEvent server_motd_changed = 504;
+    UserAccountCreatedEvent user_account_created = 700;
+    UserLoginChangedEvent user_login_changed = 701;
+    UserDisplayNameChangedEvent user_display_name_changed = 702;
+    UserAvatarSetEvent user_avatar_set = 703;
+    UserAvatarClearedEvent user_avatar_cleared = 704;
+    UserAccountDeletedEvent user_account_deleted = 710;
+    UserCustomStatusSetEvent user_custom_status_set = 715;
+    UserCustomStatusClearedEvent user_custom_status_cleared = 716;
+    UserBioChangedEvent user_bio_changed = 722;
+    RoomMemberBannedEvent room_member_banned = 840;
+    RoomMemberUnbannedEvent room_member_unbanned = 841;
+    RoomMemberAddedEvent room_member_added = 842;
+    RoomMemberRemovedEvent room_member_removed = 843;
+    ReactionAddedEvent reaction_added = 1050;
+    ReactionRemovedEvent reaction_removed = 1051;
 
-    chatto.core.live.v1.UserCreatedSyncEvent user_created_sync = 20000;
-    chatto.core.live.v1.UserProfileSyncEvent user_profile_sync = 20001;
-    chatto.core.live.v1.ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
-    chatto.core.live.v1.ThreadFollowChangedEvent thread_follow_changed_sync = 20003;
-    chatto.core.live.v1.ServerMemberDeletedEvent server_member_deleted_sync = 20004;
-    chatto.core.live.v1.ServerUpdatedEvent server_updated_sync = 20005;
-    chatto.core.live.v1.UserTypingEvent user_typing_signal = 20006;
-    chatto.core.live.v1.PresenceChangedEvent presence_changed_signal = 20007;
-    chatto.core.live.v1.CallParticipantJoinedEvent call_participant_joined_signal = 20008;
-    chatto.core.live.v1.CallParticipantLeftEvent call_participant_left_signal = 20009;
-    chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
-    chatto.core.live.v1.NotificationUnreadChangedEvent notification_unread_changed = 20011;
-    chatto.core.live.v1.RoomMarkedAsReadEvent room_marked_as_read_sync = 20012;
-    chatto.core.live.v1.MentionStatusClearedEvent mention_status_cleared_sync = 20013;
-    chatto.core.live.v1.RoomGroupsUpdatedEvent room_groups_updated_sync = 20014;
-    chatto.core.live.v1.SessionTerminatedEvent session_terminated_signal = 20015;
+    UserCreatedSyncEvent user_created_sync = 20000;
+    UserProfileSyncEvent user_profile_sync = 20001;
+    ServerUserPreferencesSyncEvent server_user_preferences_sync = 20002;
+    ThreadFollowChangedSyncEvent thread_follow_changed_sync = 20003;
+    ServerMemberDeletedSyncEvent server_member_deleted_sync = 20004;
+    ServerUpdatedSyncEvent server_updated_sync = 20005;
+    UserTypingSignalEvent user_typing_signal = 20006;
+    PresenceChangedSignalEvent presence_changed_signal = 20007;
+    CallParticipantJoinedSignalEvent call_participant_joined_signal = 20008;
+    CallParticipantLeftSignalEvent call_participant_left_signal = 20009;
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 20010;
+    NotificationUnreadChangedEvent notification_unread_changed = 20011;
+    RoomMarkedAsReadSyncEvent room_marked_as_read_sync = 20012;
+    MentionStatusClearedSyncEvent mention_status_cleared_sync = 20013;
+    RoomGroupsUpdatedSyncEvent room_groups_updated_sync = 20014;
+    SessionTerminatedSignalEvent session_terminated_signal = 20015;
   }
 }
 

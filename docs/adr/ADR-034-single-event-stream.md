@@ -115,8 +115,8 @@ EVT-backed mutations must not publish direct event-envelope live mirrors.
 `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the
 public realtime stream. Durable facts reach the mapper through EVT republish.
 Ephemeral activity and latest-value invalidations reach it as transient
-canonical Events. Both become authorized public events with canonical payload
-messages.
+canonical Events. Both become authorized public events with dedicated public
+payload messages.
 
 ### Replication and retention
 

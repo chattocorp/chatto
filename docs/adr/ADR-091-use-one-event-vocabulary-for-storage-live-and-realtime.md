@@ -2,9 +2,9 @@
 
 **Status:** Partially superseded by
 [ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-092 replaces the
-public use of the complete canonical envelope with a public union that reuses
-the same payload messages. The canonical storage and transient envelope
-decision in this ADR remains active.
+public use of canonical payload messages with a public union and dedicated
+payload catalogue. The canonical storage and transient envelope decision in
+this ADR remains active.
 **Date:** 2026-08-31
 
 **Supersedes:** The separate-public-schema rule in
@@ -42,8 +42,7 @@ Chatto events. Backend callers still decide the durability:
 - transient signals are published only through NATS Core on `live.sync.>`.
 
 The envelope does not select storage. The storage publisher accepts only known
-durable variants. It rejects transient variants and populated client-only
-fields.
+durable variants and rejects transient variants.
 
 Existing durable oneof tags and payload wire shapes do not change. Transient
 variants use tags 20000 through 29999. Tags 1000 through 9999 stay reserved for
@@ -60,53 +59,14 @@ resource reads and credential revalidation restore authoritative current state.
 Transient payload messages stay in `chatto.core.live.v1`; moving those symbols
 would add source churn without changing the one-envelope runtime model.
 
-### Public delivery uses an authorized Event copy
+### Public delivery experiment (superseded)
 
 This section is superseded by ADR-092. It records the first protocol 4 design.
 
-`chatto.realtime.v1.RealtimeEvent` is a transport wrapper. It contains:
-
-- one authorized canonical `Event`;
-- an optional opaque resume cursor.
-
-The server never sends raw stored bytes and never mutates a stored event. It
-creates a new delivery object, checks event-level authorization, and copies only
-fields that their protobuf options permit. Unknown fields are not copied.
-Internal event variants are omitted by a server-owned public catalogue.
-
-The custom protobuf field option `chatto.core.event.v1.event_field_surface`
-classifies fields as:
-
-- `SHARED`: allowed in storage and authorized delivery;
-- `STORAGE_ONLY`: allowed in storage and removed from delivery;
-- `CLIENT_ONLY`: rejected by storage and allowed in authorized delivery; or
-- `UNSPECIFIED`: allowed in EVT, but denied at a public event-payload root.
-
-A classified shared message field includes its ordinary nested value fields.
-An explicit nested classification still overrides that inherited surface. This
-keeps reusable value messages practical while storage-only fields remain
-visible in code review.
-
-Field surfaces are static exposure classes. They do not express viewer-specific
-policy. Event-level authorization must therefore be sufficient for every
-`SHARED` or populated `CLIENT_ONLY` field in that event. If a future field is
-visible to only some authorized viewers, Chatto must add an explicit
-viewer-aware projection rule or use a separate authorized resource or event.
-
-Encrypted fields use an `_encrypted` or `encrypted_` name when the existing
-stored compatibility contract permits that name. Delivery-only decrypted
-companions use the `_plaintext` suffix. The server decrypts the exact source
-event into a delivery-only clone before field projection. If key shredding has
-removed the key, the plaintext field stays absent. Ciphertext, nonces, password
-hashes, credential verifiers, provider subjects, and similar storage data do
-not cross the public boundary.
-
-`MessagePostedEvent.body_plaintext` lets an authorized client render a new
-message without a second transport shape or a blocking resource read. It is
-absent in EVT. The client can still read the canonical message resource to get
-attachments, reactions, thread metadata, and timeline cursors. A read caused by
-a durable event uses that event's cursor as its minimum boundary. The client
-does not save the event cursor until the required read succeeds.
+The first protocol 4 design used an authorized copy of the canonical event and
+custom field-surface options. ADR-092 replaces that design. The field options
+and client-only fields in EVT messages are removed. Realtime now owns dedicated
+public payloads and plaintext fields. The canonical envelope remains internal.
 
 ### Exact snapshots and resume share one boundary
 
@@ -149,8 +109,8 @@ lazy data out of the WebSocket protocol.
 
 This subsection records the first protocol version 4 design and is superseded
 by ADR-092. That design carried the complete canonical `Event`. The current
-protocol version 4 carries the explicit public `RealtimeEvent` union and reuses
-canonical payload messages. It rejects older handshakes. The protobuf package
+protocol version 4 carries the explicit public `RealtimeEvent` union and its
+dedicated payload messages. It rejects older handshakes. The protobuf package
 remains `chatto.realtime.v1`; that suffix is a namespace and is not the
 behavioral protocol version.
 
@@ -158,9 +118,8 @@ behavioral protocol version.
 
 This change is additive for stored EVT bytes. Existing durable field tags and
 payload fields keep their numbers, types, and oneof structure. New transient
-oneof tags do not alter old records. New optional plaintext fields are absent in
-old and current stored events, and the EVT boundary rejects attempts to store
-them.
+oneof tags do not alter old records. Plaintext fields exist only in the public
+realtime payloads. Their former EVT names and numbers are reserved.
 
 The public realtime change is intentionally breaking. Protocol negotiation
 makes old and new clients fail at the handshake instead of interpreting the
@@ -172,19 +131,20 @@ not affected.
 
 ## Consequences
 
-- Chatto has one semantic event vocabulary for durable facts, transient
-  signals, resume, bots, and the bundled frontend.
-- Adding an event no longer requires a second public event payload.
+- Chatto has one canonical internal event envelope for durable facts and
+  transient signals.
+- Realtime has a semantic one-to-one relationship with selected canonical
+  events, but it owns dedicated public payload messages.
 - Current-state bootstrap reuses canonical ConnectRPC resource messages in a
   small WebSocket snapshot wrapper instead of a parallel state hierarchy.
 - The WebSocket replica captures the snapshot and event boundary together.
   Targeted cursor-bounded reads can use any replica without accepting content
   older than an event boundary.
-- EVT compatibility strengthens the public event contract.
-- Authorization and field projection remain explicit server work. Sharing a
-  protobuf does not make every event or field public.
-- Field annotations and the public event catalogue are security boundaries and
-  require tests and review.
+- EVT compatibility informs the public event contract without exposing the EVT
+  schema.
+- Authorization and mapping remain explicit server work. The public payload
+  schema is the field-level security boundary.
+- The public catalogue and its exhaustive descriptor tests require review.
 - The live payload package can be reorganized later, but that source-layout
   change is not required for one envelope and one semantic vocabulary.
 

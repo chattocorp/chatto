@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package chatto.core.evt.v1;
 
-import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -18,10 +17,10 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
 message ThreadCreatedEvent {
   // Room ID - identifies which room owns the thread.
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
 
   // Event ID of the root MessagePostedEvent that identifies this thread.
-  string thread_root_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string thread_root_event_id = 2;
 }
 
 enum ThreadFollowSource {
@@ -40,25 +39,25 @@ enum ThreadFollowSource {
 
 message ThreadFollowedEvent {
   // Room ID - identifies which room owns the thread.
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
 
   // Event ID of the root MessagePostedEvent that identifies this thread.
-  string thread_root_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string thread_root_event_id = 2;
 
   // User whose follow state changed.
-  string user_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string user_id = 3;
 
   // Why the follow was created.
-  ThreadFollowSource source = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  ThreadFollowSource source = 4;
 }
 
 message ThreadUnfollowedEvent {
   // Room ID - identifies which room owns the thread.
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
 
   // Event ID of the root MessagePostedEvent that identifies this thread.
-  string thread_root_event_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string thread_root_event_id = 2;
 
   // User whose follow state changed.
-  string user_id = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string user_id = 3;
 }

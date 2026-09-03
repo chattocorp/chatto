@@ -133,7 +133,6 @@
         const semantic = event.event?.event;
         if (
           semantic?.case === 'userAccountDeleted' ||
-          semantic?.case === 'serverMemberDeleted' ||
           semantic?.case === 'serverMemberDeletedSync'
         ) {
           rootProfileCache.remove(semantic.value.userId);

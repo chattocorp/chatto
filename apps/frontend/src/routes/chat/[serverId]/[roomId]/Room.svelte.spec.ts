@@ -6,9 +6,8 @@ import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
-import { Event as CanonicalEvent } from '@chatto/api-types/core/evt/v1/event_pb';
-import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
-import { UserJoinedRoomEvent } from '@chatto/api-types/core/evt/v1/room_events_pb';
+import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
 import { MessagesStore, RoomMembersStore } from '$lib/state/room';
@@ -505,7 +504,7 @@ describe('Room interaction bundles', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new CanonicalEvent({
+        event: new PublicRealtimeEvent({
           event: {
             case: 'userJoinedRoom',
             value: new UserJoinedRoomEvent({ roomId: 'room-1' })
@@ -734,7 +733,7 @@ describe('Room local message echo', () => {
 
     mocks.projectionEventHandler?.(
       new RealtimeProjectionUpdate({
-        event: new CanonicalEvent({
+        event: new PublicRealtimeEvent({
           id: 'message-event-id',
           actorId: 'system',
           event: {

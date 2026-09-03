@@ -3,8 +3,8 @@ import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
 import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
-import { MessagePostedEvent } from '@chatto/api-types/core/evt/v1/message_events_pb';
+import { MessagePostedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 
 describe('ServerProjectionStore', () => {
@@ -44,7 +44,7 @@ describe('ServerProjectionStore', () => {
     );
     store.apply(
       new RealtimeProjectionUpdate({
-        event: new Event({
+        event: new RealtimeEvent({
           event: { case: 'messagePosted', value: new MessagePostedEvent({ roomId: 'dm' }) }
         })
       })

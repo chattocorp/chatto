@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.core.evt.v1;
 
 import "google/protobuf/timestamp.proto";
-import "chatto/core/event/v1/options.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -22,33 +21,33 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 // The Event envelope actor_id is the moderator. The payload user_id is the
 // target. Absence of expires_at means the ban is indefinite.
 message RoomMemberBannedEvent {
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string reason = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
-  optional google.protobuf.Timestamp expires_at = 4 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
+  string user_id = 2;
+  string reason = 3;
+  optional google.protobuf.Timestamp expires_at = 4;
 }
 
 // RoomMemberUnbannedEvent records a moderator removing a room ban.
 // The Event envelope actor_id is the moderator. The payload user_id is the
 // target.
 message RoomMemberUnbannedEvent {
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string reason = 3 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_STORAGE_ONLY];
+  string room_id = 1;
+  string user_id = 2;
+  string reason = 3;
 }
 
 // RoomMemberAddedEvent records a manager adding a user to a channel room.
 // The Event envelope actor_id is the manager. The payload user_id is the
 // target.
 message RoomMemberAddedEvent {
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
+  string user_id = 2;
 }
 
 // RoomMemberRemovedEvent records a manager removing a user from a channel room.
 // The Event envelope actor_id is the manager. The payload user_id is the
 // target.
 message RoomMemberRemovedEvent {
-  string room_id = 1 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
-  string user_id = 2 [(chatto.core.event.v1.event_field_surface) = EVENT_FIELD_SURFACE_SHARED];
+  string room_id = 1;
+  string user_id = 2;
 }
