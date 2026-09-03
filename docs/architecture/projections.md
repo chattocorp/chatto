@@ -54,11 +54,15 @@ authorizes and selects references against `ServerContentView`. It then uses
 barrier. The hydrator validates the stored identity and routing metadata before
 it returns a payload. Mutable body references are checked again after the read.
 The shared `events.StreamMessageReader` keeps copied opaque records in a
-process-local cache with sliding idle expiry. The default idle lifetime is 15
-minutes and `core.evt_read_cache_idle_ttl` changes it. Cache misses use bounded
-exact stream reads. Secure deletion removes the affected local cache entries.
-Debug logs report direct misses, batch hits and misses, read durations, expired
-entry counts, and cache clears. They do not report subjects or payloads.
+process-local cache with sliding idle expiry and byte-costed LRU eviction. The
+default idle lifetime is 15 minutes and the default approximate byte limit is
+256 MiB per server process. `core.evt_read_cache_idle_ttl` and
+`core.evt_read_cache_max_bytes` change these values. A maximum of `-1` disables
+the byte limit. Cache misses use bounded exact stream reads. Secure deletion
+removes the affected local cache entries. An info log reports both effective
+settings at startup. Debug logs report direct misses, batch hits and misses,
+read durations, LRU evictions, expired entry counts, and cache clears. They do
+not report subjects or payloads.
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared

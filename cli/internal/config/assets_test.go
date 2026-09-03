@@ -17,6 +17,7 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION", "10d")
 	t.Setenv("CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP", "false")
 	t.Setenv("CHATTO_CORE_EVT_READ_CACHE_IDLE_TTL", "45m")
+	t.Setenv("CHATTO_CORE_EVT_READ_CACHE_MAX_BYTES", "512MiB")
 
 	cfg, err := ReadConfig(filepath.Join(t.TempDir(), "missing.toml"))
 	if err != nil {
@@ -34,6 +35,9 @@ func TestReadConfig_CoreProjectionSnapshotsFromEnv(t *testing.T) {
 	if cfg.Core.EVTReadCacheIdleTTLOrDefault() != 45*time.Minute {
 		t.Errorf("EVT read cache idle TTL = %s", cfg.Core.EVTReadCacheIdleTTLOrDefault())
 	}
+	if got := cfg.Core.EVTReadCacheMaxBytesOrDefault(); got != 512<<20 {
+		t.Errorf("EVT read cache maximum bytes = %d", got)
+	}
 }
 
 func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
@@ -46,6 +50,9 @@ func TestCoreProjectionSnapshotLifecycleDefaults(t *testing.T) {
 	}
 	if got := cfg.EVTReadCacheIdleTTLOrDefault(); got != 15*time.Minute {
 		t.Fatalf("default EVT read cache idle TTL = %s", got)
+	}
+	if got := cfg.EVTReadCacheMaxBytesOrDefault(); got != 256<<20 {
+		t.Fatalf("default EVT read cache maximum bytes = %d", got)
 	}
 }
 
@@ -114,6 +121,32 @@ func TestChattoConfig_ValidateEVTReadCacheIdleTTL(t *testing.T) {
 	cfg.Core.EVTReadCacheIdleTTL = Duration(-time.Hour)
 	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "core.evt_read_cache_idle_ttl must be positive") {
 		t.Fatalf("Validate() error = %v, want EVT read cache idle TTL error", err)
+	}
+}
+
+func TestChattoConfig_ValidateEVTReadCacheMaxBytes(t *testing.T) {
+	tests := []struct {
+		name    string
+		value   ByteSizeLimit
+		wantErr bool
+	}{
+		{name: "unlimited", value: -1},
+		{name: "positive", value: 1},
+		{name: "zero", value: 0, wantErr: true},
+		{name: "below unlimited sentinel", value: -2, wantErr: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			cfg.Core.EVTReadCacheMaxBytes = &test.value
+			err := cfg.Validate()
+			if (err != nil) != test.wantErr {
+				t.Fatalf("Validate() error = %v, want error %v", err, test.wantErr)
+			}
+			if test.wantErr && !strings.Contains(err.Error(), "core.evt_read_cache_max_bytes") {
+				t.Fatalf("Validate() error = %v, want EVT read cache maximum error", err)
+			}
+		})
 	}
 }
 

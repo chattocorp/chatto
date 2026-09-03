@@ -186,7 +186,11 @@ See [Enabling Search](/guides/operations/search/) for a complete setup guide, an
 ## Core
 
 <EnvVar name="CHATTO_CORE_EVT_READ_CACHE_IDLE_TTL" toml="core.evt_read_cache_idle_ttl" default="15m">
-  Keep an `EVT` record in each server process's timeline read cache for this duration after its last access. A shorter duration reduces idle memory use and can cause more NATS reads. A longer duration can make repeated timeline reads faster and use more memory. Supports values such as `15m` and `1h`. Set `CHATTO_LOG_LEVEL=debug` to log cache hit and miss summaries, read durations, expiry counts, and cache clears.
+  Keep an `EVT` record in each server process's timeline read cache for this duration after its last access. A shorter duration reduces idle memory use and can cause more NATS reads. A longer duration can make repeated timeline reads faster and use more memory. Supports values such as `15m` and `1h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_CORE_EVT_READ_CACHE_MAX_BYTES" toml="core.evt_read_cache_max_bytes" default="256MiB">
+  Set the approximate maximum size of each server process's timeline read cache. Chatto evicts the least-recently-used `EVT` records when the cache reaches this limit. Supports values such as `128MiB` and `1GiB`. Set this value to `-1` to disable the byte limit. The idle timeout remains active. Chatto logs both effective cache settings at info level during startup. Set `CHATTO_LOG_LEVEL=debug` to also log cache hit and miss summaries, read durations, LRU eviction counts, expiry counts, and cache clears.
 </EnvVar>
 
 <EnvVar name="CHATTO_CORE_PROJECTION_SNAPSHOTS" toml="core.projection_snapshots" default="false">

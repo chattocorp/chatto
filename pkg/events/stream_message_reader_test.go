@@ -137,6 +137,58 @@ func TestStreamMessageReaderCachesClonedRecords(t *testing.T) {
 	}
 }
 
+func TestStreamMessageReaderEvictsLeastRecentlyUsedRecordsAtByteLimit(t *testing.T) {
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1, Data: []byte("a")},
+			2: {Subject: "evt.two", Sequence: 2, Data: []byte("b")},
+			3: {Subject: "evt.three", Sequence: 3, Data: []byte("c")},
+		},
+	}
+	recordCost := streamMessageCacheEntryOverhead + uint64(len("evt.three")) + 1
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+		CacheMaxBytes: 2 * recordCost,
+	})
+
+	for _, sequence := range []uint64{1, 2, 1, 3} {
+		if _, err := reader.Message(context.Background(), sequence); err != nil {
+			t.Fatalf("Message(%d): %v", sequence, err)
+		}
+	}
+	if reader.cache.Get(1) == nil {
+		t.Fatal("recently used sequence 1 was evicted")
+	}
+	if reader.cache.Get(2) != nil {
+		t.Fatal("least-recently-used sequence 2 remains cached")
+	}
+	if reader.cache.Get(3) == nil {
+		t.Fatal("new sequence 3 was not cached")
+	}
+}
+
+func TestStreamMessageReaderDoesNotRetainRecordLargerThanByteLimit(t *testing.T) {
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1, Data: []byte("payload")},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheMaxBytes: 1})
+
+	for range 2 {
+		if _, err := reader.Message(context.Background(), 1); err != nil {
+			t.Fatalf("Message: %v", err)
+		}
+	}
+	if got := source.reads[1]; got != 2 {
+		t.Fatalf("source reads = %d, want 2", got)
+	}
+	if got := reader.cache.Len(); got != 0 {
+		t.Fatalf("cache entries = %d, want 0", got)
+	}
+}
+
 func TestStreamMessageReaderLogsDirectCacheMiss(t *testing.T) {
 	logger := newRecordingStreamMessageLogger()
 	source := &exactMessageSourceStub{
@@ -310,11 +362,12 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 		t.Fatalf("batch read logs = %d, want 2", len(logs))
 	}
 	for key, want := range map[string]interface{}{
-		"requested": 3,
-		"unique":    2,
-		"hits":      0,
-		"misses":    2,
-		"entries":   2,
+		"requested":     3,
+		"unique":        2,
+		"hits":          0,
+		"misses":        2,
+		"entries":       2,
+		"lru_evictions": uint64(0),
 	} {
 		if got := logs[0].fields[key]; got != want {
 			t.Errorf("first batch %s = %v, want %v", key, got, want)
@@ -327,6 +380,29 @@ func TestStreamMessageReaderLogsBatchCacheResults(t *testing.T) {
 		if _, ok := entry.fields["duration"].(time.Duration); !ok {
 			t.Errorf("batch %d duration = %T, want time.Duration", i, entry.fields["duration"])
 		}
+	}
+}
+
+func TestStreamMessageReaderLogsBatchLRUEvictions(t *testing.T) {
+	logger := newRecordingStreamMessageLogger()
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1},
+			2: {Subject: "evt.two", Sequence: 2},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{
+		CacheMaxBytes: streamMessageCacheEntryOverhead + uint64(len("evt.one")),
+		Logger:        logger,
+	})
+	if _, err := reader.Messages(context.Background(), []uint64{1, 2}); err != nil {
+		t.Fatalf("Messages: %v", err)
+	}
+
+	logs := logger.matching("Stream message cache batch read")
+	if len(logs) != 1 || logs[0].fields["lru_evictions"] != uint64(1) || logs[0].fields["entries"] != 1 {
+		t.Fatalf("batch cache fields = %v, want one LRU eviction and one entry", logs)
 	}
 }
 
@@ -508,5 +584,29 @@ func TestStreamMessageReaderRunIsSingleUse(t *testing.T) {
 	}
 	if err := reader.Run(context.Background()); !errors.Is(err, ErrStreamMessageReaderAlreadyStarted) {
 		t.Fatalf("repeated Run error = %v, want ErrStreamMessageReaderAlreadyStarted", err)
+	}
+}
+
+func TestStreamMessageReaderRunClearsByteLimitedCacheWithoutIdleTTL(t *testing.T) {
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheMaxBytes: 1 << 20})
+	if _, err := reader.Message(context.Background(), 1); err != nil {
+		t.Fatalf("Message: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- reader.Run(ctx) }()
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v, want context.Canceled", err)
+	}
+	if got := reader.cache.Len(); got != 0 {
+		t.Fatalf("cache entries after shutdown = %d, want 0", got)
 	}
 }

@@ -64,12 +64,16 @@ decoded Chatto protobuf values. Successful reads extend the entry's idle
 lifetime. Failed, missing, and invalid broker responses are not cached.
 
 Chatto enables this cache for timeline hydration. The sliding idle lifetime is
-set by `core.evt_read_cache_idle_ttl` and defaults to 15 minutes. A background
-reader lifecycle removes expired entries. Secure deletion also removes the
-affected sequence from the local cache and prevents an in-progress read from
-putting it back. A NATS continuity loss clears the complete cache before
-application recovery. Each replica owns its cache. Cache loss or a cache miss
-causes a normal EVT read.
+set by `core.evt_read_cache_idle_ttl` and defaults to 15 minutes. The cache also
+uses a byte-costed least-recently-used limit. The limit estimates retained
+record bytes and per-entry storage overhead. It defaults to 256 MiB per server
+process. `core.evt_read_cache_max_bytes` changes the limit, and `-1` disables
+the byte limit. Idle expiry remains active when the byte limit is disabled.
+A background reader lifecycle removes expired entries. Secure deletion also
+removes the affected sequence from the local cache and prevents an in-progress
+read from putting it back. A NATS continuity loss clears the complete cache
+before application recovery. Each replica owns its cache. Cache loss, expiry,
+or LRU eviction causes a normal EVT read.
 
 ### Timeline hydration
 
@@ -148,7 +152,8 @@ cache.
 - Timeline reads perform EVT I/O and can fail when EVT is unavailable or an
   indexed record is missing or corrupt.
 - Repeated timeline reads can use copied EVT records from the process-local
-  cache until their sliding idle lifetime expires.
+  cache until their sliding idle lifetime expires or the byte-costed LRU limit
+  evicts them.
 - Page reads can fetch only the records required for the page. Attachment reads
   can use projected counts to apply pagination before body hydration.
 - One hydration boundary makes a later cache, `DirectGet`, or broker batch read

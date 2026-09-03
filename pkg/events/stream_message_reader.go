@@ -18,6 +18,11 @@ const (
 	defaultStreamMessageReadConcurrency = 16
 	minimumCacheCleanupInterval         = 10 * time.Millisecond
 	maximumCacheCleanupInterval         = time.Minute
+	// streamMessageCacheEntryOverhead estimates the ttlcache item, LRU node,
+	// map entry, sequence key, and retained record headers. It makes every item
+	// carry a non-zero cost, so the configured byte budget also bounds the item
+	// count when records have empty payloads and metadata.
+	streamMessageCacheEntryOverhead = 256
 )
 
 // ErrInvalidStreamMessageReaderConfig marks invalid exact-read concurrency or
@@ -35,8 +40,13 @@ type exactStreamMessageSource interface {
 // StreamMessageReaderConfig controls exact stream reads and the optional
 // process-local message cache.
 type StreamMessageReaderConfig struct {
-	// CacheIdleTTL sets sliding idle expiry. Zero disables the cache.
+	// CacheIdleTTL sets sliding idle expiry. Zero disables idle expiry.
 	CacheIdleTTL time.Duration
+	// CacheMaxBytes sets the approximate maximum bytes retained by the cache.
+	// Least-recently-used entries are evicted to meet the limit. Zero disables
+	// the byte limit. The cache is disabled only when both cache settings are
+	// zero.
+	CacheMaxBytes uint64
 	// MaxConcurrentReads limits broker reads across calls. Zero uses 16.
 	MaxConcurrentReads int
 	// Logger receives cache-miss, batch, expiry, and clearing diagnostics.
@@ -54,6 +64,7 @@ type StreamMessageReaderConfig struct {
 type StreamMessageReader struct {
 	source        exactStreamMessageSource
 	cacheIdleTTL  time.Duration
+	cacheMaxBytes uint64
 	readSemaphore chan struct{}
 	cache         *ttlcache.Cache[uint64, EncodedSubjectRecord]
 	logger        Logger
@@ -86,13 +97,22 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 	reader := &StreamMessageReader{
 		source:        source,
 		cacheIdleTTL:  config.CacheIdleTTL,
+		cacheMaxBytes: config.CacheMaxBytes,
 		readSemaphore: make(chan struct{}, maxConcurrentReads),
 		logger:        normalizeLogger(config.Logger),
 	}
-	if config.CacheIdleTTL > 0 {
-		reader.cache = ttlcache.New(
-			ttlcache.WithTTL[uint64, EncodedSubjectRecord](config.CacheIdleTTL),
-		)
+	if config.CacheIdleTTL > 0 || config.CacheMaxBytes > 0 {
+		options := make([]ttlcache.Option[uint64, EncodedSubjectRecord], 0, 2)
+		if config.CacheIdleTTL > 0 {
+			options = append(options, ttlcache.WithTTL[uint64, EncodedSubjectRecord](config.CacheIdleTTL))
+		}
+		if config.CacheMaxBytes > 0 {
+			options = append(options, ttlcache.WithMaxCost(
+				config.CacheMaxBytes,
+				streamMessageCacheCost,
+			))
+		}
+		reader.cache = ttlcache.New(options...)
 	}
 	return reader, nil
 }
@@ -102,51 +122,52 @@ func newStreamMessageReader(source exactStreamMessageSource, config StreamMessag
 // NATS client response.
 func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (EncodedSubjectRecord, error) {
 	startedAt := time.Now()
-	record, cacheMiss, err := r.message(ctx, sequence)
+	record, cacheMiss, costEvictions, err := r.message(ctx, sequence)
 	if cacheMiss && r.cache != nil {
 		r.logger.Debug(
 			"Stream message cache miss",
 			"stream_sequence", sequence,
 			"entries", r.cache.Len(),
+			"lru_evictions", costEvictions,
 			"duration", time.Since(startedAt),
 		)
 	}
 	return record, err
 }
 
-func (r *StreamMessageReader) message(ctx context.Context, sequence uint64) (EncodedSubjectRecord, bool, error) {
+func (r *StreamMessageReader) message(ctx context.Context, sequence uint64) (EncodedSubjectRecord, bool, uint64, error) {
 	if r == nil || r.source == nil {
-		return EncodedSubjectRecord{}, false, fmt.Errorf("stream message reader is unavailable")
+		return EncodedSubjectRecord{}, false, 0, fmt.Errorf("stream message reader is unavailable")
 	}
 	if sequence == 0 {
-		return EncodedSubjectRecord{}, false, fmt.Errorf("stream sequence must be positive")
+		return EncodedSubjectRecord{}, false, 0, fmt.Errorf("stream sequence must be positive")
 	}
 	if record, ok := r.cached(sequence); ok {
-		return record, false, nil
+		return record, false, 0, nil
 	}
 
 	select {
 	case r.readSemaphore <- struct{}{}:
 		defer func() { <-r.readSemaphore }()
 	case <-ctx.Done():
-		return EncodedSubjectRecord{}, false, ctx.Err()
+		return EncodedSubjectRecord{}, false, 0, ctx.Err()
 	}
 
 	// A read that waited for capacity can reuse a record loaded meanwhile. The
 	// miss and cache-generation capture are atomic with cache invalidation.
 	record, ok, cacheGeneration := r.cachedOrBeginRead(sequence)
 	if ok {
-		return record, false, nil
+		return record, false, 0, nil
 	}
 	message, err := r.source.GetMsg(ctx, sequence)
 	if err != nil {
-		return EncodedSubjectRecord{}, true, fmt.Errorf("read stream sequence %d: %w", sequence, err)
+		return EncodedSubjectRecord{}, true, 0, fmt.Errorf("read stream sequence %d: %w", sequence, err)
 	}
 	if message == nil {
-		return EncodedSubjectRecord{}, true, fmt.Errorf("read stream sequence %d: broker returned no record", sequence)
+		return EncodedSubjectRecord{}, true, 0, fmt.Errorf("read stream sequence %d: broker returned no record", sequence)
 	}
 	if message.Sequence != sequence {
-		return EncodedSubjectRecord{}, true, fmt.Errorf(
+		return EncodedSubjectRecord{}, true, 0, fmt.Errorf(
 			"read stream sequence %d: broker returned sequence %d",
 			sequence,
 			message.Sequence,
@@ -160,8 +181,8 @@ func (r *StreamMessageReader) message(ctx context.Context, sequence uint64) (Enc
 	if message.Header != nil {
 		record.ID = message.Header.Get(nats.MsgIdHdr)
 	}
-	r.storeIfCurrent(record, cacheGeneration)
-	return cloneEncodedSubjectRecord(record), true, nil
+	costEvictions := r.storeIfCurrent(record, cacheGeneration)
+	return cloneEncodedSubjectRecord(record), true, costEvictions, nil
 }
 
 // Messages loads exact stream sequences with bounded process-wide
@@ -190,17 +211,19 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 
 	loaded := make([]EncodedSubjectRecord, len(unique))
 	cacheMisses := make([]bool, len(unique))
+	costEvictions := make([]uint64, len(unique))
 	startedAt := time.Now()
 	reads, readCtx := errgroup.WithContext(ctx)
 	reads.SetLimit(cap(r.readSemaphore))
 	for index, sequence := range unique {
 		reads.Go(func() error {
-			record, cacheMiss, err := r.message(readCtx, sequence)
+			record, cacheMiss, evictions, err := r.message(readCtx, sequence)
 			if err != nil {
 				return err
 			}
 			loaded[index] = record
 			cacheMisses[index] = cacheMiss
+			costEvictions[index] = evictions
 			return nil
 		})
 	}
@@ -212,10 +235,14 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 	}
 	if r.cache != nil {
 		missCount := 0
+		var costEvictionCount uint64
 		for _, cacheMiss := range cacheMisses {
 			if cacheMiss {
 				missCount++
 			}
+		}
+		for _, evictions := range costEvictions {
+			costEvictionCount += evictions
 		}
 		r.logger.Debug(
 			"Stream message cache batch read",
@@ -224,6 +251,7 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 			"hits", len(unique)-missCount,
 			"misses", missCount,
 			"entries", r.cache.Len(),
+			"lru_evictions", costEvictionCount,
 			"duration", time.Since(startedAt),
 		)
 	}
@@ -279,11 +307,15 @@ func (r *StreamMessageReader) Run(ctx context.Context) error {
 		<-ctx.Done()
 		return ctx.Err()
 	}
+	defer r.Clear()
+	if r.cacheIdleTTL == 0 {
+		<-ctx.Done()
+		return ctx.Err()
+	}
 	interval := max(r.cacheIdleTTL/2, minimumCacheCleanupInterval)
 	interval = min(interval, maximumCacheCleanupInterval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
-	defer r.Clear()
 	for {
 		select {
 		case <-ctx.Done():
@@ -335,16 +367,25 @@ func (r *StreamMessageReader) cachedOrBeginRead(sequence uint64) (EncodedSubject
 
 // storeIfCurrent does not let an in-flight read refill the cache after Forget
 // or Clear. Invalidation is rare, so it can discard unrelated concurrent fills.
-func (r *StreamMessageReader) storeIfCurrent(record EncodedSubjectRecord, cacheGeneration uint64) {
+func (r *StreamMessageReader) storeIfCurrent(record EncodedSubjectRecord, cacheGeneration uint64) uint64 {
 	if r.cache == nil {
-		return
+		return 0
 	}
 	r.invalidationMu.Lock()
 	defer r.invalidationMu.Unlock()
 	if cacheGeneration != r.cacheGeneration {
-		return
+		return 0
 	}
+	before := r.cache.Metrics().Evictions
 	r.cache.Set(record.Sequence, cloneEncodedSubjectRecord(record), ttlcache.DefaultTTL)
+	return r.cache.Metrics().Evictions - before
+}
+
+func streamMessageCacheCost(item ttlcache.CostItem[uint64, EncodedSubjectRecord]) uint64 {
+	return streamMessageCacheEntryOverhead +
+		uint64(len(item.Value.Subject)) +
+		uint64(len(item.Value.ID)) +
+		uint64(len(item.Value.Data))
 }
 
 func cloneEncodedSubjectRecord(record EncodedSubjectRecord) EncodedSubjectRecord {

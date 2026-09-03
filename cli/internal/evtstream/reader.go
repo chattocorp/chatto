@@ -22,9 +22,8 @@ type Reader struct {
 	reader   encodedMessageReader
 }
 
-// NewReader constructs an exact-sequence reader for the EVT stream. Successful
-// reads remain in a process-local cache until CacheIdleTTL elapses without an
-// access.
+// NewReader constructs an exact-sequence reader for the EVT stream. The cache
+// can use sliding idle expiry, a byte-costed LRU limit, or both.
 func NewReader(stream jetstream.Stream, config events.StreamMessageReaderConfig) (*Reader, error) {
 	messages, err := events.NewStreamMessageReader(stream, config)
 	if err != nil {

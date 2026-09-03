@@ -70,10 +70,7 @@ func initializeCoreInfrastructure(
 		logger,
 	)
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
-	eventReader, err := evtstream.NewReader(storage.serverEvtStream, events.StreamMessageReaderConfig{
-		CacheIdleTTL: cfg.EVTReadCacheIdleTTLOrDefault(),
-		Logger:       logger.WithPrefix("core.EVTReadCache"),
-	})
+	eventReader, err := evtstream.NewReader(storage.serverEvtStream, evtReadCacheConfig(cfg, logger))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize EVT reader: %w", err)
 	}
@@ -89,6 +86,26 @@ func initializeCoreInfrastructure(
 		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
 		snapshotRepository:    snapshotRepository,
 	}, nil
+}
+
+func evtReadCacheConfig(cfg config.CoreConfig, logger *log.Logger) events.StreamMessageReaderConfig {
+	cacheLogger := logger.WithPrefix("core.EVTReadCache")
+	idleTTL := cfg.EVTReadCacheIdleTTLOrDefault()
+	maxBytes := cfg.EVTReadCacheMaxBytesOrDefault()
+	cacheLogger.Info(
+		"EVT read cache configured",
+		"idle_ttl", idleTTL,
+		"max_bytes", maxBytes,
+	)
+	var frameworkMaxBytes uint64
+	if maxBytes > 0 {
+		frameworkMaxBytes = uint64(maxBytes)
+	}
+	return events.StreamMessageReaderConfig{
+		CacheIdleTTL:  idleTTL,
+		CacheMaxBytes: frameworkMaxBytes,
+		Logger:        cacheLogger,
+	}
 }
 
 func initializeCoreS3(
