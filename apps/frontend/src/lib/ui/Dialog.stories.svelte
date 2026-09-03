@@ -28,7 +28,7 @@
   let dialogWithFooterVisible = $state(false);
   let referenceDialogVisible = $state(false);
   let longDialogVisible = $state(false);
-  let narrowDialogVisible = $state(false);
+  let adaptiveDialogVisible = $state(false);
 </script>
 
 <Story
@@ -118,30 +118,33 @@
 </Story>
 
 <Story
-  name="Narrow action truncation"
+  name="Adaptive action width"
   asChild
   parameters={{
     docs: {
       description: {
         story:
-          'Resize the canvas to a narrow viewport. Actions stay in one row and long labels truncate before the row can wrap.'
+          'German action labels expand the dialog when space is available. Resize the canvas to a narrow viewport to see labels truncate without wrapping the action row.'
       }
     }
   }}
 >
-  <Button onclick={() => (narrowDialogVisible = true)}>Open narrow dialog</Button>
+  <Button onclick={() => (adaptiveDialogVisible = true)}>Open adaptive dialog</Button>
 
-  <Dialog bind:visible={narrowDialogVisible} title="Choose Destination" size="md">
-    <p class="text-muted">Choose where Chatto should post this message.</p>
+  <Dialog bind:visible={adaptiveDialogVisible} title="Im vorherigen Thread fortfahren?" size="md">
+    <p class="text-muted">
+      Deine vorherige Nachricht hat bereits einen Thread. Wohin soll diese Nachricht gesendet
+      werden?
+    </p>
 
     {#snippet footer()}
-      <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>Cancel</Button>
-      <Button variant="secondary" onclick={() => (narrowDialogVisible = false)}>
-        Post as a Completely New Message
+      <Button variant="secondary" onclick={() => (adaptiveDialogVisible = false)}>Abbrechen</Button>
+      <Button variant="secondary" onclick={() => (adaptiveDialogVisible = false)}>
+        Als neue Nachricht senden
       </Button>
-      <Button defaultAction onclick={() => (narrowDialogVisible = false)}>
+      <Button defaultAction onclick={() => (adaptiveDialogVisible = false)}>
         <span class="iconify icon-[uil--comment-alt-lines]"></span>
-        Continue in the Existing Thread
+        Im Thread fortfahren
       </Button>
     {/snippet}
   </Dialog>
@@ -222,9 +225,7 @@
     </p>
 
     {#snippet footer()}
-      <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
-        Cancel
-      </Button>
+      <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>Cancel</Button>
       <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
         Post as new message
       </Button>
