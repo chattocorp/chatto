@@ -69,6 +69,13 @@ mapper applies only trusted decrypted values. Ciphertext,
 nonces, storage pointers, private moderation data, credentials, and other
 internal fields do not exist in the public payload schema.
 
+The current catalogue has no field whose visibility differs between two
+callers who can receive the event. Therefore, the mapper does not yet take a
+caller-specific field policy. If a future payload needs this policy, the
+authorization boundary must compute the allowed public value and pass it to
+the mapper, or omit the field or event. Do not put this policy in annotations
+on stored EVT fields.
+
 Realtime protocol version 4 keeps this refined shape. Protocol 4 is not yet in
 a Chatto release. The pull request that introduces it updates the server,
 bundled client, generated clients, and public documentation together.
@@ -87,6 +94,7 @@ public contract.
 - Adding a public event requires a dedicated payload, one union member, and an
   explicit mapper case.
 - Adding an internal event does not enlarge the public API.
+- Caller-specific field authorization stays explicit when a payload needs it.
 - Public union evolution and stored EVT envelope evolution can be reviewed as
   separate compatibility decisions.
 - Descriptor tests fail if public union alignment or mapper coverage drifts.

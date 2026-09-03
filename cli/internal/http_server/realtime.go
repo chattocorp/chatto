@@ -857,10 +857,6 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-	projected := projectRealtimeEvent(canonical)
-	if projected == nil {
-		return nil, errRealtimeEventOmitted
-	}
 	if typing := canonical.GetUserTypingSignal(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
@@ -885,6 +881,10 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		if !canRead {
 			return nil, core.ErrPermissionDenied
 		}
+	}
+	projected := projectRealtimeEvent(canonical)
+	if projected == nil {
+		return nil, errRealtimeEventOmitted
 	}
 	plaintext, err := s.core.ResolveEventPlaintext(ctx, canonical)
 	if err != nil {
