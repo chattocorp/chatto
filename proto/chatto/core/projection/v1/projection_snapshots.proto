@@ -436,6 +436,9 @@ message TimelineBodyReferenceSnapshot {
   // Number of current attachment references. This permits attachment-page
   // selection without loading the encrypted message body.
   uint32 attachment_count = 6;
+  // Current asset IDs when the body uses asset references. Legacy bodies use
+  // embedded attachments and leave this list empty.
+  repeated string current_asset_ids = 7;
 }
 
 message TimelineBucketSnapshot {

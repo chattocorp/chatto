@@ -1180,13 +1180,12 @@ func (s *blockingTimelineEventSource) EventAt(ctx context.Context, sequence uint
 }
 
 type growingTimelineEventSource struct {
-	mu            sync.Mutex
-	records       timelineTestEventSource
-	projection    *RoomTimelineProjection
-	remaining     int
-	nextSequence  uint64
-	bucketTime    time.Time
-	readSequences []uint64
+	mu           sync.Mutex
+	records      timelineTestEventSource
+	projection   *RoomTimelineProjection
+	remaining    int
+	nextSequence uint64
+	bucketTime   time.Time
 }
 
 func (s *growingTimelineEventSource) EventAt(ctx context.Context, sequence uint64) (*evtstream.SubjectEvent, error) {
@@ -1195,7 +1194,6 @@ func (s *growingTimelineEventSource) EventAt(ctx context.Context, sequence uint6
 	}
 	s.mu.Lock()
 	record := s.records[sequence]
-	s.readSequences = append(s.readSequences, sequence)
 	var added *evtv1.Event
 	var addedSequence uint64
 	if s.remaining > 0 {
@@ -1370,7 +1368,7 @@ func TestRoomTimeline_AttachmentPageLoadsOnlySelectedHistoricalBucket(t *testing
 	}
 
 	references := restored.CurrentRoomAttachmentMessageReferences("R1")
-	if len(references) != 3 || references[0].Entry.Event.GetId() != "MESSAGE-3" || references[0].AttachmentCount != 3 {
+	if len(references) != 3 || references[0].Entry.Event.GetId() != "MESSAGE-3" || references[0].AttachmentCount != 3 || !slices.Equal(references[0].AssetIDs, []string{"ASSET-3-1", "ASSET-3-2", "ASSET-3-3"}) {
 		t.Fatalf("attachment references = %+v, want three references newest first", references)
 	}
 	if got := source.readSequences(); len(got) != 0 {

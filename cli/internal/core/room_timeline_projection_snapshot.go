@@ -34,6 +34,7 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			CurrentBodySequence: state.currentSequence,
 			HasAttachments:      state.hasAttachments,
 			AttachmentCount:     uint32(state.attachmentCount),
+			CurrentAssetIds:     append([]string(nil), state.currentAssetIDs...),
 		}
 		snapshot.BodyReferences = append(snapshot.BodyReferences, row)
 	}
@@ -187,11 +188,21 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		if row.GetHasAttachments() != (attachmentCount > 0) {
 			return fmt.Errorf("room timeline snapshot body %q has inconsistent attachment metadata", id)
 		}
+		assetIDs := append([]string(nil), row.GetCurrentAssetIds()...)
+		if len(assetIDs) > 0 && len(assetIDs) != attachmentCount {
+			return fmt.Errorf("room timeline snapshot body %q has inconsistent asset metadata", id)
+		}
+		for _, assetID := range assetIDs {
+			if assetID == "" {
+				return fmt.Errorf("room timeline snapshot body %q has an empty asset ID", id)
+			}
+		}
 		restored.bodyStates[id] = timelineBodyState{
 			currentSequence:     row.GetCurrentBodySequence(),
 			supersededSequences: append([]uint64(nil), sequences[:len(sequences)-1]...),
 			hasAttachments:      row.GetHasAttachments(),
 			attachmentCount:     attachmentCount,
+			currentAssetIDs:     assetIDs,
 		}
 	}
 	for _, row := range snapshot.GetBuckets() {

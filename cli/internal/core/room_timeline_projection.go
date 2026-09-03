@@ -162,6 +162,7 @@ type RoomTimelineMessageHydrationState struct {
 type projectedRoomAttachmentMessageReference struct {
 	Entry           *TimelineEntry
 	AttachmentCount int
+	AssetIDs        []string
 }
 
 type timelineBodyState struct {
@@ -170,6 +171,7 @@ type timelineBodyState struct {
 	supersededSequences []uint64
 	hasAttachments      bool
 	attachmentCount     int
+	currentAssetIDs     []string
 }
 
 func (p *RoomTimelineProjection) appendEntryLocked(seq uint64, event *evtv1.Event) int {
@@ -672,7 +674,7 @@ func (p *RoomTimelineProjection) setCurrentBodyLocked(eventID string, body *evtv
 		state.supersededSequences = append(state.supersededSequences, state.currentSequence)
 		p.removeCachedEventSequenceLocked(state.currentSequence)
 	}
-	state.attachmentCount = messageBodyAttachmentCount(body)
+	state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(body)
 	state.hasAttachments = state.attachmentCount > 0
 	if key, ok := p.messageBuckets[eventID]; p.eventSource == nil || (ok && (p.bucketPinnedLocked(key, p.now()) || p.cache[key] != nil)) {
 		state.body = body
@@ -703,6 +705,7 @@ func (p *RoomTimelineProjection) clearBodyLocked(eventID string) {
 	state.body = nil
 	state.hasAttachments = false
 	state.attachmentCount = 0
+	state.currentAssetIDs = nil
 	p.bodyStates[eventID] = state
 }
 
@@ -993,7 +996,7 @@ func (p *RoomTimelineProjection) loadBucket(ctx context.Context, key timelineBuc
 						continue
 					}
 					state.body = body
-					state.attachmentCount = messageBodyAttachmentCount(state.body)
+					state.currentAssetIDs, state.attachmentCount = messageBodyAttachmentMetadata(state.body)
 					state.hasAttachments = state.attachmentCount > 0
 					p.bodyStates[messageID] = state
 				}
@@ -1243,6 +1246,7 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessageReferences(roomID s
 		out = append(out, projectedRoomAttachmentMessageReference{
 			Entry:           entry,
 			AttachmentCount: state.attachmentCount,
+			AssetIDs:        append([]string(nil), state.currentAssetIDs...),
 		})
 	}
 	return out
@@ -1325,13 +1329,30 @@ func messageBodyReferencesAttachments(body *evtv1.MessageBody) bool {
 }
 
 func messageBodyAttachmentCount(body *evtv1.MessageBody) int {
+	_, count := messageBodyAttachmentMetadata(body)
+	return count
+}
+
+func messageBodyAttachmentMetadata(body *evtv1.MessageBody) ([]string, int) {
+	if body == nil {
+		return nil, 0
+	}
+	if referenced := body.GetAssetIds(); len(referenced) > 0 {
+		assetIDs := make([]string, 0, len(referenced))
+		for _, assetID := range referenced {
+			if assetID != "" {
+				assetIDs = append(assetIDs, assetID)
+			}
+		}
+		return assetIDs, len(assetIDs)
+	}
 	count := 0
-	for _, assetID := range ownedAssetIDsFromBody(body) {
-		if assetID != "" {
+	for _, attachment := range body.GetAttachments() {
+		if attachment != nil && attachment.GetId() != "" {
 			count++
 		}
 	}
-	return count
+	return nil, count
 }
 
 // BodyEventSeqs returns all projected MessageBodyEvent stream sequences for

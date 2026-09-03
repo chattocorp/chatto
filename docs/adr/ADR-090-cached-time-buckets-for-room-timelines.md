@@ -68,14 +68,16 @@ lookups. This includes:
 - the mapping from a message event ID to its original bucket;
 - timeline ordering and visibility metadata that a query needs to select the
   correct buckets;
-- current pin, echo, tombstone, attachment-locator, attachment-count, and
-  secure-delete metadata that must be available before a bucket is loaded; and
+- current pin, echo, tombstone, attachment-locator, attachment-asset-ID,
+  attachment-count, and secure-delete metadata that must be available before a
+  bucket is loaded; and
 - a bucket revision used to install a reconstructed bucket safely.
 
 The directory can retain bodyless public timeline facts that existing readers
 need for selection, authorization, and pagination. These facts do not contain
-the encrypted message body. The bucket cache contains the complete decoded EVT
-records for its interval.
+the encrypted message body. The bucket cache keeps the decoded records that
+the current body state needs. It can omit obsolete or securely deleted private
+body records.
 
 The sequence slice is a current reconstruction recipe. A reducer can replace
 or remove a sequence when a newer fact makes an older private body fact
@@ -148,7 +150,7 @@ while it performs NATS I/O. A load uses this procedure:
 1. Under the timeline projection lock, capture the bucket recipe and revision.
 2. Release the lock and fetch the referenced EVT records.
 3. Re-enter the lock and compare the bucket revision.
-4. Retry the load if an apply changed the recipe.
+4. Fetch the sequences that a concurrent apply added if the recipe changed.
 5. Install the bucket only when it represents an exact known revision.
 
 The `ServerContentView` apply barrier encloses every timeline reducer apply.
@@ -192,11 +194,11 @@ storage I/O occurs while the content-view barrier is held.
 
 Focused projections can keep compact all-history indexes when current API
 behavior needs them. Thread reply lists, interaction relationships, current
-pins, attachment locators, and attachment counts can select message IDs or
-buckets without retaining a second copy of message event data. The attachment
-list selects the requested page before it reconstructs message bodies. Those
-indexes remain derived state and stay consistent with the timeline bucket
-directory.
+pins, attachment locators, attachment asset IDs, and attachment counts can
+select message IDs or buckets without retaining a second copy of message event
+data. The attachment list ignores missing or deleted assets and selects the
+requested page before it reconstructs message bodies. Those indexes remain
+derived state and stay consistent with the timeline bucket directory.
 
 ## Consequences
 

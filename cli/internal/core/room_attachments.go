@@ -280,6 +280,18 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 	}
 
 	references := c.roomModel.currentRoomAttachmentMessageReferences(roomID)
+	for index := range references {
+		if len(references[index].AssetIDs) == 0 {
+			continue
+		}
+		materialized := 0
+		for _, assetID := range references[index].AssetIDs {
+			if declared, ok := c.assetModel.AssetCreation(assetID); ok && declared != nil {
+				materialized++
+			}
+		}
+		references[index].AttachmentCount = materialized
+	}
 	selections, totalCount, err := selectRoomAttachmentMessagePage(references, limit, offset, visible)
 	if err != nil {
 		return nil, err

@@ -238,6 +238,32 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	}
 }
 
+func TestChattoCore_GetRoomAttachmentsPaginationSkipsDeletedAssets(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, user := setupRoomAttachmentTest(t, core, ctx)
+
+	oldAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "old.png")
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "old", []string{oldAttachment.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Post old message: %v", err)
+	}
+	deletedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "deleted.png")
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "deleted", []string{deletedAttachment.Id}, "", "", nil, false); err != nil {
+		t.Fatalf("Post deleted-asset message: %v", err)
+	}
+	if err := core.RecordAssetDeleted(ctx, SystemActorID, room.Id, deletedAttachment.Id); err != nil {
+		t.Fatalf("RecordAssetDeleted: %v", err)
+	}
+
+	page, err := core.GetRoomAttachments(ctx, KindChannel, room.Id, 1, 0)
+	if err != nil {
+		t.Fatalf("GetRoomAttachments: %v", err)
+	}
+	if page.TotalCount != 1 || page.HasMore || len(page.Items) != 1 || page.Items[0].Attachment.GetId() != oldAttachment.Id {
+		t.Fatalf("page = count %d hasMore %v names %v, want count 1 hasMore false [old.png]", page.TotalCount, page.HasMore, attachmentNames(page.Items))
+	}
+}
+
 func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

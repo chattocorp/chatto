@@ -379,8 +379,13 @@ func (p *RoomTimelineProjection) adminProjectionEstimate() (int64, int64, []Proj
 	for eventID, state := range p.bodyStates {
 		// The body pointer is a view into a cached event. Do not count its
 		// payload here because the bucket-cache estimate owns those bytes. The
-		// value also contains one attachment count and one attachment flag.
-		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8 + 8 + 24 + 8 + 1
+		// value also contains attachment metadata used for body-free page
+		// selection.
+		bodyStateBytes += projectionMapEntryOverhead + int64(len(eventID)) + 8 + 8 + 24 + 8 + 1 + 24
+		for _, assetID := range state.currentAssetIDs {
+			bodyStateBytes += int64(len(assetID))
+		}
+		bodyStateBytes += int64(cap(state.currentAssetIDs)) * 16
 		if state.body != nil {
 			latestBodies++
 			latestBodyBytes += int64(proto.Size(state.body))

@@ -64,16 +64,21 @@ per-room time buckets. The default interval is one week. The current bucket and
 buckets that overlap the default four-week pinned period are loaded before core
 readiness. Other buckets load from EVT when a read needs their encrypted body
 data. The directory stores the current attachment count for each indexed
-message. An attachment-list read uses these counts to select its page before it
-loads message bodies. A process-local cache evicts an unpinned bucket after the
-configured idle timeout, which is 15 minutes by default. Concurrent reads share
-one bucket load. Each caller can stop waiting without canceling the shared
-load. A body read refreshes the bucket idle time. A revision check prevents a
-loader from installing state over a newer projection apply. Chatto writes debug
-logs when reconstruction starts, when it completes, when a caller stops
-waiting, and when idle eviction removes a bucket. These logs contain the opaque
-room ID, UTC bucket boundaries, item counts, and durations. Chatto writes
-reconstruction failures at the error level without message content.
+message. For current-format messages, the directory also stores the referenced
+asset IDs. An attachment-list read removes missing or deleted assets from these
+counts and selects its page before it loads message bodies.
+
+A process-local cache evicts an unpinned bucket after the configured idle
+timeout, which is 15 minutes by default.
+
+Concurrent reads share one bucket load. Each caller can stop waiting without
+canceling the shared load. A body read refreshes the bucket idle time. A
+revision check prevents a loader from installing state over a newer projection
+apply. Chatto writes debug logs when reconstruction starts, when it completes,
+when a caller stops waiting, and when idle eviction removes a bucket. These
+logs contain the opaque room ID, UTC bucket boundaries, item counts, and
+durations. Chatto writes reconstruction failures at the error level without
+message content.
 
 A cache assembled from events after a snapshot cutoff is incomplete, even when
 its revision matches the current bucket revision. Pinned-bucket warming must
@@ -119,7 +124,8 @@ Related decisions: [ADR-007](../adr/ADR-007-per-user-encryption-with-crypto-shre
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
 [ADR-088](../adr/ADR-088-componentized-projections-behind-one-apply-barrier.md),
-and [ADR-089](../adr/ADR-089-server-content-view.md).
+[ADR-089](../adr/ADR-089-server-content-view.md), and
+[ADR-090](../adr/ADR-090-cached-time-buckets-for-room-timelines.md).
 
 The asset-processing runtime unit owns a private, non-snapshotted
 `AssetProjection`. It uses the same canonical and legacy replay subjects as the
@@ -218,9 +224,10 @@ message content; retraction removes the association during projection.
 
 Room Timeline `v8` stores the bucket interval, exact room-event sequence
 recipes, message locators, body sequence references, pending body references,
-attachment locators, and current attachment counts. It does not store encrypted
-message bodies. A bucket interval mismatch rejects the complete
-`ServerContentView` snapshot cohort and causes a cold EVT replay.
+attachment locators, current attachment counts, and current-format attachment
+asset IDs. It does not store encrypted message bodies. A bucket interval
+mismatch rejects the complete `ServerContentView` snapshot cohort and causes a
+cold EVT replay.
 
 Snapshot loads and replay frontiers are projector-local. A successful restore
 starts that projector's ordered consumer at one greater than its cutoff. A
