@@ -56,7 +56,11 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
 }
 
 func matchingRealtimeField(source, target protoreflect.FieldDescriptor) bool {
-	if source == nil || target == nil || source.Name() != target.Name() || source.Kind() != target.Kind() {
+	if source == nil || target == nil ||
+		source.Name() != target.Name() ||
+		source.Kind() != target.Kind() ||
+		source.Cardinality() != target.Cardinality() ||
+		source.HasPresence() != target.HasPresence() {
 		return false
 	}
 	if source.Message() == nil || target.Message() == nil {
