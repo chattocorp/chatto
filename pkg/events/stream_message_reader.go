@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -377,7 +378,7 @@ func (r *StreamMessageReader) storeIfCurrent(record EncodedSubjectRecord, cacheG
 		return 0
 	}
 	before := r.cache.Metrics().Evictions
-	r.cache.Set(record.Sequence, cloneEncodedSubjectRecord(record), ttlcache.DefaultTTL)
+	r.cache.Set(record.Sequence, cloneEncodedSubjectRecordForCache(record), ttlcache.DefaultTTL)
 	return r.cache.Metrics().Evictions - before
 }
 
@@ -393,9 +394,18 @@ func cloneEncodedSubjectRecord(record EncodedSubjectRecord) EncodedSubjectRecord
 	return record
 }
 
+func cloneEncodedSubjectRecordForCache(record EncodedSubjectRecord) EncodedSubjectRecord {
+	record.Subject = strings.Clone(record.Subject)
+	record.ID = strings.Clone(record.ID)
+	record.Data = cloneBytes(record.Data)
+	return record
+}
+
 func cloneBytes(data []byte) []byte {
 	if data == nil {
 		return nil
 	}
-	return append([]byte(nil), data...)
+	cloned := make([]byte, len(data))
+	copy(cloned, data)
+	return cloned
 }

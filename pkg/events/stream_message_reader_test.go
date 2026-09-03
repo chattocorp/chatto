@@ -132,6 +132,9 @@ func TestStreamMessageReaderCachesClonedRecords(t *testing.T) {
 	if second.Subject != "evt.room.room.message_posted" || string(second.Data) != "payload" || second.ID != "event-7" {
 		t.Fatalf("cached record = %#v, want unchanged broker record", second)
 	}
+	if cap(second.Data) != len(second.Data) {
+		t.Fatalf("returned payload capacity = %d, want exact length %d", cap(second.Data), len(second.Data))
+	}
 	if source.reads[7] != 1 {
 		t.Fatalf("source reads = %d, want 1", source.reads[7])
 	}
