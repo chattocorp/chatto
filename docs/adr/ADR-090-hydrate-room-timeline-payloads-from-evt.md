@@ -19,8 +19,8 @@ already supports an exact read by stream sequence.
 
 Time buckets can limit a cache or a disk-backed index. They do not limit RAM if
 the projection still retains one complete event payload for each historical
-entry. A payload cache can also be added after reads have a clear hydration
-boundary.
+entry. A clear hydration boundary also lets a disposable cache accelerate
+repeated reads without making cached data part of projected state.
 
 ## Decision
 
@@ -52,10 +52,10 @@ and decodes one stored EVT record and can read a bounded set of sequences with
 limited concurrency. It removes duplicate sequence requests and returns
 results in caller order.
 
-The first implementation uses leader-backed JetStream stream reads. A later
-implementation can use `DirectGet`, a broker batch operation, or another read
-method behind the same boundary. Such an implementation must preserve
-read-your-writes and must fall back when a replica is behind.
+The first implementation uses leader-backed JetStream stream reads for cache
+misses. A later implementation can use `DirectGet`, a broker batch operation,
+or another read method behind the same boundary. Such an implementation must
+preserve read-your-writes and must fall back when a replica is behind.
 
 The shared event framework wraps exact stream reads in an optional
 process-local message cache. The cache key is the exact sequence within its
