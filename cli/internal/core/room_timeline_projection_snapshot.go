@@ -344,14 +344,16 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 	}
-	for _, messageID := range sortedMapKeys(restored.bodyStates) {
-		state := restored.bodyStates[messageID]
-		key, hasBucket := restored.messageBuckets[messageID]
-		if state.attachmentCount <= 0 || !hasBucket || restored.messageBodyUnavailableLocked(messageID) {
-			continue
+	for roomID, entryIndexes := range restored.messagePostsByRoom {
+		for _, entryIndex := range entryIndexes {
+			entry := restored.entryAtLocked(entryIndex)
+			messageID := entry.Event.GetId()
+			if restored.bodyStates[messageID].attachmentCount <= 0 || restored.messageBodyUnavailableLocked(messageID) {
+				continue
+			}
+			restored.attachmentMessageIDsByRoom[roomID] = append(restored.attachmentMessageIDsByRoom[roomID], messageID)
+			restored.attachmentMessageRoom[messageID] = roomID
 		}
-		entry, _ := restored.entryByEventIDLocked(messageID)
-		restored.addAttachmentMessageLocked(key.roomID, messageID, entry.StreamSeq)
 	}
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
