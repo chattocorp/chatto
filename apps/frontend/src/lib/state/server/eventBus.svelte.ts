@@ -308,7 +308,7 @@ class EventBusManager {
     };
 
     const stopForUnsupportedProtocol = (current: RealtimeSocket) => {
-      console.warn(`[eventBus:${serverId}] realtime projection protocol is unsupported`, {
+      console.warn(`[eventBus:${serverId}] realtime protocol is unsupported`, {
         ...debugState()
       });
       projectionSupported = false;

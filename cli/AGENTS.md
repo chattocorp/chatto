@@ -240,7 +240,7 @@ authorization, live events, backup and restore, and backend tests.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
 - New client-visible event types require a dedicated payload in
-  `proto/chatto/realtime/v1/events.proto`, a matching `RealtimeEvent` union
+  one of `proto/chatto/realtime/v1/*_events.proto`, a matching `RealtimeEvent` union
   member, authorization and mapping coverage, frontend subscription handling,
   generated clients, documentation, and tests. Keep the public union member's
   name and number aligned with the canonical event. If a visible room timeline

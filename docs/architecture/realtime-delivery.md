@@ -247,11 +247,11 @@ closes current sessions. The replica admits a new hub generation only after
 NATS resources, projections, and volatile watchers are current. A slow session
 that exceeds its queue count or byte limit closes independently.
 
-A durable room-group, room-layout, or non-MOTD server-configuration fact does
-not yet have a safe public event projection. The hub also quarantines current
-sessions for these facts. The next exact snapshot provides current content.
-This fail-closed path prevents a transient resource invalidation from racing a
-lagging replica. A later public catalogue entry can replace the reset.
+Known durable room-group, room-layout, and public server-configuration facts
+map to dedicated public events. An unknown content-affecting server fact still
+quarantines the hub. RBAC and key-shredding changes force affected sessions to
+rebuild from current authorized state. These fail-closed paths prevent a
+client from continuing with state that the server can no longer validate.
 
 ## Bundled frontend
 

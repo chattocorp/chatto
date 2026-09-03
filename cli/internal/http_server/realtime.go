@@ -414,7 +414,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 	if resumeCursor != "" && !meteredReplay && replayPlan.HadSequenceGap {
 		// EVT advanced after the current-boundary check. Charge the newly-real
-		// replay gap before emitting subscribed or projection frames.
+		// replay gap before emitting subscribed, snapshot, or event frames.
 		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
 			s.metrics.realtimeCatchUpRejected(chargeErr.code)
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
