@@ -31,6 +31,7 @@ describe('UserPreferencesState', () => {
     delete document.documentElement.dataset.theme;
     document.documentElement.style.backgroundColor = '';
     document.documentElement.style.colorScheme = '';
+    document.head.innerHTML = '<meta name="theme-color" content="#e5e7eb" />';
   });
 
   it('uses the product defaults when no preferences are stored', () => {
@@ -94,19 +95,45 @@ describe('UserPreferencesState', () => {
     }
   );
 
-  it('updates, persists, and applies the display theme', () => {
-    const state = new UserPreferencesState();
+  it.each([
+    {
+      displayTheme: 'light' as const,
+      effectiveTheme: 'light' as const,
+      background: 'rgb(243, 244, 246)',
+      themeColor: '#e5e7eb'
+    },
+    {
+      displayTheme: 'dark' as const,
+      effectiveTheme: 'dark' as const,
+      background: 'rgb(23, 23, 23)',
+      themeColor: '#262626'
+    },
+    {
+      displayTheme: 'system' as const,
+      effectiveTheme: 'dark' as const,
+      background: 'rgb(23, 23, 23)',
+      themeColor: '#262626'
+    }
+  ])(
+    'updates, persists, and applies the $displayTheme display theme',
+    ({ displayTheme, effectiveTheme, background, themeColor }) => {
+      mockSystemTheme('dark');
+      const state = new UserPreferencesState();
 
-    state.displayTheme = 'dark';
+      state.displayTheme = displayTheme;
 
-    expect(state.displayTheme).toBe('dark');
-    expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(document.documentElement.style.backgroundColor).toBe('rgb(23, 23, 23)');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-      displayTheme: 'dark'
-    });
-  });
+      expect(state.displayTheme).toBe(displayTheme);
+      expect(document.documentElement.dataset.theme).toBe(effectiveTheme);
+      expect(document.documentElement.style.backgroundColor).toBe(background);
+      expect(document.documentElement.style.colorScheme).toBe(effectiveTheme);
+      expect(document.querySelector<HTMLMetaElement>('meta[name="theme-color"]')?.content).toBe(
+        themeColor
+      );
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        displayTheme
+      });
+    }
+  );
 
   it('updates and persists composer choices', () => {
     const state = new UserPreferencesState();

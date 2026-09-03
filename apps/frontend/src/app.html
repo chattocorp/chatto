@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8" />
     %sveltekit.head%
+    <meta name="theme-color" content="#e5e7eb" />
     <script>
       // Resolve and apply shell preferences as early as possible — before CSS
       // loads — so:
@@ -41,6 +42,9 @@
           // Pre-CSS background hint, mirrors --color-background.
           root.style.backgroundColor = effective === 'dark' ? '#171717' : '#f3f4f6';
           root.style.colorScheme = effective;
+          document
+            .querySelector('meta[name="theme-color"]')
+            ?.setAttribute('content', effective === 'dark' ? '#262626' : '#e5e7eb');
         }
 
         function textDirection(locale) {
@@ -181,8 +185,6 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="description" content="Real-time chat application" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#e5e7eb" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#262626" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="manifest" href="/manifest.webmanifest" />
