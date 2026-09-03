@@ -214,6 +214,24 @@ func TestStreamMessageReaderMessagesDeduplicateAndPreserveOrder(t *testing.T) {
 	}
 }
 
+func TestStreamMessageReaderMessagesHonorsCancellationWithCachedRecords(t *testing.T) {
+	source := &exactMessageSourceStub{
+		reads: make(map[uint64]int),
+		msgs: map[uint64]*jetstream.RawStreamMsg{
+			1: {Subject: "evt.one", Sequence: 1, Data: []byte("one")},
+		},
+	}
+	reader := newTestStreamMessageReader(t, source, StreamMessageReaderConfig{CacheIdleTTL: time.Minute})
+	if _, err := reader.Message(context.Background(), 1); err != nil {
+		t.Fatalf("Message: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := reader.Messages(ctx, []uint64{1}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Messages error = %v, want context.Canceled", err)
+	}
+}
+
 func TestStreamMessageReaderBoundsConcurrentReadsAcrossCalls(t *testing.T) {
 	const limit = 3
 	source := &exactMessageSourceStub{

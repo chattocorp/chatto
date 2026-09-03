@@ -185,6 +185,9 @@ func (r *StreamMessageReader) Messages(ctx context.Context, sequences []uint64) 
 	if err := reads.Wait(); err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	result := make([]EncodedSubjectRecord, len(sequences))
 	for i, sequence := range sequences {
