@@ -483,6 +483,8 @@ jobs:
             exit 0
           fi
           git worktree add --detach "$baseline_dir" "$PERFORMANCE_BASE_SHA"
+          cp apps/frontend/e2e-performance/large-server.performance.test.ts \
+            "$baseline_dir/apps/frontend/e2e-performance/large-server.performance.test.ts"
           echo "available=true" >> "$GITHUB_OUTPUT"
 
       - name: Run base-revision performance test
@@ -490,6 +492,8 @@ jobs:
         if: steps.performance-baseline.outputs.available == 'true'
         working-directory: ${{ runner.temp }}/chatto-performance-base
         continue-on-error: true
+        env:
+          CHATTO_E2E_PERF_ALLOW_MISSING_REALTIME_SNAPSHOT_METRIC: true
         run: mise test-e2e-performance
 
       - name: Preserve base-revision results
