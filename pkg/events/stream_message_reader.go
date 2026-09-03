@@ -137,7 +137,7 @@ func (r *StreamMessageReader) Message(ctx context.Context, sequence uint64) (Enc
 	record := EncodedSubjectRecord{
 		Subject:  message.Subject,
 		Sequence: message.Sequence,
-		Data:     cloneBytes(message.Data),
+		Data:     message.Data,
 	}
 	if message.Header != nil {
 		record.ID = message.Header.Get(nats.MsgIdHdr)
