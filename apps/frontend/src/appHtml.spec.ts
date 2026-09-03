@@ -12,13 +12,14 @@ const themeScript = appHtml.match(/<script>\s*([\s\S]*?)\s*<\/script>/i)?.[1];
 
 type WebAppManifest = {
   icons?: Array<{ src?: string; sizes?: string; type?: string; purpose?: string }>;
+  theme_color?: string;
 };
 
-function metaContent(name: string, mediaFragment: string): string | null {
-  const tag = appHtml.match(
-    new RegExp(`<meta\\s+[^>]*name="${name}"[^>]*media="[^"]*${mediaFragment}[^"]*"[^>]*>`, 'i')
-  )?.[0];
+function metaTags(name: string): string[] {
+  return appHtml.match(new RegExp(`<meta\\s+[^>]*name="${name}"[^>]*>`, 'gi')) ?? [];
+}
 
+function metaContent(tag: string): string | null {
   return tag?.match(/\bcontent="([^"]+)"/i)?.[1] ?? null;
 }
 
@@ -81,9 +82,19 @@ function runThemeScript({
     lang?: string;
     dir?: string;
   } = { dataset: {}, style: {} };
+  const themeColor = {
+    content: '#e5e7eb',
+    setAttribute: (_name: string, value: string) => {
+      themeColor.content = value;
+    }
+  };
 
   runInNewContext(themeScript, {
-    document: { documentElement: root },
+    document: {
+      documentElement: root,
+      querySelector: (selector: string) =>
+        selector === 'meta[name="theme-color"]' ? themeColor : null
+    },
     localStorage: {
       getItem: (key: string) => storage.get(key) ?? null
     },
@@ -104,6 +115,7 @@ function runThemeScript({
 
   return {
     root,
+    themeColor,
     changeSystemTheme(systemTheme: 'light' | 'dark') {
       dark = systemTheme === 'dark';
       changeHandler?.();
@@ -112,9 +124,13 @@ function runThemeScript({
 }
 
 describe('app.html metadata', () => {
-  it('defines theme colors matching the outer frame background colors', () => {
-    expect(metaContent('theme-color', 'light')).toBe('#e5e7eb');
-    expect(metaContent('theme-color', 'dark')).toBe('#262626');
+  it('defines one document-controlled theme color without a manifest override', () => {
+    const tags = metaTags('theme-color');
+
+    expect(tags).toHaveLength(1);
+    expect(metaContent(tags[0])).toBe('#e5e7eb');
+    expect(tags[0]).not.toMatch(/\bmedia=/i);
+    expect(manifest.theme_color).toBeUndefined();
   });
 
   it('declares the Safari apple touch icon with an explicit size', () => {
@@ -177,7 +193,7 @@ describe('app.html metadata', () => {
 
 describe('app.html theme bootstrap', () => {
   it('reads chatto:preferences.displayTheme before legacy localStorage.theme', () => {
-    const { root } = runThemeScript({
+    const { root, themeColor } = runThemeScript({
       preferences: { displayTheme: 'light' },
       legacyTheme: 'dark',
       systemDark: true
@@ -186,28 +202,32 @@ describe('app.html theme bootstrap', () => {
     expect(root.dataset.theme).toBe('light');
     expect(root.style.backgroundColor).toBe('#f3f4f6');
     expect(root.style.colorScheme).toBe('light');
+    expect(themeColor.content).toBe('#e5e7eb');
   });
 
   it('uses legacy localStorage.theme when no display preference exists', () => {
-    const { root } = runThemeScript({ legacyTheme: 'dark', systemDark: false });
+    const { root, themeColor } = runThemeScript({ legacyTheme: 'dark', systemDark: false });
     expect(root.dataset.theme).toBe('dark');
     expect(root.style.colorScheme).toBe('dark');
+    expect(themeColor.content).toBe('#262626');
   });
 
   it('follows prefers-color-scheme when the display preference is system', () => {
-    const { root } = runThemeScript({
+    const { root, themeColor } = runThemeScript({
       preferences: { displayTheme: 'system' },
       systemDark: true
     });
 
     expect(root.dataset.theme).toBe('dark');
     expect(root.style.colorScheme).toBe('dark');
+    expect(themeColor.content).toBe('#262626');
   });
 
   it('follows prefers-color-scheme when no display preference exists', () => {
-    const { root } = runThemeScript({ systemDark: true });
+    const { root, themeColor } = runThemeScript({ systemDark: true });
     expect(root.dataset.theme).toBe('dark');
     expect(root.style.colorScheme).toBe('dark');
+    expect(themeColor.content).toBe('#262626');
   });
 
   it('only reacts to system theme changes while the display preference is system', () => {
@@ -217,6 +237,7 @@ describe('app.html theme bootstrap', () => {
     });
     system.changeSystemTheme('dark');
     expect(system.root.dataset.theme).toBe('dark');
+    expect(system.themeColor.content).toBe('#262626');
 
     const explicit = runThemeScript({
       preferences: { displayTheme: 'light' },
@@ -224,6 +245,7 @@ describe('app.html theme bootstrap', () => {
     });
     explicit.changeSystemTheme('dark');
     expect(explicit.root.dataset.theme).toBe('light');
+    expect(explicit.themeColor.content).toBe('#e5e7eb');
   });
 });
 
