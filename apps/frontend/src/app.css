@@ -311,9 +311,13 @@
   @apply max-w-full min-w-0 overflow-hidden text-ellipsis whitespace-nowrap;
 }
 
-/* Dialog actions form one stable row. Buttons can surrender label width in a
- * narrow viewport, but they never wrap or force a second action row. */
+/* Dialog actions form one stable row. Their natural width can expand the
+ * dialog, while the viewport limit makes buttons surrender label width on a
+ * narrow screen. Actions never wrap or force a second row. */
 @utility dialog-actions {
+  width: max-content;
+  max-width: 100%;
+  align-self: flex-end;
   @apply mt-6 flex min-w-0 shrink-0 flex-nowrap justify-end gap-2;
 
   & > :is(button, a) {
@@ -795,6 +799,25 @@
 @utility server-gutter-item-active {
   @apply bg-surface-selected text-text hover:bg-surface-selected hover:text-text;
   @apply ring-2 ring-text;
+}
+
+/* Sidebar drag targets keep their frame mounted so outline-colour changes can
+ * fade both in and out when svelte-dnd-action toggles the active class. */
+.sidebar-drop-target {
+  border-radius: 0.375rem;
+  outline: 2px dashed transparent;
+  outline-offset: -2px;
+  transition: outline-color 120ms ease;
+}
+
+.sidebar-drop-target-active {
+  outline-color: var(--color-action);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-drop-target {
+    transition: none;
+  }
 }
 
 /* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */

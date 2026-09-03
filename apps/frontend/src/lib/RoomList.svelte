@@ -130,14 +130,17 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   const dndHandleAttachment = fromAction(dragHandle);
 
+  // The empty style disables the library's solid default. The global classes
+  // keep the frame mounted so its colour can fade in both directions.
+  const sidebarDropTargetOptions = {
+    dropTargetStyle: {},
+    dropTargetClasses: ['sidebar-drop-target-active']
+  };
+
   const groupDragZoneAttachment = fromAction(dragHandleZone, () => ({
     items: renderManagedSections,
     flipDurationMs: 160,
-    dropTargetStyle: {
-      outline: '1px dashed var(--color-action)',
-      'outline-offset': '-1px',
-      'border-radius': '0.375rem'
-    },
+    ...sidebarDropTargetOptions,
     type: 'sidebar-room-groups'
   }));
 
@@ -187,11 +190,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     const zoneAttachment = fromAction(dragHandleZone, () => ({
       items: managedSections.find((section) => section.group.id === groupId)?.items ?? [],
       flipDurationMs: 160,
-      dropTargetStyle: {
-        outline: '2px dashed var(--color-action)',
-        'outline-offset': '-2px',
-        'border-radius': '0.375rem'
-      },
+      ...sidebarDropTargetOptions,
       type: 'sidebar-room-items'
     }));
     const attachment: Attachment<HTMLDivElement> = (node) => {
@@ -972,6 +971,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {:else}
   <nav class="room-list md:w-full">
     <div
+      class={supportsRelativeSidebarMoves && canReorderGroups ? 'sidebar-drop-target' : undefined}
       data-testid={supportsRelativeSidebarMoves && canReorderGroups
         ? 'room-groups-dropzone'
         : undefined}
