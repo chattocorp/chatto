@@ -217,19 +217,6 @@ message MentionStatusClearedEvent {
 }
 
 // ============================================================================
-// ROOM LAYOUT INVALIDATION (server-scoped)
-// ============================================================================
-
-// RoomGroupsUpdatedEvent is a projection-derived invalidation after a durable
-// room-group or layout fact. It is published as a transient server event and
-// is not stored in EVT. Resource clients can read the current room-group
-// collection through RoomDirectoryService.ListRoomGroups.
-message RoomGroupsUpdatedEvent {
-  reserved 1;
-  reserved "space_id";
-}
-
-// ============================================================================
 // SESSION TERMINATION EVENTS (user-scoped)
 // ============================================================================
 

@@ -1015,46 +1015,6 @@ func (x *MentionStatusClearedEvent) GetRoomId() string {
 	return ""
 }
 
-// RoomGroupsUpdatedEvent is a projection-derived invalidation after a durable
-// room-group or layout fact. It is published as a transient server event and
-// is not stored in EVT. Resource clients can read the current room-group
-// collection through RoomDirectoryService.ListRoomGroups.
-type RoomGroupsUpdatedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RoomGroupsUpdatedEvent) Reset() {
-	*x = RoomGroupsUpdatedEvent{}
-	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[15]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RoomGroupsUpdatedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RoomGroupsUpdatedEvent) ProtoMessage() {}
-
-func (x *RoomGroupsUpdatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[15]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RoomGroupsUpdatedEvent.ProtoReflect.Descriptor instead.
-func (*RoomGroupsUpdatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_live_v1_live_events_proto_rawDescGZIP(), []int{15}
-}
-
 // Notifies a user that their session has been terminated.
 // Published as a user-scoped event on logout or admin boot.
 // The subscription handler closes the stream after forwarding this event,
@@ -1069,7 +1029,7 @@ type SessionTerminatedEvent struct {
 
 func (x *SessionTerminatedEvent) Reset() {
 	*x = SessionTerminatedEvent{}
-	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[16]
+	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1081,7 +1041,7 @@ func (x *SessionTerminatedEvent) String() string {
 func (*SessionTerminatedEvent) ProtoMessage() {}
 
 func (x *SessionTerminatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[16]
+	mi := &file_chatto_core_live_v1_live_events_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1094,7 +1054,7 @@ func (x *SessionTerminatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionTerminatedEvent.ProtoReflect.Descriptor instead.
 func (*SessionTerminatedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_live_v1_live_events_proto_rawDescGZIP(), []int{16}
+	return file_chatto_core_live_v1_live_events_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *SessionTerminatedEvent) GetReason() string {
@@ -1165,8 +1125,7 @@ const file_chatto_core_live_v1_live_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +
 	"\x19MentionStatusClearedEvent\x12\x17\n" +
-	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"(\n" +
-	"\x16RoomGroupsUpdatedEventJ\x04\b\x01\x10\x02R\bspace_id\"0\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\"0\n" +
 	"\x16SessionTerminatedEvent\x12\x16\n" +
 	"\x06reason\x18\x01 \x01(\tR\x06reason*S\n" +
 	"\n" +
@@ -1194,7 +1153,7 @@ func file_chatto_core_live_v1_live_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_live_v1_live_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_live_v1_live_events_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chatto_core_live_v1_live_events_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_core_live_v1_live_events_proto_goTypes = []any{
 	(TimeFormat)(0),                                 // 0: chatto.core.live.v1.TimeFormat
 	(CallParticipantEventSource)(0),                 // 1: chatto.core.live.v1.CallParticipantEventSource
@@ -1213,8 +1172,7 @@ var file_chatto_core_live_v1_live_events_proto_goTypes = []any{
 	(*RoomMarkedAsReadEvent)(nil),                   // 14: chatto.core.live.v1.RoomMarkedAsReadEvent
 	(*NotificationUnreadChangedEvent)(nil),          // 15: chatto.core.live.v1.NotificationUnreadChangedEvent
 	(*MentionStatusClearedEvent)(nil),               // 16: chatto.core.live.v1.MentionStatusClearedEvent
-	(*RoomGroupsUpdatedEvent)(nil),                  // 17: chatto.core.live.v1.RoomGroupsUpdatedEvent
-	(*SessionTerminatedEvent)(nil),                  // 18: chatto.core.live.v1.SessionTerminatedEvent
+	(*SessionTerminatedEvent)(nil),                  // 17: chatto.core.live.v1.SessionTerminatedEvent
 }
 var file_chatto_core_live_v1_live_events_proto_depIdxs = []int32{
 	1, // 0: chatto.core.live.v1.CallParticipantJoinedEvent.source:type_name -> chatto.core.live.v1.CallParticipantEventSource
@@ -1240,7 +1198,7 @@ func file_chatto_core_live_v1_live_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_live_v1_live_events_proto_rawDesc), len(file_chatto_core_live_v1_live_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   17,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

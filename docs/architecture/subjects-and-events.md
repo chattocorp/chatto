@@ -413,7 +413,6 @@ for raw EVT committed facts. `myEvents` consumes both roots server-side:
 | `live.sync.user.{userId}.created`                        | User registration completed  |
 | `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar/bio/shared-time-zone updates; custom status set/clear is delivered from `live.evt.>`) |
 | `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
-| `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
 | `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement. A thread marker contributes to its parent room state |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
@@ -423,11 +422,9 @@ for raw EVT committed facts. `myEvents` consumes both roots server-side:
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
-Cross-group room and sidebar-link moves publish
-`live.sync.config.room_groups_updated` only after the local
-`RoomGroupLayoutProjection` has applied the final domain fact in the committed
-atomic batch. The command path owns this barrier and the best-effort
-invalidation; projection replay does not publish transient signals.
+Room-group and sidebar-layout changes use durable group or layout facts only.
+The command path waits until the local `ServerContentView` applies the final
+fact. JetStream republishes each fact on `live.evt.>` for realtime delivery.
 
 Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,

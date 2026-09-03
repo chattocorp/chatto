@@ -62,9 +62,11 @@ message Event {
   // reuse them in the canonical Event envelope.
   reserved 20, 22, 23, 25, 30, 31, 40, 45, 60, 61, 72, 73, 80, 81, 90, 100;
   reserved 500, 1000, 1010 to 1015, 1030 to 1032, 1040 to 1041, 1060, 1070, 1080, 1090 to 1091, 1100 to 1101, 1110 to 1111, 1121 to 1122, 1130, 1140, 1200;
+  reserved 20014;
   reserved "server_config_changed", "config_updated", "user_created", "user_deleted", "user_profile_updated", "server_user_preferences_updated", "notification_level_changed", "thread_follow_changed", "server_created", "server_updated", "server_deleted", "message_updated", "message_deleted", "user_typing", "video_processing_completed", "presence_changed", "mention_notification", "new_direct_message_notification", "call_participant_joined", "call_participant_left", "notification_created", "notification_dismissed", "room_marked_as_read", "mention_status_cleared", "room_groups_updated", "session_terminated", "heartbeat";
   reserved 9001; // was sequence_id (removed — sequence is a JetStream transport detail, not part of the event)
   reserved "sequence_id";
+  reserved "room_groups_updated_sync";
 
   // The concrete event payload.
   oneof event {
@@ -285,7 +287,6 @@ message Event {
     chatto.core.live.v1.NotificationUnreadChangedEvent notification_unread_changed = 20011;
     chatto.core.live.v1.RoomMarkedAsReadEvent room_marked_as_read_sync = 20012;
     chatto.core.live.v1.MentionStatusClearedEvent mention_status_cleared_sync = 20013;
-    chatto.core.live.v1.RoomGroupsUpdatedEvent room_groups_updated_sync = 20014;
     chatto.core.live.v1.SessionTerminatedEvent session_terminated_signal = 20015;
   }
 }

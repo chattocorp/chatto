@@ -207,7 +207,6 @@ type Event struct {
 	//	*Event_NotificationUnreadChanged
 	//	*Event_RoomMarkedAsReadSync
 	//	*Event_MentionStatusClearedSync
-	//	*Event_RoomGroupsUpdatedSync
 	//	*Event_SessionTerminatedSignal
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -1601,15 +1600,6 @@ func (x *Event) GetMentionStatusClearedSync() *v1.MentionStatusClearedEvent {
 	return nil
 }
 
-func (x *Event) GetRoomGroupsUpdatedSync() *v1.RoomGroupsUpdatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_RoomGroupsUpdatedSync); ok {
-			return x.RoomGroupsUpdatedSync
-		}
-	}
-	return nil
-}
-
 func (x *Event) GetSessionTerminatedSignal() *v1.SessionTerminatedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_SessionTerminatedSignal); ok {
@@ -2266,10 +2256,6 @@ type Event_MentionStatusClearedSync struct {
 	MentionStatusClearedSync *v1.MentionStatusClearedEvent `protobuf:"bytes,20013,opt,name=mention_status_cleared_sync,json=mentionStatusClearedSync,proto3,oneof"`
 }
 
-type Event_RoomGroupsUpdatedSync struct {
-	RoomGroupsUpdatedSync *v1.RoomGroupsUpdatedEvent `protobuf:"bytes,20014,opt,name=room_groups_updated_sync,json=roomGroupsUpdatedSync,proto3,oneof"`
-}
-
 type Event_SessionTerminatedSignal struct {
 	SessionTerminatedSignal *v1.SessionTerminatedEvent `protobuf:"bytes,20015,opt,name=session_terminated_signal,json=sessionTerminatedSignal,proto3,oneof"`
 }
@@ -2568,15 +2554,13 @@ func (*Event_RoomMarkedAsReadSync) isEvent_Event() {}
 
 func (*Event_MentionStatusClearedSync) isEvent_Event() {}
 
-func (*Event_RoomGroupsUpdatedSync) isEvent_Event() {}
-
 func (*Event_SessionTerminatedSignal) isEvent_Event() {}
 
 var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a%chatto/core/live/v1/live_events.proto\"\xf8\x80\x01\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a%chatto/core/live/v1/live_events.proto\"\xb2\x80\x01\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2728,10 +2712,9 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"$notification_occurrences_invalidated\x18\xaa\x9c\x01 \x01(\v2<.chatto.core.live.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12w\n" +
 	"\x1bnotification_unread_changed\x18\xab\x9c\x01 \x01(\v23.chatto.core.live.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12f\n" +
 	"\x18room_marked_as_read_sync\x18\xac\x9c\x01 \x01(\v2*.chatto.core.live.v1.RoomMarkedAsReadEventH\x00R\x14roomMarkedAsReadSync\x12q\n" +
-	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x18mentionStatusClearedSync\x12h\n" +
-	"\x18room_groups_updated_sync\x18\xae\x9c\x01 \x01(\v2+.chatto.core.live.v1.RoomGroupsUpdatedEventH\x00R\x15roomGroupsUpdatedSync\x12k\n" +
+	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x18mentionStatusClearedSync\x12k\n" +
 	"\x19session_terminated_signal\x18\xaf\x9c\x01 \x01(\v2+.chatto.core.live.v1.SessionTerminatedEventH\x00R\x17sessionTerminatedSignalB\a\n" +
-	"\x05eventJ\x04\b\x14\x10\x15J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x19\x10\x1aJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b(\x10)J\x04\b-\x10.J\x04\b<\x10=J\x04\b=\x10>J\x04\bH\x10IJ\x04\bI\x10JJ\x04\bP\x10QJ\x04\bQ\x10RJ\x04\bZ\x10[J\x04\bd\x10eJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idB\xc5\x01\n" +
+	"\x05eventJ\x04\b\x14\x10\x15J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x19\x10\x1aJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b(\x10)J\x04\b-\x10.J\x04\b<\x10=J\x04\b=\x10>J\x04\bH\x10IJ\x04\bI\x10JJ\x04\bP\x10QJ\x04\bQ\x10RJ\x04\bZ\x10[J\x04\bd\x10eJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\b\b\xae\x9c\x01\x10\xaf\x9c\x01J\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idR\x18room_groups_updated_syncB\xc5\x01\n" +
 	"\x16com.chatto.core.evt.v1B\n" +
 	"EventProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
@@ -2898,8 +2881,7 @@ var file_chatto_core_evt_v1_event_proto_goTypes = []any{
 	(*v1.NotificationUnreadChangedEvent)(nil),           // 146: chatto.core.live.v1.NotificationUnreadChangedEvent
 	(*v1.RoomMarkedAsReadEvent)(nil),                    // 147: chatto.core.live.v1.RoomMarkedAsReadEvent
 	(*v1.MentionStatusClearedEvent)(nil),                // 148: chatto.core.live.v1.MentionStatusClearedEvent
-	(*v1.RoomGroupsUpdatedEvent)(nil),                   // 149: chatto.core.live.v1.RoomGroupsUpdatedEvent
-	(*v1.SessionTerminatedEvent)(nil),                   // 150: chatto.core.live.v1.SessionTerminatedEvent
+	(*v1.SessionTerminatedEvent)(nil),                   // 149: chatto.core.live.v1.SessionTerminatedEvent
 }
 var file_chatto_core_evt_v1_event_proto_depIdxs = []int32{
 	1,   // 0: chatto.core.evt.v1.Event.created_at:type_name -> google.protobuf.Timestamp
@@ -3050,13 +3032,12 @@ var file_chatto_core_evt_v1_event_proto_depIdxs = []int32{
 	146, // 145: chatto.core.evt.v1.Event.notification_unread_changed:type_name -> chatto.core.live.v1.NotificationUnreadChangedEvent
 	147, // 146: chatto.core.evt.v1.Event.room_marked_as_read_sync:type_name -> chatto.core.live.v1.RoomMarkedAsReadEvent
 	148, // 147: chatto.core.evt.v1.Event.mention_status_cleared_sync:type_name -> chatto.core.live.v1.MentionStatusClearedEvent
-	149, // 148: chatto.core.evt.v1.Event.room_groups_updated_sync:type_name -> chatto.core.live.v1.RoomGroupsUpdatedEvent
-	150, // 149: chatto.core.evt.v1.Event.session_terminated_signal:type_name -> chatto.core.live.v1.SessionTerminatedEvent
-	150, // [150:150] is the sub-list for method output_type
-	150, // [150:150] is the sub-list for method input_type
-	150, // [150:150] is the sub-list for extension type_name
-	150, // [150:150] is the sub-list for extension extendee
-	0,   // [0:150] is the sub-list for field type_name
+	149, // 148: chatto.core.evt.v1.Event.session_terminated_signal:type_name -> chatto.core.live.v1.SessionTerminatedEvent
+	149, // [149:149] is the sub-list for method output_type
+	149, // [149:149] is the sub-list for method input_type
+	149, // [149:149] is the sub-list for extension type_name
+	149, // [149:149] is the sub-list for extension extendee
+	0,   // [0:149] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_event_proto_init() }
@@ -3226,7 +3207,6 @@ func file_chatto_core_evt_v1_event_proto_init() {
 		(*Event_NotificationUnreadChanged)(nil),
 		(*Event_RoomMarkedAsReadSync)(nil),
 		(*Event_MentionStatusClearedSync)(nil),
-		(*Event_RoomGroupsUpdatedSync)(nil),
 		(*Event_SessionTerminatedSignal)(nil),
 	}
 	type x struct{}
