@@ -328,3 +328,15 @@ func TestStreamMessageReaderRunRemovesExpiredEntriesAndClearsOnShutdown(t *testi
 		t.Fatalf("cache entries after shutdown = %d, want 0", remaining)
 	}
 }
+
+func TestStreamMessageReaderRunIsSingleUse(t *testing.T) {
+	reader := newTestStreamMessageReader(t, &exactMessageSourceStub{}, StreamMessageReaderConfig{})
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := reader.Run(ctx); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Run error = %v, want context.Canceled", err)
+	}
+	if err := reader.Run(context.Background()); !errors.Is(err, ErrStreamMessageReaderAlreadyStarted) {
+		t.Fatalf("repeated Run error = %v, want ErrStreamMessageReaderAlreadyStarted", err)
+	}
+}

@@ -13,12 +13,17 @@ import (
 
 const (
 	defaultStreamMessageReadConcurrency = 16
+	minimumCacheSweepInterval           = 10 * time.Millisecond
 	maximumCacheSweepInterval           = time.Minute
 )
 
 // ErrInvalidStreamMessageReaderConfig marks invalid exact-read concurrency or
 // cache lifetime settings.
 var ErrInvalidStreamMessageReaderConfig = errors.New("invalid stream message reader config")
+
+// ErrStreamMessageReaderAlreadyStarted is returned when Run is called more
+// than once on the same reader. A reader owns one cache cleanup lifecycle.
+var ErrStreamMessageReaderAlreadyStarted = errors.New("stream message reader already started")
 
 type exactStreamMessageSource interface {
 	GetMsg(context.Context, uint64, ...jetstream.GetMsgOpt) (*jetstream.RawStreamMsg, error)
@@ -55,6 +60,8 @@ type StreamMessageReader struct {
 	cache       map[uint64]cachedStreamMessage
 	inflight    map[uint64]int
 	invalidated map[uint64]struct{}
+	runMu       sync.Mutex
+	runStarted  bool
 }
 
 // NewStreamMessageReader binds exact reads and an optional cache to one
@@ -249,19 +256,25 @@ func (r *StreamMessageReader) Clear() {
 }
 
 // Run reclaims entries whose idle lifetime has elapsed. It returns ctx.Err
-// after cancellation and clears the cache before it returns.
+// after cancellation and clears the cache before it returns. Run is
+// single-use; construct a new reader for a new lifecycle.
 func (r *StreamMessageReader) Run(ctx context.Context) error {
 	if r == nil {
 		return fmt.Errorf("stream message reader is unavailable")
 	}
+	r.runMu.Lock()
+	if r.runStarted {
+		r.runMu.Unlock()
+		return ErrStreamMessageReaderAlreadyStarted
+	}
+	r.runStarted = true
+	r.runMu.Unlock()
 	if r.cacheIdleTTL == 0 {
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	interval := min(r.cacheIdleTTL/2, maximumCacheSweepInterval)
-	if interval <= 0 {
-		interval = r.cacheIdleTTL
-	}
+	interval := max(r.cacheIdleTTL/2, minimumCacheSweepInterval)
+	interval = min(interval, maximumCacheSweepInterval)
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	defer r.Clear()

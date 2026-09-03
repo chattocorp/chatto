@@ -22,10 +22,11 @@ call, and preserves caller order. Set `CacheIdleTTL` to keep successful reads
 in a process-local cache with sliding idle expiry. The cache copies record
 bytes and never stores a decoded application object.
 
-Run the reader with the application lifecycle so expired entries are reclaimed
-when they are not accessed again. Use `Forget` after application-owned physical
-deletion. Use `Clear` when the complete local cache must be discarded,
-including when a stream can be recreated with the same name.
+Run the reader once with the application lifecycle so expired entries are
+reclaimed when they are not accessed again. Use `Forget` after
+application-owned physical deletion. Use `Clear` when the complete local cache
+must be discarded, including when a stream can be recreated with the same
+name.
 
 ```go
 reader, err := events.NewStreamMessageReader(stream, events.StreamMessageReaderConfig{
