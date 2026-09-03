@@ -22,6 +22,7 @@ const outputDir = path.join(
   repoRoot,
   'apps/docs-website/src/content/docs/reference/connectrpc-api'
 );
+const realtimeProtoDir = path.join(repoRoot, 'proto/chatto/realtime/v1');
 
 const categories = [
   {
@@ -305,6 +306,23 @@ function isRealtimeType(section) {
   return section.anchor.startsWith('chatto-realtime-v1-');
 }
 
+async function collectRealtimeEventTypeNames() {
+  const names = new Set(['RealtimeEvent']);
+  const entries = await readdir(realtimeProtoDir, { withFileTypes: true });
+  const eventFiles = entries.filter(
+    (entry) => entry.isFile() && /(?:^|_)events\.proto$/.test(entry.name)
+  );
+
+  for (const entry of eventFiles) {
+    const source = await readFile(path.join(realtimeProtoDir, entry.name), 'utf8');
+    for (const match of source.matchAll(/^(?:message|enum)\s+([A-Za-z][A-Za-z0-9_]*)\s*\{/gm)) {
+      names.add(match[1]);
+    }
+  }
+
+  return names;
+}
+
 function renderPage(title, description, body) {
   return `${frontmatter(title, description)}${generatedNotice()}${body.trim()}\n`;
 }
@@ -576,35 +594,52 @@ function renderTypesPage(typeSections, enumSections) {
   );
 }
 
-function renderRealtimePage(typeSections, enumSections) {
-  const realtimeTypes = [...typeSections.entries()]
-    .filter(([, section]) => isRealtimeType(section))
-    .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
-  const realtimeEnums = [...enumSections.entries()]
-    .filter(([, section]) => isRealtimeType(section))
-    .map(([, section]) => rewriteRealtimeExternalLinks(section.content));
+function renderRealtimePage(typeSections, enumSections, eventTypeNames) {
+  const realtimeTypes = [...typeSections.values()].filter(isRealtimeType);
+  const realtimeEnums = [...enumSections.values()].filter(isRealtimeType);
+  const eventTypes = realtimeTypes.filter((section) => eventTypeNames.has(section.name));
+  const eventEnums = realtimeEnums.filter((section) => eventTypeNames.has(section.name));
+  const protocolTypes = realtimeTypes.filter((section) => !eventTypeNames.has(section.name));
+  const protocolEnums = realtimeEnums.filter((section) => !eventTypeNames.has(section.name));
+
+  eventTypes.sort((left, right) => {
+    if (left.name === 'RealtimeEvent') return -1;
+    if (right.name === 'RealtimeEvent') return 1;
+    return 0;
+  });
+
+  const renderSections = (sections) =>
+    sections.map((section) => rewriteRealtimeExternalLinks(section.content));
 
   const body = [
     'Chatto exposes realtime updates at `GET /api/realtime` using binary protobuf frames from `chatto.realtime.v1`.',
     '',
     'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
     '',
-    'This page is the field-level frame reference. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists the public event variants. Their dedicated public payload types are defined on this page.',
+    'This page separates protocol frames from the public event catalogue. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists every public event variant.',
     '',
     'Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',
-    '## Protocol Types',
+    '## Protocol Frames',
     '',
-    ...realtimeTypes,
+    'These messages and enums control the WebSocket lifecycle, snapshots, recovery, liveness, errors, and closure.',
     '',
-    '## Protocol Enums',
+    ...renderSections(protocolTypes),
     '',
-    ...realtimeEnums
+    ...renderSections(protocolEnums),
+    '',
+    '## Event Catalogue',
+    '',
+    'These messages and enums define the authorized semantic events that the server can deliver. Durable events can contain a resume cursor. Transient events do not contain one.',
+    '',
+    ...renderSections(eventTypes),
+    '',
+    ...renderSections(eventEnums)
   ];
 
   return renderPage(
     'Realtime WebSocket Protocol',
-    'Generated protobuf frame reference for the Chatto realtime WebSocket API.',
+    'Generated protobuf frame and event reference for the Chatto realtime WebSocket API.',
     body.join('\n\n')
   );
 }
@@ -732,7 +767,11 @@ for (const service of servicePages) {
   generatedPages.set(`${service.slug}.mdx`, renderServicePage(service, serviceSections));
 }
 generatedPages.set('types.mdx', renderTypesPage(typeSections, enumSections));
-generatedPages.set('realtime.mdx', renderRealtimePage(typeSections, enumSections));
+const realtimeEventTypeNames = await collectRealtimeEventTypeNames();
+generatedPages.set(
+  'realtime.mdx',
+  renderRealtimePage(typeSections, enumSections, realtimeEventTypeNames)
+);
 
 validateGeneratedPages(generatedPages);
 
