@@ -77,11 +77,6 @@ func (p *RoomTimelineProjection) Snapshot() ([]byte, error) {
 			MessageEventId: messageID, EventSequences: append([]uint64(nil), p.pendingBodySequences[messageID]...),
 		})
 	}
-	for _, roomID := range sortedMapKeys(p.attachmentMessageIDsByRoom) {
-		snapshot.AttachmentMessages = append(snapshot.AttachmentMessages, &projectionv1.AttachmentMessageSnapshot{
-			RoomId: roomID, MessageEventIds: append([]string(nil), p.attachmentMessageIDsByRoom[roomID]...),
-		})
-	}
 	appendTimes := func(values map[string]time.Time) []*projectionv1.StringTimestampSnapshot {
 		rows := make([]*projectionv1.StringTimestampSnapshot, 0, len(values))
 		for _, key := range sortedMapKeys(values) {
@@ -349,21 +344,14 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 	}
-	for _, row := range snapshot.GetAttachmentMessages() {
-		if row.GetRoomId() == "" {
-			return fmt.Errorf("room timeline snapshot has attachment messages without a room")
+	for _, messageID := range sortedMapKeys(restored.bodyStates) {
+		state := restored.bodyStates[messageID]
+		key, hasBucket := restored.messageBuckets[messageID]
+		if state.attachmentCount <= 0 || !hasBucket || restored.messageBodyUnavailableLocked(messageID) {
+			continue
 		}
-		if _, duplicate := restored.attachmentMessageIDsByRoom[row.GetRoomId()]; duplicate {
-			return fmt.Errorf("room timeline snapshot repeats attachment room %q", row.GetRoomId())
-		}
-		for _, messageID := range row.GetMessageEventIds() {
-			state := restored.bodyStates[messageID]
-			if messageID == "" || state.attachmentCount <= 0 || restored.messageBuckets[messageID].roomID != row.GetRoomId() || restored.attachmentMessageRoom[messageID] != "" {
-				return fmt.Errorf("room timeline snapshot has invalid attachment message")
-			}
-			restored.attachmentMessageIDsByRoom[row.GetRoomId()] = append(restored.attachmentMessageIDsByRoom[row.GetRoomId()], messageID)
-			restored.attachmentMessageRoom[messageID] = row.GetRoomId()
-		}
+		entry, _ := restored.entryByEventIDLocked(messageID)
+		restored.addAttachmentMessageLocked(key.roomID, messageID, entry.StreamSeq)
 	}
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom

@@ -405,7 +405,6 @@ message RoomTimelineProjectionSnapshot {
   repeated TimelineBucketSnapshot buckets = 12;
   repeated MessageBucketSnapshot message_buckets = 13;
   repeated PendingBodyReferenceSnapshot pending_body_references = 14;
-  repeated AttachmentMessageSnapshot attachment_messages = 15;
 }
 
 message PinnedMessageSnapshot {
@@ -458,11 +457,6 @@ message MessageBucketSnapshot {
 message PendingBodyReferenceSnapshot {
   string message_event_id = 1;
   repeated uint64 event_sequences = 2;
-}
-
-message AttachmentMessageSnapshot {
-  string room_id = 1;
-  repeated string message_event_ids = 2;
 }
 
 message StringTimestampSnapshot {
