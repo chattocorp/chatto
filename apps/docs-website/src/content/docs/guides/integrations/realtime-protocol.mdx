@@ -73,8 +73,8 @@ normal recovery behavior. The server does not send a partial replay.
 
 ## Handle public events
 
-Each [`RealtimeEvent`](/reference/connectrpc-api/realtime-events/) contains one
-authorized public payload variant. Durable variants
+Each [`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+contains one authorized public payload variant. Durable variants
 include messages, edits, retractions, reactions, pins, assets, rooms,
 membership, profiles, threads, and calls. Typing, presence changes, and session
 termination are transient variants and have no resume cursor.
@@ -200,11 +200,6 @@ session before they reconnect.
     title="Realtime Frame Reference"
     href="/reference/connectrpc-api/realtime/"
     description="Read every realtime protobuf message, field, and enum."
-  />
-  <LinkCard
-    title="Realtime Event Catalogue"
-    href="/reference/connectrpc-api/realtime-events/"
-    description="Read every public event variant and payload field."
   />
   <LinkCard
     title="API Compatibility"

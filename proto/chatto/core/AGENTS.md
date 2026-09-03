@@ -3,16 +3,17 @@
 The nearest package directory identifies each message's lifecycle and storage
 contract. Follow [ADR-084](../../../docs/adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
 
-## Public Realtime Subset
+## Public Realtime Payloads
 
-Realtime protocol 4 carries an authorized `evt/v1.Event`. The runtime public
-event catalogue and `event_field_surface` options therefore define a public
-subset of this otherwise internal and persisted package. Generate that subset
-in the docs website. Do not publish internal variants or storage-only fields.
+Realtime protocol 4 uses selected payload messages from this package in the
+public `chatto.realtime.v1.RealtimeEvent` union. The union and
+`event_field_surface` options define what the server can send. Do not publish
+the complete core Event union or storage-only fields as a public reference.
 
-The public subset has both contracts: it must remain readable as stored data,
-and public protocol changes need the realtime compatibility review. The
-package name does not authorize all core messages for public delivery.
+Payload messages in the public union have both contracts: they must remain
+readable as stored data, and public protocol changes need the realtime
+compatibility review. The package name does not authorize all core messages
+for public delivery.
 
 ## Package Ownership
 

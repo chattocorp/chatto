@@ -1,7 +1,6 @@
 import { mkdir, readFile, readdir, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { renderRealtimeEventCatalogue } from './realtime-event-docs.mjs';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, '..');
@@ -233,10 +232,6 @@ function generatedNotice() {
   return '{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}\n\n';
 }
 
-function generatedRealtimeEventNotice() {
-  return '{/* Generated from the runtime realtime catalogue and Chatto protobuf descriptors. Do not edit directly. */}\n\n';
-}
-
 function parseAnchoredSections(source, heading) {
   const pattern = new RegExp(`<a id="([^"]+)"></a>\\n\\n${heading} ([^\\n]+)\\n`, 'g');
   const matches = [...source.matchAll(pattern)];
@@ -267,15 +262,10 @@ function rewriteServiceTypeLinks(section) {
 }
 
 function rewriteRealtimeExternalLinks(section) {
-  return section
-    .replace(
-      /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
-      '](/reference/connectrpc-api/types/#$1)'
-    )
-    .replace(
-      /`chatto\.core\.evt\.v1\.Event`/g,
-      '[`chatto.core.evt.v1.Event`](/reference/connectrpc-api/realtime-events/#chatto-core-evt-v1-Event)'
-    );
+  return section.replace(
+    /\]\(#(chatto-(?:auth|discovery|api|admin)-v1-[^)]+)\)/g,
+    '](/reference/connectrpc-api/types/#$1)'
+  );
 }
 
 function dedupeInlineMethodTypes(content) {
@@ -536,8 +526,7 @@ function renderLanding() {
     '## Shared References',
     '',
     '- [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.',
-    '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames exchanged at `/api/realtime`.',
-    '- [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) - public event variants and client-visible payload fields.'
+    '- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames and public event variants exchanged at `/api/realtime`.'
   ];
   return renderPage(
     'API Overview',
@@ -604,7 +593,7 @@ function renderRealtimePage(typeSections, enumSections) {
     '',
     'Read the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) before you implement the connection lifecycle, snapshot processing, event processing, targeted cursor-bounded reads, or reconnect behavior. Follow [Use Realtime From TypeScript](/guides/integrations/realtime-typescript/) for a complete browser example.',
     '',
-    'This page is the field-level frame reference. Read the [Realtime Event Catalogue](/reference/connectrpc-api/realtime-events/) for the `chatto.realtime.v1.RealtimeEvent` variants and payload fields.',
+    'This page is the field-level frame reference. The [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) section lists the public event variants. Generated clients provide the reused canonical payload types.',
     '',
     'Realtime frames are documented separately from ConnectRPC services because they are exchanged over a long-lived WebSocket session rather than `/api/connect` RPC methods.',
     '',
@@ -692,10 +681,7 @@ async function removeStaleGeneratedPages(expectedFilenames) {
     }
     const fullPath = path.join(outputDir, entry.name);
     const content = await readFile(fullPath, 'utf8');
-    if (
-      content.includes(generatedNotice().trim()) ||
-      content.includes(generatedRealtimeEventNotice().trim())
-    ) {
+    if (content.includes(generatedNotice().trim())) {
       await unlink(fullPath);
     }
   }
@@ -751,13 +737,6 @@ for (const service of servicePages) {
 }
 generatedPages.set('types.mdx', renderTypesPage(typeSections, enumSections));
 generatedPages.set('realtime.mdx', renderRealtimePage(typeSections, enumSections));
-generatedPages.set(
-  'realtime-events.mdx',
-  await renderRealtimeEventCatalogue({
-    repoRoot,
-    generatedNotice: generatedRealtimeEventNotice
-  })
-);
 
 validateGeneratedPages(generatedPages);
 

@@ -92,9 +92,10 @@ Durable events contain one authorized public event and an opaque resume
 cursor. They do not contain resource sidecars. Typing, presence changes, and
 session termination are transient and do not have resume cursors. Snapshot
 frames reuse canonical public resource messages. Clients use event variants as
-refresh hints and read additional resources through ConnectRPC. See the [Realtime Event
-Catalogue](/reference/connectrpc-api/realtime-events/) for the public variants
-and client-visible payload fields.
+refresh hints and read additional resources through ConnectRPC. See the
+[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+reference for the public variants. Generated clients provide the reused
+canonical payload types.
 
 Realtime does not replace `chatto.api.v1`. Use the resource-oriented
 ConnectRPC services for explicit reads, pagination, commands, and
@@ -163,11 +164,6 @@ support inline timestamps.
     title="Realtime API"
     href="/reference/connectrpc-api/realtime/"
     description="Protobuf realtime WebSocket frame reference."
-  />
-  <LinkCard
-    title="Realtime Events"
-    href="/reference/connectrpc-api/realtime-events/"
-    description="Canonical event variants and client-visible payload fields."
   />
   <LinkCard
     title="Server Discovery"

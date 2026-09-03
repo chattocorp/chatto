@@ -130,9 +130,9 @@ small client. Chatto does not use a bot-only realtime channel or a separate
 bot-interaction event. The same subscription sends semantic events for all
 authorized public activity, including messages, edits, reactions, rooms,
 membership, profiles, and calls. Select `LIVE_ONLY` when the bot does not need
-an initial current-resource snapshot. Use the [Realtime Event
-Catalogue](/reference/connectrpc-api/realtime-events/) to select the canonical
-variants that the bot handles.
+an initial current-resource snapshot. Use the
+[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+reference to select the variants that the bot handles.
 
 Read `NotificationService.ListNotificationOccurrences` and filter by cause when
 the integration needs Chatto's attention policy instead of all visible
