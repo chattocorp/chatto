@@ -256,6 +256,14 @@ async function measureLargeServer(
     const receiverRoom = new RoomPage(receiverPage);
     await receiverRoom.expectMessageVisible(fixture.lastMessageBody);
 
+    // A room resource can render before the initial realtime reconciliation is
+    // complete. Measure steady-state delivery after both clients finish their
+    // current resource reads, not the remaining bootstrap work.
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      receiverPage.waitForLoadState('networkidle')
+    ]);
+
     const liveBody = `Performance live delivery sample ${sample} ${Date.now()}`;
     const realtimeStarted = performance.now();
     await senderRoom.sendMessage(liveBody);
