@@ -6,8 +6,7 @@
 
 **Supersedes:** The public-envelope part of
 [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
-ADR-091 still defines the canonical internal envelope for durable and
-transient events.
+ADR-093 supersedes ADR-091 for the internal durable and transient envelopes.
 
 ## Context
 
@@ -35,9 +34,10 @@ Tests can enforce the catalog relationship and mapper coverage.
 
 ## Decision
 
-`chatto.core.evt.v1.Event` remains the canonical internal envelope for stored
-EVT facts and transient NATS Core signals. Existing stored event tags, payload
-messages, and bytes do not change.
+`chatto.core.evt.v1.Event` is the internal envelope for stored EVT facts.
+`chatto.core.live.v1.LiveEvent` is the internal envelope for transient NATS
+Core signals. Existing stored event tags, payload messages, and bytes do not
+change. See ADR-093.
 
 The realtime API uses `chatto.realtime.v1.RealtimeEvent`. This message
 contains:
@@ -88,7 +88,7 @@ public contract.
 
 ## Consequences
 
-- EVT and internal NATS code continue to use one canonical envelope.
+- EVT and transient NATS Core signals use separate internal envelopes.
 - Realtime has one public event shape and one dedicated public payload
   catalogue.
 - `RealtimeServerFrame` provides the transport wrapper around the event.

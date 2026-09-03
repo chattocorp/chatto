@@ -13,6 +13,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -948,7 +949,7 @@ func TestDMNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
-		var live evtv1.Event
+		var live livev1.LiveEvent
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			t.Fatalf("unmarshal live event: %v", err)
 		}

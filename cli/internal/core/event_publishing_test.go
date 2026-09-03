@@ -12,7 +12,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/dynamicpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -25,60 +24,57 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	ctx := testContext(t)
 
 	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.sync.test", &evtv1.Event{})
+		err := core.publishLiveEvent(ctx, "live.sync.test", &livev1.LiveEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
 }
 
-func TestTransientEventWireUsesCanonicalEnvelope(t *testing.T) {
-	createdAt := timestamppb.Now()
-	event := &evtv1.Event{
-		Id: "canonical-id", CreatedAt: createdAt, ActorId: "actor-id",
-		Event: &evtv1.Event_UserTypingSignal{UserTypingSignal: &livev1.UserTypingEvent{RoomId: "room-id"}},
-	}
-
-	wire, err := marshalTransientEvent(event)
+func TestLiveEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
+	event := newLiveEvent("actor-id", &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: "room-id"},
+	}})
+	wire, err := proto.Marshal(event)
 	if err != nil {
-		t.Fatalf("marshalTransientEvent: %v", err)
+		t.Fatalf("marshal LiveEvent: %v", err)
 	}
-	var canonical evtv1.Event
-	if err := proto.Unmarshal(wire, &canonical); err != nil {
-		t.Fatalf("unmarshal canonical Event: %v", err)
+	var decoded livev1.LiveEvent
+	if err := proto.Unmarshal(wire, &decoded); err != nil {
+		t.Fatalf("unmarshal LiveEvent: %v", err)
 	}
-	if canonical.GetId() != event.GetId() || canonical.GetUserTypingSignal().GetRoomId() != "room-id" {
-		t.Fatalf("canonical decode = %+v, want metadata and typing payload", &canonical)
+	if decoded.GetId() != event.GetId() || decoded.GetUserTyping().GetRoomId() != "room-id" {
+		t.Fatalf("decoded LiveEvent = %+v, want metadata and typing payload", &decoded)
 	}
-	wantWire, err := proto.Marshal(event)
-	if err != nil {
-		t.Fatalf("marshal canonical Event: %v", err)
+	var stored evtv1.Event
+	if err := proto.Unmarshal(wire, &stored); err != nil {
+		t.Fatalf("unmarshal LiveEvent bytes as Event: %v", err)
 	}
-	if string(wire) != string(wantWire) {
-		t.Fatalf("transient wire contains data outside the canonical Event: got %x want %x", wire, wantWire)
+	if stored.GetEvent() != nil {
+		t.Fatalf("LiveEvent bytes selected durable EVT variant %T", stored.GetEvent())
 	}
 }
 
-func TestEveryTransientVariantUsesCanonicalWire(t *testing.T) {
-	descriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
+func TestEveryLiveEventVariantPassesLiveValidation(t *testing.T) {
+	descriptor := (&livev1.LiveEvent{}).ProtoReflect().Descriptor()
 	oneof := descriptor.Oneofs().ByName("event")
+	if oneof == nil {
+		t.Fatal("LiveEvent.event descriptor is missing")
+	}
 	for index := 0; index < oneof.Fields().Len(); index++ {
 		field := oneof.Fields().Get(index)
-		if field.Number() < 20000 || field.Number() > 29999 {
-			continue
-		}
 		dynamicEvent := dynamicpb.NewMessage(descriptor)
-		dynamicEvent.Mutable(field)
+		dynamicEvent.Set(field, dynamicEvent.NewField(field))
 		wire, err := proto.Marshal(dynamicEvent)
 		if err != nil {
 			t.Fatalf("marshal %s: %v", field.FullName(), err)
 		}
-		var event evtv1.Event
+		var event livev1.LiveEvent
 		if err := proto.Unmarshal(wire, &event); err != nil {
 			t.Fatalf("unmarshal %s: %v", field.FullName(), err)
 		}
-		if err := validateTransientEvent(&event); err != nil {
-			t.Errorf("transient event %s is not valid canonical wire: %v", field.FullName(), err)
+		if err := validateLiveEvent(&event); err != nil {
+			t.Errorf("validate %s: %v", field.FullName(), err)
 		}
 	}
 }

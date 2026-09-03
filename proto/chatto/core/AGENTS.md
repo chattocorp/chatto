@@ -12,18 +12,16 @@ because it exists in a canonical event.
 
 ## Package Ownership
 
-- `evt/v1` owns the canonical Event envelope, durable `EVT` facts, transient
-  event variants, and values that are part of those events. Durable variants
-  keep their stored compatibility contract. Transient variants use the
-  reserved 20000 through 29999 oneof tag range and must not enter EVT.
+- `evt/v1` owns the `Event` envelope, durable `EVT` facts, and values that are
+  part of those facts. Its stored variants keep their compatibility contract.
 - `notification/v1` owns the bounded `NOTIFICATIONS` envelope and lifecycle
   facts.
 - `runtime_state/v1` owns durable latest-value records in `RUNTIME_STATE`.
 - `key_material/v1` owns KMS records in `ENCRYPTION_KEYS`.
 - `cache_state/v1` owns volatile shared records in `MEMORY_CACHE`.
 - `projection/v1` owns rebuildable projection snapshot payloads.
-- `live/v1` owns transient payload messages. The canonical `evt/v1.Event`
-  envelope carries these payloads on NATS Core.
+- `live/v1` owns the `LiveEvent` envelope and transient payload messages sent
+  through NATS Core. A `LiveEvent` must not enter EVT.
 
 Do not put a type in a package because one consumer uses it. Put the type in the
 package that owns its authoritative lifecycle.

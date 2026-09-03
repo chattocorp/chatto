@@ -302,9 +302,9 @@ func (c *ChattoCore) PublishServerUpdated(ctx context.Context, actorID string) {
 		bannerURL = ""
 	}
 
-	event := newTransientEvent(actorID, &evtv1.Event{
-		Event: &evtv1.Event_ServerUpdatedSync{
-			ServerUpdatedSync: &livev1.ServerUpdatedEvent{
+	event := newLiveEvent(actorID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_ServerUpdated{
+			ServerUpdated: &livev1.ServerUpdatedEvent{
 				ServerId:    LegacyServerSpaceID,
 				Name:        name,
 				Description: description,

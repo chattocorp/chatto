@@ -2,32 +2,29 @@ package core
 
 import (
 	"google.golang.org/protobuf/types/known/timestamppb"
+
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 )
 
 // EventEnvelope is the in-process envelope used by StreamMyEvents and the
 // realtime API. Concrete implementations are intentionally private so an
 // envelope can only wrap one backing source: a durable EVT fact, a transient
-// canonical Event, or a synthetic heartbeat.
+// LiveEvent, or a synthetic heartbeat.
 type EventEnvelope interface {
 	ID() string
 	CreatedAt() *timestamppb.Timestamp
 	ActorID() string
 	Payload() any
 	DeliverySeq() uint64
-	// CanonicalEvent returns the single Event shape used by durable and
-	// transient delivery. Callers must treat the returned value as immutable.
-	CanonicalEvent() *evtv1.Event
-
 	EVTEvent() *evtv1.Event
+	LiveEvent() *livev1.LiveEvent
 	HeartbeatEvent() *livev1.HeartbeatEvent
 }
 
 type evtEventEnvelope struct {
 	event       *evtv1.Event
 	deliverySeq uint64
-	transient   bool
 }
 
 func NewEVTEventEnvelopeWithDeliverySeq(event *evtv1.Event, seq uint64) EventEnvelope {
@@ -37,27 +34,35 @@ func NewEVTEventEnvelopeWithDeliverySeq(event *evtv1.Event, seq uint64) EventEnv
 	return &evtEventEnvelope{event: event, deliverySeq: seq}
 }
 
-// NewTransientEventEnvelope wraps a canonical Event that must not enter EVT.
-func NewTransientEventEnvelope(event *evtv1.Event) EventEnvelope {
+func (e *evtEventEnvelope) ID() string                             { return e.event.GetId() }
+func (e *evtEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
+func (e *evtEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
+func (e *evtEventEnvelope) Payload() any                           { return e.event.GetEvent() }
+func (e *evtEventEnvelope) DeliverySeq() uint64                    { return e.deliverySeq }
+func (e *evtEventEnvelope) EVTEvent() *evtv1.Event                 { return e.event }
+func (e *evtEventEnvelope) LiveEvent() *livev1.LiveEvent           { return nil }
+func (e *evtEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return nil }
+
+type liveEventEnvelope struct {
+	event *livev1.LiveEvent
+}
+
+// NewLiveEventEnvelope wraps one transient NATS Core event.
+func NewLiveEventEnvelope(event *livev1.LiveEvent) EventEnvelope {
 	if event == nil {
 		return nil
 	}
-	return &evtEventEnvelope{event: event, transient: true}
+	return &liveEventEnvelope{event: event}
 }
 
-func (e *evtEventEnvelope) ID() string                        { return e.event.GetId() }
-func (e *evtEventEnvelope) CreatedAt() *timestamppb.Timestamp { return e.event.GetCreatedAt() }
-func (e *evtEventEnvelope) ActorID() string                   { return e.event.GetActorId() }
-func (e *evtEventEnvelope) Payload() any                      { return e.event.GetEvent() }
-func (e *evtEventEnvelope) DeliverySeq() uint64               { return e.deliverySeq }
-func (e *evtEventEnvelope) CanonicalEvent() *evtv1.Event      { return e.event }
-func (e *evtEventEnvelope) EVTEvent() *evtv1.Event {
-	if e.transient {
-		return nil
-	}
-	return e.event
-}
-func (e *evtEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return nil }
+func (e *liveEventEnvelope) ID() string                             { return e.event.GetId() }
+func (e *liveEventEnvelope) CreatedAt() *timestamppb.Timestamp      { return e.event.GetCreatedAt() }
+func (e *liveEventEnvelope) ActorID() string                        { return e.event.GetActorId() }
+func (e *liveEventEnvelope) Payload() any                           { return e.event.GetEvent() }
+func (e *liveEventEnvelope) DeliverySeq() uint64                    { return 0 }
+func (e *liveEventEnvelope) EVTEvent() *evtv1.Event                 { return nil }
+func (e *liveEventEnvelope) LiveEvent() *livev1.LiveEvent           { return e.event }
+func (e *liveEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return nil }
 
 type heartbeatEventEnvelope struct {
 	id        string
@@ -78,15 +83,15 @@ func (e *heartbeatEventEnvelope) CreatedAt() *timestamppb.Timestamp      { retur
 func (e *heartbeatEventEnvelope) ActorID() string                        { return "" }
 func (e *heartbeatEventEnvelope) Payload() any                           { return e.event }
 func (e *heartbeatEventEnvelope) DeliverySeq() uint64                    { return 0 }
-func (e *heartbeatEventEnvelope) CanonicalEvent() *evtv1.Event           { return nil }
 func (e *heartbeatEventEnvelope) EVTEvent() *evtv1.Event                 { return nil }
+func (e *heartbeatEventEnvelope) LiveEvent() *livev1.LiveEvent           { return nil }
 func (e *heartbeatEventEnvelope) HeartbeatEvent() *livev1.HeartbeatEvent { return e.event }
 
 func EventSessionTerminated(event EventEnvelope) *livev1.SessionTerminatedEvent {
-	if event == nil || event.CanonicalEvent() == nil {
+	if event == nil || event.LiveEvent() == nil {
 		return nil
 	}
-	return event.CanonicalEvent().GetSessionTerminatedSignal()
+	return event.LiveEvent().GetSessionTerminated()
 }
 
 func EventMessagePosted(event EventEnvelope) *evtv1.MessagePostedEvent {
@@ -111,15 +116,15 @@ func EventMessageRetracted(event EventEnvelope) *evtv1.MessageRetractedEvent {
 }
 
 func EventUserTyping(event EventEnvelope) *livev1.UserTypingEvent {
-	if event == nil || event.CanonicalEvent() == nil {
+	if event == nil || event.LiveEvent() == nil {
 		return nil
 	}
-	return event.CanonicalEvent().GetUserTypingSignal()
+	return event.LiveEvent().GetUserTyping()
 }
 
 func EventPresenceChanged(event EventEnvelope) *livev1.PresenceChangedEvent {
-	if event == nil || event.CanonicalEvent() == nil {
+	if event == nil || event.LiveEvent() == nil {
 		return nil
 	}
-	return event.CanonicalEvent().GetPresenceChangedSignal()
+	return event.LiveEvent().GetPresenceChanged()
 }

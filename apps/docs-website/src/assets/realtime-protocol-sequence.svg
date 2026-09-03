@@ -26,32 +26,23 @@
   <line x1="170" y1="105" x2="748" y2="105" class="flow"/>
   <text x="460" y="96" text-anchor="middle" class="text">Open GET /api/realtime</text>
 
-  <line x1="170" y1="155" x2="748" y2="155" class="flow"/>
-  <text x="460" y="146" text-anchor="middle" class="text">hello · protocol 4 · bearer token if needed</text>
+  <line x1="170" y1="165" x2="748" y2="165" class="flow"/>
+  <text x="460" y="156" text-anchor="middle" class="text">RealtimeSubscribe · protocol 4 · fallback · cursor?</text>
 
-  <line x1="750" y1="205" x2="172" y2="205" class="flow"/>
-  <text x="460" y="196" text-anchor="middle" class="text">hello · accepted version · heartbeat</text>
+  <rect x="250" y="205" width="420" height="76" rx="12" class="pill"/>
+  <text x="460" y="232" text-anchor="middle" class="text">Snapshot: one exact content value at boundary E</text>
+  <text x="460" y="259" text-anchor="middle" class="text">Resume: authorized durable events through E</text>
 
-  <line x1="170" y1="255" x2="748" y2="255" class="flow"/>
-  <text x="460" y="246" text-anchor="middle" class="text">subscribe_events · snapshot or live-only · cursor?</text>
+  <line x1="750" y1="325" x2="172" y2="325" class="flow durable"/>
+  <text x="460" y="316" text-anchor="middle" class="text">one atomic snapshot or replayed events</text>
 
-  <line x1="750" y1="305" x2="172" y2="305" class="flow"/>
-  <text x="460" y="296" text-anchor="middle" class="text">subscribed · snapshot, resume, or live-only</text>
-
-  <rect x="250" y="330" width="420" height="76" rx="12" class="pill"/>
-  <text x="460" y="357" text-anchor="middle" class="text">Snapshot: exact canonical resources at boundary E</text>
-  <text x="460" y="384" text-anchor="middle" class="text">Resume: authorized durable events through E</text>
-
-  <line x1="750" y1="435" x2="172" y2="435" class="flow durable"/>
-  <text x="460" y="426" text-anchor="middle" class="text">snapshot resources or replayed events</text>
+  <line x1="750" y1="405" x2="172" y2="405" class="flow durable"/>
+  <text x="460" y="396" text-anchor="middle" class="text">caught_up · safe resume cursor E</text>
 
   <line x1="750" y1="485" x2="172" y2="485" class="flow durable"/>
-  <text x="460" y="476" text-anchor="middle" class="text">caught_up · safe resume cursor E</text>
+  <text x="460" y="476" text-anchor="middle" class="text">authorized public events after E</text>
 
-  <line x1="750" y1="535" x2="172" y2="535" class="flow durable"/>
-  <text x="460" y="526" text-anchor="middle" class="text">authorized public events after E</text>
-
-  <line x1="750" y1="585" x2="172" y2="585" class="flow durable"/>
-  <text x="460" y="576" text-anchor="middle" class="text">live authorized public events</text>
+  <line x1="750" y1="565" x2="172" y2="565" class="flow durable"/>
+  <text x="460" y="556" text-anchor="middle" class="text">live events and heartbeats</text>
   <text x="460" y="655" text-anchor="middle" class="small">Save a cursor only after the event and its required resource reads succeed.</text>
 </svg>

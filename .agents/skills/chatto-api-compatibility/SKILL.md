@@ -71,7 +71,7 @@ Inspect changes that schema tooling cannot fully protect:
   `oneof` without representing an independent domain concept
 - pagination, cursor, ordering, and retry interpretation
 - request fields silently ignored by older servers
-- realtime hello, heartbeat, reconnect, and catch-up behaviour
+- realtime subscription, heartbeat, reconnect, and catch-up behaviour
 - public capability-key names and meaning
 - bundled client fallbacks when discovery metadata is absent
 

@@ -6,7 +6,6 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -26,7 +25,7 @@ func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *test
 	want := errors.New("storage unavailable")
 	ctx := context.WithValue(context.Background(), authenticationValidationErrorKey{}, want)
 
-	_, user, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeClientHello{})
+	_, user, err := s.realtimeAuthenticatedUser(ctx, &realtimev1.RealtimeSubscribe{})
 	if user != nil || !errors.Is(err, want) {
 		t.Fatalf("realtimeAuthenticatedUser = (%v, %v), want (nil, %v)", user, err, want)
 	}
@@ -77,14 +76,35 @@ func (env *wsTestEnv) dialCompressedRealtime(t testing.TB) *websocket.Conn {
 	return conn
 }
 
-func sendRealtimeClientFrame(t testing.TB, conn *websocket.Conn, frame *realtimev1.RealtimeClientFrame) {
+func sendRealtimeSubscribe(
+	t testing.TB,
+	conn *websocket.Conn,
+	token string,
+	initialState realtimev1.RealtimeInitialState,
+	resumeCursor string,
+) {
 	t.Helper()
-	data, err := proto.Marshal(frame)
+	subscribe := &realtimev1.RealtimeSubscribe{
+		ProtocolVersion: realtimeProtocolVersion,
+		InitialState:    initialState,
+	}
+	if token != "" {
+		subscribe.BearerToken = proto.String(token)
+	}
+	if resumeCursor != "" {
+		subscribe.ResumeCursor = proto.String(resumeCursor)
+	}
+	sendRealtimeSubscribeMessage(t, conn, subscribe)
+}
+
+func sendRealtimeSubscribeMessage(t testing.TB, conn *websocket.Conn, subscribe *realtimev1.RealtimeSubscribe) {
+	t.Helper()
+	data, err := proto.Marshal(subscribe)
 	if err != nil {
-		t.Fatalf("marshal realtime client frame: %v", err)
+		t.Fatalf("marshal realtime subscription: %v", err)
 	}
 	if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
-		t.Fatalf("write realtime client frame: %v", err)
+		t.Fatalf("write realtime subscription: %v", err)
 	}
 }
 
@@ -110,66 +130,15 @@ func readRealtimeServerFrame(t testing.TB, conn *websocket.Conn, timeout time.Du
 	return &frame, true
 }
 
-func realtimePingRoundTrip(conn *websocket.Conn, nonce string) error {
-	data, err := proto.Marshal(&realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Ping{
-		Ping: &realtimev1.RealtimePing{Nonce: nonce},
-	}})
-	if err != nil {
-		return fmt.Errorf("marshal ping: %w", err)
-	}
-	if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
-		return fmt.Errorf("write ping: %w", err)
-	}
-	for {
-		if err := conn.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
-			return err
-		}
-		_, data, err := conn.ReadMessage()
-		if err != nil {
-			return err
-		}
-		var frame realtimev1.RealtimeServerFrame
-		if err := proto.Unmarshal(data, &frame); err != nil {
-			return err
-		}
-		if pong := frame.GetPong(); pong != nil {
-			if pong.GetNonce() != nonce {
-				return fmt.Errorf("pong nonce = %q, want %q", pong.GetNonce(), nonce)
-			}
-			return nil
-		}
-	}
-}
-
 func subscribeRealtime(
 	t testing.TB,
 	conn *websocket.Conn,
 	token string,
 	initialState realtimev1.RealtimeInitialState,
 	resumeCursor string,
-) *realtimev1.RealtimeSubscribed {
+) {
 	t.Helper()
-	hello := &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion}
-	if token != "" {
-		hello.BearerToken = proto.String(token)
-	}
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{Hello: hello}})
-	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetHello() == nil {
-		t.Fatalf("hello response = %+v, want hello", frame)
-	}
-	subscribe := &realtimev1.RealtimeSubscribeEvents{InitialState: initialState}
-	if resumeCursor != "" {
-		subscribe.ResumeCursor = proto.String(resumeCursor)
-	}
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: subscribe,
-	}})
-	frame, ok = readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetSubscribed() == nil {
-		t.Fatalf("subscribe response = %+v, want subscribed", frame)
-	}
-	return frame.GetSubscribed()
+	sendRealtimeSubscribe(t, conn, token, initialState, resumeCursor)
 }
 
 func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeCaughtUp {
@@ -370,7 +339,7 @@ func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 	}
 }
 
-func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
+func TestRealtimeWebSocketSnapshotLifecycle(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "socket-user", "Socket User", "password123")
 	if err != nil {
@@ -381,56 +350,20 @@ func TestRealtimeWebSocketSnapshotLifecycleAndPing(t *testing.T) {
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	conn := env.dialRealtime(t)
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion, BearerToken: proto.String(token)},
-	}})
-	if frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second); !ok || frame.GetHello() == nil {
-		t.Fatalf("hello response = %+v", frame)
-	}
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_SubscribeEvents{
-		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{InitialState: realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT},
-	}})
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
 	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-	if !ok || frame.GetSubscribed().GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		t.Fatalf("subscribed = %+v, want snapshot recovery", frame)
+	snapshot := frame.GetSnapshot()
+	if !ok || snapshot == nil {
+		t.Fatalf("first frame = %+v, want atomic snapshot", frame)
 	}
-	seen := map[string]bool{}
-	for {
-		frame, ok = readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok {
-			t.Fatal("timed out waiting for snapshot")
-		}
-		if snapshot := frame.GetSnapshot(); snapshot != nil {
-			switch snapshot.GetResource().(type) {
-			case *realtimev1.RealtimeSnapshot_Server:
-				seen["server"] = true
-			case *realtimev1.RealtimeSnapshot_Rooms:
-				seen["rooms"] = true
-			case *realtimev1.RealtimeSnapshot_RoomGroups:
-				seen["room_groups"] = true
-			case *realtimev1.RealtimeSnapshot_Users:
-				seen["users"] = true
-			case *realtimev1.RealtimeSnapshot_ActiveCalls:
-				seen["active_calls"] = true
-			}
-		}
-		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
-			if caughtUp.GetCursor() == "" {
-				t.Fatal("snapshot caught_up omitted cursor")
-			}
-			break
-		}
+	if snapshot.GetServer() == nil || len(snapshot.GetUsers()) == 0 {
+		t.Fatalf("snapshot = %+v, want server and referenced users", snapshot)
 	}
-	for _, resource := range []string{"server", "rooms", "room_groups", "users", "active_calls"} {
-		if !seen[resource] {
-			t.Fatalf("snapshot omitted %s resource", resource)
-		}
+	if caughtUp := readRealtimeCaughtUp(t, conn); caughtUp.GetCursor() == "" {
+		t.Fatal("snapshot caught_up omitted cursor")
 	}
 	if got := env.httpServer.metrics.realtimeSnapshotBytes.Load(); got == 0 {
 		t.Fatal("snapshot byte measurement was not recorded")
-	}
-	if err := realtimePingRoundTrip(conn, "nonce"); err != nil {
-		t.Fatalf("ping round trip: %v", err)
 	}
 }
 
@@ -449,30 +382,21 @@ func TestRealtimeWebSocketSnapshotOmitsUnreferencedUserDirectory(t *testing.T) {
 		t.Fatalf("CreateUser unreferenced: %v", err)
 	}
 	conn := env.dialRealtime(t)
-	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
-	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetRecoveryMode())
-	}
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
 	foundViewer := false
-	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok {
-			t.Fatal("timed out waiting for snapshot users")
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSnapshot() == nil {
+		t.Fatalf("first frame = %+v, want snapshot", frame)
+	}
+	for _, member := range frame.GetSnapshot().GetUsers() {
+		if member.GetUser().GetId() == unreferenced.GetId() {
+			t.Fatal("snapshot disclosed unreferenced server-directory user")
 		}
-		if users := frame.GetSnapshot().GetUsers(); users != nil {
-			for _, member := range users.GetUsers() {
-				if member.GetUser().GetId() == unreferenced.GetId() {
-					t.Fatal("snapshot disclosed unreferenced server-directory user")
-				}
-				if member.GetUser().GetId() == viewer.GetId() {
-					foundViewer = true
-				}
-			}
-		}
-		if frame.GetCaughtUp() != nil {
-			break
+		if member.GetUser().GetId() == viewer.GetId() {
+			foundViewer = true
 		}
 	}
+	readRealtimeCaughtUp(t, conn)
 	if !foundViewer {
 		t.Fatal("snapshot omitted its viewer from referenced users")
 	}
@@ -489,9 +413,10 @@ func TestRealtimeWebSocketSnapshotHandsOffToSubsequentBufferedEvent(t *testing.T
 		t.Fatalf("CreateAuthToken: %v", err)
 	}
 	conn := env.dialRealtime(t)
-	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
-	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetRecoveryMode())
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, "")
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSnapshot() == nil {
+		t.Fatalf("first frame = %+v, want snapshot", frame)
 	}
 
 	if _, err := env.core.UpdateUserBio(env.ctx, viewer.GetId(), "after snapshot boundary"); err != nil {
@@ -527,18 +452,17 @@ func TestRealtimeWebSocketRejectsUnexpectedControlFrame(t *testing.T) {
 	}
 	conn := env.dialRealtime(t)
 	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
-	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
-	}})
+	readRealtimeCaughtUp(t, conn)
+	sendRealtimeSubscribe(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 
 	for {
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
 		if !ok {
 			t.Fatal("timed out waiting for unexpected control-frame rejection")
 		}
-		if realtimeErr := frame.GetError(); realtimeErr != nil {
-			if realtimeErr.GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME || !realtimeErr.GetFatal() {
-				t.Fatalf("control-frame error = %+v, want fatal bad_frame", realtimeErr)
+		if closeFrame := frame.GetClose(); closeFrame != nil {
+			if closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST || closeFrame.GetReconnect() {
+				t.Fatalf("control-frame close = %+v, want terminal invalid_request", closeFrame)
 			}
 			return
 		}
@@ -546,27 +470,26 @@ func TestRealtimeWebSocketRejectsUnexpectedControlFrame(t *testing.T) {
 }
 
 func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
-	t.Run("rejects unauthenticated hello", func(t *testing.T) {
+	t.Run("rejects unauthenticated subscription", func(t *testing.T) {
 		env := setupWebSocketTestServer(t)
 		conn := env.dialRealtime(t)
-		sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
-		}})
+		sendRealtimeSubscribe(t, conn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED || !frame.GetError().GetFatal() {
-			t.Fatalf("unauthenticated response = %+v, want fatal authentication_required", frame)
+		if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
+			t.Fatalf("unauthenticated response = %+v, want terminal authentication_required", frame)
 		}
 	})
 
 	t.Run("rejects unsupported protocol", func(t *testing.T) {
 		env := setupWebSocketTestServer(t)
 		conn := env.dialRealtime(t)
-		sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion + 1},
-		}})
+		sendRealtimeSubscribeMessage(t, conn, &realtimev1.RealtimeSubscribe{
+			ProtocolVersion: realtimeProtocolVersion + 1,
+			InitialState:    realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY,
+		})
 		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL || !frame.GetError().GetFatal() {
-			t.Fatalf("unsupported protocol response = %+v, want fatal unsupported_protocol", frame)
+		if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL || frame.GetClose().GetReconnect() {
+			t.Fatalf("unsupported protocol response = %+v, want terminal unsupported_protocol", frame)
 		}
 	})
 
@@ -581,10 +504,7 @@ func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
 			t.Fatalf("CreateAuthToken: %v", err)
 		}
 		conn := env.dialRealtime(t)
-		subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
-		if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY {
-			t.Fatalf("recovery mode = %v, want live-only", subscribed.GetRecoveryMode())
-		}
+		subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 		readRealtimeCaughtUp(t, conn)
 	})
 
@@ -608,11 +528,9 @@ func TestRealtimeWebSocketAuthenticationAndProtocolBoundaries(t *testing.T) {
 		env.login(t, "rt-cross-origin", "password123")
 
 		cookieConn := env.dialRealtimeWithOrigin(t, "https://client.example")
-		sendRealtimeClientFrame(t, cookieConn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
-			Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
-		}})
+		sendRealtimeSubscribe(t, cookieConn, "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 		frame, ok := readRealtimeServerFrame(t, cookieConn, 5*time.Second)
-		if !ok || frame.GetError().GetCode() != realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED {
+		if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED {
 			t.Fatalf("cross-origin cookie response = %+v, want authentication_required", frame)
 		}
 
@@ -707,16 +625,35 @@ func TestRealtimeWebSocketClosesOnlyForRevokedBotAPIKey(t *testing.T) {
 	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetMessage() != "the bot API key is no longer valid" || frame.GetClose().GetReconnect() {
 		t.Fatalf("first revoked socket frame = %+v, want terminal authentication_required", frame)
 	}
-	if err := realtimePingRoundTrip(secondConn, "still-valid"); err != nil {
-		t.Fatalf("second bot API key socket after first revocation: %v", err)
+	if _, err := env.core.UpdateUserBio(env.ctx, bot.User.GetId(), "second key still active"); err != nil {
+		t.Fatalf("UpdateUserBio: %v", err)
+	}
+	for {
+		event := readPublicRealtimeEvent(t, secondConn)
+		if event.GetUserBioChanged() == nil {
+			continue
+		}
+		if event.GetUserBioChanged().GetBioPlaintext() != "second key still active" {
+			t.Fatalf("second bot API key socket event = %+v, want continued delivery", event)
+		}
+		break
 	}
 
 	if _, err := env.core.RevokeBotAPIKey(env.ctx, owner.GetId(), bot.User.GetId(), second.KeyID); err != nil {
 		t.Fatalf("RevokeBotAPIKey second: %v", err)
 	}
-	frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
-	if !ok || frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
-		t.Fatalf("second revoked socket frame = %+v, want terminal authentication_required", frame)
+	for {
+		frame, ok = readRealtimeServerFrame(t, secondConn, 5*time.Second)
+		if !ok {
+			t.Fatal("timed out waiting for second bot API key revocation")
+		}
+		if frame.GetClose() == nil {
+			continue
+		}
+		if frame.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED || frame.GetClose().GetReconnect() {
+			t.Fatalf("second revoked socket frame = %+v, want terminal authentication_required", frame)
+		}
+		break
 	}
 }
 
@@ -858,9 +795,10 @@ func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
 	}
 
 	conn := env.dialRealtime(t)
-	subscribed := subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, expired)
-	if subscribed.GetRecoveryMode() != realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT {
-		t.Fatalf("recovery mode = %v, want snapshot", subscribed.GetRecoveryMode())
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, expired)
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetSnapshot() == nil {
+		t.Fatalf("expired cursor response = %+v, want snapshot fallback", frame)
 	}
 	readRealtimeCaughtUp(t, conn)
 }
@@ -878,9 +816,27 @@ func TestRealtimeWebSocketNegotiatedCompressionSupportsLargeFrames(t *testing.T)
 	conn := env.dialCompressedRealtime(t)
 	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
 	readRealtimeCaughtUp(t, conn)
-	nonce := strings.Repeat("0123456789abcdef", 512)
-	if err := realtimePingRoundTrip(conn, nonce); err != nil {
-		t.Fatalf("large compressed ping round trip: %v", err)
+	room, err := env.core.CreateRoom(env.ctx, viewer.GetId(), core.KindChannel, "", "compression-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.GetId(), core.KindChannel, viewer.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	body := strings.Repeat("0123456789abcdef", 256)
+	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), viewer.GetId(), body, nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	for {
+		event := readPublicRealtimeEvent(t, conn)
+		if event.GetId() != posted.GetId() {
+			continue
+		}
+		if event.GetMessagePosted().GetBodyPlaintext() != body {
+			t.Fatalf("large compressed event = %+v, want complete message", event)
+		}
+		break
 	}
 }
 

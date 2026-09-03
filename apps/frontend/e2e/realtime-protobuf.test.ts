@@ -10,13 +10,10 @@ import {
 } from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 import {
-  RealtimeClientFrame,
-  RealtimeClientHello,
   RealtimeEvent,
   RealtimeInitialState,
-  RealtimeRecoveryMode,
   RealtimeServerFrame,
-  RealtimeSubscribeEvents
+  RealtimeSubscribe
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 
@@ -34,11 +31,8 @@ class RealtimeProtobufClient {
     reject: (err: Error) => void;
     timer: ReturnType<typeof setTimeout>;
   }> = [];
-  recoveryMode: RealtimeRecoveryMode;
-
-  private constructor(socket: WebSocket, recoveryMode: RealtimeRecoveryMode) {
+  private constructor(socket: WebSocket) {
     this.#socket = socket;
-    this.recoveryMode = recoveryMode;
     socket.addEventListener('message', (message) => {
       void this.#handleMessage(message.data);
     });
@@ -80,32 +74,15 @@ class RealtimeProtobufClient {
       );
     });
 
-    const pendingClient = new RealtimeProtobufClient(socket, RealtimeRecoveryMode.UNSPECIFIED);
+    const pendingClient = new RealtimeProtobufClient(socket);
     pendingClient.send(
-      new RealtimeClientFrame({
-        frame: {
-          case: 'hello',
-          value: new RealtimeClientHello({ protocolVersion: 4, bearerToken })
-        }
+      new RealtimeSubscribe({
+        protocolVersion: 4,
+        bearerToken,
+        initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
+        resumeCursor: options.resumeCursor
       })
     );
-    await pendingClient.waitForFrame((frame) => frame.frame.case === 'hello');
-    pendingClient.send(
-      new RealtimeClientFrame({
-        frame: {
-          case: 'subscribeEvents',
-          value: new RealtimeSubscribeEvents({
-            initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
-            resumeCursor: options.resumeCursor
-          })
-        }
-      })
-    );
-    const subscribed = await pendingClient.waitForFrame(
-      (frame) => frame.frame.case === 'subscribed'
-    );
-    if (subscribed.frame.case !== 'subscribed') throw new Error('expected subscribed frame');
-    pendingClient.recoveryMode = subscribed.frame.value.recoveryMode;
     return pendingClient;
   }
 
@@ -114,8 +91,8 @@ class RealtimeProtobufClient {
     this.#rejectAll(new Error('realtime socket closed'));
   }
 
-  send(frame: RealtimeClientFrame): void {
-    this.#socket.send(frame.toBinary());
+  send(message: RealtimeSubscribe): void {
+    this.#socket.send(message.toBinary());
   }
 
   waitForEvent(predicate: (event: RealtimeEvent) => boolean): Promise<RealtimeEvent> {
@@ -161,10 +138,6 @@ class RealtimeProtobufClient {
     if (frame.frame.case === 'close') {
       this.#rejectAll(
         new Error(`realtime server closed: ${frame.frame.value.code}: ${frame.frame.value.message}`)
-      );
-    } else if (frame.frame.case === 'error' && frame.frame.value.fatal) {
-      this.#rejectAll(
-        new Error(`realtime server error: ${frame.frame.value.code}: ${frame.frame.value.message}`)
       );
     }
     const waiterIndex = this.#waiters.findIndex((waiter) => waiter.predicate(frame));
@@ -218,53 +191,23 @@ test.describe('protobuf realtime stream', () => {
 
     const realtime = await RealtimeProtobufClient.connect(serverURL, token);
     try {
-      expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.SNAPSHOT);
+      const snapshot = await realtime.waitForFrame((frame) => frame.frame.case === 'snapshot');
+      if (snapshot.frame.case !== 'snapshot') throw new Error('expected snapshot frame');
+      expect(snapshot.frame.value.server?.name).toBeTruthy();
+      expect(snapshot.frame.value.rooms.some((room) => room.room?.id === roomId)).toBe(true);
+      expect(snapshot.frame.value.users.some((user) => user.user?.id === viewer.id)).toBe(true);
+      expect(snapshot.frame.value.users.some((user) => user.user?.id === unrelatedUserId)).toBe(
+        false
+      );
 
-      // The snapshot boundary is already captured when subscribed arrives.
-      // This message must therefore arrive after caught_up, even if the
-      // snapshot frames are still in flight.
+      // The snapshot boundary is captured before this frame arrives. This
+      // message must therefore arrive after caught_up.
       const messageId = await postMessageViaConnect(
         page,
         roomId,
         `snapshot boundary ${Date.now()}`
       );
 
-      const server = await realtime.waitForFrame(
-        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'server'
-      );
-      expect(server.frame.case).toBe('snapshot');
-
-      const rooms = await realtime.waitForFrame(
-        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'rooms'
-      );
-      if (rooms.frame.case !== 'snapshot' || rooms.frame.value.resource.case !== 'rooms') {
-        throw new Error('expected rooms snapshot');
-      }
-      expect(
-        rooms.frame.value.resource.value.rooms.some((room) => room.room?.id === roomId)
-      ).toBe(true);
-
-      await realtime.waitForFrame(
-        (frame) =>
-          frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'roomGroups'
-      );
-      const users = await realtime.waitForFrame(
-        (frame) => frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'users'
-      );
-      if (users.frame.case !== 'snapshot' || users.frame.value.resource.case !== 'users') {
-        throw new Error('expected users snapshot');
-      }
-      expect(users.frame.value.resource.value.users.some((user) => user.user?.id === viewer.id)).toBe(
-        true
-      );
-      expect(
-        users.frame.value.resource.value.users.some((user) => user.user?.id === unrelatedUserId)
-      ).toBe(false);
-
-      await realtime.waitForFrame(
-        (frame) =>
-          frame.frame.case === 'snapshot' && frame.frame.value.resource.case === 'activeCalls'
-      );
       const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
       if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
       expect(caughtUp.frame.value.cursor).toBeTruthy();
@@ -307,7 +250,6 @@ test.describe('protobuf realtime stream', () => {
     });
 
     try {
-      expect(realtime.recoveryMode).toBe(RealtimeRecoveryMode.LIVE_ONLY);
       await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
       const messageId = await postMessageViaConnect(
         page,
@@ -335,7 +277,6 @@ test.describe('protobuf realtime stream', () => {
         resumeCursor: posted.resumeCursor
       });
       try {
-        expect(resumed.recoveryMode).toBe(RealtimeRecoveryMode.RESUME);
         const reaction = await resumed.waitForEvent(
           (event) =>
             event.event.case === 'reactionAdded' &&

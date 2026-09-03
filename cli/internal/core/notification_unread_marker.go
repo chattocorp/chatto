@@ -257,8 +257,8 @@ func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context,
 	for _, invalidation := range invalidations {
 		publications = append(publications, liveEventPublication{
 			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
-			event: newTransientEvent(invalidation.actorID, &evtv1.Event{
-				Event: &evtv1.Event_NotificationUnreadChanged{
+			event: newLiveEvent(invalidation.actorID, &livev1.LiveEvent{
+				Event: &livev1.LiveEvent_NotificationUnreadChanged{
 					NotificationUnreadChanged: &livev1.NotificationUnreadChangedEvent{
 						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
 					},

@@ -119,36 +119,41 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}
 		return conn.WriteMessage(websocket.BinaryMessage, data)
 	}
-	writeError := func(code, message string, fatal bool) {
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-			Error: &realtimev1.RealtimeError{Code: realtimeErrorCode(code), Message: message, Fatal: fatal},
+	writeClose := func(code realtimev1.RealtimeCloseCode, message string, reconnect bool, retryAfter time.Duration) {
+		close := &realtimev1.RealtimeClose{Code: code, Message: message, Reconnect: reconnect}
+		if retryAfter > 0 {
+			close.RetryAfter = durationpb.New(retryAfter)
+		}
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: close,
 		}})
 	}
-	hello, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
+	subscribe, err := readRealtimeSubscribe(conn, realtimeHandshakeTimeout)
 	if err != nil {
-		writeError("bad_hello", "expected binary protobuf hello frame", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "expected a binary protobuf subscription", false, 0)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "invalid subscription"), time.Now().Add(time.Second))
 		return
 	}
-	clientHello := hello.GetHello()
-	if clientHello == nil {
-		writeError("bad_hello", "first frame must be hello", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
-		return
-	}
-	if clientHello.ProtocolVersion != realtimeProtocolVersion {
-		writeError("unsupported_protocol", "unsupported realtime protocol version", true)
+	if subscribe.GetProtocolVersion() != realtimeProtocolVersion {
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL, "unsupported realtime protocol version", false, 0)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
 	}
-	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
+	if subscribe.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED ||
+		(subscribe.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY &&
+			subscribe.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT) {
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "initial_state is required", false, 0)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "invalid subscription"), time.Now().Add(time.Second))
+		return
+	}
+	ctx, user, err := s.realtimeAuthenticatedUser(ctx, subscribe)
 	if err != nil {
 		if !errors.Is(err, core.ErrNotAuthenticated) {
-			writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "authentication service temporarily unavailable", true, time.Second)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 			return
 		}
-		writeError("authentication_required", "authentication required", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 		return
 	}
@@ -295,56 +300,23 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
-	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
-		Hello: &realtimev1.RealtimeServerHello{
-			ProtocolVersion:   realtimeProtocolVersion,
-			ServerVersion:     s.version,
-			HeartbeatInterval: durationpb.New(core.MyEventsHeartbeatInterval),
-		},
-	}}); err != nil {
-		return
-	}
-
-	subscribe, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
-	if err != nil {
-		writeError("bad_subscribe", "expected subscribe_events frame", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-	subscribeEvents := subscribe.GetSubscribeEvents()
-	if subscribeEvents == nil {
-		writeError("bad_subscribe", "second frame must be subscribe_events", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-	if subscribeEvents.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED {
-		writeError("bad_subscribe", "initial_state is required", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-	if subscribeEvents.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY &&
-		subscribeEvents.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
-		writeError("bad_subscribe", "unsupported initial_state", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
 	if err := s.revalidateRealtimeCredential(ctx); err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
-			writeError("authentication_required", "authentication required", true)
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 			return
 		}
-		writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "authentication service temporarily unavailable", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 		return
 	}
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
-	resumeCursor := strings.TrimSpace(subscribeEvents.GetResumeCursor())
+	resumeCursor := strings.TrimSpace(subscribe.GetResumeCursor())
 	cursorAtBoundary, err := s.core.RealtimeCursorAtCurrentBoundary(ctx, user.Id, resumeCursor)
 	if err != nil {
-		writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime replay is temporarily unavailable", true, time.Second)
 		return
 	}
 	// A cursorless snapshot or live-only start cannot request history.
@@ -355,7 +327,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	if admissionErr != nil {
 		s.metrics.realtimeCatchUpRejected(admissionErr.code)
 		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: realtimeCloseCode(admissionErr.code), Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
+			Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
 		}})
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
 		return
@@ -382,12 +354,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			s.metrics.realtimeCatchUpTimedOut()
 			s.logger.Warn("Realtime catch-up timed out", "error", err)
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT, Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
+				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 			}})
 			return
 		}
 		s.logger.Warn(logMessage, "error", err)
-		writeError("replay_unavailable", "realtime recovery is temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime recovery is temporarily unavailable", true, time.Second)
 	}
 	handleCatchUpWriteError := func(err error) {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
@@ -397,19 +369,19 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 
 	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
-		writeError("subscribe_failed", "failed to start realtime event stream", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "failed to start realtime event stream", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
-	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribeEvents.GetResumeCursor())
+	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribe.GetResumeCursor())
 	if err != nil {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			failCatchUp("Realtime replay planning timed out", err)
 			return
 		}
-		code, message := realtimeReplayError(err)
-		writeError(code, message, true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
+		code, message := realtimeReplayClose(err)
+		writeClose(code, message, code == realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, time.Second)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "replay unavailable"), time.Now().Add(time.Second))
 		return
 	}
 	if resumeCursor != "" && !meteredReplay && replayPlan.HadSequenceGap {
@@ -418,21 +390,19 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
 			s.metrics.realtimeCatchUpRejected(chargeErr.code)
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: realtimeCloseCode(chargeErr.code), Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(chargeErr.retryAfter)},
+				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(chargeErr.retryAfter)},
 			}})
 			return
 		}
 	}
 
-	recoveryMode := realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_RESUME
 	boundaryCursor := replayPlan.BoundaryCursor
 	boundarySequence := replayPlan.BoundarySequence
-	var snapshotFrames []*realtimev1.RealtimeServerFrame
+	var snapshotFrame *realtimev1.RealtimeServerFrame
 	if replayPlan.Reset {
-		if subscribeEvents.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
-			recoveryMode = realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_SNAPSHOT
+		if subscribe.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
 			var snapshotErr error
-			boundarySequence, snapshotFrames, snapshotErr = s.realtimeSnapshotFrames(catchUpCtx, user.Id)
+			boundarySequence, snapshotFrame, snapshotErr = s.realtimeSnapshotFrame(catchUpCtx, user.Id)
 			if snapshotErr != nil {
 				failCatchUp("Realtime snapshot capture failed", snapshotErr)
 				return
@@ -442,21 +412,11 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				failCatchUp("Realtime snapshot cursor creation failed", snapshotErr)
 				return
 			}
-		} else {
-			recoveryMode = realtimev1.RealtimeRecoveryMode_REALTIME_RECOVERY_MODE_LIVE_ONLY
 		}
 	}
-	subscribed := &realtimev1.RealtimeSubscribed{RecoveryMode: recoveryMode}
-	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
-		Subscribed: subscribed,
-	}}); err != nil {
-		handleCatchUpWriteError(err)
-		return
-	}
-
-	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame)
-	for _, frame := range snapshotFrames {
-		if err := writeCatchUpFrame(frame); err != nil {
+	go s.watchRealtimeClient(ctx, cancel, conn, writeFrame)
+	if snapshotFrame != nil {
+		if err := writeCatchUpFrame(snapshotFrame); err != nil {
 			handleCatchUpWriteError(err)
 			return
 		}
@@ -494,7 +454,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_STREAM_CLOSED, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
+					Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 				}})
 				return
 			}
@@ -515,7 +475,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
 				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED, Message: "durable realtime event mapping failed", Reconnect: true},
+						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "durable realtime event mapping failed", Reconnect: true},
 					}})
 					return
 				}
@@ -545,54 +505,14 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 }
 
-func realtimeReplayError(err error) (code, message string) {
+func realtimeReplayClose(err error) (code realtimev1.RealtimeCloseCode, message string) {
 	switch {
 	case errors.Is(err, core.ErrRealtimeCursorInvalid):
-		return "invalid_cursor", "the realtime resume cursor is invalid for this server history"
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "the realtime resume cursor is invalid for this server history"
 	case errors.Is(err, core.ErrRealtimeCursorExpired):
-		return "cursor_expired", "the realtime resume cursor is no longer retained"
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "the realtime resume cursor is no longer retained"
 	default:
-		return "replay_unavailable", "realtime replay is temporarily unavailable"
-	}
-}
-
-func realtimeErrorCode(code string) realtimev1.RealtimeErrorCode {
-	switch code {
-	case "bad_hello":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_HELLO
-	case "unsupported_protocol":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL
-	case "temporarily_unavailable":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE
-	case "authentication_required":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED
-	case "bad_subscribe":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_SUBSCRIBE
-	case "replay_unavailable":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE
-	case "invalid_cursor":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_INVALID_CURSOR
-	case "cursor_expired":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_CURSOR_EXPIRED
-	case "subscribe_failed":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_SUBSCRIBE_FAILED
-	case "bad_frame":
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME
-	default:
-		return realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_UNSPECIFIED
-	}
-}
-
-func realtimeCloseCode(code string) realtimev1.RealtimeCloseCode {
-	switch code {
-	case "catch_up_in_progress":
-		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS
-	case "catch_up_rate_limited":
-		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED
-	case "catch_up_server_busy":
-		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY
-	default:
-		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSPECIFIED
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime replay is temporarily unavailable"
 	}
 }
 
@@ -617,7 +537,7 @@ func realtimeCredentialDeadline(credential authctx.RuntimeCredential, cookieTTL 
 	}
 }
 
-func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeClientFrame, error) {
+func readRealtimeSubscribe(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeSubscribe, error) {
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
 	}
@@ -628,11 +548,11 @@ func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*real
 	if mt != websocket.BinaryMessage {
 		return nil, errors.New("expected binary message")
 	}
-	var frame realtimev1.RealtimeClientFrame
-	if err := proto.Unmarshal(data, &frame); err != nil {
+	var subscribe realtimev1.RealtimeSubscribe
+	if err := proto.Unmarshal(data, &subscribe); err != nil {
 		return nil, err
 	}
-	return &frame, nil
+	return &subscribe, nil
 }
 
 // terminateRealtimeForOAuthClientBlock cancels authorized work before any
@@ -727,7 +647,9 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	closeConnection()
 }
 
-func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
+// watchRealtimeClient owns the WebSocket read loop after subscription. The
+// protocol is server-streaming, so any later application message is invalid.
+func (s *HTTPServer) watchRealtimeClient(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
 	defer cancel()
 	for {
 		select {
@@ -735,39 +657,23 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			return
 		default:
 		}
-		mt, data, err := conn.ReadMessage()
+		_, _, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
-		if mt != websocket.BinaryMessage {
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "expected binary protobuf frame", Fatal: true},
-			}})
-			return
-		}
-		var frame realtimev1.RealtimeClientFrame
-		if err := proto.Unmarshal(data, &frame); err != nil {
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "invalid protobuf frame", Fatal: true},
-			}})
-			return
-		}
-		switch payload := frame.GetFrame().(type) {
-		case *realtimev1.RealtimeClientFrame_Ping:
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Pong{
-				Pong: &realtimev1.RealtimePong{Nonce: payload.Ping.GetNonce()},
-			}})
-		default:
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: realtimev1.RealtimeErrorCode_REALTIME_ERROR_CODE_BAD_FRAME, Message: "unexpected control frame", Fatal: true},
-			}})
-			return
-		}
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST,
+				Message:   "unexpected client message after subscription",
+				Reconnect: false,
+			},
+		}})
+		return
 	}
 }
 
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *evtv1.User, error) {
-	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *evtv1.User, error) {
+	if token := strings.TrimSpace(subscribe.GetBearerToken()); token != "" {
 		credential, ok, err := s.bearerPresentedCredential(ctx, token)
 		if err != nil {
 			return ctx, nil, err
@@ -829,10 +735,10 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 	}
 	if heartbeat := event.HeartbeatEvent(); heartbeat != nil {
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Heartbeat{
-			Heartbeat: &realtimev1.RealtimeHeartbeat{Id: event.ID(), CreatedAt: event.CreatedAt()},
+			Heartbeat: &realtimev1.RealtimeHeartbeat{},
 		}}, nil
 	}
-	if core.IsRBACEvent(event.CanonicalEvent()) {
+	if core.IsRBACEvent(event.EVTEvent()) {
 		// RBAC payloads are internal, but an RBAC fact can invalidate any
 		// authorization-dependent resource that the caller retained. Ask the
 		// client to reconnect without exposing that fact. Its cursor remains
@@ -853,11 +759,12 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 }
 
 func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
-	canonical := event.CanonicalEvent()
-	if canonical == nil {
+	durable := event.EVTEvent()
+	live := event.LiveEvent()
+	if durable == nil && live == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-	if typing := canonical.GetUserTypingSignal(); typing != nil {
+	if typing := live.GetUserTyping(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
 			return nil, err
@@ -882,7 +789,10 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			return nil, core.ErrPermissionDenied
 		}
 	}
-	projected := projectRealtimeEvent(canonical)
+	projected := projectRealtimeEvent(durable)
+	if live != nil {
+		projected = projectRealtimeLiveEvent(live)
+	}
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
@@ -893,11 +803,13 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if !visible {
 		return nil, errRealtimeEventOmitted
 	}
-	plaintext, err := s.core.ResolveEventPlaintext(ctx, canonical)
-	if err != nil {
-		return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
+	if durable != nil {
+		plaintext, err := s.core.ResolveEventPlaintext(ctx, durable)
+		if err != nil {
+			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
+		}
+		applyRealtimePlaintext(projected, plaintext)
 	}
-	applyRealtimePlaintext(projected, plaintext)
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
 		if err != nil {
@@ -920,7 +832,7 @@ func (s *HTTPServer) filterRealtimeEventFields(ctx context.Context, viewerID str
 		*realtimev1.RealtimeEvent_RoomRemovedFromGroup,
 		*realtimev1.RealtimeEvent_RoomsInGroupReordered,
 		*realtimev1.RealtimeEvent_SidebarGroupEntriesReordered:
-		// These payloads can contain room IDs that the canonical event knows
+		// These payloads can contain room IDs that the source event knows
 		// about but the current viewer cannot see. Use the same visibility
 		// source as the room and room-group resource APIs.
 	default:

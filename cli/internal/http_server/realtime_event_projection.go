@@ -13,7 +13,7 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-// projectRealtimeEvent explicitly maps one canonical event to the independent
+// projectRealtimeEvent explicitly maps one durable EVT event to the independent
 // public catalogue. EVT field numbers and public field numbers need not match.
 func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 	if source == nil || source.GetEvent() == nil {
@@ -170,46 +170,63 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 	case *evtv1.Event_ReactionRemoved:
 		v := e.ReactionRemoved
 		target.Event = &realtimev1.RealtimeEvent_ReactionRemoved{ReactionRemoved: &realtimev1.ReactionRemovedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId(), Emoji: v.GetEmoji()}}
-	case *evtv1.Event_UserCreatedSync:
-		v := e.UserCreatedSync
+	default:
+		return nil
+	}
+	return target
+}
+
+// projectRealtimeLiveEvent explicitly maps one transient internal signal to
+// the independent public catalogue.
+func projectRealtimeLiveEvent(source *livev1.LiveEvent) *realtimev1.RealtimeEvent {
+	if source == nil || source.GetEvent() == nil {
+		return nil
+	}
+	target := &realtimev1.RealtimeEvent{Id: source.GetId(), CreatedAt: source.GetCreatedAt()}
+	if source.GetActorId() != "" {
+		target.ActorId = proto.String(source.GetActorId())
+	}
+	switch e := source.GetEvent().(type) {
+	case *livev1.LiveEvent_UserCreated:
+		v := e.UserCreated
 		target.Event = &realtimev1.RealtimeEvent_UserCreatedSync{UserCreatedSync: &realtimev1.UserCreatedSyncEvent{UserId: v.GetUserId(), Login: v.GetLogin(), DisplayName: v.GetDisplayName()}}
-	case *evtv1.Event_UserProfileSync:
-		v := e.UserProfileSync
+	case *livev1.LiveEvent_UserProfileUpdated:
+		v := e.UserProfileUpdated
 		target.Event = &realtimev1.RealtimeEvent_UserProfileSync{UserProfileSync: &realtimev1.UserProfileSyncEvent{UserId: v.GetUserId(), DisplayName: v.GetDisplayName(), AvatarUrl: v.GetAvatarUrl(), Login: v.GetLogin(), Bio: v.GetBio(), Timezone: v.GetTimezone()}}
-	case *evtv1.Event_ServerUserPreferencesSync:
-		v := e.ServerUserPreferencesSync
+	case *livev1.LiveEvent_ServerUserPreferencesUpdated:
+		v := e.ServerUserPreferencesUpdated
 		target.Event = &realtimev1.RealtimeEvent_ServerUserPreferencesSync{ServerUserPreferencesSync: &realtimev1.ServerUserPreferencesSyncEvent{Timezone: v.GetTimezone(), TimeFormat: realtimeTimeFormat(v.GetTimeFormat()), ShareTimezone: v.GetShareTimezone()}}
-	case *evtv1.Event_ThreadFollowChangedSync:
-		v := e.ThreadFollowChangedSync
+	case *livev1.LiveEvent_ThreadFollowChanged:
+		v := e.ThreadFollowChanged
 		target.Event = &realtimev1.RealtimeEvent_ThreadFollowChangedSync{ThreadFollowChangedSync: &realtimev1.ThreadFollowChangedSyncEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId(), IsFollowing: v.GetIsFollowing()}}
-	case *evtv1.Event_ServerMemberDeletedSync:
-		target.Event = &realtimev1.RealtimeEvent_ServerMemberDeletedSync{ServerMemberDeletedSync: &realtimev1.ServerMemberDeletedSyncEvent{UserId: e.ServerMemberDeletedSync.GetUserId()}}
-	case *evtv1.Event_ServerUpdatedSync:
-		v := e.ServerUpdatedSync
+	case *livev1.LiveEvent_ServerMemberDeleted:
+		target.Event = &realtimev1.RealtimeEvent_ServerMemberDeletedSync{ServerMemberDeletedSync: &realtimev1.ServerMemberDeletedSyncEvent{UserId: e.ServerMemberDeleted.GetUserId()}}
+	case *livev1.LiveEvent_ServerUpdated:
+		v := e.ServerUpdated
 		target.Event = &realtimev1.RealtimeEvent_ServerUpdatedSync{ServerUpdatedSync: &realtimev1.ServerUpdatedSyncEvent{ServerId: v.GetServerId(), Name: v.GetName(), Description: v.GetDescription(), LogoUrl: v.GetLogoUrl(), BannerUrl: v.GetBannerUrl()}}
-	case *evtv1.Event_UserTypingSignal:
-		v := e.UserTypingSignal
+	case *livev1.LiveEvent_UserTyping:
+		v := e.UserTyping
 		target.Event = &realtimev1.RealtimeEvent_UserTypingSignal{UserTypingSignal: &realtimev1.UserTypingSignalEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.ThreadRootEventId}}
-	case *evtv1.Event_PresenceChangedSignal:
-		target.Event = &realtimev1.RealtimeEvent_PresenceChangedSignal{PresenceChangedSignal: &realtimev1.PresenceChangedSignalEvent{Status: e.PresenceChangedSignal.GetStatus()}}
-	case *evtv1.Event_CallParticipantJoinedSignal:
-		v := e.CallParticipantJoinedSignal
+	case *livev1.LiveEvent_PresenceChanged:
+		target.Event = &realtimev1.RealtimeEvent_PresenceChangedSignal{PresenceChangedSignal: &realtimev1.PresenceChangedSignalEvent{Status: e.PresenceChanged.GetStatus()}}
+	case *livev1.LiveEvent_CallParticipantJoined:
+		v := e.CallParticipantJoined
 		target.Event = &realtimev1.RealtimeEvent_CallParticipantJoinedSignal{CallParticipantJoinedSignal: &realtimev1.CallParticipantJoinedSignalEvent{RoomId: v.GetRoomId(), Source: realtimeLiveCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
-	case *evtv1.Event_CallParticipantLeftSignal:
-		v := e.CallParticipantLeftSignal
+	case *livev1.LiveEvent_CallParticipantLeft:
+		v := e.CallParticipantLeft
 		target.Event = &realtimev1.RealtimeEvent_CallParticipantLeftSignal{CallParticipantLeftSignal: &realtimev1.CallParticipantLeftSignalEvent{RoomId: v.GetRoomId(), Source: realtimeLiveCallParticipantSource(v.GetSource()), CallId: v.GetCallId()}}
-	case *evtv1.Event_NotificationOccurrencesInvalidated:
+	case *livev1.LiveEvent_NotificationOccurrencesInvalidated:
 		v := e.NotificationOccurrencesInvalidated
 		target.Event = &realtimev1.RealtimeEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &realtimev1.NotificationOccurrencesInvalidatedEvent{AlertCandidateNotificationId: v.AlertCandidateNotificationId, SoundCandidateNotificationId: v.SoundCandidateNotificationId}}
-	case *evtv1.Event_NotificationUnreadChanged:
+	case *livev1.LiveEvent_NotificationUnreadChanged:
 		v := e.NotificationUnreadChanged
 		target.Event = &realtimev1.RealtimeEvent_NotificationUnreadChanged{NotificationUnreadChanged: &realtimev1.NotificationUnreadChangedEvent{RoomId: v.GetRoomId(), ThreadRootEventId: v.GetThreadRootEventId()}}
-	case *evtv1.Event_RoomMarkedAsReadSync:
-		target.Event = &realtimev1.RealtimeEvent_RoomMarkedAsReadSync{RoomMarkedAsReadSync: &realtimev1.RoomMarkedAsReadSyncEvent{RoomId: e.RoomMarkedAsReadSync.GetRoomId()}}
-	case *evtv1.Event_MentionStatusClearedSync:
-		target.Event = &realtimev1.RealtimeEvent_MentionStatusClearedSync{MentionStatusClearedSync: &realtimev1.MentionStatusClearedSyncEvent{RoomId: e.MentionStatusClearedSync.GetRoomId()}}
-	case *evtv1.Event_SessionTerminatedSignal:
-		target.Event = &realtimev1.RealtimeEvent_SessionTerminatedSignal{SessionTerminatedSignal: &realtimev1.SessionTerminatedSignalEvent{Reason: e.SessionTerminatedSignal.GetReason()}}
+	case *livev1.LiveEvent_RoomMarkedAsRead:
+		target.Event = &realtimev1.RealtimeEvent_RoomMarkedAsReadSync{RoomMarkedAsReadSync: &realtimev1.RoomMarkedAsReadSyncEvent{RoomId: e.RoomMarkedAsRead.GetRoomId()}}
+	case *livev1.LiveEvent_MentionStatusCleared:
+		target.Event = &realtimev1.RealtimeEvent_MentionStatusClearedSync{MentionStatusClearedSync: &realtimev1.MentionStatusClearedSyncEvent{RoomId: e.MentionStatusCleared.GetRoomId()}}
+	case *livev1.LiveEvent_SessionTerminated:
+		target.Event = &realtimev1.RealtimeEvent_SessionTerminatedSignal{SessionTerminatedSignal: &realtimev1.SessionTerminatedSignalEvent{Reason: e.SessionTerminated.GetReason()}}
 	default:
 		return nil
 	}

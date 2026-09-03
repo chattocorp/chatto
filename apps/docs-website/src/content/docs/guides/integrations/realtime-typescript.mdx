@@ -95,15 +95,11 @@ Create `src/realtime.ts`:
 
 ```ts
 import {
-  RealtimeClientFrame,
-  RealtimeClientHello,
-  RealtimeErrorCode,
   RealtimeEvent,
   RealtimeInitialState,
-  RealtimeRecoveryMode,
   RealtimeServerFrame,
   RealtimeSnapshot,
-  RealtimeSubscribeEvents,
+  RealtimeSubscribe,
 } from "./gen/chatto/realtime/v1/realtime_pb.js";
 
 const PROTOCOL_VERSION = 4;
@@ -170,15 +166,14 @@ export class ChattoRealtimeClient {
     socket.onopen = () => {
       if (this.#stopped || this.#socket !== socket) return;
       this.#lastFrameAt = Date.now();
+      this.#startWatchdog();
       this.#send(
-        new RealtimeClientFrame({
-          frame: {
-            case: "hello",
-            value: new RealtimeClientHello({
-              protocolVersion: PROTOCOL_VERSION,
-              bearerToken: this.bearerToken,
-            }),
-          },
+        new RealtimeSubscribe({
+          protocolVersion: PROTOCOL_VERSION,
+          bearerToken: this.bearerToken,
+          initialState:
+            this.options.initialState ?? RealtimeInitialState.LIVE_ONLY,
+          resumeCursor: this.#resumeCursor,
         }),
       );
     };
@@ -222,52 +217,14 @@ export class ChattoRealtimeClient {
     connectionSignal: AbortSignal,
   ): Promise<void> {
     switch (frame.frame.case) {
-      case "hello": {
-        const hello = frame.frame.value;
-        if (hello.protocolVersion !== PROTOCOL_VERSION) {
-          this.#stopped = true;
-          throw new Error("The server does not support realtime protocol 4");
-        }
-        const heartbeatMs = durationMs(hello.heartbeatInterval);
-        this.#heartbeatStallMs =
-          heartbeatMs > 0 ? Math.max(heartbeatMs * 3, 15_000) : 75_000;
-        this.#startWatchdog();
-        this.#send(
-          new RealtimeClientFrame({
-            frame: {
-              case: "subscribeEvents",
-              value: new RealtimeSubscribeEvents({
-                initialState:
-                  this.options.initialState ?? RealtimeInitialState.LIVE_ONLY,
-                resumeCursor: this.#resumeCursor,
-              }),
-            },
-          }),
-        );
-        return;
-      }
-
-      case "subscribed": {
-        const subscribed = frame.frame.value;
-        console.info(
-          "Realtime recovery mode",
-          RealtimeRecoveryMode[subscribed.recoveryMode],
-        );
-        this.#snapshotInProgress =
-          subscribed.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
-        if (this.#snapshotInProgress) {
-          // A partial snapshot can never be a safe resume base.
-          this.#resumeCursor = undefined;
-          await this.options.beginSnapshot?.();
-          connectionSignal.throwIfAborted();
-        }
-        return;
-      }
-
       case "snapshot": {
-        if (!this.#snapshotInProgress || !this.options.applySnapshot) {
-          throw new Error("Unexpected realtime snapshot");
-        }
+        if (!this.options.applySnapshot) throw new Error("Unexpected snapshot");
+        // A snapshot starts a new local projection generation. Do not keep a
+        // cursor until caught_up confirms the handoff boundary.
+        this.#snapshotInProgress = true;
+        this.#resumeCursor = undefined;
+        await this.options.beginSnapshot?.();
+        connectionSignal.throwIfAborted();
         await this.options.applySnapshot(frame.frame.value);
         connectionSignal.throwIfAborted();
         return;
@@ -306,26 +263,6 @@ export class ChattoRealtimeClient {
         return;
       }
 
-      case "pong":
-        return;
-
-      case "error": {
-        const error = frame.frame.value;
-        console.error("Realtime request failed", error.code, error.message);
-        if (error.fatal) {
-          const retryable = [
-            RealtimeErrorCode.TEMPORARILY_UNAVAILABLE,
-            RealtimeErrorCode.REPLAY_UNAVAILABLE,
-            RealtimeErrorCode.SUBSCRIBE_FAILED,
-          ].includes(error.code);
-          this.#stopped = !retryable;
-          this.#reconnectDelay =
-            durationMs(error.retryAfter) || BASE_RECONNECT_MS;
-          this.#socket?.close(1008, "fatal realtime error");
-        }
-        return;
-      }
-
       case "close": {
         const close = frame.frame.value;
         this.#stopped = !close.reconnect;
@@ -349,11 +286,11 @@ export class ChattoRealtimeClient {
     }, 5_000);
   }
 
-  #send(frame: RealtimeClientFrame): void {
+  #send(message: RealtimeSubscribe): void {
     if (this.#socket?.readyState !== WebSocket.OPEN) {
       throw new Error("Realtime socket is not open");
     }
-    this.#socket.send(Uint8Array.from(frame.toBinary()).buffer);
+    this.#socket.send(Uint8Array.from(message.toBinary()).buffer);
   }
 
   async #binaryBytes(data: unknown): Promise<Uint8Array> {
@@ -403,10 +340,10 @@ indefinite durable queue.
 
 ## Build a projection client
 
-A projection client selects `RealtimeInitialState.SNAPSHOT`. When
-`subscribed.recoveryMode` is `SNAPSHOT`, clear realtime-owned state. Apply each
-snapshot frame as a complete replacement for that resource family. The server
-closes the exact snapshot boundary with `caught_up` and then sends later events.
+A projection client selects `RealtimeInitialState.SNAPSHOT`. When it receives
+the atomic snapshot frame, it clears realtime-owned state and replaces all
+snapshot resource families. The server closes the exact snapshot boundary
+with `caught_up` and then sends later events.
 
 Pass snapshot lifecycle functions when you create the client:
 
@@ -421,25 +358,12 @@ const projectionClient = new ChattoRealtimeClient(
     initialState: RealtimeInitialState.SNAPSHOT,
     beginSnapshot: () => resetProjection(),
     applySnapshot: (snapshot) => {
-      switch (snapshot.resource.case) {
-        case "server":
-          replaceServerProfile(snapshot.resource.value);
-          break;
-        case "rooms":
-          replaceRooms(snapshot.resource.value.rooms);
-          break;
-        case "roomGroups":
-          replaceRoomGroups(snapshot.resource.value.roomGroups);
-          break;
-        case "users":
-          replaceReferencedUsers(snapshot.resource.value.users);
-          break;
-        case "activeCalls":
-          replaceActiveCalls(snapshot.resource.value.activeCalls);
-          break;
-        case undefined:
-          throw new Error("Unknown snapshot resource");
-      }
+      if (!snapshot.server) throw new Error("Snapshot has no server profile");
+      replaceServerProfile(snapshot.server);
+      replaceRooms(snapshot.rooms);
+      replaceRoomGroups(snapshot.roomGroups);
+      replaceReferencedUsers(snapshot.users);
+      replaceActiveCalls(snapshot.activeCalls);
     },
     completeSnapshot: async (cursor, signal) => {
       const headers = { "Chatto-Realtime-Minimum-Cursor": cursor };

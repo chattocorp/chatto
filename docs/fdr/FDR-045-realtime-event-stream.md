@@ -53,19 +53,20 @@ the stream to build and maintain its local server projection.
 
 ## Design Decisions
 
-### 1. One semantic event catalogue serves all clients
+### 1. One public semantic event catalogue serves all clients
 
-**Decision:** Durable EVT facts and transient NATS Core signals use
-`chatto.core.evt.v1.Event`. Realtime uses the explicit
+**Decision:** Durable EVT facts use `chatto.core.evt.v1.Event`. Transient NATS
+Core signals use `chatto.core.live.v1.LiveEvent`. Realtime uses the explicit
 `chatto.realtime.v1.RealtimeEvent.event` union and dedicated payloads in
-the `chatto/realtime/v1` event files. Each public member keeps the matching
-canonical event name and union field number. Its payload has an independent
-public layout. Chatto does not provide a frontend-only mutation feed.
+the `chatto/realtime/v1` event files. Durable public members keep the matching
+EVT event name and union field number. Live mappings are explicit and use the
+reserved public transient number range. Each payload has an independent public
+layout. Chatto does not provide a frontend-only mutation feed.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. The public union and payload file make all exposure
-visible in the schema. Exhaustive descriptor tests keep the public and
-catalog and explicit mapper aligned. See ADR-091 and ADR-092.
+visible in the schema. Exhaustive descriptor tests keep the public catalogue
+and explicit mapper aligned. See ADR-092 and ADR-093.
 **Tradeoff:** A new client-visible event needs a public payload declaration,
 union member, mapper coverage, reducer handling, generated clients, and
 documentation. This small duplication keeps storage fields out of the public
@@ -100,10 +101,9 @@ current state through ConnectRPC.
 ### 4. One exact snapshot and one event boundary close the startup interval
 
 **Decision:** The WebSocket replica registers for live delivery and captures
-an exact snapshot at EVT boundary `E`. It sends `subscribed(SNAPSHOT)`, one
-snapshot frame for each bounded resource family, and then `caught_up(E)`.
-Buffered durable events after `E` follow in order. The snapshot reuses
-canonical `chatto.api.v1` resource messages.
+an exact snapshot at EVT boundary `E`. It sends one atomic `snapshot` frame
+and then `caught_up(E)`. Buffered durable events after `E` follow in order.
+The snapshot reuses canonical `chatto.api.v1` resource messages.
 
 The snapshot contains the public server profile, complete visible room
 directory, complete visible room-group layout, complete visible active-call
@@ -166,13 +166,27 @@ those semantics safely.
 **Tradeoff:** The first semantic realtime version does not satisfy integrations
 that must process every transition after a long outage.
 
+### 8. Startup uses one client message and five server frame types
+
+**Decision:** The client sends one `RealtimeSubscribe` message. It sends no
+more application messages on that socket. The server can send `snapshot`,
+`event`, `caught_up`, `heartbeat`, and `close`. A `close` frame reports all
+terminal protocol and session results. WebSocket control frames provide
+transport ping and pong behavior.
+**Why:** The former hello, subscribed, error, and application pong frames did
+not change the subscription result. The received recovery frames already show
+whether the server selected snapshot, replay, or live-only startup.
+**Tradeoff:** Protocol capabilities that must be known before subscribe need
+discovery metadata or a new behavioral protocol version.
+
 ## Related
 
 - **ADRs:** ADR-012 (two-tier realtime events), ADR-026 (event identity),
   ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-042
   (protobuf-first public API), ADR-045 (public API stability), ADR-049
   (process-wide realtime event hub), ADR-090 (semantic realtime events),
-  ADR-091 (one event vocabulary), ADR-092 (public realtime event union)
+  ADR-091 (superseded one event vocabulary), ADR-092 (public realtime event
+  union), ADR-093 (separate durable and live event envelopes)
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-005 (Reactions), FDR-010
   (Typing Indicators), FDR-011 (User Presence), FDR-012 (Notifications),
   FDR-016 (Voice Calls), FDR-019 (Room Lifecycle), FDR-022 (User Profile),

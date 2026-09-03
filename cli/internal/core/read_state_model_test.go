@@ -11,6 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 )
 
 func subscribeRoomReadLiveEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {
@@ -33,11 +34,11 @@ func expectRoomReadLiveEvent(t *testing.T, sub *nats.Subscription, roomID string
 	if err != nil {
 		t.Fatalf("waiting for room_read live event: %v", err)
 	}
-	var live evtv1.Event
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal room_read live event: %v", err)
 	}
-	event := live.GetRoomMarkedAsReadSync()
+	event := live.GetRoomMarkedAsRead()
 	if event == nil {
 		t.Fatalf("expected RoomMarkedAsReadEvent, got %T", live.Event)
 	}
@@ -50,7 +51,7 @@ func expectNoRoomReadLiveEvent(t *testing.T, sub *nats.Subscription) {
 	t.Helper()
 
 	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		var live evtv1.Event
+		var live livev1.LiveEvent
 		if unmarshalErr := proto.Unmarshal(msg.Data, &live); unmarshalErr != nil {
 			t.Fatalf("unexpected room_read live event with invalid payload: %v", unmarshalErr)
 		}

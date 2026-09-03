@@ -48,146 +48,6 @@ proto3.util.setEnumType(RealtimeInitialState, "chatto.realtime.v1.RealtimeInitia
 ]);
 
 /**
- * Recovery path selected for one subscription.
- *
- * @generated from enum chatto.realtime.v1.RealtimeRecoveryMode
- */
-export enum RealtimeRecoveryMode {
-  /**
-   * Invalid value.
-   *
-   * @generated from enum value: REALTIME_RECOVERY_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Delivery starts at the current boundary without current resources or history.
-   *
-   * @generated from enum value: REALTIME_RECOVERY_MODE_LIVE_ONLY = 1;
-   */
-  LIVE_ONLY = 1,
-
-  /**
-   * The server sends an exact authorized snapshot before later events.
-   *
-   * @generated from enum value: REALTIME_RECOVERY_MODE_SNAPSHOT = 2;
-   */
-  SNAPSHOT = 2,
-
-  /**
-   * Durable events resume after the supplied cursor.
-   *
-   * @generated from enum value: REALTIME_RECOVERY_MODE_RESUME = 3;
-   */
-  RESUME = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeRecoveryMode)
-proto3.util.setEnumType(RealtimeRecoveryMode, "chatto.realtime.v1.RealtimeRecoveryMode", [
-  { no: 0, name: "REALTIME_RECOVERY_MODE_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_RECOVERY_MODE_LIVE_ONLY" },
-  { no: 2, name: "REALTIME_RECOVERY_MODE_SNAPSHOT" },
-  { no: 3, name: "REALTIME_RECOVERY_MODE_RESUME" },
-]);
-
-/**
- * Stable protocol-error category.
- *
- * @generated from enum chatto.realtime.v1.RealtimeErrorCode
- */
-export enum RealtimeErrorCode {
-  /**
-   * Invalid or unknown error code.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The first client frame was absent or invalid.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_BAD_HELLO = 1;
-   */
-  BAD_HELLO = 1,
-
-  /**
-   * The requested behavioral protocol version is not supported.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL = 2;
-   */
-  UNSUPPORTED_PROTOCOL = 2,
-
-  /**
-   * The server cannot accept a realtime session at present.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE = 3;
-   */
-  TEMPORARILY_UNAVAILABLE = 3,
-
-  /**
-   * The caller must authenticate or renew its session.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED = 4;
-   */
-  AUTHENTICATION_REQUIRED = 4,
-
-  /**
-   * The subscription request was absent or invalid.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_BAD_SUBSCRIBE = 5;
-   */
-  BAD_SUBSCRIBE = 5,
-
-  /**
-   * The server cannot safely replay from the supplied cursor.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE = 6;
-   */
-  REPLAY_UNAVAILABLE = 6,
-
-  /**
-   * The server could not start the requested subscription.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_SUBSCRIBE_FAILED = 7;
-   */
-  SUBSCRIBE_FAILED = 7,
-
-  /**
-   * A client frame was invalid for the current protocol state.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_BAD_FRAME = 8;
-   */
-  BAD_FRAME = 8,
-
-  /**
-   * The supplied cursor is malformed or is for another caller.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_INVALID_CURSOR = 9;
-   */
-  INVALID_CURSOR = 9,
-
-  /**
-   * The supplied cursor is older than the replay window.
-   *
-   * @generated from enum value: REALTIME_ERROR_CODE_CURSOR_EXPIRED = 10;
-   */
-  CURSOR_EXPIRED = 10,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeErrorCode)
-proto3.util.setEnumType(RealtimeErrorCode, "chatto.realtime.v1.RealtimeErrorCode", [
-  { no: 0, name: "REALTIME_ERROR_CODE_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_ERROR_CODE_BAD_HELLO" },
-  { no: 2, name: "REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL" },
-  { no: 3, name: "REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE" },
-  { no: 4, name: "REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED" },
-  { no: 5, name: "REALTIME_ERROR_CODE_BAD_SUBSCRIBE" },
-  { no: 6, name: "REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE" },
-  { no: 7, name: "REALTIME_ERROR_CODE_SUBSCRIBE_FAILED" },
-  { no: 8, name: "REALTIME_ERROR_CODE_BAD_FRAME" },
-  { no: 9, name: "REALTIME_ERROR_CODE_INVALID_CURSOR" },
-  { no: 10, name: "REALTIME_ERROR_CODE_CURSOR_EXPIRED" },
-]);
-
-/**
  * Stable server-requested close category.
  *
  * @generated from enum chatto.realtime.v1.RealtimeCloseCode
@@ -201,148 +61,126 @@ export enum RealtimeCloseCode {
   UNSPECIFIED = 0,
 
   /**
-   * Another catch-up for this caller is already active.
+   * The subscription message is malformed or contains an invalid value.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS = 1;
+   * @generated from enum value: REALTIME_CLOSE_CODE_INVALID_REQUEST = 1;
    */
-  CATCH_UP_IN_PROGRESS = 1,
+  INVALID_REQUEST = 1,
 
   /**
-   * A process-local catch-up rate limit rejected the request.
+   * The requested behavioral protocol version is not supported.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED = 2;
+   * @generated from enum value: REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL = 2;
    */
-  CATCH_UP_RATE_LIMITED = 2,
+  UNSUPPORTED_PROTOCOL = 2,
 
   /**
-   * The server has no catch-up capacity at present.
+   * The server cannot accept or continue a realtime session at present.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY = 3;
+   * @generated from enum value: REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE = 3;
    */
-  CATCH_UP_SERVER_BUSY = 3,
-
-  /**
-   * Catch-up exceeded its whole-operation time limit.
-   *
-   * @generated from enum value: REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT = 4;
-   */
-  CATCH_UP_TIMEOUT = 4,
-
-  /**
-   * The internal event stream closed.
-   *
-   * @generated from enum value: REALTIME_CLOSE_CODE_STREAM_CLOSED = 5;
-   */
-  STREAM_CLOSED = 5,
-
-  /**
-   * The server could not map an internal event to its public payload.
-   *
-   * @generated from enum value: REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED = 6;
-   */
-  EVENT_MAPPING_FAILED = 6,
+  TEMPORARILY_UNAVAILABLE = 3,
 
   /**
    * The caller is no longer authenticated.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 7;
+   * @generated from enum value: REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 4;
    */
-  AUTHENTICATION_REQUIRED = 7,
+  AUTHENTICATION_REQUIRED = 4,
 
   /**
    * The caller must renew its session before reconnecting.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 8;
+   * @generated from enum value: REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 5;
    */
-  SESSION_RENEWAL_REQUIRED = 8,
+  SESSION_RENEWAL_REQUIRED = 5,
 
   /**
    * The server projection reset and the client must take a new snapshot.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 9;
+   * @generated from enum value: REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 6;
    */
-  PROJECTION_RESET_REQUIRED = 9,
+  PROJECTION_RESET_REQUIRED = 6,
 }
 // Retrieve enum metadata with: proto3.getEnumType(RealtimeCloseCode)
 proto3.util.setEnumType(RealtimeCloseCode, "chatto.realtime.v1.RealtimeCloseCode", [
   { no: 0, name: "REALTIME_CLOSE_CODE_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS" },
-  { no: 2, name: "REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED" },
-  { no: 3, name: "REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY" },
-  { no: 4, name: "REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT" },
-  { no: 5, name: "REALTIME_CLOSE_CODE_STREAM_CLOSED" },
-  { no: 6, name: "REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED" },
-  { no: 7, name: "REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED" },
-  { no: 8, name: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED" },
-  { no: 9, name: "REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED" },
+  { no: 1, name: "REALTIME_CLOSE_CODE_INVALID_REQUEST" },
+  { no: 2, name: "REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL" },
+  { no: 3, name: "REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE" },
+  { no: 4, name: "REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED" },
+  { no: 5, name: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED" },
+  { no: 6, name: "REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED" },
 ]);
 
 /**
- * Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
+ * Starts one authorized public realtime subscription.
  *
- * Clients send binary protobuf frames to `/api/realtime`. The first frame must
- * be `hello`. After the server replies with `hello`, clients send
- * `subscribe_events` to start one authorized public event stream.
+ * The client sends this message as the first binary WebSocket message. The
+ * client does not send more application messages on the socket.
  *
- * @generated from message chatto.realtime.v1.RealtimeClientFrame
+ * @generated from message chatto.realtime.v1.RealtimeSubscribe
  */
-export class RealtimeClientFrame extends Message<RealtimeClientFrame> {
+export class RealtimeSubscribe extends Message<RealtimeSubscribe> {
   /**
-   * @generated from oneof chatto.realtime.v1.RealtimeClientFrame.frame
+   * Behavioral protocol version requested by the client. The only supported
+   * version is 4.
+   *
+   * @generated from field: uint32 protocol_version = 1;
    */
-  frame: {
-    /**
-     * Opens the protocol session and optionally carries a bearer token.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeClientHello hello = 1;
-     */
-    value: RealtimeClientHello;
-    case: "hello";
-  } | {
-    /**
-     * Starts the caller's authorized public event stream.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeSubscribeEvents subscribe_events = 2;
-     */
-    value: RealtimeSubscribeEvents;
-    case: "subscribeEvents";
-  } | {
-    /**
-     * Application-level ping. The server replies with `pong`.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimePing ping = 3;
-     */
-    value: RealtimePing;
-    case: "ping";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  protocolVersion = 0;
 
-  constructor(data?: PartialMessage<RealtimeClientFrame>) {
+  /**
+   * Optional bearer token. When present, it takes precedence over cookie auth.
+   *
+   * @generated from field: optional string bearer_token = 2;
+   */
+  bearerToken?: string;
+
+  /**
+   * Opaque cursor from a previously received durable event or `caught_up`
+   * frame. A usable cursor receives bounded authorized durable events after
+   * that position. Cursors expire 15 minutes after issue.
+   *
+   * @generated from field: optional string resume_cursor = 3;
+   */
+  resumeCursor?: string;
+
+  /**
+   * Required fallback when the cursor is absent or cannot resume safely.
+   *
+   * @generated from field: chatto.realtime.v1.RealtimeInitialState initial_state = 4;
+   */
+  initialState = RealtimeInitialState.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<RealtimeSubscribe>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeClientFrame";
+  static readonly typeName = "chatto.realtime.v1.RealtimeSubscribe";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "hello", kind: "message", T: RealtimeClientHello, oneof: "frame" },
-    { no: 2, name: "subscribe_events", kind: "message", T: RealtimeSubscribeEvents, oneof: "frame" },
-    { no: 3, name: "ping", kind: "message", T: RealtimePing, oneof: "frame" },
+    { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "initial_state", kind: "enum", T: proto3.getEnumType(RealtimeInitialState) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientFrame {
-    return new RealtimeClientFrame().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribe {
+    return new RealtimeSubscribe().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeClientFrame {
-    return new RealtimeClientFrame().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeSubscribe {
+    return new RealtimeSubscribe().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeClientFrame {
-    return new RealtimeClientFrame().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeSubscribe {
+    return new RealtimeSubscribe().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RealtimeClientFrame | PlainMessage<RealtimeClientFrame> | undefined, b: RealtimeClientFrame | PlainMessage<RealtimeClientFrame> | undefined): boolean {
-    return proto3.util.equals(RealtimeClientFrame, a, b);
+  static equals(a: RealtimeSubscribe | PlainMessage<RealtimeSubscribe> | undefined, b: RealtimeSubscribe | PlainMessage<RealtimeSubscribe> | undefined): boolean {
+    return proto3.util.equals(RealtimeSubscribe, a, b);
   }
 }
 
@@ -356,22 +194,6 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
    * @generated from oneof chatto.realtime.v1.RealtimeServerFrame.frame
    */
   frame: {
-    /**
-     * Confirms protocol and server versions.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeServerHello hello = 1;
-     */
-    value: RealtimeServerHello;
-    case: "hello";
-  } | {
-    /**
-     * Confirms the stream and the recovery mode that the server selected.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeSubscribed subscribed = 2;
-     */
-    value: RealtimeSubscribed;
-    case: "subscribed";
-  } | {
     /**
      * One authorized public event copy.
      *
@@ -389,28 +211,12 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "heartbeat";
   } | {
     /**
-     * Protocol or authorization error.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeError error = 5;
-     */
-    value: RealtimeError;
-    case: "error";
-  } | {
-    /**
      * Server-requested close with reconnect guidance.
      *
      * @generated from field: chatto.realtime.v1.RealtimeClose close = 6;
      */
     value: RealtimeClose;
     case: "close";
-  } | {
-    /**
-     * Reply to a client ping.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimePong pong = 7;
-     */
-    value: RealtimePong;
-    case: "pong";
   } | {
     /**
      * Confirms that recovery reached the live-stream boundary.
@@ -421,7 +227,7 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
     case: "caughtUp";
   } | {
     /**
-     * One canonical resource family in an exact server-content snapshot.
+     * One exact authorized server-content snapshot.
      *
      * @generated from field: chatto.realtime.v1.RealtimeSnapshot snapshot = 9;
      */
@@ -437,13 +243,9 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeServerFrame";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "hello", kind: "message", T: RealtimeServerHello, oneof: "frame" },
-    { no: 2, name: "subscribed", kind: "message", T: RealtimeSubscribed, oneof: "frame" },
     { no: 3, name: "event", kind: "message", T: RealtimeEvent, oneof: "frame" },
     { no: 4, name: "heartbeat", kind: "message", T: RealtimeHeartbeat, oneof: "frame" },
-    { no: 5, name: "error", kind: "message", T: RealtimeError, oneof: "frame" },
     { no: 6, name: "close", kind: "message", T: RealtimeClose, oneof: "frame" },
-    { no: 7, name: "pong", kind: "message", T: RealtimePong, oneof: "frame" },
     { no: 8, name: "caught_up", kind: "message", T: RealtimeCaughtUp, oneof: "frame" },
     { no: 9, name: "snapshot", kind: "message", T: RealtimeSnapshot, oneof: "frame" },
   ]);
@@ -466,210 +268,11 @@ export class RealtimeServerFrame extends Message<RealtimeServerFrame> {
 }
 
 /**
- * Initial client hello.
+ * One authorized snapshot of the current bounded server content.
  *
- * @generated from message chatto.realtime.v1.RealtimeClientHello
- */
-export class RealtimeClientHello extends Message<RealtimeClientHello> {
-  /**
-   * Behavioral protocol version requested by the client. The only supported
-   * version is 4.
-   *
-   * @generated from field: uint32 protocol_version = 1;
-   */
-  protocolVersion = 0;
-
-  /**
-   * Optional bearer token. When present, it takes precedence over cookie auth.
-   *
-   * @generated from field: optional string bearer_token = 2;
-   */
-  bearerToken?: string;
-
-  constructor(data?: PartialMessage<RealtimeClientHello>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeClientHello";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientHello {
-    return new RealtimeClientHello().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeClientHello {
-    return new RealtimeClientHello().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeClientHello {
-    return new RealtimeClientHello().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeClientHello | PlainMessage<RealtimeClientHello> | undefined, b: RealtimeClientHello | PlainMessage<RealtimeClientHello> | undefined): boolean {
-    return proto3.util.equals(RealtimeClientHello, a, b);
-  }
-}
-
-/**
- * Initial server hello.
- *
- * @generated from message chatto.realtime.v1.RealtimeServerHello
- */
-export class RealtimeServerHello extends Message<RealtimeServerHello> {
-  /**
-   * Behavioral protocol version accepted by the server.
-   *
-   * @generated from field: uint32 protocol_version = 1;
-   */
-  protocolVersion = 0;
-
-  /**
-   * Chatto server software version.
-   *
-   * @generated from field: string server_version = 2;
-   */
-  serverVersion = "";
-
-  /**
-   * Approximate heartbeat interval clients should expect.
-   *
-   * @generated from field: google.protobuf.Duration heartbeat_interval = 4;
-   */
-  heartbeatInterval?: Duration;
-
-  constructor(data?: PartialMessage<RealtimeServerHello>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeServerHello";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 2, name: "server_version", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "heartbeat_interval", kind: "message", T: Duration },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeServerHello {
-    return new RealtimeServerHello().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeServerHello {
-    return new RealtimeServerHello().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeServerHello {
-    return new RealtimeServerHello().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeServerHello | PlainMessage<RealtimeServerHello> | undefined, b: RealtimeServerHello | PlainMessage<RealtimeServerHello> | undefined): boolean {
-    return proto3.util.equals(RealtimeServerHello, a, b);
-  }
-}
-
-/**
- * Request to start the caller's authorized public event stream.
- *
- * @generated from message chatto.realtime.v1.RealtimeSubscribeEvents
- */
-export class RealtimeSubscribeEvents extends Message<RealtimeSubscribeEvents> {
-  /**
-   * Opaque cursor from a previously received durable event or `caught_up`
-   * frame. A usable cursor receives bounded authorized durable events after
-   * that position. Cursors expire 15 minutes after issue.
-   *
-   * @generated from field: optional string resume_cursor = 1;
-   */
-  resumeCursor?: string;
-
-  /**
-   * Required fallback when the cursor is absent or cannot resume safely.
-   *
-   * @generated from field: chatto.realtime.v1.RealtimeInitialState initial_state = 3;
-   */
-  initialState = RealtimeInitialState.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<RealtimeSubscribeEvents>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeSubscribeEvents";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 3, name: "initial_state", kind: "enum", T: proto3.getEnumType(RealtimeInitialState) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribeEvents {
-    return new RealtimeSubscribeEvents().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeSubscribeEvents {
-    return new RealtimeSubscribeEvents().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeSubscribeEvents {
-    return new RealtimeSubscribeEvents().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined, b: RealtimeSubscribeEvents | PlainMessage<RealtimeSubscribeEvents> | undefined): boolean {
-    return proto3.util.equals(RealtimeSubscribeEvents, a, b);
-  }
-}
-
-/**
- * Confirms that event streaming has started.
- *
- * @generated from message chatto.realtime.v1.RealtimeSubscribed
- */
-export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
-  /**
-   * Recovery path selected after cursor validation and admission checks.
-   *
-   * @generated from field: chatto.realtime.v1.RealtimeRecoveryMode recovery_mode = 3;
-   */
-  recoveryMode = RealtimeRecoveryMode.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<RealtimeSubscribed>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeSubscribed";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 3, name: "recovery_mode", kind: "enum", T: proto3.getEnumType(RealtimeRecoveryMode) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSubscribed {
-    return new RealtimeSubscribed().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeSubscribed {
-    return new RealtimeSubscribed().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeSubscribed {
-    return new RealtimeSubscribed().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeSubscribed | PlainMessage<RealtimeSubscribed> | undefined, b: RealtimeSubscribed | PlainMessage<RealtimeSubscribed> | undefined): boolean {
-    return proto3.util.equals(RealtimeSubscribed, a, b);
-  }
-}
-
-/**
- * One resource family from an authorized snapshot of `ServerContentView`.
- *
- * The server sends all snapshot frames between `subscribed(SNAPSHOT)` and
- * `caught_up`. The client must discard an incomplete snapshot if the socket
- * closes before `caught_up`. List values replace the complete local family.
+ * The server sends at most one snapshot before `caught_up`. The client must
+ * discard the snapshot if the socket closes before `caught_up`. List values
+ * replace the complete local family.
  * Large and paginated resources, such as message history, are not part of the
  * snapshot and remain available through ConnectRPC.
  *
@@ -677,49 +280,39 @@ export class RealtimeSubscribed extends Message<RealtimeSubscribed> {
  */
 export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
   /**
-   * @generated from oneof chatto.realtime.v1.RealtimeSnapshot.resource
+   * Current public server profile.
+   *
+   * @generated from field: chatto.api.v1.ServerPublicProfile server = 1;
    */
-  resource: {
-    /**
-     * Current public server profile.
-     *
-     * @generated from field: chatto.api.v1.ServerPublicProfile server = 1;
-     */
-    value: ServerPublicProfile;
-    case: "server";
-  } | {
-    /**
-     * Complete visible room directory.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomsSnapshot rooms = 2;
-     */
-    value: RealtimeRoomsSnapshot;
-    case: "rooms";
-  } | {
-    /**
-     * Complete visible room-group layout.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeRoomGroupsSnapshot room_groups = 3;
-     */
-    value: RealtimeRoomGroupsSnapshot;
-    case: "roomGroups";
-  } | {
-    /**
-     * Users referenced by this snapshot. This is not the server directory.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeUsersSnapshot users = 4;
-     */
-    value: RealtimeUsersSnapshot;
-    case: "users";
-  } | {
-    /**
-     * Complete visible active-call state.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeActiveCallsSnapshot active_calls = 5;
-     */
-    value: RealtimeActiveCallsSnapshot;
-    case: "activeCalls";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  server?: ServerPublicProfile;
+
+  /**
+   * All rooms visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomWithViewerState rooms = 2;
+   */
+  rooms: RoomWithViewerState[] = [];
+
+  /**
+   * All room groups visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomGroup room_groups = 3;
+   */
+  roomGroups: RoomGroup[] = [];
+
+  /**
+   * Public users referenced by another snapshot family.
+   *
+   * @generated from field: repeated chatto.api.v1.DirectoryMember users = 4;
+   */
+  users: DirectoryMember[] = [];
+
+  /**
+   * All active calls visible to the caller at the snapshot boundary.
+   *
+   * @generated from field: repeated chatto.api.v1.ActiveCall active_calls = 5;
+   */
+  activeCalls: ActiveCall[] = [];
 
   constructor(data?: PartialMessage<RealtimeSnapshot>) {
     super();
@@ -729,11 +322,11 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeSnapshot";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "server", kind: "message", T: ServerPublicProfile, oneof: "resource" },
-    { no: 2, name: "rooms", kind: "message", T: RealtimeRoomsSnapshot, oneof: "resource" },
-    { no: 3, name: "room_groups", kind: "message", T: RealtimeRoomGroupsSnapshot, oneof: "resource" },
-    { no: 4, name: "users", kind: "message", T: RealtimeUsersSnapshot, oneof: "resource" },
-    { no: 5, name: "active_calls", kind: "message", T: RealtimeActiveCallsSnapshot, oneof: "resource" },
+    { no: 1, name: "server", kind: "message", T: ServerPublicProfile },
+    { no: 2, name: "rooms", kind: "message", T: RoomWithViewerState, repeated: true },
+    { no: 3, name: "room_groups", kind: "message", T: RoomGroup, repeated: true },
+    { no: 4, name: "users", kind: "message", T: DirectoryMember, repeated: true },
+    { no: 5, name: "active_calls", kind: "message", T: ActiveCall, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeSnapshot {
@@ -750,170 +343,6 @@ export class RealtimeSnapshot extends Message<RealtimeSnapshot> {
 
   static equals(a: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined, b: RealtimeSnapshot | PlainMessage<RealtimeSnapshot> | undefined): boolean {
     return proto3.util.equals(RealtimeSnapshot, a, b);
-  }
-}
-
-/**
- * Complete visible room resources at the snapshot boundary.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomsSnapshot
- */
-export class RealtimeRoomsSnapshot extends Message<RealtimeRoomsSnapshot> {
-  /**
-   * All rooms visible to the caller at the snapshot boundary.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomWithViewerState rooms = 1;
-   */
-  rooms: RoomWithViewerState[] = [];
-
-  constructor(data?: PartialMessage<RealtimeRoomsSnapshot>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomsSnapshot";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "rooms", kind: "message", T: RoomWithViewerState, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomsSnapshot {
-    return new RealtimeRoomsSnapshot().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomsSnapshot {
-    return new RealtimeRoomsSnapshot().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomsSnapshot {
-    return new RealtimeRoomsSnapshot().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomsSnapshot | PlainMessage<RealtimeRoomsSnapshot> | undefined, b: RealtimeRoomsSnapshot | PlainMessage<RealtimeRoomsSnapshot> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomsSnapshot, a, b);
-  }
-}
-
-/**
- * Complete visible room-group resources at the snapshot boundary.
- *
- * @generated from message chatto.realtime.v1.RealtimeRoomGroupsSnapshot
- */
-export class RealtimeRoomGroupsSnapshot extends Message<RealtimeRoomGroupsSnapshot> {
-  /**
-   * All room groups visible to the caller at the snapshot boundary.
-   *
-   * @generated from field: repeated chatto.api.v1.RoomGroup room_groups = 1;
-   */
-  roomGroups: RoomGroup[] = [];
-
-  constructor(data?: PartialMessage<RealtimeRoomGroupsSnapshot>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeRoomGroupsSnapshot";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_groups", kind: "message", T: RoomGroup, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeRoomGroupsSnapshot {
-    return new RealtimeRoomGroupsSnapshot().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsSnapshot {
-    return new RealtimeRoomGroupsSnapshot().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeRoomGroupsSnapshot {
-    return new RealtimeRoomGroupsSnapshot().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeRoomGroupsSnapshot | PlainMessage<RealtimeRoomGroupsSnapshot> | undefined, b: RealtimeRoomGroupsSnapshot | PlainMessage<RealtimeRoomGroupsSnapshot> | undefined): boolean {
-    return proto3.util.equals(RealtimeRoomGroupsSnapshot, a, b);
-  }
-}
-
-/**
- * Public user resources referenced by the other snapshot families.
- *
- * @generated from message chatto.realtime.v1.RealtimeUsersSnapshot
- */
-export class RealtimeUsersSnapshot extends Message<RealtimeUsersSnapshot> {
-  /**
-   * Public users referenced by another snapshot family.
-   *
-   * @generated from field: repeated chatto.api.v1.DirectoryMember users = 1;
-   */
-  users: DirectoryMember[] = [];
-
-  constructor(data?: PartialMessage<RealtimeUsersSnapshot>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeUsersSnapshot";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "users", kind: "message", T: DirectoryMember, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeUsersSnapshot {
-    return new RealtimeUsersSnapshot().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeUsersSnapshot {
-    return new RealtimeUsersSnapshot().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeUsersSnapshot {
-    return new RealtimeUsersSnapshot().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeUsersSnapshot | PlainMessage<RealtimeUsersSnapshot> | undefined, b: RealtimeUsersSnapshot | PlainMessage<RealtimeUsersSnapshot> | undefined): boolean {
-    return proto3.util.equals(RealtimeUsersSnapshot, a, b);
-  }
-}
-
-/**
- * Complete visible active-call resources at the snapshot boundary.
- *
- * @generated from message chatto.realtime.v1.RealtimeActiveCallsSnapshot
- */
-export class RealtimeActiveCallsSnapshot extends Message<RealtimeActiveCallsSnapshot> {
-  /**
-   * All active calls visible to the caller at the snapshot boundary.
-   *
-   * @generated from field: repeated chatto.api.v1.ActiveCall active_calls = 1;
-   */
-  activeCalls: ActiveCall[] = [];
-
-  constructor(data?: PartialMessage<RealtimeActiveCallsSnapshot>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeActiveCallsSnapshot";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "active_calls", kind: "message", T: ActiveCall, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeActiveCallsSnapshot {
-    return new RealtimeActiveCallsSnapshot().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeActiveCallsSnapshot {
-    return new RealtimeActiveCallsSnapshot().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeActiveCallsSnapshot {
-    return new RealtimeActiveCallsSnapshot().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeActiveCallsSnapshot | PlainMessage<RealtimeActiveCallsSnapshot> | undefined, b: RealtimeActiveCallsSnapshot | PlainMessage<RealtimeActiveCallsSnapshot> | undefined): boolean {
-    return proto3.util.equals(RealtimeActiveCallsSnapshot, a, b);
   }
 }
 
@@ -1502,107 +931,11 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
 }
 
 /**
- * Application-level ping.
- *
- * @generated from message chatto.realtime.v1.RealtimePing
- */
-export class RealtimePing extends Message<RealtimePing> {
-  /**
-   * Opaque value that the server copies to `pong`.
-   *
-   * @generated from field: string nonce = 1;
-   */
-  nonce = "";
-
-  constructor(data?: PartialMessage<RealtimePing>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimePing";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "nonce", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimePing {
-    return new RealtimePing().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimePing {
-    return new RealtimePing().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimePing {
-    return new RealtimePing().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimePing | PlainMessage<RealtimePing> | undefined, b: RealtimePing | PlainMessage<RealtimePing> | undefined): boolean {
-    return proto3.util.equals(RealtimePing, a, b);
-  }
-}
-
-/**
- * Application-level pong.
- *
- * @generated from message chatto.realtime.v1.RealtimePong
- */
-export class RealtimePong extends Message<RealtimePong> {
-  /**
-   * Opaque value copied from the client `ping`.
-   *
-   * @generated from field: string nonce = 1;
-   */
-  nonce = "";
-
-  constructor(data?: PartialMessage<RealtimePong>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimePong";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "nonce", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimePong {
-    return new RealtimePong().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimePong {
-    return new RealtimePong().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimePong {
-    return new RealtimePong().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimePong | PlainMessage<RealtimePong> | undefined, b: RealtimePong | PlainMessage<RealtimePong> | undefined): boolean {
-    return proto3.util.equals(RealtimePong, a, b);
-  }
-}
-
-/**
  * Application-level heartbeat.
  *
  * @generated from message chatto.realtime.v1.RealtimeHeartbeat
  */
 export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
-  /**
-   * Stable heartbeat event ID.
-   *
-   * @generated from field: string id = 1;
-   */
-  id = "";
-
-  /**
-   * Time the server created the heartbeat.
-   *
-   * @generated from field: google.protobuf.Timestamp created_at = 2;
-   */
-  createdAt?: Timestamp;
-
   /**
    * Fresh resume cursor for the latest durable boundary delivered on this
    * socket. A client can retain it only after all earlier frames have been
@@ -1620,8 +953,6 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeHeartbeat";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
@@ -1639,79 +970,6 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
 
   static equals(a: RealtimeHeartbeat | PlainMessage<RealtimeHeartbeat> | undefined, b: RealtimeHeartbeat | PlainMessage<RealtimeHeartbeat> | undefined): boolean {
     return proto3.util.equals(RealtimeHeartbeat, a, b);
-  }
-}
-
-/**
- * Protocol error.
- *
- * @generated from message chatto.realtime.v1.RealtimeError
- */
-export class RealtimeError extends Message<RealtimeError> {
-  /**
-   * Stable machine-readable error code.
-   *
-   * @generated from field: chatto.realtime.v1.RealtimeErrorCode code = 1;
-   */
-  code = RealtimeErrorCode.UNSPECIFIED;
-
-  /**
-   * Safe human-readable error message.
-   *
-   * @generated from field: string message = 2;
-   */
-  message = "";
-
-  /**
-   * Whether the client must stop processing this socket.
-   *
-   * @generated from field: bool fatal = 3;
-   */
-  fatal = false;
-
-  /**
-   * Suggested delay before retry, when applicable.
-   *
-   * @generated from field: google.protobuf.Duration retry_after = 4;
-   */
-  retryAfter?: Duration;
-
-  /**
-   * Affected room for a room-scoped non-fatal error.
-   *
-   * @generated from field: optional string room_id = 5;
-   */
-  roomId?: string;
-
-  constructor(data?: PartialMessage<RealtimeError>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeError";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "code", kind: "enum", T: proto3.getEnumType(RealtimeErrorCode) },
-    { no: 2, name: "message", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "fatal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "retry_after", kind: "message", T: Duration },
-    { no: 5, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeError {
-    return new RealtimeError().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeError {
-    return new RealtimeError().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeError {
-    return new RealtimeError().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeError | PlainMessage<RealtimeError> | undefined, b: RealtimeError | PlainMessage<RealtimeError> | undefined): boolean {
-    return proto3.util.equals(RealtimeError, a, b);
   }
 }
 

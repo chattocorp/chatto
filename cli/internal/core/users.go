@@ -340,9 +340,9 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	// Publish a best-effort transient signal for the new public user.
-	event := newTransientEvent(eventActorID, &evtv1.Event{
-		Event: &evtv1.Event_UserCreatedSync{
-			UserCreatedSync: &livev1.UserCreatedSyncEvent{
+	event := newLiveEvent(eventActorID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_UserCreated{
+			UserCreated: &livev1.UserCreatedSyncEvent{
 				UserId:      userID,
 				Login:       login,
 				DisplayName: displayName,

@@ -1,10 +1,10 @@
 # ADR-091: Use One Event Vocabulary for Storage, Live Delivery, and Realtime
 
-**Status:** Partially superseded by
-[ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-092 replaces the
-public use of canonical payload messages with a public union and dedicated
-payload catalogue. The canonical storage and transient envelope decision in
-this ADR remains active.
+**Status:** Superseded by
+[ADR-092](ADR-092-use-a-public-realtime-event-union.md) for the public event
+shape and by
+[ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md) for the
+internal durable and transient envelopes.
 **Date:** 2026-08-31
 
 **Supersedes:** The separate-public-schema rule in

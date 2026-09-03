@@ -503,7 +503,7 @@ func TestPlanRealtimeReplayDeliversViewerLeaveAfterVisibilityCloses(t *testing.T
 	if err != nil {
 		t.Fatalf("PlanRealtimeReplay: %v", err)
 	}
-	if plan.Reset || len(plan.Events) != 1 || plan.Events[0].CanonicalEvent().GetUserLeftRoom() == nil {
+	if plan.Reset || len(plan.Events) != 1 || plan.Events[0].EVTEvent().GetUserLeftRoom() == nil {
 		t.Fatalf("PlanRealtimeReplay plan = %+v, want one closing user_left_room event", plan)
 	}
 }

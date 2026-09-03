@@ -1,11 +1,13 @@
 # ADR-090: Use Semantic Realtime Events with Bounded Resume
 
 **Status:** Partially superseded by
-[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md)
-and [ADR-092](ADR-092-use-a-public-realtime-event-union.md). ADR-091 selects
-one canonical internal envelope and protocol 4. ADR-092 defines its public
-union and dedicated payload catalogue. The authorization, bounded-resume,
-snapshot, and transport rules that this ADR introduced remain active.
+[ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md),
+[ADR-092](ADR-092-use-a-public-realtime-event-union.md), and
+[ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md). ADR-092
+defines the public union and dedicated payload catalogue. ADR-093 defines the
+current internal envelopes and protocol 4 frame set. The authorization,
+bounded-resume, snapshot, and transport rules that this ADR introduced remain
+active.
 
 **Date:** 2026-08-30
 
@@ -136,8 +138,8 @@ The bundled frontend keeps one authenticated, server-scoped projection. A
 subscription explicitly selects `SNAPSHOT` or `LIVE_ONLY` initial state. The
 frontend selects `SNAPSHOT`. A simple bot can select `LIVE_ONLY` and use
 ConnectRPC for resources that it needs. The snapshot avoids a fan-out of
-startup resource requests. It uses a bounded set of resource-family frames and
-keeps large collections lazy.
+startup resource requests. It uses one atomic snapshot frame with a bounded
+set of resource families and keeps large collections lazy.
 
 After the snapshot, the frontend applies semantic public events to its local
 projection. ConnectRPC remains available for commands, explicit reads,
@@ -166,7 +168,8 @@ resume. When the cursor is missing, invalid, expired, from another stream
 incarnation, unsafe after an authorization change, or outside the configured
 work budget, the server uses the subscription's requested fallback. A
 `SNAPSHOT` subscription receives current state. A `LIVE_ONLY` subscription
-starts at the current boundary. The server reports which recovery mode it used.
+starts at the current boundary. A snapshot before `caught_up` identifies the
+fallback that the server used.
 
 Resume uses the existing handoff pattern:
 

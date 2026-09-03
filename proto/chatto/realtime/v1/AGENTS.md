@@ -24,7 +24,7 @@ protocol at `/api/realtime`.
 
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
 - Realtime compatibility includes protocol behavior and protobuf field tags.
-  Negotiate new required client behavior with hello/capability fields or a new
+  Negotiate new required client behavior with discovery metadata or a new
   protocol version.
 - `chatto.realtime.v1` is the protobuf namespace; protocol version 4 is the
   only accepted handshake. Do not reintroduce older compatibility paths.
@@ -40,13 +40,15 @@ protocol at `/api/realtime`.
   because common event metadata and the cursor remain outside the event
   `oneof`. Use a new behavioral protocol version when a new variant needs
   required client behavior.
-- `RealtimeEvent.event` is the public variant catalogue. Keep each member's
-  name and field number aligned with its matching canonical Event member.
+- `RealtimeEvent.event` is the public variant catalogue. Keep each durable
+  member's name and field number aligned with its matching EVT `Event` member.
+  Map `LiveEvent` members explicitly in the reserved public transient range.
   Public payload field numbers are independent.
-- When a new canonical event must reach clients, update the applicable event file, the
+- When a new `Event` or `LiveEvent` variant must reach clients, update the applicable event file, the
   `RealtimeEvent.event` union, the explicit mapper and exhaustive tests, the frontend event
   reducer or reconciliation path, generated clients, architecture and public
   documentation, and compatibility notes in the same change.
-- Live delivery and replay must use the same canonical-to-public mapper. A
-  public union member without a valid mapping must fail tests and fail closed
-  at runtime.
+- Live delivery and replay must use the same internal-to-public mapping path.
+  A public union member without a valid mapping must fail tests and fail closed
+  at runtime. Every `LiveEvent` variant must have a public mapping unless an
+  ADR explicitly records the exception.

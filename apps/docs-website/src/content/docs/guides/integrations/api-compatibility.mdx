@@ -46,16 +46,16 @@ ConnectRPC reads, and bounded cursor resume. Normal event frames contain one
 `chatto.realtime.v1.RealtimeEvent`. Its public payload union and optional opaque
 cursor are sibling fields. Public union members use dedicated public payloads
 and keep the matching canonical event names and numbers. Regenerate clients
-and update the handshake and reducers together.
+and update the subscription and reducers together. Protocol 4 uses one
+`RealtimeSubscribe` client message and does not use hello or subscribed frames.
+The server sends only snapshot, event, caught-up, heartbeat, and close frames.
 
-Existing public event variants keep the canonical protobuf field encoding
-because their metadata and payload fields keep the canonical numbers and
-types. The optional cursor uses a separate field. The generated source type
-changes from canonical payload messages to dedicated realtime payload
-messages, so integrations must regenerate their clients.
+Public payload field numbers are independent from internal event payloads. The
+optional cursor uses a separate field. Integrations must regenerate their
+clients for the dedicated realtime payload messages.
 
 The `chatto.realtime.v1` protobuf package name does not select behavioral
-protocol version 1. The `hello.protocol_version` field selects the complete
+protocol version 1. The `RealtimeSubscribe.protocol_version` field selects the complete
 required behavior. Chatto does not publish a separate capability matrix for
 required frame semantics.
 

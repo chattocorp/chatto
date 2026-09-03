@@ -810,13 +810,13 @@ func TestFilterLiveSyncEvent_DropsMissingPayload(t *testing.T) {
 
 	event, ok := core.filterLiveSyncEvent(ctx, "U1", map[string]struct{}{}, &nats.Msg{
 		Subject: "live.sync.config.server_updated",
-	}, &evtv1.Event{
+	}, &livev1.LiveEvent{
 		Id:      "LIVE-empty",
 		ActorId: "U1",
 	})
 
 	if ok {
-		t.Fatal("expected empty canonical Event to be rejected")
+		t.Fatal("expected empty LiveEvent to be rejected")
 	}
 	if event != nil {
 		t.Fatalf("expected no delivered event, got %+v", event)
@@ -847,8 +847,8 @@ func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newTransientEvent(author.GetId(), &evtv1.Event{Event: &evtv1.Event_UserTypingSignal{
-		UserTypingSignal: &livev1.UserTypingEvent{RoomId: room.GetId()},
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId()},
 	}})
 	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{room.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -897,8 +897,8 @@ func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
 	}
 	memberRooms := map[string]struct{}{room.GetId(): {}}
 	typing := func(threadRootEventID string) (EventEnvelope, bool) {
-		live := newTransientEvent(author.GetId(), &evtv1.Event{Event: &evtv1.Event_UserTypingSignal{
-			UserTypingSignal: &livev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
+		live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+			UserTyping: &livev1.UserTypingEvent{RoomId: room.GetId(), ThreadRootEventId: &threadRootEventID},
 		}})
 		return chatto.filterLiveSyncEvent(ctx, viewer.GetId(), memberRooms, &nats.Msg{
 			Subject: subjects.LiveSyncRoomEvent(string(KindChannel), room.GetId(), "user_typing"),
@@ -933,8 +933,8 @@ func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
 	}
 
-	live := newTransientEvent(author.GetId(), &evtv1.Event{Event: &evtv1.Event_UserTypingSignal{
-		UserTypingSignal: &livev1.UserTypingEvent{RoomId: dm.GetId()},
+	live := newLiveEvent(author.GetId(), &livev1.LiveEvent{Event: &livev1.LiveEvent_UserTyping{
+		UserTyping: &livev1.UserTypingEvent{RoomId: dm.GetId()},
 	}})
 	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
 		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),

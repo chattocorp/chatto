@@ -36,7 +36,8 @@ For public API packages:
 - Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
   ownership and storage compatibility. Put new durable `Event` payloads in the
   applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads for
-  transient-only Event variants in `chatto/core/live/v1/live_events.proto`.
+  transient-only `LiveEvent` variants in
+  `chatto/core/live/v1/live_events.proto`.
 - Protobuf file placement affects generated source and descriptor names. Do not
   move a stored symbol only to reorganize it. A transient symbol that is in the
   wrong package can move as an approved source-breaking change. Do not keep a

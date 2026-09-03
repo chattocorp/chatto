@@ -155,7 +155,7 @@ func AllRoomEventsFiltersAnyKind() []string {
 //	server.room.{kind}.{roomId}.msg.{rootEventId}.replies.{eventId}      (thread)
 //	server.room.{kind}.{roomId}.meta                                     (meta)
 //
-// Transient canonical Event messages use `live.sync.>`. Parsers normalize that
+// Transient LiveEvent messages use `live.sync.>`. Parsers normalize that
 // live root so durable and transient room subjects share one set of length
 // checks.
 
@@ -228,7 +228,8 @@ func ParseEventIDFromSubject(subject string) string {
 }
 
 // normalizeLivePrefix removes the transient sync root so durable (`server.>`)
-// and transient sync (`live.sync.>`) subjects share one canonical shape.
+// and transient sync (`live.sync.>`) subject parsers can use the same path
+// layout. The protobuf envelope types remain separate.
 // Returns the original slice if not prefixed.
 func normalizeLivePrefix(parts []string) []string {
 	if len(parts) > 1 && parts[0] == "live" {
@@ -266,7 +267,7 @@ func splitSubject(subject string) []string {
 // ===== LIVE SUBJECTS =====
 //
 // Live subjects are used for transient events that bypass JetStream storage.
-// `live.sync.>` carries canonical Event envelopes.
+// `live.sync.>` carries LiveEvent envelopes.
 
 // LiveSyncAllEvents returns the wildcard subject for new transient Event
 // messages. Pattern: `live.sync.>`.

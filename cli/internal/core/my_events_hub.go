@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -363,13 +364,13 @@ func (h *MyEventsHub) handleMessage(ctx context.Context, msg *nats.Msg) bool {
 
 func (h *MyEventsHub) handleLiveSync(msg *nats.Msg) bool {
 	h.decoded.Add(1)
-	event := new(evtv1.Event)
+	event := new(livev1.LiveEvent)
 	if err := proto.Unmarshal(msg.Data, event); err != nil {
 		h.model.core.logger.Warn("Failed to unmarshal live sync event", "subject", msg.Subject, "error", err)
 		return false
 	}
 	if event.Event == nil {
-		h.model.core.logger.Warn("Dropping live sync event without a canonical payload", "subject", msg.Subject)
+		h.model.core.logger.Warn("Dropping live sync event without a payload", "subject", msg.Subject)
 		return false
 	}
 

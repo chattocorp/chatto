@@ -13,10 +13,10 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-// realtimeSnapshotFrames captures detached public resources at one exact
+// realtimeSnapshotFrame captures detached public resources at one exact
 // ServerContentView boundary. Protobuf encoding and WebSocket writes happen
 // only after the content-view read barrier has been released.
-func (s *HTTPServer) realtimeSnapshotFrames(ctx context.Context, userID string) (uint64, []*realtimev1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeSnapshotFrame(ctx context.Context, userID string) (uint64, *realtimev1.RealtimeServerFrame, error) {
 	if s.connectAPI == nil {
 		return 0, nil, errors.New("Connect API is unavailable")
 	}
@@ -24,22 +24,16 @@ func (s *HTTPServer) realtimeSnapshotFrames(ctx context.Context, userID string) 
 	if err != nil {
 		return 0, nil, err
 	}
-	snapshots := []*realtimev1.RealtimeSnapshot{
-		{Resource: &realtimev1.RealtimeSnapshot_Server{Server: resources.Server}},
-		{Resource: &realtimev1.RealtimeSnapshot_Rooms{Rooms: &realtimev1.RealtimeRoomsSnapshot{Rooms: resources.Rooms.GetRooms()}}},
-		{Resource: &realtimev1.RealtimeSnapshot_RoomGroups{RoomGroups: &realtimev1.RealtimeRoomGroupsSnapshot{RoomGroups: resources.RoomGroups.GetGroups()}}},
-		{Resource: &realtimev1.RealtimeSnapshot_Users{Users: &realtimev1.RealtimeUsersSnapshot{Users: resources.Users.GetUsers()}}},
-		{Resource: &realtimev1.RealtimeSnapshot_ActiveCalls{ActiveCalls: &realtimev1.RealtimeActiveCallsSnapshot{ActiveCalls: resources.ActiveCalls.GetCalls()}}},
+	snapshot := &realtimev1.RealtimeSnapshot{
+		Server:      resources.Server,
+		Rooms:       resources.Rooms.GetRooms(),
+		RoomGroups:  resources.RoomGroups.GetGroups(),
+		Users:       resources.Users.GetUsers(),
+		ActiveCalls: resources.ActiveCalls.GetCalls(),
 	}
-	frames := make([]*realtimev1.RealtimeServerFrame, 0, len(snapshots))
-	var snapshotBytes uint64
-	for _, snapshot := range snapshots {
-		frame := &realtimev1.RealtimeServerFrame{
-			Frame: &realtimev1.RealtimeServerFrame_Snapshot{Snapshot: snapshot},
-		}
-		frames = append(frames, frame)
-		snapshotBytes += uint64(proto.Size(frame))
+	frame := &realtimev1.RealtimeServerFrame{
+		Frame: &realtimev1.RealtimeServerFrame_Snapshot{Snapshot: snapshot},
 	}
-	s.metrics.realtimeSnapshotBytes.Store(snapshotBytes)
-	return resources.Sequence, frames, nil
+	s.metrics.realtimeSnapshotBytes.Store(uint64(proto.Size(frame)))
+	return resources.Sequence, frame, nil
 }

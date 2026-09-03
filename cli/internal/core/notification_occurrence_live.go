@@ -2,7 +2,6 @@ package core
 
 import (
 	"context"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 
@@ -52,8 +51,8 @@ func (c *ChattoCore) publishNotificationOccurrenceInvalidations(ctx context.Cont
 		}
 		publications = append(publications, liveEventPublication{
 			subject: subjects.LiveSyncUserEvent(occurrence.GetRecipientId(), "notification_v2"),
-			event: newTransientEvent(occurrence.GetActorId(), &evtv1.Event{
-				Event: &evtv1.Event_NotificationOccurrencesInvalidated{
+			event: newLiveEvent(occurrence.GetActorId(), &livev1.LiveEvent{
+				Event: &livev1.LiveEvent_NotificationOccurrencesInvalidated{
 					NotificationOccurrencesInvalidated: &livev1.NotificationOccurrencesInvalidatedEvent{
 						AlertCandidateNotificationId: alertCandidateID,
 						SoundCandidateNotificationId: soundCandidateID,

@@ -2,18 +2,59 @@ syntax = "proto3";
 
 package chatto.core.live.v1;
 
+import "google/protobuf/timestamp.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/live/v1;livev1";
 
 // ============================================================================
 // LIVE-ONLY EVENT DEFINITIONS
 //
-// The canonical chatto.core.evt.v1.Event envelope carries these payloads on
-// NATS Core. They are never stored in EVT.
-//
-// This file keeps its historical name and package so generated source imports
-// for these payload messages stay compatible. It does not define a LiveEvent
-// envelope.
+// LiveEvent oneof tags are local to this envelope. They do not need to match
+// Event oneof numbers because LiveEvent is never stored in EVT and never
+// decoded as Event directly.
+
+/*
+   LiveEvent is the wire-format envelope for transient pubsub signals.
+   These events are never stored in EVT and are not projection input. They
+   are delivered over the live.sync.> subject family and mapped into public
+   realtime events.
+
+   Durable facts belong in Event on the EVT stream. Do not add new transient
+   variants to Event.
+*/
+message LiveEvent {
+  reserved 90;
+  reserved "room_groups_updated";
+  // Universal event identifier (NanoID) for dedupe and client-side idempotency.
+  string id = 1;
+
+  // When this live signal was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  // ID of the user or system actor that triggered this signal.
+  string actor_id = 3;
+
+  reserved 10, 21, 24, 41, 50, 51, 70, 71;
+  reserved "config_updated", "notification_level_changed", "video_processing_completed", "mention_notification", "new_direct_message_notification", "notification_created", "notification_dismissed", "user_deleted";
+
+  oneof event {
+    UserCreatedSyncEvent user_created = 20;
+    UserProfileSyncEvent user_profile_updated = 22;
+    ServerUserPreferencesSyncEvent server_user_preferences_updated = 23;
+    ThreadFollowChangedEvent thread_follow_changed = 25;
+    ServerMemberDeletedEvent server_member_deleted = 30;
+    ServerUpdatedEvent server_updated = 31;
+    UserTypingEvent user_typing = 40;
+    PresenceChangedEvent presence_changed = 45;
+    CallParticipantJoinedEvent call_participant_joined = 60;
+    CallParticipantLeftEvent call_participant_left = 61;
+    NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72;
+    NotificationUnreadChangedEvent notification_unread_changed = 73;
+    RoomMarkedAsReadEvent room_marked_as_read = 80;
+    MentionStatusClearedEvent mention_status_cleared = 81;
+    SessionTerminatedEvent session_terminated = 100;
+  }
+}
 
 // ============================================================================
 // SUBSCRIPTION LIVENESS

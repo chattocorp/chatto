@@ -25,15 +25,15 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 
 ## Event envelopes
 
-Chatto uses `evtv1.Event` as the canonical wrapper for durable EVT facts and
-transient NATS Core signals. The publisher selects durability. The EVT storage
-boundary rejects transient variants.
+Chatto uses `evtv1.Event` as the wrapper for durable EVT facts. It uses
+`livev1.LiveEvent` as the wrapper for transient NATS Core signals. The EVT
+storage boundary accepts only `Event`.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
-- **Concrete event**: `event` oneof on the canonical envelope; contextual fields (`room_id`, etc.) live on the concrete payloads.
+- **Concrete event**: `event` oneof on the selected envelope; contextual fields (`room_id`, etc.) live on the concrete payloads.
 
-Durable variants keep their existing field numbers. Transient-only variants use
-field numbers 20000 through 29999. Callers publish only the canonical Event.
+Durable variants keep their existing field numbers. `LiveEvent` field numbers
+are local to its transient NATS wire shape.
 
 Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
@@ -41,10 +41,10 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 
 | Package | Contents | Safety |
 | ---- | -------- | ------ |
-| `chatto.core.evt.v1` | Canonical `Event` wrapper, durable facts, transient variants, and fact-owned values | Existing durable field numbers and structures are stored in JetStream and need storage compatibility; transient variants cannot enter EVT |
+| `chatto.core.evt.v1` | `Event` wrapper, durable facts, and fact-owned values | Existing field numbers and structures are stored in JetStream and need storage compatibility |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
-| `chatto.core.live.v1` | Transient payload messages carried by the canonical Event | Records are not stored, but changes need rolling-wire review |
-| `chatto.realtime.v1` | Public event union and dedicated public payload catalog | Contains only client-visible fields; names and union numbers stay aligned with selected canonical events, while payload layouts are independent |
+| `chatto.core.live.v1` | `LiveEvent` wrapper and transient payload messages | Records are not stored, but changes need rolling-wire review |
+| `chatto.realtime.v1` | Public event union and dedicated public payload catalogue | Contains only client-visible fields; durable union members stay aligned with selected EVT facts, live mappings are explicit, and payload layouts are independent |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
 in-process realtime delivery interface. Private implementations let it carry a
@@ -58,8 +58,8 @@ durable EVT fact, a transient live signal, or a heartbeat.
 | Room live-only              | NATS Core  | UserTypingSignal | Ephemeral room notifications where another store or projection is the source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreatedSync, ServerUpdatedSync, NotificationOccurrencesInvalidated, NotificationUnreadChanged, PresenceChangedSignal | Cross-tab sync, notification-state invalidation, server lifecycle |
 
-The distinction between stored and live-only events is explicit in the oneof
-tag range and enforced by the publisher. It is not a separate wrapper type.
+The separate `Event` and `LiveEvent` wrapper types make the distinction between
+stored and live-only events explicit. The publishers enforce this boundary.
 Room queries and server subscriptions are delivery contexts.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
@@ -181,7 +181,7 @@ and [ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realt
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `evtv1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. Notification materialization derives exact-sequence output directly from existing source/lifecycle facts; it adds no notification-only EVT facts or prepared-work records. |
 | `NOTIFICATIONS`              | `notificationv1.NotificationEvent` | User occurrence | Bounded 90-day notification lifecycle log on four fixed subjects. A 24-hour broker cleanup grace follows the application expiry. Its projector owns the current list; the push worker consumes signalled facts directly. |
-| Live Sync                    | `evtv1.Event` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them. Transient activity becomes public realtime events. Invalidation events tell clients which authoritative resource to refresh through ConnectRPC. |
+| Live Sync                    | `livev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them. Transient activity becomes public realtime events. Invalidation events tell clients which authoritative resource to refresh through ConnectRPC. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
@@ -392,15 +392,15 @@ risk deleting assets referenced by a committed manifest.
 
 ## Transient live subjects
 
-Transient sync signals use canonical `evtv1.Event` values and are published
-directly on NATS Core. They are not persisted. Genuinely ephemeral activity
+Transient sync signals use `livev1.LiveEvent` values and are published directly
+on NATS Core. They are not persisted. Genuinely ephemeral activity
 can be a public transient event. Latest-value invalidations are inputs to live
 projection assembly but are not replay facts.
 
-Patterns: `live.sync.>` for transient canonical Event pubsub and `live.evt.>`
+Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>`
 for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
-- Direct NATS Core publishes: transient canonical events on `live.sync.>` with
+- Direct NATS Core publishes: transient `LiveEvent` messages on `live.sync.>` with
   no stream storage.
 - `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room or asset events to clients.
 
@@ -465,7 +465,7 @@ boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-- One process-wide `ChanSubscribe("live.sync.>")` for transient canonical Event
+- One process-wide `ChanSubscribe("live.sync.>")` for transient `LiveEvent`
   messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,

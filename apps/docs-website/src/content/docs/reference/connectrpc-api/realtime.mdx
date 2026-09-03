@@ -30,16 +30,6 @@ These messages and enums control the WebSocket lifecycle, snapshots, recovery, l
 
 
 
-<a id="chatto-realtime-v1-RealtimeActiveCallsSnapshot"></a>
-
-### RealtimeActiveCallsSnapshot
-
-Complete visible active-call resources at the snapshot boundary.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `active_calls` | `repeated chatto.api.v1.ActiveCall` | All active calls visible to the caller at the snapshot boundary. |
-
 <a id="chatto-realtime-v1-RealtimeCaughtUp"></a>
 
 ### RealtimeCaughtUp
@@ -52,33 +42,6 @@ Transient events are never replayed.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cursor` | `string` | Opaque cursor at the recovery-to-live handoff boundary. |
-
-<a id="chatto-realtime-v1-RealtimeClientFrame"></a>
-
-### RealtimeClientFrame
-
-Client-to-server frame for Chatto's protobuf WebSocket realtime protocol.
-
-Clients send binary protobuf frames to `/api/realtime`. The first frame must
-be `hello`. After the server replies with `hello`, clients send
-`subscribe_events` to start one authorized public event stream.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `frame.hello` | [`RealtimeClientHello`](#chatto-realtime-v1-RealtimeClientHello) | Opens the protocol session and optionally carries a bearer token. |
-| `frame.subscribe_events` | [`RealtimeSubscribeEvents`](#chatto-realtime-v1-RealtimeSubscribeEvents) | Starts the caller's authorized public event stream. |
-| `frame.ping` | [`RealtimePing`](#chatto-realtime-v1-RealtimePing) | Application-level ping. The server replies with `pong`. |
-
-<a id="chatto-realtime-v1-RealtimeClientHello"></a>
-
-### RealtimeClientHello
-
-Initial client hello.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `protocol_version` | `uint32` | Behavioral protocol version requested by the client. The only supported version is 4. |
-| `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
 
 <a id="chatto-realtime-v1-RealtimeClose"></a>
 
@@ -93,20 +56,6 @@ Close instruction sent before the socket closes when possible.
 | `reconnect` | `bool` | Whether the client should reconnect automatically. |
 | `retry_after` | `google.protobuf.Duration` | Suggested delay before reconnect. |
 
-<a id="chatto-realtime-v1-RealtimeError"></a>
-
-### RealtimeError
-
-Protocol error.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `code` | [`RealtimeErrorCode`](#chatto-realtime-v1-RealtimeErrorCode) | Stable machine-readable error code. |
-| `message` | `string` | Safe human-readable error message. |
-| `fatal` | `bool` | Whether the client must stop processing this socket. |
-| `retry_after` | `google.protobuf.Duration` | Suggested delay before retry, when applicable. |
-| `room_id` | `optional string` | Affected room for a room-scoped non-fatal error. |
-
 <a id="chatto-realtime-v1-RealtimeHeartbeat"></a>
 
 ### RealtimeHeartbeat
@@ -115,49 +64,7 @@ Application-level heartbeat.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable heartbeat event ID. |
-| `created_at` | `google.protobuf.Timestamp` | Time the server created the heartbeat. |
 | `resume_cursor` | `optional string` | Fresh resume cursor for the latest durable boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
-
-<a id="chatto-realtime-v1-RealtimePing"></a>
-
-### RealtimePing
-
-Application-level ping.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `nonce` | `string` | Opaque value that the server copies to `pong`. |
-
-<a id="chatto-realtime-v1-RealtimePong"></a>
-
-### RealtimePong
-
-Application-level pong.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `nonce` | `string` | Opaque value copied from the client `ping`. |
-
-<a id="chatto-realtime-v1-RealtimeRoomGroupsSnapshot"></a>
-
-### RealtimeRoomGroupsSnapshot
-
-Complete visible room-group resources at the snapshot boundary.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_groups` | `repeated chatto.api.v1.RoomGroup` | All room groups visible to the caller at the snapshot boundary. |
-
-<a id="chatto-realtime-v1-RealtimeRoomsSnapshot"></a>
-
-### RealtimeRoomsSnapshot
-
-Complete visible room resources at the snapshot boundary.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `rooms` | `repeated chatto.api.v1.RoomWithViewerState` | All rooms visible to the caller at the snapshot boundary. |
 
 <a id="chatto-realtime-v1-RealtimeServerFrame"></a>
 
@@ -167,78 +74,47 @@ Server-to-client frame for Chatto's protobuf WebSocket realtime protocol.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `frame.hello` | [`RealtimeServerHello`](#chatto-realtime-v1-RealtimeServerHello) | Confirms protocol and server versions. |
-| `frame.subscribed` | [`RealtimeSubscribed`](#chatto-realtime-v1-RealtimeSubscribed) | Confirms the stream and the recovery mode that the server selected. |
 | `frame.event` | [`RealtimeEvent`](#chatto-realtime-v1-RealtimeEvent) | One authorized public event copy. |
 | `frame.heartbeat` | [`RealtimeHeartbeat`](#chatto-realtime-v1-RealtimeHeartbeat) | Application-level heartbeat used for liveness checks. |
-| `frame.error` | [`RealtimeError`](#chatto-realtime-v1-RealtimeError) | Protocol or authorization error. |
 | `frame.close` | [`RealtimeClose`](#chatto-realtime-v1-RealtimeClose) | Server-requested close with reconnect guidance. |
-| `frame.pong` | [`RealtimePong`](#chatto-realtime-v1-RealtimePong) | Reply to a client ping. |
 | `frame.caught_up` | [`RealtimeCaughtUp`](#chatto-realtime-v1-RealtimeCaughtUp) | Confirms that recovery reached the live-stream boundary. |
-| `frame.snapshot` | [`RealtimeSnapshot`](#chatto-realtime-v1-RealtimeSnapshot) | One canonical resource family in an exact server-content snapshot. |
-
-<a id="chatto-realtime-v1-RealtimeServerHello"></a>
-
-### RealtimeServerHello
-
-Initial server hello.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `protocol_version` | `uint32` | Behavioral protocol version accepted by the server. |
-| `server_version` | `string` | Chatto server software version. |
-| `heartbeat_interval` | `google.protobuf.Duration` | Approximate heartbeat interval clients should expect. |
+| `frame.snapshot` | [`RealtimeSnapshot`](#chatto-realtime-v1-RealtimeSnapshot) | One exact authorized server-content snapshot. |
 
 <a id="chatto-realtime-v1-RealtimeSnapshot"></a>
 
 ### RealtimeSnapshot
 
-One resource family from an authorized snapshot of `ServerContentView`.
+One authorized snapshot of the current bounded server content.
 
-The server sends all snapshot frames between `subscribed(SNAPSHOT)` and
-`caught_up`. The client must discard an incomplete snapshot if the socket
-closes before `caught_up`. List values replace the complete local family.
+The server sends at most one snapshot before `caught_up`. The client must
+discard the snapshot if the socket closes before `caught_up`. List values
+replace the complete local family.
 Large and paginated resources, such as message history, are not part of the
 snapshot and remain available through ConnectRPC.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `resource.server` | `chatto.api.v1.ServerPublicProfile` | Current public server profile. |
-| `resource.rooms` | [`RealtimeRoomsSnapshot`](#chatto-realtime-v1-RealtimeRoomsSnapshot) | Complete visible room directory. |
-| `resource.room_groups` | [`RealtimeRoomGroupsSnapshot`](#chatto-realtime-v1-RealtimeRoomGroupsSnapshot) | Complete visible room-group layout. |
-| `resource.users` | [`RealtimeUsersSnapshot`](#chatto-realtime-v1-RealtimeUsersSnapshot) | Users referenced by this snapshot. This is not the server directory. |
-| `resource.active_calls` | [`RealtimeActiveCallsSnapshot`](#chatto-realtime-v1-RealtimeActiveCallsSnapshot) | Complete visible active-call state. |
+| `server` | `chatto.api.v1.ServerPublicProfile` | Current public server profile. |
+| `rooms` | `repeated chatto.api.v1.RoomWithViewerState` | All rooms visible to the caller at the snapshot boundary. |
+| `room_groups` | `repeated chatto.api.v1.RoomGroup` | All room groups visible to the caller at the snapshot boundary. |
+| `users` | `repeated chatto.api.v1.DirectoryMember` | Public users referenced by another snapshot family. |
+| `active_calls` | `repeated chatto.api.v1.ActiveCall` | All active calls visible to the caller at the snapshot boundary. |
 
-<a id="chatto-realtime-v1-RealtimeSubscribeEvents"></a>
+<a id="chatto-realtime-v1-RealtimeSubscribe"></a>
 
-### RealtimeSubscribeEvents
+### RealtimeSubscribe
 
-Request to start the caller's authorized public event stream.
+Starts one authorized public realtime subscription.
+
+The client sends this message as the first binary WebSocket message. The
+client does not send more application messages on the socket.
 
 | Field | Type | Description |
 | --- | --- | --- |
+| `protocol_version` | `uint32` | Behavioral protocol version requested by the client. The only supported version is 4. |
+| `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
 | `resume_cursor` | `optional string` | Opaque cursor from a previously received durable event or `caught_up` frame. A usable cursor receives bounded authorized durable events after that position. Cursors expire 15 minutes after issue. |
 | `initial_state` | [`RealtimeInitialState`](#chatto-realtime-v1-RealtimeInitialState) | Required fallback when the cursor is absent or cannot resume safely. |
-
-<a id="chatto-realtime-v1-RealtimeSubscribed"></a>
-
-### RealtimeSubscribed
-
-Confirms that event streaming has started.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `recovery_mode` | [`RealtimeRecoveryMode`](#chatto-realtime-v1-RealtimeRecoveryMode) | Recovery path selected after cursor validation and admission checks. |
-
-<a id="chatto-realtime-v1-RealtimeUsersSnapshot"></a>
-
-### RealtimeUsersSnapshot
-
-Public user resources referenced by the other snapshot families.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `users` | `repeated chatto.api.v1.DirectoryMember` | Public users referenced by another snapshot family. |
 
 
 
@@ -251,35 +127,12 @@ Stable server-requested close category.
 | Name | Number | Description |
 | --- | --- | --- |
 | `REALTIME_CLOSE_CODE_UNSPECIFIED` | `0` | Invalid or unknown close code. |
-| `REALTIME_CLOSE_CODE_CATCH_UP_IN_PROGRESS` | `1` | Another catch-up for this caller is already active. |
-| `REALTIME_CLOSE_CODE_CATCH_UP_RATE_LIMITED` | `2` | A process-local catch-up rate limit rejected the request. |
-| `REALTIME_CLOSE_CODE_CATCH_UP_SERVER_BUSY` | `3` | The server has no catch-up capacity at present. |
-| `REALTIME_CLOSE_CODE_CATCH_UP_TIMEOUT` | `4` | Catch-up exceeded its whole-operation time limit. |
-| `REALTIME_CLOSE_CODE_STREAM_CLOSED` | `5` | The internal event stream closed. |
-| `REALTIME_CLOSE_CODE_EVENT_MAPPING_FAILED` | `6` | The server could not map an internal event to its public payload. |
-| `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `7` | The caller is no longer authenticated. |
-| `REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED` | `8` | The caller must renew its session before reconnecting. |
-| `REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED` | `9` | The server projection reset and the client must take a new snapshot. |
-
-<a id="chatto-realtime-v1-RealtimeErrorCode"></a>
-
-### RealtimeErrorCode
-
-Stable protocol-error category.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_ERROR_CODE_UNSPECIFIED` | `0` | Invalid or unknown error code. |
-| `REALTIME_ERROR_CODE_BAD_HELLO` | `1` | The first client frame was absent or invalid. |
-| `REALTIME_ERROR_CODE_UNSUPPORTED_PROTOCOL` | `2` | The requested behavioral protocol version is not supported. |
-| `REALTIME_ERROR_CODE_TEMPORARILY_UNAVAILABLE` | `3` | The server cannot accept a realtime session at present. |
-| `REALTIME_ERROR_CODE_AUTHENTICATION_REQUIRED` | `4` | The caller must authenticate or renew its session. |
-| `REALTIME_ERROR_CODE_BAD_SUBSCRIBE` | `5` | The subscription request was absent or invalid. |
-| `REALTIME_ERROR_CODE_REPLAY_UNAVAILABLE` | `6` | The server cannot safely replay from the supplied cursor. |
-| `REALTIME_ERROR_CODE_SUBSCRIBE_FAILED` | `7` | The server could not start the requested subscription. |
-| `REALTIME_ERROR_CODE_BAD_FRAME` | `8` | A client frame was invalid for the current protocol state. |
-| `REALTIME_ERROR_CODE_INVALID_CURSOR` | `9` | The supplied cursor is malformed or is for another caller. |
-| `REALTIME_ERROR_CODE_CURSOR_EXPIRED` | `10` | The supplied cursor is older than the replay window. |
+| `REALTIME_CLOSE_CODE_INVALID_REQUEST` | `1` | The subscription message is malformed or contains an invalid value. |
+| `REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL` | `2` | The requested behavioral protocol version is not supported. |
+| `REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE` | `3` | The server cannot accept or continue a realtime session at present. |
+| `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `4` | The caller is no longer authenticated. |
+| `REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED` | `5` | The caller must renew its session before reconnecting. |
+| `REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED` | `6` | The server projection reset and the client must take a new snapshot. |
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>
 
@@ -292,19 +145,6 @@ Startup behavior when a subscription cannot resume from its cursor.
 | `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
 | `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
 | `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an exact authorized snapshot before later public events. |
-
-<a id="chatto-realtime-v1-RealtimeRecoveryMode"></a>
-
-### RealtimeRecoveryMode
-
-Recovery path selected for one subscription.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `REALTIME_RECOVERY_MODE_UNSPECIFIED` | `0` | Invalid value. |
-| `REALTIME_RECOVERY_MODE_LIVE_ONLY` | `1` | Delivery starts at the current boundary without current resources or history. |
-| `REALTIME_RECOVERY_MODE_SNAPSHOT` | `2` | The server sends an exact authorized snapshot before later events. |
-| `REALTIME_RECOVERY_MODE_RESUME` | `3` | Durable events resume after the supplied cursor. |
 
 
 

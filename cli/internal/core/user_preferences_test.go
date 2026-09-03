@@ -8,6 +8,7 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 )
 
 // ============================================================================
@@ -116,11 +117,11 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err != nil {
 		t.Fatalf("waiting for profile update: %v", err)
 	}
-	var live evtv1.Event
+	var live livev1.LiveEvent
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal profile update: %v", err)
 	}
-	if got := live.GetUserProfileSync().GetTimezone(); got != tz {
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != tz {
 		t.Fatalf("profile timezone = %q, want %q", got, tz)
 	}
 
@@ -135,7 +136,7 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal shared timezone profile update: %v", err)
 	}
-	if got := live.GetUserProfileSync().GetTimezone(); got != newTZ {
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != newTZ {
 		t.Fatalf("profile timezone = %q, want %q", got, newTZ)
 	}
 
@@ -150,7 +151,7 @@ func TestChattoCore_UpdateUserSettings_PublishesOnlyPublicTimezoneChanges(t *tes
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal hidden timezone profile update: %v", err)
 	}
-	if got := live.GetUserProfileSync().GetTimezone(); got != "" {
+	if got := live.GetUserProfileUpdated().GetTimezone(); got != "" {
 		t.Fatalf("hidden profile timezone = %q, want empty", got)
 	}
 	settings, err := core.GetUserSettings(ctx, user.GetId())

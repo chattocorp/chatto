@@ -15,14 +15,10 @@ import {
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
-  RealtimeClientFrame,
-  RealtimeClientHello,
   RealtimeInitialState,
-  RealtimeRecoveryMode,
   RealtimeCloseCode,
-  RealtimeErrorCode,
   RealtimeServerFrame,
-  RealtimeSubscribeEvents,
+  RealtimeSubscribe,
   type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
@@ -35,8 +31,6 @@ import type { ConnectionStatus, ServerConnection } from './serverConnection.svel
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
-const MIN_HEARTBEAT_STALL_MS = 30_000;
-const MISSED_HEARTBEATS_BEFORE_STALL = 3;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
 const RECONNECT_WAIT_MS = 5_000;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
@@ -102,33 +96,13 @@ async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<U
   return new Uint8Array(await data.arrayBuffer());
 }
 
-function clientHelloFrame(token: string | null): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'hello',
-      value: new RealtimeClientHello({
-        protocolVersion: REALTIME_PROTOCOL_VERSION,
-        bearerToken: token ?? undefined
-      })
-    }
+function subscribeFrame(token: string | null, resumeCursor: string | null): Uint8Array {
+  return new RealtimeSubscribe({
+    protocolVersion: REALTIME_PROTOCOL_VERSION,
+    bearerToken: token ?? undefined,
+    resumeCursor: resumeCursor ?? undefined,
+    initialState: RealtimeInitialState.SNAPSHOT
   }).toBinary();
-}
-
-function subscribeEventsFrame(resumeCursor: string | null): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'subscribeEvents',
-      value: new RealtimeSubscribeEvents({
-        resumeCursor: resumeCursor ?? undefined,
-        initialState: RealtimeInitialState.SNAPSHOT
-      })
-    }
-  }).toBinary();
-}
-
-function heartbeatStallMsForInterval(seconds: number): number {
-  if (seconds <= 0) return DEFAULT_HEARTBEAT_STALL_MS;
-  return Math.max(MIN_HEARTBEAT_STALL_MS, seconds * MISSED_HEARTBEATS_BEFORE_STALL * 1000);
 }
 
 class EventBusManager {
@@ -186,7 +160,7 @@ class EventBusManager {
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
-    let heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
+    const heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
     let heartbeatCount = 0;
     let dispatchedEventCount = 0;
     let reconnectCount = 0;
@@ -372,8 +346,7 @@ class EventBusManager {
       let frameProcessing = Promise.resolve();
       let cursorReconciliation = Promise.resolve();
       let reconciliationFailed = false;
-      let snapshotRecovery = false;
-      const snapshotResourcesSeen = new SvelteSet<string>();
+      let snapshotReceived = false;
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
@@ -401,7 +374,7 @@ class EventBusManager {
 
       nextSocket.onopen = () => {
         if (stopped || socket !== nextSocket) return;
-        nextSocket.send(clientHelloFrame(serverConnection.bearerToken));
+        nextSocket.send(subscribeFrame(serverConnection.bearerToken, sync.resumeCursor));
       };
 
       nextSocket.onmessage = (message) => {
@@ -421,77 +394,51 @@ class EventBusManager {
             }
 
             lastEventAt = Date.now();
+            if (!socketSubscribed) {
+              socketSubscribed = true;
+              reconnectAttempts = 0;
+              console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
+                generation: socketGeneration,
+                mode
+              });
+            }
             switch (frame.frame.case) {
-              case 'hello':
-                if (frame.frame.value.protocolVersion !== REALTIME_PROTOCOL_VERSION) {
-                  stopForUnsupportedProtocol(nextSocket);
-                  return;
-                }
-                heartbeatStallMs = heartbeatStallMsForInterval(
-                  durationMilliseconds(frame.frame.value.heartbeatInterval) / 1000
-                );
-                nextSocket.send(subscribeEventsFrame(sync.resumeCursor));
-                return;
-              case 'subscribed':
-                socketSubscribed = true;
-                reconnectAttempts = 0;
-                snapshotRecovery = frame.frame.value.recoveryMode === RealtimeRecoveryMode.SNAPSHOT;
-                if (snapshotRecovery) {
-                  snapshotResourcesSeen.clear();
-                  try {
-                    dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
-                    sync.acceptProjectionEvent(undefined, true);
-                  } catch (error) {
-                    console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
-                    nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
-                    return;
-                  }
-                }
-                console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
-                  generation: socketGeneration,
-                  mode
-                });
-                return;
               case 'heartbeat':
                 heartbeatCount++;
                 commitEventCursor(frame.frame.value.resumeCursor);
                 return;
               case 'snapshot':
-                if (!snapshotRecovery) {
-                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'unexpected snapshot frame');
+                if (snapshotReceived || !frame.frame.value.server) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'invalid snapshot frame');
                   return;
                 }
-                if (!frame.frame.value.resource.case) {
-                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'empty snapshot frame');
-                  return;
-                }
-                snapshotResourcesSeen.add(frame.frame.value.resource.case);
+                snapshotReceived = true;
                 try {
-                  const resource = frame.frame.value.resource;
-                  const normalized =
-                    resource.case === 'rooms'
-                      ? {
-                          case: 'rooms' as const,
-                          value: new ListRoomsResponse({ rooms: resource.value.rooms })
-                        }
-                      : resource.case === 'roomGroups'
-                        ? {
-                            case: 'roomGroups' as const,
-                            value: new ListRoomGroupsResponse({ groups: resource.value.roomGroups })
-                          }
-                        : resource.case === 'activeCalls'
-                          ? {
-                              case: 'activeCalls' as const,
-                              value: new ListActiveCallsResponse({
-                                calls: resource.value.activeCalls
-                              })
-                            }
-                          : resource;
-                  dispatchProjectionUpdate(
-                    new RealtimeProjectionUpdate({
-                      resource: new RealtimeResourceUpdate({ resource: normalized, replace: true })
-                    })
-                  );
+                  dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
+                  sync.acceptProjectionEvent(undefined, true);
+                  const resources = [
+                    { case: 'server' as const, value: frame.frame.value.server },
+                    {
+                      case: 'rooms' as const,
+                      value: new ListRoomsResponse({ rooms: frame.frame.value.rooms })
+                    },
+                    {
+                      case: 'roomGroups' as const,
+                      value: new ListRoomGroupsResponse({ groups: frame.frame.value.roomGroups })
+                    },
+                    { case: 'users' as const, value: { users: frame.frame.value.users } },
+                    {
+                      case: 'activeCalls' as const,
+                      value: new ListActiveCallsResponse({ calls: frame.frame.value.activeCalls })
+                    }
+                  ];
+                  for (const resource of resources) {
+                    dispatchProjectionUpdate(
+                      new RealtimeProjectionUpdate({
+                        resource: new RealtimeResourceUpdate({ resource, replace: true })
+                      })
+                    );
+                  }
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
@@ -511,15 +458,6 @@ class EventBusManager {
                 return;
               }
               case 'caughtUp': {
-                if (
-                  snapshotRecovery &&
-                  ['server', 'rooms', 'roomGroups', 'users', 'activeCalls'].some(
-                    (resource) => !snapshotResourcesSeen.has(resource)
-                  )
-                ) {
-                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'incomplete snapshot');
-                  return;
-                }
                 try {
                   await cursorReconciliation;
                   await completeProjectionCatchUp?.(frame.frame.value.cursor);
@@ -528,7 +466,6 @@ class EventBusManager {
                   return;
                 }
                 if (stopped || socket !== nextSocket) return;
-                snapshotRecovery = false;
                 sync.markCaughtUp(frame.frame.value.cursor);
                 resolvePoll(true);
                 if (mode === 'polling') {
@@ -543,24 +480,6 @@ class EventBusManager {
                 }
                 return;
               }
-              case 'error':
-                console.error(`[eventBus:${serverId}] realtime error`, {
-                  code: frame.frame.value.code,
-                  message: frame.frame.value.message,
-                  fatal: frame.frame.value.fatal
-                });
-                if (frame.frame.value.code === RealtimeErrorCode.AUTHENTICATION_REQUIRED) {
-                  void recoverFromAuthenticationRequired(nextSocket, 'error frame');
-                  return;
-                }
-                if (frame.frame.value.code === RealtimeErrorCode.UNSUPPORTED_PROTOCOL) {
-                  stopForUnsupportedProtocol(nextSocket);
-                  return;
-                }
-                if (frame.frame.value.fatal) {
-                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
-                }
-                return;
               case 'close':
                 if (frame.frame.value.code === RealtimeCloseCode.AUTHENTICATION_REQUIRED) {
                   void recoverFromAuthenticationRequired(nextSocket, 'close frame');
@@ -568,6 +487,10 @@ class EventBusManager {
                 }
                 if (frame.frame.value.code === RealtimeCloseCode.SESSION_RENEWAL_REQUIRED) {
                   void renewBrowserSession(nextSocket);
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.UNSUPPORTED_PROTOCOL) {
+                  stopForUnsupportedProtocol(nextSocket);
                   return;
                 }
                 nextSocket.onclose = null;
@@ -592,8 +515,6 @@ class EventBusManager {
                     serverConnection.setRealtimeConnectionStatus('disconnected');
                   }
                 }
-                return;
-              case 'pong':
                 return;
               case undefined:
                 console.error(`[eventBus:${serverId}] unsupported realtime server frame`);

@@ -50,9 +50,9 @@ func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string
 		timezone = settings.GetTimezone()
 	}
 
-	event := newTransientEvent(userID, &evtv1.Event{
-		Event: &evtv1.Event_UserProfileSync{
-			UserProfileSync: &livev1.UserProfileSyncEvent{
+	event := newLiveEvent(userID, &livev1.LiveEvent{
+		Event: &livev1.LiveEvent_UserProfileUpdated{
+			UserProfileUpdated: &livev1.UserProfileSyncEvent{
 				UserId:      userID,
 				DisplayName: user.DisplayName,
 				AvatarUrl:   avatarURL,

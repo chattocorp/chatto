@@ -27,7 +27,7 @@ inventories.
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |
 | Object store | `PROJECTION_SNAPSHOTS` | File | Yes    | Optional encrypted `chatto.core.projection.v1` snapshot objects; configurable TTL defaults to seven days |
 | Object store | `ASSET_CACHE`       | File    | No     | Optional TTL cache for transformed image bytes                               |
-| NATS Core    | `live.sync.>`       | None    | No     | Transient canonical `evtv1.Event` pubsub signals                             |
+| NATS Core    | `live.sync.>`       | None    | No     | Transient `livev1.LiveEvent` pubsub signals                                  |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
 
 ## Durable consumers

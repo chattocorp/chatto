@@ -99,12 +99,13 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
 | [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
 | [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
-| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Partially superseded | 2026-08-28 |
+| [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
 | [ADR-086](ADR-086-atomic-room-layout-structural-mutations.md) | Commit Room-Layout Structural Mutations Atomically | Accepted | 2026-08-30 |
 | [ADR-087](ADR-087-request-time-authorization-with-aggregate-occ.md) | Use Request-Time Authorization with Aggregate OCC | Accepted | 2026-09-01 |
 | [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
 | [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Accepted | 2026-09-02 |
 | [ADR-090](ADR-090-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
-| [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) | Use One Event Vocabulary for Storage, Live Delivery, and Realtime | Partially superseded | 2026-08-31 |
+| [ADR-091](ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md) | Use One Event Vocabulary for Storage, Live Delivery, and Realtime | Superseded | 2026-08-31 |
 | [ADR-092](ADR-092-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Dedicated Payloads | Accepted | 2026-09-03 |
+| [ADR-093](ADR-093-separate-durable-and-live-event-envelopes.md) | Separate Durable and Live Event Envelopes | Accepted | 2026-09-03 |

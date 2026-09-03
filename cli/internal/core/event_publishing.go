@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	livev1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 )
 
 // ============================================================================
@@ -23,16 +24,16 @@ import (
 // indefinitely instead of surfacing as a normal error.
 const natsPublishFlushTimeout = 5 * time.Second
 
-// publishLiveEvent publishes a transient Event directly to a live.sync.>
+// publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
 // subject, bypassing JetStream storage. The subject should already include
 // the "live.sync." prefix.
-func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *evtv1.Event) error {
+func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *livev1.LiveEvent) error {
 	return c.publishLiveEvents(ctx, []liveEventPublication{{subject: subject, event: event}})
 }
 
 type liveEventPublication struct {
 	subject string
-	event   *evtv1.Event
+	event   *livev1.LiveEvent
 }
 
 // publishLiveEvents publishes a related set of transient events and flushes
@@ -45,10 +46,10 @@ func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEve
 	}
 	encoded := make([]encodedPublication, 0, len(publications))
 	for index, publication := range publications {
-		if err := validateTransientEvent(publication.event); err != nil {
+		if err := validateLiveEvent(publication.event); err != nil {
 			return fmt.Errorf("live publication %d: %w", index, err)
 		}
-		eventData, err := marshalTransientEvent(publication.event)
+		eventData, err := proto.Marshal(publication.event)
 		if err != nil {
 			return fmt.Errorf("marshal live publication %d: %w", index, err)
 		}
@@ -68,11 +69,6 @@ func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEve
 	return nil
 }
 
-// marshalTransientEvent encodes the canonical Event used on live.sync.>.
-func marshalTransientEvent(event *evtv1.Event) ([]byte, error) {
-	return proto.Marshal(event)
-}
-
 func validateEvent(event *evtv1.Event) error {
 	if event == nil || event.Event == nil {
 		return fmt.Errorf("%w: event payload is nil or oneof field is unset", ErrInvalidEvent)
@@ -80,16 +76,9 @@ func validateEvent(event *evtv1.Event) error {
 	return nil
 }
 
-func validateTransientEvent(event *evtv1.Event) error {
+func validateLiveEvent(event *livev1.LiveEvent) error {
 	if event == nil || event.Event == nil {
-		return fmt.Errorf("%w: transient event payload is nil or oneof field is unset", ErrInvalidEvent)
-	}
-	field := event.ProtoReflect().WhichOneof(event.ProtoReflect().Descriptor().Oneofs().ByName("event"))
-	if field == nil {
-		return fmt.Errorf("%w: transient event oneof field is unset", ErrInvalidEvent)
-	}
-	if field.Number() < 20000 || field.Number() > 29999 {
-		return fmt.Errorf("%w: event tag %d is not transient", ErrInvalidEvent, field.Number())
+		return fmt.Errorf("%w: live event payload is nil or oneof field is unset", ErrInvalidEvent)
 	}
 	return nil
 }
@@ -110,10 +99,10 @@ func newEvent(actorID string, event *evtv1.Event) *evtv1.Event {
 	return event
 }
 
-// newTransientEvent fills in the Id, ActorID, and CreatedAt fields of an Event
+// newLiveEvent fills in the Id, ActorID, and CreatedAt fields of a LiveEvent
 // envelope if they're not already set. The caller provides the event with the
 // concrete oneof variant already populated.
-func newTransientEvent(actorID string, event *evtv1.Event) *evtv1.Event {
+func newLiveEvent(actorID string, event *livev1.LiveEvent) *livev1.LiveEvent {
 	if event.Id == "" {
 		event.Id = NewEventID()
 	}

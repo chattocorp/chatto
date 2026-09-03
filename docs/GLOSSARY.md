@@ -186,10 +186,9 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
 
-**Event** — Canonical `evtv1.Event` envelope and payload that describe one
-Chatto domain change. A durable Event is stored in EVT. A transient Event is
-published only on NATS Core. The publisher, not the envelope, selects
-durability. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+**Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
+domain fact. EVT stores this value. See
+[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
@@ -219,18 +218,20 @@ durability. See [ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Live Event** — An Event delivered through the internal live ingress. Durable
-Events reach it through EVT republish on `live.evt.>`. Transient Events publish
-directly on `live.sync.>`. Both paths use the canonical Event envelope. See
-[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+**Live Event** — A transient `livev1.LiveEvent` envelope and payload published
+on `live.sync.>` through NATS Core. It is not stored in EVT. Durable Events
+reach the internal live ingress separately through EVT republish on
+`live.evt.>`. See
+[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
 
 **Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
 integrations, alternate clients, and the bundled frontend. Its explicit event
-union and dedicated payload files form the public event catalog. Union names
-and numbers stay aligned with selected canonical events. Public payload field
-numbers are independent from EVT. An optional cursor remains outside the
-payload union. Internal variants and storage-only fields do not exist in the
-public schema. The server can add authorized public-only plaintext fields. Raw
+union and dedicated payload files form the public event catalogue. Durable
+union members stay aligned with selected EVT events. Live event mappings are
+explicit. Public payload field numbers are independent from EVT. An optional
+cursor remains outside the payload union. Internal variants and storage-only
+fields do not exist in the public schema. The server can add authorized
+public-only plaintext fields. Raw
 EVT bytes, subjects, stream identities, and sequence numbers are not public
 API. See
 [ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md) and
@@ -242,7 +243,8 @@ Events plus targeted resource reads. It is a convergence view, not an audit
 log. It does not replace the resource-oriented `chatto.api.v1` API for
 explicit reads, commands, pagination, and history. See
 [ADR-090](adr/ADR-090-semantic-realtime-events-with-bounded-resume.md) and
-[ADR-091](adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md).
+[ADR-092](adr/ADR-092-use-a-public-realtime-event-union.md) and
+[ADR-093](adr/ADR-093-separate-durable-and-live-event-envelopes.md).
 
 **Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
 realtime snapshot. The server sends later authorized public events only after

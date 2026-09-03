@@ -10,7 +10,6 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
-	v1 "hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -23,9 +22,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Event is Chatto's canonical domain-event envelope. Durable facts use this
-// wrapper in EVT. Transient signals use the same wrapper on NATS Core and are
-// never persisted.
+// Event is the wire-format envelope for durable domain facts. New writes
+// to the event-sourced EVT stream use this wrapper; projections consume it
+// as source-of-truth input.
 //
 // Field-number convention for the `event` oneof:
 //
@@ -36,11 +35,8 @@ const (
 // - **1050-1051**: durable reaction variants that kept their legacy
 // live tags during the EVT cutover. Treat them like persisted tags.
 //
-// - **1000-9999, except 1050-1051**: retired legacy live-only variant
-// numbers. Do not reuse them.
-//
-// - **20000-29999**: transient variants. They can use NATS Core but the EVT
-// storage boundary rejects them.
+// - **>= 1000, except 1050-1051**: retired legacy live-only variant
+// numbers. New transient pubsub signals belong in LiveEvent, not Event.
 //
 // Category ownership for the top-level oneof tags is documented in the
 // sibling *_events.proto files. The top-level tag is the durable/event
@@ -193,21 +189,6 @@ type Event struct {
 	//	*Event_InvitationRevoked
 	//	*Event_ReactionAdded
 	//	*Event_ReactionRemoved
-	//	*Event_UserCreatedSync
-	//	*Event_UserProfileSync
-	//	*Event_ServerUserPreferencesSync
-	//	*Event_ThreadFollowChangedSync
-	//	*Event_ServerMemberDeletedSync
-	//	*Event_ServerUpdatedSync
-	//	*Event_UserTypingSignal
-	//	*Event_PresenceChangedSignal
-	//	*Event_CallParticipantJoinedSignal
-	//	*Event_CallParticipantLeftSignal
-	//	*Event_NotificationOccurrencesInvalidated
-	//	*Event_NotificationUnreadChanged
-	//	*Event_RoomMarkedAsReadSync
-	//	*Event_MentionStatusClearedSync
-	//	*Event_SessionTerminatedSignal
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1474,141 +1455,6 @@ func (x *Event) GetReactionRemoved() *ReactionRemovedEvent {
 	return nil
 }
 
-func (x *Event) GetUserCreatedSync() *v1.UserCreatedSyncEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_UserCreatedSync); ok {
-			return x.UserCreatedSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetUserProfileSync() *v1.UserProfileSyncEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_UserProfileSync); ok {
-			return x.UserProfileSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetServerUserPreferencesSync() *v1.ServerUserPreferencesSyncEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ServerUserPreferencesSync); ok {
-			return x.ServerUserPreferencesSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetThreadFollowChangedSync() *v1.ThreadFollowChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ThreadFollowChangedSync); ok {
-			return x.ThreadFollowChangedSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetServerMemberDeletedSync() *v1.ServerMemberDeletedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ServerMemberDeletedSync); ok {
-			return x.ServerMemberDeletedSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetServerUpdatedSync() *v1.ServerUpdatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_ServerUpdatedSync); ok {
-			return x.ServerUpdatedSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetUserTypingSignal() *v1.UserTypingEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_UserTypingSignal); ok {
-			return x.UserTypingSignal
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetPresenceChangedSignal() *v1.PresenceChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_PresenceChangedSignal); ok {
-			return x.PresenceChangedSignal
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetCallParticipantJoinedSignal() *v1.CallParticipantJoinedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_CallParticipantJoinedSignal); ok {
-			return x.CallParticipantJoinedSignal
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetCallParticipantLeftSignal() *v1.CallParticipantLeftEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_CallParticipantLeftSignal); ok {
-			return x.CallParticipantLeftSignal
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetNotificationOccurrencesInvalidated() *v1.NotificationOccurrencesInvalidatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_NotificationOccurrencesInvalidated); ok {
-			return x.NotificationOccurrencesInvalidated
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetNotificationUnreadChanged() *v1.NotificationUnreadChangedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_NotificationUnreadChanged); ok {
-			return x.NotificationUnreadChanged
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetRoomMarkedAsReadSync() *v1.RoomMarkedAsReadEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_RoomMarkedAsReadSync); ok {
-			return x.RoomMarkedAsReadSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetMentionStatusClearedSync() *v1.MentionStatusClearedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_MentionStatusClearedSync); ok {
-			return x.MentionStatusClearedSync
-		}
-	}
-	return nil
-}
-
-func (x *Event) GetSessionTerminatedSignal() *v1.SessionTerminatedEvent {
-	if x != nil {
-		if x, ok := x.Event.(*Event_SessionTerminatedSignal); ok {
-			return x.SessionTerminatedSignal
-		}
-	}
-	return nil
-}
-
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -1752,8 +1598,8 @@ type Event_AssetAttached struct {
 type Event_ServerNameChanged struct {
 	// ----- Config / preferences (500-599, durable) -----
 	// These variants live on the EVT stream (subjects under evt.config.>)
-	// per ADRs 033/034/035. Member-visible server profile/config invalidation
-	// uses the transient server_updated_sync variant instead.
+	// per ADRs 033/034/035. Member-visible server profile/config live
+	// invalidation uses LiveEvent.ServerUpdatedEvent instead.
 	ServerNameChanged *ServerNameChangedEvent `protobuf:"bytes,501,opt,name=server_name_changed,json=serverNameChanged,proto3,oneof"`
 }
 
@@ -2199,67 +2045,6 @@ type Event_ReactionRemoved struct {
 	ReactionRemoved *ReactionRemovedEvent `protobuf:"bytes,1051,opt,name=reaction_removed,json=reactionRemoved,proto3,oneof"`
 }
 
-type Event_UserCreatedSync struct {
-	// ----- Transient signals (20000-29999, never stored in EVT) -----
-	UserCreatedSync *v1.UserCreatedSyncEvent `protobuf:"bytes,20000,opt,name=user_created_sync,json=userCreatedSync,proto3,oneof"`
-}
-
-type Event_UserProfileSync struct {
-	UserProfileSync *v1.UserProfileSyncEvent `protobuf:"bytes,20001,opt,name=user_profile_sync,json=userProfileSync,proto3,oneof"`
-}
-
-type Event_ServerUserPreferencesSync struct {
-	ServerUserPreferencesSync *v1.ServerUserPreferencesSyncEvent `protobuf:"bytes,20002,opt,name=server_user_preferences_sync,json=serverUserPreferencesSync,proto3,oneof"`
-}
-
-type Event_ThreadFollowChangedSync struct {
-	ThreadFollowChangedSync *v1.ThreadFollowChangedEvent `protobuf:"bytes,20003,opt,name=thread_follow_changed_sync,json=threadFollowChangedSync,proto3,oneof"`
-}
-
-type Event_ServerMemberDeletedSync struct {
-	ServerMemberDeletedSync *v1.ServerMemberDeletedEvent `protobuf:"bytes,20004,opt,name=server_member_deleted_sync,json=serverMemberDeletedSync,proto3,oneof"`
-}
-
-type Event_ServerUpdatedSync struct {
-	ServerUpdatedSync *v1.ServerUpdatedEvent `protobuf:"bytes,20005,opt,name=server_updated_sync,json=serverUpdatedSync,proto3,oneof"`
-}
-
-type Event_UserTypingSignal struct {
-	UserTypingSignal *v1.UserTypingEvent `protobuf:"bytes,20006,opt,name=user_typing_signal,json=userTypingSignal,proto3,oneof"`
-}
-
-type Event_PresenceChangedSignal struct {
-	PresenceChangedSignal *v1.PresenceChangedEvent `protobuf:"bytes,20007,opt,name=presence_changed_signal,json=presenceChangedSignal,proto3,oneof"`
-}
-
-type Event_CallParticipantJoinedSignal struct {
-	CallParticipantJoinedSignal *v1.CallParticipantJoinedEvent `protobuf:"bytes,20008,opt,name=call_participant_joined_signal,json=callParticipantJoinedSignal,proto3,oneof"`
-}
-
-type Event_CallParticipantLeftSignal struct {
-	CallParticipantLeftSignal *v1.CallParticipantLeftEvent `protobuf:"bytes,20009,opt,name=call_participant_left_signal,json=callParticipantLeftSignal,proto3,oneof"`
-}
-
-type Event_NotificationOccurrencesInvalidated struct {
-	NotificationOccurrencesInvalidated *v1.NotificationOccurrencesInvalidatedEvent `protobuf:"bytes,20010,opt,name=notification_occurrences_invalidated,json=notificationOccurrencesInvalidated,proto3,oneof"`
-}
-
-type Event_NotificationUnreadChanged struct {
-	NotificationUnreadChanged *v1.NotificationUnreadChangedEvent `protobuf:"bytes,20011,opt,name=notification_unread_changed,json=notificationUnreadChanged,proto3,oneof"`
-}
-
-type Event_RoomMarkedAsReadSync struct {
-	RoomMarkedAsReadSync *v1.RoomMarkedAsReadEvent `protobuf:"bytes,20012,opt,name=room_marked_as_read_sync,json=roomMarkedAsReadSync,proto3,oneof"`
-}
-
-type Event_MentionStatusClearedSync struct {
-	MentionStatusClearedSync *v1.MentionStatusClearedEvent `protobuf:"bytes,20013,opt,name=mention_status_cleared_sync,json=mentionStatusClearedSync,proto3,oneof"`
-}
-
-type Event_SessionTerminatedSignal struct {
-	SessionTerminatedSignal *v1.SessionTerminatedEvent `protobuf:"bytes,20015,opt,name=session_terminated_signal,json=sessionTerminatedSignal,proto3,oneof"`
-}
-
 func (*Event_RoomCreated) isEvent_Event() {}
 
 func (*Event_RoomUpdated) isEvent_Event() {}
@@ -2526,41 +2311,11 @@ func (*Event_ReactionAdded) isEvent_Event() {}
 
 func (*Event_ReactionRemoved) isEvent_Event() {}
 
-func (*Event_UserCreatedSync) isEvent_Event() {}
-
-func (*Event_UserProfileSync) isEvent_Event() {}
-
-func (*Event_ServerUserPreferencesSync) isEvent_Event() {}
-
-func (*Event_ThreadFollowChangedSync) isEvent_Event() {}
-
-func (*Event_ServerMemberDeletedSync) isEvent_Event() {}
-
-func (*Event_ServerUpdatedSync) isEvent_Event() {}
-
-func (*Event_UserTypingSignal) isEvent_Event() {}
-
-func (*Event_PresenceChangedSignal) isEvent_Event() {}
-
-func (*Event_CallParticipantJoinedSignal) isEvent_Event() {}
-
-func (*Event_CallParticipantLeftSignal) isEvent_Event() {}
-
-func (*Event_NotificationOccurrencesInvalidated) isEvent_Event() {}
-
-func (*Event_NotificationUnreadChanged) isEvent_Event() {}
-
-func (*Event_RoomMarkedAsReadSync) isEvent_Event() {}
-
-func (*Event_MentionStatusClearedSync) isEvent_Event() {}
-
-func (*Event_SessionTerminatedSignal) isEvent_Event() {}
-
 var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a%chatto/core/live/v1/live_events.proto\"\xb2\x80\x01\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\"\xber\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2698,23 +2453,8 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\x13invitation_redeemed\x18\xa3\a \x01(\v2+.chatto.core.evt.v1.InvitationRedeemedEventH\x00R\x12invitationRedeemed\x12\\\n" +
 	"\x12invitation_revoked\x18\xa4\a \x01(\v2*.chatto.core.evt.v1.InvitationRevokedEventH\x00R\x11invitationRevoked\x12P\n" +
 	"\x0ereaction_added\x18\x9a\b \x01(\v2&.chatto.core.evt.v1.ReactionAddedEventH\x00R\rreactionAdded\x12V\n" +
-	"\x10reaction_removed\x18\x9b\b \x01(\v2(.chatto.core.evt.v1.ReactionRemovedEventH\x00R\x0freactionRemoved\x12Y\n" +
-	"\x11user_created_sync\x18\xa0\x9c\x01 \x01(\v2).chatto.core.live.v1.UserCreatedSyncEventH\x00R\x0fuserCreatedSync\x12Y\n" +
-	"\x11user_profile_sync\x18\xa1\x9c\x01 \x01(\v2).chatto.core.live.v1.UserProfileSyncEventH\x00R\x0fuserProfileSync\x12x\n" +
-	"\x1cserver_user_preferences_sync\x18\xa2\x9c\x01 \x01(\v23.chatto.core.live.v1.ServerUserPreferencesSyncEventH\x00R\x19serverUserPreferencesSync\x12n\n" +
-	"\x1athread_follow_changed_sync\x18\xa3\x9c\x01 \x01(\v2-.chatto.core.live.v1.ThreadFollowChangedEventH\x00R\x17threadFollowChangedSync\x12n\n" +
-	"\x1aserver_member_deleted_sync\x18\xa4\x9c\x01 \x01(\v2-.chatto.core.live.v1.ServerMemberDeletedEventH\x00R\x17serverMemberDeletedSync\x12[\n" +
-	"\x13server_updated_sync\x18\xa5\x9c\x01 \x01(\v2'.chatto.core.live.v1.ServerUpdatedEventH\x00R\x11serverUpdatedSync\x12V\n" +
-	"\x12user_typing_signal\x18\xa6\x9c\x01 \x01(\v2$.chatto.core.live.v1.UserTypingEventH\x00R\x10userTypingSignal\x12e\n" +
-	"\x17presence_changed_signal\x18\xa7\x9c\x01 \x01(\v2).chatto.core.live.v1.PresenceChangedEventH\x00R\x15presenceChangedSignal\x12x\n" +
-	"\x1ecall_participant_joined_signal\x18\xa8\x9c\x01 \x01(\v2/.chatto.core.live.v1.CallParticipantJoinedEventH\x00R\x1bcallParticipantJoinedSignal\x12r\n" +
-	"\x1ccall_participant_left_signal\x18\xa9\x9c\x01 \x01(\v2-.chatto.core.live.v1.CallParticipantLeftEventH\x00R\x19callParticipantLeftSignal\x12\x92\x01\n" +
-	"$notification_occurrences_invalidated\x18\xaa\x9c\x01 \x01(\v2<.chatto.core.live.v1.NotificationOccurrencesInvalidatedEventH\x00R\"notificationOccurrencesInvalidated\x12w\n" +
-	"\x1bnotification_unread_changed\x18\xab\x9c\x01 \x01(\v23.chatto.core.live.v1.NotificationUnreadChangedEventH\x00R\x19notificationUnreadChanged\x12f\n" +
-	"\x18room_marked_as_read_sync\x18\xac\x9c\x01 \x01(\v2*.chatto.core.live.v1.RoomMarkedAsReadEventH\x00R\x14roomMarkedAsReadSync\x12q\n" +
-	"\x1bmention_status_cleared_sync\x18\xad\x9c\x01 \x01(\v2..chatto.core.live.v1.MentionStatusClearedEventH\x00R\x18mentionStatusClearedSync\x12k\n" +
-	"\x19session_terminated_signal\x18\xaf\x9c\x01 \x01(\v2+.chatto.core.live.v1.SessionTerminatedEventH\x00R\x17sessionTerminatedSignalB\a\n" +
-	"\x05eventJ\x04\b\x14\x10\x15J\x04\b\x16\x10\x17J\x04\b\x17\x10\x18J\x04\b\x19\x10\x1aJ\x04\b\x1e\x10\x1fJ\x04\b\x1f\x10 J\x04\b(\x10)J\x04\b-\x10.J\x04\b<\x10=J\x04\b=\x10>J\x04\bH\x10IJ\x04\bI\x10JJ\x04\bP\x10QJ\x04\bQ\x10RJ\x04\bZ\x10[J\x04\bd\x10eJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\b\b\xae\x9c\x01\x10\xaf\x9c\x01J\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idR\x18room_groups_updated_syncB\xc5\x01\n" +
+	"\x10reaction_removed\x18\x9b\b \x01(\v2(.chatto.core.evt.v1.ReactionRemovedEventH\x00R\x0freactionRemovedB\a\n" +
+	"\x05eventJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idB\xc5\x01\n" +
 	"\x16com.chatto.core.evt.v1B\n" +
 	"EventProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
@@ -2867,21 +2607,6 @@ var file_chatto_core_evt_v1_event_proto_goTypes = []any{
 	(*InvitationRevokedEvent)(nil),                      // 132: chatto.core.evt.v1.InvitationRevokedEvent
 	(*ReactionAddedEvent)(nil),                          // 133: chatto.core.evt.v1.ReactionAddedEvent
 	(*ReactionRemovedEvent)(nil),                        // 134: chatto.core.evt.v1.ReactionRemovedEvent
-	(*v1.UserCreatedSyncEvent)(nil),                     // 135: chatto.core.live.v1.UserCreatedSyncEvent
-	(*v1.UserProfileSyncEvent)(nil),                     // 136: chatto.core.live.v1.UserProfileSyncEvent
-	(*v1.ServerUserPreferencesSyncEvent)(nil),           // 137: chatto.core.live.v1.ServerUserPreferencesSyncEvent
-	(*v1.ThreadFollowChangedEvent)(nil),                 // 138: chatto.core.live.v1.ThreadFollowChangedEvent
-	(*v1.ServerMemberDeletedEvent)(nil),                 // 139: chatto.core.live.v1.ServerMemberDeletedEvent
-	(*v1.ServerUpdatedEvent)(nil),                       // 140: chatto.core.live.v1.ServerUpdatedEvent
-	(*v1.UserTypingEvent)(nil),                          // 141: chatto.core.live.v1.UserTypingEvent
-	(*v1.PresenceChangedEvent)(nil),                     // 142: chatto.core.live.v1.PresenceChangedEvent
-	(*v1.CallParticipantJoinedEvent)(nil),               // 143: chatto.core.live.v1.CallParticipantJoinedEvent
-	(*v1.CallParticipantLeftEvent)(nil),                 // 144: chatto.core.live.v1.CallParticipantLeftEvent
-	(*v1.NotificationOccurrencesInvalidatedEvent)(nil),  // 145: chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent
-	(*v1.NotificationUnreadChangedEvent)(nil),           // 146: chatto.core.live.v1.NotificationUnreadChangedEvent
-	(*v1.RoomMarkedAsReadEvent)(nil),                    // 147: chatto.core.live.v1.RoomMarkedAsReadEvent
-	(*v1.MentionStatusClearedEvent)(nil),                // 148: chatto.core.live.v1.MentionStatusClearedEvent
-	(*v1.SessionTerminatedEvent)(nil),                   // 149: chatto.core.live.v1.SessionTerminatedEvent
 }
 var file_chatto_core_evt_v1_event_proto_depIdxs = []int32{
 	1,   // 0: chatto.core.evt.v1.Event.created_at:type_name -> google.protobuf.Timestamp
@@ -3018,26 +2743,11 @@ var file_chatto_core_evt_v1_event_proto_depIdxs = []int32{
 	132, // 131: chatto.core.evt.v1.Event.invitation_revoked:type_name -> chatto.core.evt.v1.InvitationRevokedEvent
 	133, // 132: chatto.core.evt.v1.Event.reaction_added:type_name -> chatto.core.evt.v1.ReactionAddedEvent
 	134, // 133: chatto.core.evt.v1.Event.reaction_removed:type_name -> chatto.core.evt.v1.ReactionRemovedEvent
-	135, // 134: chatto.core.evt.v1.Event.user_created_sync:type_name -> chatto.core.live.v1.UserCreatedSyncEvent
-	136, // 135: chatto.core.evt.v1.Event.user_profile_sync:type_name -> chatto.core.live.v1.UserProfileSyncEvent
-	137, // 136: chatto.core.evt.v1.Event.server_user_preferences_sync:type_name -> chatto.core.live.v1.ServerUserPreferencesSyncEvent
-	138, // 137: chatto.core.evt.v1.Event.thread_follow_changed_sync:type_name -> chatto.core.live.v1.ThreadFollowChangedEvent
-	139, // 138: chatto.core.evt.v1.Event.server_member_deleted_sync:type_name -> chatto.core.live.v1.ServerMemberDeletedEvent
-	140, // 139: chatto.core.evt.v1.Event.server_updated_sync:type_name -> chatto.core.live.v1.ServerUpdatedEvent
-	141, // 140: chatto.core.evt.v1.Event.user_typing_signal:type_name -> chatto.core.live.v1.UserTypingEvent
-	142, // 141: chatto.core.evt.v1.Event.presence_changed_signal:type_name -> chatto.core.live.v1.PresenceChangedEvent
-	143, // 142: chatto.core.evt.v1.Event.call_participant_joined_signal:type_name -> chatto.core.live.v1.CallParticipantJoinedEvent
-	144, // 143: chatto.core.evt.v1.Event.call_participant_left_signal:type_name -> chatto.core.live.v1.CallParticipantLeftEvent
-	145, // 144: chatto.core.evt.v1.Event.notification_occurrences_invalidated:type_name -> chatto.core.live.v1.NotificationOccurrencesInvalidatedEvent
-	146, // 145: chatto.core.evt.v1.Event.notification_unread_changed:type_name -> chatto.core.live.v1.NotificationUnreadChangedEvent
-	147, // 146: chatto.core.evt.v1.Event.room_marked_as_read_sync:type_name -> chatto.core.live.v1.RoomMarkedAsReadEvent
-	148, // 147: chatto.core.evt.v1.Event.mention_status_cleared_sync:type_name -> chatto.core.live.v1.MentionStatusClearedEvent
-	149, // 148: chatto.core.evt.v1.Event.session_terminated_signal:type_name -> chatto.core.live.v1.SessionTerminatedEvent
-	149, // [149:149] is the sub-list for method output_type
-	149, // [149:149] is the sub-list for method input_type
-	149, // [149:149] is the sub-list for extension type_name
-	149, // [149:149] is the sub-list for extension extendee
-	0,   // [0:149] is the sub-list for field type_name
+	134, // [134:134] is the sub-list for method output_type
+	134, // [134:134] is the sub-list for method input_type
+	134, // [134:134] is the sub-list for extension type_name
+	134, // [134:134] is the sub-list for extension extendee
+	0,   // [0:134] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_evt_v1_event_proto_init() }
@@ -3193,21 +2903,6 @@ func file_chatto_core_evt_v1_event_proto_init() {
 		(*Event_InvitationRevoked)(nil),
 		(*Event_ReactionAdded)(nil),
 		(*Event_ReactionRemoved)(nil),
-		(*Event_UserCreatedSync)(nil),
-		(*Event_UserProfileSync)(nil),
-		(*Event_ServerUserPreferencesSync)(nil),
-		(*Event_ThreadFollowChangedSync)(nil),
-		(*Event_ServerMemberDeletedSync)(nil),
-		(*Event_ServerUpdatedSync)(nil),
-		(*Event_UserTypingSignal)(nil),
-		(*Event_PresenceChangedSignal)(nil),
-		(*Event_CallParticipantJoinedSignal)(nil),
-		(*Event_CallParticipantLeftSignal)(nil),
-		(*Event_NotificationOccurrencesInvalidated)(nil),
-		(*Event_NotificationUnreadChanged)(nil),
-		(*Event_RoomMarkedAsReadSync)(nil),
-		(*Event_MentionStatusClearedSync)(nil),
-		(*Event_SessionTerminatedSignal)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

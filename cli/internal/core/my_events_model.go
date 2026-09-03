@@ -96,7 +96,7 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // that is relevant to a specific user.
 //
 // The process-wide MyEventsHub receives two internal NATS Core subject roots:
-// live.sync.> carries transient canonical Event messages and live.evt.> is the
+// live.sync.> carries transient LiveEvent messages and live.evt.> is the
 // raw singleton republish of committed EVT facts. EVT delivery is not UI-safe by
 // itself: the hub waits for the relevant local projection(s) to reach the
 // republished stream sequence, then applies each user's authorization before
@@ -242,12 +242,12 @@ func (s *MyEventsModel) StreamMyEvents(ctx context.Context, userID string, optio
 					s.slowDisconnects.Add(1)
 					return
 				}
-				live := newTransientEvent(update.UserID, &evtv1.Event{
-					Event: &evtv1.Event_PresenceChangedSignal{
-						PresenceChangedSignal: &livev1.PresenceChangedEvent{Status: update.Status},
+				live := newLiveEvent(update.UserID, &livev1.LiveEvent{
+					Event: &livev1.LiveEvent_PresenceChanged{
+						PresenceChanged: &livev1.PresenceChangedEvent{Status: update.Status},
 					},
 				})
-				if !send(NewTransientEventEnvelope(live)) {
+				if !send(NewLiveEventEnvelope(live)) {
 					return
 				}
 			case <-presenceSub.Done:
@@ -292,11 +292,11 @@ func (s *MyEventsModel) populateMemberRoomsCache(ctx context.Context, userID str
 	return nil
 }
 
-func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *evtv1.Event) (EventEnvelope, bool) {
+func (c *ChattoCore) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *livev1.LiveEvent) (EventEnvelope, bool) {
 	return c.myEventsModel.filterLiveSyncEvent(ctx, userID, memberRooms, msg, event)
 }
 
-func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *evtv1.Event) (EventEnvelope, bool) {
+func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, memberRooms map[string]struct{}, msg *nats.Msg, event *livev1.LiveEvent) (EventEnvelope, bool) {
 	if event == nil || event.Event == nil {
 		s.core.logger.Warn("Dropping live sync event without payload", "subject", msg.Subject)
 		return nil, false
@@ -311,15 +311,15 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 		_, isMember := memberRooms[roomID]
 
 		// Skip own typing events; the sender doesn't need to see them.
-		if event.GetUserTypingSignal() != nil && event.ActorId == userID {
+		if event.GetUserTyping() != nil && event.ActorId == userID {
 			return nil, false
 		}
 
 		if !isMember {
 			return nil, false
 		}
-		if event.GetUserTypingSignal() != nil {
-			typing := event.GetUserTypingSignal()
+		if event.GetUserTyping() != nil {
+			typing := event.GetUserTyping()
 			var canRead bool
 			var err error
 			if typing.GetThreadRootEventId() != "" {
@@ -331,14 +331,14 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 				return nil, false
 			}
 		}
-		return NewTransientEventEnvelope(event), true
+		return NewLiveEventEnvelope(event), true
 	}
 
 	if !s.isAuthorizedForLiveEvent(ctx, userID, msg.Subject) {
 		return nil, false
 	}
 
-	return NewTransientEventEnvelope(event), true
+	return NewLiveEventEnvelope(event), true
 }
 
 func liveEVTMsgSeq(msg *nats.Msg) uint64 {

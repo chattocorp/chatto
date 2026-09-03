@@ -14,8 +14,8 @@ Key files:
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-090](../adr/ADR-090-semantic-realtime-events-with-bounded-resume.md),
-[ADR-091](../adr/ADR-091-use-one-event-vocabulary-for-storage-live-and-realtime.md),
-and [ADR-092](../adr/ADR-092-use-a-public-realtime-event-union.md).
+[ADR-092](../adr/ADR-092-use-a-public-realtime-event-union.md), and
+[ADR-093](../adr/ADR-093-separate-durable-and-live-event-envelopes.md).
 
 ## Public protocol
 
@@ -23,36 +23,32 @@ The public API is a binary protobuf WebSocket at `GET /api/realtime`. The
 server accepts behavioral protocol version 4. The `chatto.realtime.v1` suffix
 is the protobuf package name. It is not the behavioral protocol version.
 
-The first client frame is `hello`. It contains protocol version 4 and can
-contain a bearer credential. A same-origin browser can use its cookie session.
-The server replies with `hello` and reports the accepted version, server
-version, and heartbeat interval. The protocol does not have a capability
-matrix.
+The client sends `RealtimeSubscribe` as its first binary WebSocket message. It
+contains protocol version 4, an optional bearer credential, an optional opaque
+resume cursor, and a required `SNAPSHOT` or `LIVE_ONLY` fallback choice. A
+same-origin browser can use its cookie session. The client sends no more
+application messages on the socket.
 
-The second client frame is `subscribe_events`. It contains an optional opaque
-resume cursor and a required `SNAPSHOT` or `LIVE_ONLY` fallback choice. The
-server replies with `subscribed` and selects one recovery mode:
+The server selects one recovery path:
 
 - `SNAPSHOT`: send an exact authorized content snapshot;
 - `LIVE_ONLY`: start at the current boundary without current state or old
   events; or
 - `RESUME`: send authorized durable events after the supplied cursor.
 
-The server sends the selected snapshot or replay without another client
-request. It then sends `caught_up` with the handoff cursor. The client can
-consider the subscription current only after it applies all earlier frames
-and this marker.
-
-Client control frames after subscription contain application-level `ping`
-frames. The server returns the ping nonce in `pong`.
+The received frames show the selected path. The server then sends `caught_up`
+with the handoff cursor. The client can consider the subscription current only
+after it applies all earlier frames and this marker. The other server frames
+are `event`, `heartbeat`, and `close`. All terminal protocol results use
+`close`. WebSocket control frames provide ping and pong behavior.
 
 ## Public events
 
-`chatto.core.evt.v1.Event` is the semantic unit for durable facts and
-transient signals inside the server. `chatto.realtime.v1.RealtimeEvent` is the
-authorized public event shape. It contains common metadata, one public payload
-variant, and an optional opaque resume cursor. It does not contain resource
-state.
+`chatto.core.evt.v1.Event` contains durable EVT facts.
+`chatto.core.live.v1.LiveEvent` contains transient NATS Core signals.
+`chatto.realtime.v1.RealtimeEvent` is the authorized public event shape for
+both sources. It contains common metadata, one public payload variant, and an
+optional opaque resume cursor. It does not contain resource state.
 
 A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
@@ -64,11 +60,13 @@ Common metadata and the cursor are outside the event `oneof`. A client can
 ignore a new event variant and still retain its cursor after it accepts the
 complete frame.
 
-The `RealtimeEvent.event` union and the realtime event files are the public catalogue.
-Each union member has the same name and field number as its canonical event.
-Public payload field numbers are independent from EVT. A missing union member keeps an internal
-variant out of the public API. A missing public payload field keeps an internal
-field out of the generated client types.
+The `RealtimeEvent.event` union and the realtime event files are the public
+catalogue. Durable members keep the EVT event name and union field number.
+Transient members use the reserved public transient range and have explicit
+`LiveEvent` mappings. Public payload field numbers are independent from both
+internal envelopes. A missing union member keeps an internal variant out of
+the public API. A missing public payload field keeps an internal field out of
+the generated client types.
 
 After event authorization, an exhaustive typed mapper copies approved values
 into a new dedicated public payload. It then adds trusted decrypted values to
@@ -102,16 +100,16 @@ barrier before it resolves data-encryption keys, assembles user resources,
 encodes protobuf messages, or writes to the WebSocket. Slow key storage or a
 KMS cannot stop content-view event application.
 
-Each `snapshot` frame contains one canonical `chatto.api.v1` resource shape.
-The resource families are:
+One atomic `snapshot` frame contains these canonical `chatto.api.v1` resource
+shapes:
 
 | Resource | Protobuf value | Client meaning |
 | --- | --- | --- |
 | Server profile | `ServerPublicProfile` | Public server profile at `E` |
-| Rooms | `ListRoomsResponse` | Complete visible room directory at `E` |
-| Room groups | `ListRoomGroupsResponse` | Complete visible room-group layout at `E` |
-| Users | `BatchGetUsersResponse` | Only the viewer and users referenced by visible snapshot resources |
-| Active calls | `ListActiveCallsResponse` | Complete visible active-call state at `E` |
+| Rooms | Repeated `RoomWithViewerState` | Complete visible room directory at `E` |
+| Room groups | Repeated `RoomGroup` | Complete visible room-group layout at `E` |
+| Users | Repeated `DirectoryMember` | Only the viewer and users referenced by visible snapshot resources |
+| Active calls | Repeated `ActiveCall` | Complete visible active-call state at `E` |
 
 The snapshot does not contain the complete user directory. It also excludes
 message and thread timelines, search results, files, pins, and other large or
@@ -234,13 +232,11 @@ events into count- and byte-bounded session queues. Sessions for one user
 share room-visibility state. There are no per-client NATS or JetStream
 consumers.
 
-Transient `live.sync.>` messages and durable `live.evt.>` messages use
-`chatto.core.evt.v1.Event`. Transient variants use oneof tags 20000 through
-29999. The transient wire contains no second envelope or compatibility tag.
-During a rolling replacement from an older envelope, old and new replicas
-drop each other's transient signals. This is safe because these signals have
-no replay contract. Durable facts continue through `live.evt.>`, and a
-reconnect snapshot restores current content state.
+Transient `live.sync.>` messages use `chatto.core.live.v1.LiveEvent`. Durable
+`live.evt.>` messages use `chatto.core.evt.v1.Event`. The hub decodes each
+subject root with its matching envelope. Live signals have no replay contract.
+Durable facts continue through `live.evt.>`, and a reconnect snapshot restores
+current content state.
 
 A NATS continuity gap or projection-readiness failure quarantines the hub and
 closes current sessions. The replica admits a new hub generation only after
@@ -256,7 +252,7 @@ client from continuing with state that the server can no longer validate.
 ## Bundled frontend
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
-`subscribed.recovery_mode` is `SNAPSHOT` and applies each snapshot resource.
+it receives a snapshot and applies all resource families from that one frame.
 It saves the `caught_up` cursor only after the snapshot, auxiliary reads, lazy
 timeline refreshes, and all earlier event-triggered resource reads succeed.
 If the socket closes during a snapshot, the client has no resume cursor and
@@ -293,7 +289,7 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 
 | Endpoint | Frame schema | Authorization | Description |
 | --- | --- | --- | --- |
-| `/api/realtime` | `chatto.realtime.v1.Realtime*` binary protobuf frames | Bearer credential in `hello` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized public events, and 15-minute bounded resume |
+| `/api/realtime` | One binary `RealtimeSubscribe` message, then `chatto.realtime.v1.RealtimeServerFrame` messages | Bearer credential in `RealtimeSubscribe` or a same-origin cookie; current resource and room visibility apply before mapping | Protocol 4 exact snapshots, authorized public events, and 15-minute bounded resume |
 
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and
