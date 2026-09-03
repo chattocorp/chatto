@@ -10,16 +10,16 @@ import (
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
-// projectRealtimeEvent maps one canonical event to the public realtime union.
+// projectRealtimeEvent maps one canonical event to the public realtime shape.
 // The public union field number and payload type must match the canonical
 // event. The function never mutates or copies unclassified source fields.
-func projectRealtimeEvent(source *evtv1.Event) *realtimev1.PublicEvent {
+func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 	sourceMessage, sourcePayload, targetPayload, ok := realtimePublicPayload(source)
 	if !ok {
 		return nil
 	}
 
-	target := &realtimev1.PublicEvent{}
+	target := &realtimev1.RealtimeEvent{}
 	targetMessage := target.ProtoReflect()
 	for _, number := range []protoreflect.FieldNumber{1, 2, 3} {
 		sourceField := sourceMessage.Descriptor().Fields().ByNumber(number)
@@ -56,7 +56,7 @@ func realtimePublicPayload(source *evtv1.Event) (protoreflect.Message, protorefl
 	if sourcePayload == nil {
 		return nil, nil, nil, false
 	}
-	targetPayload := (&realtimev1.PublicEvent{}).ProtoReflect().Descriptor().Fields().ByNumber(sourcePayload.Number())
+	targetPayload := (&realtimev1.RealtimeEvent{}).ProtoReflect().Descriptor().Fields().ByNumber(sourcePayload.Number())
 	if targetPayload == nil || sourcePayload.Message() == nil || targetPayload.Message() == nil ||
 		targetPayload.Name() != sourcePayload.Name() ||
 		targetPayload.ContainingOneof() == nil ||

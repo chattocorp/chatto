@@ -73,9 +73,8 @@ normal recovery behavior. The server does not send a partial replay.
 
 ## Handle public events
 
-Each `RealtimeEvent` carries one authorized
-[`PublicEvent`](/reference/connectrpc-api/realtime-events/).
-Durable variants
+Each [`RealtimeEvent`](/reference/connectrpc-api/realtime-events/) contains one
+authorized public payload variant. Durable variants
 include messages, edits, retractions, reactions, pins, assets, rooms,
 membership, profiles, threads, and calls. Typing, presence changes, and session
 termination are transient variants and have no resume cursor.
@@ -86,9 +85,8 @@ The public event contains common metadata outside its event `oneof`:
 - source time;
 - a visible actor ID, when applicable.
 
-The `RealtimeEvent` transport wrapper contains only the public event and the
-resume cursor for durable activity. The public event does not contain broker
-coordinates or a cursor.
+The optional `resume_cursor` is outside the payload `oneof`. A public event
+does not contain broker coordinates.
 
 The public union contains only event variants that are part of the realtime
 API. Each union member reuses the canonical EVT or live payload message and

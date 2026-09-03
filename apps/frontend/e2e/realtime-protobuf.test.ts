@@ -145,7 +145,7 @@ class RealtimeProtobufClient {
           if (index >= 0) this.#waiters.splice(index, 1);
           const queued = this.#frames.map((frame) => {
             if (frame.frame.case === 'event') {
-              return `event:${frame.frame.value.event?.event.case ?? 'unknown'}`;
+              return `event:${frame.frame.value.event.case ?? 'unknown'}`;
             }
             return frame.frame.case ?? 'unknown';
           });
@@ -269,7 +269,7 @@ test.describe('protobuf realtime stream', () => {
       if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
       expect(caughtUp.frame.value.cursor).toBeTruthy();
 
-      const event = await realtime.waitForEvent((candidate) => candidate.event?.id === messageId);
+      const event = await realtime.waitForEvent((candidate) => candidate.id === messageId);
       expect(event.resumeCursor).toBeTruthy();
       expect(event.resumeCursor).not.toBe(caughtUp.frame.value.cursor);
     } finally {
@@ -315,13 +315,13 @@ test.describe('protobuf realtime stream', () => {
         `semantic realtime ${Date.now()}`
       );
       const posted = await realtime.waitForEvent(
-        (event) => event.event?.event.case === 'messagePosted' && event.event.id === messageId
+        (event) => event.event.case === 'messagePosted' && event.id === messageId
       );
       expect(posted.resumeCursor).toBeTruthy();
-      if (posted.event?.event.case !== 'messagePosted') {
+      if (posted.event.case !== 'messagePosted') {
         throw new Error('expected canonical message-post event');
       }
-      expect(posted.event.event.value.bodyPlaintext).toContain('semantic realtime');
+      expect(posted.event.value.bodyPlaintext).toContain('semantic realtime');
       realtime.close();
 
       await connectPost(page, 'chatto.api.v1.MessageService/AddReaction', {
@@ -338,10 +338,10 @@ test.describe('protobuf realtime stream', () => {
         expect(resumed.recoveryMode).toBe(RealtimeRecoveryMode.RESUME);
         const reaction = await resumed.waitForEvent(
           (event) =>
-            event.event?.event.case === 'reactionAdded' &&
-            event.event.event.value.messageEventId === messageId
+            event.event.case === 'reactionAdded' &&
+            event.event.value.messageEventId === messageId
         );
-        expect(reaction.event?.event.case).toBe('reactionAdded');
+        expect(reaction.event.case).toBe('reactionAdded');
         expect(reaction.resumeCursor).toBeTruthy();
         await resumed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
 
@@ -352,8 +352,8 @@ test.describe('protobuf realtime stream', () => {
         });
         const edited = await resumed.waitForEvent(
           (event) =>
-            event.event?.event.case === 'messageEdited' &&
-            event.event.event.value.eventId === messageId
+            event.event.case === 'messageEdited' &&
+            event.event.value.eventId === messageId
         );
         expect(edited.resumeCursor).toBeTruthy();
       } finally {
@@ -383,7 +383,7 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`@${viewer.login} protobuf mention ${Date.now()}`);
       });
 
-      await realtime.waitForEvent((event) => event.event?.event.case === 'messagePosted');
+      await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(
@@ -420,7 +420,7 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`protobuf dm ${Date.now()}`);
       });
 
-      await realtime.waitForEvent((event) => event.event?.event.case === 'messagePosted');
+      await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(

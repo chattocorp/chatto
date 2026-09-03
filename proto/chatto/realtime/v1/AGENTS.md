@@ -33,6 +33,7 @@ protocol at `/api/realtime`.
   because common event metadata and the cursor remain outside the event
   `oneof`. Use a new behavioral protocol version when a new variant needs
   required client behavior.
-- `PublicEvent.event` is the public variant catalogue. Each member must use the
-  same name, field number, and payload message as its matching canonical Event
-  member. Do not add a second public payload message for the same semantics.
+- `RealtimeEvent.event` is the public variant catalogue. Each member must use
+  the same name, field number, and payload message as its matching canonical
+  Event member. Do not add a second public payload message for the same
+  semantics.

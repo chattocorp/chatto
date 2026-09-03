@@ -236,20 +236,20 @@ export async function renderRealtimeEventCatalogue({
   const index = buildDescriptorIndex(descriptorSet);
   const eventEntry = index.messages.get("chatto.core.evt.v1.Event");
   if (!eventEntry) throw new Error("Cannot find chatto.core.evt.v1.Event.");
-  const publicEventEntry = index.messages.get("chatto.realtime.v1.PublicEvent");
-  if (!publicEventEntry)
-    throw new Error("Cannot find chatto.realtime.v1.PublicEvent.");
+  const realtimeEventEntry = index.messages.get("chatto.realtime.v1.RealtimeEvent");
+  if (!realtimeEventEntry)
+    throw new Error("Cannot find chatto.realtime.v1.RealtimeEvent.");
 
   const eventOneofIndex = eventEntry.message.oneofDecl.findIndex(
     (oneof) => oneof.name === "event",
   );
-  const publicOneofIndex = publicEventEntry.message.oneofDecl.findIndex(
+  const publicOneofIndex = realtimeEventEntry.message.oneofDecl.findIndex(
     (oneof) => oneof.name === "event",
   );
   const canonicalVariants = eventEntry.message.field.filter(
     (field) => field.oneofIndex === eventOneofIndex,
   );
-  const publicVariants = publicEventEntry.message.field.filter(
+  const publicVariants = realtimeEventEntry.message.field.filter(
     (field) => field.oneofIndex === publicOneofIndex,
   );
   for (const field of publicVariants) {
@@ -306,13 +306,13 @@ export async function renderRealtimeEventCatalogue({
     });
 
   const body = [
-    '<a id="chatto-realtime-v1-PublicEvent"></a>',
+    '<a id="chatto-realtime-v1-RealtimeEvent"></a>',
     "",
-    "## PublicEvent",
+    "## RealtimeEvent",
     "",
-    "This catalogue contains the event variants that Chatto can send through `RealtimeEvent.event`. `chatto.realtime.v1.PublicEvent` is a public union. Internal canonical variants and storage-only fields are excluded. The page is generated from the public union and the protobuf field-surface rules.",
+    "This catalogue contains the event variants that Chatto can send through `chatto.realtime.v1.RealtimeEvent`. Internal canonical variants and storage-only fields are excluded. The page is generated from the public union and the protobuf field-surface rules.",
     "",
-    "Each union member uses the existing canonical payload message and field number. The public API does not contain the complete stored `chatto.core.evt.v1.Event` envelope. The server does not send stored bytes.",
+    "Each union member uses the existing canonical payload message and field number. The public API does not contain the complete stored `chatto.core.evt.v1.Event` union. The server does not send stored bytes.",
     "",
     "Every public event also contains these common fields:",
     "",
@@ -321,8 +321,7 @@ export async function renderRealtimeEventCatalogue({
     "| `id` | `string` | Stable event identifier. |",
     "| `created_at` | `google.protobuf.Timestamp` | Time when Chatto created the event. |",
     "| `actor_id` | `string` | Visible user that caused the event, when applicable. |",
-    "",
-    "The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the public event.",
+    "| `resume_cursor` | `optional string` | Opaque resume cursor for a durable event. Transient events omit it. |",
     "",
     "## Durable variants",
     "",

@@ -1,5 +1,5 @@
 import { Event } from '@chatto/api-types/core/evt/v1/event_pb';
-import { type PublicEvent, RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TransientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 
@@ -8,17 +8,15 @@ function timestampToISO(value: { toDate(): Date } | undefined): string {
 }
 
 export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEventEnvelope | null {
-  const source = frame.event;
-  if (!source) return null;
   const base = {
-    id: source.id,
-    createdAt: timestampToISO(source.createdAt),
-    actorId: source.actorId || null
+    id: frame.id,
+    createdAt: timestampToISO(frame.createdAt),
+    actorId: frame.actorId || null
   };
 
-  switch (source.event.case) {
+  switch (frame.event.case) {
     case 'userTypingSignal': {
-      const value = source.event.value;
+      const value = frame.event.value;
       return {
         ...base,
         event: {
@@ -33,7 +31,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEve
         ...base,
         event: {
           kind: TransientEventKind.PresenceChanged,
-          status: presenceStatusFromSignal(source.event.value.status)
+          status: presenceStatusFromSignal(frame.event.value.status)
         }
       };
     case 'sessionTerminatedSignal':
@@ -41,7 +39,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEve
         ...base,
         event: {
           kind: TransientEventKind.SessionTerminated,
-          reason: source.event.value.reason
+          reason: frame.event.value.reason
         }
       };
     default:
@@ -50,7 +48,7 @@ export function realtimeEventToEventEnvelope(frame: RealtimeEvent): TransientEve
 }
 
 /** Convert the public wire union to the canonical shape used by local reducers. */
-export function publicEventToCanonicalEvent(source: PublicEvent): Event {
+export function realtimeEventToCanonicalEvent(source: RealtimeEvent): Event {
   return new Event({
     id: source.id,
     createdAt: source.createdAt,

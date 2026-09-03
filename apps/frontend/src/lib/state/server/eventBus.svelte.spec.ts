@@ -8,7 +8,6 @@ import {
   RealtimeCaughtUp,
   RealtimeError,
   RealtimeHeartbeat,
-  PublicEvent,
   RealtimeServerFrame,
   RealtimeServerHello,
   RealtimeSnapshot,
@@ -205,8 +204,7 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
-      resumeCursor: cursor,
-      event: new PublicEvent()
+      resumeCursor: cursor
     })
   });
 }
@@ -215,15 +213,13 @@ function transientFrame(id = 'evt-1'): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
-      event: new PublicEvent({
-        id,
-        createdAt: Timestamp.now(),
-        actorId: 'user-1',
-        event: {
-          case: 'userTypingSignal',
-          value: new UserTypingEvent({ roomId: 'room-1' })
-        }
-      })
+      id,
+      createdAt: Timestamp.now(),
+      actorId: 'user-1',
+      event: {
+        case: 'userTypingSignal',
+        value: new UserTypingEvent({ roomId: 'room-1' })
+      }
     })
   });
 }

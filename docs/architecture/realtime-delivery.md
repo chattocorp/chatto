@@ -46,9 +46,10 @@ frames. The server returns the ping nonce in `pong`.
 ## Public events
 
 `chatto.core.evt.v1.Event` is the semantic unit for durable facts and
-transient signals inside the server. `RealtimeEvent` is a transport wrapper
-that contains one authorized `chatto.realtime.v1.PublicEvent` and an optional
-opaque resume cursor. It does not contain resource state.
+transient signals inside the server. `chatto.realtime.v1.RealtimeEvent` is the
+authorized public event shape. It contains common metadata, one public payload
+variant, and an optional opaque resume cursor. It does not contain resource
+state.
 
 A public event has a stable event ID, source time, visible actor ID, and one
 event variant. Variants cover messages, reactions, pins, assets, rooms,
@@ -56,18 +57,18 @@ membership, threads, users, calls, and public invalidations. Typing, presence
 changes, and session termination use the same public union but have no resume
 cursor.
 
-Common metadata is outside the event `oneof`, and the cursor is outside the
-public event. A client can ignore a new event variant and still retain its
-cursor after it accepts the complete frame.
+Common metadata and the cursor are outside the event `oneof`. A client can
+ignore a new event variant and still retain its cursor after it accepts the
+complete frame.
 
-The `PublicEvent` union is the event-level catalogue. Each member has the same
-name, field number, and payload message as its canonical event. A missing
-member keeps an internal variant out of the public API. Protobuf field-surface
-options allow shared, storage-only, and client-only fields. Unspecified payload
-fields are denied by default. The server creates a fresh public value and does
-not retain unknown fields. Authorized delivery-only decrypted values use
-`_plaintext` fields. Public events do not expose raw EVT bytes, ciphertext,
-subjects, stream identities, or sequence numbers.
+The `RealtimeEvent.event` union is the event-level catalogue. Each member has
+the same name, field number, and payload message as its canonical event. A
+missing member keeps an internal variant out of the public API. Protobuf
+field-surface options allow shared, storage-only, and client-only fields.
+Unspecified payload fields are denied by default. The server creates a fresh
+public value and does not retain unknown fields. Authorized delivery-only
+decrypted values use `_plaintext` fields. Public events do not expose raw EVT
+bytes, ciphertext, subjects, stream identities, or sequence numbers.
 
 Field surfaces are static. They do not make viewer-specific authorization
 decisions. Event-level authorization must make every delivered shared or

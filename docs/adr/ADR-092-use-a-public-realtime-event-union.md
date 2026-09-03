@@ -31,19 +31,22 @@ would recreate the duplicate semantic vocabulary that ADR-091 removed.
 EVT facts and transient NATS Core signals. Existing stored event tags, payload
 messages, and bytes do not change.
 
-The realtime API uses `chatto.realtime.v1.PublicEvent`. This message contains:
+The realtime API uses `chatto.realtime.v1.RealtimeEvent`. This message
+contains:
 
 - the canonical event ID, source time, and actor ID; and
-- an explicit `event` oneof that contains only public variants.
+- an explicit `event` oneof that contains only public variants; and
+- an optional opaque resume cursor outside the payload oneof.
 
 Each public union member references the existing canonical payload message.
 It also uses the same oneof field number and name as the matching canonical
 event. The public API does not duplicate payload messages.
 
-`chatto.realtime.v1.RealtimeEvent` remains the transport wrapper. It contains
-one `PublicEvent` and an optional opaque resume cursor. The cursor and common
-metadata remain outside the payload oneof. A client can therefore ignore an
-unknown additive payload and still accept the complete event boundary.
+`chatto.realtime.v1.RealtimeServerFrame` is the transport wrapper. Its `event`
+arm contains one `RealtimeEvent` directly. No second event wrapper exists.
+The cursor and common metadata remain outside the payload oneof. A client can
+therefore ignore an unknown additive payload and still accept the complete
+event boundary.
 
 The server maps a canonical event to the public union by its protobuf field
 number. It verifies that the canonical and public payload types match. If the
@@ -68,7 +71,8 @@ regenerate so their type system exposes only the public union.
 ## Consequences
 
 - EVT and internal NATS code continue to use one canonical envelope.
-- Realtime has a small public envelope union but no duplicate payload schema.
+- Realtime has one public event shape and no duplicate payload schema.
+- `RealtimeServerFrame` provides the transport wrapper around the event.
 - The protobuf schema shows the complete public event catalogue.
 - Adding a public event requires one mechanical union member with the same
   name, number, and payload type as the canonical member.

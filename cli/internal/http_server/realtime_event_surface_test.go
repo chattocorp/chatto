@@ -103,13 +103,14 @@ func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 	}
 }
 
-func TestRealtimePublicEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
-	publicEvent := &realtimev1.PublicEvent{Id: "event-id", ActorId: "actor-id"}
+func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
+	publicEvent := &realtimev1.RealtimeEvent{Id: "event-id", ActorId: "actor-id"}
 	unknown := protowire.AppendTag(nil, 25000, protowire.BytesType)
 	unknown = protowire.AppendBytes(unknown, nil)
 	publicEvent.ProtoReflect().SetUnknown(unknown)
 	cursor := "opaque-cursor"
-	wire, err := proto.Marshal(&realtimev1.RealtimeEvent{Event: publicEvent, ResumeCursor: &cursor})
+	publicEvent.ResumeCursor = &cursor
+	wire, err := proto.Marshal(publicEvent)
 	if err != nil {
 		t.Fatalf("marshal RealtimeEvent: %v", err)
 	}
@@ -118,11 +119,11 @@ func TestRealtimePublicEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 	if err := proto.Unmarshal(wire, &decoded); err != nil {
 		t.Fatalf("unmarshal RealtimeEvent: %v", err)
 	}
-	if decoded.GetEvent().GetId() != "event-id" || decoded.GetEvent().GetActorId() != "actor-id" {
-		t.Fatalf("decoded metadata = %+v, want public event metadata", decoded.GetEvent())
+	if decoded.GetId() != "event-id" || decoded.GetActorId() != "actor-id" {
+		t.Fatalf("decoded metadata = %+v, want public event metadata", &decoded)
 	}
-	if decoded.GetEvent().GetEvent() != nil {
-		t.Fatalf("decoded payload = %T, want unknown variant to remain unset", decoded.GetEvent().GetEvent())
+	if decoded.GetEvent() != nil {
+		t.Fatalf("decoded payload = %T, want unknown variant to remain unset", decoded.GetEvent())
 	}
 	if decoded.GetResumeCursor() != cursor {
 		t.Fatalf("decoded cursor = %q, want %q", decoded.GetResumeCursor(), cursor)
@@ -132,7 +133,7 @@ func TestRealtimePublicEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 func TestRealtimeEventCatalogueClassifiesTransientAndPublicFields(t *testing.T) {
 	canonicalDescriptor := (&evtv1.Event{}).ProtoReflect().Descriptor()
 	canonicalOneof := canonicalDescriptor.Oneofs().ByName("event")
-	publicDescriptor := (&realtimev1.PublicEvent{}).ProtoReflect().Descriptor()
+	publicDescriptor := (&realtimev1.RealtimeEvent{}).ProtoReflect().Descriptor()
 	publicOneof := publicDescriptor.Oneofs().ByName("event")
 	if canonicalOneof == nil || publicOneof == nil {
 		t.Fatal("Event.event descriptor is missing")

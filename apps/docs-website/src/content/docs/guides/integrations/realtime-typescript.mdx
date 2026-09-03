@@ -274,7 +274,7 @@ export class ChattoRealtimeClient {
 
       case "event": {
         const event = frame.frame.value;
-        const eventId = event.event?.id;
+        const eventId = event.id;
         if (eventId && !this.#seenEventIds.has(eventId)) {
           await this.onEvent(event);
           this.#seenEventIds.add(eventId);
@@ -373,14 +373,12 @@ const client = new ChattoRealtimeClient(
   "https://chat.example.com",
   accessToken,
   async (event) => {
-    const publicEvent = event.event;
-    if (!publicEvent) return;
-    switch (publicEvent.event.case) {
+    switch (event.event.case) {
       case "messagePosted":
-        console.info("New message ID", publicEvent.id);
+        console.info("New message ID", event.id);
         break;
       case "reactionAdded":
-        console.info("Reaction", publicEvent.event.value.emoji);
+        console.info("Reaction", event.event.value.emoji);
         break;
       default:
         // Ignore event variants that this integration does not use.

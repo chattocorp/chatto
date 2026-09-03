@@ -25,7 +25,7 @@ Starlight.
 - Add a sidebar entry in `astro.config.mjs` for a new page when needed.
 - Keep generated ConnectRPC reference pages useful to API users.
 - Generate the realtime event catalogue from
-  `chatto.realtime.v1.PublicEvent` and the protobuf field-surface options.
+  `chatto.realtime.v1.RealtimeEvent` and the protobuf field-surface options.
   Document only client-visible union members and payload fields. Do not expose
   the complete core Event union as a public reference.
 - Do not add instructions to upgrade all replicas for a routine feature.

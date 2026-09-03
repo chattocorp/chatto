@@ -808,14 +808,14 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 			},
 		}}, nil
 	}
-	envelope, err := s.realtimeEventEnvelope(ctx, viewerID, event)
+	publicEvent, err := s.publicRealtimeEvent(ctx, viewerID, event)
 	if err != nil {
 		return nil, err
 	}
-	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: envelope}}, nil
+	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: publicEvent}}, nil
 }
 
-func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
+func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
 	canonical := event.CanonicalEvent()
 	if canonical == nil {
 		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
@@ -859,13 +859,12 @@ func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string,
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
-	envelope := &realtimev1.RealtimeEvent{Event: projected}
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
 		if err != nil {
 			return nil, err
 		}
-		envelope.ResumeCursor = &cursor
+		projected.ResumeCursor = &cursor
 	}
-	return envelope, nil
+	return projected, nil
 }

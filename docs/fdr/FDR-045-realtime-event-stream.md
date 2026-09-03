@@ -56,9 +56,9 @@ the stream to build and maintain its local server projection.
 
 **Decision:** Durable EVT facts and transient NATS Core signals use
 `chatto.core.evt.v1.Event`. Realtime uses the explicit
-`chatto.realtime.v1.PublicEvent` union. Each public member reuses the matching
-canonical payload message, name, and field number. Chatto does not provide a
-frontend-only mutation feed or duplicate public payload messages.
+`chatto.realtime.v1.RealtimeEvent.event` union. Each public member reuses the
+matching canonical payload message, name, and field number. Chatto does not
+provide a frontend-only mutation feed or duplicate public payload messages.
 **Why:** A message edit, reaction, or membership change has one public meaning.
 One contract makes the API easier to learn and prevents client-specific event
 models from disagreeing. Existing EVT compatibility also gives reused payload

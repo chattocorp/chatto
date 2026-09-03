@@ -6,13 +6,13 @@ editUrl: false
 
 {/* Generated from the runtime realtime catalogue and Chatto protobuf descriptors. Do not edit directly. */}
 
-<a id="chatto-realtime-v1-PublicEvent"></a>
+<a id="chatto-realtime-v1-RealtimeEvent"></a>
 
-## PublicEvent
+## RealtimeEvent
 
-This catalogue contains the event variants that Chatto can send through `RealtimeEvent.event`. `chatto.realtime.v1.PublicEvent` is a public union. Internal canonical variants and storage-only fields are excluded. The page is generated from the public union and the protobuf field-surface rules.
+This catalogue contains the event variants that Chatto can send through `chatto.realtime.v1.RealtimeEvent`. Internal canonical variants and storage-only fields are excluded. The page is generated from the public union and the protobuf field-surface rules.
 
-Each union member uses the existing canonical payload message and field number. The public API does not contain the complete stored `chatto.core.evt.v1.Event` envelope. The server does not send stored bytes.
+Each union member uses the existing canonical payload message and field number. The public API does not contain the complete stored `chatto.core.evt.v1.Event` union. The server does not send stored bytes.
 
 Every public event also contains these common fields:
 
@@ -21,8 +21,7 @@ Every public event also contains these common fields:
 | `id` | `string` | Stable event identifier. |
 | `created_at` | `google.protobuf.Timestamp` | Time when Chatto created the event. |
 | `actor_id` | `string` | Visible user that caused the event, when applicable. |
-
-The opaque resume cursor is part of the surrounding `RealtimeEvent`, not the public event.
+| `resume_cursor` | `optional string` | Opaque resume cursor for a durable event. Transient events omit it. |
 
 ## Durable variants
 

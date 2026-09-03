@@ -160,33 +160,24 @@ message RealtimeCaughtUp {
   string cursor = 1;
 }
 
-// One authorized public event.
-//
-// The server creates a fresh caller-specific value and omits events and fields
-// that the caller cannot see. Durable events have a resume cursor. Transient
-// events do not.
-message RealtimeEvent {
-  reserved 3;
-  reserved "state";
-
-  // Authorized public event. The server never sends raw stored bytes.
-  PublicEvent event = 1;
-  // Opaque cursor safe to retain after this complete event is accepted.
-  optional string resume_cursor = 2;
-}
-
-// Public event metadata and payload.
+// One authorized public event with its optional resume cursor.
 //
 // Each payload field reuses the canonical payload message and field number.
 // The union is the public event catalogue. A canonical event that is absent
-// from this union is not part of the realtime API.
-message PublicEvent {
+// from this union is not part of the realtime API. The server creates a fresh
+// caller-specific value and omits events and fields that the caller cannot see.
+// Durable events have a resume cursor. Transient events do not.
+message RealtimeEvent {
+  reserved "state";
+
   // Universal event identifier (NanoID).
   string id = 1;
   // Time when the source event was created.
   google.protobuf.Timestamp created_at = 2;
   // ID of the user that caused the event. An empty value means no user actor.
   string actor_id = 3;
+  // Opaque cursor safe to retain after this complete event is accepted.
+  optional string resume_cursor = 4;
 
   // Authorized semantic payload.
   oneof event {

@@ -616,68 +616,17 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
 }
 
 /**
- * One authorized public event.
+ * One authorized public event with its optional resume cursor.
  *
- * The server creates a fresh caller-specific value and omits events and fields
- * that the caller cannot see. Durable events have a resume cursor. Transient
- * events do not.
+ * Each payload field reuses the canonical payload message and field number.
+ * The union is the public event catalogue. A canonical event that is absent
+ * from this union is not part of the realtime API. The server creates a fresh
+ * caller-specific value and omits events and fields that the caller cannot see.
+ * Durable events have a resume cursor. Transient events do not.
  *
  * @generated from message chatto.realtime.v1.RealtimeEvent
  */
 export class RealtimeEvent extends Message<RealtimeEvent> {
-  /**
-   * Authorized public event. The server never sends raw stored bytes.
-   *
-   * @generated from field: chatto.realtime.v1.PublicEvent event = 1;
-   */
-  event?: PublicEvent;
-
-  /**
-   * Opaque cursor safe to retain after this complete event is accepted.
-   *
-   * @generated from field: optional string resume_cursor = 2;
-   */
-  resumeCursor?: string;
-
-  constructor(data?: PartialMessage<RealtimeEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "event", kind: "message", T: PublicEvent },
-    { no: 2, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {
-    return new RealtimeEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeEvent {
-    return new RealtimeEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeEvent {
-    return new RealtimeEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined, b: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined): boolean {
-    return proto3.util.equals(RealtimeEvent, a, b);
-  }
-}
-
-/**
- * Public event metadata and payload.
- *
- * Each payload field reuses the canonical payload message and field number.
- * The union is the public event catalogue. A canonical event that is absent
- * from this union is not part of the realtime API.
- *
- * @generated from message chatto.realtime.v1.PublicEvent
- */
-export class PublicEvent extends Message<PublicEvent> {
   /**
    * Universal event identifier (NanoID).
    *
@@ -700,9 +649,16 @@ export class PublicEvent extends Message<PublicEvent> {
   actorId = "";
 
   /**
+   * Opaque cursor safe to retain after this complete event is accepted.
+   *
+   * @generated from field: optional string resume_cursor = 4;
+   */
+  resumeCursor?: string;
+
+  /**
    * Authorized semantic payload.
    *
-   * @generated from oneof chatto.realtime.v1.PublicEvent.event
+   * @generated from oneof chatto.realtime.v1.RealtimeEvent.event
    */
   event: {
     /**
@@ -1042,17 +998,18 @@ export class PublicEvent extends Message<PublicEvent> {
     case: "sessionTerminatedSignal";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
-  constructor(data?: PartialMessage<PublicEvent>) {
+  constructor(data?: PartialMessage<RealtimeEvent>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.PublicEvent";
+  static readonly typeName = "chatto.realtime.v1.RealtimeEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 300, name: "room_created", kind: "message", T: RoomCreatedEvent, oneof: "event" },
     { no: 301, name: "room_updated", kind: "message", T: RoomUpdatedEvent, oneof: "event" },
     { no: 302, name: "room_deleted", kind: "message", T: RoomDeletedEvent, oneof: "event" },
@@ -1111,20 +1068,20 @@ export class PublicEvent extends Message<PublicEvent> {
     { no: 20015, name: "session_terminated_signal", kind: "message", T: SessionTerminatedEvent, oneof: "event" },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PublicEvent {
-    return new PublicEvent().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {
+    return new RealtimeEvent().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PublicEvent {
-    return new PublicEvent().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeEvent {
+    return new RealtimeEvent().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PublicEvent {
-    return new PublicEvent().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeEvent {
+    return new RealtimeEvent().fromJsonString(jsonString, options);
   }
 
-  static equals(a: PublicEvent | PlainMessage<PublicEvent> | undefined, b: PublicEvent | PlainMessage<PublicEvent> | undefined): boolean {
-    return proto3.util.equals(PublicEvent, a, b);
+  static equals(a: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined, b: RealtimeEvent | PlainMessage<RealtimeEvent> | undefined): boolean {
+    return proto3.util.equals(RealtimeEvent, a, b);
   }
 }
 

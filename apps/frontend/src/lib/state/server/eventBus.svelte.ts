@@ -14,7 +14,7 @@ import {
 } from '$lib/eventBus.svelte';
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import {
-  publicEventToCanonicalEvent,
+  realtimeEventToCanonicalEvent,
   realtimeEventToEventEnvelope
 } from '$lib/realtimeEventMapper';
 import {
@@ -334,10 +334,10 @@ class EventBusManager {
       for (const handler of projectionHandlers) handler(update);
     };
 
-    const dispatchPublicEvent = (event: RealtimeEvent) => {
+    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
       dispatchProjectionUpdate(
         new RealtimeProjectionUpdate({
-          event: event.event ? publicEventToCanonicalEvent(event.event) : null,
+          event: realtimeEventToCanonicalEvent(event),
           cursor: event.resumeCursor ?? null
         })
       );
@@ -476,7 +476,7 @@ class EventBusManager {
                 const event = realtimeEventToEventEnvelope(frame.frame.value);
                 if (event) dispatchEvent(event);
                 try {
-                  dispatchPublicEvent(frame.frame.value);
+                  dispatchRealtimeEvent(frame.frame.value);
                 } catch (error) {
                   console.error(`[eventBus:${serverId}] projection reducer failed`, error);
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');

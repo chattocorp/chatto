@@ -219,7 +219,7 @@ func TestRealtimeDurableEventHasPublicShapeAndOpaqueCursor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("realtimeServerFrameForEvent: %v", err)
 	}
-	bioChanged := frame.GetEvent().GetEvent().GetUserBioChanged()
+	bioChanged := frame.GetEvent().GetUserBioChanged()
 	if bioChanged == nil {
 		t.Fatal("realtime event omitted public user_bio_changed fact")
 	}
@@ -448,7 +448,7 @@ func TestRealtimeWebSocketSnapshotHandsOffToSubsequentBufferedEvent(t *testing.T
 
 	for {
 		event := readPublicRealtimeEvent(t, conn)
-		bio := event.GetEvent().GetUserBioChanged()
+		bio := event.GetUserBioChanged()
 		if bio == nil {
 			continue
 		}
@@ -705,7 +705,7 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 	}
 	for {
 		delivery := readPublicRealtimeEvent(t, conn)
-		event := delivery.GetEvent()
+		event := delivery
 		if event.GetId() == hidden.GetId() {
 			t.Fatalf("outsider received unauthorized event: %+v", event)
 		}
@@ -752,8 +752,8 @@ func TestRealtimeWebSocketDeliversPublicTransientEvent(t *testing.T) {
 	}
 	for {
 		delivery := readPublicRealtimeEvent(t, conn)
-		typing := delivery.GetEvent().GetUserTypingSignal()
-		if typing == nil || delivery.GetEvent().GetActorId() != actor.GetId() {
+		typing := delivery.GetUserTypingSignal()
+		if typing == nil || delivery.GetActorId() != actor.GetId() {
 			continue
 		}
 		if typing.GetRoomId() != room.GetId() {
