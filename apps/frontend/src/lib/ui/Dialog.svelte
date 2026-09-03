@@ -5,7 +5,9 @@ The standard task-dialog shell. It owns the framed tray, inset work plane,
 fixed header and footer, scrollable body, focus behavior, and dismissal.
 
 Pass footer actions as direct children of the `footer` snippet. The dialog
-owns their single-line, end-aligned layout and truncates labels when needed.
+owns their single-line, end-aligned layout. The selected size is the baseline
+width. Footer actions can make the dialog wider when the viewport has room;
+labels truncate only after the dialog reaches its viewport limit.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -47,10 +49,10 @@ owns their single-line, end-aligned layout and truncates labels when needed.
   const dialogId = $props.id();
   const titleId = `${dialogId}-title`;
 
-  const sizeClasses = {
-    sm: 'w-100 max-w-[calc(100vw-2rem)]',
-    md: 'w-150 max-w-[calc(100vw-2rem)]',
-    lg: 'w-200 max-w-[calc(100vw-2rem)]'
+  const sizeWidths = {
+    sm: '400px',
+    md: '600px',
+    lg: '800px'
   };
 
   function getDefaultAction(node: ParentNode): HTMLButtonElement | null {
@@ -107,12 +109,7 @@ owns their single-line, end-aligned layout and truncates labels when needed.
   }
 
   function handleKeydown(event: KeyboardEvent) {
-    if (
-      event.key !== 'Enter' ||
-      event.defaultPrevented ||
-      event.isComposing ||
-      event.repeat
-    ) {
+    if (event.key !== 'Enter' || event.defaultPrevented || event.isComposing || event.repeat) {
       return;
     }
 
@@ -168,7 +165,7 @@ owns their single-line, end-aligned layout and truncates labels when needed.
       close();
     }
   }}
-  class="m-auto bg-transparent backdrop:bg-black/50 {sizeClasses[size]}"
+  class="m-auto w-fit max-w-[calc(100vw-2rem)] bg-transparent backdrop:bg-black/50"
   class:closing
   aria-labelledby={title ? titleId : undefined}
   aria-describedby={describedBy}
@@ -183,16 +180,22 @@ owns their single-line, end-aligned layout and truncates labels when needed.
   -->
   {#if visible || closing}
     <div
-      class="flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-2 shadow-xl sm:max-h-[78vh]"
+      class="dialog-frame flex max-h-[calc(100dvh-2rem)] w-max max-w-full flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-2 shadow-xl sm:max-h-[78vh]"
+      style:--dialog-baseline-width={sizeWidths[size]}
     >
-      <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md bg-background p-3">
+      <div
+        class="flex min-h-0 w-max max-w-full min-w-full flex-1 flex-col overflow-hidden rounded-md bg-background p-3"
+      >
         <!--
           Header row holds the title (if any) and the close button, so
           they share a baseline and the title is not indented relative to
           the body content.
         -->
         <header
-          class={['flex shrink-0 items-center justify-between gap-3', title ? 'mb-4' : 'mb-2']}
+          class={[
+            'flex w-0 min-w-full shrink-0 items-center justify-between gap-3',
+            title ? 'mb-4' : 'mb-2'
+          ]}
         >
           {#if title}
             <h2 id={titleId} class="text-xl font-semibold text-balance text-text-top">{title}</h2>
@@ -209,7 +212,7 @@ owns their single-line, end-aligned layout and truncates labels when needed.
           </button>
         </header>
 
-        <div class="min-h-0 overflow-y-auto text-text">
+        <div class="min-h-0 w-0 min-w-full overflow-y-auto text-text">
           {@render children()}
         </div>
 
@@ -224,6 +227,15 @@ owns their single-line, end-aligned layout and truncates labels when needed.
 </dialog>
 
 <style>
+  dialog {
+    border: 0;
+    padding: 0;
+  }
+
+  .dialog-frame {
+    min-width: min(var(--dialog-baseline-width), calc(100vw - 2rem));
+  }
+
   dialog[open] {
     animation: fade-in 100ms ease-out;
   }

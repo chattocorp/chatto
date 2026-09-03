@@ -104,15 +104,17 @@ plane, or a footer divider inside this structure.
 
 Pass footer buttons directly to the `Dialog` footer snippet. `Dialog` owns the
 horizontal, end-aligned layout. The actions always stay in one row. A button
-label truncates when the viewport cannot show the full label. Put Cancel
-first. Use `secondary` for Cancel, `action` for the recommended path, and a
-semantic tone such as `danger` only when the action has that meaning. Use an
-action-specific icon on the committing action. Do not add an icon to Cancel by
-default.
+label can expand the dialog beyond its baseline size when the viewport has
+room. The label truncates only when the viewport cannot show the full action
+row. Put Cancel first. Use `secondary` for Cancel, `action` for the recommended
+path, and a semantic tone such as `danger` only when the action has that
+meaning. Use an action-specific icon on the committing action. Do not add an
+icon to Cancel by default.
 
-Use the `sm` size for short confirmations, `md` for ordinary custom dialogs,
-and `lg` for dense content such as screen selection. Keep the standard
-viewport gutter. Do not add a feature-specific width to a task dialog.
+Use the `sm` baseline size for short confirmations, `md` for ordinary custom
+dialogs, and `lg` for dense content such as screen selection. Footer actions
+can make each size wider. Keep the standard viewport gutter. Do not add a
+feature-specific width to a task dialog.
 
 `ImageModal`, fullscreen video, `QuickSwitcher`, popovers, and `BottomSheet`
 are specialized overlays. They can use their own geometry because they do not
