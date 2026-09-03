@@ -801,6 +801,25 @@
   @apply ring-2 ring-text;
 }
 
+/* Sidebar drag targets keep their frame mounted so outline-colour changes can
+ * fade both in and out when svelte-dnd-action toggles the active class. */
+.sidebar-drop-target {
+  border-radius: 0.375rem;
+  outline: 2px dashed transparent;
+  outline-offset: -2px;
+  transition: outline-color 120ms ease;
+}
+
+.sidebar-drop-target-active {
+  outline-color: var(--color-action);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-drop-target {
+    transition: none;
+  }
+}
+
 /* Make ServerLogo slightly smaller inside server-icon to leave room for the ring */
 .server-icon > div {
   @apply h-11 w-11;

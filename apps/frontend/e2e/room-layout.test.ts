@@ -401,6 +401,21 @@ async function dragWithPointer(
   await page.mouse.move(targetX, targetY, { steps: 12 });
 }
 
+async function expectActiveSidebarDropTarget(target: Locator): Promise<void> {
+  await expect(target).toHaveClass(/sidebar-drop-target-active/);
+  await expect(target).toHaveCSS('outline-width', '2px');
+  await expect(target).toHaveCSS('outline-offset', '-2px');
+  await expect(target).toHaveCSS('outline-style', 'dashed');
+  await expect(target).toHaveCSS('border-radius', '6px');
+  await expect(target).toHaveCSS('transition-property', 'outline-color');
+  await expect(target).toHaveCSS('transition-duration', '0.12s');
+}
+
+async function expectInactiveSidebarDropTarget(target: Locator): Promise<void> {
+  await expect(target).not.toHaveClass(/sidebar-drop-target-active/);
+  await expect(target).toHaveCSS('outline-color', 'rgba(0, 0, 0, 0)');
+}
+
 // ============================================================================
 // Tests
 // ============================================================================
@@ -585,9 +600,10 @@ test.describe('Room Layout', () => {
         0.8
       );
 
-      await expect(
-        sidebarGroup(page, 'Projects').getByTestId('room-group-items-dropzone')
-      ).toHaveCSS('outline-style', 'dashed');
+      const projectsDropTarget = sidebarGroup(page, 'Projects').getByTestId(
+        'room-group-items-dropzone'
+      );
+      await expectActiveSidebarDropTarget(projectsDropTarget);
       await expect(
         sidebarGroup(page, 'Projects').locator('[data-is-dnd-shadow-item-hint="true"]')
       ).toHaveCount(1);
@@ -595,6 +611,7 @@ test.describe('Room Layout', () => {
       await expect(sidebarGroup(page, 'Main')).toBeVisible();
       await expect(sidebarGroup(page, 'Projects')).toBeVisible();
       await page.mouse.up();
+      await expectInactiveSidebarDropTarget(projectsDropTarget);
 
       await expect(async () => {
         const layout = await getAdminRoomLayoutViaAPI(page);
@@ -702,7 +719,10 @@ test.describe('Room Layout', () => {
         0.01
       );
 
-      await expect(landingIndicator).toHaveCSS('outline-style', 'dashed');
+      await expectActiveSidebarDropTarget(landingIndicator);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await expect(landingIndicator).toHaveCSS('transition-duration', '0s');
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
       await expect(
         landingIndicator.locator(':scope > [data-is-dnd-shadow-item-hint="true"]')
       ).toHaveCount(1);
@@ -716,6 +736,7 @@ test.describe('Room Layout', () => {
         'true'
       );
       await page.mouse.up();
+      await expectInactiveSidebarDropTarget(landingIndicator);
 
       await expect(async () => {
         const layout = await getAdminRoomLayoutViaAPI(page);
