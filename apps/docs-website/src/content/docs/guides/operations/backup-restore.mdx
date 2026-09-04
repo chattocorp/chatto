@@ -78,6 +78,31 @@ chatto backup -c chatto.toml -o /mnt/backups/chatto-daily.tar.gz
 
 Chatto stages snapshots in a private temporary directory next to the destination archive and removes the plaintext staging data whether archive creation succeeds or fails. The completed archive is written with owner-only permissions and moved into place atomically, so a failed run does not replace an existing backup with a partial file.
 
+### Docker Compose
+
+The Docker Compose example mounts its host backup directory at `/backups` in
+the Chatto container. The default host directory is `./backups`. You can set
+`CHATTO_BACKUP_DIR` in `.env` to select a different directory.
+
+Run a one-off container from the existing `chatto` service. Chatto can continue
+to run while this command creates the backup:
+
+```bash
+docker compose run --rm chatto backup \
+  --encrypt \
+  --include-keys
+```
+
+The default output is a timestamped `.tar.gz.age` file in the host backup
+directory. Chatto prompts you to enter and confirm the passphrase. The
+passphrase does not appear in the command arguments.
+
+The passphrase is optional. Run `docker compose run --rm chatto backup` to
+create an unencrypted backup without encryption keys. We recommend encrypted
+backups. Always use encryption when you include encryption keys or store a
+backup outside the server. For unattended backups, use the
+[`--passphrase-file` or `--passphrase-stdin` options](#encrypted-backups).
+
 ### Encrypted backups
 
 Use `--encrypt` to protect the backup archive with a passphrase. For small self-hosted servers, also pass `--include-keys` so the archive is self-contained:
@@ -152,6 +177,28 @@ Restore accepts regular files and directories only, rejects unsafe manifest and 
    ```
 
 </Steps>
+
+### Docker Compose
+
+Stop all Chatto replicas, but keep the NATS service running. Then run the
+restore in a one-off container:
+
+```bash
+docker compose stop chatto
+
+docker compose run --rm chatto restore \
+  /backups/2026-09-04T12-00-00Z.tar.gz.age
+
+docker compose up -d chatto
+```
+
+Do not use `docker compose down` for this procedure because it stops NATS. If
+you previously scaled Chatto, start it with the required scale, for example
+`docker compose up -d --scale chatto=5`.
+
+Chatto detects whether an archive is encrypted and prompts for its passphrase.
+An unencrypted archive does not require a passphrase. For an unattended
+restore, use `--passphrase-file` or `--passphrase-stdin`.
 
 ### Conflict handling
 
