@@ -45,6 +45,12 @@ setup. This Compose example runs NATS JetStream separately so you can restart or
 replace Chatto without restarting its data store, scale Chatto to multiple
 replicas, and move to a NATS cluster later.
 
+The included `nats-server.conf` sets `sync_interval: always`. This setting
+syncs every JetStream write to disk before NATS acknowledges it. Keep this
+setting while the example uses a single NATS server. It protects recent acknowledged
+writes if the host stops without a normal shutdown. It also reduces write
+throughput. Review this policy when you move to a replicated NATS cluster.
+
 You are not locked into either model. Chatto's backup command creates a portable
 JetStream archive that can be restored into embedded or external NATS, making it
 straightforward to move between binary, Compose, and clustered deployments. See
@@ -331,6 +337,9 @@ Data is persisted in Docker volumes:
 - `nats_data` - NATS/JetStream data (messages, KV stores)
 - `caddy_data` - TLS certificates
 - `caddy_config` - Caddy configuration cache
+
+The NATS service also mounts `nats-server.conf` from this directory as a
+read-only configuration file.
 
 Chatto backup archives use the host directory selected by
 `CHATTO_BACKUP_DIR`. This is a bind mount, not a Docker volume.

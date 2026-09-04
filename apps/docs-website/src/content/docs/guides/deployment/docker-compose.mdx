@@ -82,6 +82,10 @@ explain how the pieces fit together and how to customize them.
   recommended production topology: you can restart or replace Chatto without
   restarting its data store, run multiple Chatto replicas against the same
   data, and grow into a NATS cluster later.
+  The included `nats-server.conf` uses `sync_interval: always` because the
+  example starts a single NATS server. NATS syncs each JetStream write to disk before
+  it acknowledges the write. This policy reduces write throughput and protects
+  recent acknowledged writes if the host stops without a normal shutdown.
 - **LiveKit** provides voice and video calls. Remove it if you do not need
   calls.
 - **Caddy** provides automatic HTTPS and reverse proxying. Replace it if you

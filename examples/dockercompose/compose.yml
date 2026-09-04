@@ -2,8 +2,9 @@ services:
   nats:
     image: nats:latest
     restart: unless-stopped
-    command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}"]
+    command: ["--config", "/etc/nats/nats-server.conf", "--auth=${NATS_TOKEN}"]
     volumes:
+      - ./nats-server.conf:/etc/nats/nats-server.conf:ro
       - nats_data:/data
 
   livekit:

@@ -163,6 +163,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if strings.Contains(rawText, "\nport = 4222") {
 		t.Fatal("generated config should not enable the embedded NATS TCP port by default")
 	}
+	if !strings.Contains(rawText, "\n# sync_interval = 'always'") {
+		t.Fatal("generated config should recommend sync_interval = 'always'")
+	}
 	if !strings.Contains(rawText, "\n# [nats.client]\n") {
 		t.Fatal("generated config should include a commented external NATS client example")
 	}

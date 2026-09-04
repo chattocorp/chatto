@@ -297,6 +297,10 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
   JetStream data directory for the embedded server.
 </EnvVar>
 
+<EnvVar name="CHATTO_NATS_EMBEDDED_SYNC_INTERVAL" toml="nats.embedded.sync_interval" default="NATS default">
+  Set how often embedded JetStream syncs file data to disk. Use a duration such as `30s`, or use `always` to sync every write before NATS acknowledges it. Set this to `always` when you use a single NATS server and data durability is more important than maximum write throughput. If you omit this setting, Chatto keeps the NATS default.
+</EnvVar>
+
 <EnvVar name="CHATTO_NATS_EMBEDDED_AUTH_TOKEN" toml="nats.embedded.auth_token">
   Auth token for the embedded NATS server. When the embedded TCP port is enabled, Chatto derives matching `nats.client` defaults for CLI/admin commands unless you override them explicitly.
 </EnvVar>
