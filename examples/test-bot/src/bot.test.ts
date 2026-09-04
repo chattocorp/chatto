@@ -14,11 +14,19 @@ import {
   ConversationReplyScheduler,
   messageReplyTarget,
   OrderedCommitProcessor,
+  PROCESSING_FAILURE_CLOSE_CODE,
   refreshTypingIndicator,
   type BotAPI,
 } from "./bot.js";
 
 const BOT_ID = "bot-1";
+
+test("uses an application WebSocket close code for local failures", () => {
+  assert.ok(
+    PROCESSING_FAILURE_CLOSE_CODE >= 3_000 &&
+      PROCESSING_FAILURE_CLOSE_CODE <= 4_999,
+  );
+});
 
 function messageEvent(options?: {
   actorId?: string;

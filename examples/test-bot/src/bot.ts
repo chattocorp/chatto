@@ -47,6 +47,9 @@ const CONVERSATION_SETTLE_INTERVAL_MS = 400;
 const TYPING_REFRESH_INTERVAL_MS = 2_000;
 const SUPERSEDED_REPLY = Symbol("superseded reply");
 
+/** Client-valid application close code for a local event-processing failure. */
+export const PROCESSING_FAILURE_CLOSE_CODE = 4_000;
+
 /** Runtime configuration for the public-API example bot. */
 export interface TestBotConfig {
   serverUrl: string;
@@ -109,6 +112,18 @@ function log(record: Record<string, boolean | number | string>): void {
 
 function safeErrorKind(error: unknown): string {
   return error instanceof Error && error.name ? error.name : "UnknownError";
+}
+
+function safeErrorFields(
+  error: unknown,
+): Record<string, boolean | number | string> {
+  const fields: Record<string, boolean | number | string> = {
+    error: safeErrorKind(error),
+  };
+  if (error instanceof ConnectError) {
+    fields.connect_code = Code[error.code] ?? "Unknown";
+  }
+  return fields;
 }
 
 function realtimeUrl(serverUrl: string): string {
@@ -707,10 +722,10 @@ export class ConversationReplyScheduler {
         lane.target,
         lane.typingController.signal,
       ).catch((error: unknown) => {
-        log({ status: "typing_failed", error: safeErrorKind(error) });
+        log({ status: "typing_failed", ...safeErrorFields(error) });
       });
     } catch (error) {
-      log({ status: "typing_failed", error: safeErrorKind(error) });
+      log({ status: "typing_failed", ...safeErrorFields(error) });
     }
   }
 
@@ -838,8 +853,13 @@ async function runRealtimeSession(
     if (processingFailed) return;
     processingFailed = true;
     workController.abort(error);
-    log({ status: "processing_failed", error: safeErrorKind(error) });
-    socket.close(1011, "event processing failed");
+    log({ status: "processing_failed", ...safeErrorFields(error) });
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.close(
+        PROCESSING_FAILURE_CLOSE_CODE,
+        "event processing failed",
+      );
+    }
   };
 
   const enqueue = (work: () => Promise<void>, commit: () => Promise<void>) => {
@@ -1069,7 +1089,7 @@ export async function runTestBot(
       const delayMs = reconnectDelay(attempt);
       log({
         status: "waiting",
-        error: safeErrorKind(error),
+        ...safeErrorFields(error),
         delay_ms: delayMs,
       });
       await wait(delayMs, signal);
