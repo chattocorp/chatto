@@ -90,6 +90,36 @@ func TestChattoConfig_Validate_EmbeddedNATS(t *testing.T) {
 			wantError: false,
 		},
 		{
+			name: "sync always is valid",
+			modify: func(c *ChattoConfig) {
+				c.NATS.Embedded.SyncInterval = "always"
+			},
+			wantError: false,
+		},
+		{
+			name: "positive sync duration is valid",
+			modify: func(c *ChattoConfig) {
+				c.NATS.Embedded.SyncInterval = "30s"
+			},
+			wantError: false,
+		},
+		{
+			name: "invalid sync interval fails",
+			modify: func(c *ChattoConfig) {
+				c.NATS.Embedded.SyncInterval = "often"
+			},
+			wantError: true,
+			errorMsg:  "nats.embedded.sync_interval must be 'always' or a valid duration",
+		},
+		{
+			name: "zero sync interval fails",
+			modify: func(c *ChattoConfig) {
+				c.NATS.Embedded.SyncInterval = "0s"
+			},
+			wantError: true,
+			errorMsg:  "nats.embedded.sync_interval must be 'always' or a positive duration",
+		},
+		{
 			name: "port 0 allowed (disables TCP listener)",
 			modify: func(c *ChattoConfig) {
 				c.NATS.Embedded.Port = 0

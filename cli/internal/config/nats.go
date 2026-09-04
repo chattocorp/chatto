@@ -1,16 +1,21 @@
 package config
 
 import (
+	"fmt"
+	"strings"
+	"time"
+
 	"hmans.de/chatto/pkg/natsauth"
 )
 
 type EmbeddedNATSConfig struct {
-	Enabled     bool   `toml:"enabled" env:"CHATTO_NATS_EMBEDDED_ENABLED" comment:"Enable embedded NATS server."`
-	Port        int    `toml:"port,commented" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"Uncomment to expose embedded NATS over TCP for nats CLI/admin commands. When left commented, Chatto connects in-process and no NATS port is opened."`
-	BindAddress string `toml:"bind_address,commented" env:"CHATTO_NATS_EMBEDDED_BIND_ADDRESS" comment:"Address to bind NATS ports. Default: 127.0.0.1 (localhost only)."`
-	HTTPPort    int    `toml:"http_port,commented" env:"CHATTO_NATS_EMBEDDED_HTTP_PORT" comment:"NATS monitoring/stats HTTP port. Set to 0 to disable."`
-	DataDir     string `toml:"data_dir" env:"CHATTO_NATS_EMBEDDED_DATA_DIR" comment:"Directory where the embedded NATS server stores its data."`
-	AuthToken   string `toml:"auth_token" env:"CHATTO_NATS_EMBEDDED_AUTH_TOKEN" comment:"Authentication token for NATS connections. Auto-generated on init."`
+	Enabled      bool   `toml:"enabled" env:"CHATTO_NATS_EMBEDDED_ENABLED" comment:"Enable embedded NATS server."`
+	Port         int    `toml:"port,commented" env:"CHATTO_NATS_EMBEDDED_PORT" comment:"Uncomment to expose embedded NATS over TCP for nats CLI/admin commands. When left commented, Chatto connects in-process and no NATS port is opened."`
+	BindAddress  string `toml:"bind_address,commented" env:"CHATTO_NATS_EMBEDDED_BIND_ADDRESS" comment:"Address to bind NATS ports. Default: 127.0.0.1 (localhost only)."`
+	HTTPPort     int    `toml:"http_port,commented" env:"CHATTO_NATS_EMBEDDED_HTTP_PORT" comment:"NATS monitoring/stats HTTP port. Set to 0 to disable."`
+	DataDir      string `toml:"data_dir" env:"CHATTO_NATS_EMBEDDED_DATA_DIR" comment:"Directory where the embedded NATS server stores its data."`
+	SyncInterval string `toml:"sync_interval,commented" env:"CHATTO_NATS_EMBEDDED_SYNC_INTERVAL" comment:"How often JetStream syncs file data to disk. Use a duration such as '2m', or use 'always' to sync every write. If unset, NATS uses its default."`
+	AuthToken    string `toml:"auth_token" env:"CHATTO_NATS_EMBEDDED_AUTH_TOKEN" comment:"Authentication token for NATS connections. Auto-generated on init."`
 }
 
 // BindAddressOrDefault returns the bind address, defaulting to localhost for security.
@@ -19,6 +24,27 @@ func (c *EmbeddedNATSConfig) BindAddressOrDefault() string {
 		return "127.0.0.1"
 	}
 	return c.BindAddress
+}
+
+// ParsedSyncInterval returns the native NATS sync interval settings. An empty
+// value leaves both settings unset so NATS applies its own default.
+func (c *EmbeddedNATSConfig) ParsedSyncInterval() (interval time.Duration, always bool, err error) {
+	value := strings.TrimSpace(c.SyncInterval)
+	if value == "" {
+		return 0, false, nil
+	}
+	if strings.EqualFold(value, "always") {
+		return 0, true, nil
+	}
+
+	interval, err = time.ParseDuration(value)
+	if err != nil {
+		return 0, false, fmt.Errorf("must be 'always' or a valid duration: %w", err)
+	}
+	if interval <= 0 {
+		return 0, false, fmt.Errorf("must be 'always' or a positive duration")
+	}
+	return interval, false, nil
 }
 
 // NATSClientConfig contains settings for connecting to an external NATS server.
