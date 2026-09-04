@@ -404,8 +404,10 @@ jobs:
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
-      - name: Build E2E server
-        run: mise build-e2e-server
+      - name: Build E2E server and test bot
+        run: |
+          mise build-e2e-server
+          mise test-bot-build
 
       - name: Run E2E tests
         run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
