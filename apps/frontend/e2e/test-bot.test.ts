@@ -31,6 +31,10 @@ interface GetMessageResponse {
   };
 }
 
+interface StartDMResponse {
+  room?: { id?: string };
+}
+
 class TestBotProcess {
   readonly records: BotLogRecord[] = [];
   readonly output: string[] = [];
@@ -142,7 +146,7 @@ async function attachBotOutput(testInfo: TestInfo, name: string, process: TestBo
 test.describe('public API test bot', () => {
   test.use({ serverOptions: { bootstrapTestBot: true } });
 
-  test('reads resources, receives live events, and resumes a disconnected gap', async ({
+  test('answers channel mentions and DMs, then resumes a disconnected gap', async ({
     page,
     server,
     serverURL
@@ -164,6 +168,51 @@ test.describe('public API test bot', () => {
       const ready = await first.waitFor((record) => record.status === 'api_ready');
       expect(Number(ready.visible_rooms)).toBeGreaterThanOrEqual(1);
       await first.waitFor((record) => record.status === 'caught_up' && record.resumed === false);
+
+      const startedDM = await connectPost<StartDMResponse>(
+        page,
+        'chatto.api.v1.RoomService/StartDM',
+        { participantIds: [String(ready.viewer_id)] }
+      );
+      const dmRoomId = startedDM.room?.id;
+      if (!dmRoomId) throw new Error('The TestBot DM did not return a room ID');
+      const dmEventId = await postMessageViaConnect(
+        page,
+        dmRoomId,
+        'Please answer this DM without a mention'
+      );
+      const dmTyping = await first.waitFor(
+        (record) =>
+          record.status === 'typing_started' &&
+          record.direct_message === true &&
+          record.source_event_id === dmEventId
+      );
+      const dmStarted = await first.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_message' &&
+          record.source_event_id === dmEventId
+      );
+      const dmReply = await first.waitFor(
+        (record) =>
+          record.status === 'ai_replied' &&
+          record.trigger === 'direct_message' &&
+          record.source_event_id === dmEventId
+      );
+      expect(first.records.indexOf(dmTyping)).toBeLessThan(first.records.indexOf(dmStarted));
+      const dmReplyEventId = String(dmReply.reply_event_id);
+      const createdDMReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId: dmRoomId, eventId: dmReplyEventId }
+      );
+      expect(createdDMReply.message).toMatchObject({
+        id: dmReplyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY
+      });
+      expect(createdDMReply.message?.inReplyTo ?? '').toBe('');
+      expect(createdDMReply.message?.threadRootEventId ?? '').toBe('');
 
       const firstEventId = await postMessageViaConnect(
         page,

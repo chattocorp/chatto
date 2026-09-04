@@ -12,6 +12,8 @@ import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import { UserService } from "@chatto/api-types/api/v1/user_service_connect";
 import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
 import type { Message } from "@chatto/api-types/api/v1/message_types_pb";
+import type { RoomTimelineEvent } from "@chatto/api-types/api/v1/room_timeline_pb";
+import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 import {
   RealtimeEvent,
   RealtimeInitialState,
@@ -58,24 +60,35 @@ interface SessionResult {
   retryAfterMs?: number;
 }
 
-/** Source message and thread placement for one TestBot reply. */
-export interface ReplyTarget {
+interface ReplyTargetBase {
   roomId: string;
   sourceEventId: string;
-  threadRootEventId: string;
   sourceActorId: string;
   sourceBody: string;
 }
+
+/** Source message and conversation placement for one TestBot reply. */
+export type ReplyTarget = ReplyTargetBase &
+  (
+    | {
+        scope: { case: "thread"; threadRootEventId: string };
+      }
+    | {
+        scope: { case: "directMessage" };
+      }
+  );
 
 /** Narrow public API operations required by the reply workflow. */
 export interface BotAPI {
   /** Authenticated TestBot user ID. */
   viewerId: string;
+  /** Return the public kind of a visible room. */
+  roomKind(roomId: string): Promise<RoomKind>;
   /** Return whether the source actor is another bot. */
   isBotActor(actorId: string): Promise<boolean>;
   /** Read the current conversation that contains the source message. */
   loadConversation(target: ReplyTarget): Promise<ConversationMessage[]>;
-  /** Publish one live-only typing indicator for the target thread. */
+  /** Publish one live-only typing indicator for the target conversation. */
   updateTypingIndicator(target: ReplyTarget): Promise<void>;
   /** Create a reply and return its message event ID. */
   postReply(target: ReplyTarget, body: string): Promise<string>;
@@ -136,14 +149,17 @@ async function connectPublicAPI(
   const viewer = await createClient(ViewerService, transport).getViewer({});
   const viewerId = viewer.user?.profile?.id;
   if (!viewerId) throw new Error("viewer response did not contain a user ID");
-  const rooms = await createClient(RoomDirectoryService, transport).listRooms(
-    {},
-  );
+  const roomDirectory = createClient(RoomDirectoryService, transport);
+  const rooms = await roomDirectory.listRooms({});
   const messages = createClient(MessageService, transport);
   const roomOperations = createClient(RoomService, transport);
   const threads = createClient(ThreadService, transport);
   const users = createClient(UserService, transport);
   const botActors = new Map<string, boolean>([[viewerId, true]]);
+  const roomKinds = new Map<string, RoomKind>();
+  for (const entry of rooms.rooms) {
+    if (entry.room?.id) roomKinds.set(entry.room.id, entry.room.kind);
+  }
   log({
     status: "api_ready",
     viewer_id: viewerId,
@@ -151,6 +167,15 @@ async function connectPublicAPI(
   });
   return {
     viewerId,
+    async roomKind(roomId): Promise<RoomKind> {
+      const cached = roomKinds.get(roomId);
+      if (cached !== undefined) return cached;
+      const response = await roomDirectory.getRoom({ roomId });
+      const room = response.room?.room;
+      if (!room) throw new Error("room response did not contain a room");
+      roomKinds.set(room.id, room.kind);
+      return room.kind;
+    },
     async isBotActor(actorId): Promise<boolean> {
       const cached = botActors.get(actorId);
       if (cached !== undefined) return cached;
@@ -168,34 +193,35 @@ async function connectPublicAPI(
         actorId: target.sourceActorId,
         body: target.sourceBody,
       };
-      if (target.threadRootEventId === target.sourceEventId) {
+      if (
+        target.scope.case === "thread" &&
+        target.scope.threadRootEventId === target.sourceEventId
+      ) {
         return [source];
       }
-      let response;
+      let events: RoomTimelineEvent[];
       try {
-        response = await threads.getThreadEventsAround({
-          roomId: target.roomId,
-          threadRootEventId: target.threadRootEventId,
-          eventId: target.sourceEventId,
-          limit: MAXIMUM_CONVERSATION_MESSAGES,
-        });
+        if (target.scope.case === "directMessage") {
+          const response = await roomOperations.getRoomEventsAround({
+            roomId: target.roomId,
+            eventId: target.sourceEventId,
+            limit: MAXIMUM_CONVERSATION_MESSAGES,
+          });
+          events = response.page?.events ?? [];
+        } else {
+          const response = await threads.getThreadEventsAround({
+            roomId: target.roomId,
+            threadRootEventId: target.scope.threadRootEventId,
+            eventId: target.sourceEventId,
+            limit: MAXIMUM_CONVERSATION_MESSAGES,
+          });
+          events = response.page?.events ?? [];
+        }
       } catch (error) {
         if (ConnectError.from(error).code === Code.NotFound) return [source];
         throw error;
       }
-      const events = response.page?.events ?? [];
-      const targetIndex = events.findIndex(
-        (event) => event.id === target.sourceEventId,
-      );
-      const conversation = events
-        .slice(0, targetIndex >= 0 ? targetIndex + 1 : events.length)
-        .flatMap((event) => {
-          if (event.event.case !== "messagePosted") return [];
-          const message = event.event.value.message;
-          return message?.body === undefined
-            ? []
-            : [conversationMessage(message)];
-        });
+      const conversation = conversationThroughSource(events, source.eventId);
       if (!conversation.some((message) => message.eventId === source.eventId)) {
         conversation.push(source);
       }
@@ -204,7 +230,10 @@ async function connectPublicAPI(
     async updateTypingIndicator(target): Promise<void> {
       const response = await roomOperations.updateTypingIndicator({
         roomId: target.roomId,
-        threadRootEventId: target.threadRootEventId,
+        threadRootEventId:
+          target.scope.case === "thread"
+            ? target.scope.threadRootEventId
+            : undefined,
       });
       if (!response.updated) {
         throw new Error("typing indicator was not accepted");
@@ -214,8 +243,12 @@ async function connectPublicAPI(
       const response = await messages.createMessage({
         roomId: target.roomId,
         body,
-        threadRootEventId: target.threadRootEventId,
-        inReplyTo: target.sourceEventId,
+        ...(target.scope.case === "thread"
+          ? {
+              threadRootEventId: target.scope.threadRootEventId,
+              inReplyTo: target.sourceEventId,
+            }
+          : {}),
       });
       const replyEventId = response.message?.id;
       if (!replyEventId) {
@@ -234,13 +267,34 @@ function conversationMessage(message: Message): ConversationMessage {
   };
 }
 
+function conversationThroughSource(
+  events: RoomTimelineEvent[],
+  sourceEventId: string,
+): ConversationMessage[] {
+  const sourceIndex = events.findIndex((event) => event.id === sourceEventId);
+  return events
+    .slice(0, sourceIndex >= 0 ? sourceIndex + 1 : events.length)
+    .flatMap((event) => {
+      if (event.event.case !== "messagePosted") return [];
+      const message = event.event.value.message;
+      return message?.body === undefined ? [] : [conversationMessage(message)];
+    });
+}
+
 function threadKey(roomId: string, threadRootEventId: string): string {
   return `${roomId}\0${threadRootEventId}`;
 }
 
-function threadSessionId(roomId: string, threadRootEventId: string): string {
-  return `chatto-thread-${createHash("sha256")
-    .update(threadKey(roomId, threadRootEventId))
+function conversationKey(target: ReplyTarget): string {
+  return target.scope.case === "thread"
+    ? threadKey(target.roomId, target.scope.threadRootEventId)
+    : `${target.roomId}\0direct-message`;
+}
+
+function conversationSessionId(target: ReplyTarget): string {
+  const kind = target.scope.case === "thread" ? "thread" : "dm";
+  return `chatto-${kind}-${createHash("sha256")
+    .update(conversationKey(target))
     .digest("hex")
     .slice(0, 32)}`;
 }
@@ -255,21 +309,19 @@ function participantLabel(key: string, actorId: string): string {
   return `Person ${suffix}`;
 }
 
-/** Build a bounded, identity-minimized Pi conversation from a Chatto thread. */
-export function threadAIConversation(
+/** Build a bounded, identity-minimized Pi conversation from one Chatto scope. */
+export function chatAIConversation(
   messages: ConversationMessage[],
   viewerId: string,
-  roomId: string,
-  threadRootEventId: string,
-  sourceEventId: string,
+  target: ReplyTarget,
 ): AIConversation {
   const sourceIndex = messages.findIndex(
-    (message) => message.eventId === sourceEventId,
+    (message) => message.eventId === target.sourceEventId,
   );
   if (sourceIndex < 0) {
-    throw new Error("thread snapshot did not contain the source message");
+    throw new Error("conversation snapshot did not contain the source message");
   }
-  const key = threadKey(roomId, threadRootEventId);
+  const key = conversationKey(target);
   const available = messages
     .slice(0, sourceIndex + 1)
     .slice(-MAXIMUM_CONVERSATION_MESSAGES)
@@ -293,18 +345,19 @@ export function threadAIConversation(
     length += addedLength;
   }
   if (selected.at(-1)?.role !== "user") {
-    throw new Error("thread conversation did not end with a human message");
+    throw new Error("conversation did not end with a human message");
   }
   return {
-    sessionId: threadSessionId(roomId, threadRootEventId),
+    sessionId: conversationSessionId(target),
     turns: selected,
   };
 }
 
-/** Return a reply target only when a human directly mentions this bot. */
+/** Return a reply target for a DM message or a direct mention in a channel. */
 export function messageReplyTarget(
   event: RealtimeEvent,
   viewerId: string,
+  roomKind: RoomKind,
 ): ReplyTarget | undefined {
   if (event.actorId === viewerId || event.event.case !== "messagePosted") {
     return undefined;
@@ -319,21 +372,51 @@ export function messageReplyTarget(
   ) {
     return undefined;
   }
-  const directlyMentioned = message.mentions.some(
-    (mention) => mention.userId === viewerId && mention.cause.case === "direct",
-  );
-  if (!directlyMentioned) return undefined;
-  const threadRootEventId = message.inThread || event.id;
-  return {
+  if (roomKind !== RoomKind.CHANNEL && roomKind !== RoomKind.DM) return undefined;
+  if (roomKind === RoomKind.CHANNEL) {
+    const directlyMentioned = message.mentions.some(
+      (mention) =>
+        mention.userId === viewerId && mention.cause.case === "direct",
+    );
+    if (!directlyMentioned) return undefined;
+  }
+  const base = {
     roomId: message.roomId,
     sourceEventId: event.id,
-    threadRootEventId,
     sourceActorId: event.actorId,
     sourceBody: message.bodyPlaintext,
   };
+  if (roomKind === RoomKind.DM) {
+    return { ...base, scope: { case: "directMessage" } };
+  }
+  return {
+    ...base,
+    scope: {
+      case: "thread",
+      threadRootEventId: message.inThread || event.id,
+    },
+  };
 }
 
-/** Refresh a thread typing indicator until the operation stops. */
+function candidateRoomId(
+  event: RealtimeEvent,
+  viewerId: string,
+): string | undefined {
+  if (event.actorId === viewerId || event.event.case !== "messagePosted") {
+    return undefined;
+  }
+  return event.event.value.roomId || undefined;
+}
+
+function targetLogFields(
+  target: ReplyTarget,
+): Record<string, boolean | number | string> {
+  return target.scope.case === "thread"
+    ? { thread_root_event_id: target.scope.threadRootEventId }
+    : { direct_message: true };
+}
+
+/** Refresh a conversation typing indicator until the operation stops. */
 export async function refreshTypingIndicator(
   api: Pick<BotAPI, "updateTypingIndicator">,
   target: ReplyTarget,
@@ -347,14 +430,20 @@ export async function refreshTypingIndicator(
   }
 }
 
-/** Publish typing activity while Pi prepares one final thread reply. */
+/** Publish typing activity while Pi prepares one final reply. */
 export async function replyToMessage(
   api: BotAPI,
   ai: AIResponder,
   event: RealtimeEvent,
   signal: AbortSignal,
 ): Promise<void> {
-  const target = messageReplyTarget(event, api.viewerId);
+  const roomId = candidateRoomId(event, api.viewerId);
+  if (!roomId) return;
+  const target = messageReplyTarget(
+    event,
+    api.viewerId,
+    await api.roomKind(roomId),
+  );
   if (!target) return;
   if (await api.isBotActor(target.sourceActorId)) return;
   if (signal.aborted) throw new DOMException("Aborted", "AbortError");
@@ -374,7 +463,7 @@ export async function replyToMessage(
     log({
       status: "typing_started",
       source_event_id: target.sourceEventId,
-      thread_root_event_id: target.threadRootEventId,
+      ...targetLogFields(target),
     });
     typingRefresh = refreshTypingIndicator(
       api,
@@ -389,32 +478,32 @@ export async function replyToMessage(
   log({
     status: "ai_reply_started",
     source_event_id: target.sourceEventId,
-    thread_root_event_id: target.threadRootEventId,
-    trigger: "direct_mention",
+    ...targetLogFields(target),
+    trigger:
+      target.scope.case === "directMessage"
+        ? "direct_message"
+        : "direct_mention",
   });
 
   try {
     const conversation = await api.loadConversation(target);
     if (conversation.length === 0) {
-      throw new Error("message thread did not contain the source message");
+      throw new Error("conversation did not contain the source message");
     }
     const body = await ai.respond(
-      threadAIConversation(
-        conversation,
-        api.viewerId,
-        target.roomId,
-        target.threadRootEventId,
-        target.sourceEventId,
-      ),
+      chatAIConversation(conversation, api.viewerId, target),
       signal,
     );
     const replyEventId = await api.postReply(target, body);
     log({
       status: "ai_replied",
       source_event_id: target.sourceEventId,
-      thread_root_event_id: target.threadRootEventId,
+      ...targetLogFields(target),
       reply_event_id: replyEventId,
-      trigger: "direct_mention",
+      trigger:
+        target.scope.case === "directMessage"
+          ? "direct_message"
+          : "direct_mention",
     });
   } finally {
     typingController.abort();
@@ -424,7 +513,7 @@ export async function replyToMessage(
       log({
         status: "typing_stopped",
         source_event_id: target.sourceEventId,
-        thread_root_event_id: target.threadRootEventId,
+        ...targetLogFields(target),
       });
     }
   }

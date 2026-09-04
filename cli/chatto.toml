@@ -131,7 +131,7 @@ display_name = 'TestBot'
 owner_login = 'alice'
 api_key_name = 'Local development'
 credential_file = './data/bootstrap/test_bot.key'
-permissions = ['room.join', 'room.list', 'message.read', 'message.post-in-thread']
+permissions = ['room.join', 'room.list', 'message.read', 'message.post', 'message.post-in-thread']
 rooms = ['general']
 
 [bootstrap.server]

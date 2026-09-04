@@ -33,7 +33,7 @@ func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
 	if bot.CredentialFile != "./data/bootstrap/test_bot.key" {
 		t.Fatalf("development bot credential file = %q", bot.CredentialFile)
 	}
-	if !slices.Equal(bot.Permissions, []string{"room.join", "room.list", "message.read", "message.post-in-thread"}) || !slices.Equal(bot.Rooms, []string{"general"}) {
+	if !slices.Equal(bot.Permissions, []string{"room.join", "room.list", "message.read", "message.post", "message.post-in-thread"}) || !slices.Equal(bot.Rooms, []string{"general"}) {
 		t.Fatalf("development bot access = %#v", bot)
 	}
 }

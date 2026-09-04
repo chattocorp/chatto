@@ -5,15 +5,16 @@ import {
   MessagePostedEvent,
   RoleMessageMention,
 } from "@chatto/api-types/realtime/v1/events_pb";
+import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { AIResponder } from "./ai.js";
 import {
+  chatAIConversation,
   messageReplyTarget,
   OrderedConcurrentProcessor,
   refreshTypingIndicator,
   replyToMessage,
-  threadAIConversation,
   type BotAPI,
 } from "./bot.js";
 
@@ -67,54 +68,84 @@ test("targets the existing thread for a direct mention in a reply", () => {
     messageReplyTarget(
       messageEvent({ direct: true, inThread: "thread-root-1" }),
       BOT_ID,
+      RoomKind.CHANNEL,
     ),
     {
       roomId: "room-1",
       sourceEventId: "message-1",
-      threadRootEventId: "thread-root-1",
       sourceActorId: "user-1",
       sourceBody: "hello",
+      scope: { case: "thread", threadRootEventId: "thread-root-1" },
     },
   );
 });
 
 test("uses a directly mentioned root as the new thread root", () => {
-  assert.deepEqual(messageReplyTarget(messageEvent({ direct: true }), BOT_ID), {
-    roomId: "room-1",
-    sourceEventId: "message-1",
-    threadRootEventId: "message-1",
-    sourceActorId: "user-1",
-    sourceBody: "hello",
-  });
+  assert.deepEqual(
+    messageReplyTarget(
+      messageEvent({ direct: true }),
+      BOT_ID,
+      RoomKind.CHANNEL,
+    ),
+    {
+      roomId: "room-1",
+      sourceEventId: "message-1",
+      sourceActorId: "user-1",
+      sourceBody: "hello",
+      scope: { case: "thread", threadRootEventId: "message-1" },
+    },
+  );
+});
+
+test("targets a direct message without a mention", () => {
+  assert.deepEqual(
+    messageReplyTarget(messageEvent(), BOT_ID, RoomKind.DM),
+    {
+      roomId: "room-1",
+      sourceEventId: "message-1",
+      sourceActorId: "user-1",
+      sourceBody: "hello",
+      scope: { case: "directMessage" },
+    },
+  );
 });
 
 test("ignores later messages in a thread without another direct mention", () => {
   assert.equal(
-    messageReplyTarget(messageEvent({ inThread: "thread-root-1" }), BOT_ID),
+    messageReplyTarget(
+      messageEvent({ inThread: "thread-root-1" }),
+      BOT_ID,
+      RoomKind.CHANNEL,
+    ),
     undefined,
   );
 });
 
 test("ignores indirect, self-authored, and channel-echo events", () => {
   assert.equal(
-    messageReplyTarget(messageEvent({ role: true }), BOT_ID),
+    messageReplyTarget(messageEvent({ role: true }), BOT_ID, RoomKind.CHANNEL),
     undefined,
   );
   assert.equal(
-    messageReplyTarget(messageEvent({ actorId: BOT_ID, direct: true }), BOT_ID),
+    messageReplyTarget(
+      messageEvent({ actorId: BOT_ID, direct: true }),
+      BOT_ID,
+      RoomKind.CHANNEL,
+    ),
     undefined,
   );
   assert.equal(
     messageReplyTarget(
       messageEvent({ direct: true, echoOfEventId: "canonical-reply-1" }),
       BOT_ID,
+      RoomKind.CHANNEL,
     ),
     undefined,
   );
 });
 
 test("builds a structured thread snapshot ending at its source message", () => {
-  const conversation = threadAIConversation(
+  const conversation = chatAIConversation(
     [
       { eventId: "1", actorId: "user-secret-id", body: "Earlier context." },
       { eventId: "2", actorId: BOT_ID, body: "An earlier answer." },
@@ -127,9 +158,13 @@ test("builds a structured thread snapshot ending at its source message", () => {
       { eventId: "5", actorId: "user-secret-id", body: "A later message." },
     ],
     BOT_ID,
-    "room-1",
-    "thread-1",
-    "4",
+    {
+      roomId: "room-1",
+      sourceEventId: "4",
+      sourceActorId: "user-secret-id",
+      sourceBody: "@test_bot Help?",
+      scope: { case: "thread", threadRootEventId: "thread-1" },
+    },
   );
 
   assert.match(conversation.sessionId, /^chatto-thread-[a-f0-9]{32}$/);
@@ -154,6 +189,36 @@ test("builds a structured thread snapshot ending at its source message", () => {
   assert.equal(
     conversation.turns.some((turn) => turn.content.includes("later message")),
     false,
+  );
+});
+
+test("uses one stable AI session for a direct-message conversation", () => {
+  const target = {
+    roomId: "dm-1",
+    sourceEventId: "2",
+    sourceActorId: "user-1",
+    sourceBody: "Can you help?",
+    scope: { case: "directMessage" as const },
+  };
+  const first = chatAIConversation(
+    [
+      { eventId: "1", actorId: BOT_ID, body: "Hello." },
+      { eventId: "2", actorId: "user-1", body: "Can you help?" },
+    ],
+    BOT_ID,
+    target,
+  );
+  const second = chatAIConversation(
+    [{ eventId: "2", actorId: "user-1", body: "Can you help?" }],
+    BOT_ID,
+    target,
+  );
+
+  assert.match(first.sessionId, /^chatto-dm-[a-f0-9]{32}$/);
+  assert.equal(second.sessionId, first.sessionId);
+  assert.deepEqual(
+    first.turns.map((turn) => turn.role),
+    ["assistant", "user"],
   );
 });
 
@@ -226,6 +291,7 @@ test("sends typing before the model and posts only the final reply", async () =>
   };
   const api: BotAPI = {
     viewerId: BOT_ID,
+    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => {
       actions.push("typing");
@@ -269,9 +335,9 @@ test("refreshes typing until the reply operation stops", async () => {
   const target = {
     roomId: "room-1",
     sourceEventId: "message-1",
-    threadRootEventId: "thread-root-1",
     sourceActorId: "user-1",
     sourceBody: "hello",
+    scope: { case: "thread" as const, threadRootEventId: "thread-root-1" },
   };
 
   await refreshTypingIndicator(api, target, controller.signal, 0);
@@ -283,6 +349,7 @@ test("does not post a message when generation fails", async () => {
   let posts = 0;
   const api: BotAPI = {
     viewerId: BOT_ID,
+    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => undefined,
     loadConversation: async (target) => [

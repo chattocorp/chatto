@@ -3,9 +3,10 @@
 `test_bot` is a small, long-running integration example. It authenticates with
 a bot API key, reads the current viewer and room directory with ConnectRPC, and
 then listens to the protobuf realtime WebSocket. It uses the Pi SDK to generate
-replies. The bot replies only to messages that contain a direct `@test_bot`
-mention. A mention in a root message starts a thread for the reply. Role,
-`@here`, and `@all` mentions do not trigger the bot. The bot logs event
+replies. In a channel, the bot replies only to messages that contain a direct
+`@test_bot` mention. A mention in a root message starts a thread for the reply.
+Role, `@here`, and `@all` mentions do not trigger the bot. In a direct message
+(DM), each human message triggers the bot without a mention. The bot logs event
 metadata, but it does not log message text, user names, prompts, replies, or
 credentials.
 
@@ -15,9 +16,11 @@ startup, makes Alice its owner, joins it to `general`, and writes its generated
 API key to `cli/data/bootstrap/test_bot.key`. Release builds do not run this
 bootstrap code.
 
-The bootstrap grants `room.join`, `room.list`, `message.read`, and
-`message.post-in-thread`. It does not grant `message.post`, so the bot cannot
-create root messages. A room-level permission denial can still prevent a reply.
+The bootstrap grants `room.join`, `room.list`, `message.read`, `message.post`,
+and `message.post-in-thread`. The `message.post` permission lets the bot reply
+in an existing DM. It does not let the bot start a DM. A human must start the DM
+and include TestBot. A room-level permission denial can still prevent a channel
+reply.
 
 To run the bot separately after you build it, set these variables:
 
@@ -43,30 +46,33 @@ export CHATTO_TEST_BOT_AI_MODEL=claude-haiku-4-5
 export ANTHROPIC_API_KEY=your-key
 ```
 
-For each direct mention, the bot immediately publishes a live-only typing
-indicator in the thread. It refreshes the indicator every two seconds while Pi
-works. Receiving clients remove an idle indicator after six seconds. The bot
-then posts one final, durable reply.
+For each direct channel mention or human DM message, the bot immediately
+publishes a live-only typing indicator. It uses a thread indicator in a channel
+and a room indicator in a DM. It refreshes the indicator every two seconds
+while Pi works. Receiving clients remove an idle indicator after six seconds.
+The bot then posts one final, durable reply.
 
-The bot reads a window of up to 40 messages around the source message from the
-public thread API. It excludes messages that came after the source message. The
-context includes messages that do not mention the bot and messages from other
-users. If the anchored resource read has not caught up, the bot uses the
-realtime source message by itself and can still answer.
+The bot reads a window of up to 40 messages around the source message. It uses
+the public thread API for a channel thread and the public room timeline API for
+a DM. It excludes messages that came after the source message. The context
+includes messages that do not mention the bot and messages from other users. If
+the anchored resource read has not caught up, the bot uses the realtime source
+message by itself and can still answer.
 
-The bot reconstructs the thread as structured user and assistant turns. It uses
-a stable, hashed session ID for each thread. It also replaces Chatto user IDs
-with stable, hashed labels that apply only to that thread. It does not send
-profile names. These stable inputs let an AI provider use prompt caching when
-the provider supports it. Chatto remains the source of truth, so the bot can
-reconstruct the conversation after a restart. The context has limits of 40
-messages, 4,000 characters per message, and 32,000 characters in total.
+The bot reconstructs each channel thread or DM as structured user and assistant
+turns. It uses a stable, hashed session ID for each conversation. It also
+replaces Chatto user IDs with stable, hashed labels that apply only to that
+conversation. It does not send profile names. These stable inputs let an AI
+provider use prompt caching when the provider supports it. Chatto remains the
+source of truth, so the bot can reconstruct the conversation after a restart.
+The context has limits of 40 messages, 4,000 characters per message, and 32,000
+characters in total.
 
-Each mention gets an independent Pi session and an immutable thread snapshot.
-The bot can run up to eight reply jobs at the same time, including jobs for the
-same thread. Concurrent jobs do not include answers that are still in progress.
-When a job is complete, the bot posts the answer and stops refreshing its typing
-indicator.
+Each trigger gets an independent Pi session and an immutable conversation
+snapshot. The bot can run up to eight reply jobs at the same time, including
+jobs for the same channel thread or DM. Concurrent jobs do not include answers
+that are still in progress. When a job is complete, the bot posts the answer and
+stops refreshing its typing indicator.
 
 The Pi agent has one local extension named `web_fetch`. The model can use it to
 fetch text from public HTTP and HTTPS URLs when current information helps with a
