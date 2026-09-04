@@ -1,8 +1,10 @@
 import { createClient, type Interceptor } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
+import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
 import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
 import {
+  RealtimeEvent,
   RealtimeInitialState,
   RealtimeServerFrame,
   RealtimeSubscribe,
@@ -30,6 +32,17 @@ interface SessionResult {
   reconnect: boolean;
   caughtUp: boolean;
   retryAfterMs?: number;
+}
+
+interface MentionReplyTarget {
+  roomId: string;
+  sourceEventId: string;
+  threadRootEventId: string;
+}
+
+interface BotAPI {
+  viewerId: string;
+  replyToMention(target: MentionReplyTarget): Promise<string>;
 }
 
 function log(record: Record<string, boolean | number | string>): void {
@@ -65,10 +78,10 @@ async function readAPIKey(apiKeyFile: string): Promise<string> {
   return apiKey;
 }
 
-async function verifyPublicAPI(
+async function connectPublicAPI(
   config: TestBotConfig,
   apiKey: string,
-): Promise<void> {
+): Promise<BotAPI> {
   const authorization: Interceptor = (next) => async (request) => {
     request.header.set("Authorization", `Bearer ${apiKey}`);
     return next(request);
@@ -83,10 +96,64 @@ async function verifyPublicAPI(
   const rooms = await createClient(RoomDirectoryService, transport).listRooms(
     {},
   );
+  const messages = createClient(MessageService, transport);
   log({
     status: "api_ready",
     viewer_id: viewerId,
     visible_rooms: rooms.rooms.length,
+  });
+  return {
+    viewerId,
+    async replyToMention(target): Promise<string> {
+      const response = await messages.createMessage({
+        roomId: target.roomId,
+        body: "Hello! I received your mention.",
+        threadRootEventId: target.threadRootEventId,
+        inReplyTo: target.sourceEventId,
+      });
+      const replyEventId = response.message?.id;
+      if (!replyEventId) {
+        throw new Error("message response did not contain an event ID");
+      }
+      return replyEventId;
+    },
+  };
+}
+
+/** Return a reply target only for a direct mention of this bot. */
+export function mentionReplyTarget(
+  event: RealtimeEvent,
+  viewerId: string,
+): MentionReplyTarget | undefined {
+  if (event.actorId === viewerId || event.event.case !== "messagePosted") {
+    return undefined;
+  }
+  const message = event.event.value;
+  if (!event.id || !message.roomId || message.echoOfEventId) return undefined;
+  const directlyMentioned = message.mentions.some(
+    (mention) =>
+      mention.userId === viewerId && mention.cause.case === "direct",
+  );
+  if (!directlyMentioned) return undefined;
+  return {
+    roomId: message.roomId,
+    sourceEventId: event.id,
+    threadRootEventId: message.inThread || event.id,
+  };
+}
+
+async function replyToDirectMention(
+  api: BotAPI,
+  event: RealtimeEvent,
+): Promise<void> {
+  const target = mentionReplyTarget(event, api.viewerId);
+  if (!target) return;
+  const replyEventId = await api.replyToMention(target);
+  log({
+    status: "mention_replied",
+    source_event_id: target.sourceEventId,
+    thread_root_event_id: target.threadRootEventId,
+    reply_event_id: replyEventId,
   });
 }
 
@@ -102,6 +169,7 @@ async function commitState(
 async function runRealtimeSession(
   config: TestBotConfig,
   apiKey: string,
+  api: BotAPI,
   state: TestBotState,
   signal: AbortSignal,
 ): Promise<SessionResult> {
@@ -149,7 +217,7 @@ async function runRealtimeSession(
           switch (frame.frame.case) {
             case "event": {
               const event = frame.frame.value;
-              const firstDelivery = rememberProcessedEvent(state, event.id);
+              const firstDelivery = !state.processedEventIds.includes(event.id);
               if (firstDelivery) {
                 log({
                   status: "event",
@@ -157,6 +225,8 @@ async function runRealtimeSession(
                   event_id: event.id,
                   ...(event.actorId ? { actor_id: event.actorId } : {}),
                 });
+                await replyToDirectMention(api, event);
+                rememberProcessedEvent(state, event.id);
               } else {
                 log({ status: "duplicate_ignored", event_id: event.id });
               }
@@ -287,8 +357,14 @@ export async function runTestBot(
   while (!signal.aborted) {
     try {
       const apiKey = await readAPIKey(config.apiKeyFile);
-      await verifyPublicAPI(config, apiKey);
-      const session = await runRealtimeSession(config, apiKey, state, signal);
+      const api = await connectPublicAPI(config, apiKey);
+      const session = await runRealtimeSession(
+        config,
+        apiKey,
+        api,
+        state,
+        signal,
+      );
       if (session.caughtUp) attempt = 0;
       if (!session.reconnect || signal.aborted) return;
       const delayMs = reconnectDelay(attempt, session.retryAfterMs);

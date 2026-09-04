@@ -194,7 +194,8 @@ export async function startServer(
             CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN: 'e2eadmin',
             CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME: 'E2E',
             CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE: bootstrapBotCredentialFile,
-            CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS: 'room.join,room.list,message.read',
+            CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS:
+              'room.join,room.list,message.read,message.post-in-thread',
             CHATTO_BOOTSTRAP_BOTS_0_ROOMS: 'general'
           }
         : {}),

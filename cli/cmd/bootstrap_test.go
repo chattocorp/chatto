@@ -165,7 +165,7 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 			OwnerLogin:     "alice",
 			APIKeyName:     "Local development",
 			CredentialFile: credentialFile,
-			Permissions:    []string{"room.join", "message.read"},
+			Permissions:    []string{"room.join", "message.read", "message.post-in-thread"},
 			Rooms:          []string{"general"},
 		}},
 		Server: &config.BootstrapServer{Name: "Engineering"},
@@ -239,6 +239,13 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	}
 	if !canRead {
 		t.Fatal("expected bootstrap bot to have message.read")
+	}
+	canPostInThread, err := c.CanPostInThread(ctx, bot.GetId(), core.KindChannel, generalID)
+	if err != nil {
+		t.Fatalf("check bot message.post-in-thread: %v", err)
+	}
+	if !canPostInThread {
+		t.Fatal("expected bootstrap bot to have message.post-in-thread")
 	}
 	canPost, err := c.CanPostMessage(ctx, bot.GetId(), core.KindChannel, generalID)
 	if err != nil {

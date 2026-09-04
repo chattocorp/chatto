@@ -4,7 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import type { TestInfo } from '@playwright/test';
-import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect
+} from './fixtures/connectHelpers';
 import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
 import { expect, test } from './setup';
 
@@ -14,6 +19,16 @@ const BOT_KEY_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
 type BotLogRecord = Record<string, boolean | number | string>;
+
+interface GetMessageResponse {
+  message?: {
+    id?: string;
+    actorId?: string;
+    body?: string;
+    inReplyTo?: string;
+    threadRootEventId?: string;
+  };
+}
 
 class TestBotProcess {
   readonly records: BotLogRecord[] = [];
@@ -167,6 +182,30 @@ test.describe('public API test bot', () => {
           return Boolean(state.resumeCursor && state.processedEventIds?.includes(firstEventId));
         })
         .toBe(true);
+
+      const mentionEventId = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        '@test_bot please confirm this thread mention',
+        firstEventId
+      );
+      const mentionReply = await first.waitFor(
+        (record) =>
+          record.status === 'mention_replied' && record.source_event_id === mentionEventId
+      );
+      const replyEventId = String(mentionReply.reply_event_id);
+      const createdReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: replyEventId }
+      );
+      expect(createdReply.message).toMatchObject({
+        id: replyEventId,
+        actorId: String(ready.viewer_id),
+        body: 'Hello! I received your mention.',
+        inReplyTo: mentionEventId,
+        threadRootEventId: firstEventId
+      });
 
       await first.stop();
       const missedEventId = await postMessageViaConnect(

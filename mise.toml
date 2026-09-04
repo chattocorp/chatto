@@ -470,7 +470,7 @@ env = {
   CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
   CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "./data/bootstrap/test_bot.key",
-  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read",
+  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
   CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
   CHATTO_BOOTSTRAP_SERVER_NAME = "Chatto + Authling",
 }
