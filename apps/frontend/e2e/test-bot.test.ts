@@ -234,6 +234,42 @@ test.describe('public API test bot', () => {
         })
         .toEqual({ pendingReplyCount: 0, sourceProcessed: true });
 
+      const [rapidMentionA, rapidMentionB] = await Promise.all([
+        postThreadReplyViaConnect(page, roomId, '@test_bot answer rapid prompt A', firstEventId),
+        postThreadReplyViaConnect(page, roomId, '@test_bot answer rapid prompt B', firstEventId)
+      ]);
+      const [rapidReplyA, rapidReplyB] = await Promise.all([
+        first.waitFor(
+          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMentionA
+        ),
+        first.waitFor(
+          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMentionB
+        )
+      ]);
+      expect(String(rapidReplyA.reply_event_id)).not.toBe(String(rapidReplyB.reply_event_id));
+      for (const reply of [rapidReplyA, rapidReplyB]) {
+        const response = await connectPost<GetMessageResponse>(
+          page,
+          'chatto.api.v1.MessageService/GetMessage',
+          { roomId, eventId: String(reply.reply_event_id) }
+        );
+        expect(response.message?.body).toBe(FAUX_AI_REPLY);
+      }
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            pendingReplies?: unknown[];
+            processedEventIds?: string[];
+          };
+          return {
+            pendingReplyCount: state.pendingReplies?.length,
+            sourcesProcessed: [rapidMentionA, rapidMentionB].every((eventId) =>
+              state.processedEventIds?.includes(eventId)
+            )
+          };
+        })
+        .toEqual({ pendingReplyCount: 0, sourcesProcessed: true });
+
       const followUpEventId = await postThreadReplyViaConnect(
         page,
         roomId,

@@ -44,13 +44,25 @@ export ANTHROPIC_API_KEY=your-key
 ```
 
 For each direct mention, the bot first creates an italic `Thinking…` reply. It
-then reads up to 40 current messages from the public thread API. This context
-includes messages that do not mention the bot and messages from other users.
-The bot sends their text to the selected AI provider and replaces the thinking
-reply with the completed answer. It replaces Chatto user IDs with prompt-local
-labels such as `Person 1`, and it does not send profile names. It always
-includes the realtime source message, even when a resource read has not caught
-up.
+then reads a window of up to 40 messages around the source message from the
+public thread API. The bot excludes messages that came after the source
+message. The context includes messages that do not mention the bot and messages
+from other users. It omits temporary `Thinking…` replies. If the anchored
+resource read has not caught up, the bot uses the realtime source message by
+itself and can still answer.
+
+The bot reconstructs the thread as structured user and assistant turns. It uses
+a stable, hashed session ID for each thread. It also replaces Chatto user IDs
+with stable, hashed labels that apply only to that thread. It does not send
+profile names. These stable inputs let an AI provider use prompt caching when
+the provider supports it. Chatto remains the source of truth, so the bot can
+reconstruct the conversation after a restart. The context has limits of 40
+messages, 4,000 characters per message, and 32,000 characters in total.
+
+Each mention gets an independent Pi session and an immutable thread snapshot.
+The bot can run up to eight reply jobs at the same time, including jobs for the
+same thread. Concurrent jobs do not include answers that are still in progress.
+When a job is complete, the bot replaces its thinking reply with the answer.
 
 The Pi agent has one local extension named `web_fetch`. The model can use it to
 fetch text from public HTTP and HTTPS URLs when current information helps with a
@@ -77,4 +89,6 @@ The bot saves a cursor only after it handles all earlier frames. On reconnect,
 it asks Chatto for the missed replayable events. If the cursor is absent or is
 not usable, it starts at the current live boundary. This example intentionally
 does not use a realtime snapshot because it reads its finite resource state
-through ConnectRPC.
+through ConnectRPC. Reply jobs can finish in any order, but the bot saves their
+event IDs and cursors in realtime delivery order. It does not save a cursor past
+an unfinished reply.

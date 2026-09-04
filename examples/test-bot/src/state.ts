@@ -18,6 +18,9 @@ export interface TestBotState {
   pendingReplies: PendingReply[];
 }
 
+/** Persist one immutable snapshot of the bot recovery state. */
+export type TestBotStateSaver = (state: TestBotState) => Promise<void>;
+
 /** Read and validate the bot recovery state. A missing file starts fresh. */
 export async function loadTestBotState(
   stateFile: string,
@@ -87,14 +90,17 @@ export async function saveTestBotState(
   stateFile: string,
   state: TestBotState,
 ): Promise<void> {
+  const snapshot: TestBotState = {
+    ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
+    processedEventIds: state.processedEventIds.slice(-MAX_PROCESSED_EVENT_IDS),
+    pendingReplies: state.pendingReplies
+      .slice(-MAX_PENDING_REPLIES)
+      .map((reply) => ({ ...reply })),
+  };
+  const serialized = `${JSON.stringify(snapshot)}\n`;
   const directory = path.dirname(stateFile);
   await mkdir(directory, { recursive: true, mode: 0o700 });
   const temporaryFile = `${stateFile}.${process.pid}.${randomUUID()}.tmp`;
-  const serialized = `${JSON.stringify({
-    ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
-    processedEventIds: state.processedEventIds.slice(-MAX_PROCESSED_EVENT_IDS),
-    pendingReplies: state.pendingReplies.slice(-MAX_PENDING_REPLIES),
-  })}\n`;
   try {
     await writeFile(temporaryFile, serialized, {
       encoding: "utf8",
@@ -104,6 +110,21 @@ export async function saveTestBotState(
   } finally {
     await rm(temporaryFile, { force: true });
   }
+}
+
+/** Serialize state-file replacement while concurrent reply jobs mutate state. */
+export function serialTestBotStateSaver(stateFile: string): TestBotStateSaver {
+  let tail = Promise.resolve();
+  return (state) => {
+    const snapshot: TestBotState = {
+      ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
+      processedEventIds: [...state.processedEventIds],
+      pendingReplies: state.pendingReplies.map((reply) => ({ ...reply })),
+    };
+    const operation = tail.then(() => saveTestBotState(stateFile, snapshot));
+    tail = operation.catch(() => undefined);
+    return operation;
+  };
 }
 
 /** Add an event ID once and keep only the newest bounded window. */

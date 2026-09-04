@@ -12,13 +12,18 @@ import path from "node:path";
 import test from "node:test";
 import type { AIResponder } from "./ai.js";
 import {
-  conversationPrompt,
   messageReplyTarget,
+  OrderedConcurrentProcessor,
   replyToMessage,
+  threadAIConversation,
   THINKING_REPLY,
   type BotAPI,
 } from "./bot.js";
-import { loadTestBotState, type TestBotState } from "./state.js";
+import {
+  loadTestBotState,
+  serialTestBotStateSaver,
+  type TestBotState,
+} from "./state.js";
 
 const BOT_ID = "bot-1";
 
@@ -116,29 +121,117 @@ test("ignores indirect, self-authored, and channel-echo events", () => {
   );
 });
 
-test("uses every supplied thread message with anonymous prompt labels", () => {
-  assert.equal(
-    conversationPrompt(
-      [
-        { eventId: "1", actorId: "user-secret-id", body: "Earlier context." },
-        { eventId: "2", actorId: BOT_ID, body: "An earlier answer." },
-        {
-          eventId: "3",
-          actorId: "another-secret-id",
-          body: "A message that does not mention the bot.",
-        },
-        { eventId: "4", actorId: "user-secret-id", body: "@test_bot Help?" },
-      ],
-      BOT_ID,
-    ),
-    "Person 1: Earlier context.\n\nAssistant: An earlier answer.\n\nPerson 2: A message that does not mention the bot.\n\nPerson 1: @test_bot Help?",
+test("builds a structured thread snapshot ending at its source message", () => {
+  const conversation = threadAIConversation(
+    [
+      { eventId: "1", actorId: "user-secret-id", body: "Earlier context." },
+      { eventId: "2", actorId: BOT_ID, body: "An earlier answer." },
+      { eventId: "placeholder", actorId: BOT_ID, body: THINKING_REPLY },
+      {
+        eventId: "3",
+        actorId: "another-secret-id",
+        body: "A message that does not mention the bot.",
+      },
+      { eventId: "4", actorId: "user-secret-id", body: "@test_bot Help?" },
+      { eventId: "5", actorId: "user-secret-id", body: "A later message." },
+    ],
+    BOT_ID,
+    "room-1",
+    "thread-1",
+    "4",
   );
+
+  assert.match(conversation.sessionId, /^chatto-thread-[a-f0-9]{32}$/);
+  assert.deepEqual(
+    conversation.turns.map((turn) => turn.role),
+    ["user", "assistant", "user", "user"],
+  );
+  assert.equal(conversation.turns[1]?.content, "An earlier answer.");
+  assert.match(
+    conversation.turns[0]?.content ?? "",
+    /^Person [a-f0-9]{8}: Earlier context\.$/,
+  );
+  assert.match(
+    conversation.turns[2]?.content ?? "",
+    /^Person [a-f0-9]{8}: A message that does not mention the bot\.$/,
+  );
+  assert.equal(
+    conversation.turns[0]?.content.split(":", 1)[0],
+    conversation.turns[3]?.content.split(":", 1)[0],
+  );
+  assert.match(conversation.turns[3]?.content ?? "", /@test_bot Help\?$/);
+  assert.equal(
+    conversation.turns.some((turn) => turn.content.includes("later message")),
+    false,
+  );
+  assert.equal(
+    conversation.turns.some((turn) => turn.content === THINKING_REPLY),
+    false,
+  );
+});
+
+test("runs work concurrently but commits it in submission order", async () => {
+  const processor = new OrderedConcurrentProcessor(2);
+  const started: number[] = [];
+  const committed: number[] = [];
+  let finishFirst: () => void = () => {};
+  let finishSecond: () => void = () => {};
+  let finishThird: () => void = () => {};
+  const firstGate = new Promise<void>((resolve) => {
+    finishFirst = resolve;
+  });
+  const secondGate = new Promise<void>((resolve) => {
+    finishSecond = resolve;
+  });
+  const thirdGate = new Promise<void>((resolve) => {
+    finishThird = resolve;
+  });
+
+  void processor.enqueue(
+    async () => {
+      started.push(1);
+      await firstGate;
+    },
+    async () => {
+      committed.push(1);
+    },
+  );
+  void processor.enqueue(
+    async () => {
+      started.push(2);
+      await secondGate;
+    },
+    async () => {
+      committed.push(2);
+    },
+  );
+  void processor.enqueue(
+    async () => {
+      started.push(3);
+      await thirdGate;
+    },
+    async () => {
+      committed.push(3);
+    },
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(started, [1, 2]);
+  finishSecond();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(started, [1, 2, 3]);
+  assert.deepEqual(committed, []);
+  finishFirst();
+  finishThird();
+  await processor.wait();
+  assert.deepEqual(committed, [1, 2, 3]);
 });
 
 test("posts an italic placeholder immediately and reuses it after an AI failure", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const stateFile = path.join(directory, "state.json");
+  const saveState = serialTestBotStateSaver(stateFile);
   const state: TestBotState = { processedEventIds: [], pendingReplies: [] };
   const actions: string[] = [];
   let rejectFirstAI: (reason: Error) => void = () => {};
@@ -187,7 +280,7 @@ test("posts an italic placeholder immediately and reuses it after an AI failure"
     event,
     new AbortController().signal,
     state,
-    stateFile,
+    saveState,
   );
   await aiStarted;
 
@@ -215,7 +308,7 @@ test("posts an italic placeholder immediately and reuses it after an AI failure"
     event,
     new AbortController().signal,
     state,
-    stateFile,
+    saveState,
   );
 
   assert.equal(placeholderPosts, 1);

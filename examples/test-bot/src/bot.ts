@@ -1,4 +1,9 @@
-import { createClient, type Interceptor } from "@connectrpc/connect";
+import {
+  Code,
+  ConnectError,
+  createClient,
+  type Interceptor,
+} from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
@@ -12,6 +17,7 @@ import {
   RealtimeServerFrame,
   RealtimeSubscribe,
 } from "@chatto/api-types/realtime/v1/realtime_pb";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import {
   forgetPendingReply,
@@ -19,11 +25,13 @@ import {
   pendingReplyId,
   rememberPendingReply,
   rememberProcessedEvent,
-  saveTestBotState,
+  serialTestBotStateSaver,
+  type TestBotStateSaver,
   type TestBotState,
 } from "./state.js";
 import {
   createAIResponder,
+  type AIConversation,
   type AIResponder,
   type TestBotAIConfig,
 } from "./ai.js";
@@ -31,6 +39,10 @@ import {
 const REALTIME_PROTOCOL_VERSION = 4;
 const MINIMUM_RECONNECT_DELAY_MS = 250;
 const MAXIMUM_RECONNECT_DELAY_MS = 10_000;
+const MAXIMUM_CONCURRENT_REPLIES = 8;
+const MAXIMUM_CONVERSATION_MESSAGES = 40;
+const MAXIMUM_CONVERSATION_CHARACTERS = 32_000;
+const MAXIMUM_MESSAGE_CHARACTERS = 4_000;
 
 /** Markdown body used while TestBot prepares its final answer. */
 export const THINKING_REPLY = "_Thinking…_";
@@ -166,18 +178,31 @@ async function connectPublicAPI(
       if (target.threadRootEventId === target.sourceEventId) {
         return [source];
       }
-      const response = await threads.getThreadEvents({
-        roomId: target.roomId,
-        threadRootEventId: target.threadRootEventId,
-        limit: 40,
-      });
-      const conversation = (response.page?.events ?? []).flatMap((event) => {
-        if (event.event.case !== "messagePosted") return [];
-        const message = event.event.value.message;
-        return message?.body === undefined
-          ? []
-          : [conversationMessage(message)];
-      });
+      let response;
+      try {
+        response = await threads.getThreadEventsAround({
+          roomId: target.roomId,
+          threadRootEventId: target.threadRootEventId,
+          eventId: target.sourceEventId,
+          limit: MAXIMUM_CONVERSATION_MESSAGES,
+        });
+      } catch (error) {
+        if (ConnectError.from(error).code === Code.NotFound) return [source];
+        throw error;
+      }
+      const events = response.page?.events ?? [];
+      const targetIndex = events.findIndex(
+        (event) => event.id === target.sourceEventId,
+      );
+      const conversation = events
+        .slice(0, targetIndex >= 0 ? targetIndex + 1 : events.length)
+        .flatMap((event) => {
+          if (event.event.case !== "messagePosted") return [];
+          const message = event.event.value.message;
+          return message?.body === undefined
+            ? []
+            : [conversationMessage(message)];
+        });
       if (!conversation.some((message) => message.eventId === source.eventId)) {
         conversation.push(source);
       }
@@ -217,36 +242,75 @@ function conversationMessage(message: Message): ConversationMessage {
   };
 }
 
-/** Build an identity-minimized transcript for the configured AI provider. */
-export function conversationPrompt(
+function threadKey(roomId: string, threadRootEventId: string): string {
+  return `${roomId}\0${threadRootEventId}`;
+}
+
+function threadSessionId(roomId: string, threadRootEventId: string): string {
+  return `chatto-thread-${createHash("sha256")
+    .update(threadKey(roomId, threadRootEventId))
+    .digest("hex")
+    .slice(0, 32)}`;
+}
+
+function participantLabel(key: string, actorId: string): string {
+  const suffix = createHash("sha256")
+    .update(key)
+    .update("\0")
+    .update(actorId)
+    .digest("hex")
+    .slice(0, 8);
+  return `Person ${suffix}`;
+}
+
+/** Build a bounded, identity-minimized Pi conversation from a Chatto thread. */
+export function threadAIConversation(
   messages: ConversationMessage[],
   viewerId: string,
-): string {
-  const people = new Map<string, number>();
-  let nextPerson = 1;
-  const lines = messages.slice(-40).map((message) => {
-    let label = "Assistant";
-    if (message.actorId !== viewerId) {
-      let number = people.get(message.actorId);
-      if (!number) {
-        number = nextPerson++;
-        people.set(message.actorId, number);
-      }
-      label = `Person ${number}`;
-    }
-    return `${label}: ${message.body.slice(0, 4_000)}`;
-  });
-  const selected: string[] = [];
+  roomId: string,
+  threadRootEventId: string,
+  sourceEventId: string,
+): AIConversation {
+  const sourceIndex = messages.findIndex(
+    (message) => message.eventId === sourceEventId,
+  );
+  if (sourceIndex < 0) {
+    throw new Error("thread snapshot did not contain the source message");
+  }
+  const key = threadKey(roomId, threadRootEventId);
+  const available = messages
+    .slice(0, sourceIndex + 1)
+    .filter(
+      (message) =>
+        !(message.actorId === viewerId && message.body === THINKING_REPLY),
+    )
+    .slice(-MAXIMUM_CONVERSATION_MESSAGES)
+    .map((message) => {
+      const body = message.body.slice(0, MAXIMUM_MESSAGE_CHARACTERS);
+      return message.actorId === viewerId
+        ? ({ role: "assistant", content: body } as const)
+        : ({
+            role: "user",
+            content: `${participantLabel(key, message.actorId)}: ${body}`,
+          } as const);
+    });
+  const selected: typeof available = [];
   let length = 0;
-  for (let index = lines.length - 1; index >= 0; index--) {
-    const line = lines[index];
-    if (!line) continue;
-    const addedLength = line.length + (selected.length > 0 ? 2 : 0);
-    if (length + addedLength > 32_000) break;
-    selected.unshift(line);
+  for (let index = available.length - 1; index >= 0; index--) {
+    const turn = available[index];
+    if (!turn) continue;
+    const addedLength = turn.content.length;
+    if (length + addedLength > MAXIMUM_CONVERSATION_CHARACTERS) break;
+    selected.unshift(turn);
     length += addedLength;
   }
-  return selected.join("\n\n");
+  if (selected.at(-1)?.role !== "user") {
+    throw new Error("thread conversation did not end with a human message");
+  }
+  return {
+    sessionId: threadSessionId(roomId, threadRootEventId),
+    turns: selected,
+  };
 }
 
 /** Return a reply target only when a human directly mentions this bot. */
@@ -288,7 +352,7 @@ export async function replyToMessage(
   event: RealtimeEvent,
   signal: AbortSignal,
   state: TestBotState,
-  stateFile: string,
+  saveState: TestBotStateSaver,
 ): Promise<void> {
   const target = messageReplyTarget(event, api.viewerId);
   if (!target) return;
@@ -299,7 +363,7 @@ export async function replyToMessage(
   if (!replyEventId) {
     replyEventId = await api.postReply(target, THINKING_REPLY);
     rememberPendingReply(state, target.sourceEventId, replyEventId);
-    await saveTestBotState(stateFile, state);
+    await saveState(state);
   }
   log({
     status: "ai_reply_started",
@@ -315,7 +379,13 @@ export async function replyToMessage(
     throw new Error("message thread did not contain the source message");
   }
   const body = await ai.respond(
-    conversationPrompt(conversation, api.viewerId),
+    threadAIConversation(
+      conversation,
+      api.viewerId,
+      target.roomId,
+      target.threadRootEventId,
+      target.sourceEventId,
+    ),
     signal,
   );
   await api.updateReply(target.roomId, replyEventId, body);
@@ -329,12 +399,88 @@ export async function replyToMessage(
 }
 
 async function commitState(
-  stateFile: string,
+  saveState: TestBotStateSaver,
   state: TestBotState,
   resumeCursor?: string,
 ): Promise<void> {
   if (resumeCursor) state.resumeCursor = resumeCursor;
-  await saveTestBotState(stateFile, state);
+  await saveState(state);
+}
+
+type WorkOutcome = { ok: true } | { ok: false; error: unknown };
+
+/** Run bounded work concurrently and commit its results in submission order. */
+export class OrderedConcurrentProcessor {
+  readonly #maximumConcurrency: number;
+  readonly #waiters: Array<() => void> = [];
+  readonly #work = new Set<Promise<WorkOutcome>>();
+  #active = 0;
+  #commitTail = Promise.resolve();
+
+  constructor(maximumConcurrency: number) {
+    if (!Number.isInteger(maximumConcurrency) || maximumConcurrency < 1) {
+      throw new Error("maximum concurrency must be a positive integer");
+    }
+    this.#maximumConcurrency = maximumConcurrency;
+  }
+
+  async #acquire(): Promise<void> {
+    if (this.#active < this.#maximumConcurrency) {
+      this.#active += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => this.#waiters.push(resolve));
+  }
+
+  #release(): void {
+    const next = this.#waiters.shift();
+    if (next) {
+      next();
+      return;
+    }
+    this.#active -= 1;
+  }
+
+  async #run(work: () => Promise<void>): Promise<WorkOutcome> {
+    await this.#acquire();
+    try {
+      await work();
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error };
+    } finally {
+      this.#release();
+    }
+  }
+
+  /** Start work when a slot is free, then run its commit after earlier commits. */
+  enqueue(
+    work: () => Promise<void>,
+    commit: () => Promise<void>,
+  ): Promise<void> {
+    const outcome = this.#run(work);
+    this.#work.add(outcome);
+    void outcome.then(() => this.#work.delete(outcome));
+    const committed = this.#commitTail.then(async () => {
+      const result = await outcome;
+      if (!result.ok) throw result.error;
+      await commit();
+    });
+    this.#commitTail = committed;
+    return committed;
+  }
+
+  /** Wait for all work submitted so far and its ordered commits. */
+  async wait(): Promise<void> {
+    let commitError: unknown;
+    let commitFailed = false;
+    await this.#commitTail.catch((error: unknown) => {
+      commitFailed = true;
+      commitError = error;
+    });
+    await Promise.all(this.#work);
+    if (commitFailed) throw commitError;
+  }
 }
 
 async function runRealtimeSession(
@@ -343,15 +489,33 @@ async function runRealtimeSession(
   api: BotAPI,
   ai: AIResponder,
   state: TestBotState,
+  saveState: TestBotStateSaver,
   signal: AbortSignal,
 ): Promise<SessionResult> {
   const resumed = Boolean(state.resumeCursor);
   const socket = new WebSocket(realtimeUrl(config.serverUrl));
-  let processing = Promise.resolve();
+  const workController = new AbortController();
+  const abortWork = () => workController.abort(signal.reason);
+  signal.addEventListener("abort", abortWork, { once: true });
+  const processor = new OrderedConcurrentProcessor(MAXIMUM_CONCURRENT_REPLIES);
+  const scheduledEventIds = new Set<string>();
+  let intake = Promise.resolve();
   let requestedResult:
     Omit<SessionResult, "caughtUp" | "processingFailed"> | undefined;
   let processingFailed = false;
   let caughtUp = false;
+
+  const fail = (error: unknown) => {
+    if (processingFailed) return;
+    processingFailed = true;
+    workController.abort(error);
+    log({ status: "processing_failed", error: safeErrorKind(error) });
+    socket.close(1011, "event processing failed");
+  };
+
+  const enqueue = (work: () => Promise<void>, commit: () => Promise<void>) => {
+    void processor.enqueue(work, commit).catch(fail);
+  };
 
   const result = await new Promise<SessionResult>((resolve) => {
     const abort = () => {
@@ -382,57 +546,76 @@ async function runRealtimeSession(
     );
 
     socket.addEventListener("message", (message) => {
-      processing = processing
+      intake = intake
         .then(async () => {
+          if (processingFailed) return;
           const frame = RealtimeServerFrame.fromBinary(
             await messageDataToBytes(message.data),
           );
           switch (frame.frame.case) {
             case "event": {
               const event = frame.frame.value;
-              const firstDelivery = !state.processedEventIds.includes(event.id);
+              const firstDelivery =
+                !state.processedEventIds.includes(event.id) &&
+                !scheduledEventIds.has(event.id);
               if (firstDelivery) {
+                scheduledEventIds.add(event.id);
                 log({
                   status: "event",
                   event: event.event.case ?? "unknown",
                   event_id: event.id,
                   ...(event.actorId ? { actor_id: event.actorId } : {}),
                 });
-                await replyToMessage(
-                  api,
-                  ai,
-                  event,
-                  signal,
-                  state,
-                  config.stateFile,
-                );
-                rememberProcessedEvent(state, event.id);
-                forgetPendingReply(state, event.id);
-              } else {
-                forgetPendingReply(state, event.id);
-                log({ status: "duplicate_ignored", event_id: event.id });
               }
-              await commitState(config.stateFile, state, event.resumeCursor);
+              enqueue(
+                firstDelivery
+                  ? () =>
+                      replyToMessage(
+                        api,
+                        ai,
+                        event,
+                        workController.signal,
+                        state,
+                        saveState,
+                      )
+                  : async () => undefined,
+                async () => {
+                  if (firstDelivery) {
+                    rememberProcessedEvent(state, event.id);
+                    forgetPendingReply(state, event.id);
+                    scheduledEventIds.delete(event.id);
+                  } else {
+                    log({ status: "duplicate_ignored", event_id: event.id });
+                  }
+                  await commitState(saveState, state, event.resumeCursor);
+                },
+              );
               return;
             }
-            case "heartbeat":
-              if (frame.frame.value.resumeCursor) {
-                await commitState(
-                  config.stateFile,
-                  state,
-                  frame.frame.value.resumeCursor,
-                );
-              }
-              return;
-            case "caughtUp":
-              await commitState(
-                config.stateFile,
-                state,
-                frame.frame.value.cursor,
+            case "heartbeat": {
+              const resumeCursor = frame.frame.value.resumeCursor;
+              enqueue(
+                async () => undefined,
+                async () => {
+                  if (resumeCursor) {
+                    await commitState(saveState, state, resumeCursor);
+                  }
+                },
               );
-              caughtUp = true;
-              log({ status: "caught_up", resumed });
               return;
+            }
+            case "caughtUp": {
+              const cursor = frame.frame.value.cursor;
+              enqueue(
+                async () => undefined,
+                async () => {
+                  await commitState(saveState, state, cursor);
+                  caughtUp = true;
+                  log({ status: "caught_up", resumed });
+                },
+              );
+              return;
+            }
             case "snapshot":
               log({
                 status: "snapshot",
@@ -466,12 +649,7 @@ async function runRealtimeSession(
               throw new Error("unknown realtime frame");
           }
         })
-        .catch((error: unknown) => {
-          if (processingFailed) return;
-          processingFailed = true;
-          log({ status: "frame_failed", error: safeErrorKind(error) });
-          socket.close(1003, "invalid realtime frame");
-        });
+        .catch(fail);
     });
 
     socket.addEventListener(
@@ -485,15 +663,19 @@ async function runRealtimeSession(
       "close",
       () => {
         signal.removeEventListener("abort", abort);
-        void processing.finally(() => {
-          resolve({
-            ...(signal.aborted
-              ? { reconnect: false }
-              : (requestedResult ?? { reconnect: true })),
-            caughtUp,
-            processingFailed,
+        void intake
+          .then(() => processor.wait())
+          .catch(() => undefined)
+          .finally(() => {
+            signal.removeEventListener("abort", abortWork);
+            resolve({
+              ...(signal.aborted
+                ? { reconnect: false }
+                : (requestedResult ?? { reconnect: true })),
+              caughtUp,
+              processingFailed,
+            });
           });
-        });
       },
       { once: true },
     );
@@ -536,6 +718,7 @@ export async function runTestBot(
   signal: AbortSignal,
 ): Promise<void> {
   const state = await loadTestBotState(config.stateFile);
+  const saveState = serialTestBotStateSaver(config.stateFile);
   let ai: AIResponder | undefined;
   let attempt = 0;
   while (!signal.aborted) {
@@ -552,6 +735,7 @@ export async function runTestBot(
         api,
         ai,
         state,
+        saveState,
         signal,
       );
       if (session.caughtUp && !session.processingFailed) attempt = 0;

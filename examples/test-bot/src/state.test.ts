@@ -7,6 +7,7 @@ import {
   loadTestBotState,
   rememberProcessedEvent,
   saveTestBotState,
+  serialTestBotStateSaver,
   type TestBotState,
 } from "./state.js";
 
@@ -60,4 +61,23 @@ test("state files from before placeholder replies remain readable", async (t) =>
     processedEventIds: ["event-1"],
     pendingReplies: [],
   });
+});
+
+test("concurrent callers persist state snapshots in call order", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
+  t.after(() => rm(directory, { force: true, recursive: true }));
+  const stateFile = path.join(directory, "state.json");
+  const save = serialTestBotStateSaver(stateFile);
+  const state: TestBotState = { processedEventIds: [], pendingReplies: [] };
+
+  state.processedEventIds.push("event-1");
+  const first = save(state);
+  state.processedEventIds.push("event-2");
+  const second = save(state);
+  await Promise.all([first, second]);
+
+  assert.deepEqual((await loadTestBotState(stateFile)).processedEventIds, [
+    "event-1",
+    "event-2",
+  ]);
 });
