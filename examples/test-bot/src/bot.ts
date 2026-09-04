@@ -536,11 +536,14 @@ export async function runTestBot(
   signal: AbortSignal,
 ): Promise<void> {
   const state = await loadTestBotState(config.stateFile);
-  const ai = await createAIResponder(config.ai);
-  log({ status: "ai_ready", provider: ai.provider, model: ai.model });
+  let ai: AIResponder | undefined;
   let attempt = 0;
   while (!signal.aborted) {
     try {
+      if (!ai) {
+        ai = await createAIResponder(config.ai);
+        log({ status: "ai_ready", provider: ai.provider, model: ai.model });
+      }
       const apiKey = await readAPIKey(config.apiKeyFile);
       const api = await connectPublicAPI(config, apiKey, state);
       const session = await runRealtimeSession(
