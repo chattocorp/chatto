@@ -139,6 +139,46 @@ func TestDelegatedRoleAssignmentChecksScopedAuthority(t *testing.T) {
 	}
 }
 
+func TestDelegatedRoleAssignmentChecksDirectMessageAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := core.CreateUser(ctx, SystemActorID, "dm-role-owner", "DM Role Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	if err := core.AssignOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	assigner, err := core.CreateUser(ctx, SystemActorID, "dm-role-assigner", "DM Role Assigner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser assigner: %v", err)
+	}
+	target, err := core.CreateUser(ctx, SystemActorID, "dm-role-target", "DM Role Target", "password")
+	if err != nil {
+		t.Fatalf("CreateUser target: %v", err)
+	}
+	if _, err := core.CreateServerRole(ctx, SystemActorID, "dm-moderator", "DM Moderator", "", false); err != nil {
+		t.Fatalf("CreateServerRole dm-moderator: %v", err)
+	}
+	dmScope := PermissionTargetScope{Kind: MatrixScopeDM}
+	if err := core.SetRolePermissionState(ctx, owner.Id, "dm-moderator", dmScope, PermMessageManage, PermissionStateAllow); err != nil {
+		t.Fatalf("SetRolePermissionState message.manage: %v", err)
+	}
+	if err := core.GrantUserPermission(ctx, SystemActorID, assigner.Id, PermRoleAssign); err != nil {
+		t.Fatalf("GrantUserPermission role.assign: %v", err)
+	}
+
+	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, "dm-moderator"); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("assign dm-moderator without DM authority error = %v, want permission denied", err)
+	}
+	if err := core.SetUserPermissionState(ctx, owner.Id, assigner.Id, dmScope, PermMessageManage, PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState message.manage: %v", err)
+	}
+	if err := core.AdminAssignServerRole(ctx, assigner.Id, target.Id, "dm-moderator"); err != nil {
+		t.Fatalf("assign dm-moderator within DM authority: %v", err)
+	}
+}
+
 func TestRoleAssignmentIgnoresUnrelatedChatTraffic(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

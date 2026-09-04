@@ -32,7 +32,10 @@ func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorI
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return false, err
 	}
-	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)})
+	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{
+		LegacySpaceIDForRoomKind(KindChannel),
+		LegacySpaceIDForRoomKind(KindDM),
+	})
 }
 
 // ListFollowedThreadViewerStates returns an exhaustive, authoritative set for

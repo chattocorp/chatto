@@ -138,8 +138,8 @@ func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool
 
 // ResolveUserPermission returns the walker's decision (allow / deny / none)
 // for a user-permission pair. Single source of truth for both the bool
-// authorizer and the inspector. Pass roomID="" for server-scope, KindDM
-// to activate the DM boundary deny-list.
+// authorizer and the inspector. Pass roomID="" with KindDM to resolve the
+// singleton direct-message scope before the server scope.
 func (c *ChattoCore) ResolveUserPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	return c.permissionResolver.Resolve(ctx, userID, kind, roomID, perm)
 }
@@ -169,8 +169,7 @@ func (c *ChattoCore) hasServerPermission(ctx context.Context, userID string, per
 }
 
 // hasKindPermission is the kind-sensitive variant of hasServerPermission.
-// For KindDM the resolver applies the DM boundary deny-list first; for
-// KindChannel it behaves like hasServerPermission.
+// For KindDM, the resolver uses the direct-message scope before Server.
 func (c *ChattoCore) hasKindPermission(ctx context.Context, kind RoomKind, userID string, perm Permission) (bool, error) {
 	return c.permissionResolver.HasSpacePermission(ctx, userID, kind, perm)
 }

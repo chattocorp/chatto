@@ -638,7 +638,8 @@ func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, room
 
 // ListFollowedThreads returns all threads followed by the user in the given
 // spaces, sorted by last activity (newest first).
-// Authorization: Caller must verify space membership before calling.
+// The result includes only rooms where the user is still a member and has
+// applicable message-read authority.
 func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
 	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, 0, 0)
 	if err != nil {
@@ -651,7 +652,8 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 // spaces, sorted by last activity (newest first), with pagination applied before
 // per-thread read-marker lookups.
 //
-// Authorization: Caller must verify space membership before calling.
+// The result includes only rooms where the user is still a member and has
+// applicable message-read authority.
 func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, limit, offset int) (*FollowedThreadsPage, error) {
 	var allThreads []*FollowedThread
 

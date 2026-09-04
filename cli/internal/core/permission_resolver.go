@@ -9,7 +9,7 @@ import (
 // model:
 //
 //  1. Effective owners are allowed every known RBAC permission.
-//  2. For everyone else, DM boundary denies win for category/privacy mismatches.
+//  2. For everyone else, permissions outside the DM scope are denied in DMs.
 //  3. Each direct-user or explicitly assigned role contributes its nearest
 //     decision (room, then group, then server). Across those decisions, any
 //     deny wins; otherwise any allow grants the permission.
@@ -223,11 +223,11 @@ func (r *PermissionResolver) HasServerPermission(ctx context.Context, userID str
 	return decision == DecisionAllow, err
 }
 
-// HasSpacePermission is a kind-aware server-scope check. KindDM triggers the
-// boundary deny-list; otherwise behaves like HasServerPermission.
+// HasSpacePermission is a kind-aware singleton-scope check. KindDM resolves
+// the direct-message scope before the inherited server scope.
 func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (bool, error) {
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeServer) {
+		if kind != KindDM && !permissionMetadataHasScope(meta, ScopeServer) {
 			return false, fmt.Errorf("permission %s does not apply at server scope", perm)
 		}
 	}
@@ -235,11 +235,10 @@ func (r *PermissionResolver) HasSpacePermission(ctx context.Context, userID stri
 	return decision == DecisionAllow, err
 }
 
-// HasRoomPermission checks a permission with a room context. Room-scoped
-// grants/denials, group decisions, and server decisions contribute according
-// to subject specificity and the everyone fallback rules above.
+// HasRoomPermission checks a permission with a room context. The room kind
+// selects either the direct-message chain or the channel room and group chain.
 func (r *PermissionResolver) HasRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (bool, error) {
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeServer) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeDM) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return false, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 	decision, err := r.Resolve(ctx, userID, kind, roomID, perm)

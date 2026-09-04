@@ -41,8 +41,8 @@ func (r *PermissionResolver) explainServerPermission(ctx context.Context, userID
 	return exp, err
 }
 
-// ExplainServerKindPermission is the kind-aware server-scope explainer used by
-// the inspector UI to apply DM boundary rules for DM-kind callers.
+// ExplainServerKindPermission is the kind-aware singleton-scope explainer used
+// by the inspector UI. KindDM resolves the direct-message scope first.
 func (r *PermissionResolver) ExplainServerKindPermission(ctx context.Context, userID string, kind RoomKind, perm Permission) (PermissionExplanation, error) {
 	return r.explainInContentView(func() (PermissionExplanation, error) {
 		return r.explainServerKindPermission(ctx, userID, kind, perm)
@@ -53,7 +53,7 @@ func (r *PermissionResolver) explainServerKindPermission(ctx context.Context, us
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
 	if meta, known := GetPermissionMetadata(perm); known {
-		if !permissionMetadataHasScope(meta, ScopeServer) {
+		if kind != KindDM && !permissionMetadataHasScope(meta, ScopeServer) {
 			return exp, fmt.Errorf("permission %s does not apply at server scope", perm)
 		}
 	}
@@ -73,7 +73,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 func (r *PermissionResolver) explainRoomPermission(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (PermissionExplanation, error) {
 	exp := PermissionExplanation{Permission: perm, State: DecisionNone}
 
-	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeServer) {
+	if !PermissionAppliesAtScope(perm, ScopeRoom) && !PermissionAppliesAtScope(perm, ScopeDM) && !PermissionAppliesAtScope(perm, ScopeServer) {
 		return exp, fmt.Errorf("permission %s does not apply at room scope", perm)
 	}
 
@@ -95,7 +95,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 
 	if _, known := GetPermissionMetadata(perm); known {
 		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-			exp.applyDMBoundaryDeny(LevelDM)
+			exp.applyDMApplicabilityDeny(LevelDM)
 			return nil
 		}
 		if r.core.isServerOwner(userID) {
@@ -141,7 +141,7 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 		return nil
 	}
 	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
-		exp.applyDMBoundaryDeny(LevelDM)
+		exp.applyDMApplicabilityDeny(LevelDM)
 		return nil
 	}
 	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
@@ -232,7 +232,7 @@ func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID s
 // ExplainAllPermissions returns explanations for every permission applicable at
 // the given scope:
 //   - userID only → server-scoped permissions
-//   - userID + kind → server-scoped permissions filtered through DM rules when kind == KindDM
+//   - userID + KindDM → direct-message permissions with Server inheritance
 //   - userID + kind + roomID → room-scoped permissions
 //
 // roomID without kind is invalid and returns an error.
@@ -298,13 +298,10 @@ func (r *PermissionResolver) explainInContentView(explain func() (PermissionExpl
 	return explanation, err
 }
 
-// applyDMBoundaryDeny fills in the explanation for a permission that is
-// unconditionally denied by the DM privacy boundary. The trace is synthesized
-// as a single pseudo-entry attributed to "@dm-policy" so the inspector UI can
-// clearly indicate that DM rules (not RBAC) decided this. The level passed
-// in matches the caller (LevelRoom from ExplainRoomPermission, LevelServer
-// from ExplainServerKindPermission) so the inspector shows the right scope.
-func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel) {
+// applyDMApplicabilityDeny explains why a permission that is outside the
+// direct-message scope is denied. The synthetic trace entry shows that the DM
+// applicability rule, and not an RBAC decision, produced the result.
+func (exp *PermissionExplanation) applyDMApplicabilityDeny(level PermissionLevel) {
 	exp.State = DecisionDeny
 	exp.DecidedAt = level
 	exp.DecidedByRole = "@dm-policy"

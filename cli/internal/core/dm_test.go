@@ -1006,6 +1006,16 @@ func TestDMThreads(t *testing.T) {
 	if reply.GetMessagePosted().GetInThread() != root.Id {
 		t.Fatalf("reply thread root = %q, want %q", reply.GetMessagePosted().GetInThread(), root.Id)
 	}
+	if _, err := core.PostMessage(ctx, KindDM, room.Id, member.Id, "member thread reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage member thread reply: %v", err)
+	}
+	hasUnread, err := core.ThreadFollows().HasUnreadFollowedThreads(ctx, owner.Id)
+	if err != nil {
+		t.Fatalf("HasUnreadFollowedThreads: %v", err)
+	}
+	if !hasUnread {
+		t.Fatal("DM thread reply did not contribute to followed-thread unread state")
+	}
 	createdRoot, err := core.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID:      owner.Id,
 		RoomID:       room.Id,

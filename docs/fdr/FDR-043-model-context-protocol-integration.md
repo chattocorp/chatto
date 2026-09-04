@@ -233,9 +233,9 @@ The MCP integration adds no RBAC permissions.
 - `room.list` controls room-directory visibility where applicable.
 - `room.join` controls channel joins where applicable.
 - `message.post` controls root message posting.
-- `message.read` controls broad message access in channel rooms.
+- `message.read` controls broad message access in channel rooms and DMs.
 - `message.read-interactions` controls relationship-scoped message access.
-- DM membership continues to authorize DM reads.
+- DM membership is an additional requirement for DM reads.
 - Bot calls also require the bot's explicit permission and sufficient current
   authority from its owner.
 

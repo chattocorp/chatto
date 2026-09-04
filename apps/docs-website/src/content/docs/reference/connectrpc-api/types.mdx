@@ -1463,7 +1463,7 @@ Stored permission decision returned after a write.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, direct-message, group, or room scope for this decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Stored decision after the write. NONE means no explicit decision remains. |
 
 <a id="chatto-admin-v1-PermissionExplanation"></a>
@@ -1503,7 +1503,7 @@ Matrix column scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable scope ID for the server, a group, or a room. |
+| `id` | `string` | Stable scope ID for the server, direct messages, a group, or a room. |
 | `label` | `string` | Human-readable label. |
 | `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
 | `parent_group_id` | `string` | Parent group ID for room scopes. |
@@ -1517,7 +1517,7 @@ Permission scope reference.
 | Field | Type | Description |
 | --- | --- | --- |
 | `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
-| `id` | `string` | Scope ID for group or room scope. Empty for server scope. |
+| `id` | `string` | Scope ID for group or room scope. Empty for server or direct-message scope. |
 
 <a id="chatto-admin-v1-PermissionTraceEntry"></a>
 
@@ -1557,7 +1557,7 @@ shape when building integrations that do not need matrix column joins.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, direct-message, group, or room scope for this decision. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision stored at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision after inherited broader scopes are applied. |
 

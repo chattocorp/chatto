@@ -207,7 +207,7 @@ type PermissionScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Scope tier.
 	Kind PermissionScopeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.admin.v1.PermissionScopeKind" json:"kind,omitempty"`
-	// Scope ID for group or room scope. Empty for server scope.
+	// Scope ID for group or room scope. Empty for server or direct-message scope.
 	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -535,7 +535,7 @@ func (x *GetRolePermissionTierMatrixResponse) GetMatrix() *TierRoles {
 // Matrix column scope.
 type PermissionMatrixScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable scope ID for the server, a group, or a room.
+	// Stable scope ID for the server, direct messages, a group, or a room.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Human-readable label.
 	Label string `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
@@ -944,7 +944,7 @@ type ScopedPermissionDecision struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Server, group, or room scope this decision applies to.
+	// Server, direct-message, group, or room scope for this decision.
 	Scope *PermissionScope `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Explicit decision stored at this scope.
 	Override PermissionDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.admin.v1.PermissionDecision" json:"override,omitempty"`
@@ -1017,7 +1017,7 @@ type PermissionDecisionUpdate struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Permission identifier.
 	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
-	// Server, group, or room scope this decision applies to.
+	// Server, direct-message, group, or room scope for this decision.
 	Scope *PermissionScope `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
 	// Stored decision after the write. NONE means no explicit decision remains.
 	Decision      PermissionDecision `protobuf:"varint,3,opt,name=decision,proto3,enum=chatto.admin.v1.PermissionDecision" json:"decision,omitempty"`

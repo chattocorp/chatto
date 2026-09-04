@@ -94,11 +94,14 @@ func (p *RBACProjection) Restore(data []byte) error {
 	decisions := make(map[rbacDecisionKey]DecisionKind, len(snapshot.GetDecisions()))
 	for _, row := range snapshot.GetDecisions() {
 		scope := PermissionScope(row.GetScope())
-		if scope != ScopeServer && scope != ScopeGroup && scope != ScopeRoom {
+		if scope != ScopeServer && scope != ScopeGroup && scope != ScopeRoom && scope != ScopeDM {
 			return fmt.Errorf("RBAC snapshot has invalid scope %q", scope)
 		}
-		if scope != ScopeServer && row.GetScopeId() == "" {
+		if (scope == ScopeGroup || scope == ScopeRoom) && row.GetScopeId() == "" {
 			return fmt.Errorf("RBAC snapshot has empty scoped object ID")
+		}
+		if (scope == ScopeServer || scope == ScopeDM) && row.GetScopeId() != "" {
+			return fmt.Errorf("RBAC snapshot has unexpected singleton scope ID")
 		}
 		if row.GetSubjectKind() == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED || row.GetSubject() == "" || row.GetPermission() == "" {
 			return fmt.Errorf("RBAC snapshot has invalid decision")

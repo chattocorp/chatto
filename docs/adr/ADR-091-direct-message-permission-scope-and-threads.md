@@ -68,4 +68,3 @@ privacy boundary and the message-fact derivation model remain current.
   replace all replicas before they depend on DM overrides or DM threads.
 - Old public clients keep their previous matrix, followed-thread, and realtime
   shapes until they send the relevant opt-in.
-

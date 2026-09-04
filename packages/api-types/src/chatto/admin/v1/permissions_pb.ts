@@ -163,7 +163,7 @@ export class PermissionScope extends Message<PermissionScope> {
   kind = PermissionScopeKind.UNSPECIFIED;
 
   /**
-   * Scope ID for group or room scope. Empty for server scope.
+   * Scope ID for group or room scope. Empty for server or direct-message scope.
    *
    * @generated from field: string id = 2;
    */
@@ -450,7 +450,7 @@ export class GetRolePermissionTierMatrixResponse extends Message<GetRolePermissi
  */
 export class PermissionMatrixScope extends Message<PermissionMatrixScope> {
   /**
-   * Stable scope ID for the server, a group, or a room.
+   * Stable scope ID for the server, direct messages, a group, or a room.
    *
    * @generated from field: string id = 1;
    */
@@ -820,7 +820,7 @@ export class ScopedPermissionDecision extends Message<ScopedPermissionDecision> 
   permission = "";
 
   /**
-   * Server, group, or room scope this decision applies to.
+   * Server, direct-message, group, or room scope for this decision.
    *
    * @generated from field: chatto.admin.v1.PermissionScope scope = 2;
    */
@@ -885,7 +885,7 @@ export class PermissionDecisionUpdate extends Message<PermissionDecisionUpdate> 
   permission = "";
 
   /**
-   * Server, group, or room scope this decision applies to.
+   * Server, direct-message, group, or room scope for this decision.
    *
    * @generated from field: chatto.admin.v1.PermissionScope scope = 2;
    */

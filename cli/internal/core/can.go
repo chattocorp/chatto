@@ -247,8 +247,8 @@ func (c *ChattoCore) canSeeRoom(ctx context.Context, userID string, kind RoomKin
 // non-empty, the check is scoped to that room group (a role granted
 // room.create at server scope can create in any group; a role granted only
 // at a group's scope can create only in that group). DM rooms are
-// creation-locked at this layer (the DM boundary in the resolver denies
-// room.create unconditionally); DMs are created via FindOrCreateDM.
+// creation-locked at this layer because room.create does not apply at the DM
+// scope. DMs are created through FindOrCreateDM.
 func (c *ChattoCore) CanCreateRoom(ctx context.Context, userID string, kind RoomKind, groupID string) (bool, error) {
 	if kind == KindChannel && groupID != "" {
 		return c.hasGroupPermission(ctx, kind, groupID, userID, PermRoomCreate)

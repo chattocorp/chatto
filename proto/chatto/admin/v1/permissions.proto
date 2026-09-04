@@ -35,7 +35,7 @@ enum PermissionScopeKind {
 message PermissionScope {
   // Scope tier.
   PermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
-  // Scope ID for group or room scope. Empty for server scope.
+  // Scope ID for group or room scope. Empty for server or direct-message scope.
   string id = 2;
 }
 
@@ -84,7 +84,7 @@ message GetRolePermissionTierMatrixResponse {
 
 // Matrix column scope.
 message PermissionMatrixScope {
-  // Stable scope ID for the server, a group, or a room.
+  // Stable scope ID for the server, direct messages, a group, or a room.
   string id = 1;
   // Human-readable label.
   string label = 2;
@@ -155,7 +155,7 @@ message UserPermissionMatrix {
 message ScopedPermissionDecision {
   // Permission identifier.
   string permission = 1;
-  // Server, group, or room scope this decision applies to.
+  // Server, direct-message, group, or room scope for this decision.
   PermissionScope scope = 2;
   // Explicit decision stored at this scope.
   PermissionDecision override = 3;
@@ -167,7 +167,7 @@ message ScopedPermissionDecision {
 message PermissionDecisionUpdate {
   // Permission identifier.
   string permission = 1;
-  // Server, group, or room scope this decision applies to.
+  // Server, direct-message, group, or room scope for this decision.
   PermissionScope scope = 2;
   // Stored decision after the write. NONE means no explicit decision remains.
   PermissionDecision decision = 3;

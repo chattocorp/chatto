@@ -752,6 +752,7 @@ func matrixApplicablePermissions() []string {
 	applicable := make([]string, 0, len(allPerms))
 	for _, meta := range allPerms {
 		if PermissionAppliesAtScope(meta.Permission, ScopeServer) ||
+			PermissionAppliesAtScope(meta.Permission, ScopeDM) ||
 			PermissionAppliesAtScope(meta.Permission, ScopeGroup) ||
 			PermissionAppliesAtScope(meta.Permission, ScopeRoom) {
 			applicable = append(applicable, string(meta.Permission))
