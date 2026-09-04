@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createAIResponder } from "./ai.js";
 
-test("runs a tool-free Pi agent with the faux provider", async () => {
+test("runs a Pi session with the web_fetch extension and faux provider", async () => {
   const responder = await createAIResponder({
     provider: "faux",
     fauxResponse: "A generated test reply",

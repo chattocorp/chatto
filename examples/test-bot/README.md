@@ -48,8 +48,16 @@ thread API. This context includes messages that do not mention the bot and
 messages from other users. The bot sends their text to the selected AI provider.
 It replaces Chatto user IDs with prompt-local labels such as `Person 1`, and it
 does not send profile names. It always includes the realtime source message,
-even when a resource read has not caught up. The Pi agent has no tools. It
-cannot read files, run commands, or call Chatto by itself.
+even when a resource read has not caught up.
+
+The Pi agent has one local extension named `web_fetch`. The model can use it to
+fetch text from public HTTP and HTTPS URLs when current information helps with a
+reply. Each request has a 30-second time limit and returns at most 100 KB. The
+extension checks each redirect and blocks local, private, reserved, and
+authenticated URL destinations. It treats web content as untrusted data and
+asks the model to cite the source URL. It cannot read files, run commands, or
+call Chatto by itself. A fetch sends the requested URL to the remote web server
+from the machine that runs TestBot.
 
 Then run `mise test-bot-build` and `pnpm --filter @chatto/test-bot start`.
 
