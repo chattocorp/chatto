@@ -286,6 +286,28 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
 
+  examples/test-bot:
+    dependencies:
+      '@bufbuild/protobuf':
+        specifier: 1.10.1
+        version: 1.10.1
+      '@chatto/api-types':
+        specifier: workspace:*
+        version: link:../../packages/api-types
+      '@connectrpc/connect':
+        specifier: 1.7.0
+        version: 1.7.0(@bufbuild/protobuf@1.10.1)
+      '@connectrpc/connect-web':
+        specifier: 1.7.0
+        version: 1.7.0(@bufbuild/protobuf@1.10.1)(@connectrpc/connect@1.7.0(@bufbuild/protobuf@1.10.1))
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/api-types:
     dependencies:
       '@bufbuild/protobuf':

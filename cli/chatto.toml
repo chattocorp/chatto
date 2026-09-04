@@ -123,5 +123,16 @@ display_name = 'Bob'
 email = 'bob@example.com'
 password = 'foobar123'
 
+# The development bot uses only public APIs at runtime. The bootstrap-tagged
+# server writes its generated show-once API key to this gitignored file.
+[[bootstrap.bots]]
+login = 'test_bot'
+display_name = 'TestBot'
+owner_login = 'alice'
+api_key_name = 'Local development'
+credential_file = './data/bootstrap/test_bot.key'
+permissions = ['room.join', 'room.list', 'message.read']
+rooms = ['general']
+
 [bootstrap.server]
 name = 'Local Development'

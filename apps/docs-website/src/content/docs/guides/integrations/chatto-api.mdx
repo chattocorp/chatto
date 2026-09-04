@@ -103,6 +103,12 @@ activity or repair a recent connection gap.
 
 Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
 
+## Runnable Node Example
+
+Use the repository's [test bot example](https://github.com/chattocorp/chatto/tree/main/examples/test-bot) as a small integration starting point. It uses generated ConnectRPC clients to read finite resources. It then opens the protobuf realtime WebSocket with a `LIVE_ONLY` fallback, logs safe event metadata, and saves its opaque resume cursor after it handles each frame.
+
+The example does not log message text, user names, or credentials. With an empty local data directory, `mise dev` creates `test_bot` on the first startup, makes Alice its owner, and starts the Node process. This setup uses development-only bootstrap code. Release builds ignore the bootstrap configuration.
+
 ## Integration Patterns
 
 | Goal                           | Recommended API                                                                 |

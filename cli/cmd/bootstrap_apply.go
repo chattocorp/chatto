@@ -5,6 +5,9 @@ package cmd
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/charmbracelet/log"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -26,7 +29,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 
 	serverConfig := cfg.ServerOrDefault()
 	hasServer := serverConfig != nil
-	if len(cfg.Users) == 0 && !hasServer {
+	if len(cfg.Users) == 0 && len(cfg.Bots) == 0 && !hasServer {
 		// Always log something so operators can confirm the bootstrap path ran.
 		// At debug level so a config without a [bootstrap] section doesn't add
 		// noise on every boot.
@@ -34,7 +37,7 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		return
 	}
 
-	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "server", hasServer)
+	logger.Info("Applying [bootstrap] section", "users", len(cfg.Users), "bots", len(cfg.Bots), "server", hasServer)
 
 	if empty, err := serverDataEmptyForBootstrap(ctx, c); err != nil {
 		logger.Warn("Could not determine whether server is empty; skipping [bootstrap]", "error", err)
@@ -81,11 +84,131 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 		}
 	}
 
+	botsCreated := 0
+	for _, bot := range cfg.Bots {
+		if applyBootstrapBot(ctx, logger, c, bot) {
+			botsCreated++
+		}
+	}
+
 	logger.Info("[bootstrap] apply complete",
 		"users_created", usersCreated,
 		"users_existing", usersExisting,
+		"bots_created", botsCreated,
 		"server_created", serverCreated,
 	)
+}
+
+// applyBootstrapBot creates one development bot, applies its owner-delegated
+// server permissions, joins configured rooms, and writes its show-once API
+// key. The key is never logged or stored in EVT.
+func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCore, spec config.BootstrapBot) bool {
+	if spec.Login == "" || spec.OwnerLogin == "" || spec.CredentialFile == "" {
+		logger.Error("Skipping [bootstrap] bot with missing login, owner_login, or credential_file")
+		return false
+	}
+
+	owner, err := c.GetUserByLogin(ctx, spec.OwnerLogin)
+	if err != nil || owner == nil || owner.GetIsBot() {
+		logger.Error("Skipping [bootstrap] bot because its human owner was not found")
+		return false
+	}
+	if existing, err := c.GetUserByLogin(ctx, spec.Login); err == nil && existing != nil {
+		logger.Error("Skipping [bootstrap] bot because its login is already in use", "user_id", existing.GetId())
+		return false
+	}
+
+	rooms, err := c.ListRooms(ctx, core.KindChannel)
+	if err != nil {
+		logger.Error("Skipping [bootstrap] bot because rooms could not be listed", "error", err)
+		return false
+	}
+	roomsByName := make(map[string]string, len(rooms))
+	for _, room := range rooms {
+		roomsByName[room.GetName()] = room.GetId()
+	}
+	for _, roomName := range spec.Rooms {
+		if roomsByName[roomName] == "" {
+			logger.Error("Skipping [bootstrap] bot because a configured room does not exist", "room", roomName)
+			return false
+		}
+	}
+	for _, permission := range spec.Permissions {
+		if err := core.ValidatePermission(core.Permission(permission)); err != nil {
+			logger.Error("Skipping [bootstrap] bot because a configured permission is invalid", "permission", permission, "error", err)
+			return false
+		}
+	}
+
+	displayName := spec.DisplayName
+	if displayName == "" {
+		displayName = spec.Login
+	}
+	bot, err := c.CreateBotWithAPIKeyName(ctx, owner.GetId(), spec.Login, displayName, spec.APIKeyName)
+	if err != nil {
+		logger.Error("Failed to create [bootstrap] bot", "error", err)
+		return false
+	}
+
+	configured := true
+	for _, permission := range spec.Permissions {
+		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.Permission(permission), core.PermissionStateAllow); err != nil {
+			configured = false
+			logger.Error("Failed to delegate permission to [bootstrap] bot", "user_id", bot.User.GetId(), "permission", permission, "error", err)
+		}
+	}
+	for _, roomName := range spec.Rooms {
+		if _, err := c.JoinRoom(ctx, bot.User.GetId(), core.KindChannel, bot.User.GetId(), roomsByName[roomName]); err != nil {
+			configured = false
+			logger.Error("Failed to join [bootstrap] bot to room", "user_id", bot.User.GetId(), "room", roomName, "error", err)
+		}
+	}
+	if err := writeBootstrapCredential(spec.CredentialFile, bot.APIKey); err != nil {
+		logger.Error("Failed to write [bootstrap] bot credential", "user_id", bot.User.GetId(), "error", err)
+		return false
+	}
+	if !configured {
+		logger.Warn("Created [bootstrap] bot with incomplete permissions or membership", "user_id", bot.User.GetId())
+		return false
+	}
+	logger.Info("Created [bootstrap] bot", "user_id", bot.User.GetId())
+	return true
+}
+
+// writeBootstrapCredential atomically replaces a development credential file.
+// Both the temporary file and final file use owner-only permissions.
+func writeBootstrapCredential(path, credential string) error {
+	if path == "" {
+		return errors.New("credential file path is required")
+	}
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create credential directory: %w", err)
+	}
+	temporary, err := os.CreateTemp(dir, ".chatto-bootstrap-credential-*")
+	if err != nil {
+		return fmt.Errorf("create temporary credential file: %w", err)
+	}
+	temporaryPath := temporary.Name()
+	defer os.Remove(temporaryPath)
+	if err := temporary.Chmod(0o600); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("set credential file permissions: %w", err)
+	}
+	if _, err := temporary.WriteString(credential + "\n"); err != nil {
+		_ = temporary.Close()
+		return fmt.Errorf("write credential file: %w", err)
+	}
+	if err := temporary.Close(); err != nil {
+		return fmt.Errorf("close credential file: %w", err)
+	}
+	if err := os.Rename(temporaryPath, path); err != nil {
+		return fmt.Errorf("replace credential file: %w", err)
+	}
+	if err := os.Chmod(path, 0o600); err != nil {
+		return fmt.Errorf("set final credential file permissions: %w", err)
+	}
+	return nil
 }
 
 // serverDataEmptyForBootstrap returns true when only built-in first-boot
