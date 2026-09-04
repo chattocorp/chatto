@@ -158,6 +158,14 @@
       },
       "show_less": "عرض أقل"
     },
+    "typing": {
+      "one": "{name} يكتب",
+      "two": "{first} و{second} يكتبان",
+      "many_count": {
+        "other": "{names} و{count} آخرون يكتبون",
+        "one": "{names} و{count} آخر يكتبون"
+      }
+    },
     "attachment": {
       "delete_title": "حذف المرفق",
       "delete_prompt": "هل أنت متأكد أنك تريد حذف هذا المرفق؟ لا يمكن التراجع عن هذا.",

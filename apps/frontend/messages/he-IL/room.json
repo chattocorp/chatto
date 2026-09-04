@@ -146,6 +146,14 @@
       },
       "show_less": "להראות פחות"
     },
+    "typing": {
+      "one": "{name} מקליד/ת",
+      "two": "{first} ו{second} מקלידים",
+      "many_count": {
+        "other": "{names} ועוד {count} מקלידים",
+        "one": "{names} ועוד {count} מקלידים"
+      }
+    },
     "attachment": {
       "delete_title": "מחק קובץ מצורף",
       "delete_prompt": "האם אתה בטוח שברצונך למחוק את הקובץ המצורף הזה? לא ניתן לבטל זאת.",
