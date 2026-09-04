@@ -35,11 +35,15 @@ test.describe('Direct-message thread echoes', () => {
       await roomB.expectTextInThreadPane(replyText);
       await roomB.closeThread();
 
-      const senderEcho = pageB.locator('[role="article"]', { hasText: replyText });
+      const senderEcho = pageB
+        .getByTestId('room-main-pane')
+        .locator('[role="article"]', { hasText: replyText });
       await expect(senderEcho).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(senderEcho.getByText('Thread')).toBeVisible();
 
-      const receiverEcho = page.locator('[role="article"]', { hasText: replyText });
+      const receiverEcho = page
+        .getByTestId('room-main-pane')
+        .locator('[role="article"]', { hasText: replyText });
       await expect(receiverEcho).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await expect(receiverEcho.getByText('Thread')).toBeVisible();
     });
