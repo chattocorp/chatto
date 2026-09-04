@@ -32,6 +32,8 @@ services:
       - nats
     expose:
       - "4000"
+    volumes:
+      - ${CHATTO_BACKUP_DIR:-./backups}:/backups
 
   caddy:
     image: caddy:latest

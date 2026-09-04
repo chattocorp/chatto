@@ -47,7 +47,7 @@ hostname.
    ./init-env.sh chat.example.com admin@example.com
    ```
 
-   Replace `chat.example.com` with your Chatto domain and `admin@example.com` with the email address you will use for the first account. The script generates `.env` and `livekit.generated.yaml` with matching NATS, Chatto, and LiveKit secrets.
+   Replace `chat.example.com` with your Chatto domain and `admin@example.com` with the email address you will use for the first account. The script generates `.env` and `livekit.generated.yaml` with matching NATS, Chatto, and LiveKit secrets. It also prepares the local backup directory.
 
 4. **Configure transactional email**
 
@@ -106,7 +106,12 @@ handling guidance.
 You usually do not need to: `init-env.sh` generates the secrets and config files
 for you. If you manage secrets elsewhere, start with `.env.example`, fill in its
 placeholders, and make sure the LiveKit key and secret are the same in `.env`
-and `livekit.yaml`.
+and `livekit.yaml`. Also prepare the backup directory:
+
+```bash
+mkdir -p backups
+chmod 700 backups
+```
 
 ### Container and Operator Details
 
@@ -124,13 +129,17 @@ Do not mount or publish the operator socket unless the target container or host 
 
 ## Persistent Data
 
-| Volume         | Contents                                                     |
-| -------------- | ------------------------------------------------------------ |
-| `nats_data`    | NATS/JetStream streams, KV stores — all chat data lives here |
-| `caddy_data`   | TLS certificates from Let's Encrypt                          |
-| `caddy_config` | Caddy runtime configuration cache                            |
+| Storage | Contents |
+| ------- | -------- |
+| `nats_data` volume | NATS and JetStream data |
+| `caddy_data` volume | TLS certificates from Let's Encrypt |
+| `caddy_config` volume | Caddy runtime configuration cache |
+| `CHATTO_BACKUP_DIR` bind mount | Chatto backup archives; defaults to `./backups` |
 
-Back up `nats_data` regularly. By default, file attachments and media are also stored in NATS — for heavier usage, consider offloading them to S3-compatible storage. Chatto also supports running multiple replicas behind a load balancer for high availability.
+Use `chatto backup` to back up NATS and JetStream data. Do not copy the live
+`nats_data` volume. By default, Chatto also stores file attachments and media
+in NATS. For heavier usage, you can move them to S3-compatible storage. You
+must back up S3 data separately.
 
 <CardGrid>
   <LinkCard
@@ -149,6 +158,58 @@ Back up `nats_data` regularly. By default, file attachments and media are also s
     description="Run multiple Chatto replicas for high availability."
   />
 </CardGrid>
+
+## Back Up and Restore Chatto
+
+The passphrase is optional. Run `docker compose run --rm chatto backup` to
+create an unencrypted backup without encryption keys. We recommend encrypted
+backups. Always use encryption when you include encryption keys or store a
+backup outside the server.
+
+Create an encrypted backup while Chatto is running:
+
+```bash
+docker compose run --rm chatto backup \
+  --encrypt \
+  --include-keys
+```
+
+This command starts a temporary container from the existing `chatto` service.
+The container uses the same image, environment, and private NATS connection as
+the running server. Chatto prompts you to enter and confirm the passphrase. It
+then writes a timestamped archive to the host directory selected by
+`CHATTO_BACKUP_DIR`.
+
+Copy the archive to storage on a different host. Also keep separate copies of
+the passphrase, `.env`, and `livekit.generated.yaml`. If you use S3 storage,
+back up that storage separately.
+
+Stop all Chatto replicas before you restore an archive. Keep NATS running:
+
+```bash
+docker compose stop chatto
+
+docker compose run --rm chatto restore \
+  /backups/2026-09-04T12-00-00Z.tar.gz.age
+
+docker compose up -d chatto
+```
+
+Chatto detects whether an archive is encrypted and prompts for its passphrase.
+An unencrypted archive does not require a passphrase.
+
+Restore fails by default if the target contains a backed-up stream. Add
+`--conflict=overwrite` only when you intend to replace the existing data. If
+you previously scaled Chatto, include the required scale when you start it
+again, for example `docker compose up -d --scale chatto=5`.
+
+<Aside type="caution">
+  Do not use `docker compose down` during this procedure. It stops NATS. Never
+  use `docker compose down -v` unless you intend to delete all Docker volumes.
+</Aside>
+
+See [Backup & Restore](/guides/operations/backup-restore/) for retention,
+automation, conflict handling, S3 data, and complete recovery guidance.
 
 ## Use Your Existing Reverse Proxy
 

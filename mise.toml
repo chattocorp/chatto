@@ -789,9 +789,18 @@ tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
 trap 'rm -rf "$tmp"' EXIT
 
 docker/nats-wrapper_test.sh
+shellcheck --severity=warning examples/dockercompose/init-env.sh
 compose_example="$tmp/dockercompose"
 cp -R examples/dockercompose "$compose_example"
 cp "$compose_example/.env.example" "$compose_example/.env"
+docker compose --project-directory "$compose_example" --env-file "$compose_example/.env" -f "$compose_example/compose.yml" config --quiet
+
+rm "$compose_example/.env"
+(
+  cd "$compose_example"
+  ./init-env.sh chat.example.com admin@example.com
+)
+test -d "$compose_example/backups"
 docker compose --project-directory "$compose_example" --env-file "$compose_example/.env" -f "$compose_example/compose.yml" config --quiet
 
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
