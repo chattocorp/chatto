@@ -17,13 +17,13 @@ Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automa
 
 ## API Surfaces
 
-| Surface               | Path or transport                               | Use for                                                                                                       |
-| --------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                                       |
-| Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                                           |
-| Realtime WebSocket    | `/api/realtime`                                 | Exact resource snapshots, public semantic events, and bounded resume for authenticated clients.                |
-| MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                                         |
-| Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                                |
+| Surface               | Path or transport                               | Use for                                                                                         |
+| --------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                         |
+| Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                             |
+| Realtime WebSocket    | `/api/realtime`                                 | Exact resource snapshots, public semantic events, and bounded resume for authenticated clients. |
+| MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                           |
+| Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                  |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
 
@@ -105,9 +105,9 @@ Realtime delivery uses the same room membership, RBAC, projection readiness, and
 
 ## Runnable Node Example
 
-Use the repository's [test bot example](https://github.com/chattocorp/chatto/tree/main/examples/test-bot) as a small integration starting point. It uses generated ConnectRPC clients to read finite resources and reply to direct mentions in threads. It then opens the protobuf realtime WebSocket with a `LIVE_ONLY` fallback, logs safe event metadata, and saves its opaque resume cursor after it handles each frame.
+Use the repository's [test bot example](https://github.com/chattocorp/chatto/tree/main/examples/test-bot) as a small integration starting point. It uses generated ConnectRPC clients, the protobuf realtime WebSocket, and the Pi SDK. A direct mention enrolls the bot in a thread. Chatto's durable thread-follow state lets later messages wake the bot without another mention, including messages replayed after a restart. The bot saves its opaque resume cursor only after it handles each frame.
 
-The example does not log message text, user names, or credentials. With an empty local data directory, `mise dev` creates `test_bot` on the first startup, makes Alice its owner, and starts the Node process. This setup uses development-only bootstrap code. Release builds ignore the bootstrap configuration.
+The example gives Pi no tools and does not log message text, prompts, replies, user names, or credentials. A configured external AI provider receives the text of up to 40 messages from the active thread. The example replaces user IDs with prompt-local labels before the model request. Local development uses Pi's no-cost faux provider unless you explicitly configure a real provider and model. With an empty local data directory, `mise dev` creates `test_bot` on the first startup, makes Alice its owner, and starts the Node process. This setup uses development-only bootstrap code. Release builds ignore the bootstrap configuration.
 
 ## Integration Patterns
 

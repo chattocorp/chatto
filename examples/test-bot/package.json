@@ -19,7 +19,9 @@
     "@bufbuild/protobuf": "1.10.1",
     "@chatto/api-types": "workspace:*",
     "@connectrpc/connect": "1.7.0",
-    "@connectrpc/connect-web": "1.7.0"
+    "@connectrpc/connect-web": "1.7.0",
+    "@earendil-works/pi-agent-core": "0.85.0",
+    "@earendil-works/pi-ai": "0.85.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

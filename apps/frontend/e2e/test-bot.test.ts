@@ -17,6 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BOT_SCRIPT = path.resolve(__dirname, '../../../examples/test-bot/dist/index.js');
 const BOT_KEY_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const FAUX_AI_REPLY = 'This reply was generated through the Pi agent.';
 
 type BotLogRecord = Record<string, boolean | number | string>;
 
@@ -81,7 +82,9 @@ class TestBotProcess {
           ...process.env,
           CHATTO_TEST_BOT_SERVER_URL: config.serverUrl,
           CHATTO_TEST_BOT_API_KEY_FILE: config.apiKeyFile,
-          CHATTO_TEST_BOT_STATE_FILE: config.stateFile
+          CHATTO_TEST_BOT_STATE_FILE: config.stateFile,
+          CHATTO_TEST_BOT_AI_PROVIDER: 'faux',
+          CHATTO_TEST_BOT_AI_FAUX_RESPONSE: FAUX_AI_REPLY
         },
         stdio: ['ignore', 'pipe', 'pipe']
       })
@@ -191,7 +194,9 @@ test.describe('public API test bot', () => {
       );
       const mentionReply = await first.waitFor(
         (record) =>
-          record.status === 'mention_replied' && record.source_event_id === mentionEventId
+          record.status === 'ai_replied' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === mentionEventId
       );
       const replyEventId = String(mentionReply.reply_event_id);
       const createdReply = await connectPost<GetMessageResponse>(
@@ -202,16 +207,53 @@ test.describe('public API test bot', () => {
       expect(createdReply.message).toMatchObject({
         id: replyEventId,
         actorId: String(ready.viewer_id),
-        body: 'Hello! I received your mention.',
+        body: FAUX_AI_REPLY,
         inReplyTo: mentionEventId,
         threadRootEventId: firstEventId
       });
 
-      await first.stop();
-      const missedEventId = await postMessageViaConnect(
+      const followUpEventId = await postThreadReplyViaConnect(
         page,
         roomId,
-        'Message created while the public API test bot is disconnected'
+        'Continue helping in this thread without another mention',
+        firstEventId
+      );
+      const followUpReply = await first.waitFor(
+        (record) =>
+          record.status === 'ai_replied' &&
+          record.trigger === 'followed_thread' &&
+          record.source_event_id === followUpEventId
+      );
+      const followUpReplyEventId = String(followUpReply.reply_event_id);
+      const createdFollowUpReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: followUpReplyEventId }
+      );
+      expect(createdFollowUpReply.message).toMatchObject({
+        id: followUpReplyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY,
+        inReplyTo: followUpEventId,
+        threadRootEventId: firstEventId
+      });
+
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            resumeCursor?: string;
+            processedEventIds?: string[];
+          };
+          return Boolean(state.resumeCursor && state.processedEventIds?.includes(followUpEventId));
+        })
+        .toBe(true);
+
+      await first.stop();
+      const missedEventId = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        'Please answer this after reconnecting',
+        firstEventId
       );
 
       second = TestBotProcess.start({
@@ -221,11 +263,28 @@ test.describe('public API test bot', () => {
       });
       await second.waitFor(
         (record) =>
-          record.status === 'event' &&
-          record.event === 'messagePosted' &&
-          record.event_id === missedEventId
+          record.status === 'ai_replied' &&
+          record.trigger === 'followed_thread' &&
+          record.source_event_id === missedEventId
       );
       await second.waitFor((record) => record.status === 'caught_up' && record.resumed === true);
+
+      const resumedReply = second.records.find(
+        (record) => record.status === 'ai_replied' && record.source_event_id === missedEventId
+      );
+      const resumedReplyEventId = String(resumedReply?.reply_event_id);
+      const createdResumedReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: resumedReplyEventId }
+      );
+      expect(createdResumedReply.message).toMatchObject({
+        id: resumedReplyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY,
+        inReplyTo: missedEventId,
+        threadRootEventId: firstEventId
+      });
 
       expect(
         second.records.filter(

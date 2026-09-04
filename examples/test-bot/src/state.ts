@@ -8,6 +8,7 @@ const MAX_PROCESSED_EVENT_IDS = 2_048;
 export interface TestBotState {
   resumeCursor?: string;
   processedEventIds: string[];
+  followedThreadKeys: string[];
 }
 
 /** Read and validate the bot recovery state. A missing file starts fresh. */
@@ -19,7 +20,7 @@ export async function loadTestBotState(
     raw = await readFile(stateFile, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { processedEventIds: [] };
+      return { processedEventIds: [], followedThreadKeys: [] };
     }
     throw error;
   }
@@ -31,6 +32,7 @@ export async function loadTestBotState(
   const candidate = parsed as {
     resumeCursor?: unknown;
     processedEventIds?: unknown;
+    followedThreadKeys?: unknown;
   };
   if (
     candidate.resumeCursor !== undefined &&
@@ -44,11 +46,19 @@ export async function loadTestBotState(
   ) {
     throw new Error("test bot processed event IDs must be strings");
   }
+  if (
+    candidate.followedThreadKeys !== undefined &&
+    (!Array.isArray(candidate.followedThreadKeys) ||
+      !candidate.followedThreadKeys.every((key) => typeof key === "string"))
+  ) {
+    throw new Error("test bot followed thread keys must be strings");
+  }
   return {
     ...(candidate.resumeCursor ? { resumeCursor: candidate.resumeCursor } : {}),
     processedEventIds: candidate.processedEventIds.slice(
       -MAX_PROCESSED_EVENT_IDS,
     ),
+    followedThreadKeys: candidate.followedThreadKeys ?? [],
   };
 }
 
@@ -63,6 +73,7 @@ export async function saveTestBotState(
   const serialized = `${JSON.stringify({
     ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
     processedEventIds: state.processedEventIds.slice(-MAX_PROCESSED_EVENT_IDS),
+    followedThreadKeys: [...new Set(state.followedThreadKeys)].sort(),
   })}\n`;
   try {
     await writeFile(temporaryFile, serialized, {

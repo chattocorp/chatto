@@ -17,17 +17,22 @@ test("state round-trips with owner-only file permissions", async (t) => {
   await saveTestBotState(stateFile, {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
+    followedThreadKeys: ["room-1\u0000root-1"],
   });
 
   assert.deepEqual(await loadTestBotState(stateFile), {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
+    followedThreadKeys: ["room-1\u0000root-1"],
   });
   assert.equal((await stat(stateFile)).mode & 0o777, 0o600);
 });
 
 test("processed event IDs are deduplicated and bounded", () => {
-  const state: TestBotState = { processedEventIds: [] };
+  const state: TestBotState = {
+    processedEventIds: [],
+    followedThreadKeys: [],
+  };
   assert.equal(rememberProcessedEvent(state, "event-1"), true);
   assert.equal(rememberProcessedEvent(state, "event-1"), false);
   for (let index = 2; index <= 2_100; index += 1) {
