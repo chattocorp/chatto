@@ -24,7 +24,7 @@ To run the bot separately after you build it, set these variables:
 - `CHATTO_TEST_BOT_SERVER_URL`: Chatto HTTP or HTTPS base URL.
 - `CHATTO_TEST_BOT_API_KEY_FILE`: file that contains the bot API key.
 - `CHATTO_TEST_BOT_STATE_FILE`: file that stores the opaque resume cursor and
-  bounded event deduplication and pending-reply data.
+  bounded event deduplication data.
 - `CHATTO_TEST_BOT_AI_PROVIDER`: Pi provider ID. The default is `faux`.
 - `CHATTO_TEST_BOT_AI_MODEL`: Pi model ID. This value is required unless the
   provider is `faux`.
@@ -43,13 +43,16 @@ export CHATTO_TEST_BOT_AI_MODEL=claude-haiku-4-5
 export ANTHROPIC_API_KEY=your-key
 ```
 
-For each direct mention, the bot first creates an italic `Thinking…` reply. It
-then reads a window of up to 40 messages around the source message from the
-public thread API. The bot excludes messages that came after the source
-message. The context includes messages that do not mention the bot and messages
-from other users. It omits temporary `Thinking…` replies. If the anchored
-resource read has not caught up, the bot uses the realtime source message by
-itself and can still answer.
+For each direct mention, the bot immediately publishes a live-only typing
+indicator in the thread. It refreshes the indicator every two seconds while Pi
+works. Receiving clients remove an idle indicator after six seconds. The bot
+then posts one final, durable reply.
+
+The bot reads a window of up to 40 messages around the source message from the
+public thread API. It excludes messages that came after the source message. The
+context includes messages that do not mention the bot and messages from other
+users. If the anchored resource read has not caught up, the bot uses the
+realtime source message by itself and can still answer.
 
 The bot reconstructs the thread as structured user and assistant turns. It uses
 a stable, hashed session ID for each thread. It also replaces Chatto user IDs
@@ -62,7 +65,8 @@ messages, 4,000 characters per message, and 32,000 characters in total.
 Each mention gets an independent Pi session and an immutable thread snapshot.
 The bot can run up to eight reply jobs at the same time, including jobs for the
 same thread. Concurrent jobs do not include answers that are still in progress.
-When a job is complete, the bot replaces its thinking reply with the answer.
+When a job is complete, the bot posts the answer and stops refreshing its typing
+indicator.
 
 The Pi agent has one local extension named `web_fetch`. The model can use it to
 fetch text from public HTTP and HTTPS URLs when current information helps with a
@@ -77,13 +81,12 @@ professional answers. It also requires the bot to consult and cite
 
 Then run `mise test-bot-build` and `pnpm --filter @chatto/test-bot start`.
 
-The bot handles realtime events at least once. It saves the thinking reply ID
-before it calls the AI provider. A retry then updates the existing reply instead
-of intentionally creating another one. It saves an event as processed only
-after the final edit succeeds. A failure can repeat the model request or final
-edit. A process failure between creating the thinking reply and saving its ID
-can still cause a duplicate reply because `CreateMessage` has no idempotency
-key. Production bots need an application-specific idempotency strategy.
+The bot handles realtime events at least once. It saves an event as processed
+only after the final reply succeeds. A failure can repeat the model request.
+A process failure between creating the final reply and saving the source event
+as processed can cause a duplicate reply because `CreateMessage` has no
+idempotency key. Production bots need an application-specific idempotency
+strategy. Typing indicators are transient and are not part of replay.
 
 The bot saves a cursor only after it handles all earlier frames. On reconnect,
 it asks Chatto for the missed replayable events. If the cursor is absent or is

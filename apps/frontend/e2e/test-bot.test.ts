@@ -192,6 +192,9 @@ test.describe('public API test bot', () => {
         '@test_bot please confirm this thread mention',
         firstEventId
       );
+      const mentionTyping = await first.waitFor(
+        (record) => record.status === 'typing_started' && record.source_event_id === mentionEventId
+      );
       const mentionStarted = await first.waitFor(
         (record) =>
           record.status === 'ai_reply_started' &&
@@ -205,10 +208,9 @@ test.describe('public API test bot', () => {
           record.source_event_id === mentionEventId
       );
       const replyEventId = String(mentionReply.reply_event_id);
-      expect(mentionStarted).toMatchObject({
-        reply_event_id: replyEventId,
-        resumed_placeholder: false
-      });
+      expect(first.records.indexOf(mentionTyping)).toBeLessThan(
+        first.records.indexOf(mentionStarted)
+      );
       const createdReply = await connectPost<GetMessageResponse>(
         page,
         'chatto.api.v1.MessageService/GetMessage',
@@ -224,15 +226,14 @@ test.describe('public API test bot', () => {
       await expect
         .poll(async () => {
           const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
-            pendingReplies?: unknown[];
             processedEventIds?: string[];
           };
           return {
-            pendingReplyCount: state.pendingReplies?.length,
+            hasObsoletePendingReplies: Object.hasOwn(state, 'pendingReplies'),
             sourceProcessed: state.processedEventIds?.includes(mentionEventId)
           };
         })
-        .toEqual({ pendingReplyCount: 0, sourceProcessed: true });
+        .toEqual({ hasObsoletePendingReplies: false, sourceProcessed: true });
 
       const [rapidMentionA, rapidMentionB] = await Promise.all([
         postThreadReplyViaConnect(page, roomId, '@test_bot answer rapid prompt A', firstEventId),
@@ -246,6 +247,13 @@ test.describe('public API test bot', () => {
           (record) => record.status === 'ai_replied' && record.source_event_id === rapidMentionB
         )
       ]);
+      await Promise.all(
+        [rapidMentionA, rapidMentionB].map((eventId) =>
+          first.waitFor(
+            (record) => record.status === 'typing_started' && record.source_event_id === eventId
+          )
+        )
+      );
       expect(String(rapidReplyA.reply_event_id)).not.toBe(String(rapidReplyB.reply_event_id));
       for (const reply of [rapidReplyA, rapidReplyB]) {
         const response = await connectPost<GetMessageResponse>(
@@ -258,17 +266,16 @@ test.describe('public API test bot', () => {
       await expect
         .poll(async () => {
           const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
-            pendingReplies?: unknown[];
             processedEventIds?: string[];
           };
           return {
-            pendingReplyCount: state.pendingReplies?.length,
+            hasObsoletePendingReplies: Object.hasOwn(state, 'pendingReplies'),
             sourcesProcessed: [rapidMentionA, rapidMentionB].every((eventId) =>
               state.processedEventIds?.includes(eventId)
             )
           };
         })
-        .toEqual({ pendingReplyCount: 0, sourcesProcessed: true });
+        .toEqual({ hasObsoletePendingReplies: false, sourcesProcessed: true });
 
       const followUpEventId = await postThreadReplyViaConnect(
         page,
@@ -310,6 +317,9 @@ test.describe('public API test bot', () => {
           record.trigger === 'direct_mention' &&
           record.source_event_id === missedEventId
       );
+      const resumedTyping = await second.waitFor(
+        (record) => record.status === 'typing_started' && record.source_event_id === missedEventId
+      );
       await second.waitFor(
         (record) =>
           record.status === 'ai_replied' &&
@@ -322,10 +332,9 @@ test.describe('public API test bot', () => {
         (record) => record.status === 'ai_replied' && record.source_event_id === missedEventId
       );
       const resumedReplyEventId = String(resumedReply?.reply_event_id);
-      expect(resumedStarted).toMatchObject({
-        reply_event_id: resumedReplyEventId,
-        resumed_placeholder: false
-      });
+      expect(second.records.indexOf(resumedTyping)).toBeLessThan(
+        second.records.indexOf(resumedStarted)
+      );
       const createdResumedReply = await connectPost<GetMessageResponse>(
         page,
         'chatto.api.v1.MessageService/GetMessage',

@@ -18,13 +18,11 @@ test("state round-trips with owner-only file permissions", async (t) => {
   await saveTestBotState(stateFile, {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
-    pendingReplies: [{ sourceEventId: "event-3", replyEventId: "reply-3" }],
   });
 
   assert.deepEqual(await loadTestBotState(stateFile), {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
-    pendingReplies: [{ sourceEventId: "event-3", replyEventId: "reply-3" }],
   });
   assert.equal((await stat(stateFile)).mode & 0o777, 0o600);
 });
@@ -32,7 +30,6 @@ test("state round-trips with owner-only file permissions", async (t) => {
 test("processed event IDs are deduplicated and bounded", () => {
   const state: TestBotState = {
     processedEventIds: [],
-    pendingReplies: [],
   };
   assert.equal(rememberProcessedEvent(state, "event-1"), true);
   assert.equal(rememberProcessedEvent(state, "event-1"), false);
@@ -44,7 +41,7 @@ test("processed event IDs are deduplicated and bounded", () => {
   assert.equal(state.processedEventIds.includes("event-1"), false);
 });
 
-test("state files from before placeholder replies remain readable", async (t) => {
+test("obsolete placeholder data is ignored", async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
   t.after(() => rm(directory, { force: true, recursive: true }));
   const stateFile = path.join(directory, "state.json");
@@ -53,13 +50,13 @@ test("state files from before placeholder replies remain readable", async (t) =>
     JSON.stringify({
       resumeCursor: "old-cursor",
       processedEventIds: ["event-1"],
+      pendingReplies: [{ sourceEventId: "event-2", replyEventId: "reply-2" }],
     }),
   );
 
   assert.deepEqual(await loadTestBotState(stateFile), {
     resumeCursor: "old-cursor",
     processedEventIds: ["event-1"],
-    pendingReplies: [],
   });
 });
 
@@ -68,7 +65,7 @@ test("concurrent callers persist state snapshots in call order", async (t) => {
   t.after(() => rm(directory, { force: true, recursive: true }));
   const stateFile = path.join(directory, "state.json");
   const save = serialTestBotStateSaver(stateFile);
-  const state: TestBotState = { processedEventIds: [], pendingReplies: [] };
+  const state: TestBotState = { processedEventIds: [] };
 
   state.processedEventIds.push("event-1");
   const first = save(state);

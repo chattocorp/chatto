@@ -6,24 +6,16 @@ import {
   RoleMessageMention,
 } from "@chatto/api-types/realtime/v1/events_pb";
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
-import os from "node:os";
-import path from "node:path";
 import test from "node:test";
 import type { AIResponder } from "./ai.js";
 import {
   messageReplyTarget,
   OrderedConcurrentProcessor,
+  refreshTypingIndicator,
   replyToMessage,
   threadAIConversation,
-  THINKING_REPLY,
   type BotAPI,
 } from "./bot.js";
-import {
-  loadTestBotState,
-  serialTestBotStateSaver,
-  type TestBotState,
-} from "./state.js";
 
 const BOT_ID = "bot-1";
 
@@ -126,7 +118,6 @@ test("builds a structured thread snapshot ending at its source message", () => {
     [
       { eventId: "1", actorId: "user-secret-id", body: "Earlier context." },
       { eventId: "2", actorId: BOT_ID, body: "An earlier answer." },
-      { eventId: "placeholder", actorId: BOT_ID, body: THINKING_REPLY },
       {
         eventId: "3",
         actorId: "another-secret-id",
@@ -162,10 +153,6 @@ test("builds a structured thread snapshot ending at its source message", () => {
   assert.match(conversation.turns[3]?.content ?? "", /@test_bot Help\?$/);
   assert.equal(
     conversation.turns.some((turn) => turn.content.includes("later message")),
-    false,
-  );
-  assert.equal(
-    conversation.turns.some((turn) => turn.content === THINKING_REPLY),
     false,
   );
 });
@@ -227,32 +214,22 @@ test("runs work concurrently but commits it in submission order", async () => {
   assert.deepEqual(committed, [1, 2, 3]);
 });
 
-test("posts an italic placeholder immediately and reuses it after an AI failure", async (t) => {
-  const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
-  t.after(() => rm(directory, { force: true, recursive: true }));
-  const stateFile = path.join(directory, "state.json");
-  const saveState = serialTestBotStateSaver(stateFile);
-  const state: TestBotState = { processedEventIds: [], pendingReplies: [] };
+test("sends typing before the model and posts only the final reply", async () => {
   const actions: string[] = [];
-  let rejectFirstAI: (reason: Error) => void = () => {};
-  let markAIStarted: () => void = () => {};
-  const aiStarted = new Promise<void>((resolve) => {
-    markAIStarted = resolve;
-  });
-  const firstAI: AIResponder = {
+  const ai: AIResponder = {
     provider: "test",
     model: "test",
-    respond: async () =>
-      new Promise<string>((_resolve, reject) => {
-        rejectFirstAI = reject;
-        actions.push("ai-started");
-        markAIStarted();
-      }),
+    respond: async () => {
+      actions.push("ai-started");
+      return "Final answer";
+    },
   };
-  let placeholderPosts = 0;
   const api: BotAPI = {
     viewerId: BOT_ID,
     isBotActor: async () => false,
+    updateTypingIndicator: async () => {
+      actions.push("typing");
+    },
     loadConversation: async (target) => {
       actions.push("conversation-loaded");
       return [
@@ -264,53 +241,79 @@ test("posts an italic placeholder immediately and reuses it after an AI failure"
       ];
     },
     postReply: async (_target, body) => {
-      placeholderPosts += 1;
       actions.push(`posted:${body}`);
       return "reply-1";
-    },
-    updateReply: async (_roomId, replyEventId, body) => {
-      actions.push(`updated:${replyEventId}:${body}`);
     },
   };
   const event = messageEvent({ direct: true, inThread: "thread-root-1" });
 
-  const firstAttempt = replyToMessage(
-    api,
-    firstAI,
-    event,
-    new AbortController().signal,
-    state,
-    saveState,
-  );
-  await aiStarted;
+  await replyToMessage(api, ai, event, new AbortController().signal);
 
   assert.deepEqual(actions, [
-    `posted:${THINKING_REPLY}`,
+    "typing",
     "conversation-loaded",
     "ai-started",
+    "posted:Final answer",
   ]);
-  assert.equal(THINKING_REPLY, "_Thinking…_");
-  assert.deepEqual((await loadTestBotState(stateFile)).pendingReplies, [
-    { sourceEventId: "message-1", replyEventId: "reply-1" },
-  ]);
+});
 
-  rejectFirstAI(new Error("provider failed"));
-  await assert.rejects(firstAttempt, /provider failed/);
+test("refreshes typing until the reply operation stops", async () => {
+  const controller = new AbortController();
+  let updates = 0;
+  const api: Pick<BotAPI, "updateTypingIndicator"> = {
+    updateTypingIndicator: async () => {
+      updates += 1;
+      if (updates === 3) controller.abort();
+    },
+  };
+  const target = {
+    roomId: "room-1",
+    sourceEventId: "message-1",
+    threadRootEventId: "thread-root-1",
+    sourceActorId: "user-1",
+    sourceBody: "hello",
+  };
 
-  const secondAI: AIResponder = {
+  await refreshTypingIndicator(api, target, controller.signal, 0);
+
+  assert.equal(updates, 3);
+});
+
+test("does not post a message when generation fails", async () => {
+  let posts = 0;
+  const api: BotAPI = {
+    viewerId: BOT_ID,
+    isBotActor: async () => false,
+    updateTypingIndicator: async () => undefined,
+    loadConversation: async (target) => [
+      {
+        eventId: target.sourceEventId,
+        actorId: target.sourceActorId,
+        body: target.sourceBody,
+      },
+    ],
+    postReply: async () => {
+      posts += 1;
+      return "reply-1";
+    },
+  };
+  const ai: AIResponder = {
     provider: "test",
     model: "test",
-    respond: async () => "Final answer",
+    respond: async () => {
+      throw new Error("provider failed");
+    },
   };
-  await replyToMessage(
-    api,
-    secondAI,
-    event,
-    new AbortController().signal,
-    state,
-    saveState,
+
+  await assert.rejects(
+    replyToMessage(
+      api,
+      ai,
+      messageEvent({ direct: true, inThread: "thread-root-1" }),
+      new AbortController().signal,
+    ),
+    /provider failed/,
   );
 
-  assert.equal(placeholderPosts, 1);
-  assert.equal(actions.at(-1), "updated:reply-1:Final answer");
+  assert.equal(posts, 0);
 });

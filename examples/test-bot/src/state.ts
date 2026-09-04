@@ -3,19 +3,11 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const MAX_PROCESSED_EVENT_IDS = 2_048;
-const MAX_PENDING_REPLIES = 64;
-
-/** A placeholder reply that still needs its final AI-generated body. */
-export interface PendingReply {
-  sourceEventId: string;
-  replyEventId: string;
-}
 
 /** Durable recovery state that is safe to store without encryption. */
 export interface TestBotState {
   resumeCursor?: string;
   processedEventIds: string[];
-  pendingReplies: PendingReply[];
 }
 
 /** Persist one immutable snapshot of the bot recovery state. */
@@ -30,7 +22,7 @@ export async function loadTestBotState(
     raw = await readFile(stateFile, "utf8");
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-      return { processedEventIds: [], pendingReplies: [] };
+      return { processedEventIds: [] };
     }
     throw error;
   }
@@ -42,7 +34,6 @@ export async function loadTestBotState(
   const candidate = parsed as {
     resumeCursor?: unknown;
     processedEventIds?: unknown;
-    pendingReplies?: unknown;
   };
   if (
     candidate.resumeCursor !== undefined &&
@@ -56,36 +47,15 @@ export async function loadTestBotState(
   ) {
     throw new Error("test bot processed event IDs must be strings");
   }
-  if (
-    candidate.pendingReplies !== undefined &&
-    (!Array.isArray(candidate.pendingReplies) ||
-      !candidate.pendingReplies.every(isPendingReply))
-  ) {
-    throw new Error("test bot pending replies must contain event IDs");
-  }
   return {
     ...(candidate.resumeCursor ? { resumeCursor: candidate.resumeCursor } : {}),
     processedEventIds: candidate.processedEventIds.slice(
       -MAX_PROCESSED_EVENT_IDS,
     ),
-    pendingReplies: (candidate.pendingReplies ?? []).slice(
-      -MAX_PENDING_REPLIES,
-    ),
   };
 }
 
-function isPendingReply(value: unknown): value is PendingReply {
-  if (!value || typeof value !== "object") return false;
-  const candidate = value as Partial<PendingReply>;
-  return (
-    typeof candidate.sourceEventId === "string" &&
-    candidate.sourceEventId.length > 0 &&
-    typeof candidate.replyEventId === "string" &&
-    candidate.replyEventId.length > 0
-  );
-}
-
-/** Atomically retain the cursor, deduplication window, and pending replies. */
+/** Atomically retain the cursor and bounded event-ID deduplication window. */
 export async function saveTestBotState(
   stateFile: string,
   state: TestBotState,
@@ -93,9 +63,6 @@ export async function saveTestBotState(
   const snapshot: TestBotState = {
     ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
     processedEventIds: state.processedEventIds.slice(-MAX_PROCESSED_EVENT_IDS),
-    pendingReplies: state.pendingReplies
-      .slice(-MAX_PENDING_REPLIES)
-      .map((reply) => ({ ...reply })),
   };
   const serialized = `${JSON.stringify(snapshot)}\n`;
   const directory = path.dirname(stateFile);
@@ -119,7 +86,6 @@ export function serialTestBotStateSaver(stateFile: string): TestBotStateSaver {
     const snapshot: TestBotState = {
       ...(state.resumeCursor ? { resumeCursor: state.resumeCursor } : {}),
       processedEventIds: [...state.processedEventIds],
-      pendingReplies: state.pendingReplies.map((reply) => ({ ...reply })),
     };
     const operation = tail.then(() => saveTestBotState(stateFile, snapshot));
     tail = operation.catch(() => undefined);
@@ -141,41 +107,4 @@ export function rememberProcessedEvent(
     );
   }
   return true;
-}
-
-/** Find the placeholder reply for a source event, when one exists. */
-export function pendingReplyId(
-  state: TestBotState,
-  sourceEventId: string,
-): string | undefined {
-  return state.pendingReplies.find(
-    (reply) => reply.sourceEventId === sourceEventId,
-  )?.replyEventId;
-}
-
-/** Remember the placeholder reply for one source event. */
-export function rememberPendingReply(
-  state: TestBotState,
-  sourceEventId: string,
-  replyEventId: string,
-): void {
-  forgetPendingReply(state, sourceEventId);
-  state.pendingReplies.push({ sourceEventId, replyEventId });
-  if (state.pendingReplies.length > MAX_PENDING_REPLIES) {
-    state.pendingReplies.splice(
-      0,
-      state.pendingReplies.length - MAX_PENDING_REPLIES,
-    );
-  }
-}
-
-/** Forget a placeholder after its source event is fully processed. */
-export function forgetPendingReply(
-  state: TestBotState,
-  sourceEventId: string,
-): void {
-  const index = state.pendingReplies.findIndex(
-    (reply) => reply.sourceEventId === sourceEventId,
-  );
-  if (index >= 0) state.pendingReplies.splice(index, 1);
 }

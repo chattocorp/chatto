@@ -7,6 +7,7 @@ import {
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
 import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
+import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import { UserService } from "@chatto/api-types/api/v1/user_service_connect";
 import { ViewerService } from "@chatto/api-types/api/v1/viewer_connect";
@@ -20,10 +21,7 @@ import {
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import {
-  forgetPendingReply,
   loadTestBotState,
-  pendingReplyId,
-  rememberPendingReply,
   rememberProcessedEvent,
   serialTestBotStateSaver,
   type TestBotStateSaver,
@@ -43,9 +41,7 @@ const MAXIMUM_CONCURRENT_REPLIES = 8;
 const MAXIMUM_CONVERSATION_MESSAGES = 40;
 const MAXIMUM_CONVERSATION_CHARACTERS = 32_000;
 const MAXIMUM_MESSAGE_CHARACTERS = 4_000;
-
-/** Markdown body used while TestBot prepares its final answer. */
-export const THINKING_REPLY = "_Thinking…_";
+const TYPING_REFRESH_INTERVAL_MS = 2_000;
 
 /** Runtime configuration for the public-API example bot. */
 export interface TestBotConfig {
@@ -79,14 +75,10 @@ export interface BotAPI {
   isBotActor(actorId: string): Promise<boolean>;
   /** Read the current conversation that contains the source message. */
   loadConversation(target: ReplyTarget): Promise<ConversationMessage[]>;
+  /** Publish one live-only typing indicator for the target thread. */
+  updateTypingIndicator(target: ReplyTarget): Promise<void>;
   /** Create a reply and return its message event ID. */
   postReply(target: ReplyTarget, body: string): Promise<string>;
-  /** Replace the body of a reply authored by TestBot. */
-  updateReply(
-    roomId: string,
-    replyEventId: string,
-    body: string,
-  ): Promise<void>;
 }
 
 /** Minimal message data sent to the configured AI provider. */
@@ -148,6 +140,7 @@ async function connectPublicAPI(
     {},
   );
   const messages = createClient(MessageService, transport);
+  const roomOperations = createClient(RoomService, transport);
   const threads = createClient(ThreadService, transport);
   const users = createClient(UserService, transport);
   const botActors = new Map<string, boolean>([[viewerId, true]]);
@@ -208,6 +201,15 @@ async function connectPublicAPI(
       }
       return conversation;
     },
+    async updateTypingIndicator(target): Promise<void> {
+      const response = await roomOperations.updateTypingIndicator({
+        roomId: target.roomId,
+        threadRootEventId: target.threadRootEventId,
+      });
+      if (!response.updated) {
+        throw new Error("typing indicator was not accepted");
+      }
+    },
     async postReply(target, body): Promise<string> {
       const response = await messages.createMessage({
         roomId: target.roomId,
@@ -220,16 +222,6 @@ async function connectPublicAPI(
         throw new Error("message response did not contain an event ID");
       }
       return replyEventId;
-    },
-    async updateReply(roomId, replyEventId, body): Promise<void> {
-      const response = await messages.updateMessage({
-        roomId,
-        eventId: replyEventId,
-        body,
-      });
-      if (response.message?.id !== replyEventId) {
-        throw new Error("message update response did not contain the reply");
-      }
     },
   };
 }
@@ -280,10 +272,6 @@ export function threadAIConversation(
   const key = threadKey(roomId, threadRootEventId);
   const available = messages
     .slice(0, sourceIndex + 1)
-    .filter(
-      (message) =>
-        !(message.actorId === viewerId && message.body === THINKING_REPLY),
-    )
     .slice(-MAXIMUM_CONVERSATION_MESSAGES)
     .map((message) => {
       const body = message.body.slice(0, MAXIMUM_MESSAGE_CHARACTERS);
@@ -345,57 +333,101 @@ export function messageReplyTarget(
   };
 }
 
-/** Create or resume one placeholder reply and replace it with the final answer. */
+/** Refresh a thread typing indicator until the operation stops. */
+export async function refreshTypingIndicator(
+  api: Pick<BotAPI, "updateTypingIndicator">,
+  target: ReplyTarget,
+  signal: AbortSignal,
+  intervalMs = TYPING_REFRESH_INTERVAL_MS,
+): Promise<void> {
+  while (!signal.aborted) {
+    await wait(intervalMs, signal);
+    if (signal.aborted) return;
+    await api.updateTypingIndicator(target);
+  }
+}
+
+/** Publish typing activity while Pi prepares one final thread reply. */
 export async function replyToMessage(
   api: BotAPI,
   ai: AIResponder,
   event: RealtimeEvent,
   signal: AbortSignal,
-  state: TestBotState,
-  saveState: TestBotStateSaver,
 ): Promise<void> {
   const target = messageReplyTarget(event, api.viewerId);
   if (!target) return;
   if (await api.isBotActor(target.sourceActorId)) return;
+  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
 
-  let replyEventId = pendingReplyId(state, target.sourceEventId);
-  const resumedPlaceholder = replyEventId !== undefined;
-  if (!replyEventId) {
-    replyEventId = await api.postReply(target, THINKING_REPLY);
-    rememberPendingReply(state, target.sourceEventId, replyEventId);
-    await saveState(state);
+  const typingController = new AbortController();
+  const abortTyping = () => typingController.abort(signal.reason);
+  if (signal.aborted) {
+    abortTyping();
+  } else {
+    signal.addEventListener("abort", abortTyping, { once: true });
+  }
+  let typingStarted = false;
+  let typingRefresh = Promise.resolve();
+  try {
+    await api.updateTypingIndicator(target);
+    typingStarted = true;
+    log({
+      status: "typing_started",
+      source_event_id: target.sourceEventId,
+      thread_root_event_id: target.threadRootEventId,
+    });
+    typingRefresh = refreshTypingIndicator(
+      api,
+      target,
+      typingController.signal,
+    ).catch((error: unknown) => {
+      log({ status: "typing_failed", error: safeErrorKind(error) });
+    });
+  } catch (error) {
+    log({ status: "typing_failed", error: safeErrorKind(error) });
   }
   log({
     status: "ai_reply_started",
     source_event_id: target.sourceEventId,
     thread_root_event_id: target.threadRootEventId,
-    reply_event_id: replyEventId,
-    resumed_placeholder: resumedPlaceholder,
     trigger: "direct_mention",
   });
 
-  const conversation = await api.loadConversation(target);
-  if (conversation.length === 0) {
-    throw new Error("message thread did not contain the source message");
+  try {
+    const conversation = await api.loadConversation(target);
+    if (conversation.length === 0) {
+      throw new Error("message thread did not contain the source message");
+    }
+    const body = await ai.respond(
+      threadAIConversation(
+        conversation,
+        api.viewerId,
+        target.roomId,
+        target.threadRootEventId,
+        target.sourceEventId,
+      ),
+      signal,
+    );
+    const replyEventId = await api.postReply(target, body);
+    log({
+      status: "ai_replied",
+      source_event_id: target.sourceEventId,
+      thread_root_event_id: target.threadRootEventId,
+      reply_event_id: replyEventId,
+      trigger: "direct_mention",
+    });
+  } finally {
+    typingController.abort();
+    signal.removeEventListener("abort", abortTyping);
+    await typingRefresh;
+    if (typingStarted) {
+      log({
+        status: "typing_stopped",
+        source_event_id: target.sourceEventId,
+        thread_root_event_id: target.threadRootEventId,
+      });
+    }
   }
-  const body = await ai.respond(
-    threadAIConversation(
-      conversation,
-      api.viewerId,
-      target.roomId,
-      target.threadRootEventId,
-      target.sourceEventId,
-    ),
-    signal,
-  );
-  await api.updateReply(target.roomId, replyEventId, body);
-  log({
-    status: "ai_replied",
-    source_event_id: target.sourceEventId,
-    thread_root_event_id: target.threadRootEventId,
-    reply_event_id: replyEventId,
-    trigger: "direct_mention",
-  });
 }
 
 async function commitState(
@@ -569,20 +601,11 @@ async function runRealtimeSession(
               }
               enqueue(
                 firstDelivery
-                  ? () =>
-                      replyToMessage(
-                        api,
-                        ai,
-                        event,
-                        workController.signal,
-                        state,
-                        saveState,
-                      )
+                  ? () => replyToMessage(api, ai, event, workController.signal)
                   : async () => undefined,
                 async () => {
                   if (firstDelivery) {
                     rememberProcessedEvent(state, event.id);
-                    forgetPendingReply(state, event.id);
                     scheduledEventIds.delete(event.id);
                   } else {
                     log({ status: "duplicate_ignored", event_id: event.id });
