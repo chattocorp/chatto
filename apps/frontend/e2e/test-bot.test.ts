@@ -284,34 +284,31 @@ test.describe('public API test bot', () => {
         })
         .toEqual({ hasObsoletePendingReplies: false, sourceProcessed: true });
 
-      const [rapidMentionA, rapidMentionB] = await Promise.all([
-        postThreadReplyViaConnect(page, roomId, '@test_bot answer rapid prompt A', firstEventId),
-        postThreadReplyViaConnect(page, roomId, '@test_bot answer rapid prompt B', firstEventId)
-      ]);
-      const [rapidReplyA, rapidReplyB] = await Promise.all([
-        first.waitFor(
-          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMentionA
-        ),
-        first.waitFor(
-          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMentionB
-        )
-      ]);
-      await Promise.all(
-        [rapidMentionA, rapidMentionB].map((eventId) =>
-          first.waitFor(
-            (record) => record.status === 'typing_started' && record.source_event_id === eventId
-          )
-        )
+      const rapidMention = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        '@test_bot answer this rapid prompt',
+        firstEventId
       );
-      expect(String(rapidReplyA.reply_event_id)).not.toBe(String(rapidReplyB.reply_event_id));
-      for (const reply of [rapidReplyA, rapidReplyB]) {
-        const response = await connectPost<GetMessageResponse>(
-          page,
-          'chatto.api.v1.MessageService/GetMessage',
-          { roomId, eventId: String(reply.reply_event_id) }
-        );
-        expect(response.message?.body).toBe(FAUX_AI_REPLY);
-      }
+      const rapidContinuation = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        'and include this continuation without another mention',
+        firstEventId
+      );
+      const rapidReply = await first.waitFor(
+        (record) => record.status === 'ai_replied' && record.source_event_id === rapidContinuation
+      );
+      const rapidResponse = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: String(rapidReply.reply_event_id) }
+      );
+      expect(rapidResponse.message).toMatchObject({
+        body: FAUX_AI_REPLY,
+        inReplyTo: rapidContinuation,
+        threadRootEventId: firstEventId
+      });
       await expect
         .poll(async () => {
           const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
@@ -319,12 +316,17 @@ test.describe('public API test bot', () => {
           };
           return {
             hasObsoletePendingReplies: Object.hasOwn(state, 'pendingReplies'),
-            sourcesProcessed: [rapidMentionA, rapidMentionB].every((eventId) =>
+            sourcesProcessed: [rapidMention, rapidContinuation].every((eventId) =>
               state.processedEventIds?.includes(eventId)
             )
           };
         })
         .toEqual({ hasObsoletePendingReplies: false, sourcesProcessed: true });
+      expect(
+        first.records.some(
+          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMention
+        )
+      ).toBe(false);
 
       const followUpEventId = await postThreadReplyViaConnect(
         page,

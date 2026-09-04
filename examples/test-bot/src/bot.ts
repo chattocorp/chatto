@@ -43,7 +43,9 @@ const MAXIMUM_CONCURRENT_REPLIES = 8;
 const MAXIMUM_CONVERSATION_MESSAGES = 40;
 const MAXIMUM_CONVERSATION_CHARACTERS = 32_000;
 const MAXIMUM_MESSAGE_CHARACTERS = 4_000;
+const CONVERSATION_SETTLE_INTERVAL_MS = 400;
 const TYPING_REFRESH_INTERVAL_MS = 2_000;
+const SUPERSEDED_REPLY = Symbol("superseded reply");
 
 /** Runtime configuration for the public-API example bot. */
 export interface TestBotConfig {
@@ -353,12 +355,16 @@ export function chatAIConversation(
   };
 }
 
-/** Return a reply target for a DM message or a direct mention in a channel. */
-export function messageReplyTarget(
+interface ConversationInput {
+  target: ReplyTarget;
+  activates: boolean;
+}
+
+function messageConversationInput(
   event: RealtimeEvent,
   viewerId: string,
   roomKind: RoomKind,
-): ReplyTarget | undefined {
+): ConversationInput | undefined {
   if (event.actorId === viewerId || event.event.case !== "messagePosted") {
     return undefined;
   }
@@ -373,12 +379,12 @@ export function messageReplyTarget(
     return undefined;
   }
   if (roomKind !== RoomKind.CHANNEL && roomKind !== RoomKind.DM) return undefined;
+  let activates = true;
   if (roomKind === RoomKind.CHANNEL) {
-    const directlyMentioned = message.mentions.some(
+    activates = message.mentions.some(
       (mention) =>
         mention.userId === viewerId && mention.cause.case === "direct",
     );
-    if (!directlyMentioned) return undefined;
   }
   const base = {
     roomId: message.roomId,
@@ -387,15 +393,31 @@ export function messageReplyTarget(
     sourceBody: message.bodyPlaintext,
   };
   if (roomKind === RoomKind.DM) {
-    return { ...base, scope: { case: "directMessage" } };
+    return {
+      activates,
+      target: { ...base, scope: { case: "directMessage" } },
+    };
   }
   return {
-    ...base,
-    scope: {
-      case: "thread",
-      threadRootEventId: message.inThread || event.id,
+    activates,
+    target: {
+      ...base,
+      scope: {
+        case: "thread",
+        threadRootEventId: message.inThread || event.id,
+      },
     },
   };
+}
+
+/** Return a target when a message independently activates TestBot. */
+export function messageReplyTarget(
+  event: RealtimeEvent,
+  viewerId: string,
+  roomKind: RoomKind,
+): ReplyTarget | undefined {
+  const input = messageConversationInput(event, viewerId, roomKind);
+  return input?.activates ? input.target : undefined;
 }
 
 function candidateRoomId(
@@ -430,51 +452,20 @@ export async function refreshTypingIndicator(
   }
 }
 
-/** Publish typing activity while Pi prepares one final reply. */
-export async function replyToMessage(
+function throwIfAborted(signal: AbortSignal): void {
+  if (signal.aborted) {
+    throw signal.reason ?? new DOMException("Aborted", "AbortError");
+  }
+}
+
+/** Generate and publish one final reply for an already selected target. */
+export async function replyToTarget(
   api: BotAPI,
   ai: AIResponder,
-  event: RealtimeEvent,
+  target: ReplyTarget,
   signal: AbortSignal,
 ): Promise<void> {
-  const roomId = candidateRoomId(event, api.viewerId);
-  if (!roomId) return;
-  const target = messageReplyTarget(
-    event,
-    api.viewerId,
-    await api.roomKind(roomId),
-  );
-  if (!target) return;
-  if (await api.isBotActor(target.sourceActorId)) return;
-  if (signal.aborted) throw new DOMException("Aborted", "AbortError");
-
-  const typingController = new AbortController();
-  const abortTyping = () => typingController.abort(signal.reason);
-  if (signal.aborted) {
-    abortTyping();
-  } else {
-    signal.addEventListener("abort", abortTyping, { once: true });
-  }
-  let typingStarted = false;
-  let typingRefresh = Promise.resolve();
-  try {
-    await api.updateTypingIndicator(target);
-    typingStarted = true;
-    log({
-      status: "typing_started",
-      source_event_id: target.sourceEventId,
-      ...targetLogFields(target),
-    });
-    typingRefresh = refreshTypingIndicator(
-      api,
-      target,
-      typingController.signal,
-    ).catch((error: unknown) => {
-      log({ status: "typing_failed", error: safeErrorKind(error) });
-    });
-  } catch (error) {
-    log({ status: "typing_failed", error: safeErrorKind(error) });
-  }
+  throwIfAborted(signal);
   log({
     status: "ai_reply_started",
     source_event_id: target.sourceEventId,
@@ -485,37 +476,279 @@ export async function replyToMessage(
         : "direct_mention",
   });
 
-  try {
-    const conversation = await api.loadConversation(target);
-    if (conversation.length === 0) {
-      throw new Error("conversation did not contain the source message");
+  const conversation = await api.loadConversation(target);
+  if (conversation.length === 0) {
+    throw new Error("conversation did not contain the source message");
+  }
+  const body = await ai.respond(
+    chatAIConversation(conversation, api.viewerId, target),
+    signal,
+  );
+  throwIfAborted(signal);
+  const replyEventId = await api.postReply(target, body);
+  log({
+    status: "ai_replied",
+    source_event_id: target.sourceEventId,
+    ...targetLogFields(target),
+    reply_event_id: replyEventId,
+    trigger:
+      target.scope.case === "directMessage"
+        ? "direct_message"
+        : "direct_mention",
+  });
+}
+
+interface ConversationWaiter {
+  revision: number;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+}
+
+interface ConversationLane {
+  key: string;
+  target: ReplyTarget;
+  revision: number;
+  waiters: ConversationWaiter[];
+  settleController?: AbortController;
+  attemptController?: AbortController;
+  typingController: AbortController;
+  typingRefresh: Promise<void>;
+  typingStarted: boolean;
+}
+
+/** Accepted realtime work whose completion gates its cursor commit. */
+export interface AcceptedConversationEvent {
+  completion: Promise<void>;
+}
+
+type ReplyRunner = (
+  target: ReplyTarget,
+  signal: AbortSignal,
+) => Promise<void>;
+
+/** Coalesce and supersede reply work inside each thread or DM. */
+export class ConversationReplyScheduler {
+  readonly #api: BotAPI;
+  readonly #signal: AbortSignal;
+  readonly #maximumConcurrency: number;
+  readonly #settleIntervalMs: number;
+  readonly #runReply: ReplyRunner;
+  readonly #lanes = new Map<string, ConversationLane>();
+  readonly #slotWaiters: Array<() => void> = [];
+  #active = 0;
+
+  constructor(
+    api: BotAPI,
+    ai: AIResponder,
+    signal: AbortSignal,
+    options?: {
+      maximumConcurrency?: number;
+      settleIntervalMs?: number;
+      runReply?: ReplyRunner;
+    },
+  ) {
+    const maximumConcurrency =
+      options?.maximumConcurrency ?? MAXIMUM_CONCURRENT_REPLIES;
+    if (!Number.isInteger(maximumConcurrency) || maximumConcurrency < 1) {
+      throw new Error("maximum concurrency must be a positive integer");
     }
-    const body = await ai.respond(
-      chatAIConversation(conversation, api.viewerId, target),
-      signal,
+    this.#api = api;
+    this.#signal = signal;
+    this.#maximumConcurrency = maximumConcurrency;
+    this.#settleIntervalMs =
+      options?.settleIntervalMs ?? CONVERSATION_SETTLE_INTERVAL_MS;
+    if (this.#settleIntervalMs < 0) {
+      throw new Error("settle interval must not be negative");
+    }
+    this.#runReply =
+      options?.runReply ??
+      ((target, replySignal) =>
+        replyToTarget(this.#api, ai, target, replySignal));
+  }
+
+  /** Classify one event and attach it to its conversation when applicable. */
+  async accept(event: RealtimeEvent): Promise<AcceptedConversationEvent> {
+    const roomId = candidateRoomId(event, this.#api.viewerId);
+    if (!roomId) return { completion: Promise.resolve() };
+    const input = messageConversationInput(
+      event,
+      this.#api.viewerId,
+      await this.#api.roomKind(roomId),
     );
-    const replyEventId = await api.postReply(target, body);
-    log({
-      status: "ai_replied",
-      source_event_id: target.sourceEventId,
-      ...targetLogFields(target),
-      reply_event_id: replyEventId,
-      trigger:
-        target.scope.case === "directMessage"
-          ? "direct_message"
-          : "direct_mention",
-    });
-  } finally {
-    typingController.abort();
-    signal.removeEventListener("abort", abortTyping);
-    await typingRefresh;
-    if (typingStarted) {
-      log({
-        status: "typing_stopped",
-        source_event_id: target.sourceEventId,
-        ...targetLogFields(target),
-      });
+    if (!input) return { completion: Promise.resolve() };
+    const key = conversationKey(input.target);
+    if (!input.activates && !this.#lanes.has(key)) {
+      return { completion: Promise.resolve() };
     }
+    if (await this.#api.isBotActor(input.target.sourceActorId)) {
+      return { completion: Promise.resolve() };
+    }
+    throwIfAborted(this.#signal);
+
+    const existing = this.#lanes.get(key);
+    if (!input.activates && !existing) {
+      return { completion: Promise.resolve() };
+    }
+    const lane = existing ?? this.#createLane(key, input.target);
+    lane.target = input.target;
+    lane.revision += 1;
+    lane.settleController?.abort(SUPERSEDED_REPLY);
+    lane.attemptController?.abort(SUPERSEDED_REPLY);
+    const completion = new Promise<void>((resolve, reject) => {
+      lane.waiters.push({ revision: lane.revision, resolve, reject });
+    });
+    if (!existing) {
+      this.#lanes.set(key, lane);
+      void this.#runLane(lane);
+    }
+    return { completion };
+  }
+
+  #createLane(key: string, target: ReplyTarget): ConversationLane {
+    return {
+      key,
+      target,
+      revision: 0,
+      waiters: [],
+      typingController: new AbortController(),
+      typingRefresh: Promise.resolve(),
+      typingStarted: false,
+    };
+  }
+
+  async #runLane(lane: ConversationLane): Promise<void> {
+    try {
+      await this.#startTyping(lane);
+      while (lane.waiters.length > 0) {
+        const revision = await this.#settledRevision(lane);
+        await this.#acquire();
+        if (revision !== lane.revision) {
+          this.#release();
+          continue;
+        }
+        if (this.#signal.aborted) {
+          this.#release();
+          throwIfAborted(this.#signal);
+        }
+        const controller = new AbortController();
+        const abort = () => controller.abort(this.#signal.reason);
+        lane.attemptController = controller;
+        if (this.#signal.aborted) abort();
+        else this.#signal.addEventListener("abort", abort, { once: true });
+        const target = lane.target;
+        try {
+          await this.#runReply(target, controller.signal);
+        } catch (error) {
+          if (
+            controller.signal.aborted &&
+            controller.signal.reason === SUPERSEDED_REPLY
+          ) {
+            log({
+              status: "ai_reply_superseded",
+              source_event_id: target.sourceEventId,
+              ...targetLogFields(target),
+            });
+            continue;
+          }
+          throw error;
+        } finally {
+          this.#signal.removeEventListener("abort", abort);
+          if (lane.attemptController === controller) {
+            lane.attemptController = undefined;
+          }
+          this.#release();
+        }
+        const completed = lane.waiters.filter(
+          (waiter) => waiter.revision <= revision,
+        );
+        lane.waiters = lane.waiters.filter(
+          (waiter) => waiter.revision > revision,
+        );
+        for (const waiter of completed) waiter.resolve();
+      }
+    } catch (error) {
+      for (const waiter of lane.waiters) waiter.reject(error);
+      lane.waiters = [];
+    } finally {
+      if (this.#lanes.get(lane.key) === lane) this.#lanes.delete(lane.key);
+      lane.typingController.abort();
+      lane.settleController?.abort();
+      lane.attemptController?.abort();
+      await lane.typingRefresh;
+      if (lane.typingStarted) {
+        log({
+          status: "typing_stopped",
+          source_event_id: lane.target.sourceEventId,
+          ...targetLogFields(lane.target),
+        });
+      }
+    }
+  }
+
+  async #startTyping(lane: ConversationLane): Promise<void> {
+    const abort = () => lane.typingController.abort(this.#signal.reason);
+    if (this.#signal.aborted) abort();
+    else this.#signal.addEventListener("abort", abort, { once: true });
+    lane.typingController.signal.addEventListener(
+      "abort",
+      () => this.#signal.removeEventListener("abort", abort),
+      { once: true },
+    );
+    try {
+      await this.#api.updateTypingIndicator(lane.target);
+      lane.typingStarted = true;
+      log({
+        status: "typing_started",
+        source_event_id: lane.target.sourceEventId,
+        ...targetLogFields(lane.target),
+      });
+      lane.typingRefresh = refreshTypingIndicator(
+        this.#api,
+        lane.target,
+        lane.typingController.signal,
+      ).catch((error: unknown) => {
+        log({ status: "typing_failed", error: safeErrorKind(error) });
+      });
+    } catch (error) {
+      log({ status: "typing_failed", error: safeErrorKind(error) });
+    }
+  }
+
+  async #settledRevision(lane: ConversationLane): Promise<number> {
+    while (true) {
+      throwIfAborted(this.#signal);
+      const revision = lane.revision;
+      const controller = new AbortController();
+      const abort = () => controller.abort(this.#signal.reason);
+      lane.settleController = controller;
+      if (this.#signal.aborted) abort();
+      else this.#signal.addEventListener("abort", abort, { once: true });
+      await wait(this.#settleIntervalMs, controller.signal);
+      this.#signal.removeEventListener("abort", abort);
+      if (lane.settleController === controller) {
+        lane.settleController = undefined;
+      }
+      throwIfAborted(this.#signal);
+      if (controller.signal.reason === SUPERSEDED_REPLY) continue;
+      if (revision === lane.revision) return revision;
+    }
+  }
+
+  async #acquire(): Promise<void> {
+    if (this.#active < this.#maximumConcurrency) {
+      this.#active += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => this.#slotWaiters.push(resolve));
+  }
+
+  #release(): void {
+    const next = this.#slotWaiters.shift();
+    if (next) {
+      next();
+      return;
+    }
+    this.#active -= 1;
   }
 }
 
@@ -530,51 +763,21 @@ async function commitState(
 
 type WorkOutcome = { ok: true } | { ok: false; error: unknown };
 
-/** Run bounded work concurrently and commit its results in submission order. */
-export class OrderedConcurrentProcessor {
-  readonly #maximumConcurrency: number;
-  readonly #waiters: Array<() => void> = [];
+/** Start independent work and commit its results in submission order. */
+export class OrderedCommitProcessor {
   readonly #work = new Set<Promise<WorkOutcome>>();
-  #active = 0;
   #commitTail = Promise.resolve();
 
-  constructor(maximumConcurrency: number) {
-    if (!Number.isInteger(maximumConcurrency) || maximumConcurrency < 1) {
-      throw new Error("maximum concurrency must be a positive integer");
-    }
-    this.#maximumConcurrency = maximumConcurrency;
-  }
-
-  async #acquire(): Promise<void> {
-    if (this.#active < this.#maximumConcurrency) {
-      this.#active += 1;
-      return;
-    }
-    await new Promise<void>((resolve) => this.#waiters.push(resolve));
-  }
-
-  #release(): void {
-    const next = this.#waiters.shift();
-    if (next) {
-      next();
-      return;
-    }
-    this.#active -= 1;
-  }
-
   async #run(work: () => Promise<void>): Promise<WorkOutcome> {
-    await this.#acquire();
     try {
       await work();
       return { ok: true };
     } catch (error) {
       return { ok: false, error };
-    } finally {
-      this.#release();
     }
   }
 
-  /** Start work when a slot is free, then run its commit after earlier commits. */
+  /** Start work now, then run its commit after earlier commits. */
   enqueue(
     work: () => Promise<void>,
     commit: () => Promise<void>,
@@ -618,7 +821,12 @@ async function runRealtimeSession(
   const workController = new AbortController();
   const abortWork = () => workController.abort(signal.reason);
   signal.addEventListener("abort", abortWork, { once: true });
-  const processor = new OrderedConcurrentProcessor(MAXIMUM_CONCURRENT_REPLIES);
+  const processor = new OrderedCommitProcessor();
+  const replies = new ConversationReplyScheduler(
+    api,
+    ai,
+    workController.signal,
+  );
   const scheduledEventIds = new Set<string>();
   let intake = Promise.resolve();
   let requestedResult:
@@ -688,10 +896,11 @@ async function runRealtimeSession(
                   ...(event.actorId ? { actor_id: event.actorId } : {}),
                 });
               }
+              const accepted = firstDelivery
+                ? await replies.accept(event)
+                : { completion: Promise.resolve() };
               enqueue(
-                firstDelivery
-                  ? () => replyToMessage(api, ai, event, workController.signal)
-                  : async () => undefined,
+                () => accepted.completion,
                 async () => {
                   if (firstDelivery) {
                     rememberProcessedEvent(state, event.id);

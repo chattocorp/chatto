@@ -68,11 +68,14 @@ source of truth, so the bot can reconstruct the conversation after a restart.
 The context has limits of 40 messages, 4,000 characters per message, and 32,000
 characters in total.
 
-Each trigger gets an independent Pi session and an immutable conversation
-snapshot. The bot can run up to eight reply jobs at the same time, including
-jobs for the same channel thread or DM. Concurrent jobs do not include answers
-that are still in progress. When a job is complete, the bot posts the answer and
-stops refreshing its typing indicator.
+Each channel thread or DM has at most one active reply job. The bot waits 400 ms
+before it starts the job so that it can combine a short message burst. An
+unmentioned channel message can extend a pending reply, but it cannot start a
+reply by itself. If a new message arrives while Pi works, the bot stops that
+model call and starts again with a new immutable snapshot. This prevents
+out-of-order or duplicate answers in one conversation. The bot can run jobs for
+up to eight different conversations at the same time. When a job is complete,
+the bot posts the answer and stops refreshing its typing indicator.
 
 The Pi agent has one local extension named `web_fetch`. The model can use it to
 fetch text from public HTTP and HTTPS URLs when current information helps with a
@@ -98,6 +101,7 @@ The bot saves a cursor only after it handles all earlier frames. On reconnect,
 it asks Chatto for the missed replayable events. If the cursor is absent or is
 not usable, it starts at the current live boundary. This example intentionally
 does not use a realtime snapshot because it reads its finite resource state
-through ConnectRPC. Reply jobs can finish in any order, but the bot saves their
-event IDs and cursors in realtime delivery order. It does not save a cursor past
-an unfinished reply.
+through ConnectRPC. Jobs for different conversations can finish in any order,
+but the bot saves their event IDs and cursors in realtime delivery order. All
+source messages in a combined burst wait for the final reply. The bot does not
+save a cursor past an unfinished reply.

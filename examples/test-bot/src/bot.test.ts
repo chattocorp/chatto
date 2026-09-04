@@ -11,10 +11,10 @@ import test from "node:test";
 import type { AIResponder } from "./ai.js";
 import {
   chatAIConversation,
+  ConversationReplyScheduler,
   messageReplyTarget,
-  OrderedConcurrentProcessor,
+  OrderedCommitProcessor,
   refreshTypingIndicator,
-  replyToMessage,
   type BotAPI,
 } from "./bot.js";
 
@@ -22,10 +22,13 @@ const BOT_ID = "bot-1";
 
 function messageEvent(options?: {
   actorId?: string;
+  body?: string;
   direct?: boolean;
   echoOfEventId?: string;
+  eventId?: string;
   inThread?: string;
   role?: boolean;
+  roomId?: string;
 }): RealtimeEvent {
   const mentions = [];
   if (options?.direct) {
@@ -48,16 +51,16 @@ function messageEvent(options?: {
     );
   }
   return new RealtimeEvent({
-    id: "message-1",
+    id: options?.eventId ?? "message-1",
     actorId: options?.actorId ?? "user-1",
     event: {
       case: "messagePosted",
       value: new MessagePostedEvent({
-        roomId: "room-1",
+        roomId: options?.roomId ?? "room-1",
         inThread: options?.inThread,
         echoOfEventId: options?.echoOfEventId,
         mentions,
-        bodyPlaintext: "hello",
+        bodyPlaintext: options?.body ?? "hello",
       }),
     },
   });
@@ -222,8 +225,8 @@ test("uses one stable AI session for a direct-message conversation", () => {
   );
 });
 
-test("runs work concurrently but commits it in submission order", async () => {
-  const processor = new OrderedConcurrentProcessor(2);
+test("commits concurrent work in submission order", async () => {
+  const processor = new OrderedCommitProcessor();
   const started: number[] = [];
   const committed: number[] = [];
   let finishFirst: () => void = () => {};
@@ -268,18 +271,17 @@ test("runs work concurrently but commits it in submission order", async () => {
   );
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.deepEqual(started, [1, 2]);
-  finishSecond();
-  await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(started, [1, 2, 3]);
+  finishSecond();
+  finishThird();
+  await new Promise((resolve) => setImmediate(resolve));
   assert.deepEqual(committed, []);
   finishFirst();
-  finishThird();
   await processor.wait();
   assert.deepEqual(committed, [1, 2, 3]);
 });
 
-test("sends typing before the model and posts only the final reply", async () => {
+test("sends typing before the model and posts one final reply", async () => {
   const actions: string[] = [];
   const ai: AIResponder = {
     provider: "test",
@@ -312,8 +314,15 @@ test("sends typing before the model and posts only the final reply", async () =>
     },
   };
   const event = messageEvent({ direct: true, inThread: "thread-root-1" });
+  const scheduler = new ConversationReplyScheduler(
+    api,
+    ai,
+    new AbortController().signal,
+    { settleIntervalMs: 0 },
+  );
 
-  await replyToMessage(api, ai, event, new AbortController().signal);
+  const accepted = await scheduler.accept(event);
+  await accepted.completion;
 
   assert.deepEqual(actions, [
     "typing",
@@ -321,6 +330,157 @@ test("sends typing before the model and posts only the final reply", async () =>
     "ai-started",
     "posted:Final answer",
   ]);
+});
+
+test("supersedes an active reply with the latest message in its conversation", async () => {
+  const started: string[] = [];
+  const superseded: string[] = [];
+  const completed: string[] = [];
+  let firstStarted: () => void = () => {};
+  let secondStarted: () => void = () => {};
+  let finishSecond: () => void = () => {};
+  const firstStartedGate = new Promise<void>((resolve) => {
+    firstStarted = resolve;
+  });
+  const secondStartedGate = new Promise<void>((resolve) => {
+    secondStarted = resolve;
+  });
+  const secondFinishGate = new Promise<void>((resolve) => {
+    finishSecond = resolve;
+  });
+  const api: BotAPI = {
+    viewerId: BOT_ID,
+    roomKind: async () => RoomKind.CHANNEL,
+    isBotActor: async () => false,
+    updateTypingIndicator: async () => undefined,
+    loadConversation: async (target) => {
+      started.push(target.sourceEventId);
+      return [
+        {
+          eventId: target.sourceEventId,
+          actorId: target.sourceActorId,
+          body: target.sourceBody,
+        },
+      ];
+    },
+    postReply: async (target) => {
+      completed.push(target.sourceEventId);
+      return `reply-${target.sourceEventId}`;
+    },
+  };
+  let responseCount = 0;
+  const ai: AIResponder = {
+    provider: "test",
+    model: "test",
+    respond: async (_conversation, signal) => {
+      responseCount += 1;
+      if (responseCount === 1) {
+        firstStarted();
+        return new Promise<string>((resolve) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              superseded.push("message-1");
+              resolve("Stale answer");
+            },
+            { once: true },
+          );
+        });
+      }
+      secondStarted();
+      await secondFinishGate;
+      return "Combined answer";
+    },
+  };
+  const scheduler = new ConversationReplyScheduler(
+    api,
+    ai,
+    new AbortController().signal,
+    {
+      settleIntervalMs: 0,
+    },
+  );
+
+  const first = await scheduler.accept(
+    messageEvent({ direct: true, inThread: "thread-root-1" }),
+  );
+  await firstStartedGate;
+  const continuation = await scheduler.accept(
+    messageEvent({
+      body: "and a joke",
+      eventId: "message-2",
+      inThread: "thread-root-1",
+    }),
+  );
+  await secondStartedGate;
+  finishSecond();
+  await Promise.all([first.completion, continuation.completion]);
+
+  assert.deepEqual(started, ["message-1", "message-2"]);
+  assert.deepEqual(superseded, ["message-1"]);
+  assert.deepEqual(completed, ["message-2"]);
+});
+
+test("runs separate conversations concurrently within the global limit", async () => {
+  const started: string[] = [];
+  const finishes = new Map<string, () => void>();
+  let bothStarted: () => void = () => {};
+  let thirdStarted: () => void = () => {};
+  const bothStartedGate = new Promise<void>((resolve) => {
+    bothStarted = resolve;
+  });
+  const thirdStartedGate = new Promise<void>((resolve) => {
+    thirdStarted = resolve;
+  });
+  const api: BotAPI = {
+    viewerId: BOT_ID,
+    roomKind: async () => RoomKind.CHANNEL,
+    isBotActor: async () => false,
+    updateTypingIndicator: async () => undefined,
+    loadConversation: async () => [],
+    postReply: async () => "unused",
+  };
+  const ai: AIResponder = {
+    provider: "test",
+    model: "test",
+    respond: async () => "unused",
+  };
+  const scheduler = new ConversationReplyScheduler(
+    api,
+    ai,
+    new AbortController().signal,
+    {
+      maximumConcurrency: 2,
+      settleIntervalMs: 0,
+      runReply: async (target) => {
+        started.push(target.sourceEventId);
+        if (started.length === 2) bothStarted();
+        if (target.sourceEventId === "message-3") thirdStarted();
+        await new Promise<void>((resolve) => {
+          finishes.set(target.sourceEventId, resolve);
+        });
+      },
+    },
+  );
+
+  const first = await scheduler.accept(
+    messageEvent({ direct: true, eventId: "message-1", roomId: "room-1" }),
+  );
+  const second = await scheduler.accept(
+    messageEvent({ direct: true, eventId: "message-2", roomId: "room-2" }),
+  );
+  const third = await scheduler.accept(
+    messageEvent({ direct: true, eventId: "message-3", roomId: "room-3" }),
+  );
+  await bothStartedGate;
+  assert.deepEqual(started, ["message-1", "message-2"]);
+  finishes.get("message-1")?.();
+  await thirdStartedGate;
+  finishes.get("message-2")?.();
+  finishes.get("message-3")?.();
+  await Promise.all([first.completion, second.completion, third.completion]);
+
+  assert.deepEqual(started, ["message-1", "message-2", "message-3"]);
 });
 
 test("refreshes typing until the reply operation stops", async () => {
@@ -371,16 +531,17 @@ test("does not post a message when generation fails", async () => {
       throw new Error("provider failed");
     },
   };
-
-  await assert.rejects(
-    replyToMessage(
-      api,
-      ai,
-      messageEvent({ direct: true, inThread: "thread-root-1" }),
-      new AbortController().signal,
-    ),
-    /provider failed/,
+  const scheduler = new ConversationReplyScheduler(
+    api,
+    ai,
+    new AbortController().signal,
+    { settleIntervalMs: 0 },
   );
+  const accepted = await scheduler.accept(
+    messageEvent({ direct: true, inThread: "thread-root-1" }),
+  );
+
+  await assert.rejects(accepted.completion, /provider failed/);
 
   assert.equal(posts, 0);
 });
