@@ -218,26 +218,6 @@ test.describe('public API test bot', () => {
         'Continue helping in this thread without another mention',
         firstEventId
       );
-      const followUpReply = await first.waitFor(
-        (record) =>
-          record.status === 'ai_replied' &&
-          record.trigger === 'followed_thread' &&
-          record.source_event_id === followUpEventId
-      );
-      const followUpReplyEventId = String(followUpReply.reply_event_id);
-      const createdFollowUpReply = await connectPost<GetMessageResponse>(
-        page,
-        'chatto.api.v1.MessageService/GetMessage',
-        { roomId, eventId: followUpReplyEventId }
-      );
-      expect(createdFollowUpReply.message).toMatchObject({
-        id: followUpReplyEventId,
-        actorId: String(ready.viewer_id),
-        body: FAUX_AI_REPLY,
-        inReplyTo: followUpEventId,
-        threadRootEventId: firstEventId
-      });
-
       await expect
         .poll(async () => {
           const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
@@ -247,12 +227,17 @@ test.describe('public API test bot', () => {
           return Boolean(state.resumeCursor && state.processedEventIds?.includes(followUpEventId));
         })
         .toBe(true);
+      expect(
+        first.records.some(
+          (record) => record.status === 'ai_replied' && record.source_event_id === followUpEventId
+        )
+      ).toBe(false);
 
       await first.stop();
       const missedEventId = await postThreadReplyViaConnect(
         page,
         roomId,
-        'Please answer this after reconnecting',
+        '@test_bot Please answer this after reconnecting',
         firstEventId
       );
 
@@ -264,7 +249,7 @@ test.describe('public API test bot', () => {
       await second.waitFor(
         (record) =>
           record.status === 'ai_replied' &&
-          record.trigger === 'followed_thread' &&
+          record.trigger === 'direct_mention' &&
           record.source_event_id === missedEventId
       );
       await second.waitFor((record) => record.status === 'caught_up' && record.resumed === true);

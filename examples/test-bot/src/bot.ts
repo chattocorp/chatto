@@ -48,14 +48,12 @@ interface ReplyTarget {
   roomId: string;
   sourceEventId: string;
   threadRootEventId: string;
-  directMention: boolean;
   sourceActorId: string;
   sourceBody?: string;
 }
 
 interface BotAPI {
   viewerId: string;
-  followedThreads: Set<string>;
   isBotActor(actorId: string): Promise<boolean>;
   loadConversation(target: ReplyTarget): Promise<ConversationMessage[]>;
   postReply(target: ReplyTarget, body: string): Promise<string>;
@@ -104,7 +102,6 @@ async function readAPIKey(apiKeyFile: string): Promise<string> {
 async function connectPublicAPI(
   config: TestBotConfig,
   apiKey: string,
-  state: TestBotState,
 ): Promise<BotAPI> {
   const authorization: Interceptor = (next) => async (request) => {
     request.header.set("Authorization", `Bearer ${apiKey}`);
@@ -124,34 +121,13 @@ async function connectPublicAPI(
   const threads = createClient(ThreadService, transport);
   const users = createClient(UserService, transport);
   const botActors = new Map<string, boolean>([[viewerId, true]]);
-  const followedThreads = new Set<string>(
-    state.resumeCursor ? state.followedThreadKeys : [],
-  );
-  if (!state.resumeCursor) {
-    let offset = 0;
-    for (;;) {
-      const response = await threads.listFollowedThreads({
-        page: { limit: 500, offset },
-      });
-      for (const followed of response.threads) {
-        const roomId = followed.room?.id ?? followed.rootMessage?.roomId;
-        const rootId =
-          followed.thread?.threadRootEventId ?? followed.rootMessage?.id;
-        if (roomId && rootId) followedThreads.add(threadKey(roomId, rootId));
-      }
-      if (!response.page?.hasMore || response.threads.length === 0) break;
-      offset += response.threads.length;
-    }
-  }
   log({
     status: "api_ready",
     viewer_id: viewerId,
     visible_rooms: rooms.rooms.length,
-    followed_threads: followedThreads.size,
   });
   return {
     viewerId,
-    followedThreads,
     async isBotActor(actorId): Promise<boolean> {
       const cached = botActors.get(actorId);
       if (cached !== undefined) return cached;
@@ -246,15 +222,10 @@ export function conversationPrompt(
   return selected.join("\n\n");
 }
 
-function threadKey(roomId: string, threadRootEventId: string): string {
-  return `${roomId}\u0000${threadRootEventId}`;
-}
-
-/** Return a target for a direct mention or a new message in a followed thread. */
+/** Return a reply target only when a human directly mentions this bot. */
 export function messageReplyTarget(
   event: RealtimeEvent,
   viewerId: string,
-  followedThreads: ReadonlySet<string>,
 ): ReplyTarget | undefined {
   if (event.actorId === viewerId || event.event.case !== "messagePosted") {
     return undefined;
@@ -272,31 +243,15 @@ export function messageReplyTarget(
   const directlyMentioned = message.mentions.some(
     (mention) => mention.userId === viewerId && mention.cause.case === "direct",
   );
+  if (!directlyMentioned) return undefined;
   const threadRootEventId = message.inThread || event.id;
-  if (
-    !directlyMentioned &&
-    (!message.inThread ||
-      !followedThreads.has(threadKey(message.roomId, message.inThread)))
-  ) {
-    return undefined;
-  }
   return {
     roomId: message.roomId,
     sourceEventId: event.id,
     threadRootEventId,
-    directMention: directlyMentioned,
     sourceActorId: event.actorId,
     sourceBody: message.bodyPlaintext,
   };
-}
-
-function applyThreadFollowEvent(api: BotAPI, event: RealtimeEvent): void {
-  if (event.event.case !== "threadViewerStateChanged") return;
-  const change = event.event.value;
-  if (!change.roomId || !change.threadRootEventId) return;
-  const key = threadKey(change.roomId, change.threadRootEventId);
-  if (change.isFollowing) api.followedThreads.add(key);
-  else api.followedThreads.delete(key);
 }
 
 async function replyToMessage(
@@ -305,12 +260,9 @@ async function replyToMessage(
   event: RealtimeEvent,
   signal: AbortSignal,
 ): Promise<void> {
-  const target = messageReplyTarget(event, api.viewerId, api.followedThreads);
+  const target = messageReplyTarget(event, api.viewerId);
   if (!target) return;
   if (await api.isBotActor(target.sourceActorId)) return;
-  if (target.directMention) {
-    api.followedThreads.add(threadKey(target.roomId, target.threadRootEventId));
-  }
   const conversation = await api.loadConversation(target);
   if (conversation.length === 0) return;
   const body = await ai.respond(
@@ -323,18 +275,16 @@ async function replyToMessage(
     source_event_id: target.sourceEventId,
     thread_root_event_id: target.threadRootEventId,
     reply_event_id: replyEventId,
-    trigger: target.directMention ? "direct_mention" : "followed_thread",
+    trigger: "direct_mention",
   });
 }
 
 async function commitState(
   stateFile: string,
   state: TestBotState,
-  followedThreads: ReadonlySet<string>,
   resumeCursor?: string,
 ): Promise<void> {
   if (resumeCursor) state.resumeCursor = resumeCursor;
-  state.followedThreadKeys = [...followedThreads];
   await saveTestBotState(stateFile, state);
 }
 
@@ -399,18 +349,12 @@ async function runRealtimeSession(
                   event_id: event.id,
                   ...(event.actorId ? { actor_id: event.actorId } : {}),
                 });
-                applyThreadFollowEvent(api, event);
                 await replyToMessage(api, ai, event, signal);
                 rememberProcessedEvent(state, event.id);
               } else {
                 log({ status: "duplicate_ignored", event_id: event.id });
               }
-              await commitState(
-                config.stateFile,
-                state,
-                api.followedThreads,
-                event.resumeCursor,
-              );
+              await commitState(config.stateFile, state, event.resumeCursor);
               return;
             }
             case "heartbeat":
@@ -418,7 +362,6 @@ async function runRealtimeSession(
                 await commitState(
                   config.stateFile,
                   state,
-                  api.followedThreads,
                   frame.frame.value.resumeCursor,
                 );
               }
@@ -427,7 +370,6 @@ async function runRealtimeSession(
               await commitState(
                 config.stateFile,
                 state,
-                api.followedThreads,
                 frame.frame.value.cursor,
               );
               caughtUp = true;
@@ -545,7 +487,7 @@ export async function runTestBot(
         log({ status: "ai_ready", provider: ai.provider, model: ai.model });
       }
       const apiKey = await readAPIKey(config.apiKeyFile);
-      const api = await connectPublicAPI(config, apiKey, state);
+      const api = await connectPublicAPI(config, apiKey);
       const session = await runRealtimeSession(
         config,
         apiKey,

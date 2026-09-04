@@ -59,13 +59,11 @@ test("targets the existing thread for a direct mention in a reply", () => {
     messageReplyTarget(
       messageEvent({ direct: true, inThread: "thread-root-1" }),
       BOT_ID,
-      new Set(),
     ),
     {
       roomId: "room-1",
       sourceEventId: "message-1",
       threadRootEventId: "thread-root-1",
-      directMention: true,
       sourceActorId: "user-1",
       sourceBody: "hello",
     },
@@ -73,74 +71,55 @@ test("targets the existing thread for a direct mention in a reply", () => {
 });
 
 test("uses a directly mentioned root as the new thread root", () => {
-  assert.deepEqual(
-    messageReplyTarget(messageEvent({ direct: true }), BOT_ID, new Set()),
-    {
-      roomId: "room-1",
-      sourceEventId: "message-1",
-      threadRootEventId: "message-1",
-      directMention: true,
-      sourceActorId: "user-1",
-      sourceBody: "hello",
-    },
-  );
+  assert.deepEqual(messageReplyTarget(messageEvent({ direct: true }), BOT_ID), {
+    roomId: "room-1",
+    sourceEventId: "message-1",
+    threadRootEventId: "message-1",
+    sourceActorId: "user-1",
+    sourceBody: "hello",
+  });
 });
 
-test("targets later messages in a followed thread without another mention", () => {
-  assert.deepEqual(
-    messageReplyTarget(
-      messageEvent({ inThread: "thread-root-1" }),
-      BOT_ID,
-      new Set(["room-1\u0000thread-root-1"]),
-    ),
-    {
-      roomId: "room-1",
-      sourceEventId: "message-1",
-      threadRootEventId: "thread-root-1",
-      directMention: false,
-      sourceActorId: "user-1",
-      sourceBody: "hello",
-    },
+test("ignores later messages in a thread without another direct mention", () => {
+  assert.equal(
+    messageReplyTarget(messageEvent({ inThread: "thread-root-1" }), BOT_ID),
+    undefined,
   );
 });
 
 test("ignores indirect, self-authored, and channel-echo events", () => {
   assert.equal(
-    messageReplyTarget(messageEvent({ role: true }), BOT_ID, new Set()),
+    messageReplyTarget(messageEvent({ role: true }), BOT_ID),
     undefined,
   );
   assert.equal(
-    messageReplyTarget(
-      messageEvent({ actorId: BOT_ID, direct: true }),
-      BOT_ID,
-      new Set(),
-    ),
+    messageReplyTarget(messageEvent({ actorId: BOT_ID, direct: true }), BOT_ID),
     undefined,
   );
   assert.equal(
     messageReplyTarget(
       messageEvent({ direct: true, echoOfEventId: "canonical-reply-1" }),
       BOT_ID,
-      new Set(),
     ),
     undefined,
   );
 });
 
-test("uses anonymous prompt labels while preserving the thread transcript", () => {
+test("uses every supplied thread message with anonymous prompt labels", () => {
   assert.equal(
     conversationPrompt(
       [
-        { eventId: "1", actorId: "user-secret-id", body: "Can you help?" },
-        { eventId: "2", actorId: BOT_ID, body: "Certainly." },
+        { eventId: "1", actorId: "user-secret-id", body: "Earlier context." },
+        { eventId: "2", actorId: BOT_ID, body: "An earlier answer." },
         {
           eventId: "3",
           actorId: "another-secret-id",
-          body: "What about this?",
+          body: "A message that does not mention the bot.",
         },
+        { eventId: "4", actorId: "user-secret-id", body: "@test_bot Help?" },
       ],
       BOT_ID,
     ),
-    "Person 1: Can you help?\n\nAssistant: Certainly.\n\nPerson 2: What about this?",
+    "Person 1: Earlier context.\n\nAssistant: An earlier answer.\n\nPerson 2: A message that does not mention the bot.\n\nPerson 1: @test_bot Help?",
   );
 });
