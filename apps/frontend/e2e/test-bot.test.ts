@@ -192,6 +192,12 @@ test.describe('public API test bot', () => {
         '@test_bot please confirm this thread mention',
         firstEventId
       );
+      const mentionStarted = await first.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === mentionEventId
+      );
       const mentionReply = await first.waitFor(
         (record) =>
           record.status === 'ai_replied' &&
@@ -199,6 +205,10 @@ test.describe('public API test bot', () => {
           record.source_event_id === mentionEventId
       );
       const replyEventId = String(mentionReply.reply_event_id);
+      expect(mentionStarted).toMatchObject({
+        reply_event_id: replyEventId,
+        resumed_placeholder: false
+      });
       const createdReply = await connectPost<GetMessageResponse>(
         page,
         'chatto.api.v1.MessageService/GetMessage',
@@ -211,6 +221,18 @@ test.describe('public API test bot', () => {
         inReplyTo: mentionEventId,
         threadRootEventId: firstEventId
       });
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            pendingReplies?: unknown[];
+            processedEventIds?: string[];
+          };
+          return {
+            pendingReplyCount: state.pendingReplies?.length,
+            sourceProcessed: state.processedEventIds?.includes(mentionEventId)
+          };
+        })
+        .toEqual({ pendingReplyCount: 0, sourceProcessed: true });
 
       const followUpEventId = await postThreadReplyViaConnect(
         page,
@@ -246,6 +268,12 @@ test.describe('public API test bot', () => {
         apiKeyFile: credentialFile,
         stateFile
       });
+      const resumedStarted = await second.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === missedEventId
+      );
       await second.waitFor(
         (record) =>
           record.status === 'ai_replied' &&
@@ -258,6 +286,10 @@ test.describe('public API test bot', () => {
         (record) => record.status === 'ai_replied' && record.source_event_id === missedEventId
       );
       const resumedReplyEventId = String(resumedReply?.reply_event_id);
+      expect(resumedStarted).toMatchObject({
+        reply_event_id: resumedReplyEventId,
+        resumed_placeholder: false
+      });
       const createdResumedReply = await connectPost<GetMessageResponse>(
         page,
         'chatto.api.v1.MessageService/GetMessage',

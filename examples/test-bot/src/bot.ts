@@ -14,7 +14,10 @@ import {
 } from "@chatto/api-types/realtime/v1/realtime_pb";
 import { readFile } from "node:fs/promises";
 import {
+  forgetPendingReply,
   loadTestBotState,
+  pendingReplyId,
+  rememberPendingReply,
   rememberProcessedEvent,
   saveTestBotState,
   type TestBotState,
@@ -28,6 +31,9 @@ import {
 const REALTIME_PROTOCOL_VERSION = 4;
 const MINIMUM_RECONNECT_DELAY_MS = 250;
 const MAXIMUM_RECONNECT_DELAY_MS = 10_000;
+
+/** Markdown body used while TestBot prepares its final answer. */
+export const THINKING_REPLY = "_Thinking…_";
 
 /** Runtime configuration for the public-API example bot. */
 export interface TestBotConfig {
@@ -44,19 +50,31 @@ interface SessionResult {
   retryAfterMs?: number;
 }
 
-interface ReplyTarget {
+/** Source message and thread placement for one TestBot reply. */
+export interface ReplyTarget {
   roomId: string;
   sourceEventId: string;
   threadRootEventId: string;
   sourceActorId: string;
-  sourceBody?: string;
+  sourceBody: string;
 }
 
-interface BotAPI {
+/** Narrow public API operations required by the reply workflow. */
+export interface BotAPI {
+  /** Authenticated TestBot user ID. */
   viewerId: string;
+  /** Return whether the source actor is another bot. */
   isBotActor(actorId: string): Promise<boolean>;
+  /** Read the current conversation that contains the source message. */
   loadConversation(target: ReplyTarget): Promise<ConversationMessage[]>;
+  /** Create a reply and return its message event ID. */
   postReply(target: ReplyTarget, body: string): Promise<string>;
+  /** Replace the body of a reply authored by TestBot. */
+  updateReply(
+    roomId: string,
+    replyEventId: string,
+    body: string,
+  ): Promise<void>;
 }
 
 /** Minimal message data sent to the configured AI provider. */
@@ -140,7 +158,6 @@ async function connectPublicAPI(
       return user.isBot;
     },
     async loadConversation(target): Promise<ConversationMessage[]> {
-      if (target.sourceBody === undefined) return [];
       const source = {
         eventId: target.sourceEventId,
         actorId: target.sourceActorId,
@@ -178,6 +195,16 @@ async function connectPublicAPI(
         throw new Error("message response did not contain an event ID");
       }
       return replyEventId;
+    },
+    async updateReply(roomId, replyEventId, body): Promise<void> {
+      const response = await messages.updateMessage({
+        roomId,
+        eventId: replyEventId,
+        body,
+      });
+      if (response.message?.id !== replyEventId) {
+        throw new Error("message update response did not contain the reply");
+      }
     },
   };
 }
@@ -254,22 +281,44 @@ export function messageReplyTarget(
   };
 }
 
-async function replyToMessage(
+/** Create or resume one placeholder reply and replace it with the final answer. */
+export async function replyToMessage(
   api: BotAPI,
   ai: AIResponder,
   event: RealtimeEvent,
   signal: AbortSignal,
+  state: TestBotState,
+  stateFile: string,
 ): Promise<void> {
   const target = messageReplyTarget(event, api.viewerId);
   if (!target) return;
   if (await api.isBotActor(target.sourceActorId)) return;
+
+  let replyEventId = pendingReplyId(state, target.sourceEventId);
+  const resumedPlaceholder = replyEventId !== undefined;
+  if (!replyEventId) {
+    replyEventId = await api.postReply(target, THINKING_REPLY);
+    rememberPendingReply(state, target.sourceEventId, replyEventId);
+    await saveTestBotState(stateFile, state);
+  }
+  log({
+    status: "ai_reply_started",
+    source_event_id: target.sourceEventId,
+    thread_root_event_id: target.threadRootEventId,
+    reply_event_id: replyEventId,
+    resumed_placeholder: resumedPlaceholder,
+    trigger: "direct_mention",
+  });
+
   const conversation = await api.loadConversation(target);
-  if (conversation.length === 0) return;
+  if (conversation.length === 0) {
+    throw new Error("message thread did not contain the source message");
+  }
   const body = await ai.respond(
     conversationPrompt(conversation, api.viewerId),
     signal,
   );
-  const replyEventId = await api.postReply(target, body);
+  await api.updateReply(target.roomId, replyEventId, body);
   log({
     status: "ai_replied",
     source_event_id: target.sourceEventId,
@@ -349,9 +398,18 @@ async function runRealtimeSession(
                   event_id: event.id,
                   ...(event.actorId ? { actor_id: event.actorId } : {}),
                 });
-                await replyToMessage(api, ai, event, signal);
+                await replyToMessage(
+                  api,
+                  ai,
+                  event,
+                  signal,
+                  state,
+                  config.stateFile,
+                );
                 rememberProcessedEvent(state, event.id);
+                forgetPendingReply(state, event.id);
               } else {
+                forgetPendingReply(state, event.id);
                 log({ status: "duplicate_ignored", event_id: event.id });
               }
               await commitState(config.stateFile, state, event.resumeCursor);

@@ -24,7 +24,7 @@ To run the bot separately after you build it, set these variables:
 - `CHATTO_TEST_BOT_SERVER_URL`: Chatto HTTP or HTTPS base URL.
 - `CHATTO_TEST_BOT_API_KEY_FILE`: file that contains the bot API key.
 - `CHATTO_TEST_BOT_STATE_FILE`: file that stores the opaque resume cursor and
-  a bounded event deduplication window.
+  bounded event deduplication and pending-reply data.
 - `CHATTO_TEST_BOT_AI_PROVIDER`: Pi provider ID. The default is `faux`.
 - `CHATTO_TEST_BOT_AI_MODEL`: Pi model ID. This value is required unless the
   provider is `faux`.
@@ -43,12 +43,14 @@ export CHATTO_TEST_BOT_AI_MODEL=claude-haiku-4-5
 export ANTHROPIC_API_KEY=your-key
 ```
 
-For each direct mention, the bot reads up to 40 current messages from the public
-thread API. This context includes messages that do not mention the bot and
-messages from other users. The bot sends their text to the selected AI provider.
-It replaces Chatto user IDs with prompt-local labels such as `Person 1`, and it
-does not send profile names. It always includes the realtime source message,
-even when a resource read has not caught up.
+For each direct mention, the bot first creates an italic `Thinking…` reply. It
+then reads up to 40 current messages from the public thread API. This context
+includes messages that do not mention the bot and messages from other users.
+The bot sends their text to the selected AI provider and replaces the thinking
+reply with the completed answer. It replaces Chatto user IDs with prompt-local
+labels such as `Person 1`, and it does not send profile names. It always
+includes the realtime source message, even when a resource read has not caught
+up.
 
 The Pi agent has one local extension named `web_fetch`. The model can use it to
 fetch text from public HTTP and HTTPS URLs when current information helps with a
@@ -57,15 +59,19 @@ extension checks each redirect and blocks local, private, reserved, and
 authenticated URL destinations. It treats web content as untrusted data and
 asks the model to cite the source URL. It cannot read files, run commands, or
 call Chatto by itself. A fetch sends the requested URL to the remote web server
-from the machine that runs TestBot.
+from the machine that runs TestBot. The system prompt asks for concise,
+professional answers. It also requires the bot to consult and cite
+`https://docs.chatto.run/` when it answers questions about Chatto.
 
 Then run `mise test-bot-build` and `pnpm --filter @chatto/test-bot start`.
 
-The bot handles realtime events at least once. It saves an event as processed
-after both the model request and reply request succeed. A connection failure
-after the AI provider charges for a request, or after the server creates the
-reply, can repeat work. It can also cause a duplicate reply. Production bots
-need an application-specific idempotency strategy.
+The bot handles realtime events at least once. It saves the thinking reply ID
+before it calls the AI provider. A retry then updates the existing reply instead
+of intentionally creating another one. It saves an event as processed only
+after the final edit succeeds. A failure can repeat the model request or final
+edit. A process failure between creating the thinking reply and saving its ID
+can still cause a duplicate reply because `CreateMessage` has no idempotency
+key. Production bots need an application-specific idempotency strategy.
 
 The bot saves a cursor only after it handles all earlier frames. On reconnect,
 it asks Chatto for the missed replayable events. If the cursor is absent or is

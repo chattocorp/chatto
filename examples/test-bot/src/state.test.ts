@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm, stat } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -17,11 +17,13 @@ test("state round-trips with owner-only file permissions", async (t) => {
   await saveTestBotState(stateFile, {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
+    pendingReplies: [{ sourceEventId: "event-3", replyEventId: "reply-3" }],
   });
 
   assert.deepEqual(await loadTestBotState(stateFile), {
     resumeCursor: "opaque-cursor",
     processedEventIds: ["event-1", "event-2"],
+    pendingReplies: [{ sourceEventId: "event-3", replyEventId: "reply-3" }],
   });
   assert.equal((await stat(stateFile)).mode & 0o777, 0o600);
 });
@@ -29,6 +31,7 @@ test("state round-trips with owner-only file permissions", async (t) => {
 test("processed event IDs are deduplicated and bounded", () => {
   const state: TestBotState = {
     processedEventIds: [],
+    pendingReplies: [],
   };
   assert.equal(rememberProcessedEvent(state, "event-1"), true);
   assert.equal(rememberProcessedEvent(state, "event-1"), false);
@@ -38,4 +41,23 @@ test("processed event IDs are deduplicated and bounded", () => {
   assert.equal(state.processedEventIds.length, 2_048);
   assert.equal(state.processedEventIds.at(-1), "event-2100");
   assert.equal(state.processedEventIds.includes("event-1"), false);
+});
+
+test("state files from before placeholder replies remain readable", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
+  t.after(() => rm(directory, { force: true, recursive: true }));
+  const stateFile = path.join(directory, "state.json");
+  await writeFile(
+    stateFile,
+    JSON.stringify({
+      resumeCursor: "old-cursor",
+      processedEventIds: ["event-1"],
+    }),
+  );
+
+  assert.deepEqual(await loadTestBotState(stateFile), {
+    resumeCursor: "old-cursor",
+    processedEventIds: ["event-1"],
+    pendingReplies: [],
+  });
 });

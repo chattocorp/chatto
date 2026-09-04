@@ -6,8 +6,19 @@ import {
   RoleMessageMention,
 } from "@chatto/api-types/realtime/v1/events_pb";
 import assert from "node:assert/strict";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
-import { conversationPrompt, messageReplyTarget } from "./bot.js";
+import type { AIResponder } from "./ai.js";
+import {
+  conversationPrompt,
+  messageReplyTarget,
+  replyToMessage,
+  THINKING_REPLY,
+  type BotAPI,
+} from "./bot.js";
+import { loadTestBotState, type TestBotState } from "./state.js";
 
 const BOT_ID = "bot-1";
 
@@ -122,4 +133,91 @@ test("uses every supplied thread message with anonymous prompt labels", () => {
     ),
     "Person 1: Earlier context.\n\nAssistant: An earlier answer.\n\nPerson 2: A message that does not mention the bot.\n\nPerson 1: @test_bot Help?",
   );
+});
+
+test("posts an italic placeholder immediately and reuses it after an AI failure", async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), "chatto-test-bot-"));
+  t.after(() => rm(directory, { force: true, recursive: true }));
+  const stateFile = path.join(directory, "state.json");
+  const state: TestBotState = { processedEventIds: [], pendingReplies: [] };
+  const actions: string[] = [];
+  let rejectFirstAI: (reason: Error) => void = () => {};
+  let markAIStarted: () => void = () => {};
+  const aiStarted = new Promise<void>((resolve) => {
+    markAIStarted = resolve;
+  });
+  const firstAI: AIResponder = {
+    provider: "test",
+    model: "test",
+    respond: async () =>
+      new Promise<string>((_resolve, reject) => {
+        rejectFirstAI = reject;
+        actions.push("ai-started");
+        markAIStarted();
+      }),
+  };
+  let placeholderPosts = 0;
+  const api: BotAPI = {
+    viewerId: BOT_ID,
+    isBotActor: async () => false,
+    loadConversation: async (target) => {
+      actions.push("conversation-loaded");
+      return [
+        {
+          eventId: target.sourceEventId,
+          actorId: target.sourceActorId,
+          body: target.sourceBody,
+        },
+      ];
+    },
+    postReply: async (_target, body) => {
+      placeholderPosts += 1;
+      actions.push(`posted:${body}`);
+      return "reply-1";
+    },
+    updateReply: async (_roomId, replyEventId, body) => {
+      actions.push(`updated:${replyEventId}:${body}`);
+    },
+  };
+  const event = messageEvent({ direct: true, inThread: "thread-root-1" });
+
+  const firstAttempt = replyToMessage(
+    api,
+    firstAI,
+    event,
+    new AbortController().signal,
+    state,
+    stateFile,
+  );
+  await aiStarted;
+
+  assert.deepEqual(actions, [
+    `posted:${THINKING_REPLY}`,
+    "conversation-loaded",
+    "ai-started",
+  ]);
+  assert.equal(THINKING_REPLY, "_Thinking…_");
+  assert.deepEqual((await loadTestBotState(stateFile)).pendingReplies, [
+    { sourceEventId: "message-1", replyEventId: "reply-1" },
+  ]);
+
+  rejectFirstAI(new Error("provider failed"));
+  await assert.rejects(firstAttempt, /provider failed/);
+
+  const secondAI: AIResponder = {
+    provider: "test",
+    model: "test",
+    respond: async () => "Final answer",
+  };
+  await replyToMessage(
+    api,
+    secondAI,
+    event,
+    new AbortController().signal,
+    state,
+    stateFile,
+  );
+
+  assert.equal(placeholderPosts, 1);
+  assert.equal(actions.at(-1), "updated:reply-1:Final answer");
 });
