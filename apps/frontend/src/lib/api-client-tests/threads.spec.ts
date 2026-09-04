@@ -5,6 +5,7 @@ import { createThreadAPI } from '$lib/api-client/threads';
 import { Timestamp } from '@bufbuild/protobuf';
 import { Message, ThreadSummary } from '@chatto/api-types/api/v1/message_types_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -72,7 +73,7 @@ describe('createThreadAPI', () => {
     const page = await api.listFollowedThreads({ limit: 20, offset: 40 });
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { page: { limit: 20, offset: 40 } },
+      { includeDirectMessageThreads: true, page: { limit: 20, offset: 40 } },
       {
         headers: { Authorization: 'Bearer remote-token' }
       }
@@ -82,6 +83,8 @@ describe('createThreadAPI', () => {
         {
           roomId: 'room-1',
           roomName: 'general',
+          isDirectMessage: false,
+          directMessageParticipants: [],
           threadRootEventId: 'root-1',
           rootMessage: null,
           latestReply: null,
@@ -108,7 +111,7 @@ describe('createThreadAPI', () => {
     await api.listFollowedThreads({ limit: 20, offset: 0 }, { signal });
 
     expect(mocks.listFollowedThreads).toHaveBeenCalledWith(
-      { page: { limit: 20, offset: 0 } },
+      { includeDirectMessageThreads: true, page: { limit: 20, offset: 0 } },
       { headers: undefined, signal }
     );
   });
@@ -167,6 +170,37 @@ describe('createThreadAPI', () => {
       },
       participants: [{ id: 'u2', displayName: 'Bob' }],
       participantCount: 1
+    });
+  });
+
+  it('maps direct-message identity and participant includes', async () => {
+    mocks.listFollowedThreads.mockResolvedValue({
+      threads: [
+        {
+          room: { id: 'dm-1', kind: RoomKind.DM },
+          thread: { threadRootEventId: 'root-1', viewerState: {} },
+          directMessageParticipantUserIds: ['viewer', 'other']
+        }
+      ],
+      page: {},
+      includes: {
+        users: {
+          viewer: new User({ id: 'viewer', login: 'viewer', displayName: 'Viewer' }),
+          other: new User({ id: 'other', login: 'other', displayName: 'Other' })
+        }
+      }
+    });
+
+    const api = createThreadAPI({ baseUrl: '/api/connect', bearerToken: null });
+    const page = await api.listFollowedThreads({ limit: 20, offset: 0 });
+
+    expect(page.threads[0]).toMatchObject({
+      roomId: 'dm-1',
+      isDirectMessage: true,
+      directMessageParticipants: [
+        { id: 'viewer', displayName: 'Viewer' },
+        { id: 'other', displayName: 'Other' }
+      ]
     });
   });
 

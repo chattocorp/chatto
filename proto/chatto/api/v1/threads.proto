@@ -64,6 +64,9 @@ message FollowedThread {
   ThreadSummary thread = 9;
   // Most recent visible reply, when the thread has one.
   Message latest_reply = 10;
+  // User IDs used to derive a direct-message conversation label. Empty for
+  // channel rooms.
+  repeated string direct_message_participant_user_ids = 11;
 }
 
 // Request for a page of followed threads for the current user.
@@ -73,6 +76,9 @@ message ListFollowedThreadsRequest {
 
   // Page request. Defaults to 20 results when absent or limit is zero.
   PageRequest page = 3;
+  // Include followed direct-message threads. Defaults to false so older
+  // clients retain the channel-only result shape.
+  bool include_direct_message_threads = 4;
 }
 
 // Response containing one followed-thread page.
@@ -92,28 +98,27 @@ message ListFollowedThreadsResponse {
 // Manages thread follow state for the current user.
 service ThreadService {
   // Returns followed threads in rooms where the current user is a member.
-  // Channel-room threads also require message.read or an active relationship
-  // with message.read-interactions. Historical DM threads use DM membership.
+  // All threads also require message.read or an active relationship with
+  // message.read-interactions. Direct-message threads are returned only when
+  // include_direct_message_threads is true.
   // The result includes enough root and latest-reply data for clients to render
   // the list without extra per-thread fetches.
   // Activity can reorder the live result between offset pages. After a thread
   // activity update, clients must restart paging at offset zero.
   rpc ListFollowedThreads(ListFollowedThreadsRequest) returns (ListFollowedThreadsResponse);
   // Follows a thread for the current user. Room membership plus message.read or
-  // an active relationship with message.read-interactions are required. DMs do
-  // not support current thread actions.
+  // an active relationship with message.read-interactions are required.
   // Followed threads can be surfaced in clients and can participate in thread
   // notification behavior.
   rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
   // Stops following a thread for the current user. Room membership plus
   // message.read or an active relationship with message.read-interactions are
-  // required. DMs do not support current thread actions. The response reports
+  // required. The response reports
   // the resulting follow state so clients can update local UI immediately.
   rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
   // Returns one page of events in a message thread. Room membership is
-  // required. Channel-room reads also require message.read or an active
-  // relationship with message.read-interactions. Historical DM threads use DM
-  // membership. Initial pages include the thread root message; cursor pages
+  // required. Reads also require message.read or an active relationship with
+  // message.read-interactions. Initial pages include the thread root message; cursor pages
   // return replies in the requested direction.
   rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
   // Returns a thread timeline window centered around a specific event. Use this
@@ -121,11 +126,10 @@ service ThreadService {
   // NOT_FOUND when the thread root or anchor event is missing or hidden.
   // Returns PERMISSION_DENIED when room membership is missing, both read modes
   // are missing, or an interaction-scoped account has no relationship with the
-  // thread. Historical DM threads use DM membership.
+  // thread.
   rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
   // Marks a thread timeline as read through the supplied event without changing
   // the room-level read marker. Room membership plus message.read or an active
-  // relationship with message.read-interactions are required. DMs do not
-  // support current thread actions.
+  // relationship with message.read-interactions are required.
   rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
 }

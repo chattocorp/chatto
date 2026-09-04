@@ -5,6 +5,7 @@
     "send": "Odeslat zprávu",
     "send_label": "Odeslat",
     "also_send_to_channel": "Také odeslat na kanál",
+    "also_send_to_conversation": "Také odeslat do konverzace",
     "post_as_thread": "Publikovat jako vlákno",
     "thread_label": "Vlákno",
     "echo_label": "Echo",

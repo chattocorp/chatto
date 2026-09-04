@@ -5,6 +5,7 @@
     "send": "Надіслати повідомлення",
     "send_label": "Надіслати",
     "also_send_to_channel": "Також надіслати на канал",
+    "also_send_to_conversation": "Також надіслати в розмову",
     "post_as_thread": "Опублікувати як гілку",
     "thread_label": "Тема",
     "echo_label": "Ехо",

@@ -5,6 +5,7 @@
     "send": "שלח הודעה",
     "send_label": "שלח",
     "also_send_to_channel": "שלח גם לערוץ",
+    "also_send_to_conversation": "שלח גם לשיחה",
     "post_as_thread": "פרסום בשרשור",
     "thread_label": "שרשור",
     "echo_label": "Echo",

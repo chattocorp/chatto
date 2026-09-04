@@ -993,6 +993,7 @@ Request one role's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | Stable role name. |
+| `include_direct_message_scope` | `bool` | Include the direct-message scope column. Defaults to false so an older client does not receive a scope kind that it cannot interpret. |
 
 
 <a id="chatto-admin-v1-GetRolePermissionMatrixResponse"></a>
@@ -1026,6 +1027,7 @@ Request explicit/effective permission decisions for one role.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role_name` | `string` | Stable role name. |
+| `include_direct_message_scope` | `bool` | Include direct-message decisions. Defaults to false for older clients. |
 
 
 <a id="chatto-admin-v1-ListRolePermissionDecisionsResponse"></a>
@@ -1061,6 +1063,7 @@ Request one user's permission matrix.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User ID. |
+| `include_direct_message_scope` | `bool` | Include the direct-message scope column. Defaults to false so an older client does not receive a scope kind that it cannot interpret. |
 
 
 <a id="chatto-admin-v1-GetUserPermissionMatrixResponse"></a>
@@ -1095,6 +1098,7 @@ Request explicit/effective permission decisions for one user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User ID. |
+| `include_direct_message_scope` | `bool` | Include direct-message decisions. Defaults to false for older clients. |
 
 
 <a id="chatto-admin-v1-ListUserPermissionDecisionsResponse"></a>
@@ -1123,12 +1127,13 @@ POST /api/connect/chatto.admin.v1.AdminPermissionService/ExplainPermissions
 
 #### Input: ExplainPermissionsRequest
 
-Request permission explanations for a user at server or room scope.
+Request permission explanations for a user at a typed scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | User whose permissions should be explained. |
-| `room_id` | `string` | Optional room scope. Omit for server-scoped permissions. |
+| `room_id` | `string` | Legacy room scope. Omit for server-scoped permissions. A request that also supplies scope must identify the same room. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Optional typed target. Use DM with an empty ID for direct messages. Omit for server scope. This field replaces room_id for new clients. |
 
 
 <a id="chatto-admin-v1-ExplainPermissionsResponse"></a>
@@ -2821,6 +2826,7 @@ Level at which a permission explanation found a decision.
 | `PERMISSION_DECISION_LEVEL_SERVER` | `1` | Server-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_GROUP` | `2` | Room-group-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_ROOM` | `3` | Room-level role or user decision. |
+| `PERMISSION_DECISION_LEVEL_DM` | `4` | Direct-message-level role or user decision. |
 
 
 <a id="chatto-admin-v1-PermissionScopeKind"></a>
@@ -2835,6 +2841,7 @@ Scope tier for permission matrices and write requests.
 | `PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
 | `PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
+| `PERMISSION_SCOPE_KIND_DM` | `4` | Server-wide direct-message tier. |
 
 
 <a id="chatto-admin-v1-AdminRoomLayoutItemKind"></a>

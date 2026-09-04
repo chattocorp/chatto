@@ -84,7 +84,7 @@ Request to create a message in a room or thread.
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
-| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Channel rooms only; cannot be combined with thread_root_event_id. |
+| `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Cannot be combined with thread_root_event_id. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -107,8 +107,8 @@ window. Effective message.manage permits edits at any time. Only the
 message author can change channel echo state. Disabled rooms reject
 creation of a new channel echo while allowing an existing echo to be
 removed. Room membership is also required.
-Channel-room edits require message.read or a matching thread relationship
-with message.read-interactions. DM membership authorizes the DM read.
+Edits require message.read or a matching thread relationship with
+message.read-interactions.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -247,9 +247,9 @@ Result of removing a link preview from a message.
 
 Reads one renderable message, including current body, attachment metadata,
 link preview, reactions, thread metadata, and pin state. Authentication
-and room membership are required. Channel-room reads also require
+and room membership are required. Reads also require
 message.read or a matching thread relationship with
-message.read-interactions. DM membership authorizes DM reads. Returns
+message.read-interactions. Returns
 NOT_FOUND when the event does not exist, is not a message, has been
 retracted, or belongs to a different room.
 
@@ -285,9 +285,9 @@ Response containing one renderable message.
 ### BatchGetMessages
 
 Reads many renderable messages and their current pin state in one room.
-Authentication and room membership are required. Channel-room reads also
+Authentication and room membership are required. Reads also
 require message.read or a matching thread relationship with
-message.read-interactions. DM membership authorizes DM reads. Missing,
+message.read-interactions. Missing,
 retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
 Results preserve first-seen request order, and repeated event IDs are
 de-duplicated.
@@ -324,9 +324,8 @@ Response containing renderable messages.
 ### AddReaction
 
 Adds a reaction to a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read-interactions. DM membership
-authorizes the DM read.
+message.react. Reactions also require message.read or a matching thread
+relationship with message.read-interactions.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/AddReaction
@@ -368,9 +367,8 @@ Result of adding a reaction.
 ### RemoveReaction
 
 Removes a reaction from a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read or a
-matching thread relationship with message.read-interactions. DM membership
-authorizes the DM read.
+message.react. Reactions also require message.read or a matching thread
+relationship with message.read-interactions.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/RemoveReaction

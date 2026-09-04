@@ -5,6 +5,7 @@
     "send": "傳送訊息",
     "send_label": "傳送",
     "also_send_to_channel": "同時傳送至頻道",
+    "also_send_to_conversation": "同時傳送至對話",
     "post_as_thread": "發佈為討論串",
     "thread_label": "討論串",
     "echo_label": "回音",

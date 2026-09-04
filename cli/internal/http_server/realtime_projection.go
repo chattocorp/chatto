@@ -231,6 +231,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	if advanceWithoutReset {
 		return realtimeProjectionServerFrame(projection), true, nil
 	}
+	if !connectapi.RealtimeDMThreadsEnabled(ctx) {
+		suppress, err := s.suppressLegacyDMThreadEvent(ctx, evt)
+		if err != nil {
+			return nil, false, err
+		}
+		if suppress {
+			return realtimeProjectionServerFrame(projection), true, nil
+		}
+	}
 	if roomID, protected := s.core.MessageReadProtectedEventRoomID(evt); protected {
 		kind, err := s.core.FindRoomKind(ctx, roomID)
 		if err != nil {
@@ -363,6 +372,13 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(realtimeProjectionRoomViewerOperation(roomID, viewerState))
 		case *livev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
+			kind, err := s.core.FindRoomKind(ctx, thread.GetRoomId())
+			if err != nil {
+				return nil, false, err
+			}
+			if kind == core.KindDM && !connectapi.RealtimeDMThreadsEnabled(ctx) {
+				return realtimeProjectionServerFrame(projection), true, nil
+			}
 			threadStates, err := s.connectAPI.BuildRealtimeProjectionThreadViewerStates(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
@@ -940,6 +956,35 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	// they only affect a room timeline this connection has not materialised.
 	// Keep the empty envelope so the client can safely advance its one cursor.
 	return realtimeProjectionServerFrame(projection), true, nil
+}
+
+func (s *HTTPServer) suppressLegacyDMThreadEvent(ctx context.Context, event *evtv1.Event) (bool, error) {
+	roomID, protected := s.core.MessageReadProtectedEventRoomID(event)
+	if !protected {
+		return false, nil
+	}
+	kind, err := s.core.FindRoomKind(ctx, roomID)
+	if err != nil {
+		if errors.Is(err, core.ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if kind != core.KindDM {
+		return false, nil
+	}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_MessagePosted:
+		return payload.MessagePosted.GetInThread() != "" || payload.MessagePosted.GetEchoFromThreadRootEventId() != "", nil
+	case *evtv1.Event_ThreadCreated:
+		return true, nil
+	}
+	sourceID, ok := s.core.MessageEventSourceMessageID(roomID, event)
+	if !ok {
+		return false, nil
+	}
+	rootID, ok := s.core.MessageEventThreadRoot(roomID, event)
+	return ok && sourceID != rootID, nil
 }
 
 // canAdvanceSelfAuthoredRBAC identifies self-authored RBAC mutations that

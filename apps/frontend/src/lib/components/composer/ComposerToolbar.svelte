@@ -23,6 +23,7 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
     createThreadRequired = false,
     onToggleCreateThread = () => {},
     showAlsoSendToChannel = false,
+    echoToConversation = false,
     alsoSendToChannel = false,
     onToggleAlsoSendToChannel = () => {},
     onsubmit
@@ -39,6 +40,7 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
     createThreadRequired?: boolean;
     onToggleCreateThread?: () => void;
     showAlsoSendToChannel?: boolean;
+    echoToConversation?: boolean;
     alsoSendToChannel?: boolean;
     onToggleAlsoSendToChannel?: () => void;
     onsubmit: () => void;
@@ -92,9 +94,17 @@ live in `ComposerFormattingToolbar` so this row can stay aligned with the
         onpointerdown={(event) => event.preventDefault()}
         onclick={onToggleAlsoSendToChannel}
         disabled={inputDisabled}
-        aria-label={m('composer.also_send_to_channel')}
+        aria-label={m(
+          echoToConversation
+            ? 'composer.also_send_to_conversation'
+            : 'composer.also_send_to_channel'
+        )}
         aria-pressed={alsoSendToChannel}
-        title={m('composer.also_send_to_channel')}
+        title={m(
+          echoToConversation
+            ? 'composer.also_send_to_conversation'
+            : 'composer.also_send_to_channel'
+        )}
         class={[
           'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5',
           alsoSendToChannel

@@ -18,8 +18,9 @@ export const ThreadService = {
   methods: {
     /**
      * Returns followed threads in rooms where the current user is a member.
-     * Channel-room threads also require message.read or an active relationship
-     * with message.read-interactions. Historical DM threads use DM membership.
+     * All threads also require message.read or an active relationship with
+     * message.read-interactions. Direct-message threads are returned only when
+     * include_direct_message_threads is true.
      * The result includes enough root and latest-reply data for clients to render
      * the list without extra per-thread fetches.
      * Activity can reorder the live result between offset pages. After a thread
@@ -35,8 +36,7 @@ export const ThreadService = {
     },
     /**
      * Follows a thread for the current user. Room membership plus message.read or
-     * an active relationship with message.read-interactions are required. DMs do
-     * not support current thread actions.
+     * an active relationship with message.read-interactions are required.
      * Followed threads can be surfaced in clients and can participate in thread
      * notification behavior.
      *
@@ -51,7 +51,7 @@ export const ThreadService = {
     /**
      * Stops following a thread for the current user. Room membership plus
      * message.read or an active relationship with message.read-interactions are
-     * required. DMs do not support current thread actions. The response reports
+     * required. The response reports
      * the resulting follow state so clients can update local UI immediately.
      *
      * @generated from rpc chatto.api.v1.ThreadService.UnfollowThread
@@ -64,9 +64,8 @@ export const ThreadService = {
     },
     /**
      * Returns one page of events in a message thread. Room membership is
-     * required. Channel-room reads also require message.read or an active
-     * relationship with message.read-interactions. Historical DM threads use DM
-     * membership. Initial pages include the thread root message; cursor pages
+     * required. Reads also require message.read or an active relationship with
+     * message.read-interactions. Initial pages include the thread root message; cursor pages
      * return replies in the requested direction.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEvents
@@ -83,7 +82,7 @@ export const ThreadService = {
      * NOT_FOUND when the thread root or anchor event is missing or hidden.
      * Returns PERMISSION_DENIED when room membership is missing, both read modes
      * are missing, or an interaction-scoped account has no relationship with the
-     * thread. Historical DM threads use DM membership.
+     * thread.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEventsAround
      */
@@ -96,8 +95,7 @@ export const ThreadService = {
     /**
      * Marks a thread timeline as read through the supplied event without changing
      * the room-level read marker. Room membership plus message.read or an active
-     * relationship with message.read-interactions are required. DMs do not
-     * support current thread actions.
+     * relationship with message.read-interactions are required.
      *
      * @generated from rpc chatto.api.v1.ThreadService.MarkThreadAsRead
      */

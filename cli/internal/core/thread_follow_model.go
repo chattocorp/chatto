@@ -17,11 +17,15 @@ type ThreadFollowModel struct {
 	core *ChattoCore
 }
 
-func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, limit, offset int) (*FollowedThreadsPage, error) {
+func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM bool, limit, offset int) (*FollowedThreadsPage, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	return s.core.ListFollowedThreadsPage(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)}, limit, offset)
+	spaceIDs := []string{LegacySpaceIDForRoomKind(KindChannel)}
+	if includeDM {
+		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
+	}
+	return s.core.ListFollowedThreadsPage(ctx, actorID, spaceIDs, limit, offset)
 }
 
 func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorID string) (bool, error) {
@@ -34,11 +38,15 @@ func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorI
 // ListFollowedThreadViewerStates returns an exhaustive, authoritative set for
 // realtime replacement semantics. Unlike the user-facing directory list, it
 // fails on uncertain rows instead of silently omitting them.
-func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, actorID string) ([]*FollowedThread, error) {
+func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, actorID string, includeDM bool) ([]*FollowedThread, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	return s.core.listFollowedThreadViewerStates(ctx, actorID)
+	spaceIDs := []string{LegacySpaceIDForRoomKind(KindChannel)}
+	if includeDM {
+		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
+	}
+	return s.core.listFollowedThreadViewerStates(ctx, actorID, spaceIDs)
 }
 
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {

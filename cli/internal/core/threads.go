@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	"slices"
 	"sort"
 	"time"
 
@@ -801,7 +802,7 @@ func followedThreadSortKey(thread *FollowedThread) string {
 // listFollowedThreadViewerStates is the strict counterpart used by complete
 // realtime replacement operations. Any uncertain lookup fails the whole read;
 // only confirmed missing/inaccessible/non-followed threads are omitted.
-func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string) ([]*FollowedThread, error) {
+func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
 	refs := c.roomModel.followedThreadsForUser(userID)
 	result := make([]*FollowedThread, 0, len(refs))
 	for _, ref := range refs {
@@ -813,7 +814,7 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 			return nil, fmt.Errorf("read followed thread room %s: %w", ref.roomID, err)
 		}
 		kind := KindOfRoom(room)
-		if kind != KindChannel {
+		if !slices.Contains(spaceIDs, LegacySpaceIDForRoomKind(kind)) {
 			continue
 		}
 		following, err := c.IsFollowingThread(ctx, kind, userID, ref.roomID, ref.threadRootEventID)

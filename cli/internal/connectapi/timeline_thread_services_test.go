@@ -1093,7 +1093,7 @@ func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 	}
 }
 
-func TestThreadServiceListFollowedThreadsFiltersOtherRoomKinds(t *testing.T) {
+func TestThreadServiceListFollowedThreadsRequiresDMOptIn(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "thread-dm-participant", "Thread DM Participant", "password")
 	if err != nil {
@@ -1122,6 +1122,24 @@ func TestThreadServiceListFollowedThreadsFiltersOtherRoomKinds(t *testing.T) {
 	}
 	if resp.Msg.GetPage().GetTotalCount() != 0 || resp.Msg.GetPage().GetHasMore() {
 		t.Fatalf("ListFollowedThreads page metadata = total %d hasMore %v, want total 0 hasMore false", resp.Msg.GetPage().GetTotalCount(), resp.Msg.GetPage().GetHasMore())
+	}
+
+	resp, err = env.threads.ListFollowedThreads(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListFollowedThreadsRequest{
+		Page:                        &apiv1.PageRequest{Limit: 20},
+		IncludeDirectMessageThreads: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListFollowedThreads with DM opt-in: %v", err)
+	}
+	if got := len(resp.Msg.GetThreads()); got != 1 {
+		t.Fatalf("ListFollowedThreads with DM opt-in returned %d threads, want 1", got)
+	}
+	thread := resp.Msg.GetThreads()[0]
+	if thread.GetRoom().GetId() != dm.Id || thread.GetThread().GetThreadRootEventId() != root.Id {
+		t.Fatalf("DM followed thread = %+v, want room %q root %q", thread, dm.Id, root.Id)
+	}
+	if got := thread.GetDirectMessageParticipantUserIds(); len(got) != 2 {
+		t.Fatalf("DM participant IDs = %v, want two participants", got)
 	}
 }
 

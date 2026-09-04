@@ -68,9 +68,11 @@ not report subjects or payloads.
 ConnectAPI does not read the component directly. `RoomModel` is the sole
 production owner of the Room Directory, Room Group Layout, Room Timeline,
 Threads, and Reactions component APIs. These components use the shared
-content-view projector. Threads also derives channel message-to-root
+content-view projector. Threads also derives channel-room and DM message-to-root
 mappings and account-to-thread interaction relationships from message-post
-facts. Membership, message, thread, reaction, asset, realtime, room-group OCC,
+facts. Its snapshot contract is v3 and records the DM room identity set. The
+RBAC component snapshot contract is v2 and retains decisions from the
+`evt.rbac.dm` singleton lane. Membership, message, thread, reaction, asset, realtime, room-group OCC,
 and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit
 membership so they remain distinct from policy-derived Universal-room access.

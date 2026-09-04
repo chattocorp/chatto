@@ -293,6 +293,15 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
    */
   bearerToken?: string;
 
+  /**
+   * Stable protocol capability keys supported by this client. A client that
+   * can apply direct-message thread projection changes advertises
+   * `chatto.realtime.projection.dm-threads.v1`.
+   *
+   * @generated from field: repeated string capabilities = 4;
+   */
+  capabilities: string[] = [];
+
   constructor(data?: PartialMessage<RealtimeClientHello>) {
     super();
     proto3.util.initPartial(data, this);
@@ -303,6 +312,7 @@ export class RealtimeClientHello extends Message<RealtimeClientHello> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "protocol_version", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 2, name: "bearer_token", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "capabilities", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeClientHello {
@@ -353,7 +363,8 @@ export class RealtimeServerHello extends Message<RealtimeServerHello> {
    * Stable protocol capability keys supported by this server. Current keys:
    * `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`,
    * `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
-   * `chatto.realtime.projection.v1`.
+   * `chatto.realtime.projection.v1`, and
+   * `chatto.realtime.projection.dm-threads.v1`.
    *
    * @generated from field: repeated string capabilities = 5;
    */

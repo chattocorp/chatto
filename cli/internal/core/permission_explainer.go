@@ -94,6 +94,10 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	}
 
 	if _, known := GetPermissionMetadata(perm); known {
+		if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
+			exp.applyDMBoundaryDeny(LevelDM)
+			return nil
+		}
 		if r.core.isServerOwner(userID) {
 			exp.State = DecisionAllow
 			exp.DecidedAt = LevelServer
@@ -106,15 +110,6 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 			}}
 			return nil
 		}
-	}
-
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		level := LevelServer
-		if roomID != "" {
-			level = LevelRoom
-		}
-		exp.applyDMBoundaryDeny(level)
-		return nil
 	}
 
 	groupID := ""
@@ -145,12 +140,8 @@ func (r *PermissionResolver) collectBotFullTrace(ctx context.Context, botUserID,
 		exp.applyBotPolicyDeny(roomID, "@bot-policy")
 		return nil
 	}
-	if kind == KindDM && dmBoundaryDenies(perm) {
-		level := LevelServer
-		if roomID != "" {
-			level = LevelRoom
-		}
-		exp.applyDMBoundaryDeny(level)
+	if kind == KindDM && !PermissionAppliesAtScope(perm, ScopeDM) {
+		exp.applyDMBoundaryDeny(LevelDM)
 		return nil
 	}
 	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
@@ -235,17 +226,6 @@ func (r *PermissionResolver) collectFullTraceExact(ctx context.Context, userID s
 		exp.DecidedAt = winner.Level
 		exp.DecidedByRole = winner.RoleName
 	}
-	if exp.State == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
-		exp.State = DecisionAllow
-		exp.DecidedAt = LevelRoom
-		exp.DecidedByRole = "@dm-policy"
-		exp.Trace = []TraceEntry{{
-			Level:    LevelRoom,
-			RoleName: "@dm-policy",
-			Decision: DecisionAllow,
-			ObjectID: roomID,
-		}}
-	}
 	return nil
 }
 
@@ -275,7 +255,9 @@ func (r *PermissionResolver) explainAllPermissions(ctx context.Context, userID s
 	}
 
 	scope := ScopeServer
-	if roomID != "" {
+	if kind == KindDM {
+		scope = ScopeDM
+	} else if roomID != "" {
 		scope = ScopeRoom
 	}
 

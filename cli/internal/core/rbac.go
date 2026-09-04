@@ -818,6 +818,13 @@ func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleN
 	return grants, denials, nil
 }
 
+// GetDMRolePermissions returns the direct-message-scope grants and denials for
+// a role.
+func (c *ChattoCore) GetDMRolePermissions(ctx context.Context, roleName string) (grants []Permission, denials []Permission, err error) {
+	grants, denials = c.rbacModel.decisionsFor(ScopeDM, "", roleName)
+	return grants, denials, nil
+}
+
 // GrantGroupPermission writes a group-scope grant for a role on a specific room group.
 func (c *ChattoCore) GrantGroupPermission(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
 	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {

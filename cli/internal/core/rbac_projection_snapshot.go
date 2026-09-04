@@ -10,7 +10,7 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-var rbacSnapshotContractID = snapshotContractID("v1", &projectionv1.RBACProjectionSnapshot{})
+var rbacSnapshotContractID = snapshotContractID("v2", &projectionv1.RBACProjectionSnapshot{})
 
 func (*RBACProjection) SnapshotContractID() string { return rbacSnapshotContractID }
 

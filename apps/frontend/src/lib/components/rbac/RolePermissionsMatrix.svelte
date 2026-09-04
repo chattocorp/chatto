@@ -73,6 +73,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   });
 
   function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
+    if (scope.kind === 'DM') return { tier: 'dm', roleName: name };
     if (scope.kind === 'GROUP') {
       const groupId = scope.id.startsWith('group:') ? scope.id.slice('group:'.length) : '';
       return { tier: 'group', roleName: name, groupId };

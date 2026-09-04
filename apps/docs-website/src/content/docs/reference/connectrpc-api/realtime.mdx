@@ -64,6 +64,7 @@ Initial client hello.
 | --- | --- | --- |
 | `protocol_version` | `uint32` | Protocol version requested by the client. The only supported version is 2. |
 | `bearer_token` | `optional string` | Optional bearer token. When present, it takes precedence over cookie auth. |
+| `capabilities` | `repeated string` | Stable protocol capability keys supported by this client. A client that can apply direct-message thread projection changes advertises `chatto.realtime.projection.dm-threads.v1`. |
 
 <a id="chatto-realtime-v1-RealtimeClose"></a>
 
@@ -470,7 +471,7 @@ Initial server hello.
 | `protocol_version` | `uint32` | Protocol version accepted by the server. |
 | `server_version` | `string` | Chatto server software version. |
 | `heartbeat_interval_seconds` | `uint32` | Approximate heartbeat interval clients should expect. |
-| `capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and `chatto.realtime.projection.v1`. |
+| `capabilities` | `repeated string` | Stable protocol capability keys supported by this server. Current keys: `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`, `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and `chatto.realtime.projection.v1`, and `chatto.realtime.projection.dm-threads.v1`. |
 
 <a id="chatto-realtime-v1-RealtimeSessionTerminatedEvent"></a>
 

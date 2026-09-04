@@ -36,7 +36,6 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		api:                  api,
 		ctx:                  ctx,
 		viewerID:             viewerID,
-		kind:                 core.KindChannel,
 		reactionsByMessageID: reactionsByMessageID,
 		userIDs:              make(map[string]struct{}),
 	}
@@ -47,6 +46,11 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		}
 
 		kind := core.RoomKindFromLegacySpaceID(thread.SpaceID)
+		threadHydrator := &timelineHydrator{
+			api: api, ctx: ctx, viewerID: viewerID, kind: kind,
+			reactionsByMessageID: reactionsByMessageID,
+			userIDs:              make(map[string]struct{}),
+		}
 		room, err := api.core.GetRoom(ctx, kind, thread.RoomID)
 		if err != nil {
 			// List responses omit resources that disappear between the core page
@@ -63,7 +67,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 		}
 		var rootMessage *apiv1.Message
 		if event != nil {
-			apiEvent, err := h.event(ctx, &core.RoomEvent{Event: event})
+			apiEvent, err := threadHydrator.event(ctx, &core.RoomEvent{Event: event})
 			if err != nil {
 				return nil, err
 			}
@@ -76,7 +80,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				return nil, err
 			}
 			if latestEvent != nil {
-				apiEvent, err := h.event(ctx, &core.RoomEvent{Event: latestEvent})
+				apiEvent, err := threadHydrator.event(ctx, &core.RoomEvent{Event: latestEvent})
 				if err != nil {
 					return nil, err
 				}
@@ -89,12 +93,31 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 			lastReplyAt = timestamppb.New(*thread.LastReplyAt)
 		}
 		participantPreviewUserIDs := firstN(thread.ParticipantIDs, 5)
-		h.addUserIDs(participantPreviewUserIDs)
+		threadHydrator.addUserIDs(participantPreviewUserIDs)
+		var directMessageParticipantUserIDs []string
+		if kind == core.KindDM {
+			members, err := api.core.ListRoomMemberReferencesForList(ctx, viewerID, thread.RoomID)
+			if err != nil {
+				return nil, err
+			}
+			directMessageParticipantUserIDs = make([]string, 0, len(members))
+			for _, member := range members {
+				if member.GetId() == "" {
+					continue
+				}
+				directMessageParticipantUserIDs = append(directMessageParticipantUserIDs, member.GetId())
+				threadHydrator.addUserID(member.GetId())
+			}
+		}
+		for userID := range threadHydrator.userIDs {
+			h.addUserID(userID)
+		}
 		following := true
 		return &apiv1.FollowedThread{
-			RootMessage: rootMessage,
-			LatestReply: latestReply,
-			Room:        apiRoomSummary(room),
+			RootMessage:                     rootMessage,
+			LatestReply:                     latestReply,
+			Room:                            apiRoomSummary(room),
+			DirectMessageParticipantUserIds: directMessageParticipantUserIDs,
 			Thread: &apiv1.ThreadSummary{
 				ThreadRootEventId:         thread.ThreadRootEventID,
 				ReplyCount:                int32(thread.ReplyCount),

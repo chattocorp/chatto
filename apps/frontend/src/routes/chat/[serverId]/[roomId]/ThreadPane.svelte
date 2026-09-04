@@ -34,6 +34,7 @@
   let {
     roomId,
     roomName,
+    isDirectMessage = false,
     threadRootEventId,
     onClose,
     canPostInThread = true,
@@ -54,6 +55,7 @@
   }: {
     roomId: string;
     roomName: string;
+    isDirectMessage?: boolean;
     threadRootEventId: string;
     onClose: () => void;
     canPostInThread?: boolean;
@@ -155,6 +157,9 @@
   });
 
   let canPost = $derived(canPostInThread);
+  let threadTitle = $derived(
+    isDirectMessage ? roomName : m('room.thread.title', { room: roomName })
+  );
 
   // Reload thread events when the thread prop changes. Silent reconnect +
   // tab-resume catch-ups are owned by the server event bus.
@@ -285,12 +290,12 @@
       onResize={(width) => threadPaneWidth.set(width)}
       onReset={() => threadPaneWidth.reset()}
       edge="start"
-      label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
+      label={`${m('ui.resize_handle.resize')}: ${threadTitle}`}
     />
   {/if}
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
-    title={m('room.thread.title', { room: roomName })}
+    title={threadTitle}
     onBack={onClose}
     backLabel={m('room.thread.back_to_room')}
   >
@@ -338,6 +343,7 @@
   />
   <MessageComposer
     {roomId}
+    echoToConversation={isDirectMessage}
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}
     replyDisplayName={replyState.actorDisplayName || undefined}

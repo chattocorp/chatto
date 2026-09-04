@@ -73,6 +73,9 @@ func rbacPermissionScope(scope PermissionScope, scopeID string) *evtv1.RbacPermi
 		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP
 	case ScopeRoom:
 		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM
+	case ScopeDM:
+		kind = evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_DM
+		scopeID = ""
 	}
 	return &evtv1.RbacPermissionScope{Kind: kind, Id: scopeID}
 }
@@ -111,6 +114,9 @@ func rbacAggregateForEvent(event *evtv1.Event) evtstream.Aggregate {
 func rbacAggregateForPermissionScope(scope *evtv1.RbacPermissionScope) evtstream.Aggregate {
 	if scope == nil || scope.GetKind() == evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER {
 		return evtstream.RBACServerAggregate()
+	}
+	if scope.GetKind() == evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_DM {
+		return evtstream.RBACDMAggregate()
 	}
 	return evtstream.RBACScopedAggregate(scope.GetId())
 }

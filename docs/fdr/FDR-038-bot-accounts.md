@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-04
 
 ## Overview
 
@@ -66,7 +66,8 @@ exercise more authority than its human owner currently possesses.
 - An incoming webhook uses stable room IDs. It can select any channel room
   where the bot is a member and has the normal posting permissions. It can
   select an existing human-started DM that contains the bot. It cannot create
-  or find a DM, and it cannot create a thread in a DM.
+  or find a DM. It can create or reply in a DM thread when its DM-scoped
+  allowlist and owner ceiling permit it.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
   a manager revokes them.
@@ -97,8 +98,8 @@ exercise more authority than its human owner currently possesses.
   an explicit `message.read` grant for broad access or an explicit
   `message.read-interactions` grant for related threads. The broad grant
   includes the narrow permission. Each grant is bounded by sufficient
-  effective authority on its owner. DM membership authorizes the bot to read
-  that DM.
+  effective authority on its owner. DM membership remains necessary, and the
+  bot also needs a DM-scoped broad or interaction read grant.
 - A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
   has `message.post` or the DM already exists. A human must start a DM that
   includes the bot. The bot can then interact in that DM through its normal
@@ -325,12 +326,19 @@ deferred.
 - `bot.manage` — view and manage every bot on the server, including reassigning
   its owner, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
-  rooms, subject to membership and the owner's effective broad-read authority.
+  rooms or in DMs, subject to membership and the owner's effective broad-read
+  authority at the same scope.
   This grant includes `message.read-interactions`.
 - `message.read-interactions` — give the bot complete access to a
-  channel-room thread that it started or where another account directly
+  thread that it started or where another account directly
   mentioned it, subject to membership and the owner's effective broad or
   narrow read authority.
+- `message.post` — post room-timeline messages at configured scopes. A bot can
+  receive this permission only at Direct messages scope when it must not post
+  in channels.
+- `message.post-in-thread` — create and reply in threads at configured scopes.
+  A private-conversation bot can combine this DM-scoped allow with DM-scoped
+  `message.read` and `message.post`.
 
 Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API

@@ -146,7 +146,7 @@ describe('createRoomDirectoryAPI', () => {
         archived: true,
         isUniversal: false,
         slowModeSeconds: 0,
-        threadingMode: RoomThreadingMode.UNSPECIFIED,
+        threadingMode: RoomThreadingMode.ENABLED,
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: false,

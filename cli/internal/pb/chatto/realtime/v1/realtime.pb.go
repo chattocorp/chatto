@@ -458,7 +458,11 @@ type RealtimeClientHello struct {
 	// Protocol version requested by the client. The only supported version is 2.
 	ProtocolVersion uint32 `protobuf:"varint,1,opt,name=protocol_version,json=protocolVersion,proto3" json:"protocol_version,omitempty"`
 	// Optional bearer token. When present, it takes precedence over cookie auth.
-	BearerToken   *string `protobuf:"bytes,2,opt,name=bearer_token,json=bearerToken,proto3,oneof" json:"bearer_token,omitempty"`
+	BearerToken *string `protobuf:"bytes,2,opt,name=bearer_token,json=bearerToken,proto3,oneof" json:"bearer_token,omitempty"`
+	// Stable protocol capability keys supported by this client. A client that
+	// can apply direct-message thread projection changes advertises
+	// `chatto.realtime.projection.dm-threads.v1`.
+	Capabilities  []string `protobuf:"bytes,4,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -507,6 +511,13 @@ func (x *RealtimeClientHello) GetBearerToken() string {
 	return ""
 }
 
+func (x *RealtimeClientHello) GetCapabilities() []string {
+	if x != nil {
+		return x.Capabilities
+	}
+	return nil
+}
+
 // Initial server hello.
 type RealtimeServerHello struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -519,7 +530,8 @@ type RealtimeServerHello struct {
 	// Stable protocol capability keys supported by this server. Current keys:
 	// `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`,
 	// `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
-	// `chatto.realtime.projection.v1`.
+	// `chatto.realtime.projection.v1`, and
+	// `chatto.realtime.projection.dm-threads.v1`.
 	Capabilities  []string `protobuf:"bytes,5,rep,name=capabilities,proto3" json:"capabilities,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2988,10 +3000,11 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x04pong\x18\a \x01(\v2 .chatto.realtime.v1.RealtimePongH\x00R\x04pong\x12C\n" +
 	"\tcaught_up\x18\b \x01(\v2$.chatto.realtime.v1.RealtimeCaughtUpH\x00R\bcaughtUp\x12X\n" +
 	"\x10projection_event\x18\t \x01(\v2+.chatto.realtime.v1.RealtimeProjectionEventH\x00R\x0fprojectionEventB\a\n" +
-	"\x05frame\"\x8e\x01\n" +
+	"\x05frame\"\xb2\x01\n" +
 	"\x13RealtimeClientHello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12&\n" +
-	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01B\x0f\n" +
+	"\fbearer_token\x18\x02 \x01(\tH\x00R\vbearerToken\x88\x01\x01\x12\"\n" +
+	"\fcapabilities\x18\x04 \x03(\tR\fcapabilitiesB\x0f\n" +
 	"\r_bearer_tokenJ\x04\b\x03\x10\x04R\rresume_cursor\"\xe1\x01\n" +
 	"\x13RealtimeServerHello\x12)\n" +
 	"\x10protocol_version\x18\x01 \x01(\rR\x0fprotocolVersion\x12%\n" +

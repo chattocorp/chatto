@@ -1127,6 +1127,7 @@ One followed thread for the current user.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
 
 <a id="chatto-api-v1-ThreadFollowState"></a>
 
@@ -1986,6 +1987,7 @@ Level at which a permission explanation found a decision.
 | `PERMISSION_DECISION_LEVEL_SERVER` | `1` | Server-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_GROUP` | `2` | Room-group-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_ROOM` | `3` | Room-level role or user decision. |
+| `PERMISSION_DECISION_LEVEL_DM` | `4` | Direct-message-level role or user decision. |
 
 <a id="chatto-admin-v1-PermissionScopeKind"></a>
 
@@ -1999,6 +2001,7 @@ Scope tier for permission matrices and write requests.
 | `PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
 | `PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
+| `PERMISSION_SCOPE_KIND_DM` | `4` | Server-wide direct-message tier. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutItemKind"></a>
 

@@ -21,10 +21,13 @@ export type PermissionAPIConfig = {
 
 export type PermissionState = 'allow' | 'deny' | 'neutral';
 export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
-export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
+export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM' | 'DM';
 
 export type PermissionScope =
-  { tier: 'server' } | { tier: 'group'; groupId: string } | { tier: 'room'; roomId: string };
+  | { tier: 'server' }
+  | { tier: 'dm' }
+  | { tier: 'group'; groupId: string }
+  | { tier: 'room'; roomId: string };
 
 export type TierPermissions = {
   permissions: string[];
@@ -126,7 +129,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       options: { signal?: AbortSignal } = {}
     ): Promise<RolePermissionMatrix | null> {
       const response = await client.getRolePermissionMatrix(
-        { roleName },
+        { roleName, includeDirectMessageScope: true },
         { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix ? rolePermissionMatrix(response.matrix) : null;
@@ -134,7 +137,7 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
 
     async listRolePermissionDecisions(roleName: string): Promise<RolePermissionDecisions> {
       const response = await client.listRolePermissionDecisions(
-        { roleName },
+        { roleName, includeDirectMessageScope: true },
         { headers: headers() }
       );
       return {
@@ -148,14 +151,17 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
       options: { signal?: AbortSignal } = {}
     ): Promise<UserPermissionMatrix | null> {
       const response = await client.getUserPermissionMatrix(
-        { userId },
+        { userId, includeDirectMessageScope: true },
         { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
       return response.matrix ? userPermissionMatrix(response.matrix) : null;
     },
 
     async listUserPermissionDecisions(userId: string): Promise<UserPermissionDecisions> {
-      const response = await client.listUserPermissionDecisions({ userId }, { headers: headers() });
+      const response = await client.listUserPermissionDecisions(
+        { userId, includeDirectMessageScope: true },
+        { headers: headers() }
+      );
       return {
         userId: response.userId,
         decisions: response.decisions.map(permissionDecisionEntry)
@@ -298,13 +304,17 @@ function permissionScope(
   if (scope?.kind === PermissionScopeKind.ROOM) {
     return { tier: 'room', roomId: scope.id };
   }
-  return { tier: 'server' };
+  if (scope?.kind === PermissionScopeKind.DM) return { tier: 'dm' };
+  if (scope?.kind === PermissionScopeKind.SERVER) return { tier: 'server' };
+  throw new Error(`unsupported permission scope kind: ${scope?.kind ?? 'missing'}`);
 }
 
 function scopeKind(kind: PermissionScopeKind): MatrixScopeKind {
   if (kind === PermissionScopeKind.GROUP) return 'GROUP';
   if (kind === PermissionScopeKind.ROOM) return 'ROOM';
-  return 'SERVER';
+  if (kind === PermissionScopeKind.DM) return 'DM';
+  if (kind === PermissionScopeKind.SERVER) return 'SERVER';
+  throw new Error(`unsupported permission matrix scope kind: ${kind}`);
 }
 
 function matrixDecision(decision: PermissionDecision): MatrixDecision {
@@ -328,6 +338,9 @@ function apiScope(scope: PermissionScope): {
   }
   if (scope.tier === 'room') {
     return { kind: PermissionScopeKind.ROOM, id: scope.roomId };
+  }
+  if (scope.tier === 'dm') {
+    return { kind: PermissionScopeKind.DM, id: '' };
   }
   return { kind: PermissionScopeKind.SERVER, id: '' };
 }
