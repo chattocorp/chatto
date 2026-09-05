@@ -32,11 +32,19 @@ export function selectJobs(files, full = false) {
       /^[^/]+\.md$/.test(file)
     )
       continue;
-    if (/^tools\/.*desktop/.test(file)) enable("desktop");
+    // Go workspace dependency selection can affect both products.
+    if (/^(cli|authling)\/go\.(mod|sum)$/.test(file))
+      enable("shared", "chatto", "authling", "performance");
+    else if (/^tools\/.*desktop/.test(file)) enable("desktop");
     else if (file.startsWith("apps/desktop/")) enable("desktop");
     else if (file.startsWith("authling/")) {
       enable("authling");
-      if (/\.(proto)$/.test(file) || /\/buf\./.test(file)) enable("proto");
+      if (
+        file.endsWith(".proto") ||
+        file.endsWith(".pb.go") ||
+        /\/buf\./.test(file)
+      )
+        enable("proto");
     } else if (file.startsWith("pkg/"))
       enable("shared", "chatto", "authling", "performance");
     else if (file.startsWith("cli/")) enable("chatto", "performance");
@@ -83,6 +91,7 @@ function main() {
         [
           "diff",
           "--name-only",
+          "--no-renames",
           "-z",
           pr ? `${base}...${head}` : `${base}..${head}`,
         ],

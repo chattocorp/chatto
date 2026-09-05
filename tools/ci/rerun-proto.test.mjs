@@ -35,7 +35,11 @@ function fixture(label = "api-breaking-change") {
       },
     },
     paginate: async () => [
-      { id: 7, name: "codegen-proto-drift" },
+      {
+        id: 7,
+        name: "codegen-proto-drift",
+        steps: [{ name: "Read current public API waiver" }],
+      },
       { id: 8, name: "test-cli" },
     ],
   };
@@ -72,4 +76,13 @@ test("an active run is allowed to finish before revalidation", async () => {
   };
   await rerunProto(f);
   assert.equal(f.calls.at(-1).job_id, 7);
+});
+
+test("old workflow runs must be updated before label revalidation", async () => {
+  const f = fixture();
+  f.github.paginate = async () => [
+    { id: 7, name: "codegen-proto-drift", steps: [] },
+  ];
+  await assert.rejects(rerunProto(f), /predates live waiver checks/);
+  assert.equal(f.calls.length, 1);
 });

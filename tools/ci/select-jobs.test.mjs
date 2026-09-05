@@ -68,3 +68,71 @@ test("packaging changes do not select a performance benchmark", () => {
     assert.equal(result.performance, false);
   }
 });
+
+test("Git selection includes both sides of a move across products", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } =
+    await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const script = new URL("./select-jobs.mjs", import.meta.url);
+  const cwd = mkdtempSync(join(tmpdir(), "ci-selection-"));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  try {
+    git("init", "--quiet");
+    git("config", "user.name", "CI test");
+    git("config", "user.email", "ci@example.invalid");
+    mkdirSync(join(cwd, "cli"));
+    writeFileSync(join(cwd, "cli/example.go"), "package example\n");
+    git("add", ".");
+    git("commit", "--quiet", "-m", "fixture");
+    const before = git("rev-parse", "HEAD");
+    mkdirSync(join(cwd, "authling"));
+    git("mv", "cli/example.go", "authling/example.go");
+    git("commit", "--quiet", "-m", "move");
+    const event = join(cwd, "event.json");
+    const output = join(cwd, "output");
+    writeFileSync(
+      event,
+      JSON.stringify({ before, after: git("rev-parse", "HEAD") }),
+    );
+    execFileSync(process.execPath, [script.pathname], {
+      cwd,
+      env: {
+        ...process.env,
+        GITHUB_EVENT_NAME: "push",
+        GITHUB_EVENT_PATH: event,
+        GITHUB_OUTPUT: output,
+        GITHUB_STEP_SUMMARY: join(cwd, "summary"),
+      },
+    });
+    const selected = readFileSync(output, "utf8");
+    assert.match(selected, /^chatto=true$/m);
+    assert.match(selected, /^authling=true$/m);
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test("either product dependency graph can affect the whole Go workspace", () => {
+  for (const file of [
+    "cli/go.mod",
+    "cli/go.sum",
+    "authling/go.mod",
+    "authling/go.sum",
+  ]) {
+    const result = selectJobs([file]);
+    for (const group of [
+      "chatto",
+      "authling",
+      "shared",
+      "proto",
+      "performance",
+    ])
+      assert.equal(result[group], true);
+  }
+});
+test("hand edits to Authling generated bindings still run the drift check", () => {
+  assert.equal(selectJobs(["authling/internal/proto/event.pb.go"]).proto, true);
+});

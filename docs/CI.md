@@ -16,10 +16,12 @@ commit from the push event. Unknown paths select all checks.
 | Authling source | Authling Go and browser tests, Chatto–Authling login integration |
 | Authling protobufs or Buf configuration | Authling checks and protobuf checks |
 | Shared Go modules | Shared module tests, both products' Go tests, both products' E2E, protobuf checks, performance |
+| Either product's Go module dependencies | All Go module checks and both products' E2E, protobuf checks, performance |
 | Root dependencies, tool configuration, CI files, or unknown paths | All checks |
 
 License and workflow checks run on every revision. The existing required check
-names remain in use. A job that is not needed is skipped. The required
+names remain in use. A job that is not needed is skipped, except for the four required E2E
+checks, which report success without running test steps. The required
 `codegen-proto-drift` job always verifies that selection succeeded, even when no
 protobuf work is needed. A selection failure must not turn the required checks
 green through skips.
@@ -86,4 +88,6 @@ and reads the current labels before it checks compatibility.
 
 The label workflow becomes active after it is merged into the default branch.
 If it cannot find a completed CI run within 20 minutes, it fails with a request
-to rerun the protobuf job. Label changes do not bypass persisted-schema checks.
+to rerun the protobuf job. For CI runs that predate live waiver checks, update
+the PR branch from main and start a new CI run first. Label changes do not
+bypass persisted-schema checks.

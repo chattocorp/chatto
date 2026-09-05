@@ -39,6 +39,15 @@ export async function rerunProto({
       );
       const job = jobs.find((job) => job.name === "codegen-proto-drift");
       if (!job) throw new Error("The current CI run has no protobuf check");
+      if (
+        !job.steps?.some(
+          (step) => step.name === "Read current public API waiver",
+        )
+      ) {
+        throw new Error(
+          "This CI run predates live waiver checks. Update the PR branch from main and start a new CI run.",
+        );
+      }
       await github.rest.actions.reRunJobForWorkflowRun({
         ...context.repo,
         job_id: job.id,

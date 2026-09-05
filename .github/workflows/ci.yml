@@ -472,7 +472,9 @@ jobs:
 
   test-e2e:
     needs: changes
-    if: ${{ needs.changes.outputs.e2e != 'none' }}
+    # Expand the matrix even when no E2E work is needed. A skipped matrix job
+    # has no per-shard check names and would leave required checks pending.
+    if: ${{ !cancelled() }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -483,24 +485,24 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
-        if: needs.changes.outputs.e2e == 'full' || matrix.shard == 1
+        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
         uses: actions/checkout@v6
 
       - name: Setup environment
-        if: needs.changes.outputs.e2e == 'full' || matrix.shard == 1
+        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
         uses: ./.github/actions/setup
 
       - name: Setup Playwright
-        if: needs.changes.outputs.e2e == 'full' || matrix.shard == 1
+        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E server
-        if: needs.changes.outputs.e2e == 'full' || matrix.shard == 1
+        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
         run: mise build-e2e-server
 
       - name: Run E2E tests
-        if: needs.changes.outputs.e2e == 'full' || matrix.shard == 1
+        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
         env:
           E2E_SCOPE: ${{ needs.changes.outputs.e2e }}
           E2E_SHARD: ${{ matrix.shard }}
