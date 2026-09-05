@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -36,6 +36,8 @@ Users can attach files to messages — images, videos, documents — via drag-an
 ### 1. Attachment uploads use chunked ConnectRPC sessions
 
 **Decision:** Public message attachment uploads use `AssetUploadService`: `CreateUpload`, `UploadChunk`, `GetUpload`, `CompleteUpload`, and `CancelUpload`. Chunks are bounded unary ConnectRPC requests instead of browser client-streaming RPCs. Each upload declares the final file size and lowercase SHA-256 digest, each chunk carries its offset and chunk SHA-256, and `CompleteUpload` verifies the assembled digest before creating the durable asset. `CreateMessage` accepts only completed, live, room-matching asset IDs uploaded by the caller and atomically attaches each asset exclusively to the message.
+New sessions accept chunks up to 10 MiB. Clients use the limit returned by the server. The limit is fixed; operators do not need to configure it. Larger chunks reduce the number of acknowledgement waits on connections with high latency. Each request needs more memory, and a failed chunk can require more bytes to be sent again.
+
 **Why:** Attachments should remain inside the protobuf/ConnectRPC API surface instead of introducing a second REST upload endpoint. Unary chunks work with the current browser Connect stack and give resumable progress through the committed offset.
 **Tradeoff:** Clients must hash the full file before completion and issue several RPCs for larger files. Temporary chunks and open sessions need cleanup if the browser disappears before completion. Retrying a send after the first attempt actually committed must hydrate the created message rather than attach the same asset to a second message.
 
