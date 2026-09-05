@@ -31,8 +31,7 @@ Starlight.
 
 ## Style
 
-- Follow the ASD-STE100 rules and the approved exclusion list in the root
-  `AGENTS.md`. The root list is the only documentation exclusion list.
+- Follow root `AGENTS.md` for ASD-STE100 and canonical terminology.
 - Use direct, short sentences.
 - Use the second person and present tense.
 - Give the action before background information.

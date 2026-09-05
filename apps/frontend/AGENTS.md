@@ -6,11 +6,11 @@ and Storybook.
 
 ## Svelte Tooling
 
-- For Svelte questions or edits, use the available Svelte documentation and MCP
-  workflow.
-- When you write or edit `.svelte`, `.svelte.ts`, or `.svelte.js`, run the
-  Svelte autofixer before you return the code.
-- Do not generate a Svelte playground link for code written into this repo.
+Use [svelte-code-writer](../../.agents/skills/svelte-code-writer/SKILL.md) for
+Svelte documentation and code checks. It links to the shared Svelte patterns.
+The rules below add frontend-specific requirements.
+
+Do not generate playground links for code written into this repository.
 
 ## Architecture
 
@@ -50,9 +50,6 @@ and Storybook.
 
 ## Svelte 5 Rules
 
-- Use runes and Svelte 5 idioms; no legacy reactive statements.
-- Avoid `$effect` unless synchronizing with DOM, subscriptions, timers, network
-  calls, or other external systems. Use `$derived` for computed state.
 - Choose the smallest lifecycle owner for reusable browser and DOM behavior:
   use a Svelte attachment when behavior belongs to one element; use a mountable,
   possibly headless component when behavior should follow conditional rendering
@@ -77,13 +74,8 @@ and Storybook.
   `<!-- @component ... -->` comment. JSDoc inside `<script>` documents the
   adjacent JavaScript declaration, not the component itself.
 - Use `Snippet<[Args]>` for reusable layout/render snippets.
-- Prefer attachments (`{@attach}`) over legacy actions for new reusable DOM
-  behavior.
-- Prefer Svelte template event attributes such as `onclick` and `onpointerdown`
-  for component-owned DOM event handling. Use `<svelte:window>` and
-  `<svelte:document>` for component-owned handlers on those global targets.
-  Reserve imperative event listeners for reusable actions, attachments,
-  subscriptions, and third-party libraries.
+- Reserve imperative event listeners for reusable attachments, subscriptions,
+  and external libraries. Use the shared Svelte event patterns in components.
 
 ## Routing And Navigation
 
