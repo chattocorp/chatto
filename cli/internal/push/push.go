@@ -73,8 +73,11 @@ type Payload struct {
 	Badge          string `json:"badge,omitempty"`
 	Tag            string `json:"tag,omitempty"`
 	NotificationID string `json:"notificationId,omitempty"`
-	URL            string `json:"url,omitempty"`
-	AppBadge       string `json:"-"`
+	// ServerOrigin and RecipientID scope native notification cleanup to one account.
+	ServerOrigin string `json:"serverOrigin,omitempty"`
+	RecipientID  string `json:"recipientId,omitempty"`
+	URL          string `json:"url,omitempty"`
+	AppBadge     string `json:"-"`
 	// TTLSeconds overrides the provider retention horizon. Notification alerts
 	// set this to their remaining immutable delivery lifetime; other push types
 	// retain the normal 24-hour default.
@@ -101,7 +104,10 @@ type declarativeNotification struct {
 
 type declarativeNotificationData struct {
 	NotificationID string `json:"notificationId,omitempty"`
-	URL            string `json:"url,omitempty"`
+	// ServerOrigin and RecipientID scope native notification cleanup to one account.
+	ServerOrigin string `json:"serverOrigin,omitempty"`
+	RecipientID  string `json:"recipientId,omitempty"`
+	URL          string `json:"url,omitempty"`
 }
 
 func (p Payload) MarshalJSON() ([]byte, error) {
@@ -112,6 +118,8 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Badge          string                   `json:"badge,omitempty"`
 		Tag            string                   `json:"tag,omitempty"`
 		NotificationID string                   `json:"notificationId,omitempty"`
+		ServerOrigin   string                   `json:"serverOrigin,omitempty"`
+		RecipientID    string                   `json:"recipientId,omitempty"`
 		URL            string                   `json:"url,omitempty"`
 		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
@@ -127,6 +135,8 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Badge:          p.Badge,
 		Tag:            p.Tag,
 		NotificationID: p.NotificationID,
+		ServerOrigin:   p.ServerOrigin,
+		RecipientID:    p.RecipientID,
 		URL:            p.URL,
 		Action:         p.Action,
 		AppBadge:       p.AppBadge,
@@ -144,6 +154,8 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 			AppBadge: p.AppBadge,
 			Data: &declarativeNotificationData{
 				NotificationID: p.NotificationID,
+				ServerOrigin:   p.ServerOrigin,
+				RecipientID:    p.RecipientID,
 				URL:            p.URL,
 			},
 		}
@@ -555,8 +567,14 @@ func buildPayloadFromOccurrence(
 ) *Payload {
 	payload := &Payload{
 		NotificationID: occurrence.GetId(),
+		RecipientID:    occurrence.GetRecipientId(),
 		Icon:           buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""),
 		Badge:          buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
+	}
+
+	// Match the browser origin without a trailing slash or server path.
+	if serverURL, err := url.Parse(serverBaseURL); err == nil && serverURL.Host != "" {
+		payload.ServerOrigin = serverURL.Scheme + "://" + serverURL.Host
 	}
 
 	// Get preview from context, truncate if needed

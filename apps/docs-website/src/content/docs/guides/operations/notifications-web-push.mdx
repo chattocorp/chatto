@@ -118,7 +118,11 @@ When the user grants permission, Chatto creates a separate subscription for each
 
 When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
 
-Chatto sends regular notifications in a declarative-compatible Web Push format, with browser-managed display and app-badge updates where supported. User-visible pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Its service worker preserves notification display and click compatibility for browsers that do not handle the declarative payload directly. Read and delete actions synchronize inside Chatto; they do not attempt to retract an OS notification that a browser already displayed. Operators do not need to change VAPID keys or push configuration for this behavior.
+Chatto sends regular notifications in a declarative-compatible Web Push format, with browser-managed display and app-badge updates where supported. User-visible pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Its service worker preserves notification display and click compatibility for browsers that do not handle the declarative payload directly.
+
+While the app is running, confirmed read and delete actions also ask the browser to close matching OS notifications. The app checks again when it resumes or receives updated notification state. Cleanup is limited to the matching server and account. It preserves unread notifications and leaves uncertain results unchanged if a request fails or the server returns only part of the list. Older pushes without account metadata are not eligible for automatic cleanup. A closed or suspended app cannot guarantee immediate cleanup on another device; browser support also determines whether a close request removes the notification.
+
+Operators do not need to change VAPID keys or push configuration for this behavior.
 
 For security, Chatto connects directly only to absolute HTTPS push endpoints with public network addresses. It does not follow endpoint redirects or route push delivery through `HTTP_PROXY` or `HTTPS_PROXY`. Standard browser-created subscriptions already meet these requirements; private-network, redirecting, and proxy-only custom push endpoints are unsupported.
 

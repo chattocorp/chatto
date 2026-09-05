@@ -345,3 +345,22 @@ server uses Huffman-only DEFLATE for frames of at least 1 KiB.
 Realtime does not replace `chatto.api.v1`. ConnectRPC remains the public API
 for commands, explicit resource reads, pagination, history, search, and
 read-your-writes responses.
+
+## Browser push notification cleanup
+
+[`PushNotificationSync`](../../apps/frontend/src/lib/components/PushNotificationSync.svelte)
+exists once per authenticated server account. It serializes checks after
+notification-store revisions, focus, visibility, network recovery, and the
+service worker's visible-app refresh message. Unmount and identity/revision
+checks discard stale asynchronous results.
+
+The browser adapter enumerates notifications across service-worker registrations
+before a fresh server read. Optional `serverOrigin` and `recipientId` push data
+scope each occurrence ID to its owner. The notification store keeps at most
+1,024 confirmed local read/delete IDs as a memory-only fast path. Otherwise it
+reads the first server page: explicit read rows can close, but absence proves
+handling only for a complete page or an exact zero unread count. Optimistic
+state and reset placeholders cannot close notifications. Unknown older rows
+remain displayed when the response is partial. Checks with no matching browser
+notifications make no server request. This path adds no persisted state or
+background control push.

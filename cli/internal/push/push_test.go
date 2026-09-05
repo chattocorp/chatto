@@ -1192,3 +1192,32 @@ func newTestPushSubscription(t *testing.T, endpoint string) *runtimestatev1.Push
 		Auth:     base64.RawURLEncoding.EncodeToString(auth),
 	}
 }
+
+func TestOccurrencePayloadCleanupIdentity(t *testing.T) {
+	occurrence := notificationOccurrenceForTest("occurrence", "recipient", "actor", "room", "event", "", notificationTestSignalDirectMessage)
+	payload := BuildPayloadFromOccurrence(occurrence, "", "https://chat.example.com/", nil)
+	if payload.ServerOrigin != "https://chat.example.com" || payload.RecipientID != "recipient" {
+		t.Fatal("payload must identify the source server and recipient")
+	}
+	encoded, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var decoded struct {
+		ServerOrigin string `json:"serverOrigin"`
+		RecipientID  string `json:"recipientId"`
+		Notification struct {
+			Data struct {
+				ServerOrigin string `json:"serverOrigin"`
+				RecipientID  string `json:"recipientId"`
+			} `json:"data"`
+		} `json:"notification"`
+	}
+	if err := json.Unmarshal(encoded, &decoded); err != nil {
+		t.Fatal(err)
+	}
+	if decoded.ServerOrigin != payload.ServerOrigin || decoded.Notification.Data.ServerOrigin != payload.ServerOrigin ||
+		decoded.RecipientID != payload.RecipientID || decoded.Notification.Data.RecipientID != payload.RecipientID {
+		t.Fatal("legacy and declarative payloads must carry identical cleanup identity")
+	}
+}

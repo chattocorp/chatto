@@ -628,3 +628,50 @@ describe('SimulatedChattoWordmark', () => {
     expect(smokeFrame(850, 0)?.opacity).toBeLessThan(0.1);
   });
 });
+
+it('cancels wordmark frames when hidden or detached and resumes only when visible', async () => {
+  let intersect!: IntersectionObserverCallback;
+  const frames = new Map<number, FrameRequestCallback>();
+  let nextFrame = 0;
+  vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+  vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+    frames.set(++nextFrame, callback);
+    return nextFrame;
+  });
+  vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => { frames.delete(id); });
+  vi.stubGlobal('IntersectionObserver', class {
+    constructor(callback: IntersectionObserverCallback) { intersect = callback; }
+    observe() {}
+    disconnect() {}
+  });
+  vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  const view = render(SimulatedChattoWordmark);
+  let mounted = true;
+  try {
+    const intersection = (visible: boolean) => intersect(
+      [{ isIntersecting: visible } as IntersectionObserverEntry], {} as IntersectionObserver
+    );
+    expect(frames.size).toBe(1);
+    intersection(false);
+    expect(frames.size).toBe(0);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(frames.size).toBe(0);
+    intersection(true);
+    expect(frames.size).toBe(1);
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(frames.size).toBe(0);
+    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(frames.size).toBe(1);
+    await view.unmount();
+    mounted = false;
+    expect(frames.size).toBe(0);
+    intersection(true);
+    expect(frames.size).toBe(0);
+  } finally {
+    if (mounted) await view.unmount();
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  }
+});
