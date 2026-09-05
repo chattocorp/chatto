@@ -120,3 +120,8 @@ Local development instances are bootstrapped from `cli/chatto.toml` when the ser
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
+
+## Continuous Integration
+
+See [Continuous integration](docs/CI.md) for check selection, E2E shard
+assignment, performance comparisons, and the Go concurrency benchmark.
