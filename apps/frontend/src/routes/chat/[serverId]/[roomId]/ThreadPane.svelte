@@ -237,7 +237,7 @@
     if (
       semantic?.case !== 'messagePosted' ||
       semantic.value.roomId !== roomId ||
-      semantic.value.inThread !== threadRootEventId
+      semantic.value.threadRootEventId !== threadRootEventId
     ) return;
 
       const actorId = projectionEvent.event?.actorId;

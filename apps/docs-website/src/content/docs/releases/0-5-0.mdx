@@ -299,7 +299,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
   `/api/realtime` must regenerate their clients. Protocol 4 sends authorized public
   events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
-  15-minute bounded cursor resume. The client sends one `RealtimeSubscribe`
+  15-minute bounded cursor resume with encrypted, viewer-bound tokens.
+  Outbound events and heartbeats use `cursor`; subscribe uses `resume_cursor`.
+  `caught_up.recovery` explicitly reports resume, snapshot, or live-only startup.
+  Posted messages include room kind and thread-root context. Layout changes use
+  one refresh hint; processed asset detail stays in message resources.
+  Minimum-cursor RPCs wait for the requested content boundary, with a 10-second
+  server limit, rather than waiting for unrelated projections.
+  The client sends one `RealtimeSubscribe`
   message. The server can send `snapshot`, `event`, `caught_up`, `heartbeat`,
   and `close` frames. Snapshot clients receive one atomic frame with canonical
   resource shapes. `RealtimeEvent` has one source-independent public catalogue;

@@ -83,7 +83,7 @@ export class ServerProjectionStore {
     }
 
     const semantic = update.event?.event;
-    if (semantic?.case === 'messagePosted' && !semantic.value.inThread) {
+    if (semantic?.case === 'messagePosted' && !semantic.value.threadRootEventId) {
       this.activateRoom(semantic.value.roomId);
     }
   }

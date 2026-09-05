@@ -1056,7 +1056,7 @@ describe('ServerStateStore unified realtime resources', () => {
           id: 'E-REPLY',
           event: {
             case: 'messagePosted',
-            value: new MessagePostedEvent({ roomId: 'R1', inThread: 'E-ROOT' })
+            value: new MessagePostedEvent({ roomId: 'R1', threadRootEventId: 'E-ROOT' })
           }
         })
       })

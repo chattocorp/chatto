@@ -11,6 +11,7 @@ import test from "node:test";
 import type { AIResponder } from "./ai.js";
 import {
   chatAIConversation,
+  connectPublicAPI,
   ConversationReplyScheduler,
   messageReplyTarget,
   OrderedCommitProcessor,
@@ -34,9 +35,11 @@ function messageEvent(options?: {
   direct?: boolean;
   echoOfEventId?: string;
   eventId?: string;
-  inThread?: string;
+  threadRootEventId?: string;
   role?: boolean;
   roomId?: string;
+  roomKind?: RoomKind;
+  cursor?: string;
 }): RealtimeEvent {
   const mentions = [];
   if (options?.direct) {
@@ -60,12 +63,14 @@ function messageEvent(options?: {
   }
   return new RealtimeEvent({
     id: options?.eventId ?? "message-1",
+    cursor: options?.cursor,
     actorId: options?.actorId ?? "user-1",
     event: {
       case: "messagePosted",
       value: new MessagePostedEvent({
         roomId: options?.roomId ?? "room-1",
-        inThread: options?.inThread,
+        roomKind: options?.roomKind ?? RoomKind.CHANNEL,
+        threadRootEventId: options?.threadRootEventId,
         echoOfEventId: options?.echoOfEventId,
         mentions,
         bodyPlaintext: options?.body ?? "hello",
@@ -77,9 +82,8 @@ function messageEvent(options?: {
 test("targets the existing thread for a direct mention in a reply", () => {
   assert.deepEqual(
     messageReplyTarget(
-      messageEvent({ direct: true, inThread: "thread-root-1" }),
+      messageEvent({ direct: true, threadRootEventId: "thread-root-1" }),
       BOT_ID,
-      RoomKind.CHANNEL,
     ),
     {
       roomId: "room-1",
@@ -92,27 +96,80 @@ test("targets the existing thread for a direct mention in a reply", () => {
   );
 });
 
-test("uses a directly mentioned root as the new thread root", () => {
-  assert.deepEqual(
-    messageReplyTarget(
-      messageEvent({ direct: true }),
-      BOT_ID,
-      RoomKind.CHANNEL,
-    ),
-    {
-      roomId: "room-1",
-      sourceEventId: "message-1",
-      sourceActorId: "user-1",
-      sourceBody: "hello",
-      threadRootEventId: "message-1",
-      trigger: "direct_mention",
+test("causal RPCs carry the source cursor without loading the room directory", async (t) => {
+  const calls: Array<{ method: string; cursor: string | null }> = [];
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const request = new Request(input, init);
+      const method = new URL(request.url).pathname.split("/").at(-1)!;
+      calls.push({
+        method,
+        cursor: request.headers.get("Chatto-Realtime-Minimum-Cursor"),
+      });
+      assert.equal(request.headers.get("Authorization"), "Bearer test-key");
+      const responses: Record<string, unknown> = {
+        GetViewer: { user: { profile: { id: BOT_ID } } },
+        GetUser: { user: { user: { id: "user-1", isBot: false } } },
+        GetThreadEventsAround: { page: { events: [] } },
+        UpdateTypingIndicator: { updated: true },
+        CreateMessage: { message: { id: "bot-reply" } },
+      };
+      assert.ok(method in responses, `unexpected RPC ${method}`);
+      return Response.json(responses[method]);
     },
   );
+  const api = await connectPublicAPI(
+    {
+      serverUrl: "https://test.invalid",
+      apiKeyFile: "unused",
+      stateFile: "unused",
+      ai: { provider: "faux" },
+    },
+    "test-key",
+  );
+  const target = messageReplyTarget(
+    messageEvent({
+      direct: true,
+      threadRootEventId: "root",
+      cursor: "source-boundary",
+    }),
+    BOT_ID,
+  )!;
+  assert.equal(target.minimumCursor, "source-boundary");
+  assert.equal(
+    await api.isBotActor(target.sourceActorId, target.minimumCursor),
+    false,
+  );
+  await api.loadConversation(target);
+  await api.updateTypingIndicator(target);
+  assert.equal(await api.postReply(target, "reply"), "bot-reply");
+  assert.deepEqual(calls, [
+    { method: "GetViewer", cursor: null },
+    ...[
+      "GetUser",
+      "GetThreadEventsAround",
+      "UpdateTypingIndicator",
+      "CreateMessage",
+    ].map((method) => ({ method, cursor: "source-boundary" })),
+  ]);
+});
+
+test("uses a directly mentioned root as the new thread root", () => {
+  assert.deepEqual(messageReplyTarget(messageEvent({ direct: true }), BOT_ID), {
+    roomId: "room-1",
+    sourceEventId: "message-1",
+    sourceActorId: "user-1",
+    sourceBody: "hello",
+    threadRootEventId: "message-1",
+    trigger: "direct_mention",
+  });
 });
 
 test("targets a direct message without a mention", () => {
   assert.deepEqual(
-    messageReplyTarget(messageEvent(), BOT_ID, RoomKind.DM),
+    messageReplyTarget(messageEvent({ roomKind: RoomKind.DM }), BOT_ID),
     {
       roomId: "room-1",
       sourceEventId: "message-1",
@@ -127,9 +184,11 @@ test("targets a direct message without a mention", () => {
 test("targets the existing thread for a direct-message reply", () => {
   assert.deepEqual(
     messageReplyTarget(
-      messageEvent({ inThread: "dm-thread-root-1" }),
+      messageEvent({
+        threadRootEventId: "dm-thread-root-1",
+        roomKind: RoomKind.DM,
+      }),
       BOT_ID,
-      RoomKind.DM,
     ),
     {
       roomId: "room-1",
@@ -145,9 +204,8 @@ test("targets the existing thread for a direct-message reply", () => {
 test("ignores later messages in a thread without another direct mention", () => {
   assert.equal(
     messageReplyTarget(
-      messageEvent({ inThread: "thread-root-1" }),
+      messageEvent({ threadRootEventId: "thread-root-1" }),
       BOT_ID,
-      RoomKind.CHANNEL,
     ),
     undefined,
   );
@@ -155,22 +213,17 @@ test("ignores later messages in a thread without another direct mention", () => 
 
 test("ignores indirect, self-authored, and channel-echo events", () => {
   assert.equal(
-    messageReplyTarget(messageEvent({ role: true }), BOT_ID, RoomKind.CHANNEL),
+    messageReplyTarget(messageEvent({ role: true }), BOT_ID),
     undefined,
   );
   assert.equal(
-    messageReplyTarget(
-      messageEvent({ actorId: BOT_ID, direct: true }),
-      BOT_ID,
-      RoomKind.CHANNEL,
-    ),
+    messageReplyTarget(messageEvent({ actorId: BOT_ID, direct: true }), BOT_ID),
     undefined,
   );
   assert.equal(
     messageReplyTarget(
       messageEvent({ direct: true, echoOfEventId: "canonical-reply-1" }),
       BOT_ID,
-      RoomKind.CHANNEL,
     ),
     undefined,
   );
@@ -324,7 +377,6 @@ test("sends typing before the model and posts one final reply", async () => {
   };
   const api: BotAPI = {
     viewerId: BOT_ID,
-    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => {
       actions.push("typing");
@@ -344,7 +396,10 @@ test("sends typing before the model and posts one final reply", async () => {
       return "reply-1";
     },
   };
-  const event = messageEvent({ direct: true, inThread: "thread-root-1" });
+  const event = messageEvent({
+    direct: true,
+    threadRootEventId: "thread-root-1",
+  });
   const scheduler = new ConversationReplyScheduler(
     api,
     ai,
@@ -381,7 +436,6 @@ test("supersedes an active reply with the latest message in its conversation", a
   });
   const api: BotAPI = {
     viewerId: BOT_ID,
-    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => undefined,
     loadConversation: async (target) => {
@@ -433,14 +487,14 @@ test("supersedes an active reply with the latest message in its conversation", a
   );
 
   const first = await scheduler.accept(
-    messageEvent({ direct: true, inThread: "thread-root-1" }),
+    messageEvent({ direct: true, threadRootEventId: "thread-root-1" }),
   );
   await firstStartedGate;
   const continuation = await scheduler.accept(
     messageEvent({
       body: "and a joke",
       eventId: "message-2",
-      inThread: "thread-root-1",
+      threadRootEventId: "thread-root-1",
     }),
   );
   await secondStartedGate;
@@ -465,7 +519,6 @@ test("runs separate conversations concurrently within the global limit", async (
   });
   const api: BotAPI = {
     viewerId: BOT_ID,
-    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => undefined,
     loadConversation: async () => [],
@@ -541,7 +594,6 @@ test("does not post a message when generation fails", async () => {
   let posts = 0;
   const api: BotAPI = {
     viewerId: BOT_ID,
-    roomKind: async () => RoomKind.CHANNEL,
     isBotActor: async () => false,
     updateTypingIndicator: async () => undefined,
     loadConversation: async (target) => [
@@ -570,7 +622,7 @@ test("does not post a message when generation fails", async () => {
     { settleIntervalMs: 0 },
   );
   const accepted = await scheduler.accept(
-    messageEvent({ direct: true, inThread: "thread-root-1" }),
+    messageEvent({ direct: true, threadRootEventId: "thread-root-1" }),
   );
 
   await assert.rejects(accepted.completion, /provider failed/);

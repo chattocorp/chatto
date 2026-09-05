@@ -12,6 +12,7 @@ import { TIMEOUTS } from './constants';
 import {
   RealtimeEvent,
   RealtimeInitialState,
+  RealtimeRecovery,
   RealtimeServerFrame,
   RealtimeSubscribe
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -211,10 +212,11 @@ test.describe('protobuf realtime stream', () => {
       const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
       if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
       expect(caughtUp.frame.value.cursor).toBeTruthy();
+      expect(caughtUp.frame.value.recovery).toBe(RealtimeRecovery.SNAPSHOT);
 
       const event = await realtime.waitForEvent((candidate) => candidate.id === messageId);
-      expect(event.resumeCursor).toBeTruthy();
-      expect(event.resumeCursor).not.toBe(caughtUp.frame.value.cursor);
+      expect(event.cursor).toBeTruthy();
+      expect(event.cursor).not.toBe(caughtUp.frame.value.cursor);
     } finally {
       realtime.close();
     }
@@ -259,7 +261,7 @@ test.describe('protobuf realtime stream', () => {
       const posted = await realtime.waitForEvent(
         (event) => event.event.case === 'messagePosted' && event.id === messageId
       );
-      expect(posted.resumeCursor).toBeTruthy();
+      expect(posted.cursor).toBeTruthy();
       if (posted.event.case !== 'messagePosted') {
         throw new Error('expected canonical message-post event');
       }
@@ -274,7 +276,7 @@ test.describe('protobuf realtime stream', () => {
 
       const resumed = await RealtimeProtobufClient.connect(serverURL, token, {
         initialState: RealtimeInitialState.LIVE_ONLY,
-        resumeCursor: posted.resumeCursor
+        resumeCursor: posted.cursor
       });
       try {
         const reaction = await resumed.waitForEvent(
@@ -283,8 +285,10 @@ test.describe('protobuf realtime stream', () => {
             event.event.value.messageEventId === messageId
         );
         expect(reaction.event.case).toBe('reactionAdded');
-        expect(reaction.resumeCursor).toBeTruthy();
-        await resumed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+        expect(reaction.cursor).toBeTruthy();
+        const recovery = await resumed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+        if (recovery.frame.case !== 'caughtUp') throw new Error('expected caught_up');
+        expect(recovery.frame.value.recovery).toBe(RealtimeRecovery.RESUMED);
 
         await connectPost(page, 'chatto.api.v1.MessageService/UpdateMessage', {
           roomId,
@@ -294,9 +298,9 @@ test.describe('protobuf realtime stream', () => {
         const edited = await resumed.waitForEvent(
           (event) =>
             event.event.case === 'messageEdited' &&
-            event.event.value.eventId === messageId
+            event.event.value.messageEventId === messageId
         );
-        expect(edited.resumeCursor).toBeTruthy();
+        expect(edited.cursor).toBeTruthy();
       } finally {
         resumed.close();
       }

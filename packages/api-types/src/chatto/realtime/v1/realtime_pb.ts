@@ -9,7 +9,7 @@ import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { RoomGroup, RoomWithViewerState } from "../../api/v1/room_directory_pb.js";
 import { DirectoryMember } from "../../api/v1/member_directory_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
-import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomAddedToGroupEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomGroupCreatedEvent, RoomGroupDeletedEvent, RoomGroupsReorderedEvent, RoomGroupUpdatedEvent, RoomReadStateChangedEvent, RoomRemovedFromGroupEvent, RoomsInGroupReorderedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, SidebarGroupEntriesReorderedEvent, SidebarLinkAddedToGroupEvent, SidebarLinkRemovedFromGroupEvent, SidebarLinkUpdatedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
+import { AssetDeletedEvent, AssetProcessingFailedEvent, AssetProcessingStartedEvent, AssetProcessingSucceededEvent, MessageEditedEvent, MessagePinnedEvent, MessagePostedEvent, MessageRetractedEvent, MessageUnpinnedEvent, NotificationOccurrencesChangedEvent, NotificationUnreadStateChangedEvent, PresenceChangedEvent, ReactionAddedEvent, ReactionRemovedEvent, RoomArchivedEvent, RoomCreatedEvent, RoomDeletedEvent, RoomLayoutChangedEvent, RoomReadStateChangedEvent, RoomSlowModeChangedEvent, RoomThreadingModeChangedEvent, RoomUnarchivedEvent, RoomUniversalChangedEvent, RoomUpdatedEvent, ServerMotdChangedEvent, ServerProfileChangedEvent, ThreadCreatedEvent, ThreadViewerStateChangedEvent, UserAccountCreatedEvent, UserAccountDeletedEvent, UserJoinedRoomEvent, UserLeftRoomEvent, UserProfileChangedEvent, UserTypingEvent, ViewerPreferencesChangedEvent, VoiceCallEndedEvent, VoiceCallParticipantJoinedEvent, VoiceCallParticipantLeftEvent, VoiceCallStartedEvent } from "./events_pb.js";
 
 /**
  * Startup behavior when a subscription cannot resume from its cursor.
@@ -43,6 +43,48 @@ proto3.util.setEnumType(RealtimeInitialState, "chatto.realtime.v1.RealtimeInitia
   { no: 0, name: "REALTIME_INITIAL_STATE_UNSPECIFIED" },
   { no: 1, name: "REALTIME_INITIAL_STATE_LIVE_ONLY" },
   { no: 2, name: "REALTIME_INITIAL_STATE_SNAPSHOT" },
+]);
+
+/**
+ * How the server reached the live-delivery boundary.
+ *
+ * @generated from enum chatto.realtime.v1.RealtimeRecovery
+ */
+export enum RealtimeRecovery {
+  /**
+   * Invalid value. The server always supplies a recovery result.
+   *
+   * @generated from enum value: REALTIME_RECOVERY_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The requested cursor was accepted and all available authorized events followed it.
+   *
+   * @generated from enum value: REALTIME_RECOVERY_RESUMED = 1;
+   */
+  RESUMED = 1,
+
+  /**
+   * The server sent a replacement snapshot.
+   *
+   * @generated from enum value: REALTIME_RECOVERY_SNAPSHOT = 2;
+   */
+  SNAPSHOT = 2,
+
+  /**
+   * The server started at the current boundary without past events or resources.
+   *
+   * @generated from enum value: REALTIME_RECOVERY_LIVE_ONLY = 3;
+   */
+  LIVE_ONLY = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RealtimeRecovery)
+proto3.util.setEnumType(RealtimeRecovery, "chatto.realtime.v1.RealtimeRecovery", [
+  { no: 0, name: "REALTIME_RECOVERY_UNSPECIFIED" },
+  { no: 1, name: "REALTIME_RECOVERY_RESUMED" },
+  { no: 2, name: "REALTIME_RECOVERY_SNAPSHOT" },
+  { no: 3, name: "REALTIME_RECOVERY_LIVE_ONLY" },
 ]);
 
 /**
@@ -94,11 +136,11 @@ export enum RealtimeCloseCode {
   SESSION_RENEWAL_REQUIRED = 5,
 
   /**
-   * The server projection reset and the client must take a new snapshot.
+   * The client must discard its cursor and synchronize current state again.
    *
-   * @generated from enum value: REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 6;
+   * @generated from enum value: REALTIME_CLOSE_CODE_RESYNC_REQUIRED = 6;
    */
-  PROJECTION_RESET_REQUIRED = 6,
+  RESYNC_REQUIRED = 6,
 
   /**
    * The user's session ended and the client must return to sign-in.
@@ -115,7 +157,7 @@ proto3.util.setEnumType(RealtimeCloseCode, "chatto.realtime.v1.RealtimeCloseCode
   { no: 3, name: "REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE" },
   { no: 4, name: "REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED" },
   { no: 5, name: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED" },
-  { no: 6, name: "REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED" },
+  { no: 6, name: "REALTIME_CLOSE_CODE_RESYNC_REQUIRED" },
   { no: 7, name: "REALTIME_CLOSE_CODE_SESSION_TERMINATED" },
 ]);
 
@@ -367,6 +409,13 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
    */
   cursor = "";
 
+  /**
+   * Actual recovery result, including a successful replay with no events.
+   *
+   * @generated from field: chatto.realtime.v1.RealtimeRecovery recovery = 2;
+   */
+  recovery = RealtimeRecovery.UNSPECIFIED;
+
   constructor(data?: PartialMessage<RealtimeCaughtUp>) {
     super();
     proto3.util.initPartial(data, this);
@@ -376,6 +425,7 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
   static readonly typeName = "chatto.realtime.v1.RealtimeCaughtUp";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "recovery", kind: "enum", T: proto3.getEnumType(RealtimeRecovery) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeCaughtUp {
@@ -396,7 +446,7 @@ export class RealtimeCaughtUp extends Message<RealtimeCaughtUp> {
 }
 
 /**
- * One authorized public event with its optional resume cursor.
+ * One authorized public event with its optional cursor.
  *
  * Each payload uses a realtime-owned public message. The union is the public
  * event catalogue. An internal event that is absent from this union is not
@@ -432,9 +482,9 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
   /**
    * Opaque cursor safe to retain after this complete event is accepted.
    *
-   * @generated from field: optional string resume_cursor = 4;
+   * @generated from field: optional string cursor = 4;
    */
-  resumeCursor?: string;
+  cursor?: string;
 
   /**
    * Authorized semantic payload.
@@ -593,72 +643,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     case: "serverMotdChanged";
   } | {
     /**
-     * @generated from field: chatto.realtime.v1.RoomGroupCreatedEvent room_group_created = 35;
-     */
-    value: RoomGroupCreatedEvent;
-    case: "roomGroupCreated";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomGroupUpdatedEvent room_group_updated = 36;
-     */
-    value: RoomGroupUpdatedEvent;
-    case: "roomGroupUpdated";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomGroupDeletedEvent room_group_deleted = 37;
-     */
-    value: RoomGroupDeletedEvent;
-    case: "roomGroupDeleted";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomAddedToGroupEvent room_added_to_group = 38;
-     */
-    value: RoomAddedToGroupEvent;
-    case: "roomAddedToGroup";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomRemovedFromGroupEvent room_removed_from_group = 39;
-     */
-    value: RoomRemovedFromGroupEvent;
-    case: "roomRemovedFromGroup";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomsInGroupReorderedEvent rooms_in_group_reordered = 40;
-     */
-    value: RoomsInGroupReorderedEvent;
-    case: "roomsInGroupReordered";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 41;
-     */
-    value: SidebarLinkAddedToGroupEvent;
-    case: "sidebarLinkAddedToGroup";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.SidebarLinkUpdatedEvent sidebar_link_updated = 42;
-     */
-    value: SidebarLinkUpdatedEvent;
-    case: "sidebarLinkUpdated";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 43;
-     */
-    value: SidebarLinkRemovedFromGroupEvent;
-    case: "sidebarLinkRemovedFromGroup";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 44;
-     */
-    value: SidebarGroupEntriesReorderedEvent;
-    case: "sidebarGroupEntriesReordered";
-  } | {
-    /**
-     * @generated from field: chatto.realtime.v1.RoomGroupsReorderedEvent room_groups_reordered = 45;
-     */
-    value: RoomGroupsReorderedEvent;
-    case: "roomGroupsReordered";
-  } | {
-    /**
      * @generated from field: chatto.realtime.v1.UserAccountCreatedEvent user_account_created = 46;
      */
     value: UserAccountCreatedEvent;
@@ -735,6 +719,12 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
      */
     value: RoomReadStateChangedEvent;
     case: "roomReadStateChanged";
+  } | {
+    /**
+     * @generated from field: chatto.realtime.v1.RoomLayoutChangedEvent room_layout_changed = 59;
+     */
+    value: RoomLayoutChangedEvent;
+    case: "roomLayoutChanged";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeEvent>) {
@@ -748,7 +738,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "created_at", kind: "message", T: Timestamp },
     { no: 3, name: "actor_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "room_created", kind: "message", T: RoomCreatedEvent, oneof: "event" },
     { no: 11, name: "room_updated", kind: "message", T: RoomUpdatedEvent, oneof: "event" },
     { no: 12, name: "room_deleted", kind: "message", T: RoomDeletedEvent, oneof: "event" },
@@ -774,17 +764,6 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 32, name: "asset_processing_failed", kind: "message", T: AssetProcessingFailedEvent, oneof: "event" },
     { no: 33, name: "asset_deleted", kind: "message", T: AssetDeletedEvent, oneof: "event" },
     { no: 34, name: "server_motd_changed", kind: "message", T: ServerMotdChangedEvent, oneof: "event" },
-    { no: 35, name: "room_group_created", kind: "message", T: RoomGroupCreatedEvent, oneof: "event" },
-    { no: 36, name: "room_group_updated", kind: "message", T: RoomGroupUpdatedEvent, oneof: "event" },
-    { no: 37, name: "room_group_deleted", kind: "message", T: RoomGroupDeletedEvent, oneof: "event" },
-    { no: 38, name: "room_added_to_group", kind: "message", T: RoomAddedToGroupEvent, oneof: "event" },
-    { no: 39, name: "room_removed_from_group", kind: "message", T: RoomRemovedFromGroupEvent, oneof: "event" },
-    { no: 40, name: "rooms_in_group_reordered", kind: "message", T: RoomsInGroupReorderedEvent, oneof: "event" },
-    { no: 41, name: "sidebar_link_added_to_group", kind: "message", T: SidebarLinkAddedToGroupEvent, oneof: "event" },
-    { no: 42, name: "sidebar_link_updated", kind: "message", T: SidebarLinkUpdatedEvent, oneof: "event" },
-    { no: 43, name: "sidebar_link_removed_from_group", kind: "message", T: SidebarLinkRemovedFromGroupEvent, oneof: "event" },
-    { no: 44, name: "sidebar_group_entries_reordered", kind: "message", T: SidebarGroupEntriesReorderedEvent, oneof: "event" },
-    { no: 45, name: "room_groups_reordered", kind: "message", T: RoomGroupsReorderedEvent, oneof: "event" },
     { no: 46, name: "user_account_created", kind: "message", T: UserAccountCreatedEvent, oneof: "event" },
     { no: 47, name: "user_profile_changed", kind: "message", T: UserProfileChangedEvent, oneof: "event" },
     { no: 48, name: "user_account_deleted", kind: "message", T: UserAccountDeletedEvent, oneof: "event" },
@@ -798,6 +777,7 @@ export class RealtimeEvent extends Message<RealtimeEvent> {
     { no: 56, name: "notification_occurrences_changed", kind: "message", T: NotificationOccurrencesChangedEvent, oneof: "event" },
     { no: 57, name: "notification_unread_state_changed", kind: "message", T: NotificationUnreadStateChangedEvent, oneof: "event" },
     { no: 58, name: "room_read_state_changed", kind: "message", T: RoomReadStateChangedEvent, oneof: "event" },
+    { no: 59, name: "room_layout_changed", kind: "message", T: RoomLayoutChangedEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeEvent {
@@ -828,9 +808,9 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
    * socket. A client can retain it only after all earlier frames have been
    * applied.
    *
-   * @generated from field: optional string resume_cursor = 1;
+   * @generated from field: optional string cursor = 1;
    */
-  resumeCursor?: string;
+  cursor?: string;
 
   constructor(data?: PartialMessage<RealtimeHeartbeat>) {
     super();
@@ -840,7 +820,7 @@ export class RealtimeHeartbeat extends Message<RealtimeHeartbeat> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeHeartbeat";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "resume_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 1, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeHeartbeat {

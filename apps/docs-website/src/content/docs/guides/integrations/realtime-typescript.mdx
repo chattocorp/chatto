@@ -96,6 +96,8 @@ Create `src/realtime.ts`:
 ```ts
 import {
   RealtimeEvent,
+  RealtimeCloseCode,
+  RealtimeRecovery,
   RealtimeInitialState,
   RealtimeServerFrame,
   RealtimeSnapshot,
@@ -114,7 +116,7 @@ type ChattoRealtimeClientOptions = {
   initialState?: RealtimeInitialState;
   beginSnapshot?: () => void | Promise<void>;
   applySnapshot?: (snapshot: RealtimeSnapshot) => void | Promise<void>;
-  completeCatchUp?: (cursor: string, signal: AbortSignal) => Promise<void>;
+  completeCatchUp?: (cursor: string, signal: AbortSignal, recovery: RealtimeRecovery) => Promise<void>;
 };
 
 export class ChattoRealtimeClient {
@@ -183,6 +185,7 @@ export class ChattoRealtimeClient {
       // Keep event handling ordered even when one handler is asynchronous.
       this.#processing = this.#processing
         .then(async () => {
+          connectionAbort.signal.throwIfAborted();
           const bytes = await this.#binaryBytes(message.data);
           const frame = RealtimeServerFrame.fromBinary(bytes);
           this.#lastFrameAt = Date.now();
@@ -190,7 +193,8 @@ export class ChattoRealtimeClient {
         })
         .catch((error) => {
           console.error("Realtime frame rejected", error);
-          socket.close(1008, "unsupported realtime frame");
+          connectionAbort.abort();
+          socket.close(4000, "unsupported realtime frame");
         });
     };
 
@@ -222,6 +226,7 @@ export class ChattoRealtimeClient {
         // A snapshot starts a new local projection generation. Do not keep a
         // cursor until caught_up confirms the handoff boundary.
         this.#snapshotInProgress = true;
+        this.#seenEventIds.clear();
         this.#resumeCursor = undefined;
         await this.options.beginSnapshot?.();
         connectionSignal.throwIfAborted();
@@ -235,19 +240,20 @@ export class ChattoRealtimeClient {
         const eventId = event.id;
         if (eventId && !this.#seenEventIds.has(eventId)) {
           await this.onEvent(event);
+          connectionSignal.throwIfAborted();
           this.#seenEventIds.add(eventId);
         }
         // Save the cursor only after the complete handler succeeds. An unknown
         // additive event variant can be ignored and still advance this cursor.
-        if (event.resumeCursor !== undefined) {
-          this.#resumeCursor = event.resumeCursor;
+        if (event.cursor !== undefined) {
+          this.#resumeCursor = event.cursor;
         }
         return;
       }
 
       case "caughtUp": {
-        const cursor = frame.frame.value.cursor;
-        await this.options.completeCatchUp?.(cursor, connectionSignal);
+        const { cursor, recovery } = frame.frame.value;
+        await this.options.completeCatchUp?.(cursor, connectionSignal, recovery);
         connectionSignal.throwIfAborted();
         this.#snapshotInProgress = false;
         this.#resumeCursor = cursor;
@@ -256,13 +262,16 @@ export class ChattoRealtimeClient {
       }
 
       case "heartbeat": {
-        const cursor = frame.frame.value.resumeCursor;
+        const cursor = frame.frame.value.cursor;
         if (cursor !== undefined) this.#resumeCursor = cursor;
         return;
       }
 
       case "close": {
         const close = frame.frame.value;
+        if (close.code === RealtimeCloseCode.RESYNC_REQUIRED) {
+          this.#resumeCursor = undefined;
+        }
         this.#stopped = !close.reconnect;
         this.#reconnectDelay =
           durationMs(close.retryAfter) || BASE_RECONNECT_MS;
@@ -279,7 +288,7 @@ export class ChattoRealtimeClient {
     window.clearInterval(this.#watchdog);
     this.#watchdog = window.setInterval(() => {
       if (Date.now() - this.#lastFrameAt >= this.#heartbeatStallMs) {
-        this.#socket?.close(1012, "heartbeat stalled");
+        this.#socket?.close(4001, "heartbeat stalled");
       }
     }, 5_000);
   }
@@ -334,7 +343,16 @@ OAuth access credential before you reconnect.
 The in-memory event-ID set only shows the deduplication rule. A bot that can
 restart must store completed event IDs or an equivalent idempotency record with
 its effects. The realtime cursor repairs a recent connection gap. It is not an
-indefinite durable queue.
+indefinite durable queue. The `completeCatchUp` callback receives the actual
+recovery result. `RESUMED` means the cursor was accepted, even when no events
+followed it. `LIVE_ONLY` after a resume request means that the gap was not
+recovered. Record this outcome if missed triggers matter to your integration.
+
+A local checkpoint does not make message creation exactly once. A server can
+accept a post before the response or checkpoint is lost. Future message
+metadata could help reconciliation, but it would need atomic uniqueness to
+serve as a true idempotency key. A separate lookup before posting does not
+prevent concurrent duplicates.
 
 ## Build a projection client
 

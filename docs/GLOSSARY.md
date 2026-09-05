@@ -264,10 +264,11 @@ Resume Cursor for `E` as the
 minimum consistency token for a targeted ConnectRPC read. See
 [ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md).
 
-**Resume Cursor** — Signed, viewer-bound JWT for bounded recovery after a
-recent realtime disconnect. Its opaque `p` claim is an HMAC of the internal
-stream incarnation, viewer, subscription scope, and EVT sequence. It does not
-expose that position and does not promise arbitrary history. It expires after
+**Resume Cursor** — Authenticated, encrypted token for bounded recovery after a
+recent realtime disconnect. It is bound to the viewer, subscription scope, and
+stream incarnation. It also supplies a minimum EVT content boundary for a
+ConnectRPC request. It does not expose its position or promise historical
+resource reads. It expires after
 15 minutes. When safe resume is not possible, Chatto uses the subscription's
 snapshot or live-only fallback. See
 [ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and

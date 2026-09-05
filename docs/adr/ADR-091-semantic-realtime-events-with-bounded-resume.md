@@ -156,18 +156,22 @@ cursor resumes a recent connection gap in global EVT order and then joins live
 delivery. Resume is not arbitrary historical playback and is not a public
 audit log.
 
-The cursor is a signed JWT that is bound to the viewer. Its public `p` claim is
-an HMAC of the EVT stream identity, viewer, subscription scope, and global
-sequence. It does not expose the sequence or other NATS and JetStream
-coordinates. The server resolves `p` only within the bounded replay window.
+The cursor is an authenticated, encrypted token bound to the viewer and
+subscription scope. It contains the EVT incarnation, sequence, version, issue
+time, and expiry. The existing public-cursor sealing helper protects those
+values. Clients must not parse the token. Direct decryption replaces the
+unpublished JWT position-search scheme. Token validation is independent from
+the replay work budget, so a valid minimum-boundary RPC token remains usable
+when replay would exceed the scan limit.
 
 The server applies current authorization, deletion, and erasure state during
 resume. When the cursor is missing, invalid, expired, from another stream
 incarnation, unsafe after an authorization change, or outside the configured
 work budget, the server uses the subscription's requested fallback. A
 `SNAPSHOT` subscription receives current state. A `LIVE_ONLY` subscription
-starts at the current boundary. A snapshot before `caught_up` identifies the
-fallback that the server used.
+starts at the current boundary. The `caught_up.recovery` value reports
+`RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A successful replay with zero events
+reports `RESUMED`; a live-only fallback does not claim to have repaired a gap.
 
 Resume uses the existing handoff pattern:
 

@@ -48,7 +48,8 @@ contains:
 
 Each public union member references a dedicated payload in
 `chatto/realtime/v1/events.proto`. Its name describes the public semantic event,
-and its compact field number is independent from the internal source. The
+and its field number is independent from the internal source. Retired public
+tags remain reserved. The
 public payload has its own field numbers and contains only fields that clients
 can receive.
 
@@ -81,14 +82,21 @@ The mapper applies only trusted decrypted values. Ciphertext,
 nonces, storage pointers, private moderation data, credentials, and other
 internal fields do not exist in the public payload schema.
 
-The delivery boundary also applies current caller-specific field
-authorization. Room-group membership and order events can contain room IDs
-that the caller cannot see. The server omits a single-room event for a hidden
-room and removes hidden room references from complete-order events. This rule
-uses the same room visibility source as the resource APIs. Future payloads
-with caller-specific fields must extend this explicit delivery policy or omit
-the field or event. Do not put this policy in annotations on stored EVT
-fields.
+Room-group and layout facts map to one data-free `RoomLayoutChangedEvent`.
+Clients read the current authorized layout through the resource API. The hint
+contains no room IDs, links, or ordering data, so delivery does not need a
+second layout-field authorization path. Asset processing completion similarly
+carries asset and message IDs, not a second processed-video resource tree.
+
+Posted messages include the immutable room kind, a named thread-root reference,
+and structured mention causes. Integrations can classify a DM without a room
+directory read. Edits and retractions name the affected message explicitly.
+
+Event authorization must make every delivered field safe for the viewer.
+Future payloads with narrower field visibility need an explicit viewer-aware
+mapping rule, a separate authorized shape, or omission. This version does not
+need general field-authorization machinery. Do not put that policy in
+annotations on stored EVT fields.
 
 Realtime protocol version 4 keeps this refined shape. Protocol 4 is not yet in
 a Chatto release. The pull request that introduces it updates the server,
@@ -112,7 +120,9 @@ Their type system exposes only the public contract.
   and explicit mapper coverage. A pubsub source also needs one restricted
   private union member that references that payload.
 - Adding an internal event does not enlarge the public API.
-- Caller-specific field authorization is explicit at the delivery boundary.
+- Current event authorization and the public payload schema define exposure.
+- Layout and asset changes refer clients to canonical resources instead of
+  duplicating their data in events.
 - Public union evolution and stored EVT envelope evolution can be reviewed as
   separate compatibility decisions.
 - Descriptor tests fail if public union alignment or mapper coverage drifts.

@@ -2,22 +2,22 @@ package http_server
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
+	"hmans.de/chatto/internal/publiccursor"
 )
 
 func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
@@ -198,19 +198,15 @@ func TestRealtimeDurableEventHasPublicShapeAndOpaqueCursor(t *testing.T) {
 	if fields := profileChanged.ProtoReflect().Descriptor().Fields(); fields.Len() != 1 {
 		t.Fatalf("user profile hint has %d fields, want only user_id", fields.Len())
 	}
-	resumeCursor := frame.GetEvent().GetResumeCursor()
+	resumeCursor := frame.GetEvent().GetCursor()
 	if resumeCursor == "" || resumeCursor == "42" {
 		t.Fatalf("resume cursor = %q, want sealed non-empty value", resumeCursor)
 	}
-	parts := strings.Split(resumeCursor, ".")
-	if len(parts) != 3 {
-		t.Fatalf("resume cursor is not a compact JWT: %q", resumeCursor)
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	payload, err := base64.RawURLEncoding.DecodeString(resumeCursor)
 	if err != nil {
 		t.Fatalf("decode resume cursor payload: %v", err)
 	}
-	if strings.Contains(string(payload), `"s":42`) || !strings.Contains(string(payload), `"p":`) {
+	if strings.Contains(string(payload), `"s":42`) || strings.Contains(string(payload), viewer.GetId()) {
 		t.Fatalf("resume cursor payload does not hide its sequence: %s", payload)
 	}
 }
@@ -258,9 +254,9 @@ func TestRealtimeRoomGroupEventsDoNotExposeHiddenRoomIDs(t *testing.T) {
 	hiddenAdded := &evtv1.Event{Event: &evtv1.Event_RoomAddedToGroup{
 		RoomAddedToGroup: &evtv1.RoomAddedToGroupEvent{GroupId: "group", RoomId: hiddenRoom.GetId()},
 	}}
-	_, err = env.httpServer.realtimeServerFrameForEvent(env.ctx, viewer.GetId(), core.NewEVTEventEnvelopeWithDeliverySeq(hiddenAdded, 42))
-	if !errors.Is(err, errRealtimeEventOmitted) {
-		t.Fatalf("hidden room-added event error = %v, want intentional omission", err)
+	hiddenFrame, err := env.httpServer.realtimeServerFrameForEvent(env.ctx, viewer.GetId(), core.NewEVTEventEnvelopeWithDeliverySeq(hiddenAdded, 42))
+	if err != nil || hiddenFrame.GetEvent().GetRoomLayoutChanged() == nil {
+		t.Fatalf("hidden room-added event should be a data-free layout hint: %v, %v", hiddenFrame, err)
 	}
 
 	mixedOrder := &evtv1.Event{Event: &evtv1.Event_SidebarGroupEntriesReordered{
@@ -277,14 +273,11 @@ func TestRealtimeRoomGroupEventsDoNotExposeHiddenRoomIDs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("mixed room-group event: %v", err)
 	}
-	entries := frame.GetEvent().GetSidebarGroupEntriesReordered().GetEntries()
-	if len(entries) != 2 || entries[0].GetId() != visibleRoom.GetId() || entries[1].GetId() != "link" {
-		t.Fatalf("authorized entries = %+v, want visible room and link only", entries)
+	if frame.GetEvent().GetRoomLayoutChanged() == nil {
+		t.Fatalf("expected layout hint, got %v", frame)
 	}
-	for _, entry := range entries {
-		if entry.GetId() == hiddenRoom.GetId() {
-			t.Fatalf("authorized entries expose hidden room ID %q", hiddenRoom.GetId())
-		}
+	if fields := frame.GetEvent().GetRoomLayoutChanged().ProtoReflect().Descriptor().Fields(); fields.Len() != 0 {
+		t.Fatalf("layout hint has %d fields, want no layout details", fields.Len())
 	}
 }
 
@@ -334,7 +327,7 @@ func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 		t.Fatalf("realtimeServerFrameForEvent() error = %v", err)
 	}
 	closeFrame := frame.GetClose()
-	if closeFrame == nil || closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED || !closeFrame.GetReconnect() {
+	if closeFrame == nil || closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED || !closeFrame.GetReconnect() {
 		t.Fatalf("realtimeServerFrameForEvent() = %+v, want authorization reconnect", frame)
 	}
 }
@@ -364,6 +357,60 @@ func TestRealtimeWebSocketSnapshotLifecycle(t *testing.T) {
 	}
 	if got := env.httpServer.metrics.realtimeSnapshotBytes.Load(); got == 0 {
 		t.Fatal("snapshot byte measurement was not recorded")
+	}
+}
+
+func TestRealtimeWebSocketReportsActualRecoveryIncludingEmptyResume(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "recovery-viewer", "Recovery Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, viewer.GetId())
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundary, err := env.core.PlanRealtimeReplay(env.ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name, cursor string
+		fallback     realtimev1.RealtimeInitialState
+		want         realtimev1.RealtimeRecovery
+	}{
+		{"fresh live", "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, realtimev1.RealtimeRecovery_REALTIME_RECOVERY_LIVE_ONLY},
+		{"fresh snapshot", "", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, realtimev1.RealtimeRecovery_REALTIME_RECOVERY_SNAPSHOT},
+		{"empty resume", boundary.BoundaryCursor, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED},
+		{"bad cursor live fallback", "invalid", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, realtimev1.RealtimeRecovery_REALTIME_RECOVERY_LIVE_ONLY},
+		{"bad cursor snapshot fallback", "invalid", realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT, realtimev1.RealtimeRecovery_REALTIME_RECOVERY_SNAPSHOT},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			conn := env.dialRealtime(t)
+			subscribeRealtime(t, conn, token, tt.fallback, tt.cursor)
+			sawSnapshot := false
+			for {
+				frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+				if !ok {
+					t.Fatal("recovery did not finish")
+				}
+				if frame.GetSnapshot() != nil {
+					sawSnapshot = true
+				}
+				if frame.GetEvent() != nil {
+					t.Fatal("empty recovery unexpectedly delivered an event")
+				}
+				if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+					if caughtUp.GetRecovery() != tt.want || caughtUp.GetCursor() == "" {
+						t.Fatalf("caught_up = %v, want %v and cursor", caughtUp, tt.want)
+					}
+					if sawSnapshot != (tt.want == realtimev1.RealtimeRecovery_REALTIME_RECOVERY_SNAPSHOT) {
+						t.Fatal("snapshot delivery disagrees with recovery outcome")
+					}
+					break
+				}
+			}
+		})
 	}
 }
 
@@ -433,7 +480,7 @@ func TestRealtimeWebSocketSnapshotHandsOffToSubsequentBufferedEvent(t *testing.T
 		if profile == nil {
 			continue
 		}
-		if profile.GetUserId() != viewer.GetId() || event.GetResumeCursor() == "" {
+		if profile.GetUserId() != viewer.GetId() || event.GetCursor() == "" {
 			t.Fatalf("buffered event = %+v, want post-snapshot profile hint with cursor", event)
 		}
 		return
@@ -470,7 +517,7 @@ func TestRealtimeWebSocketDeliversDurableViewerAndPublicPreferenceHints(t *testi
 		t.Fatalf("UpdateUserSettings time format: %v", err)
 	}
 	privateEvent := readPublicRealtimeEvent(t, ownerConn)
-	if privateEvent.GetViewerPreferencesChanged() == nil || privateEvent.GetResumeCursor() == "" {
+	if privateEvent.GetViewerPreferencesChanged() == nil || privateEvent.GetCursor() == "" {
 		t.Fatalf("owner event = %+v, want cursor-bearing viewer preference hint", privateEvent)
 	}
 
@@ -479,11 +526,11 @@ func TestRealtimeWebSocketDeliversDurableViewerAndPublicPreferenceHints(t *testi
 		t.Fatalf("UpdateUserSettings sharing: %v", err)
 	}
 	ownerEvent := readPublicRealtimeEvent(t, ownerConn)
-	if ownerEvent.GetViewerPreferencesChanged() == nil || ownerEvent.GetResumeCursor() == "" {
+	if ownerEvent.GetViewerPreferencesChanged() == nil || ownerEvent.GetCursor() == "" {
 		t.Fatalf("owner sharing event = %+v, want cursor-bearing viewer hint", ownerEvent)
 	}
 	publicEvent := readPublicRealtimeEvent(t, otherConn)
-	if publicEvent.GetUserProfileChanged().GetUserId() != owner.GetId() || publicEvent.GetResumeCursor() == "" {
+	if publicEvent.GetUserProfileChanged().GetUserId() != owner.GetId() || publicEvent.GetCursor() == "" {
 		t.Fatalf("other sharing event = %+v, want cursor-bearing public profile hint", publicEvent)
 	}
 }
@@ -754,7 +801,7 @@ func TestRealtimeWebSocketOmitsUnauthorizedRoomEventAndContinues(t *testing.T) {
 			if got := event.GetMessagePosted().GetBodyPlaintext(); got != "visible" {
 				t.Fatalf("visible body_plaintext = %q, want visible", got)
 			}
-			if delivery.GetResumeCursor() == "" {
+			if delivery.GetCursor() == "" {
 				t.Fatal("authorized durable event omitted resume cursor")
 			}
 			return
@@ -800,7 +847,7 @@ func TestRealtimeWebSocketDeliversPublicCursorlessEvent(t *testing.T) {
 		if typing.GetRoomId() != room.GetId() {
 			t.Fatalf("typing room = %q, want %q", typing.GetRoomId(), room.GetId())
 		}
-		if delivery.GetResumeCursor() != "" {
+		if delivery.GetCursor() != "" {
 			t.Fatal("cursorless event unexpectedly carried a resume cursor")
 		}
 		return
@@ -855,24 +902,24 @@ func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
 	boundary := readRealtimeCaughtUp(t, boundaryConn).GetCursor()
 	_ = boundaryConn.Close()
 
-	type cursorClaims struct {
-		Position string `json:"p"`
-		Version  int    `json:"v"`
-		jwt.RegisteredClaims
+	payload, err := publiccursor.Open("test-core-secret", "chatto-realtime-resume-v4", "all-events\x00"+viewer.GetId(), boundary)
+	if err != nil {
+		t.Fatal(err)
 	}
-	claims := cursorClaims{}
-	parser := jwt.NewParser()
-	if _, _, err := parser.ParseUnverified(boundary, &claims); err != nil {
-		t.Fatalf("parse boundary cursor: %v", err)
+	var claims map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		t.Fatal(err)
 	}
 	issuedAt := time.Now().Add(-16 * time.Minute)
-	claims.IssuedAt = jwt.NewNumericDate(issuedAt)
-	claims.ExpiresAt = jwt.NewNumericDate(issuedAt.Add(15 * time.Minute))
-	mac := hmac.New(sha256.New, []byte("test-core-secret"))
-	_, _ = mac.Write([]byte("chatto-realtime-resume-v4\x00jwt"))
-	expired, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(mac.Sum(nil))
+	claims["iat"] = json.RawMessage(fmt.Sprint(issuedAt.Unix()))
+	claims["exp"] = json.RawMessage(fmt.Sprint(issuedAt.Add(15 * time.Minute).Unix()))
+	payload, err = json.Marshal(claims)
 	if err != nil {
-		t.Fatalf("sign expired cursor: %v", err)
+		t.Fatal(err)
+	}
+	expired, err := publiccursor.Seal("test-core-secret", "chatto-realtime-resume-v4", "all-events\x00"+viewer.GetId(), payload)
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	conn := env.dialRealtime(t)

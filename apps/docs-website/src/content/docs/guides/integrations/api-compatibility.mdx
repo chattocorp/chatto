@@ -205,8 +205,8 @@ but it can participate in a viewer-bound realtime resource boundary. Public
 server discovery remains unauthenticated. An older server returns
 `Unimplemented` for the new authenticated method.
 
-Protocol 4 resume cursors are signed, opaque, viewer-bound JWTs that are valid
-for 15 minutes. Their position claim is an HMAC and does not expose an EVT or
+Protocol 4 cursors are authenticated, encrypted, viewer-bound tokens that are
+valid for 15 minutes. Clients must not parse them. They expose no EVT or
 JetStream sequence. Retain a cursor only after the complete event succeeds,
 and replace it after each `caught_up` frame. A missing, expired, or unusable
 cursor selects the subscription's explicit fallback. A `SNAPSHOT` client
@@ -215,6 +215,19 @@ starts at the current boundary. An integration that is offline for more than
 15 minutes cannot request every transition from that interval.
 
 ### Migrating from 0.5 development snapshots
+
+Regenerate realtime bindings. Outbound event and heartbeat fields use `cursor`;
+subscribe still uses `resume_cursor`. `caught_up.recovery` reports `RESUMED`,
+`SNAPSHOT`, or `LIVE_ONLY`. `RESYNC_REQUIRED` replaces the earlier projection
+reset close name. Posted messages use `thread_root_event_id`, `room_kind`, and
+structured `mentions`; the redundant `mentioned_user_ids` field is removed.
+Edit and retraction targets use `message_event_id`. Room-group and sidebar
+variants become `RoomLayoutChangedEvent`. Asset processing completion no longer
+contains a duplicate video resource tree.
+
+The sealed cursor replaces an unpublished JWT format. Old development cursors
+use the requested WebSocket fallback. Discard them before minimum-boundary
+RPCs. Stored EVT schemas and data do not change.
 
 An unreleased 0.5 development version of server discovery exposed
 `compatibility.protocolCapabilities`. The final 0.5 contract removes that

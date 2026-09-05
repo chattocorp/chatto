@@ -89,7 +89,7 @@ professional answers. It also requires the bot to consult and cite
 
 Then run `mise test-bot-build` and `pnpm --filter @chatto/test-bot start`.
 
-The bot handles realtime events at least once. It saves an event as processed
+The bot can receive the same realtime event more than once. It saves an event as processed
 only after the final reply succeeds. A failure can repeat the model request.
 A process failure between creating the final reply and saving the source event
 as processed can cause a duplicate reply because `CreateMessage` has no
@@ -98,9 +98,24 @@ strategy. Typing indicators are transient and are not part of replay.
 
 The bot saves a cursor only after it handles all earlier frames. On reconnect,
 it asks Chatto for the missed replayable events. If the cursor is absent or is
-not usable, it starts at the current live boundary. This example intentionally
+not usable, it starts at the current live boundary. It logs the actual
+`caught_up` recovery result. A failed resume that uses live-only fallback also
+logs `recovery_gap`; the bot does not claim to have handled missed triggers. This example intentionally
 does not use a realtime snapshot because it reads its finite resource state
 through ConnectRPC. Jobs for different conversations can finish in any order,
 but the bot saves their event IDs and cursors in realtime delivery order. All
 source messages in a combined burst wait for the final reply. The bot does not
 save a cursor past an unfinished reply.
+
+Posted-message events provide the room kind, thread root, and structured
+mentions. The bot does not load the room directory to classify messages. User
+lookups, thread reads, typing, and reply posts caused by an event send
+`Chatto-Realtime-Minimum-Cursor` with that event’s cursor and a 10-second
+request deadline. A replica that is behind waits for its content view to reach
+the boundary. The header does not wait for asynchronous notification work.
+The cursor must still be within its 15-minute lifetime when the RPC starts.
+
+Message metadata and server-enforced idempotency remain future work. Metadata
+can help find a previous reply, but a separate lookup and post cannot prevent
+two workers from posting concurrently. This example makes no exactly-once
+claim.

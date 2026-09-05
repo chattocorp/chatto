@@ -357,7 +357,7 @@
     const semantic = event.event?.event;
     if (!semantic) return;
     if (semantic.case === 'messagePosted' && semantic.value.roomId === roomId) {
-      if (semantic.value.inThread) return;
+      if (semantic.value.threadRootEventId) return;
       const actorId = event.event?.actorId;
       if (actorId) typingIndicator.removeTypingUser(actorId);
       if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {

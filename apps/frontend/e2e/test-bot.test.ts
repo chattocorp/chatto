@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -146,6 +146,30 @@ async function attachBotOutput(testInfo: TestInfo, name: string, process: TestBo
 test.describe('public API test bot', () => {
   test.use({ serverOptions: { bootstrapTestBot: true } });
 
+  test('reports a recovery gap when the server cannot resume', async ({ server, serverURL }, testInfo) => {
+    const credentialFile = server.bootstrapBotCredentialFile;
+    if (!credentialFile) throw new Error('test server did not expose the bot credential file');
+    const stateFile = testInfo.outputPath('test_bot.state.json');
+    await writeFile(stateFile, JSON.stringify({
+      resumeCursor: 'obsolete-development-cursor',
+      processedEventIds: []
+    }), { mode: 0o600 });
+    const bot = TestBotProcess.start({ serverUrl: serverURL, apiKeyFile: credentialFile, stateFile });
+    try {
+      const caughtUp = await bot.waitFor((record) => record.status === 'caught_up');
+      expect(caughtUp).toMatchObject({ recovery: 'LIVE_ONLY', resumed: false });
+      const gap = await bot.waitFor((record) => record.status === 'recovery_gap');
+      expect(gap.past_events_unavailable).toBe(true);
+      const state = JSON.parse(await readFile(stateFile, 'utf8'));
+      expect(state.resumeCursor).toBeTruthy();
+      expect(state.resumeCursor).not.toBe('obsolete-development-cursor');
+      expect(bot.containsCredential()).toBe(false);
+    } finally {
+      await bot.stop();
+      await attachBotOutput(testInfo, 'test-bot-fallback.log', bot);
+    }
+  });
+
   test('answers channel mentions and DMs, then resumes a disconnected gap', async ({
     page,
     server,
@@ -166,8 +190,9 @@ test.describe('public API test bot', () => {
     let second: TestBotProcess | undefined;
     try {
       const ready = await first.waitFor((record) => record.status === 'api_ready');
-      expect(Number(ready.visible_rooms)).toBeGreaterThanOrEqual(1);
-      await first.waitFor((record) => record.status === 'caught_up' && record.resumed === false);
+      expect(ready.viewer_id).toBeTruthy();
+      const startup = await first.waitFor((record) => record.status === 'caught_up');
+      expect(startup).toMatchObject({ resumed: false, recovery: 'LIVE_ONLY' });
 
       const startedDM = await connectPost<StartDMResponse>(
         page,

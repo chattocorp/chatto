@@ -3,10 +3,10 @@ import {
   ConnectError,
   createClient,
   type Interceptor,
+  type CallOptions,
 } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 import { MessageService } from "@chatto/api-types/api/v1/messages_connect";
-import { RoomDirectoryService } from "@chatto/api-types/api/v1/room_directory_connect";
 import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
 import { ThreadService } from "@chatto/api-types/api/v1/threads_connect";
 import { UserService } from "@chatto/api-types/api/v1/user_service_connect";
@@ -17,6 +17,7 @@ import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 import {
   RealtimeEvent,
   RealtimeInitialState,
+  RealtimeRecovery,
   RealtimeServerFrame,
   RealtimeSubscribe,
 } from "@chatto/api-types/realtime/v1/realtime_pb";
@@ -73,16 +74,16 @@ export interface ReplyTarget {
   sourceBody: string;
   threadRootEventId: string;
   trigger: "direct_mention" | "direct_message";
+  /** Minimum content-view boundary for RPCs caused by this event. Never log it. */
+  minimumCursor?: string;
 }
 
 /** Narrow public API operations required by the reply workflow. */
 export interface BotAPI {
   /** Authenticated TestBot user ID. */
   viewerId: string;
-  /** Return the public kind of a visible room. */
-  roomKind(roomId: string): Promise<RoomKind>;
   /** Return whether the source actor is another bot. */
-  isBotActor(actorId: string): Promise<boolean>;
+  isBotActor(actorId: string, minimumCursor?: string): Promise<boolean>;
   /** Read the current conversation that contains the source message. */
   loadConversation(target: ReplyTarget): Promise<ConversationMessage[]>;
   /** Publish one live-only typing indicator for the target conversation. */
@@ -143,7 +144,18 @@ async function readAPIKey(apiKeyFile: string): Promise<string> {
   return apiKey;
 }
 
-async function connectPublicAPI(
+/** Bound causal RPC reads and writes to the triggering event, across replicas. */
+function realtimeCallOptions(minimumCursor?: string): CallOptions {
+  return {
+    timeoutMs: 10_000,
+    ...(minimumCursor
+      ? { headers: { "Chatto-Realtime-Minimum-Cursor": minimumCursor } }
+      : {}),
+  };
+}
+
+/** Connect the example bot through the same public RPCs available to integrations. */
+export async function connectPublicAPI(
   config: TestBotConfig,
   apiKey: string,
 ): Promise<BotAPI> {
@@ -158,39 +170,26 @@ async function connectPublicAPI(
   const viewer = await createClient(ViewerService, transport).getViewer({});
   const viewerId = viewer.user?.profile?.id;
   if (!viewerId) throw new Error("viewer response did not contain a user ID");
-  const roomDirectory = createClient(RoomDirectoryService, transport);
-  const rooms = await roomDirectory.listRooms({});
   const messages = createClient(MessageService, transport);
   const roomOperations = createClient(RoomService, transport);
   const threads = createClient(ThreadService, transport);
   const users = createClient(UserService, transport);
   const botActors = new Map<string, boolean>([[viewerId, true]]);
-  const roomKinds = new Map<string, RoomKind>();
-  for (const entry of rooms.rooms) {
-    if (entry.room?.id) roomKinds.set(entry.room.id, entry.room.kind);
-  }
   log({
     status: "api_ready",
     viewer_id: viewerId,
-    visible_rooms: rooms.rooms.length,
   });
   return {
     viewerId,
-    async roomKind(roomId): Promise<RoomKind> {
-      const cached = roomKinds.get(roomId);
-      if (cached !== undefined) return cached;
-      const response = await roomDirectory.getRoom({ roomId });
-      const room = response.room?.room;
-      if (!room) throw new Error("room response did not contain a room");
-      roomKinds.set(room.id, room.kind);
-      return room.kind;
-    },
-    async isBotActor(actorId): Promise<boolean> {
+    async isBotActor(actorId, minimumCursor): Promise<boolean> {
       const cached = botActors.get(actorId);
       if (cached !== undefined) return cached;
-      const response = await users.getUser({
-        target: { case: "userId", value: actorId },
-      });
+      const response = await users.getUser(
+        {
+          target: { case: "userId", value: actorId },
+        },
+        realtimeCallOptions(minimumCursor),
+      );
       const user = response.user?.user;
       if (!user) throw new Error("user response did not contain a user");
       botActors.set(actorId, user.isBot);
@@ -207,12 +206,15 @@ async function connectPublicAPI(
       }
       let events: RoomTimelineEvent[];
       try {
-        const response = await threads.getThreadEventsAround({
-          roomId: target.roomId,
-          threadRootEventId: target.threadRootEventId,
-          eventId: target.sourceEventId,
-          limit: MAXIMUM_CONVERSATION_MESSAGES,
-        });
+        const response = await threads.getThreadEventsAround(
+          {
+            roomId: target.roomId,
+            threadRootEventId: target.threadRootEventId,
+            eventId: target.sourceEventId,
+            limit: MAXIMUM_CONVERSATION_MESSAGES,
+          },
+          realtimeCallOptions(target.minimumCursor),
+        );
         events = response.page?.events ?? [];
       } catch (error) {
         if (ConnectError.from(error).code === Code.NotFound) return [source];
@@ -225,21 +227,27 @@ async function connectPublicAPI(
       return conversation;
     },
     async updateTypingIndicator(target): Promise<void> {
-      const response = await roomOperations.updateTypingIndicator({
-        roomId: target.roomId,
-        threadRootEventId: target.threadRootEventId,
-      });
+      const response = await roomOperations.updateTypingIndicator(
+        {
+          roomId: target.roomId,
+          threadRootEventId: target.threadRootEventId,
+        },
+        realtimeCallOptions(target.minimumCursor),
+      );
       if (!response.updated) {
         throw new Error("typing indicator was not accepted");
       }
     },
     async postReply(target, body): Promise<string> {
-      const response = await messages.createMessage({
-        roomId: target.roomId,
-        body,
-        threadRootEventId: target.threadRootEventId,
-        inReplyTo: target.sourceEventId,
-      });
+      const response = await messages.createMessage(
+        {
+          roomId: target.roomId,
+          body,
+          threadRootEventId: target.threadRootEventId,
+          inReplyTo: target.sourceEventId,
+        },
+        realtimeCallOptions(target.minimumCursor),
+      );
       const replyEventId = response.message?.id;
       if (!replyEventId) {
         throw new Error("message response did not contain an event ID");
@@ -348,12 +356,12 @@ interface ConversationInput {
 function messageConversationInput(
   event: RealtimeEvent,
   viewerId: string,
-  roomKind: RoomKind,
 ): ConversationInput | undefined {
   if (event.actorId === viewerId || event.event.case !== "messagePosted") {
     return undefined;
   }
   const message = event.event.value;
+  const roomKind = message.roomKind;
   if (
     !event.id ||
     !event.actorId ||
@@ -363,7 +371,8 @@ function messageConversationInput(
   ) {
     return undefined;
   }
-  if (roomKind !== RoomKind.CHANNEL && roomKind !== RoomKind.DM) return undefined;
+  if (roomKind !== RoomKind.CHANNEL && roomKind !== RoomKind.DM)
+    return undefined;
   let activates = true;
   if (roomKind === RoomKind.CHANNEL) {
     activates = message.mentions.some(
@@ -381,9 +390,9 @@ function messageConversationInput(
     activates,
     target: {
       ...base,
-      threadRootEventId: message.inThread || event.id,
-      trigger:
-        roomKind === RoomKind.DM ? "direct_message" : "direct_mention",
+      threadRootEventId: message.threadRootEventId || event.id,
+      ...(event.cursor ? { minimumCursor: event.cursor } : {}),
+      trigger: roomKind === RoomKind.DM ? "direct_message" : "direct_mention",
     },
   };
 }
@@ -392,20 +401,9 @@ function messageConversationInput(
 export function messageReplyTarget(
   event: RealtimeEvent,
   viewerId: string,
-  roomKind: RoomKind,
 ): ReplyTarget | undefined {
-  const input = messageConversationInput(event, viewerId, roomKind);
+  const input = messageConversationInput(event, viewerId);
   return input?.activates ? input.target : undefined;
-}
-
-function candidateRoomId(
-  event: RealtimeEvent,
-  viewerId: string,
-): string | undefined {
-  if (event.actorId === viewerId || event.event.case !== "messagePosted") {
-    return undefined;
-  }
-  return event.event.value.roomId || undefined;
 }
 
 function targetLogFields(
@@ -494,10 +492,7 @@ export interface AcceptedConversationEvent {
   completion: Promise<void>;
 }
 
-type ReplyRunner = (
-  target: ReplyTarget,
-  signal: AbortSignal,
-) => Promise<void>;
+type ReplyRunner = (target: ReplyTarget, signal: AbortSignal) => Promise<void>;
 
 /** Coalesce and supersede reply work inside each thread or DM. */
 export class ConversationReplyScheduler {
@@ -541,19 +536,18 @@ export class ConversationReplyScheduler {
 
   /** Classify one event and attach it to its conversation when applicable. */
   async accept(event: RealtimeEvent): Promise<AcceptedConversationEvent> {
-    const roomId = candidateRoomId(event, this.#api.viewerId);
-    if (!roomId) return { completion: Promise.resolve() };
-    const input = messageConversationInput(
-      event,
-      this.#api.viewerId,
-      await this.#api.roomKind(roomId),
-    );
+    const input = messageConversationInput(event, this.#api.viewerId);
     if (!input) return { completion: Promise.resolve() };
     const key = conversationKey(input.target);
     if (!input.activates && !this.#lanes.has(key)) {
       return { completion: Promise.resolve() };
     }
-    if (await this.#api.isBotActor(input.target.sourceActorId)) {
+    if (
+      await this.#api.isBotActor(
+        input.target.sourceActorId,
+        input.target.minimumCursor,
+      )
+    ) {
       return { completion: Promise.resolve() };
     }
     throwIfAborted(this.#signal);
@@ -789,7 +783,7 @@ async function runRealtimeSession(
   saveState: TestBotStateSaver,
   signal: AbortSignal,
 ): Promise<SessionResult> {
-  const resumed = Boolean(state.resumeCursor);
+  const resumeRequested = Boolean(state.resumeCursor);
   const socket = new WebSocket(realtimeUrl(config.serverUrl));
   const workController = new AbortController();
   const abortWork = () => workController.abort(signal.reason);
@@ -813,10 +807,7 @@ async function runRealtimeSession(
     workController.abort(error);
     log({ status: "processing_failed", ...safeErrorFields(error) });
     if (socket.readyState === WebSocket.OPEN) {
-      socket.close(
-        PROCESSING_FAILURE_CLOSE_CODE,
-        "event processing failed",
-      );
+      socket.close(PROCESSING_FAILURE_CLOSE_CODE, "event processing failed");
     }
   };
 
@@ -886,13 +877,13 @@ async function runRealtimeSession(
                   } else {
                     log({ status: "duplicate_ignored", event_id: event.id });
                   }
-                  await commitState(saveState, state, event.resumeCursor);
+                  await commitState(saveState, state, event.cursor);
                 },
               );
               return;
             }
             case "heartbeat": {
-              const resumeCursor = frame.frame.value.resumeCursor;
+              const resumeCursor = frame.frame.value.cursor;
               enqueue(
                 async () => undefined,
                 async () => {
@@ -904,13 +895,34 @@ async function runRealtimeSession(
               return;
             }
             case "caughtUp": {
-              const cursor = frame.frame.value.cursor;
+              const { cursor, recovery } = frame.frame.value;
+              if (
+                recovery !== RealtimeRecovery.RESUMED &&
+                recovery !== RealtimeRecovery.LIVE_ONLY
+              ) {
+                throw new Error(
+                  "unexpected recovery outcome for a live-only bot",
+                );
+              }
               enqueue(
                 async () => undefined,
                 async () => {
                   await commitState(saveState, state, cursor);
                   caughtUp = true;
-                  log({ status: "caught_up", resumed });
+                  log({
+                    status: "caught_up",
+                    resumed: recovery === RealtimeRecovery.RESUMED,
+                    recovery: RealtimeRecovery[recovery],
+                  });
+                  if (
+                    resumeRequested &&
+                    recovery === RealtimeRecovery.LIVE_ONLY
+                  ) {
+                    log({
+                      status: "recovery_gap",
+                      past_events_unavailable: true,
+                    });
+                  }
                 },
               );
               return;

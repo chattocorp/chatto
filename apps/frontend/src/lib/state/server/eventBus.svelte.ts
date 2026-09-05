@@ -321,7 +321,7 @@ class EventBusManager {
       dispatchProjectionUpdate(
         new RealtimeProjectionUpdate({
           event,
-          cursor: event.resumeCursor ?? null
+          cursor: event.cursor ?? null
         })
       );
     };
@@ -405,7 +405,7 @@ class EventBusManager {
             switch (frame.frame.case) {
               case 'heartbeat':
                 heartbeatCount++;
-                commitEventCursor(frame.frame.value.resumeCursor);
+                commitEventCursor(frame.frame.value.cursor);
                 return;
               case 'snapshot':
                 if (snapshotReceived || !frame.frame.value.server) {
@@ -452,7 +452,7 @@ class EventBusManager {
                   nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
                   return;
                 }
-                commitEventCursor(frame.frame.value.resumeCursor);
+                commitEventCursor(frame.frame.value.cursor);
                 return;
               }
               case 'caughtUp': {

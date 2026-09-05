@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -35,6 +35,8 @@ the stream to build and maintain its local server projection.
   continues live.
 - A missing, invalid, expired, unsafe, or expensive cursor uses the requested
   safe fallback. It does not cause partial or unlimited historical playback.
+- The recovery result explicitly distinguishes successful resume, replacement
+  snapshot, and live-only fallback, including a successful replay with no events.
 - A live durable content fact that has no safe public event projection closes
   the current projection stream. Snapshot clients reconnect and receive exact
   current state instead of relying on a cross-replica transient read.
@@ -125,8 +127,10 @@ not in the bounded content view still needs explicit ConnectRPC reads.
 
 After an event, a targeted ConnectRPC read can use that event cursor as its
 minimum boundary. Each serving replica validates the cursor and waits until
-its content view includes that boundary. Clients must give these reads finite
-deadlines and must not retain the event cursor until required reconciliation
+its content view includes that boundary. It does not wait for unrelated
+projections or later events. The server limits the wait to 10 seconds. This is
+a minimum content boundary, not a historical read or an asynchronous-effect
+guarantee. Clients must give these reads finite deadlines and must not retain the event cursor until required reconciliation
 succeeds.
 
 After every catch-up, the bundled frontend reads notifications and other
@@ -159,6 +163,10 @@ The bundled frontend first creates a temporary row with the event metadata,
 reply references, actor, and plaintext. It leaves resource-only values empty,
 then replaces the row after `GetMessage` returns attachments, previews,
 reactions, pin state, thread details, and the timeline cursor.
+Room-layout changes use one refresh hint without hidden room references.
+Asset processing completion refers clients to the message resource. A posted
+message states its room kind, thread root, and structured mentions so a bot
+can choose whether to react without reading the room directory.
 **Why:** Events should not become unbounded resource dumps. Complete public
 resource APIs also let simple bots avoid maintaining the complete frontend
 projection.
@@ -184,8 +192,9 @@ more application messages on that socket. The server can send `snapshot`,
 terminal protocol and session results. WebSocket control frames provide
 transport ping and pong behavior.
 **Why:** The former hello, subscribed, error, and application pong frames did
-not change the subscription result. The received recovery frames already show
-whether the server selected snapshot, replay, or live-only startup.
+not change the subscription result. The existing completion frame reports
+whether the server selected snapshot, replay, or live-only startup. An empty
+replay must not look like a fallback that omitted past events.
 **Tradeoff:** Protocol capabilities that must be known before subscribe need
 discovery metadata or a new behavioral protocol version.
 

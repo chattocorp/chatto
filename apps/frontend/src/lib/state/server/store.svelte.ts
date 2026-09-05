@@ -744,26 +744,25 @@ export class ServerStateStore {
       case 'reactionRemoved':
       case 'assetDeleted': {
         const anchorEventId =
-          rawValue?.eventId ??
           rawValue?.messageEventId ??
           (payload.case === 'messagePosted' ? event.id : null);
         const roomAnchorEventId =
-          payload.case === 'messagePosted' && payload.value.inThread
-            ? payload.value.inThread
+          payload.case === 'messagePosted' && payload.value.threadRootEventId
+            ? payload.value.threadRootEventId
             : anchorEventId;
         if (payload.case === 'messagePosted') this.ingestRealtimeMessagePost(event);
         this.refreshLoadedMessageWindows(
           roomId,
           anchorEventId,
           roomAnchorEventId,
-          payload.case === 'messagePosted' && !payload.value.inThread,
-          payload.case === 'messagePosted' && !!payload.value.inThread,
+          payload.case === 'messagePosted' && !payload.value.threadRootEventId,
+          payload.case === 'messagePosted' && !!payload.value.threadRootEventId,
           payload.case === 'messagePosted'
         );
         if (payload.case === 'messageRetracted') {
           this.applyLoadedMessageRetraction(
             roomId,
-            payload.value.eventId,
+            payload.value.messageEventId,
             event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
           );
         }
@@ -775,7 +774,7 @@ export class ServerStateStore {
         else this.forEachMessageSearch((store) => store.clearResults());
         if (payload.case === 'messagePosted') {
           this.refreshRealtimeResource('rooms');
-          if (payload.value.inThread) refreshRegisteredFollowedThreadQueries(this.serverId);
+          if (payload.value.threadRootEventId) refreshRegisteredFollowedThreadQueries(this.serverId);
         }
         if (payload.case === 'messageRetracted') {
           refreshRegisteredFollowedThreadQueries(this.serverId);
@@ -857,17 +856,7 @@ export class ServerStateStore {
         this.refreshRealtimeResource('rooms');
         this.refreshRealtimeResource('roomGroups');
         return;
-      case 'roomGroupCreated':
-      case 'roomGroupUpdated':
-      case 'roomGroupDeleted':
-      case 'roomAddedToGroup':
-      case 'roomRemovedFromGroup':
-      case 'roomsInGroupReordered':
-      case 'sidebarLinkAddedToGroup':
-      case 'sidebarLinkUpdated':
-      case 'sidebarLinkRemovedFromGroup':
-      case 'sidebarGroupEntriesReordered':
-      case 'roomGroupsReordered':
+      case 'roomLayoutChanged':
         this.refreshRealtimeResource('roomGroups');
         return;
       case 'serverProfileChanged':
@@ -921,7 +910,7 @@ export class ServerStateStore {
         reactions: [],
         updatedAt: null,
         inReplyTo: posted.inReplyTo || null,
-        threadRootEventId: posted.inThread || null,
+        threadRootEventId: posted.threadRootEventId || null,
         echoOfEventId: posted.echoOfEventId || null,
         echoFromThreadRootEventId: posted.echoFromThreadRootEventId || null,
         channelEchoEventId: null,

@@ -81,9 +81,23 @@ message RealtimeSnapshot {
 message RealtimeCaughtUp {
   // Opaque cursor at the recovery-to-live handoff boundary.
   string cursor = 1;
+  // Actual recovery result, including a successful replay with no events.
+  RealtimeRecovery recovery = 2;
 }
 
-// One authorized public event with its optional resume cursor.
+// How the server reached the live-delivery boundary.
+enum RealtimeRecovery {
+  // Invalid value. The server always supplies a recovery result.
+  REALTIME_RECOVERY_UNSPECIFIED = 0;
+  // The requested cursor was accepted and all available authorized events followed it.
+  REALTIME_RECOVERY_RESUMED = 1;
+  // The server sent a replacement snapshot.
+  REALTIME_RECOVERY_SNAPSHOT = 2;
+  // The server started at the current boundary without past events or resources.
+  REALTIME_RECOVERY_LIVE_ONLY = 3;
+}
+
+// One authorized public event with its optional cursor.
 //
 // Each payload uses a realtime-owned public message. The union is the public
 // event catalogue. An internal event that is absent from this union is not
@@ -99,7 +113,10 @@ message RealtimeEvent {
   // ID of the user that caused the event. Absence means no user actor.
   optional string actor_id = 3;
   // Opaque cursor safe to retain after this complete event is accepted.
-  optional string resume_cursor = 4;
+  optional string cursor = 4;
+
+  reserved 35 to 45;
+  reserved "room_group_created", "room_group_updated", "room_group_deleted", "room_added_to_group", "room_removed_from_group", "rooms_in_group_reordered", "sidebar_link_added_to_group", "sidebar_link_updated", "sidebar_link_removed_from_group", "sidebar_group_entries_reordered", "room_groups_reordered";
 
   // Authorized semantic payload.
   oneof event {
@@ -128,17 +145,6 @@ message RealtimeEvent {
     AssetProcessingFailedEvent asset_processing_failed = 32;
     AssetDeletedEvent asset_deleted = 33;
     ServerMotdChangedEvent server_motd_changed = 34;
-    RoomGroupCreatedEvent room_group_created = 35;
-    RoomGroupUpdatedEvent room_group_updated = 36;
-    RoomGroupDeletedEvent room_group_deleted = 37;
-    RoomAddedToGroupEvent room_added_to_group = 38;
-    RoomRemovedFromGroupEvent room_removed_from_group = 39;
-    RoomsInGroupReorderedEvent rooms_in_group_reordered = 40;
-    SidebarLinkAddedToGroupEvent sidebar_link_added_to_group = 41;
-    SidebarLinkUpdatedEvent sidebar_link_updated = 42;
-    SidebarLinkRemovedFromGroupEvent sidebar_link_removed_from_group = 43;
-    SidebarGroupEntriesReorderedEvent sidebar_group_entries_reordered = 44;
-    RoomGroupsReorderedEvent room_groups_reordered = 45;
     UserAccountCreatedEvent user_account_created = 46;
     UserProfileChangedEvent user_profile_changed = 47;
     UserAccountDeletedEvent user_account_deleted = 48;
@@ -152,6 +158,7 @@ message RealtimeEvent {
     NotificationOccurrencesChangedEvent notification_occurrences_changed = 56;
     NotificationUnreadStateChangedEvent notification_unread_state_changed = 57;
     RoomReadStateChangedEvent room_read_state_changed = 58;
+    RoomLayoutChangedEvent room_layout_changed = 59;
   }
 }
 
@@ -160,7 +167,7 @@ message RealtimeHeartbeat {
   // Fresh resume cursor for the latest replay boundary delivered on this
   // socket. A client can retain it only after all earlier frames have been
   // applied.
-  optional string resume_cursor = 1;
+  optional string cursor = 1;
 }
 
 // Stable server-requested close category.
@@ -177,8 +184,8 @@ enum RealtimeCloseCode {
   REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED = 4;
   // The caller must renew its session before reconnecting.
   REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED = 5;
-  // The server projection reset and the client must take a new snapshot.
-  REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED = 6;
+  // The client must discard its cursor and synchronize current state again.
+  REALTIME_CLOSE_CODE_RESYNC_REQUIRED = 6;
   // The user's session ended and the client must return to sign-in.
   REALTIME_CLOSE_CODE_SESSION_TERMINATED = 7;
 }

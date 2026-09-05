@@ -49,46 +49,18 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: e.UserJoinedRoom.GetRoomId()}}
 	case *evtv1.Event_UserLeftRoom:
 		target.Event = &realtimev1.RealtimeEvent_UserLeftRoom{UserLeftRoom: &realtimev1.UserLeftRoomEvent{RoomId: e.UserLeftRoom.GetRoomId()}}
-	case *evtv1.Event_RoomGroupCreated:
-		v := e.RoomGroupCreated
-		target.Event = &realtimev1.RealtimeEvent_RoomGroupCreated{RoomGroupCreated: &realtimev1.RoomGroupCreatedEvent{GroupId: v.GetGroupId(), Name: v.GetName(), Description: v.GetDescription()}}
-	case *evtv1.Event_RoomGroupUpdated:
-		v := e.RoomGroupUpdated
-		target.Event = &realtimev1.RealtimeEvent_RoomGroupUpdated{RoomGroupUpdated: &realtimev1.RoomGroupUpdatedEvent{GroupId: v.GetGroupId(), Name: v.GetName(), Description: v.GetDescription()}}
-	case *evtv1.Event_RoomGroupDeleted:
-		target.Event = &realtimev1.RealtimeEvent_RoomGroupDeleted{RoomGroupDeleted: &realtimev1.RoomGroupDeletedEvent{GroupId: e.RoomGroupDeleted.GetGroupId()}}
-	case *evtv1.Event_RoomAddedToGroup:
-		v := e.RoomAddedToGroup
-		target.Event = &realtimev1.RealtimeEvent_RoomAddedToGroup{RoomAddedToGroup: &realtimev1.RoomAddedToGroupEvent{GroupId: v.GetGroupId(), RoomId: v.GetRoomId()}}
-	case *evtv1.Event_RoomRemovedFromGroup:
-		v := e.RoomRemovedFromGroup
-		target.Event = &realtimev1.RealtimeEvent_RoomRemovedFromGroup{RoomRemovedFromGroup: &realtimev1.RoomRemovedFromGroupEvent{GroupId: v.GetGroupId(), RoomId: v.GetRoomId()}}
-	case *evtv1.Event_RoomsInGroupReordered:
-		v := e.RoomsInGroupReordered
-		target.Event = &realtimev1.RealtimeEvent_RoomsInGroupReordered{RoomsInGroupReordered: &realtimev1.RoomsInGroupReorderedEvent{GroupId: v.GetGroupId(), RoomIds: append([]string(nil), v.GetRoomIds()...)}}
-	case *evtv1.Event_SidebarLinkAddedToGroup:
-		v := e.SidebarLinkAddedToGroup
-		target.Event = &realtimev1.RealtimeEvent_SidebarLinkAddedToGroup{SidebarLinkAddedToGroup: &realtimev1.SidebarLinkAddedToGroupEvent{GroupId: v.GetGroupId(), LinkId: v.GetLinkId(), Label: v.GetLabel(), Url: v.GetUrl()}}
-	case *evtv1.Event_SidebarLinkUpdated:
-		v := e.SidebarLinkUpdated
-		target.Event = &realtimev1.RealtimeEvent_SidebarLinkUpdated{SidebarLinkUpdated: &realtimev1.SidebarLinkUpdatedEvent{GroupId: v.GetGroupId(), LinkId: v.GetLinkId(), Label: v.GetLabel(), Url: v.GetUrl()}}
-	case *evtv1.Event_SidebarLinkRemovedFromGroup:
-		v := e.SidebarLinkRemovedFromGroup
-		target.Event = &realtimev1.RealtimeEvent_SidebarLinkRemovedFromGroup{SidebarLinkRemovedFromGroup: &realtimev1.SidebarLinkRemovedFromGroupEvent{GroupId: v.GetGroupId(), LinkId: v.GetLinkId()}}
-	case *evtv1.Event_SidebarGroupEntriesReordered:
-		v := e.SidebarGroupEntriesReordered
-		entries := make([]*realtimev1.SidebarGroupEntryReference, 0, len(v.GetEntries()))
-		for _, entry := range v.GetEntries() {
-			if entry.GetId() != "" {
-				entries = append(entries, &realtimev1.SidebarGroupEntryReference{
-					Kind: realtimeSidebarGroupEntryKind(entry.GetKind()),
-					Id:   entry.GetId(),
-				})
-			}
-		}
-		target.Event = &realtimev1.RealtimeEvent_SidebarGroupEntriesReordered{SidebarGroupEntriesReordered: &realtimev1.SidebarGroupEntriesReorderedEvent{GroupId: v.GetGroupId(), Entries: entries}}
-	case *evtv1.Event_RoomGroupsReordered:
-		target.Event = &realtimev1.RealtimeEvent_RoomGroupsReordered{RoomGroupsReordered: &realtimev1.RoomGroupsReorderedEvent{GroupIds: append([]string(nil), e.RoomGroupsReordered.GetGroupIds()...)}}
+	case *evtv1.Event_RoomGroupCreated,
+		*evtv1.Event_RoomGroupUpdated,
+		*evtv1.Event_RoomGroupDeleted,
+		*evtv1.Event_RoomAddedToGroup,
+		*evtv1.Event_RoomRemovedFromGroup,
+		*evtv1.Event_RoomsInGroupReordered,
+		*evtv1.Event_SidebarLinkAddedToGroup,
+		*evtv1.Event_SidebarLinkUpdated,
+		*evtv1.Event_SidebarLinkRemovedFromGroup,
+		*evtv1.Event_SidebarGroupEntriesReordered,
+		*evtv1.Event_RoomGroupsReordered:
+		target.Event = &realtimev1.RealtimeEvent_RoomLayoutChanged{RoomLayoutChanged: &realtimev1.RoomLayoutChangedEvent{}}
 	case *evtv1.Event_VoiceCallParticipantJoined:
 		v := e.VoiceCallParticipantJoined
 		target.Event = &realtimev1.RealtimeEvent_VoiceCallParticipantJoined{VoiceCallParticipantJoined: &realtimev1.VoiceCallParticipantJoinedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
@@ -103,13 +75,13 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_MessagePosted:
 		v := e.MessagePosted
-		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), InThread: v.GetInThread(), MentionedUserIds: append([]string(nil), v.GetMentionedUserIds()...), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(v.GetMentions())}}
+		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), ThreadRootEventId: v.GetInThread(), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(v.GetMentions())}}
 	case *evtv1.Event_MessageEdited:
 		v := e.MessageEdited
-		target.Event = &realtimev1.RealtimeEvent_MessageEdited{MessageEdited: &realtimev1.MessageEditedEvent{RoomId: v.GetRoomId(), EventId: v.GetEventId()}}
+		target.Event = &realtimev1.RealtimeEvent_MessageEdited{MessageEdited: &realtimev1.MessageEditedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetEventId()}}
 	case *evtv1.Event_MessageRetracted:
 		v := e.MessageRetracted
-		target.Event = &realtimev1.RealtimeEvent_MessageRetracted{MessageRetracted: &realtimev1.MessageRetractedEvent{RoomId: v.GetRoomId(), EventId: v.GetEventId()}}
+		target.Event = &realtimev1.RealtimeEvent_MessageRetracted{MessageRetracted: &realtimev1.MessageRetractedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetEventId()}}
 	case *evtv1.Event_MessagePinned:
 		v := e.MessagePinned
 		target.Event = &realtimev1.RealtimeEvent_MessagePinned{MessagePinned: &realtimev1.MessagePinnedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetMessageEventId()}}
@@ -124,7 +96,7 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_AssetProcessingStarted{AssetProcessingStarted: &realtimev1.AssetProcessingStartedEvent{AssetId: v.GetAssetId(), MessageEventId: v.GetMessageEventId()}}
 	case *evtv1.Event_AssetProcessingSucceeded:
 		v := e.AssetProcessingSucceeded
-		target.Event = &realtimev1.RealtimeEvent_AssetProcessingSucceeded{AssetProcessingSucceeded: &realtimev1.AssetProcessingSucceededEvent{AssetId: v.GetAssetId(), Video: realtimeProcessedVideo(v.GetVideo()), MessageEventId: v.GetMessageEventId()}}
+		target.Event = &realtimev1.RealtimeEvent_AssetProcessingSucceeded{AssetProcessingSucceeded: &realtimev1.AssetProcessingSucceededEvent{AssetId: v.GetAssetId(), MessageEventId: v.GetMessageEventId()}}
 	case *evtv1.Event_AssetProcessingFailed:
 		v := e.AssetProcessingFailed
 		target.Event = &realtimev1.RealtimeEvent_AssetProcessingFailed{AssetProcessingFailed: &realtimev1.AssetProcessingFailedEvent{AssetId: v.GetAssetId(), FailureCode: realtimeAssetProcessingFailureCode(v.GetFailureCode()), MessageEventId: v.GetMessageEventId()}}
@@ -229,17 +201,6 @@ func realtimeRoomThreadingMode(value evtv1.RoomThreadingMode) apiv1.RoomThreadin
 	}
 }
 
-func realtimeSidebarGroupEntryKind(value evtv1.SidebarGroupEntry_Kind) realtimev1.SidebarGroupEntryKind {
-	switch value {
-	case evtv1.SidebarGroupEntry_ROOM:
-		return realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_ROOM
-	case evtv1.SidebarGroupEntry_SIDEBAR_LINK:
-		return realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK
-	default:
-		return realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED
-	}
-}
-
 func realtimeAssetProcessingFailureCode(value evtv1.AssetProcessingFailureCode) realtimev1.AssetProcessingFailureCode {
 	switch value {
 	case evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED:
@@ -271,27 +232,6 @@ func realtimeMentions(values []*evtv1.MessageMention) []*realtimev1.MessageMenti
 		result = append(result, m)
 	}
 	return result
-}
-
-func realtimeProcessedVideo(v *evtv1.AssetProcessedVideo) *realtimev1.AssetProcessedVideo {
-	if v == nil {
-		return nil
-	}
-	r := &realtimev1.AssetProcessedVideo{DurationMs: v.GetDurationMs(), Width: v.GetWidth(), Height: v.GetHeight(), ThumbnailAssetId: v.GetThumbnailAssetId()}
-	for _, x := range v.GetVariants() {
-		r.Variants = append(r.Variants, &realtimev1.AssetVideoVariant{Quality: x.GetQuality(), AssetId: x.GetAssetId()})
-	}
-	if v.GetHls() != nil {
-		r.Hls = &realtimev1.AssetProcessedHLS{}
-		for _, x := range v.GetHls().GetRenditions() {
-			y := &realtimev1.AssetHLSRendition{Width: x.GetWidth(), Height: x.GetHeight(), Bandwidth: x.GetBandwidth()}
-			for _, s := range x.GetSegments() {
-				y.Segments = append(y.Segments, &realtimev1.AssetHLSSegment{AssetId: s.GetAssetId(), DurationMs: s.GetDurationMs()})
-			}
-			r.Hls.Renditions = append(r.Hls.Renditions, y)
-		}
-	}
-	return r
 }
 
 func applyRealtimePlaintext(target *realtimev1.RealtimeEvent, plaintext *core.EventPlaintext) {

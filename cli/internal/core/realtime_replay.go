@@ -2,30 +2,27 @@ package core
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/publiccursor"
 	"hmans.de/chatto/pkg/events"
 )
 
 const (
 	realtimeCursorVersion         = 4
 	realtimeCursorPurpose         = "chatto-realtime-resume-v4"
-	realtimeCursorAudience        = "chatto-realtime"
 	realtimeCursorScope           = "all-events"
 	realtimeCursorLifetime        = 15 * time.Minute
 	realtimeCursorFutureSkew      = 5 * time.Minute
+	realtimeCursorWaitTimeout     = 10 * time.Second
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
 )
@@ -40,9 +37,11 @@ var (
 )
 
 type realtimeCursorClaims struct {
-	Position string `json:"p"`
-	Version  int    `json:"v"`
-	jwt.RegisteredClaims
+	Sequence       uint64 `json:"s"`
+	StreamIdentity string `json:"i"`
+	Version        int    `json:"v"`
+	IssuedAt       int64  `json:"iat"`
+	ExpiresAt      int64  `json:"exp"`
 }
 
 // RealtimeReplayPlan is a bounded, authorized durable replay ending at one
@@ -76,7 +75,7 @@ func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (
 // RealtimeCursorAtCurrentBoundary reports whether cursor already names the
 // current EVT boundary for userID. It lets transport admission distinguish a
 // cheap, no-gap reconnect from a replay attempt without exposing the internal
-// stream sequence represented by the opaque position claim.
+// stream sequence inside the sealed token.
 func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID, cursor string) (bool, error) {
 	if strings.TrimSpace(cursor) == "" {
 		return false, nil
@@ -95,19 +94,19 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 		// recovery path. PlanRealtimeReplay turns them into a safe fallback.
 		return false, nil
 	}
-	return hmac.Equal(
-		[]byte(claims.Position),
-		[]byte(c.realtimeCursorPosition(identity, userID, info.State.LastSeq)),
-	), nil
+	return claims.StreamIdentity == identity && claims.Sequence == info.State.LastSeq, nil
 }
 
 // WaitForRealtimeCursor validates one viewer-bound public cursor and waits
-// until this replica's projections include at least that EVT boundary.
+// until this replica's server content view includes at least that EVT boundary.
 //
-// The projection wait intentionally captures each projection's current
-// relevant stream target. That target is at or after the validated cursor and
-// avoids treating an unrelated global EVT message as input to every projector.
+// This is a lower bound, not a historical read. The view consumes all evt.>
+// sequences, including facts that do not change its resources. Other projections
+// and asynchronous effects are not part of this barrier. The server caps the
+// wait even if the caller provides no deadline.
 func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor string) error {
+	ctx, cancel := context.WithTimeout(ctx, realtimeCursorWaitTimeout)
+	defer cancel()
 	identity, err := evtstream.Identity(c.storage.serverEvtStream)
 	if err != nil {
 		return fmt.Errorf("read EVT stream identity: %w", err)
@@ -116,10 +115,11 @@ func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor s
 	if err != nil {
 		return fmt.Errorf("read EVT stream info: %w", err)
 	}
-	if _, err := c.resolveRealtimeCursorAt(userID, strings.TrimSpace(cursor), identity, info.State.FirstSeq, info.State.LastSeq, time.Now()); err != nil {
+	sequence, err := c.resolveRealtimeCursorAt(userID, strings.TrimSpace(cursor), identity, info.State.FirstSeq, info.State.LastSeq, time.Now())
+	if err != nil {
 		return err
 	}
-	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
+	if err := c.contentView.projector.WaitFor(ctx, events.SubjectPosition("evt.>", sequence)); err != nil {
 		return fmt.Errorf("wait for realtime resource boundary: %w", err)
 	}
 	return nil
@@ -166,7 +166,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 	}
 
 	cursorSequence, err := c.resolveRealtimeCursorAt(userID, resumeCursor, identity, info.State.FirstSeq, boundarySeq, time.Now())
-	if err != nil {
+	if err != nil || boundarySeq-cursorSequence > realtimeReplayMaxSequenceSpan {
 		plan.Reset = true
 		plan.HadSequenceGap = true
 		return plan, nil
@@ -416,81 +416,43 @@ func (c *ChattoCore) encodeRealtimeCursorAt(userID, streamIdentity string, seque
 		return "", ErrRealtimeCursorInvalid
 	}
 	claims := realtimeCursorClaims{
-		Position: c.realtimeCursorPosition(streamIdentity, userID, sequence),
-		Version:  realtimeCursorVersion,
-		RegisteredClaims: jwt.RegisteredClaims{
-			Subject:   userID,
-			Audience:  jwt.ClaimStrings{realtimeCursorAudience},
-			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(realtimeCursorLifetime)),
-		},
+		Sequence:       sequence,
+		StreamIdentity: streamIdentity,
+		Version:        realtimeCursorVersion,
+		IssuedAt:       now.Unix(),
+		ExpiresAt:      now.Add(realtimeCursorLifetime).Unix(),
 	}
-	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(c.realtimeCursorSigningKey())
+	payload, err := json.Marshal(claims)
 	if err != nil {
-		return "", fmt.Errorf("sign realtime cursor: %w", err)
+		return "", fmt.Errorf("encode realtime cursor: %w", err)
 	}
-	return token, nil
-}
-
-func (c *ChattoCore) realtimeCursorSigningKey() []byte {
-	mac := hmac.New(sha256.New, []byte(c.config.SecretKey))
-	_, _ = mac.Write([]byte(realtimeCursorPurpose + "\x00jwt"))
-	return mac.Sum(nil)
-}
-
-func (c *ChattoCore) realtimeCursorPosition(streamIdentity, userID string, sequence uint64) string {
-	mac := hmac.New(sha256.New, []byte(c.config.SecretKey))
-	_, _ = mac.Write([]byte(realtimeCursorPurpose))
-	_, _ = mac.Write([]byte{0})
-	_, _ = mac.Write([]byte(realtimeCursorScope))
-	_, _ = mac.Write([]byte{0})
-	_, _ = mac.Write([]byte(streamIdentity))
-	_, _ = mac.Write([]byte{0})
-	_, _ = mac.Write([]byte(userID))
-	_, _ = mac.Write([]byte{0})
-	_, _ = mac.Write([]byte(strconv.FormatUint(sequence, 10)))
-	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return publiccursor.Seal(c.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00"+userID, payload)
 }
 
 func (c *ChattoCore) parseRealtimeCursorAt(userID, cursor string, now time.Time) (realtimeCursorClaims, error) {
-	claims := realtimeCursorClaims{}
-	token, err := jwt.ParseWithClaims(
-		cursor,
-		&claims,
-		func(token *jwt.Token) (any, error) {
-			if token.Method != jwt.SigningMethodHS256 {
-				return nil, ErrRealtimeCursorInvalid
-			}
-			return c.realtimeCursorSigningKey(), nil
-		},
-		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
-		jwt.WithAudience(realtimeCursorAudience),
-		jwt.WithSubject(userID),
-		jwt.WithExpirationRequired(),
-		jwt.WithTimeFunc(func() time.Time { return now }),
-	)
+	if userID == "" {
+		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	}
+	payload, err := publiccursor.Open(c.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00"+userID, cursor)
 	if err != nil {
-		if errors.Is(err, jwt.ErrTokenExpired) {
-			return realtimeCursorClaims{}, ErrRealtimeCursorExpired
-		}
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	if !token.Valid || claims.Version != realtimeCursorVersion || claims.Position == "" || claims.IssuedAt == nil || claims.ExpiresAt == nil {
+	var claims realtimeCursorClaims
+	if err := json.Unmarshal(payload, &claims); err != nil || claims.Version != realtimeCursorVersion || !evtstream.ValidIdentity(claims.StreamIdentity) {
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	position, err := base64.RawURLEncoding.DecodeString(claims.Position)
-	if err != nil || len(position) != sha256.Size {
+	if claims.IssuedAt > now.Add(realtimeCursorFutureSkew).Unix() || claims.ExpiresAt-claims.IssuedAt != int64(realtimeCursorLifetime/time.Second) {
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	if claims.IssuedAt.Time.After(now.Add(realtimeCursorFutureSkew)) || claims.ExpiresAt.Time.Sub(claims.IssuedAt.Time) != realtimeCursorLifetime {
-		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	if claims.ExpiresAt <= now.Unix() {
+		return realtimeCursorClaims{}, ErrRealtimeCursorExpired
 	}
 	return claims, nil
 }
 
-// resolveRealtimeCursorAt recovers the hidden EVT position by comparing the
-// token's HMAC against the bounded sequence window. No stream coordinate is
-// present in the JWT payload.
+// resolveRealtimeCursorAt opens the sealed coordinates and validates their
+// stream bounds. Replay work limits belong to the planner, not cursor validity:
+// an RPC can wait for a valid boundary outside the replay scan window.
 func (c *ChattoCore) resolveRealtimeCursorAt(
 	userID, cursor, streamIdentity string,
 	firstSequence, lastSequence uint64,
@@ -500,20 +462,11 @@ func (c *ChattoCore) resolveRealtimeCursorAt(
 	if err != nil {
 		return 0, err
 	}
-	lower := uint64(0)
-	if firstSequence > 0 {
-		lower = firstSequence - 1
+	if claims.StreamIdentity != streamIdentity || claims.Sequence > lastSequence {
+		return 0, ErrRealtimeCursorInvalid
 	}
-	if lastSequence > realtimeReplayMaxSequenceSpan && lower < lastSequence-realtimeReplayMaxSequenceSpan {
-		lower = lastSequence - realtimeReplayMaxSequenceSpan
+	if firstSequence > 0 && claims.Sequence < firstSequence-1 {
+		return 0, ErrRealtimeCursorExpired
 	}
-	for sequence := lastSequence; ; sequence-- {
-		if hmac.Equal([]byte(claims.Position), []byte(c.realtimeCursorPosition(streamIdentity, userID, sequence))) {
-			return sequence, nil
-		}
-		if sequence == lower {
-			break
-		}
-	}
-	return 0, ErrRealtimeCursorExpired
+	return claims.Sequence, nil
 }

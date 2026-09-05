@@ -41,6 +41,7 @@ Clients can retain `cursor` after they apply every preceding event.
 | Field | Type | Description |
 | --- | --- | --- |
 | `cursor` | `string` | Opaque cursor at the recovery-to-live handoff boundary. |
+| `recovery` | [`RealtimeRecovery`](#chatto-realtime-v1-RealtimeRecovery) | Actual recovery result, including a successful replay with no events. |
 
 <a id="chatto-realtime-v1-RealtimeClose"></a>
 
@@ -63,7 +64,7 @@ Application-level heartbeat.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `resume_cursor` | `optional string` | Fresh resume cursor for the latest replay boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
+| `cursor` | `optional string` | Fresh resume cursor for the latest replay boundary delivered on this socket. A client can retain it only after all earlier frames have been applied. |
 
 <a id="chatto-realtime-v1-RealtimeServerFrame"></a>
 
@@ -131,7 +132,7 @@ Stable server-requested close category.
 | `REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE` | `3` | The server cannot accept or continue a realtime session at present. |
 | `REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED` | `4` | The caller is no longer authenticated. |
 | `REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED` | `5` | The caller must renew its session before reconnecting. |
-| `REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED` | `6` | The server projection reset and the client must take a new snapshot. |
+| `REALTIME_CLOSE_CODE_RESYNC_REQUIRED` | `6` | The client must discard its cursor and synchronize current state again. |
 | `REALTIME_CLOSE_CODE_SESSION_TERMINATED` | `7` | The user's session ended and the client must return to sign-in. |
 
 <a id="chatto-realtime-v1-RealtimeInitialState"></a>
@@ -145,6 +146,19 @@ Startup behavior when a subscription cannot resume from its cursor.
 | `REALTIME_INITIAL_STATE_UNSPECIFIED` | `0` | Invalid value. The server rejects subscriptions that use it. |
 | `REALTIME_INITIAL_STATE_LIVE_ONLY` | `1` | Start at the current event boundary without sending current resources. |
 | `REALTIME_INITIAL_STATE_SNAPSHOT` | `2` | Send an exact authorized snapshot before later public events. |
+
+<a id="chatto-realtime-v1-RealtimeRecovery"></a>
+
+### RealtimeRecovery
+
+How the server reached the live-delivery boundary.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `REALTIME_RECOVERY_UNSPECIFIED` | `0` | Invalid value. The server always supplies a recovery result. |
+| `REALTIME_RECOVERY_RESUMED` | `1` | The requested cursor was accepted and all available authorized events followed it. |
+| `REALTIME_RECOVERY_SNAPSHOT` | `2` | The server sent a replacement snapshot. |
+| `REALTIME_RECOVERY_LIVE_ONLY` | `3` | The server started at the current boundary without past events or resources. |
 
 
 
@@ -160,7 +174,7 @@ These messages and enums define the authorized semantic events that the server c
 
 ### RealtimeEvent
 
-One authorized public event with its optional resume cursor.
+One authorized public event with its optional cursor.
 
 Each payload uses a realtime-owned public message. The union is the public
 event catalogue. An internal event that is absent from this union is not
@@ -174,7 +188,7 @@ a snapshot or a ConnectRPC resource.
 | `id` | `string` | Universal event identifier (NanoID). |
 | `created_at` | `google.protobuf.Timestamp` | Time when the source event was created. |
 | `actor_id` | `optional string` | ID of the user that caused the event. Absence means no user actor. |
-| `resume_cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
+| `cursor` | `optional string` | Opaque cursor safe to retain after this complete event is accepted. |
 | `event.room_created` | [`RoomCreatedEvent`](#chatto-realtime-v1-RoomCreatedEvent) | No field description provided. |
 | `event.room_updated` | [`RoomUpdatedEvent`](#chatto-realtime-v1-RoomUpdatedEvent) | No field description provided. |
 | `event.room_deleted` | [`RoomDeletedEvent`](#chatto-realtime-v1-RoomDeletedEvent) | No field description provided. |
@@ -200,17 +214,6 @@ a snapshot or a ConnectRPC resource.
 | `event.asset_processing_failed` | [`AssetProcessingFailedEvent`](#chatto-realtime-v1-AssetProcessingFailedEvent) | No field description provided. |
 | `event.asset_deleted` | [`AssetDeletedEvent`](#chatto-realtime-v1-AssetDeletedEvent) | No field description provided. |
 | `event.server_motd_changed` | [`ServerMotdChangedEvent`](#chatto-realtime-v1-ServerMotdChangedEvent) | No field description provided. |
-| `event.room_group_created` | [`RoomGroupCreatedEvent`](#chatto-realtime-v1-RoomGroupCreatedEvent) | No field description provided. |
-| `event.room_group_updated` | [`RoomGroupUpdatedEvent`](#chatto-realtime-v1-RoomGroupUpdatedEvent) | No field description provided. |
-| `event.room_group_deleted` | [`RoomGroupDeletedEvent`](#chatto-realtime-v1-RoomGroupDeletedEvent) | No field description provided. |
-| `event.room_added_to_group` | [`RoomAddedToGroupEvent`](#chatto-realtime-v1-RoomAddedToGroupEvent) | No field description provided. |
-| `event.room_removed_from_group` | [`RoomRemovedFromGroupEvent`](#chatto-realtime-v1-RoomRemovedFromGroupEvent) | No field description provided. |
-| `event.rooms_in_group_reordered` | [`RoomsInGroupReorderedEvent`](#chatto-realtime-v1-RoomsInGroupReorderedEvent) | No field description provided. |
-| `event.sidebar_link_added_to_group` | [`SidebarLinkAddedToGroupEvent`](#chatto-realtime-v1-SidebarLinkAddedToGroupEvent) | No field description provided. |
-| `event.sidebar_link_updated` | [`SidebarLinkUpdatedEvent`](#chatto-realtime-v1-SidebarLinkUpdatedEvent) | No field description provided. |
-| `event.sidebar_link_removed_from_group` | [`SidebarLinkRemovedFromGroupEvent`](#chatto-realtime-v1-SidebarLinkRemovedFromGroupEvent) | No field description provided. |
-| `event.sidebar_group_entries_reordered` | [`SidebarGroupEntriesReorderedEvent`](#chatto-realtime-v1-SidebarGroupEntriesReorderedEvent) | No field description provided. |
-| `event.room_groups_reordered` | [`RoomGroupsReorderedEvent`](#chatto-realtime-v1-RoomGroupsReorderedEvent) | No field description provided. |
 | `event.user_account_created` | [`UserAccountCreatedEvent`](#chatto-realtime-v1-UserAccountCreatedEvent) | No field description provided. |
 | `event.user_profile_changed` | [`UserProfileChangedEvent`](#chatto-realtime-v1-UserProfileChangedEvent) | No field description provided. |
 | `event.user_account_deleted` | [`UserAccountDeletedEvent`](#chatto-realtime-v1-UserAccountDeletedEvent) | No field description provided. |
@@ -224,6 +227,7 @@ a snapshot or a ConnectRPC resource.
 | `event.notification_occurrences_changed` | [`NotificationOccurrencesChangedEvent`](#chatto-realtime-v1-NotificationOccurrencesChangedEvent) | No field description provided. |
 | `event.notification_unread_state_changed` | [`NotificationUnreadStateChangedEvent`](#chatto-realtime-v1-NotificationUnreadStateChangedEvent) | No field description provided. |
 | `event.room_read_state_changed` | [`RoomReadStateChangedEvent`](#chatto-realtime-v1-RoomReadStateChangedEvent) | No field description provided. |
+| `event.room_layout_changed` | [`RoomLayoutChangedEvent`](#chatto-realtime-v1-RoomLayoutChangedEvent) | No field description provided. |
 
 <a id="chatto-realtime-v1-AllMessageMention"></a>
 
@@ -240,55 +244,6 @@ AssetDeletedEvent reports a deleted asset.
 | Field | Type | Description |
 | --- | --- | --- |
 | `asset_id` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-AssetHLSRendition"></a>
-
-### AssetHLSRendition
-
-AssetHLSRendition describes one HLS rendition.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `width` | `int32` | No field description provided. |
-| `height` | `int32` | No field description provided. |
-| `bandwidth` | `int64` | No field description provided. |
-| `segments` | repeated [`AssetHLSSegment`](#chatto-realtime-v1-AssetHLSSegment) | No field description provided. |
-
-<a id="chatto-realtime-v1-AssetHLSSegment"></a>
-
-### AssetHLSSegment
-
-AssetHLSSegment identifies one HLS media segment.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `asset_id` | `string` | No field description provided. |
-| `duration_ms` | `int64` | No field description provided. |
-
-<a id="chatto-realtime-v1-AssetProcessedHLS"></a>
-
-### AssetProcessedHLS
-
-AssetProcessedHLS describes the public asset IDs used by one HLS manifest.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `renditions` | repeated [`AssetHLSRendition`](#chatto-realtime-v1-AssetHLSRendition) | No field description provided. |
-
-<a id="chatto-realtime-v1-AssetProcessedVideo"></a>
-
-### AssetProcessedVideo
-
-AssetProcessedVideo describes completed video derivatives by public asset ID.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `duration_ms` | `int64` | No field description provided. |
-| `width` | `int32` | No field description provided. |
-| `height` | `int32` | No field description provided. |
-| `thumbnail_asset_id` | `string` | No field description provided. |
-| `variants` | repeated [`AssetVideoVariant`](#chatto-realtime-v1-AssetVideoVariant) | No field description provided. |
-| `hls` | [`AssetProcessedHLS`](#chatto-realtime-v1-AssetProcessedHLS) | No field description provided. |
 
 <a id="chatto-realtime-v1-AssetProcessingFailedEvent"></a>
 
@@ -318,23 +273,12 @@ AssetProcessingStartedEvent reports that message-asset processing started.
 ### AssetProcessingSucceededEvent
 
 AssetProcessingSucceededEvent reports successful message-asset processing.
+Read the message resource for current attachments and processed video data.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `asset_id` | `string` | No field description provided. |
-| `video` | [`AssetProcessedVideo`](#chatto-realtime-v1-AssetProcessedVideo) | No field description provided. |
 | `message_event_id` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-AssetVideoVariant"></a>
-
-### AssetVideoVariant
-
-AssetVideoVariant identifies one processed rendition.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `quality` | `string` | No field description provided. |
-| `asset_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-DirectUserMention"></a>
 
@@ -357,7 +301,7 @@ MessageEditedEvent reports changed message content or metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
-| `event_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-MessageMention"></a>
 
@@ -394,12 +338,12 @@ MessagePostedEvent reports a new room message.
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 | `in_reply_to` | `string` | No field description provided. |
-| `in_thread` | `string` | No field description provided. |
-| `mentioned_user_ids` | `repeated string` | No field description provided. |
+| `thread_root_event_id` | `string` | Root message ID for a thread reply. Empty for a room-level message. |
 | `echo_of_event_id` | `string` | No field description provided. |
 | `echo_from_thread_root_event_id` | `string` | No field description provided. |
 | `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | No field description provided. |
 | `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
+| `room_kind` | `chatto.api.v1.RoomKind` | Immutable room kind. Direct messages do not require a mention to address a bot. |
 
 <a id="chatto-realtime-v1-MessageRetractedEvent"></a>
 
@@ -410,7 +354,7 @@ MessageRetractedEvent reports a retracted message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
-| `event_id` | `string` | No field description provided. |
+| `message_event_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-MessageUnpinnedEvent"></a>
 
@@ -490,17 +434,6 @@ RoleMessageMention identifies the role that caused a mention.
 | --- | --- | --- |
 | `role_name` | `string` | No field description provided. |
 
-<a id="chatto-realtime-v1-RoomAddedToGroupEvent"></a>
-
-### RoomAddedToGroupEvent
-
-RoomAddedToGroupEvent reports that a room was added to a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `room_id` | `string` | No field description provided. |
-
 <a id="chatto-realtime-v1-RoomArchivedEvent"></a>
 
 ### RoomArchivedEvent
@@ -536,49 +469,13 @@ RoomDeletedEvent reports a deleted room.
 | --- | --- | --- |
 | `room_id` | `string` | No field description provided. |
 
-<a id="chatto-realtime-v1-RoomGroupCreatedEvent"></a>
+<a id="chatto-realtime-v1-RoomLayoutChangedEvent"></a>
 
-### RoomGroupCreatedEvent
+### RoomLayoutChangedEvent
 
-RoomGroupCreatedEvent reports a new room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `name` | `string` | No field description provided. |
-| `description` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-RoomGroupDeletedEvent"></a>
-
-### RoomGroupDeletedEvent
-
-RoomGroupDeletedEvent reports a deleted room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-RoomGroupUpdatedEvent"></a>
-
-### RoomGroupUpdatedEvent
-
-RoomGroupUpdatedEvent reports changed room-group metadata.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `name` | `string` | No field description provided. |
-| `description` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-RoomGroupsReorderedEvent"></a>
-
-### RoomGroupsReorderedEvent
-
-RoomGroupsReorderedEvent reports the complete room-group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_ids` | `repeated string` | No field description provided. |
+RoomLayoutChangedEvent reports a change to room groups, their entries, or order.
+Refresh RoomDirectoryService.ListRoomGroups with this event's cursor as the
+minimum boundary. The event contains no room IDs or other hidden layout data.
 
 <a id="chatto-realtime-v1-RoomReadStateChangedEvent"></a>
 
@@ -588,17 +485,6 @@ RoomReadStateChangedEvent reports the caller's current room read state.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room_id` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-RoomRemovedFromGroupEvent"></a>
-
-### RoomRemovedFromGroupEvent
-
-RoomRemovedFromGroupEvent reports that a room was removed from a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
 | `room_id` | `string` | No field description provided. |
 
 <a id="chatto-realtime-v1-RoomSlowModeChangedEvent"></a>
@@ -656,17 +542,6 @@ RoomUpdatedEvent reports changed room metadata.
 | `name` | `string` | No field description provided. |
 | `description` | `string` | No field description provided. |
 
-<a id="chatto-realtime-v1-RoomsInGroupReorderedEvent"></a>
-
-### RoomsInGroupReorderedEvent
-
-RoomsInGroupReorderedEvent reports the visible room order in a group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `room_ids` | `repeated string` | No field description provided. |
-
 <a id="chatto-realtime-v1-ServerMotdChangedEvent"></a>
 
 ### ServerMotdChangedEvent
@@ -683,65 +558,6 @@ ServerMotdChangedEvent reports the current message of the day.
 
 ServerProfileChangedEvent reports that the public server profile changed.
 Read ServerService with this event's resume cursor as the minimum boundary.
-
-<a id="chatto-realtime-v1-SidebarGroupEntriesReorderedEvent"></a>
-
-### SidebarGroupEntriesReorderedEvent
-
-SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `entries` | repeated [`SidebarGroupEntryReference`](#chatto-realtime-v1-SidebarGroupEntryReference) | No field description provided. |
-
-<a id="chatto-realtime-v1-SidebarGroupEntryReference"></a>
-
-### SidebarGroupEntryReference
-
-SidebarGroupEntryReference identifies one entry in a mixed group order.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`SidebarGroupEntryKind`](#chatto-realtime-v1-SidebarGroupEntryKind) | No field description provided. |
-| `id` | `string` | Room ID or sidebar-link ID, as selected by `kind`. |
-
-<a id="chatto-realtime-v1-SidebarLinkAddedToGroupEvent"></a>
-
-### SidebarLinkAddedToGroupEvent
-
-SidebarLinkAddedToGroupEvent reports a new link in a room group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `link_id` | `string` | No field description provided. |
-| `label` | `string` | No field description provided. |
-| `url` | `string` | Absolute HTTP(S) URL or server-local path that starts with `/`. |
-
-<a id="chatto-realtime-v1-SidebarLinkRemovedFromGroupEvent"></a>
-
-### SidebarLinkRemovedFromGroupEvent
-
-SidebarLinkRemovedFromGroupEvent reports a removed room-group link.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `link_id` | `string` | No field description provided. |
-
-<a id="chatto-realtime-v1-SidebarLinkUpdatedEvent"></a>
-
-### SidebarLinkUpdatedEvent
-
-SidebarLinkUpdatedEvent reports changed room-group link data.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | No field description provided. |
-| `link_id` | `string` | No field description provided. |
-| `label` | `string` | No field description provided. |
-| `url` | `string` | Complete new absolute HTTP(S) URL or server-local path. |
 
 <a id="chatto-realtime-v1-ThreadCreatedEvent"></a>
 
@@ -895,15 +711,3 @@ AssetProcessingFailureCode identifies a stable processing failure class.
 | `ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED` | `0` | The failure class is not known. |
 | `ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED` | `1` | Asset processing failed without a more specific public reason. |
 | `ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING` | `2` | The source asset was not available. |
-
-<a id="chatto-realtime-v1-SidebarGroupEntryKind"></a>
-
-### SidebarGroupEntryKind
-
-SidebarGroupEntryKind identifies one ordered room-group entry type.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED` | `0` | No value description provided. |
-| `SIDEBAR_GROUP_ENTRY_KIND_ROOM` | `1` | No value description provided. |
-| `SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK` | `2` | No value description provided. |

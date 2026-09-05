@@ -72,7 +72,7 @@ func TestProjectRealtimeEventCarriesMessagePlaintext(t *testing.T) {
 	}
 }
 
-func TestProjectRealtimeEventPreservesMixedRoomGroupOrder(t *testing.T) {
+func TestProjectRealtimeEventCollapsesMixedRoomGroupOrder(t *testing.T) {
 	projected := projectRealtimeEvent(&evtv1.Event{
 		Id: "reorder-event-id",
 		Event: &evtv1.Event_SidebarGroupEntriesReordered{
@@ -86,15 +86,17 @@ func TestProjectRealtimeEventPreservesMixedRoomGroupOrder(t *testing.T) {
 		},
 	})
 
-	entries := projected.GetSidebarGroupEntriesReordered().GetEntries()
-	if len(entries) != 2 {
-		t.Fatalf("entries length = %d, want 2", len(entries))
+	if projected.GetRoomLayoutChanged() == nil {
+		t.Fatalf("expected layout hint, got %v", projected)
 	}
-	if entries[0].GetKind() != realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_ROOM || entries[0].GetId() != "room-id" {
-		t.Fatalf("first entry = %+v, want room-id with room kind", entries[0])
+	wire, err := proto.Marshal(projected)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if entries[1].GetKind() != realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK || entries[1].GetId() != "link-id" {
-		t.Fatalf("second entry = %+v, want link-id with sidebar-link kind", entries[1])
+	for _, private := range []string{"group-id", "room-id", "link-id"} {
+		if bytes.Contains(wire, []byte(private)) {
+			t.Fatalf("layout hint exposed %s", private)
+		}
 	}
 }
 
@@ -286,7 +288,7 @@ func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 	unknown = protowire.AppendBytes(unknown, nil)
 	publicEvent.ProtoReflect().SetUnknown(unknown)
 	cursor := "opaque-cursor"
-	publicEvent.ResumeCursor = &cursor
+	publicEvent.Cursor = &cursor
 	wire, err := proto.Marshal(publicEvent)
 	if err != nil {
 		t.Fatalf("marshal RealtimeEvent: %v", err)
@@ -302,8 +304,8 @@ func TestRealtimeEventUnknownPayloadKeepsMetadataAndCursor(t *testing.T) {
 	if decoded.GetEvent() != nil {
 		t.Fatalf("decoded payload = %T, want unknown variant to remain unset", decoded.GetEvent())
 	}
-	if decoded.GetResumeCursor() != cursor {
-		t.Fatalf("decoded cursor = %q, want %q", decoded.GetResumeCursor(), cursor)
+	if decoded.GetCursor() != cursor {
+		t.Fatalf("decoded cursor = %q, want %q", decoded.GetCursor(), cursor)
 	}
 }
 
@@ -329,6 +331,7 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 		"user_profile_changed":       "user_login_changed",
 		"viewer_preferences_changed": "user_time_format_changed",
 		"server_profile_changed":     "server_name_changed",
+		"room_layout_changed":        "room_group_created",
 	}
 	mappedPubSubFields := map[protoreflect.Name]bool{}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
@@ -404,12 +407,9 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			t.Errorf("PubSubEvent field %s has no public realtime mapping", pubsubField.FullName())
 		}
 	}
-	if publicOneof.Fields().Len() < 40 {
-		t.Fatalf("public event catalogue contains %d variants, want at least 40", publicOneof.Fields().Len())
-	}
 	for index := 0; index < publicOneof.Fields().Len(); index++ {
-		if got, want := publicOneof.Fields().Get(index).Number(), protoreflect.FieldNumber(index+10); got != want {
-			t.Errorf("public field %s has tag %d, want compact tag %d", publicOneof.Fields().Get(index).FullName(), got, want)
+		if field := publicOneof.Fields().Get(index); field.Number() >= 35 && field.Number() <= 45 {
+			t.Errorf("public field %s reuses a retired layout tag", field.FullName())
 		}
 	}
 }

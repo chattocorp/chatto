@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
+import { Message, proto3 } from "@bufbuild/protobuf";
 import { RoomKind } from "../../api/v1/rooms_pb.js";
 import { RoomThreadingMode } from "../../api/v1/common_pb.js";
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
@@ -41,34 +41,6 @@ proto3.util.setEnumType(AssetProcessingFailureCode, "chatto.realtime.v1.AssetPro
   { no: 0, name: "ASSET_PROCESSING_FAILURE_CODE_UNSPECIFIED" },
   { no: 1, name: "ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED" },
   { no: 2, name: "ASSET_PROCESSING_FAILURE_CODE_SOURCE_MISSING" },
-]);
-
-/**
- * SidebarGroupEntryKind identifies one ordered room-group entry type.
- *
- * @generated from enum chatto.realtime.v1.SidebarGroupEntryKind
- */
-export enum SidebarGroupEntryKind {
-  /**
-   * @generated from enum value: SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: SIDEBAR_GROUP_ENTRY_KIND_ROOM = 1;
-   */
-  ROOM = 1,
-
-  /**
-   * @generated from enum value: SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK = 2;
-   */
-  SIDEBAR_LINK = 2,
-}
-// Retrieve enum metadata with: proto3.getEnumType(SidebarGroupEntryKind)
-proto3.util.setEnumType(SidebarGroupEntryKind, "chatto.realtime.v1.SidebarGroupEntryKind", [
-  { no: 0, name: "SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED" },
-  { no: 1, name: "SIDEBAR_GROUP_ENTRY_KIND_ROOM" },
-  { no: 2, name: "SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK" },
 ]);
 
 /**
@@ -718,14 +690,11 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   inReplyTo = "";
 
   /**
-   * @generated from field: string in_thread = 3;
+   * Root message ID for a thread reply. Empty for a room-level message.
+   *
+   * @generated from field: string thread_root_event_id = 3;
    */
-  inThread = "";
-
-  /**
-   * @generated from field: repeated string mentioned_user_ids = 4;
-   */
-  mentionedUserIds: string[] = [];
+  threadRootEventId = "";
 
   /**
    * @generated from field: string echo_of_event_id = 5;
@@ -749,6 +718,13 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
    */
   bodyPlaintext?: string;
 
+  /**
+   * Immutable room kind. Direct messages do not require a mention to address a bot.
+   *
+   * @generated from field: chatto.api.v1.RoomKind room_kind = 9;
+   */
+  roomKind = RoomKind.UNSPECIFIED;
+
   constructor(data?: PartialMessage<MessagePostedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -759,12 +735,12 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "in_reply_to", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "in_thread", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "mentioned_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "echo_of_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "echo_from_thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "mentions", kind: "message", T: MessageMention, repeated: true },
     { no: 8, name: "body_plaintext", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 9, name: "room_kind", kind: "enum", T: proto3.getEnumType(RoomKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessagePostedEvent {
@@ -1006,9 +982,9 @@ export class MessageEditedEvent extends Message<MessageEditedEvent> {
   roomId = "";
 
   /**
-   * @generated from field: string event_id = 2;
+   * @generated from field: string message_event_id = 2;
    */
-  eventId = "";
+  messageEventId = "";
 
   constructor(data?: PartialMessage<MessageEditedEvent>) {
     super();
@@ -1019,7 +995,7 @@ export class MessageEditedEvent extends Message<MessageEditedEvent> {
   static readonly typeName = "chatto.realtime.v1.MessageEditedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageEditedEvent {
@@ -1051,9 +1027,9 @@ export class MessageRetractedEvent extends Message<MessageRetractedEvent> {
   roomId = "";
 
   /**
-   * @generated from field: string event_id = 2;
+   * @generated from field: string message_event_id = 2;
    */
-  eventId = "";
+  messageEventId = "";
 
   constructor(data?: PartialMessage<MessageRetractedEvent>) {
     super();
@@ -1064,7 +1040,7 @@ export class MessageRetractedEvent extends Message<MessageRetractedEvent> {
   static readonly typeName = "chatto.realtime.v1.MessageRetractedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageRetractedEvent {
@@ -1265,262 +1241,8 @@ export class AssetProcessingStartedEvent extends Message<AssetProcessingStartedE
 }
 
 /**
- * AssetProcessedVideo describes completed video derivatives by public asset ID.
- *
- * @generated from message chatto.realtime.v1.AssetProcessedVideo
- */
-export class AssetProcessedVideo extends Message<AssetProcessedVideo> {
-  /**
-   * @generated from field: int64 duration_ms = 1;
-   */
-  durationMs = protoInt64.zero;
-
-  /**
-   * @generated from field: int32 width = 2;
-   */
-  width = 0;
-
-  /**
-   * @generated from field: int32 height = 3;
-   */
-  height = 0;
-
-  /**
-   * @generated from field: string thumbnail_asset_id = 4;
-   */
-  thumbnailAssetId = "";
-
-  /**
-   * @generated from field: repeated chatto.realtime.v1.AssetVideoVariant variants = 5;
-   */
-  variants: AssetVideoVariant[] = [];
-
-  /**
-   * @generated from field: chatto.realtime.v1.AssetProcessedHLS hls = 6;
-   */
-  hls?: AssetProcessedHLS;
-
-  constructor(data?: PartialMessage<AssetProcessedVideo>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.AssetProcessedVideo";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "duration_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 2, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 4, name: "thumbnail_asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "variants", kind: "message", T: AssetVideoVariant, repeated: true },
-    { no: 6, name: "hls", kind: "message", T: AssetProcessedHLS },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetProcessedVideo {
-    return new AssetProcessedVideo().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetProcessedVideo {
-    return new AssetProcessedVideo().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetProcessedVideo {
-    return new AssetProcessedVideo().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetProcessedVideo | PlainMessage<AssetProcessedVideo> | undefined, b: AssetProcessedVideo | PlainMessage<AssetProcessedVideo> | undefined): boolean {
-    return proto3.util.equals(AssetProcessedVideo, a, b);
-  }
-}
-
-/**
- * AssetVideoVariant identifies one processed rendition.
- *
- * @generated from message chatto.realtime.v1.AssetVideoVariant
- */
-export class AssetVideoVariant extends Message<AssetVideoVariant> {
-  /**
-   * @generated from field: string quality = 1;
-   */
-  quality = "";
-
-  /**
-   * @generated from field: string asset_id = 2;
-   */
-  assetId = "";
-
-  constructor(data?: PartialMessage<AssetVideoVariant>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.AssetVideoVariant";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "quality", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetVideoVariant {
-    return new AssetVideoVariant().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetVideoVariant {
-    return new AssetVideoVariant().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetVideoVariant {
-    return new AssetVideoVariant().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetVideoVariant | PlainMessage<AssetVideoVariant> | undefined, b: AssetVideoVariant | PlainMessage<AssetVideoVariant> | undefined): boolean {
-    return proto3.util.equals(AssetVideoVariant, a, b);
-  }
-}
-
-/**
- * AssetProcessedHLS describes the public asset IDs used by one HLS manifest.
- *
- * @generated from message chatto.realtime.v1.AssetProcessedHLS
- */
-export class AssetProcessedHLS extends Message<AssetProcessedHLS> {
-  /**
-   * @generated from field: repeated chatto.realtime.v1.AssetHLSRendition renditions = 1;
-   */
-  renditions: AssetHLSRendition[] = [];
-
-  constructor(data?: PartialMessage<AssetProcessedHLS>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.AssetProcessedHLS";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "renditions", kind: "message", T: AssetHLSRendition, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetProcessedHLS {
-    return new AssetProcessedHLS().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetProcessedHLS {
-    return new AssetProcessedHLS().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetProcessedHLS {
-    return new AssetProcessedHLS().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetProcessedHLS | PlainMessage<AssetProcessedHLS> | undefined, b: AssetProcessedHLS | PlainMessage<AssetProcessedHLS> | undefined): boolean {
-    return proto3.util.equals(AssetProcessedHLS, a, b);
-  }
-}
-
-/**
- * AssetHLSRendition describes one HLS rendition.
- *
- * @generated from message chatto.realtime.v1.AssetHLSRendition
- */
-export class AssetHLSRendition extends Message<AssetHLSRendition> {
-  /**
-   * @generated from field: int32 width = 1;
-   */
-  width = 0;
-
-  /**
-   * @generated from field: int32 height = 2;
-   */
-  height = 0;
-
-  /**
-   * @generated from field: int64 bandwidth = 3;
-   */
-  bandwidth = protoInt64.zero;
-
-  /**
-   * @generated from field: repeated chatto.realtime.v1.AssetHLSSegment segments = 4;
-   */
-  segments: AssetHLSSegment[] = [];
-
-  constructor(data?: PartialMessage<AssetHLSRendition>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.AssetHLSRendition";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "width", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 2, name: "height", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "bandwidth", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-    { no: 4, name: "segments", kind: "message", T: AssetHLSSegment, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetHLSRendition {
-    return new AssetHLSRendition().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetHLSRendition {
-    return new AssetHLSRendition().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetHLSRendition {
-    return new AssetHLSRendition().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetHLSRendition | PlainMessage<AssetHLSRendition> | undefined, b: AssetHLSRendition | PlainMessage<AssetHLSRendition> | undefined): boolean {
-    return proto3.util.equals(AssetHLSRendition, a, b);
-  }
-}
-
-/**
- * AssetHLSSegment identifies one HLS media segment.
- *
- * @generated from message chatto.realtime.v1.AssetHLSSegment
- */
-export class AssetHLSSegment extends Message<AssetHLSSegment> {
-  /**
-   * @generated from field: string asset_id = 1;
-   */
-  assetId = "";
-
-  /**
-   * @generated from field: int64 duration_ms = 2;
-   */
-  durationMs = protoInt64.zero;
-
-  constructor(data?: PartialMessage<AssetHLSSegment>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.AssetHLSSegment";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "duration_ms", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetHLSSegment {
-    return new AssetHLSSegment().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AssetHLSSegment {
-    return new AssetHLSSegment().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AssetHLSSegment {
-    return new AssetHLSSegment().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: AssetHLSSegment | PlainMessage<AssetHLSSegment> | undefined, b: AssetHLSSegment | PlainMessage<AssetHLSSegment> | undefined): boolean {
-    return proto3.util.equals(AssetHLSSegment, a, b);
-  }
-}
-
-/**
  * AssetProcessingSucceededEvent reports successful message-asset processing.
+ * Read the message resource for current attachments and processed video data.
  *
  * @generated from message chatto.realtime.v1.AssetProcessingSucceededEvent
  */
@@ -1529,11 +1251,6 @@ export class AssetProcessingSucceededEvent extends Message<AssetProcessingSuccee
    * @generated from field: string asset_id = 1;
    */
   assetId = "";
-
-  /**
-   * @generated from field: chatto.realtime.v1.AssetProcessedVideo video = 2;
-   */
-  video?: AssetProcessedVideo;
 
   /**
    * @generated from field: string message_event_id = 3;
@@ -1549,7 +1266,6 @@ export class AssetProcessingSucceededEvent extends Message<AssetProcessingSuccee
   static readonly typeName = "chatto.realtime.v1.AssetProcessingSucceededEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "video", kind: "message", T: AssetProcessedVideo },
     { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
@@ -1886,572 +1602,37 @@ export class ReactionRemovedEvent extends Message<ReactionRemovedEvent> {
 }
 
 /**
- * RoomGroupCreatedEvent reports a new room group.
+ * RoomLayoutChangedEvent reports a change to room groups, their entries, or order.
+ * Refresh RoomDirectoryService.ListRoomGroups with this event's cursor as the
+ * minimum boundary. The event contains no room IDs or other hidden layout data.
  *
- * @generated from message chatto.realtime.v1.RoomGroupCreatedEvent
+ * @generated from message chatto.realtime.v1.RoomLayoutChangedEvent
  */
-export class RoomGroupCreatedEvent extends Message<RoomGroupCreatedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  constructor(data?: PartialMessage<RoomGroupCreatedEvent>) {
+export class RoomLayoutChangedEvent extends Message<RoomLayoutChangedEvent> {
+  constructor(data?: PartialMessage<RoomLayoutChangedEvent>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomGroupCreatedEvent";
+  static readonly typeName = "chatto.realtime.v1.RoomLayoutChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupCreatedEvent {
-    return new RoomGroupCreatedEvent().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomLayoutChangedEvent {
+    return new RoomLayoutChangedEvent().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupCreatedEvent {
-    return new RoomGroupCreatedEvent().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomLayoutChangedEvent {
+    return new RoomLayoutChangedEvent().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupCreatedEvent {
-    return new RoomGroupCreatedEvent().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomLayoutChangedEvent {
+    return new RoomLayoutChangedEvent().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RoomGroupCreatedEvent | PlainMessage<RoomGroupCreatedEvent> | undefined, b: RoomGroupCreatedEvent | PlainMessage<RoomGroupCreatedEvent> | undefined): boolean {
-    return proto3.util.equals(RoomGroupCreatedEvent, a, b);
-  }
-}
-
-/**
- * RoomGroupUpdatedEvent reports changed room-group metadata.
- *
- * @generated from message chatto.realtime.v1.RoomGroupUpdatedEvent
- */
-export class RoomGroupUpdatedEvent extends Message<RoomGroupUpdatedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string name = 2;
-   */
-  name = "";
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description = "";
-
-  constructor(data?: PartialMessage<RoomGroupUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomGroupUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupUpdatedEvent {
-    return new RoomGroupUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupUpdatedEvent {
-    return new RoomGroupUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupUpdatedEvent {
-    return new RoomGroupUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomGroupUpdatedEvent | PlainMessage<RoomGroupUpdatedEvent> | undefined, b: RoomGroupUpdatedEvent | PlainMessage<RoomGroupUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(RoomGroupUpdatedEvent, a, b);
-  }
-}
-
-/**
- * RoomGroupDeletedEvent reports a deleted room group.
- *
- * @generated from message chatto.realtime.v1.RoomGroupDeletedEvent
- */
-export class RoomGroupDeletedEvent extends Message<RoomGroupDeletedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  constructor(data?: PartialMessage<RoomGroupDeletedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomGroupDeletedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupDeletedEvent {
-    return new RoomGroupDeletedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupDeletedEvent {
-    return new RoomGroupDeletedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupDeletedEvent {
-    return new RoomGroupDeletedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomGroupDeletedEvent | PlainMessage<RoomGroupDeletedEvent> | undefined, b: RoomGroupDeletedEvent | PlainMessage<RoomGroupDeletedEvent> | undefined): boolean {
-    return proto3.util.equals(RoomGroupDeletedEvent, a, b);
-  }
-}
-
-/**
- * RoomAddedToGroupEvent reports that a room was added to a group.
- *
- * @generated from message chatto.realtime.v1.RoomAddedToGroupEvent
- */
-export class RoomAddedToGroupEvent extends Message<RoomAddedToGroupEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string room_id = 2;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RoomAddedToGroupEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomAddedToGroupEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomAddedToGroupEvent {
-    return new RoomAddedToGroupEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomAddedToGroupEvent {
-    return new RoomAddedToGroupEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomAddedToGroupEvent {
-    return new RoomAddedToGroupEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomAddedToGroupEvent | PlainMessage<RoomAddedToGroupEvent> | undefined, b: RoomAddedToGroupEvent | PlainMessage<RoomAddedToGroupEvent> | undefined): boolean {
-    return proto3.util.equals(RoomAddedToGroupEvent, a, b);
-  }
-}
-
-/**
- * RoomRemovedFromGroupEvent reports that a room was removed from a group.
- *
- * @generated from message chatto.realtime.v1.RoomRemovedFromGroupEvent
- */
-export class RoomRemovedFromGroupEvent extends Message<RoomRemovedFromGroupEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string room_id = 2;
-   */
-  roomId = "";
-
-  constructor(data?: PartialMessage<RoomRemovedFromGroupEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomRemovedFromGroupEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomRemovedFromGroupEvent {
-    return new RoomRemovedFromGroupEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomRemovedFromGroupEvent {
-    return new RoomRemovedFromGroupEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomRemovedFromGroupEvent {
-    return new RoomRemovedFromGroupEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomRemovedFromGroupEvent | PlainMessage<RoomRemovedFromGroupEvent> | undefined, b: RoomRemovedFromGroupEvent | PlainMessage<RoomRemovedFromGroupEvent> | undefined): boolean {
-    return proto3.util.equals(RoomRemovedFromGroupEvent, a, b);
-  }
-}
-
-/**
- * RoomsInGroupReorderedEvent reports the visible room order in a group.
- *
- * @generated from message chatto.realtime.v1.RoomsInGroupReorderedEvent
- */
-export class RoomsInGroupReorderedEvent extends Message<RoomsInGroupReorderedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: repeated string room_ids = 2;
-   */
-  roomIds: string[] = [];
-
-  constructor(data?: PartialMessage<RoomsInGroupReorderedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomsInGroupReorderedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomsInGroupReorderedEvent {
-    return new RoomsInGroupReorderedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomsInGroupReorderedEvent {
-    return new RoomsInGroupReorderedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomsInGroupReorderedEvent {
-    return new RoomsInGroupReorderedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomsInGroupReorderedEvent | PlainMessage<RoomsInGroupReorderedEvent> | undefined, b: RoomsInGroupReorderedEvent | PlainMessage<RoomsInGroupReorderedEvent> | undefined): boolean {
-    return proto3.util.equals(RoomsInGroupReorderedEvent, a, b);
-  }
-}
-
-/**
- * SidebarLinkAddedToGroupEvent reports a new link in a room group.
- *
- * @generated from message chatto.realtime.v1.SidebarLinkAddedToGroupEvent
- */
-export class SidebarLinkAddedToGroupEvent extends Message<SidebarLinkAddedToGroupEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string link_id = 2;
-   */
-  linkId = "";
-
-  /**
-   * @generated from field: string label = 3;
-   */
-  label = "";
-
-  /**
-   * Absolute HTTP(S) URL or server-local path that starts with `/`.
-   *
-   * @generated from field: string url = 4;
-   */
-  url = "";
-
-  constructor(data?: PartialMessage<SidebarLinkAddedToGroupEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SidebarLinkAddedToGroupEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarLinkAddedToGroupEvent {
-    return new SidebarLinkAddedToGroupEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SidebarLinkAddedToGroupEvent {
-    return new SidebarLinkAddedToGroupEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SidebarLinkAddedToGroupEvent {
-    return new SidebarLinkAddedToGroupEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SidebarLinkAddedToGroupEvent | PlainMessage<SidebarLinkAddedToGroupEvent> | undefined, b: SidebarLinkAddedToGroupEvent | PlainMessage<SidebarLinkAddedToGroupEvent> | undefined): boolean {
-    return proto3.util.equals(SidebarLinkAddedToGroupEvent, a, b);
-  }
-}
-
-/**
- * SidebarLinkUpdatedEvent reports changed room-group link data.
- *
- * @generated from message chatto.realtime.v1.SidebarLinkUpdatedEvent
- */
-export class SidebarLinkUpdatedEvent extends Message<SidebarLinkUpdatedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string link_id = 2;
-   */
-  linkId = "";
-
-  /**
-   * @generated from field: string label = 3;
-   */
-  label = "";
-
-  /**
-   * Complete new absolute HTTP(S) URL or server-local path.
-   *
-   * @generated from field: string url = 4;
-   */
-  url = "";
-
-  constructor(data?: PartialMessage<SidebarLinkUpdatedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SidebarLinkUpdatedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarLinkUpdatedEvent {
-    return new SidebarLinkUpdatedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SidebarLinkUpdatedEvent {
-    return new SidebarLinkUpdatedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SidebarLinkUpdatedEvent {
-    return new SidebarLinkUpdatedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SidebarLinkUpdatedEvent | PlainMessage<SidebarLinkUpdatedEvent> | undefined, b: SidebarLinkUpdatedEvent | PlainMessage<SidebarLinkUpdatedEvent> | undefined): boolean {
-    return proto3.util.equals(SidebarLinkUpdatedEvent, a, b);
-  }
-}
-
-/**
- * SidebarLinkRemovedFromGroupEvent reports a removed room-group link.
- *
- * @generated from message chatto.realtime.v1.SidebarLinkRemovedFromGroupEvent
- */
-export class SidebarLinkRemovedFromGroupEvent extends Message<SidebarLinkRemovedFromGroupEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: string link_id = 2;
-   */
-  linkId = "";
-
-  constructor(data?: PartialMessage<SidebarLinkRemovedFromGroupEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SidebarLinkRemovedFromGroupEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarLinkRemovedFromGroupEvent {
-    return new SidebarLinkRemovedFromGroupEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SidebarLinkRemovedFromGroupEvent {
-    return new SidebarLinkRemovedFromGroupEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SidebarLinkRemovedFromGroupEvent {
-    return new SidebarLinkRemovedFromGroupEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SidebarLinkRemovedFromGroupEvent | PlainMessage<SidebarLinkRemovedFromGroupEvent> | undefined, b: SidebarLinkRemovedFromGroupEvent | PlainMessage<SidebarLinkRemovedFromGroupEvent> | undefined): boolean {
-    return proto3.util.equals(SidebarLinkRemovedFromGroupEvent, a, b);
-  }
-}
-
-/**
- * SidebarGroupEntryReference identifies one entry in a mixed group order.
- *
- * @generated from message chatto.realtime.v1.SidebarGroupEntryReference
- */
-export class SidebarGroupEntryReference extends Message<SidebarGroupEntryReference> {
-  /**
-   * @generated from field: chatto.realtime.v1.SidebarGroupEntryKind kind = 1;
-   */
-  kind = SidebarGroupEntryKind.UNSPECIFIED;
-
-  /**
-   * Room ID or sidebar-link ID, as selected by `kind`.
-   *
-   * @generated from field: string id = 2;
-   */
-  id = "";
-
-  constructor(data?: PartialMessage<SidebarGroupEntryReference>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SidebarGroupEntryReference";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(SidebarGroupEntryKind) },
-    { no: 2, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarGroupEntryReference {
-    return new SidebarGroupEntryReference().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SidebarGroupEntryReference {
-    return new SidebarGroupEntryReference().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SidebarGroupEntryReference {
-    return new SidebarGroupEntryReference().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SidebarGroupEntryReference | PlainMessage<SidebarGroupEntryReference> | undefined, b: SidebarGroupEntryReference | PlainMessage<SidebarGroupEntryReference> | undefined): boolean {
-    return proto3.util.equals(SidebarGroupEntryReference, a, b);
-  }
-}
-
-/**
- * SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
- *
- * @generated from message chatto.realtime.v1.SidebarGroupEntriesReorderedEvent
- */
-export class SidebarGroupEntriesReorderedEvent extends Message<SidebarGroupEntriesReorderedEvent> {
-  /**
-   * @generated from field: string group_id = 1;
-   */
-  groupId = "";
-
-  /**
-   * @generated from field: repeated chatto.realtime.v1.SidebarGroupEntryReference entries = 2;
-   */
-  entries: SidebarGroupEntryReference[] = [];
-
-  constructor(data?: PartialMessage<SidebarGroupEntriesReorderedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.SidebarGroupEntriesReorderedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "entries", kind: "message", T: SidebarGroupEntryReference, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SidebarGroupEntriesReorderedEvent {
-    return new SidebarGroupEntriesReorderedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SidebarGroupEntriesReorderedEvent {
-    return new SidebarGroupEntriesReorderedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SidebarGroupEntriesReorderedEvent {
-    return new SidebarGroupEntriesReorderedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: SidebarGroupEntriesReorderedEvent | PlainMessage<SidebarGroupEntriesReorderedEvent> | undefined, b: SidebarGroupEntriesReorderedEvent | PlainMessage<SidebarGroupEntriesReorderedEvent> | undefined): boolean {
-    return proto3.util.equals(SidebarGroupEntriesReorderedEvent, a, b);
-  }
-}
-
-/**
- * RoomGroupsReorderedEvent reports the complete room-group order.
- *
- * @generated from message chatto.realtime.v1.RoomGroupsReorderedEvent
- */
-export class RoomGroupsReorderedEvent extends Message<RoomGroupsReorderedEvent> {
-  /**
-   * @generated from field: repeated string group_ids = 1;
-   */
-  groupIds: string[] = [];
-
-  constructor(data?: PartialMessage<RoomGroupsReorderedEvent>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RoomGroupsReorderedEvent";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "group_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomGroupsReorderedEvent {
-    return new RoomGroupsReorderedEvent().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomGroupsReorderedEvent {
-    return new RoomGroupsReorderedEvent().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomGroupsReorderedEvent {
-    return new RoomGroupsReorderedEvent().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RoomGroupsReorderedEvent | PlainMessage<RoomGroupsReorderedEvent> | undefined, b: RoomGroupsReorderedEvent | PlainMessage<RoomGroupsReorderedEvent> | undefined): boolean {
-    return proto3.util.equals(RoomGroupsReorderedEvent, a, b);
+  static equals(a: RoomLayoutChangedEvent | PlainMessage<RoomLayoutChangedEvent> | undefined, b: RoomLayoutChangedEvent | PlainMessage<RoomLayoutChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomLayoutChangedEvent, a, b);
   }
 }
 

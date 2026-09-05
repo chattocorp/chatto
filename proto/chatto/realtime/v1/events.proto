@@ -94,13 +94,17 @@ message VoiceCallEndedEvent {
 message MessagePostedEvent {
   string room_id = 1;
   string in_reply_to = 2;
-  string in_thread = 3;
-  repeated string mentioned_user_ids = 4;
+  // Root message ID for a thread reply. Empty for a room-level message.
+  string thread_root_event_id = 3;
+  reserved 4;
+  reserved "mentioned_user_ids";
   string echo_of_event_id = 5;
   string echo_from_thread_root_event_id = 6;
   repeated MessageMention mentions = 7;
   // Plaintext message text. The field is absent after key shredding.
   optional string body_plaintext = 8;
+  // Immutable room kind. Direct messages do not require a mention to address a bot.
+  chatto.api.v1.RoomKind room_kind = 9;
 }
 
 // DirectUserMention identifies a direct user mention.
@@ -131,13 +135,13 @@ message MessageMention {
 // MessageEditedEvent reports changed message content or metadata.
 message MessageEditedEvent {
   string room_id = 1;
-  string event_id = 2;
+  string message_event_id = 2;
 }
 
 // MessageRetractedEvent reports a retracted message.
 message MessageRetractedEvent {
   string room_id = 1;
-  string event_id = 2;
+  string message_event_id = 2;
 }
 
 // MessagePinnedEvent reports a newly pinned message.
@@ -164,45 +168,12 @@ message AssetProcessingStartedEvent {
   string message_event_id = 2;
 }
 
-// AssetProcessedVideo describes completed video derivatives by public asset ID.
-message AssetProcessedVideo {
-  int64 duration_ms = 1;
-  int32 width = 2;
-  int32 height = 3;
-  string thumbnail_asset_id = 4;
-  repeated AssetVideoVariant variants = 5;
-  AssetProcessedHLS hls = 6;
-}
-
-// AssetVideoVariant identifies one processed rendition.
-message AssetVideoVariant {
-  string quality = 1;
-  string asset_id = 2;
-}
-
-// AssetProcessedHLS describes the public asset IDs used by one HLS manifest.
-message AssetProcessedHLS {
-  repeated AssetHLSRendition renditions = 1;
-}
-
-// AssetHLSRendition describes one HLS rendition.
-message AssetHLSRendition {
-  int32 width = 1;
-  int32 height = 2;
-  int64 bandwidth = 3;
-  repeated AssetHLSSegment segments = 4;
-}
-
-// AssetHLSSegment identifies one HLS media segment.
-message AssetHLSSegment {
-  string asset_id = 1;
-  int64 duration_ms = 2;
-}
-
 // AssetProcessingSucceededEvent reports successful message-asset processing.
+// Read the message resource for current attachments and processed video data.
 message AssetProcessingSucceededEvent {
   string asset_id = 1;
-  AssetProcessedVideo video = 2;
+  reserved 2;
+  reserved "video";
   string message_event_id = 3;
 }
 
@@ -258,91 +229,10 @@ message ReactionRemovedEvent {
   string emoji = 3;
 }
 
-// RoomGroupCreatedEvent reports a new room group.
-message RoomGroupCreatedEvent {
-  string group_id = 1;
-  string name = 2;
-  string description = 3;
-}
-
-// RoomGroupUpdatedEvent reports changed room-group metadata.
-message RoomGroupUpdatedEvent {
-  string group_id = 1;
-  string name = 2;
-  string description = 3;
-}
-
-// RoomGroupDeletedEvent reports a deleted room group.
-message RoomGroupDeletedEvent {
-  string group_id = 1;
-}
-
-// RoomAddedToGroupEvent reports that a room was added to a group.
-message RoomAddedToGroupEvent {
-  string group_id = 1;
-  string room_id = 2;
-}
-
-// RoomRemovedFromGroupEvent reports that a room was removed from a group.
-message RoomRemovedFromGroupEvent {
-  string group_id = 1;
-  string room_id = 2;
-}
-
-// RoomsInGroupReorderedEvent reports the visible room order in a group.
-message RoomsInGroupReorderedEvent {
-  string group_id = 1;
-  repeated string room_ids = 2;
-}
-
-// SidebarLinkAddedToGroupEvent reports a new link in a room group.
-message SidebarLinkAddedToGroupEvent {
-  string group_id = 1;
-  string link_id = 2;
-  string label = 3;
-  // Absolute HTTP(S) URL or server-local path that starts with `/`.
-  string url = 4;
-}
-
-// SidebarLinkUpdatedEvent reports changed room-group link data.
-message SidebarLinkUpdatedEvent {
-  string group_id = 1;
-  string link_id = 2;
-  string label = 3;
-  // Complete new absolute HTTP(S) URL or server-local path.
-  string url = 4;
-}
-
-// SidebarLinkRemovedFromGroupEvent reports a removed room-group link.
-message SidebarLinkRemovedFromGroupEvent {
-  string group_id = 1;
-  string link_id = 2;
-}
-
-// SidebarGroupEntryKind identifies one ordered room-group entry type.
-enum SidebarGroupEntryKind {
-  SIDEBAR_GROUP_ENTRY_KIND_UNSPECIFIED = 0;
-  SIDEBAR_GROUP_ENTRY_KIND_ROOM = 1;
-  SIDEBAR_GROUP_ENTRY_KIND_SIDEBAR_LINK = 2;
-}
-
-// SidebarGroupEntryReference identifies one entry in a mixed group order.
-message SidebarGroupEntryReference {
-  SidebarGroupEntryKind kind = 1;
-  // Room ID or sidebar-link ID, as selected by `kind`.
-  string id = 2;
-}
-
-// SidebarGroupEntriesReorderedEvent reports the visible mixed group order.
-message SidebarGroupEntriesReorderedEvent {
-  string group_id = 1;
-  repeated SidebarGroupEntryReference entries = 2;
-}
-
-// RoomGroupsReorderedEvent reports the complete room-group order.
-message RoomGroupsReorderedEvent {
-  repeated string group_ids = 1;
-}
+// RoomLayoutChangedEvent reports a change to room groups, their entries, or order.
+// Refresh RoomDirectoryService.ListRoomGroups with this event's cursor as the
+// minimum boundary. The event contains no room IDs or other hidden layout data.
+message RoomLayoutChangedEvent {}
 
 // UserProfileChangedEvent reports that the current public user resource changed.
 // Read the user through UserService with this event's resume cursor as the

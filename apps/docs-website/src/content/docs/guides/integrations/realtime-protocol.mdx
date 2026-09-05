@@ -41,8 +41,11 @@ integration needs.
    `caught_up` cursor after all earlier work succeeds. Continue to process
    realtime events.
 
-Treat the stream as live only after `caught_up`. The frames that precede it
-show whether the server selected snapshot, resume, or live-only startup.
+Treat the stream as live only after `caught_up`. Its `recovery` field states
+what happened: `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`. A successful replay with
+no events still reports `RESUMED`. If you supplied a cursor but receive
+`LIVE_ONLY`, the server did not recover the gap. Fetch current state if your
+integration needs it; do not assume that every missed trigger was delivered.
 
 ## Choose snapshot or live-only startup
 
@@ -84,7 +87,7 @@ The public event contains common metadata outside its event `oneof`:
 - source time;
 - a visible actor ID, when applicable.
 
-The optional `resume_cursor` is outside the payload `oneof`. A public event
+The optional `cursor` is outside the payload `oneof`. A public event
 does not contain broker coordinates.
 
 The public union contains only event variants that are part of the realtime
@@ -107,7 +110,14 @@ Some related durable facts become one resource-change event. Profile facts use
 `ViewerPreferencesChangedEvent`, and public server profile facts use
 `ServerProfileChangedEvent`. Read the applicable canonical resource with the
 event cursor. Internal moderation audit facts do not appear in the public
-catalogue.
+catalogue. Room-group and layout facts use one `RoomLayoutChangedEvent`.
+Read `RoomDirectoryService.ListRoomGroups` for the authorized layout. Asset
+processing completion provides IDs; read the message for its attachment data.
+
+`MessagePostedEvent.room_kind` identifies a channel or DM without a separate
+room lookup. `thread_root_event_id` identifies a reply’s thread root. Structured
+`mentions` distinguish direct mentions from role, here, and all mentions.
+Edit and retraction events use `message_event_id` for their target.
 
 `MessagePostedEvent.body_plaintext` lets a client show a new message without
 waiting for another request. The event does not duplicate the complete message
@@ -120,10 +130,12 @@ Process one event as one unit:
 
 1. Decode the complete frame.
 2. Process the public variant that you understand.
-3. Save `resume_cursor` only after your processing succeeds.
+3. Save `cursor` only after your processing succeeds.
 
-Delivery is at least once across reconnects. Use the stable event ID to
-deduplicate effects.
+Events can repeat across reconnects. Use the stable event ID to deduplicate
+effects. The bounded resume policy does not guarantee delivery across a long
+outage. A message created before a lost response or failed local checkpoint
+can still be posted twice; a local event-ID set alone cannot prevent that.
 
 New event variants are additive. You can ignore a variant that you do not use
 and still save the common cursor. If a complete top-level frame cannot be
@@ -168,7 +180,7 @@ Some events contain enough data for immediate use but not a complete resource.
 When a cursor-bearing event causes a follow-up ConnectRPC read, set this header:
 
 ```http
-Chatto-Realtime-Minimum-Cursor: <event.resume_cursor>
+Chatto-Realtime-Minimum-Cursor: <event.cursor>
 ```
 
 The common ConnectRPC interceptor honors this header on every authenticated
@@ -177,6 +189,13 @@ waits until its content view includes that event boundary. This prevents a
 request that reaches another replica from using older content. Give each
 bounded request a finite deadline. Save the event cursor only after the
 required request succeeds.
+
+This is a minimum boundary, not a historical read. The response can contain
+newer content. The server waits for at most 10 seconds or your earlier deadline;
+a timeout returns `DEADLINE_EXCEEDED` without running the operation. The
+boundary does not guarantee completion of notifications, search indexing, or
+other asynchronous work. A valid cursor can still be used for this header
+when its replay would exceed the server’s work limit.
 
 If a new snapshot starts, discard late reads from the earlier local projection
 generation. They must not replace newer state.
@@ -188,7 +207,7 @@ heartbeat approximately every 15 seconds. Replace the socket when no frame
 arrives for 75 seconds. WebSocket control frames provide transport ping and
 pong behavior; the client sends no application ping message.
 
-A heartbeat can contain a fresh resume cursor for the last replay boundary
+A heartbeat can contain a fresh `cursor` for the last replay boundary
 that this socket delivered. Save it only after all earlier events and resource
 work succeed.
 
@@ -205,6 +224,10 @@ credential and reconnect when the server requests authentication. Same-origin
 cookie clients can receive a session-renewal close and must renew the browser
 session before they reconnect. A `SESSION_TERMINATED` close means that the
 session ended. Clients must stop reconnecting and return to sign-in.
+
+For `RESYNC_REQUIRED`, discard the cursor before reconnecting. Snapshot clients
+replace their state. Live-only clients must decide which current resources to
+read; the next startup cannot recover the skipped history.
 
 <CardGrid>
   <LinkCard

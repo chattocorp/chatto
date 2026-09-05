@@ -146,7 +146,7 @@ function projectionFrame(cursor: string | undefined): RealtimeServerFrame {
   return serverFrame({
     case: 'event',
     value: new RealtimeEvent({
-      resumeCursor: cursor
+      cursor
     })
   });
 }
@@ -170,7 +170,7 @@ function heartbeatFrame(resumeCursor?: string): RealtimeServerFrame {
   return serverFrame({
     case: 'heartbeat',
     value: new RealtimeHeartbeat({
-      resumeCursor
+      cursor: resumeCursor
     })
   });
 }

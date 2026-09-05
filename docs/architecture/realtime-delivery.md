@@ -135,7 +135,12 @@ After a durable event, a targeted ConnectRPC request can set
 `Chatto-Realtime-Minimum-Cursor` to that event's resume cursor. The common API
 interceptor validates the viewer-bound token and waits until the serving
 replica includes at least that content boundary. The handler then returns its
-normal canonical response.
+normal canonical response. The wait targets exactly the requested EVT sequence
+in `ServerContentView`, not the current tails of all projectors. The view
+consumes every `evt.>` sequence, including facts that do not change its resources.
+A lagging replica waits for at most 10 seconds or the caller's earlier deadline.
+A timeout returns `DEADLINE_EXCEEDED` before the handler runs. This is a lower
+bound, not a historical read, and does not cover asynchronous effects.
 
 DM threads use the same semantic realtime events and ConnectRPC thread
 resources as channel threads. The stream includes DM thread replies, echoes,
@@ -158,12 +163,12 @@ cannot change the newer projection.
 
 ## Bounded resume
 
-The resume cursor is a signed, viewer-bound JWT. Its public claims are `sub`,
-`aud`, `p`, `iat`, `exp`, and `v`. The `p` claim is an HMAC of the stream
-incarnation, viewer, subscription scope, and EVT sequence. The server recovers
-the sequence by comparing at most 10,000 candidates in the retained replay
-window. The token expires after 15 minutes. NATS and JetStream coordinates are
-never public API data.
+The cursor uses the shared `publiccursor` authenticated-encryption helper.
+Its encrypted payload contains the stream incarnation, EVT sequence, version,
+issue time, and expiry. The purpose and viewer/scope form the authenticated
+context. The token expires after 15 minutes. No claim or broker coordinate is
+public. Opening the token recovers its sequence directly, without a search.
+The 10,000-sequence replay cap does not limit a valid RPC minimum cursor.
 
 Snapshot and resume use this handoff:
 
@@ -190,6 +195,9 @@ authorization-unsafe cursor selects the requested fallback. A `SNAPSHOT`
 client receives a new current-state snapshot. A `LIVE_ONLY` client starts at
 `E` and receives no old events. The
 server never sends a partial replay and then silently skips to live delivery.
+The `caught_up.recovery` field reports `RESUMED`, `SNAPSHOT`, or `LIVE_ONLY`.
+A valid zero-event replay reports `RESUMED`. Outbound events and heartbeats
+use `cursor`; only the subscribe request uses `resume_cursor`.
 
 Incremental replay and fallback share one process-local admission guard. Each
 replica admits at most eight catch-ups at once and one at a time for each user.

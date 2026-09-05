@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -75,7 +76,7 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decodeRealtimeCursor: %v", err)
 	}
-	if decoded.Version != realtimeCursorVersion || decoded.Subject != userID || decoded.IssuedAt == nil || decoded.IssuedAt.Time.Unix() != now.Unix() {
+	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.IssuedAt != now.Unix() {
 		t.Fatalf("decoded cursor = %+v", decoded)
 	}
 	sequence, err := chatto.resolveRealtimeCursorAt(userID, cursor, identity, 0, 100, now)
@@ -88,15 +89,11 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if _, err := chatto.parseRealtimeCursorAt("another-user", cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("cross-user cursor error = %v, want ErrRealtimeCursorInvalid", err)
 	}
-	parts := strings.Split(cursor, ".")
-	if len(parts) != 3 {
-		t.Fatalf("cursor is not a compact JWT: %q", cursor)
-	}
-	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	raw, err := base64.RawURLEncoding.DecodeString(cursor)
 	if err != nil {
 		t.Fatalf("decode cursor envelope: %v", err)
 	}
-	for _, secret := range []string{identity, `"s":42`, `"sequence":42`} {
+	for _, secret := range []string{identity, userID, `"s":42`, `"sequence":42`} {
 		if strings.Contains(string(raw), secret) {
 			t.Fatalf("cursor envelope exposes internal payload %q", secret)
 		}
@@ -105,15 +102,132 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encode second cursor: %v", err)
 	}
-	if second != cursor {
-		t.Fatal("identical cursor claims did not produce a stable signed token")
+	if second == cursor {
+		t.Fatal("sealed cursor reused a nonce")
 	}
-	tamperedParts := strings.Split(cursor, ".")
-	tamperedSignature := []byte(tamperedParts[2])
-	tamperedSignature[0] ^= 1
-	tampered := strings.Join([]string{tamperedParts[0], tamperedParts[1], string(tamperedSignature)}, ".")
+	raw[len(raw)-1] ^= 1
+	tampered := base64.RawURLEncoding.EncodeToString(raw)
 	if _, err := chatto.parseRealtimeCursorAt(userID, tampered, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("tampered cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}
+
+func TestWaitForRealtimeCursorWaitsOnlyForRequestedContentBoundary(t *testing.T) {
+	primary, nc := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := primary.CreateUser(ctx, SystemActorID, "exact-cursor-viewer", "Exact Cursor Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	boundary, err := primary.PlanRealtimeReplay(ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replica, err := NewChattoCore(ctx, nc, config.CoreConfig{
+		SecretKey: "test-core-secret",
+		Assets:    config.AssetsConfig{SigningSecret: "test-signing-secret"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A cold replica must respect the caller's shorter deadline.
+	waitCtx, cancelWait := context.WithTimeout(ctx, 25*time.Millisecond)
+	defer cancelWait()
+	if err := replica.WaitForRealtimeCursor(waitCtx, viewer.GetId(), boundary.BoundaryCursor); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cold replica wait = %v, want deadline exceeded", err)
+	}
+
+	// Start only the content view. In particular, UserAuth still has not applied
+	// the account-created fact. It must not delay this content resource barrier.
+	runCtx, cancelRun := context.WithCancel(ctx)
+	done := make(chan error, 1)
+	go func() { done <- replica.contentView.projector.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancelRun()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("content projector did not stop")
+		}
+	})
+	if err := replica.WaitForRealtimeCursor(ctx, viewer.GetId(), boundary.BoundaryCursor); err != nil {
+		t.Fatalf("ready content view waited for unrelated projections: %v", err)
+	}
+
+	// Test-only apply pause: advance the shared stream on the other replica
+	// while this replica remains at E. Waiting for E must not chase E+1.
+	err = replica.contentView.projector.WithReadBarrier(func(sequence uint64) error {
+		if sequence < boundary.BoundarySequence {
+			t.Fatalf("view sequence %d is before requested E", sequence)
+		}
+		if _, err := primary.UpdateUserBio(ctx, viewer.GetId(), "after requested boundary"); err != nil {
+			return err
+		}
+		bounded, cancel := context.WithTimeout(ctx, 250*time.Millisecond)
+		defer cancel()
+		return replica.WaitForRealtimeCursor(bounded, viewer.GetId(), boundary.BoundaryCursor)
+	})
+	if err != nil {
+		t.Fatalf("wait chased a later stream boundary: %v", err)
+	}
+}
+
+func TestRealtimeCursorCoordinatesAndReplayBudgetAreIndependent(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	identity := "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	now := time.Now()
+	cursor, err := chatto.encodeRealtimeCursorAt("viewer", identity, 42, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tt := range []struct {
+		name, identity string
+		first, last    uint64
+		want           error
+	}{
+		{"beyond replay work cap", identity, 1, 42 + realtimeReplayMaxSequenceSpan + 1, nil},
+		{"wrong incarnation", "evt-incarnation-v1:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, 100, ErrRealtimeCursorInvalid},
+		{"future sequence", identity, 1, 41, ErrRealtimeCursorInvalid},
+		{"retention gap", identity, 44, 100, ErrRealtimeCursorExpired},
+		{"immediately before retention", identity, 43, 100, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			sequence, err := chatto.resolveRealtimeCursorAt("viewer", cursor, tt.identity, tt.first, tt.last, now)
+			if !errors.Is(err, tt.want) || (err == nil && sequence != 42) {
+				t.Fatalf("resolve = %d, %v; want 42 or %v", sequence, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestRealtimeCursorOutsideReplayWorkBudgetStillBoundsRPC(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const viewerID = "busy-stream-viewer"
+	before, err := chatto.PlanRealtimeReplay(ctx, viewerID, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// These internal configuration facts do not generate public events. This
+	// gap must hit the sequence-work cap, not the delivered-event cap.
+	for index := uint64(0); index <= realtimeReplayMaxSequenceSpan; index++ {
+		event := &evtv1.Event{
+			Id:    fmt.Sprintf("budget-event-%d", index),
+			Event: &evtv1.Event_ServerWelcomeMessageChanged{ServerWelcomeMessageChanged: &evtv1.ServerWelcomeMessageChangedEvent{}},
+		}
+		if _, err := chatto.EventPublisher.AppendEventually(ctx, evtstream.ConfigAggregate().SubjectFor(event), event); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := chatto.WaitForRealtimeCursor(ctx, viewerID, before.BoundaryCursor); err != nil {
+		t.Fatalf("valid minimum cursor outside replay window failed: %v", err)
+	}
+	replay, err := chatto.PlanRealtimeReplay(ctx, viewerID, before.BoundaryCursor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !replay.Reset || !replay.HadSequenceGap || len(replay.Events) != 0 {
+		t.Fatalf("oversized replay did not select a complete fallback: %v", replay)
 	}
 }
 

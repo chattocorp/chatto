@@ -435,12 +435,19 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		}
 	}
+	recovery := realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED
+	if replayPlan.Reset {
+		recovery = realtimev1.RealtimeRecovery_REALTIME_RECOVERY_LIVE_ONLY
+		if snapshotFrame != nil {
+			recovery = realtimev1.RealtimeRecovery_REALTIME_RECOVERY_SNAPSHOT
+		}
+	}
 	// Release catch-up admission before the client can observe caught_up and
 	// immediately reconnect with its new cursor. The final marker contains no
 	// authorization work, and finishCatchUp is idempotent on write failure.
 	finishCatchUp()
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
-		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor},
+		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor, Recovery: recovery},
 	}}); err != nil {
 		handleCatchUpWriteError(err)
 		return
@@ -487,7 +494,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 					s.logger.Warn("Failed to refresh realtime heartbeat cursor", "error", cursorErr)
 					return
 				}
-				heartbeat.ResumeCursor = &cursor
+				heartbeat.Cursor = &cursor
 			}
 			if err := writeFrame(frame); err != nil {
 				return
@@ -754,7 +761,7 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 		// before this durable sequence, so replay selects the authorized fallback.
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 			Close: &realtimev1.RealtimeClose{
-				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PROJECTION_RESET_REQUIRED,
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED,
 				Message:   "realtime authorization changed",
 				Reconnect: true,
 			},
@@ -808,18 +815,16 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
-	visible, err := s.filterRealtimeEventFields(ctx, viewerID, projected)
-	if err != nil {
-		return nil, fmt.Errorf("authorize realtime event fields: %w", err)
-	}
-	if !visible {
-		return nil, errRealtimeEventOmitted
-	}
 	if durable != nil && durable.GetMessagePosted() != nil {
 		plaintext, err := s.core.ResolveEventPlaintext(ctx, durable)
 		if err != nil {
 			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
 		}
+		kind, err := s.core.FindRoomKind(ctx, durable.GetMessagePosted().GetRoomId())
+		if err != nil {
+			return nil, fmt.Errorf("resolve realtime room kind: %w", err)
+		}
+		projected.GetMessagePosted().RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
 		applyRealtimePlaintext(projected, plaintext)
 	}
 	if sequence := event.DeliverySeq(); sequence > 0 {
@@ -827,7 +832,7 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		if err != nil {
 			return nil, err
 		}
-		projected.ResumeCursor = &cursor
+		projected.Cursor = &cursor
 	}
 	return projected, nil
 }
@@ -935,68 +940,4 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 	default:
 		return projectRealtimeEvent(event), nil
 	}
-}
-
-// filterRealtimeEventFields applies viewer-dependent authorization to fields
-// in a newly projected public event. It returns false when no authorized
-// payload remains. Event-level authorization remains in the event hub.
-func (s *HTTPServer) filterRealtimeEventFields(ctx context.Context, viewerID string, event *realtimev1.RealtimeEvent) (bool, error) {
-	if event == nil {
-		return false, nil
-	}
-	switch event.GetEvent().(type) {
-	case *realtimev1.RealtimeEvent_RoomAddedToGroup,
-		*realtimev1.RealtimeEvent_RoomRemovedFromGroup,
-		*realtimev1.RealtimeEvent_RoomsInGroupReordered,
-		*realtimev1.RealtimeEvent_SidebarGroupEntriesReordered:
-		// These payloads can contain room IDs that the source event knows
-		// about but the current viewer cannot see. Use the same visibility
-		// source as the room and room-group resource APIs.
-	default:
-		return true, nil
-	}
-
-	rooms, err := s.core.RoomDirectoryReads().ListRooms(ctx, viewerID, core.RoomDirectoryListOptions{
-		IncludeChannels: true,
-	})
-	if err != nil {
-		return false, err
-	}
-	visibleRoomIDs := make(map[string]struct{}, len(rooms))
-	for _, room := range rooms {
-		if room != nil && room.Room != nil && room.Room.GetId() != "" {
-			visibleRoomIDs[room.Room.GetId()] = struct{}{}
-		}
-	}
-	isVisible := func(roomID string) bool {
-		_, ok := visibleRoomIDs[roomID]
-		return ok
-	}
-
-	switch payload := event.GetEvent().(type) {
-	case *realtimev1.RealtimeEvent_RoomAddedToGroup:
-		return isVisible(payload.RoomAddedToGroup.GetRoomId()), nil
-	case *realtimev1.RealtimeEvent_RoomRemovedFromGroup:
-		return isVisible(payload.RoomRemovedFromGroup.GetRoomId()), nil
-	case *realtimev1.RealtimeEvent_RoomsInGroupReordered:
-		roomIDs := payload.RoomsInGroupReordered.GetRoomIds()
-		visible := make([]string, 0, len(roomIDs))
-		for _, roomID := range roomIDs {
-			if isVisible(roomID) {
-				visible = append(visible, roomID)
-			}
-		}
-		payload.RoomsInGroupReordered.RoomIds = visible
-	case *realtimev1.RealtimeEvent_SidebarGroupEntriesReordered:
-		entries := payload.SidebarGroupEntriesReordered.GetEntries()
-		visible := make([]*realtimev1.SidebarGroupEntryReference, 0, len(entries))
-		for _, entry := range entries {
-			if entry.GetKind() == realtimev1.SidebarGroupEntryKind_SIDEBAR_GROUP_ENTRY_KIND_ROOM && !isVisible(entry.GetId()) {
-				continue
-			}
-			visible = append(visible, entry)
-		}
-		payload.SidebarGroupEntriesReordered.Entries = visible
-	}
-	return true, nil
 }
