@@ -189,7 +189,8 @@ Authorization: Bearer cht_BK_…
 The request is authorized as the bot user. For example, posting a message
 requires an explicit effective `message.post` allow and normal room access.
 The canonical `User.is_bot` field identifies bot authors to API clients;
-the bundled client also shows a robot marker on their avatars.
+the bundled client also shows a robot marker on their avatars. The marker uses
+soft shading and changes its colours to match the light or dark theme.
 
 A bot API key can update its own login, display name, and bio through
 `MyAccountService.UpdateProfile`. It can upload or delete its own avatar through

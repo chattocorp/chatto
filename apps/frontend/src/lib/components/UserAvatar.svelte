@@ -1,6 +1,7 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { untrack } from 'svelte';
+  import botIcon from '$lib/assets/bot.svg';
   import { m } from '$lib/i18n/messages';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -166,14 +167,14 @@
     {#if showBotBadge}
       <span
         class={[
-          size === 'xs' ? 'h-3 w-3 text-[8px]' : 'h-4 w-4 text-[11px]',
-          'pointer-events-none absolute top-0 left-0 grid -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full border border-surface bg-neutral-action text-on-neutral-action shadow-sm'
+          size === 'xs' ? 'h-3.5 w-3.5' : 'h-5 w-5',
+          'pointer-events-none absolute top-0 left-0 grid -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full'
         ]}
         data-testid="bot-badge"
         role="img"
         aria-label={m('settings.bots.singular')}
       >
-        <span class="iconify icon-[uil--robot]" aria-hidden="true"></span>
+        <img src={botIcon} alt="" class="h-full w-full outline-none" aria-hidden="true" />
       </span>
     {/if}
     {#if showCustomStatusBadge}
