@@ -27,7 +27,7 @@
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { startDMWith } from '$lib/dm/startDM';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -167,18 +167,11 @@
     };
   });
 
-  $effect(() =>
-    onRoomMessageMutated((detail) => {
-      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
-      if (detail.reason === 'message-deleted') {
-        roomMessageStore.applyLocalMessageDeletion(detail.eventId);
-        return;
-      }
-      const anchorEventId = roomMessageStore.refreshAnchorForMessageMutation(detail.eventId);
-      if (!anchorEventId) return;
-      void roomMessageStore.refreshCurrentWindow(anchorEventId);
-    })
-  );
+  useTimelineMutations(() => ({
+    serverId: activeServerId,
+    roomId,
+    timeline: roomMessageStore
+  }));
 
   // --- Extracted hooks ---
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
