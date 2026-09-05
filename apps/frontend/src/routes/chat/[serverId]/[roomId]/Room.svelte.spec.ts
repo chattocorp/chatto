@@ -894,13 +894,13 @@ describe('Room local message echo', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/msg-local');
   });
 
-  it('does not offer thread creation in DMs', async () => {
+  it('offers thread creation in DMs with thread-post permission', async () => {
     mocks.roomKind = RoomKind.DM;
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
       .element(q(container, '[data-testid="composer-can-create-thread"]'))
-      .toHaveTextContent('false');
+      .toHaveTextContent('true');
   });
 
   it('does not offer thread creation without permission to post in threads', async () => {

@@ -157,11 +157,16 @@ func (a *API) realtimeSnapshotRoom(ctx context.Context, userID string, room *cor
 	if room == nil || room.Room == nil || core.KindOfRoom(room.Room) != core.KindDM || !room.ViewerState.IsMember {
 		return result, nil
 	}
-	_, _, exists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
-	if err != nil {
-		return nil, err
+	exists := false
+	if room.ViewerState.CanReadMessages {
+		_, _, historyExists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
+		if err != nil {
+			return nil, err
+		}
+		exists = historyExists
 	}
 	result.HasMessageHistory = &exists
+	var err error
 	result.MemberUserIds, err = a.core.ListRoomMemberIDsForList(ctx, userID, room.Room.GetId())
 	return result, err
 }

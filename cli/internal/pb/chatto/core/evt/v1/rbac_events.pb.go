@@ -28,6 +28,7 @@ const (
 	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_SERVER      RbacPermissionScopeKind = 1
 	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_GROUP       RbacPermissionScopeKind = 2
 	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM        RbacPermissionScopeKind = 3
+	RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_DM          RbacPermissionScopeKind = 4
 )
 
 // Enum value maps for RbacPermissionScopeKind.
@@ -37,12 +38,14 @@ var (
 		1: "RBAC_PERMISSION_SCOPE_KIND_SERVER",
 		2: "RBAC_PERMISSION_SCOPE_KIND_GROUP",
 		3: "RBAC_PERMISSION_SCOPE_KIND_ROOM",
+		4: "RBAC_PERMISSION_SCOPE_KIND_DM",
 	}
 	RbacPermissionScopeKind_value = map[string]int32{
 		"RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED": 0,
 		"RBAC_PERMISSION_SCOPE_KIND_SERVER":      1,
 		"RBAC_PERMISSION_SCOPE_KIND_GROUP":       2,
 		"RBAC_PERMISSION_SCOPE_KIND_ROOM":        3,
+		"RBAC_PERMISSION_SCOPE_KIND_DM":          4,
 	}
 )
 
@@ -549,8 +552,8 @@ func (x *RbacRoleRevokedEvent) GetRoleName() string {
 type RbacPermissionScope struct {
 	state protoimpl.MessageState  `protogen:"open.v1"`
 	Kind  RbacPermissionScopeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.core.evt.v1.RbacPermissionScopeKind" json:"kind,omitempty"`
-	// Empty for server-scope decisions. For group and room scope, this is the
-	// target group ID or room ID.
+	// Empty for server and direct-message decisions. For group and room scope,
+	// this is the target group ID or room ID.
 	Id            string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -888,12 +891,13 @@ const file_chatto_core_evt_v1_rbac_events_proto_rawDesc = "" +
 	"permission\x18\x03 \x01(\tR\n" +
 	"permission\x12=\n" +
 	"\x05scope\x18\x04 \x01(\v2'.chatto.core.evt.v1.RbacPermissionScopeR\x05scope\x12C\n" +
-	"\asubject\x18\x05 \x01(\v2).chatto.core.evt.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation*\xb7\x01\n" +
+	"\asubject\x18\x05 \x01(\v2).chatto.core.evt.v1.RbacPermissionSubjectR\asubjectJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\blocation*\xda\x01\n" +
 	"\x17RbacPermissionScopeKind\x12*\n" +
 	"&RBAC_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!RBAC_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12$\n" +
 	" RBAC_PERMISSION_SCOPE_KIND_GROUP\x10\x02\x12#\n" +
-	"\x1fRBAC_PERMISSION_SCOPE_KIND_ROOM\x10\x03*\x97\x01\n" +
+	"\x1fRBAC_PERMISSION_SCOPE_KIND_ROOM\x10\x03\x12!\n" +
+	"\x1dRBAC_PERMISSION_SCOPE_KIND_DM\x10\x04*\x97\x01\n" +
 	"\x19RbacPermissionSubjectKind\x12,\n" +
 	"(RBAC_PERMISSION_SUBJECT_KIND_UNSPECIFIED\x10\x00\x12%\n" +
 	"!RBAC_PERMISSION_SUBJECT_KIND_ROLE\x10\x01\x12%\n" +

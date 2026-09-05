@@ -67,6 +67,8 @@ Before you use the configuration in production, do these steps:
   registration or verification email.
 - Select automatic Chatto TLS or TLS in a reverse proxy.
 - Put `nats.embedded.data_dir` on persistent storage.
+- Set `nats.embedded.sync_interval` to `always` for the strongest protection
+  against data loss when the host stops without a normal shutdown.
 - Select the permitted login methods.
 - Do a test of an external login provider before you set `auth.direct_login`
   to `false`.
@@ -77,6 +79,17 @@ Examine these optional sections for the specified features:
 - Use `[push]` for push notifications.
 - Use `[video]` and `[asset_processing]` for video uploads.
 - Use `[livekit]` for calls.
+
+For a single embedded NATS server, use this setting:
+
+```toml
+[nats.embedded]
+sync_interval = 'always'
+```
+
+This setting syncs each JetStream write to disk before NATS acknowledges it.
+It reduces write throughput. If you omit it, Chatto keeps the NATS default sync
+interval.
 
 ## Run Chatto as a systemd Service
 

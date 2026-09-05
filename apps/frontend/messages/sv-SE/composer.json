@@ -5,6 +5,7 @@
     "send": "Skicka meddelande",
     "send_label": "Skicka",
     "also_send_to_channel": "Skicka även till kanal",
+    "also_send_to_conversation": "Skicka även till konversationen",
     "post_as_thread": "Publicera som tråd",
     "thread_label": "Tråd",
     "echo_label": "Eko",

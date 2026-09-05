@@ -11,7 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-var threadSnapshotContractID = snapshotContractID("v2", &projectionv1.ThreadProjectionSnapshot{})
+var threadSnapshotContractID = snapshotContractID("v3", &projectionv1.ThreadProjectionSnapshot{})
 
 func (*ThreadProjection) SnapshotContractID() string {
 	return threadSnapshotContractID
@@ -29,6 +29,7 @@ func (p *ThreadProjection) Snapshot() ([]byte, error) {
 		},
 	}
 	snapshot.ChannelRoomIds = sortedMapKeys(p.channelRooms)
+	snapshot.DirectMessageRoomIds = sortedMapKeys(p.dmRooms)
 
 	threadRoots := sortedMapKeys(p.byThread)
 	for _, root := range threadRoots {
@@ -127,6 +128,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		byThread        map[string][]ThreadTimelineEntry
 		messageToThread map[string]string
 		channelRooms    map[string]struct{}
+		dmRooms         map[string]struct{}
 		messageThreads  map[string]threadMessageRef
 		interactions    map[string]map[string]*projectedThreadInteraction
 		replySummaries  map[string]*threadReplySummary
@@ -136,7 +138,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		followedByUser  map[string]map[string]threadFollowRef
 		replayGuard     projectionReplayGuard
 		shreddedUsers   map[string]struct{}
-	}{p.byThread, p.messageToThread, p.channelRooms, p.messageThreads, p.interactions, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
+	}{p.byThread, p.messageToThread, p.channelRooms, p.dmRooms, p.messageThreads, p.interactions, p.replySummaries, p.summaryByThread, p.followState, p.followers, p.followedByUser, p.replayGuard, p.shreddedUsers}
 	defer func() {
 		if err == nil {
 			return
@@ -144,6 +146,7 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		p.byThread = previous.byThread
 		p.messageToThread = previous.messageToThread
 		p.channelRooms = previous.channelRooms
+		p.dmRooms = previous.dmRooms
 		p.messageThreads = previous.messageThreads
 		p.interactions = previous.interactions
 		p.replySummaries = previous.replySummaries
@@ -171,6 +174,18 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		}
 		p.channelRooms[roomID] = struct{}{}
 	}
+	for _, roomID := range snapshot.GetDirectMessageRoomIds() {
+		if roomID == "" {
+			return fmt.Errorf("Thread projection snapshot has empty direct-message room id")
+		}
+		if _, duplicate := p.dmRooms[roomID]; duplicate {
+			return fmt.Errorf("Thread projection snapshot repeats direct-message room %q", roomID)
+		}
+		if _, channel := p.channelRooms[roomID]; channel {
+			return fmt.Errorf("Thread projection snapshot room %q has conflicting kinds", roomID)
+		}
+		p.dmRooms[roomID] = struct{}{}
+	}
 
 	for _, message := range snapshot.GetMessages() {
 		eventID := message.GetEventId()
@@ -179,8 +194,8 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if eventID == "" || roomID == "" || rootID == "" {
 			return fmt.Errorf("Thread projection snapshot has invalid message mapping")
 		}
-		if _, channel := p.channelRooms[roomID]; !channel {
-			return fmt.Errorf("Thread projection snapshot message %q has unknown channel room", eventID)
+		if !p.isInteractionRoomLocked(roomID) {
+			return fmt.Errorf("Thread projection snapshot message %q has unknown room", eventID)
 		}
 		if _, duplicate := p.messageThreads[eventID]; duplicate {
 			return fmt.Errorf("Thread projection snapshot repeats message mapping %q", eventID)
@@ -284,8 +299,8 @@ func (p *ThreadProjection) Restore(data []byte) (err error) {
 		if kind != ThreadInteractionCauseRootAuthored && kind != ThreadInteractionCauseDirectMention {
 			return fmt.Errorf("Thread projection snapshot has invalid interaction cause %q", kind)
 		}
-		if _, channel := p.channelRooms[roomID]; !channel {
-			return fmt.Errorf("Thread projection snapshot interaction has unknown channel room %q", roomID)
+		if !p.isInteractionRoomLocked(roomID) {
+			return fmt.Errorf("Thread projection snapshot interaction has unknown room %q", roomID)
 		}
 		rootRef, rootExists := p.messageThreads[rootID]
 		if !rootExists || rootRef.roomID != roomID || rootRef.threadRootEventID != rootID {
@@ -348,6 +363,7 @@ func (p *ThreadProjection) resetSnapshotStateLocked() {
 	p.byThread = make(map[string][]ThreadTimelineEntry)
 	p.messageToThread = make(map[string]string)
 	p.channelRooms = make(map[string]struct{})
+	p.dmRooms = make(map[string]struct{})
 	p.messageThreads = make(map[string]threadMessageRef)
 	p.interactions = make(map[string]map[string]*projectedThreadInteraction)
 	p.replySummaries = make(map[string]*threadReplySummary)

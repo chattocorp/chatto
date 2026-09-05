@@ -12,8 +12,9 @@ Key files:
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md),
 [ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md),
-[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md), and
-[ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md),
+[ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md), and
+[ADR-095](../adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 ## Public protocol
 
@@ -118,6 +119,12 @@ message and thread timelines, search results, files, pins, and other large or
 paginated resources. The client reads those resources through ConnectRPC when
 it needs them.
 
+The room family includes joined DMs that do not yet contain a message. Each DM
+summary says whether it has root-message history. Current `message.read`
+authority protects this message-derived value. The bundled client retains an
+empty DM for routing but omits it from navigation until it contains a root
+message.
+
 Notifications, presence, read markers, account-security state, and process
 runtime configuration do not use the EVT boundary owned by
 `ServerContentView`. After every `caught_up`, the bundled frontend reads its
@@ -129,6 +136,11 @@ After a durable event, a targeted ConnectRPC request can set
 interceptor validates the viewer-bound token and waits until the serving
 replica includes at least that content boundary. The handler then returns its
 normal canonical response.
+
+DM threads use the same semantic realtime events and ConnectRPC thread
+resources as channel threads. The stream includes DM thread replies, echoes,
+root-summary changes, and viewer-state changes without a separate protocol
+capability.
 
 Room and thread timelines are not unconditional bootstrap families. The
 frontend reloads each mounted timeline at `E` through `RoomService` or
@@ -198,10 +210,10 @@ boundary and is converted to a fresh authorized public event. The handler
 sends `caught_up` at the cutoff, discards buffered live duplicates through
 that sequence, and continues with the hub stream.
 
-Message and asset events require room membership. A channel viewer also needs
+Message and asset events require room membership. A viewer also needs
 `message.read`, or `message.read-interactions` with a relationship to the
-canonical thread root. DM membership authorizes the read. Typing follows the
-same message-read boundary.
+canonical thread root. This rule applies to channel rooms and DMs. Typing
+follows the same message-read boundary.
 
 Room visibility and administrative membership facts update the process-wide
 visibility cache. Its stable admission boundary includes room creation,
@@ -213,6 +225,11 @@ affected connections with `projection_reset_required`. The next subscription
 uses current authorization and normally receives a snapshot. A replay can
 send a viewer's own leave, removal, or ban fact even when current membership
 is false. This closing fact removes state that the client could have retained.
+Effective membership and message-read permission changes are authorization
+boundaries for channel rooms and DMs. An interaction-scoped timeline contains
+only related roots. Each message-derived event is authorized against its
+canonical thread root. A direct-mention post waits for the Threads projection
+before delivery, so that post can establish and use the relationship in order.
 
 A durable mapping or resource-reconciliation failure closes the connection
 before the cursor advances. Reconnect retries the fact or uses a safe fallback.
@@ -252,6 +269,11 @@ map to dedicated public events. An unknown content-affecting server fact still
 quarantines the hub. RBAC and key-shredding changes force affected sessions to
 rebuild from current authorized state. These fail-closed paths prevent a
 client from continuing with state that the server can no longer validate.
+
+Message and asset facts are delivered only when the viewer is a member. A
+viewer also needs broad `message.read`, or
+`message.read-interactions` with a relationship to the canonical thread root.
+The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
 

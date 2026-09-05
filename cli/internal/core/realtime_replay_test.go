@@ -653,9 +653,16 @@ func TestPlanRealtimeReplayIncludesOnlyRelatedThreadMessages(t *testing.T) {
 	}
 }
 
-func TestPlanRealtimeReplayIncludesDMMessagesDespiteMessageReadDenial(t *testing.T) {
+func TestPlanRealtimeReplayOmitsDMMessagesAfterMessageReadDenial(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
+	admin, err := chatto.CreateUser(ctx, SystemActorID, "replay-dm-admin", "Replay DM Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := chatto.AssignAdminRole(ctx, admin.GetId()); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
 	viewer, err := chatto.CreateUser(ctx, SystemActorID, "replay-dm-viewer", "Replay DM Viewer", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser viewer: %v", err)
@@ -668,8 +675,8 @@ func TestPlanRealtimeReplayIncludesDMMessagesDespiteMessageReadDenial(t *testing
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
-		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	if err := chatto.SetUserPermissionState(ctx, admin.GetId(), viewer.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateDeny); err != nil {
+		t.Fatalf("deny DM message.read: %v", err)
 	}
 	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), "")
 	if err != nil {
@@ -694,8 +701,8 @@ func TestPlanRealtimeReplayIncludesDMMessagesDespiteMessageReadDenial(t *testing
 			break
 		}
 	}
-	if !found {
-		t.Fatalf("PlanRealtimeReplay omitted DM message %s after inapplicable message.read denial", message.GetId())
+	if found {
+		t.Fatalf("PlanRealtimeReplay disclosed DM message %s after message.read denial", message.GetId())
 	}
 }
 

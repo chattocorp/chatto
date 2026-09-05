@@ -837,10 +837,6 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 // (if alsoSendToChannel).
 func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *evtv1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*evtv1.Event, error) {
 	options := collectPostMessageOptions(opts)
-	if options.createThread && kind == KindDM {
-		return nil, ErrDMThreadsUnsupported
-	}
-
 	if err := validateMessageAttachmentAssetIDs(assetIDs); err != nil {
 		return nil, err
 	}
@@ -929,9 +925,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if options.createThread && inThread != "" {
 		return nil, invalidArgument("thread creation cannot be combined with a thread reply")
-	}
-	if kind == KindDM && inThread != "" {
-		return nil, ErrDMThreadsUnsupported
 	}
 	if kind == KindChannel {
 		switch EffectiveRoomThreadingMode(room) {

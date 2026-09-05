@@ -440,17 +440,18 @@ func (x *ProjectionSnapshotCohortPart) GetGenerationId() string {
 // Threads projection snapshot contract. Repeated fields are emitted in
 // deterministic key order by the codec.
 type ThreadProjectionSnapshot struct {
-	state           protoimpl.MessageState         `protogen:"open.v1"`
-	Threads         []*ThreadSnapshot              `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
-	Replies         []*ThreadReplySnapshot         `protobuf:"bytes,2,rep,name=replies,proto3" json:"replies,omitempty"`
-	Follows         []*ThreadFollowSnapshot        `protobuf:"bytes,3,rep,name=follows,proto3" json:"follows,omitempty"`
-	ShreddedUserIds []string                       `protobuf:"bytes,4,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
-	ReplayGuard     *ProjectionReplayGuardSnapshot `protobuf:"bytes,5,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
-	ChannelRoomIds  []string                       `protobuf:"bytes,6,rep,name=channel_room_ids,json=channelRoomIds,proto3" json:"channel_room_ids,omitempty"`
-	Messages        []*ThreadMessageSnapshot       `protobuf:"bytes,7,rep,name=messages,proto3" json:"messages,omitempty"`
-	Interactions    []*ThreadInteractionSnapshot   `protobuf:"bytes,8,rep,name=interactions,proto3" json:"interactions,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state                protoimpl.MessageState         `protogen:"open.v1"`
+	Threads              []*ThreadSnapshot              `protobuf:"bytes,1,rep,name=threads,proto3" json:"threads,omitempty"`
+	Replies              []*ThreadReplySnapshot         `protobuf:"bytes,2,rep,name=replies,proto3" json:"replies,omitempty"`
+	Follows              []*ThreadFollowSnapshot        `protobuf:"bytes,3,rep,name=follows,proto3" json:"follows,omitempty"`
+	ShreddedUserIds      []string                       `protobuf:"bytes,4,rep,name=shredded_user_ids,json=shreddedUserIds,proto3" json:"shredded_user_ids,omitempty"`
+	ReplayGuard          *ProjectionReplayGuardSnapshot `protobuf:"bytes,5,opt,name=replay_guard,json=replayGuard,proto3" json:"replay_guard,omitempty"`
+	ChannelRoomIds       []string                       `protobuf:"bytes,6,rep,name=channel_room_ids,json=channelRoomIds,proto3" json:"channel_room_ids,omitempty"`
+	Messages             []*ThreadMessageSnapshot       `protobuf:"bytes,7,rep,name=messages,proto3" json:"messages,omitempty"`
+	Interactions         []*ThreadInteractionSnapshot   `protobuf:"bytes,8,rep,name=interactions,proto3" json:"interactions,omitempty"`
+	DirectMessageRoomIds []string                       `protobuf:"bytes,9,rep,name=direct_message_room_ids,json=directMessageRoomIds,proto3" json:"direct_message_room_ids,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ThreadProjectionSnapshot) Reset() {
@@ -535,6 +536,13 @@ func (x *ThreadProjectionSnapshot) GetMessages() []*ThreadMessageSnapshot {
 func (x *ThreadProjectionSnapshot) GetInteractions() []*ThreadInteractionSnapshot {
 	if x != nil {
 		return x.Interactions
+	}
+	return nil
+}
+
+func (x *ThreadProjectionSnapshot) GetDirectMessageRoomIds() []string {
+	if x != nil {
+		return x.DirectMessageRoomIds
 	}
 	return nil
 }
@@ -4103,7 +4111,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x05parts\x18\x03 \x03(\v27.chatto.core.projection.v1.ProjectionSnapshotCohortPartR\x05parts\"^\n" +
 	"\x1cProjectionSnapshotCohortPart\x12\x19\n" +
 	"\bpart_key\x18\x01 \x01(\tR\apartKey\x12#\n" +
-	"\rgeneration_id\x18\x02 \x01(\tR\fgenerationId\"\xcf\x04\n" +
+	"\rgeneration_id\x18\x02 \x01(\tR\fgenerationId\"\x86\x05\n" +
 	"\x18ThreadProjectionSnapshot\x12C\n" +
 	"\athreads\x18\x01 \x03(\v2).chatto.core.projection.v1.ThreadSnapshotR\athreads\x12H\n" +
 	"\areplies\x18\x02 \x03(\v2..chatto.core.projection.v1.ThreadReplySnapshotR\areplies\x12I\n" +
@@ -4112,7 +4120,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\freplay_guard\x18\x05 \x01(\v28.chatto.core.projection.v1.ProjectionReplayGuardSnapshotR\vreplayGuard\x12(\n" +
 	"\x10channel_room_ids\x18\x06 \x03(\tR\x0echannelRoomIds\x12L\n" +
 	"\bmessages\x18\a \x03(\v20.chatto.core.projection.v1.ThreadMessageSnapshotR\bmessages\x12X\n" +
-	"\finteractions\x18\b \x03(\v24.chatto.core.projection.v1.ThreadInteractionSnapshotR\finteractions\"\x86\x01\n" +
+	"\finteractions\x18\b \x03(\v24.chatto.core.projection.v1.ThreadInteractionSnapshotR\finteractions\x125\n" +
+	"\x17direct_message_room_ids\x18\t \x03(\tR\x14directMessageRoomIds\"\x86\x01\n" +
 	"\x0eThreadSnapshot\x12\"\n" +
 	"\rroot_event_id\x18\x01 \x01(\tR\vrootEventId\x12P\n" +
 	"\aentries\x18\x02 \x03(\v26.chatto.core.projection.v1.ThreadTimelineEntrySnapshotR\aentries\"a\n" +

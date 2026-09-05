@@ -209,7 +209,10 @@ func viewerCapabilities(ctx context.Context, api *API, userID string) (*apiv1.Vi
 	})
 	group.Go(func() error {
 		var err error
-		hasUnreadFollowedThreads, err = api.core.HasUnreadFollowedThreads(groupCtx, userID, []string{core.LegacySpaceIDForRoomKind(core.KindChannel)})
+		hasUnreadFollowedThreads, err = api.core.HasUnreadFollowedThreads(groupCtx, userID, []string{
+			core.LegacySpaceIDForRoomKind(core.KindChannel),
+			core.LegacySpaceIDForRoomKind(core.KindDM),
+		})
 		return connectError(err)
 	})
 	if err := group.Wait(); err != nil {

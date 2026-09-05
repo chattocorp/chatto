@@ -206,6 +206,9 @@ func (c *ChattoConfig) Validate() error {
 		if c.NATS.Embedded.HTTPPort < 0 || c.NATS.Embedded.HTTPPort > 65535 {
 			errs = append(errs, "nats.embedded.http_port must be between 0 and 65535")
 		}
+		if _, _, err := c.NATS.Embedded.ParsedSyncInterval(); err != nil {
+			errs = append(errs, fmt.Sprintf("nats.embedded.sync_interval %v", err))
+		}
 		// Require auth token when TCP port is enabled
 		if c.NATS.Embedded.Port > 0 && c.NATS.Embedded.AuthToken == "" {
 			errs = append(errs, "nats.embedded.auth_token is required when TCP port is enabled")

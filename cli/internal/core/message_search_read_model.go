@@ -57,8 +57,7 @@ type MessageSearchResult struct {
 }
 
 // ResolveScope returns only rooms where the actor is currently a member with
-// applicable channel-room message-read authority. DM membership authorizes DM
-// search. Archived rooms remain eligible.
+// applicable message-read authority. Archived rooms remain eligible.
 func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input MessageSearchScopeInput) (*MessageSearchScope, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err

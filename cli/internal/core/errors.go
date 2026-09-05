@@ -110,11 +110,6 @@ var (
 	// room's per-user posting interval has elapsed.
 	ErrSlowModeActive = errors.New("slow mode is active")
 
-	// ErrDMThreadsUnsupported is returned when a caller tries to create or
-	// extend a thread in a direct-message room. DMs support flat reply
-	// attribution, but thread containment is a channel-room-only capability.
-	ErrDMThreadsUnsupported = errors.New("threads are not supported in direct messages")
-
 	// ErrRoomThreadingPolicy is returned when thread creation or message
 	// placement conflicts with the channel's current threading mode.
 	ErrRoomThreadingPolicy = errors.New("message conflicts with the room threading policy")

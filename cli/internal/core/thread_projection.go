@@ -102,6 +102,7 @@ type ThreadProjection struct {
 	byThread        map[string][]ThreadTimelineEntry
 	messageToThread map[string]string // reply event_id → thread root event_id
 	channelRooms    map[string]struct{}
+	dmRooms         map[string]struct{}
 	messageThreads  map[string]threadMessageRef
 	interactions    map[string]map[string]*projectedThreadInteraction
 	replySummaries  map[string]*threadReplySummary
@@ -119,6 +120,7 @@ func NewThreadProjection() *ThreadProjection {
 		byThread:        make(map[string][]ThreadTimelineEntry),
 		messageToThread: make(map[string]string),
 		channelRooms:    make(map[string]struct{}),
+		dmRooms:         make(map[string]struct{}),
 		messageThreads:  make(map[string]threadMessageRef),
 		interactions:    make(map[string]map[string]*projectedThreadInteraction),
 		replySummaries:  make(map[string]*threadReplySummary),
@@ -189,18 +191,28 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 	switch e := event.GetEvent().(type) {
 	case *evtv1.Event_RoomCreated:
 		room := e.RoomCreated
-		if room.GetRoomId() == "" || room.GetKind() != evtv1.RoomKind_ROOM_KIND_CHANNEL {
+		if room.GetRoomId() == "" {
 			return nil
 		}
-		p.channelRooms[room.GetRoomId()] = struct{}{}
+		switch room.GetKind() {
+		case evtv1.RoomKind_ROOM_KIND_CHANNEL:
+			p.channelRooms[room.GetRoomId()] = struct{}{}
+		case evtv1.RoomKind_ROOM_KIND_DM:
+			p.dmRooms[room.GetRoomId()] = struct{}{}
+		default:
+			return nil
+		}
 		markApplied()
 
 	case *evtv1.Event_RoomDeleted:
 		roomID := e.RoomDeleted.GetRoomId()
-		if _, ok := p.channelRooms[roomID]; !ok {
+		_, channel := p.channelRooms[roomID]
+		_, dm := p.dmRooms[roomID]
+		if !channel && !dm {
 			return nil
 		}
 		delete(p.channelRooms, roomID)
+		delete(p.dmRooms, roomID)
 		p.removeRoomInteractionStateLocked(roomID)
 		markApplied()
 
@@ -234,12 +246,12 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 
 	case *evtv1.Event_MessagePosted:
 		m := e.MessagePosted
-		if _, channel := p.channelRooms[m.GetRoomId()]; channel {
+		if p.isInteractionRoomLocked(m.GetRoomId()) {
 			p.applyMessageInteractionStateLocked(event, m)
 		}
 		threadRoot := m.GetInThread()
 		if threadRoot == "" {
-			if _, channel := p.channelRooms[m.GetRoomId()]; channel {
+			if p.isInteractionRoomLocked(m.GetRoomId()) {
 				markApplied()
 			}
 			return nil // root-level message; not in any thread bucket
@@ -286,6 +298,14 @@ func (p *ThreadProjection) Apply(event *evtv1.Event, seq uint64) error {
 		markApplied()
 	}
 	return nil
+}
+
+func (p *ThreadProjection) isInteractionRoomLocked(roomID string) bool {
+	if _, channel := p.channelRooms[roomID]; channel {
+		return true
+	}
+	_, dm := p.dmRooms[roomID]
+	return dm
 }
 
 func (p *ThreadProjection) applyMessageInteractionStateLocked(event *evtv1.Event, message *evtv1.MessagePostedEvent) {

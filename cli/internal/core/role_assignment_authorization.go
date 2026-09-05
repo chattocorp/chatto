@@ -103,6 +103,8 @@ func (c *ChattoCore) actorHasScopedPermission(ctx context.Context, actorID strin
 	switch decision.Scope {
 	case ScopeServer:
 		return c.HasServerPermission(ctx, actorID, decision.Permission)
+	case ScopeDM:
+		return c.hasRoomPermission(ctx, KindDM, "", actorID, decision.Permission)
 	case ScopeGroup:
 		return c.hasGroupPermission(ctx, KindChannel, decision.ScopeID, actorID, decision.Permission)
 	case ScopeRoom:

@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -635,7 +636,8 @@ func (c *ChattoCore) GetThreadFollowers(ctx context.Context, kind RoomKind, room
 
 // ListFollowedThreads returns all threads followed by the user in the given
 // spaces, sorted by last activity (newest first).
-// Authorization: Caller must verify space membership before calling.
+// The result includes only rooms where the user is still a member and has
+// applicable message-read authority.
 func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
 	page, err := c.ListFollowedThreadsPage(ctx, userID, spaceIDs, 0, 0)
 	if err != nil {
@@ -648,7 +650,8 @@ func (c *ChattoCore) ListFollowedThreads(ctx context.Context, userID string, spa
 // spaces, sorted by last activity (newest first), with pagination applied before
 // per-thread read-marker lookups.
 //
-// Authorization: Caller must verify space membership before calling.
+// The result includes only rooms where the user is still a member and has
+// applicable message-read authority.
 func (c *ChattoCore) ListFollowedThreadsPage(ctx context.Context, userID string, spaceIDs []string, limit, offset int) (*FollowedThreadsPage, error) {
 	var allThreads []*FollowedThread
 
@@ -799,7 +802,7 @@ func followedThreadSortKey(thread *FollowedThread) string {
 // listFollowedThreadViewerStates is the strict counterpart used by complete
 // realtime replacement operations. Any uncertain lookup fails the whole read;
 // only confirmed missing/inaccessible/non-followed threads are omitted.
-func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string) ([]*FollowedThread, error) {
+func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID string, spaceIDs []string) ([]*FollowedThread, error) {
 	refs := c.roomModel.followedThreadsForUser(userID)
 	result := make([]*FollowedThread, 0, len(refs))
 	for _, ref := range refs {
@@ -811,7 +814,7 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 			return nil, fmt.Errorf("read followed thread room %s: %w", ref.roomID, err)
 		}
 		kind := KindOfRoom(room)
-		if kind != KindChannel {
+		if !slices.Contains(spaceIDs, LegacySpaceIDForRoomKind(kind)) {
 			continue
 		}
 		following, err := c.IsFollowingThread(ctx, kind, userID, ref.roomID, ref.threadRootEventID)

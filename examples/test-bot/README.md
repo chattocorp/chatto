@@ -6,9 +6,10 @@ then listens to the protobuf realtime WebSocket. It uses the Pi SDK to generate
 replies. In a channel, the bot replies only to messages that contain a direct
 `@test_bot` mention. A mention in a root message starts a thread for the reply.
 Role, `@here`, and `@all` mentions do not trigger the bot. In a direct message
-(DM), each human message triggers the bot without a mention. The bot logs event
-metadata, but it does not log message text, user names, prompts, replies, or
-credentials.
+(DM), each human message triggers the bot without a mention. A root DM message
+starts a thread for the reply. A later message in that thread continues the
+same conversation. The bot logs event metadata, but it does not log message
+text, user names, prompts, replies, or credentials.
 
 The regular `mise dev` command starts this bot. When the local data directory is
 empty, a bootstrap-tagged development server creates the account on the first
@@ -16,11 +17,10 @@ startup, makes Alice its owner, joins it to `general`, and writes its generated
 API key to `cli/data/bootstrap/test_bot.key`. Release builds do not run this
 bootstrap code.
 
-The bootstrap grants `room.join`, `room.list`, `message.read`, `message.post`,
-and `message.post-in-thread`. The `message.post` permission lets the bot reply
-in an existing DM. It does not let the bot start a DM. A human must start the DM
-and include TestBot. A room-level permission denial can still prevent a channel
-reply.
+The bootstrap grants `room.join`, `room.list`, `message.read`, and
+`message.post-in-thread`. A human must start a DM and include TestBot. TestBot
+does not need `message.post` because its channel and DM answers are thread
+replies. A narrower permission decision can still prevent a reply.
 
 To run the bot separately after you build it, set these variables:
 
@@ -52,15 +52,14 @@ and a room indicator in a DM. It refreshes the indicator every two seconds
 while Pi works. Receiving clients remove an idle indicator after six seconds.
 The bot then posts one final, durable reply.
 
-The bot reads a window of up to 40 messages around the source message. It uses
-the public thread API for a channel thread and the public room timeline API for
-a DM. It excludes messages that came after the source message. The context
-includes messages that do not mention the bot and messages from other users. If
-the anchored resource read has not caught up, the bot uses the realtime source
-message by itself and can still answer.
+The bot reads a window of up to 40 messages around the source message through
+the public thread API. It excludes messages that came after the source message.
+The context includes messages that do not mention the bot and messages from
+other users. If the anchored resource read has not caught up, the bot uses the
+realtime source message by itself and can still answer.
 
-The bot reconstructs each channel thread or DM as structured user and assistant
-turns. It uses a stable, hashed session ID for each conversation. It also
+The bot reconstructs each channel or DM thread as structured user and assistant
+turns. It uses a stable, hashed session ID for each thread. It also
 replaces Chatto user IDs with stable, hashed labels that apply only to that
 conversation. It does not send profile names. These stable inputs let an AI
 provider use prompt caching when the provider supports it. Chatto remains the
@@ -68,7 +67,7 @@ source of truth, so the bot can reconstruct the conversation after a restart.
 The context has limits of 40 messages, 4,000 characters per message, and 32,000
 characters in total.
 
-Each channel thread or DM has at most one active reply job. The bot waits 400 ms
+Each thread has at most one active reply job. The bot waits 400 ms
 before it starts the job so that it can combine a short message burst. An
 unmentioned channel message can extend a pending reply, but it cannot start a
 reply by itself. If a new message arrives while Pi works, the bot stops that

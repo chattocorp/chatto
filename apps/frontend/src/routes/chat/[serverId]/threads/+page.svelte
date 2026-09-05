@@ -36,6 +36,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { buildDirectMessagePresentation } from '$lib/render/users';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';
   import { notificationAttentionForThread } from '$lib/state/server/notifications.svelte';
 
@@ -203,10 +204,28 @@
   }
 
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
+    if (thread.isDirectMessage) {
+      return buildDirectMessagePresentation(
+        thread.directMessageParticipants,
+        serverStore.currentUser.user?.id,
+        m('common.you'),
+        getLiveDisplayName
+      ).visibleParticipants;
+    }
     const participants = thread.participants.slice(0, 2);
     if (participants.length > 0) return participants;
     const actor = thread.latestReply?.actor ?? thread.rootMessage?.actor;
     return actor ? [actor] : [];
+  }
+
+  function roomLabel(thread: FollowedThread): string {
+    if (!thread.isDirectMessage) return `#${thread.roomName}`;
+    return buildDirectMessagePresentation(
+      thread.directMessageParticipants,
+      serverStore.currentUser.user?.id,
+      m('common.you'),
+      getLiveDisplayName
+    ).label;
   }
 
   function primaryEvent(thread: FollowedThread): FollowedThread['rootMessage'] {
@@ -341,7 +360,7 @@
                   <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
                       <span class="font-medium"
-                        >#{thread.roomName}
+                        >{roomLabel(thread)}
                         {#if thread.latestReply}<span class="font-normal"
                             >· {actorName(thread.rootMessage)}: {messageExcerpt(
                               thread.rootMessage

@@ -30,15 +30,15 @@ type ReactionModel struct {
 }
 
 // AddReaction adds actorID's reaction to a message. Authorization: actor must
-// be a room member and have message.react. Channel-room reactions also require
-// message.read; DM membership authorizes the DM read.
+// be a room member and have message.react. Reactions also require permission
+// to read the target message.
 func (s *ReactionModel) AddReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
 	return s.mutateAuthorizedReaction(ctx, input, true)
 }
 
 // RemoveReaction removes actorID's reaction from a message. Authorization:
-// actor must be a room member and have message.react. Channel-room reactions
-// also require message.read; DM membership authorizes the DM read.
+// actor must be a room member and have message.react. Reactions also require
+// permission to read the target message.
 func (s *ReactionModel) RemoveReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
 	return s.mutateAuthorizedReaction(ctx, input, false)
 }

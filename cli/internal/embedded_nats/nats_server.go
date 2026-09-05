@@ -17,7 +17,11 @@ import (
 func StartServer(cfg *config.EmbeddedNATSConfig) (*natsruntime.Server, error) {
 	logger := log.WithPrefix("server.NATS")
 
-	runtime, err := startServer(serverOptions(cfg))
+	options, err := serverOptions(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("configure embedded NATS server: %w", err)
+	}
+	runtime, err := startServer(options)
 	if err != nil {
 		return nil, err
 	}
@@ -66,11 +70,17 @@ func startServer(options server.Options) (*natsruntime.Server, error) {
 
 // serverOptions maps Chatto configuration to native NATS server options.
 // When Port > 0, a TCP listener is enabled with token authentication.
-func serverOptions(cfg *config.EmbeddedNATSConfig) server.Options {
+func serverOptions(cfg *config.EmbeddedNATSConfig) (server.Options, error) {
 	options := server.Options{
 		JetStream: true,
 		StoreDir:  cfg.DataDir,
 	}
+	syncInterval, syncAlways, err := cfg.ParsedSyncInterval()
+	if err != nil {
+		return server.Options{}, fmt.Errorf("parse JetStream sync interval: %w", err)
+	}
+	options.SyncInterval = syncInterval
+	options.SyncAlways = syncAlways
 
 	if cfg.Port == 0 {
 		options.DontListen = true
@@ -87,5 +97,5 @@ func serverOptions(cfg *config.EmbeddedNATSConfig) server.Options {
 		options.HTTPHost = cfg.BindAddressOrDefault()
 	}
 
-	return options
+	return options, nil
 }

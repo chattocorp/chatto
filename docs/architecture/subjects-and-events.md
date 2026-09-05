@@ -207,7 +207,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
-| `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.rbac.{server\|dm\|scopeId}.{eventType}`      | Server, global DM, room-group, or room RBAC facts                                |
 | `evt.authorization.server.fence_advanced`        | Historical authorization-fence records; current writers do not publish them     |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `evt.invitation.{invitationId}.{eventType}`      | Invitation creation, redemption, and revocation facts                           |
@@ -359,9 +359,9 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.rbac.{server\|scopeId}.roles_reordered`                | `RbacRolesReorderedEvent`                          |
 | `evt.rbac.{server\|scopeId}.role_assigned`                  | `RbacRoleAssignedEvent`                            |
 | `evt.rbac.{server\|scopeId}.role_revoked`                   | `RbacRoleRevokedEvent`                             |
-| `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
-| `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
-| `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.rbac.{server\|dm\|scopeId}.permission_granted`          | `RbacPermissionGrantedEvent`                       |
+| `evt.rbac.{server\|dm\|scopeId}.permission_denied`           | `RbacPermissionDeniedEvent`                        |
+| `evt.rbac.{server\|dm\|scopeId}.permission_cleared`          | `RbacPermissionClearedEvent`                       |
 | `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent` (historical replay only) |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |

@@ -27,13 +27,15 @@ enum PermissionScopeKind {
   PERMISSION_SCOPE_KIND_GROUP = 2;
   // Room tier.
   PERMISSION_SCOPE_KIND_ROOM = 3;
+  // Server-wide direct-message tier.
+  PERMISSION_SCOPE_KIND_DM = 4;
 }
 
 // Permission scope reference.
 message PermissionScope {
   // Scope tier.
   PermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
-  // Scope ID for group or room scope. Empty for server scope.
+  // Scope ID for group or room scope. Empty for server or direct-message scope.
   string id = 2;
 }
 
@@ -82,7 +84,7 @@ message GetRolePermissionTierMatrixResponse {
 
 // Matrix column scope.
 message PermissionMatrixScope {
-  // Stable scope ID for the server, a group, or a room.
+  // Stable scope ID for the server, direct messages, a group, or a room.
   string id = 1;
   // Human-readable label.
   string label = 2;
@@ -123,6 +125,9 @@ message RolePermissionMatrix {
 message GetRolePermissionMatrixRequest {
   // Stable role name.
   string role_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Include the direct-message scope column. Defaults to false so an older
+  // client does not receive a scope kind that it cannot interpret.
+  bool include_direct_message_scope = 2;
 }
 
 // Response containing one role's permission matrix.
@@ -150,7 +155,7 @@ message UserPermissionMatrix {
 message ScopedPermissionDecision {
   // Permission identifier.
   string permission = 1;
-  // Server, group, or room scope this decision applies to.
+  // Server, direct-message, group, or room scope for this decision.
   PermissionScope scope = 2;
   // Explicit decision stored at this scope.
   PermissionDecision override = 3;
@@ -162,7 +167,7 @@ message ScopedPermissionDecision {
 message PermissionDecisionUpdate {
   // Permission identifier.
   string permission = 1;
-  // Server, group, or room scope this decision applies to.
+  // Server, direct-message, group, or room scope for this decision.
   PermissionScope scope = 2;
   // Stored decision after the write. NONE means no explicit decision remains.
   PermissionDecision decision = 3;
@@ -172,6 +177,8 @@ message PermissionDecisionUpdate {
 message ListRolePermissionDecisionsRequest {
   // Stable role name.
   string role_name = 1 [(buf.validate.field).string.min_len = 1];
+  // Include direct-message decisions. Defaults to false for older clients.
+  bool include_direct_message_scope = 2;
 }
 
 // Resource-oriented permission decisions for one role.
@@ -186,6 +193,8 @@ message ListRolePermissionDecisionsResponse {
 message ListUserPermissionDecisionsRequest {
   // User ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Include direct-message decisions. Defaults to false for older clients.
+  bool include_direct_message_scope = 2;
 }
 
 // Resource-oriented permission decisions for one user.
@@ -206,6 +215,8 @@ enum PermissionDecisionLevel {
   PERMISSION_DECISION_LEVEL_GROUP = 2;
   // Room-level role or user decision.
   PERMISSION_DECISION_LEVEL_ROOM = 3;
+  // Direct-message-level role or user decision.
+  PERMISSION_DECISION_LEVEL_DM = 4;
 }
 
 // One explicit decision encountered while explaining a permission.
@@ -237,12 +248,16 @@ message PermissionExplanation {
   string included_by_permission = 6;
 }
 
-// Request permission explanations for a user at server or room scope.
+// Request permission explanations for a user at a typed scope.
 message ExplainPermissionsRequest {
   // User whose permissions should be explained.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Optional room scope. Omit for server-scoped permissions.
+  // Legacy room scope. Omit for server-scoped permissions. A request that
+  // also supplies scope must identify the same room.
   string room_id = 2;
+  // Optional typed target. Use DM with an empty ID for direct messages. Omit
+  // for server scope. This field replaces room_id for new clients.
+  PermissionScope scope = 3;
 }
 
 // Permission explanations for all permissions applicable at the requested scope.
@@ -255,6 +270,9 @@ message ExplainPermissionsResponse {
 message GetUserPermissionMatrixRequest {
   // User ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Include the direct-message scope column. Defaults to false so an older
+  // client does not receive a scope kind that it cannot interpret.
+  bool include_direct_message_scope = 2;
 }
 
 // Response containing one user's permission matrix.

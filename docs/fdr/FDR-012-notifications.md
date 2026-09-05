@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -59,6 +59,9 @@ targets, unread counts, read state, or deletion semantics.
   The server saves delivery rules. The client saves sound and sound-filter
   choices for each server. Notifications from different registered servers can
   use different sounds.
+- A root message in a direct-message room uses the Direct message cause. A
+  message inside a direct-message thread uses Followed thread activity for its
+  followers. It does not also create a Direct message occurrence.
 
 ## Design Decisions
 
@@ -112,7 +115,7 @@ server value.
 
 | Cause                          | Default           |
 | ------------------------------ | ----------------- |
-| Direct message                 | Push notification |
+| Root direct message            | Push notification |
 | Root message in a channel room | Badge             |
 | Direct username mention        | Push notification |
 | Reply to the user's message    | Push notification |
@@ -212,9 +215,9 @@ the bounded notification lifecycle. ADR-076 defines that architecture.
 
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
-target. Channel-room message-derived occurrences also require current
+target. Message-derived occurrences also require current
 `message.read`, or `message.read-interactions` with a relationship to the
-target's thread. DM membership authorizes DM occurrences. Without applicable
+target's thread. Without applicable
 access, Chatto hides the occurrence. Removed reactions, retracted targets,
 deleted rooms, and lost room access remove the corresponding occurrence.
 Durable visibility-loss boundaries prevent old queued activity from
@@ -279,6 +282,9 @@ source whose delivery is still controlled by notification policy. Follow
 controls belong to threads, not to notification rows. Root channel-room
 activity uses the Room messages cause. A room-specific Room messages policy
 supplies the required opt-in control without a separate room-follow state.
+Root direct-message activity uses the Direct messages cause. Thread activity
+uses Followed threads in both channel rooms and direct-message rooms, so one
+thread message does not also create a broad Direct messages occurrence.
 
 **Why:** A subscription describes future interest in a conversation; a
 notification occurrence describes one past activity. Keeping them separate
@@ -352,9 +358,9 @@ the public schema and API compatibility guide.
 ## Permissions
 
 Notification policy and triage are user-scoped. Current account, room,
-applicable channel-room message-read authority, message/thread target, and
-exact reaction visibility govern whether an occurrence may be listed, opened,
-mutated, or delivered. DM membership authorizes DM occurrences. There is no
+applicable message-read authority, message/thread target, and exact reaction
+visibility govern whether an occurrence may be listed, opened, mutated, or
+delivered. There is no
 separate permission to manage another user's notification list.
 
 ## Related

@@ -85,8 +85,8 @@ func TestThreadProjectionSnapshotRoundTripAndTailReplay(t *testing.T) {
 }
 
 func TestThreadProjectionSnapshotContractID(t *testing.T) {
-	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v2-") {
-		t.Fatalf("SnapshotContractID() = %q, want v2 schema contract", got)
+	if got := NewThreadProjection().SnapshotContractID(); !strings.HasPrefix(got, "v3-") {
+		t.Fatalf("SnapshotContractID() = %q, want v3 schema contract", got)
 	}
 }
 
@@ -181,9 +181,14 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 			t.Errorf("HasInteraction(%s) = false, want true", userID)
 		}
 	}
-	for _, userID := range []string{"LEGACY", "ROLE", "HERE", "ALL", "REPLIER", "ECHO-AUTHOR", "ECHO-MENTION", "PARTIAL-ECHO-AUTHOR", "PARTIAL-ECHO-MENTION", "DM-AUTHOR", "DM-MENTION"} {
+	for _, userID := range []string{"LEGACY", "ROLE", "HERE", "ALL", "REPLIER", "ECHO-AUTHOR", "ECHO-MENTION", "PARTIAL-ECHO-AUTHOR", "PARTIAL-ECHO-MENTION"} {
 		if p.HasInteraction(userID, "R1", "ROOT") || p.HasInteraction(userID, "DM1", "DM-MESSAGE") {
 			t.Errorf("unexpected interaction for %s", userID)
+		}
+	}
+	for _, userID := range []string{"DM-AUTHOR", "DM-MENTION"} {
+		if !p.HasInteraction(userID, "DM1", "DM-MESSAGE") {
+			t.Errorf("DM HasInteraction(%s) = false, want true", userID)
 		}
 	}
 	interaction, ok := p.Interaction("DIRECT", "R1", "ROOT")

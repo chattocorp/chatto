@@ -5,11 +5,15 @@
 
 ## Overview
 
-When posting a reply inside a thread, the user can optionally "also send to channel" — echoing the reply into the parent room's timeline so people watching the room see it without opening the thread. The echo appears alongside other room messages and links back to its thread.
+When a user posts a reply inside a thread, they can also echo the reply into the
+parent room timeline. The echo appears with other room messages and links back
+to its thread. In a DM, the client labels this action **Also send to
+conversation**.
 
 ## Behavior
 
-- The thread pane composer shows an "Also send to channel" checkbox when the user has the right permission.
+- The thread composer shows an echo checkbox when the user has the required
+  permissions. It says **Also send to conversation** in a DM.
 - Ticking the checkbox and sending the reply produces two visible artifacts: the reply inside the thread pane, and a copy of the same message in the room timeline.
 - The checkbox resets to unchecked after each successful send.
 - A thread reply with an echo shows a megaphone icon after its text. The icon is not a control. It updates when the echo is added or removed.
@@ -79,7 +83,9 @@ users.
 
 ## Permissions
 
-- `message.echo` — granted to `everyone` by default. Gates the "Also send to channel" checkbox at the server-role and per-room scopes.
+- `message.echo` — permits the echo. A DM can override it at the Direct
+  messages scope.
+- `message.post` — permits the new artifact in the main room timeline.
 - `message.post-in-thread` — required for the thread reply itself. Covers replies with `inReplyTo` attribution as well; there is no separate reply permission.
 
 ## Related

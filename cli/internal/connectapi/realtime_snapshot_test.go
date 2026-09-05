@@ -71,3 +71,46 @@ func TestBuildRealtimeSnapshotLimitsUsersAndOmitsRuntimePresence(t *testing.T) {
 		t.Fatalf("snapshot call participant presence = %v, want UNSPECIFIED", got)
 	}
 }
+
+func TestBuildRealtimeSnapshotHidesDMHistoryWithoutReadPermission(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "snapshot-dm-admin", "Snapshot DM Admin", "password")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := env.core.AssignAdminRole(env.ctx, admin.GetId()); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	peer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "snapshot-dm-peer", "Snapshot DM Peer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser peer: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.GetId(), []string{peer.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.GetId(), env.viewer.GetId(), "private message", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, admin.GetId(), env.viewer.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateDeny); err != nil {
+		t.Fatalf("deny DM message.read: %v", err)
+	}
+
+	snapshot, err := env.api.BuildRealtimeSnapshot(env.ctx, env.viewer.GetId())
+	if err != nil {
+		t.Fatalf("BuildRealtimeSnapshot: %v", err)
+	}
+	for _, room := range snapshot.Rooms.GetRooms() {
+		if room.GetRoom().GetId() != dm.GetId() {
+			continue
+		}
+		if room.HasMessageHistory == nil || room.GetHasMessageHistory() {
+			t.Fatalf("DM has_message_history = %v, want explicit false", room.HasMessageHistory)
+		}
+		if len(room.GetMemberUserIds()) != 2 {
+			t.Fatalf("DM member IDs = %v, want two participants", room.GetMemberUserIds())
+		}
+		return
+	}
+	t.Fatalf("DM %q is absent from realtime snapshot", dm.GetId())
+}

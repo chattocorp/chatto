@@ -112,12 +112,11 @@ a stronger OCC boundary explicitly.
 
 ## Permissions
 
-- `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
-- `message.read` — read any target channel-room message and its aggregate
+- `message.react` — add or remove a reaction on a message at the applicable scope.
+- `message.read` — read any target message and its aggregate
   reaction state.
 - `message.read-interactions` — read the target and reaction state when its
-  thread has an interaction relationship. DM membership authorizes DM reads
-  without either permission.
+  thread has an interaction relationship.
 
 ## Related
 

@@ -162,7 +162,7 @@ func (c *ChattoCore) roomAsset(roomID, assetID string) (*evtv1.Attachment, error
 // reads. Callers must enforce current room membership.
 func (c *ChattoCore) CanReadRoomAsset(ctx context.Context, actorID string, kind RoomKind, roomID, assetID string) (bool, error) {
 	broad, err := c.CanReadMessages(ctx, actorID, kind, roomID)
-	if err != nil || broad || kind == KindDM {
+	if err != nil || broad {
 		return broad, err
 	}
 	ownerRoomID, messageEventID, ok := c.AssetMessageTarget(assetID)
@@ -259,8 +259,7 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 // attachment order within each message.
 //
 // Authorization: caller must verify room membership and applicable
-// channel-room message-read authority before calling. DM membership authorizes
-// the DM read.
+// applicable message-read authority before calling.
 func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, roomID string, limit int, offset int) (*RoomAttachmentsResult, error) {
 	return c.getRoomAttachments(ctx, kind, roomID, limit, offset, nil)
 }

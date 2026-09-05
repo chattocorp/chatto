@@ -107,8 +107,8 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 // Authorization:
 //   - Room events (live.sync.room.> and deliverable live.evt.room.>) are
 //     delivered only for rooms where the user is a member. Message-bearing
-//     durable facts and typing indicators in channel rooms also require
-//     message.read. DM membership authorizes DM delivery. The membership set is
+//     durable facts and typing indicators also require applicable message-read
+//     authority. The membership set is
 //     pre-loaded across both kinds (channel + dm) and updated as
 //     join/leave/room-deleted events arrive.
 //   - User-scoped PubSub subjects are delivered only to their target user.

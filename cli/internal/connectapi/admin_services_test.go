@@ -1095,6 +1095,35 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	if cell := findAPIPermissionCell(roleMatrixResp.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost)); cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
 		t.Fatalf("server message.post cell = %+v, want allow override", cell)
 	}
+	for _, scope := range roleMatrixResp.Msg.GetMatrix().GetScopes() {
+		if scope.GetKind() == adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM {
+			t.Fatal("legacy-shaped role matrix included the DM scope")
+		}
+	}
+	dmMatrixResp, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
+		RoleName:                  core.RoleModerator,
+		IncludeDirectMessageScope: true,
+	}))
+	if err != nil {
+		t.Fatalf("GetRolePermissionMatrix with DM: %v", err)
+	}
+	var dmScopeFound bool
+	for _, scope := range dmMatrixResp.Msg.GetMatrix().GetScopes() {
+		if scope.GetKind() == adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM {
+			dmScopeFound = scope.GetId() == "dm"
+		}
+	}
+	if !dmScopeFound {
+		t.Fatalf("DM matrix scope missing or invalid: %+v", dmMatrixResp.Msg.GetMatrix().GetScopes())
+	}
+	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleModerator,
+		Permission: string(core.PermMessagePost),
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_DENY,
+		Scope:      &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
+	})); err != nil {
+		t.Fatalf("SetRolePermission DM deny: %v", err)
+	}
 	roleDecisionsResp, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{
 		RoleName: core.RoleModerator,
 	}))
@@ -1106,6 +1135,19 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if decision := findAPIPermissionDecision(roleDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW {
 		t.Fatalf("server message.post decision = %+v, want allow override", decision)
+	}
+	if decision := findAPIPermissionDecision(roleDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision != nil {
+		t.Fatalf("legacy-shaped decision list included DM decision: %+v", decision)
+	}
+	dmDecisionsResp, err := env.permissions.ListRolePermissionDecisions(ctx, connect.NewRequest(&adminv1.ListRolePermissionDecisionsRequest{
+		RoleName:                  core.RoleModerator,
+		IncludeDirectMessageScope: true,
+	}))
+	if err != nil {
+		t.Fatalf("ListRolePermissionDecisions with DM: %v", err)
+	}
+	if decision := findAPIPermissionDecision(dmDecisionsResp.Msg.GetDecisions(), adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM, "", string(core.PermMessagePost)); decision == nil || decision.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
+		t.Fatalf("DM message.post decision = %+v, want deny override", decision)
 	}
 	if _, err := env.permissions.GetRolePermissionMatrix(ctx, connect.NewRequest(&adminv1.GetRolePermissionMatrixRequest{
 		RoleName: "missing-role",
@@ -1289,6 +1331,23 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	}
 	if len(roomExplainResp.Msg.GetExplanations()) == 0 {
 		t.Fatal("ExplainPermissions room returned no explanations")
+	}
+	dmExplainResp, err := env.permissions.ExplainPermissions(ctx, connect.NewRequest(&adminv1.ExplainPermissionsRequest{
+		UserId: target.Id,
+		Scope:  &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
+	}))
+	if err != nil {
+		t.Fatalf("ExplainPermissions DM: %v", err)
+	}
+	if len(dmExplainResp.Msg.GetExplanations()) == 0 || dmExplainResp.Msg.GetExplanations()[0].GetDecidedAt() == adminv1.PermissionDecisionLevel_PERMISSION_DECISION_LEVEL_UNSPECIFIED {
+		t.Fatalf("ExplainPermissions DM returned no typed levels: %+v", dmExplainResp.Msg.GetExplanations())
+	}
+	if _, err := env.permissions.ExplainPermissions(ctx, connect.NewRequest(&adminv1.ExplainPermissionsRequest{
+		UserId: target.Id,
+		RoomId: room.Id,
+		Scope:  &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_DM},
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("conflicting ExplainPermissions target code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.permissions.ExplainPermissions(ctx, connect.NewRequest(&adminv1.ExplainPermissionsRequest{
 		UserId: target.Id,

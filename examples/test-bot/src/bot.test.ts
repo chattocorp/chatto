@@ -86,7 +86,8 @@ test("targets the existing thread for a direct mention in a reply", () => {
       sourceEventId: "message-1",
       sourceActorId: "user-1",
       sourceBody: "hello",
-      scope: { case: "thread", threadRootEventId: "thread-root-1" },
+      threadRootEventId: "thread-root-1",
+      trigger: "direct_mention",
     },
   );
 });
@@ -103,7 +104,8 @@ test("uses a directly mentioned root as the new thread root", () => {
       sourceEventId: "message-1",
       sourceActorId: "user-1",
       sourceBody: "hello",
-      scope: { case: "thread", threadRootEventId: "message-1" },
+      threadRootEventId: "message-1",
+      trigger: "direct_mention",
     },
   );
 });
@@ -116,7 +118,26 @@ test("targets a direct message without a mention", () => {
       sourceEventId: "message-1",
       sourceActorId: "user-1",
       sourceBody: "hello",
-      scope: { case: "directMessage" },
+      threadRootEventId: "message-1",
+      trigger: "direct_message",
+    },
+  );
+});
+
+test("targets the existing thread for a direct-message reply", () => {
+  assert.deepEqual(
+    messageReplyTarget(
+      messageEvent({ inThread: "dm-thread-root-1" }),
+      BOT_ID,
+      RoomKind.DM,
+    ),
+    {
+      roomId: "room-1",
+      sourceEventId: "message-1",
+      sourceActorId: "user-1",
+      sourceBody: "hello",
+      threadRootEventId: "dm-thread-root-1",
+      trigger: "direct_message",
     },
   );
 });
@@ -174,7 +195,8 @@ test("builds a structured thread snapshot ending at its source message", () => {
       sourceEventId: "4",
       sourceActorId: "user-secret-id",
       sourceBody: "@test_bot Help?",
-      scope: { case: "thread", threadRootEventId: "thread-1" },
+      threadRootEventId: "thread-1",
+      trigger: "direct_mention",
     },
   );
 
@@ -203,13 +225,14 @@ test("builds a structured thread snapshot ending at its source message", () => {
   );
 });
 
-test("uses one stable AI session for a direct-message conversation", () => {
+test("uses one stable AI session for a direct-message thread", () => {
   const target = {
     roomId: "dm-1",
     sourceEventId: "2",
     sourceActorId: "user-1",
     sourceBody: "Can you help?",
-    scope: { case: "directMessage" as const },
+    threadRootEventId: "1",
+    trigger: "direct_message" as const,
   };
   const first = chatAIConversation(
     [
@@ -225,7 +248,7 @@ test("uses one stable AI session for a direct-message conversation", () => {
     target,
   );
 
-  assert.match(first.sessionId, /^chatto-dm-[a-f0-9]{32}$/);
+  assert.match(first.sessionId, /^chatto-thread-[a-f0-9]{32}$/);
   assert.equal(second.sessionId, first.sessionId);
   assert.deepEqual(
     first.turns.map((turn) => turn.role),
@@ -505,7 +528,8 @@ test("refreshes typing until the reply operation stops", async () => {
     sourceEventId: "message-1",
     sourceActorId: "user-1",
     sourceBody: "hello",
-    scope: { case: "thread" as const, threadRootEventId: "thread-root-1" },
+    threadRootEventId: "thread-root-1",
+    trigger: "direct_mention" as const,
   };
 
   await refreshTypingIndicator(api, target, controller.signal, 0);

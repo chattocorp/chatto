@@ -209,10 +209,10 @@ test.describe('public API test bot', () => {
       expect(createdDMReply.message).toMatchObject({
         id: dmReplyEventId,
         actorId: String(ready.viewer_id),
-        body: FAUX_AI_REPLY
+        body: FAUX_AI_REPLY,
+        inReplyTo: dmEventId,
+        threadRootEventId: dmEventId
       });
-      expect(createdDMReply.message?.inReplyTo ?? '').toBe('');
-      expect(createdDMReply.message?.threadRootEventId ?? '').toBe('');
 
       const firstEventId = await postMessageViaConnect(
         page,

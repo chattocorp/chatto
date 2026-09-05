@@ -5,6 +5,7 @@
     "send": "Nosūtīt ziņu",
     "send_label": "Sūtīt",
     "also_send_to_channel": "Sūtīt arī uz kanālu",
+    "also_send_to_conversation": "Sūtīt arī uz sarunu",
     "post_as_thread": "Publicēt kā pavedienu",
     "thread_label": "Pavediens",
     "echo_label": "Atbalss",

@@ -326,7 +326,7 @@ func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, acto
 	if err != nil {
 		return nil, err
 	}
-	if broad || kind == KindDM {
+	if broad {
 		return nil, nil
 	}
 	interactions, err := s.core.CanReadMessageInteractions(ctx, actorID, kind, roomID)

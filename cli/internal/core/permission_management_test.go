@@ -11,6 +11,7 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 			scope,
 			[]Permission{PermMessageRead},
 			[]Permission{PermMessageReadInteractions},
+			nil, nil,
 			nil, nil, nil, nil, nil,
 		)
 		if !ok {
@@ -27,6 +28,7 @@ func TestRolePermissionMatrixAppliesMessageReadInclusion(t *testing.T) {
 			scope,
 			[]Permission{PermMessageReadInteractions},
 			[]Permission{PermMessageRead},
+			nil, nil,
 			nil, nil, nil, nil, nil,
 		)
 		if !ok {
@@ -45,6 +47,7 @@ func TestRolePermissionMatrixAppliesExplicitInclusion(t *testing.T) {
 		PermissionMatrixScope{ID: "server", Kind: MatrixScopeServer},
 		[]Permission{broad},
 		[]Permission{narrow},
+		nil, nil,
 		nil, nil, nil, nil, nil,
 	)
 	if !ok {

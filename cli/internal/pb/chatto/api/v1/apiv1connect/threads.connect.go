@@ -56,28 +56,27 @@ const (
 // ThreadServiceClient is a client for the chatto.api.v1.ThreadService service.
 type ThreadServiceClient interface {
 	// Returns followed threads in rooms where the current user is a member.
-	// Channel-room threads also require message.read or an active relationship
-	// with message.read-interactions. Historical DM threads use DM membership.
+	// All threads also require message.read or an active relationship with
+	// message.read-interactions. Direct-message threads are returned only when
+	// include_direct_message_threads is true.
 	// The result includes enough root and latest-reply data for clients to render
 	// the list without extra per-thread fetches.
 	// Activity can reorder the live result between offset pages. After a thread
 	// activity update, clients must restart paging at offset zero.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
-	// an active relationship with message.read-interactions are required. DMs do
-	// not support current thread actions.
+	// an active relationship with message.read-interactions are required.
 	// Followed threads can be surfaced in clients and can participate in thread
 	// notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
 	// Stops following a thread for the current user. Room membership plus
 	// message.read or an active relationship with message.read-interactions are
-	// required. DMs do not support current thread actions. The response reports
+	// required. The response reports
 	// the resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
 	// Returns one page of events in a message thread. Room membership is
-	// required. Channel-room reads also require message.read or an active
-	// relationship with message.read-interactions. Historical DM threads use DM
-	// membership. Initial pages include the thread root message; cursor pages
+	// required. Reads also require message.read or an active relationship with
+	// message.read-interactions. Initial pages include the thread root message; cursor pages
 	// return replies in the requested direction.
 	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
 	// Returns a thread timeline window centered around a specific event. Use this
@@ -85,12 +84,11 @@ type ThreadServiceClient interface {
 	// NOT_FOUND when the thread root or anchor event is missing or hidden.
 	// Returns PERMISSION_DENIED when room membership is missing, both read modes
 	// are missing, or an interaction-scoped account has no relationship with the
-	// thread. Historical DM threads use DM membership.
+	// thread.
 	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 	// Marks a thread timeline as read through the supplied event without changing
 	// the room-level read marker. Room membership plus message.read or an active
-	// relationship with message.read-interactions are required. DMs do not
-	// support current thread actions.
+	// relationship with message.read-interactions are required.
 	MarkThreadAsRead(context.Context, *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error)
 }
 
@@ -187,28 +185,27 @@ func (c *threadServiceClient) MarkThreadAsRead(ctx context.Context, req *connect
 // ThreadServiceHandler is an implementation of the chatto.api.v1.ThreadService service.
 type ThreadServiceHandler interface {
 	// Returns followed threads in rooms where the current user is a member.
-	// Channel-room threads also require message.read or an active relationship
-	// with message.read-interactions. Historical DM threads use DM membership.
+	// All threads also require message.read or an active relationship with
+	// message.read-interactions. Direct-message threads are returned only when
+	// include_direct_message_threads is true.
 	// The result includes enough root and latest-reply data for clients to render
 	// the list without extra per-thread fetches.
 	// Activity can reorder the live result between offset pages. After a thread
 	// activity update, clients must restart paging at offset zero.
 	ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error)
 	// Follows a thread for the current user. Room membership plus message.read or
-	// an active relationship with message.read-interactions are required. DMs do
-	// not support current thread actions.
+	// an active relationship with message.read-interactions are required.
 	// Followed threads can be surfaced in clients and can participate in thread
 	// notification behavior.
 	FollowThread(context.Context, *connect.Request[v1.FollowThreadRequest]) (*connect.Response[v1.FollowThreadResponse], error)
 	// Stops following a thread for the current user. Room membership plus
 	// message.read or an active relationship with message.read-interactions are
-	// required. DMs do not support current thread actions. The response reports
+	// required. The response reports
 	// the resulting follow state so clients can update local UI immediately.
 	UnfollowThread(context.Context, *connect.Request[v1.UnfollowThreadRequest]) (*connect.Response[v1.UnfollowThreadResponse], error)
 	// Returns one page of events in a message thread. Room membership is
-	// required. Channel-room reads also require message.read or an active
-	// relationship with message.read-interactions. Historical DM threads use DM
-	// membership. Initial pages include the thread root message; cursor pages
+	// required. Reads also require message.read or an active relationship with
+	// message.read-interactions. Initial pages include the thread root message; cursor pages
 	// return replies in the requested direction.
 	GetThreadEvents(context.Context, *connect.Request[v1.GetThreadEventsRequest]) (*connect.Response[v1.GetThreadEventsResponse], error)
 	// Returns a thread timeline window centered around a specific event. Use this
@@ -216,12 +213,11 @@ type ThreadServiceHandler interface {
 	// NOT_FOUND when the thread root or anchor event is missing or hidden.
 	// Returns PERMISSION_DENIED when room membership is missing, both read modes
 	// are missing, or an interaction-scoped account has no relationship with the
-	// thread. Historical DM threads use DM membership.
+	// thread.
 	GetThreadEventsAround(context.Context, *connect.Request[v1.GetThreadEventsAroundRequest]) (*connect.Response[v1.GetThreadEventsAroundResponse], error)
 	// Marks a thread timeline as read through the supplied event without changing
 	// the room-level read marker. Room membership plus message.read or an active
-	// relationship with message.read-interactions are required. DMs do not
-	// support current thread actions.
+	// relationship with message.read-interactions are required.
 	MarkThreadAsRead(context.Context, *connect.Request[v1.MarkThreadAsReadRequest]) (*connect.Response[v1.MarkThreadAsReadResponse], error)
 }
 

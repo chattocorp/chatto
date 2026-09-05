@@ -95,9 +95,9 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
 | [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
 | [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Partially superseded | 2026-08-22 |
-| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |
+| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Partially superseded | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
-| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
+| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Partially superseded | 2026-08-25 |
 | [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
 | [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
@@ -109,3 +109,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
 | [ADR-093](ADR-093-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Dedicated Payloads | Accepted | 2026-09-03 |
 | [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) | Separate Durable and Pubsub Event Envelopes | Accepted | 2026-09-03 |
+| [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md) | Direct-Message Permission Scope and Threads | Accepted | 2026-09-04 |

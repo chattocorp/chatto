@@ -150,15 +150,24 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 
 **Everyone** — Implicit virtual role (position 0) held by every authenticated user. Its nearest decision is the scoped permission baseline. A direct-user or named-role allow overrides an `everyone` deny only at the same or a nearer scope; a named/direct deny always wins.
 
-**Scope** — Tier at which a permission is configured: `server`, `group`, or `room`. Each direct user or named role contributes only its nearest explicit decision (room, then group, then server). Denies win across those subject decisions; an allow must be at least as specific as an `everyone` deny to override the baseline. See [`cli/AGENTS.md`](../cli/AGENTS.md).
+**Scope** — Tier at which a permission is configured: Server, Direct messages,
+Room group, or Room. A channel check uses Room, Room group, then Server. A DM
+check uses Direct messages, then Server. Each direct user or named role
+contributes only its nearest explicit decision. See
+[ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 **Request-time authorization** — Command authorization decision that becomes final after Chatto confirms that its projected RBAC, room-group, user, and other declared inputs did not change during evaluation. A later concurrent authorization change does not cancel the command; domain invariants use OCC separately. See [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
 
-**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a channel-room root or another account directly mentions it. With room membership and `message.read-interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
+**Interaction relationship** — Derived account-to-thread authorization relationship created when the account authors a room root or another account directly mentions it. With room membership and `message.read-interactions`, it permits the complete thread. See [FDR-039](fdr/FDR-039-message-access-and-interactions.md) and [ADR-082](adr/ADR-082-derive-thread-interactions-from-message-facts.md).
 
 **User-level decision** — Permission grant or deny attached directly to a user, not via a role. It participates alongside named-role decisions, so a user deny blocks named-role grants while a named-role deny blocks a user grant. Used for suspensions and ad-hoc grants.
 
-**DM Privacy Boundary** — Static set of channel-style permissions (`message.manage`, `message.echo`, `room.manage`, …) denied to non-owners inside DM rooms regardless of role grants. DM read access comes from room membership, not a separate read permission, so ownership does not grant access to other people's DM contents. See [ADR-037](adr/ADR-037-dm-access-via-membership.md).
+**DM Privacy Boundary** — The fixed participant set that controls DM discovery
+and access. Membership is necessary but not sufficient for message content.
+Normal `message.*` permissions apply through the Direct messages scope.
+`room.*` permissions do not apply. Ownership does not grant access to another
+person's DM. See
+[ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 ## Backend
 

@@ -228,6 +228,12 @@ func (c *ChattoCore) GetUserExplicitServerOverride(ctx context.Context, userID s
 	return c.rbacModel.decision(ScopeServer, "", userID, perm), nil
 }
 
+// GetUserExplicitDMOverride returns the user's explicit direct-message-scope
+// allow or deny, or DecisionNone when no override exists.
+func (c *ChattoCore) GetUserExplicitDMOverride(ctx context.Context, userID string, perm Permission) (DecisionKind, error) {
+	return c.rbacModel.decision(ScopeDM, "", userID, perm), nil
+}
+
 // GetUserExplicitGroupOverride returns the user's explicit user-level
 // allow/deny at the given room group's scope, or DecisionNone.
 func (c *ChattoCore) GetUserExplicitGroupOverride(ctx context.Context, groupID, userID string, perm Permission) (DecisionKind, error) {

@@ -268,14 +268,13 @@ authorization, live events, backup and restore, and backend tests.
   normal permission decisions.
 - Effective owner means durable `owner` role or verified email matching
   `owners.emails`.
-- DM rooms have an explicit privacy boundary; owners/admins/moderators do not
-  get moderation visibility into DM contents.
-- DM membership is the complete DM content-read boundary. `message.read`
-  applies only to channel rooms. Do not add a second DM read gate.
+- DM membership is mandatory for all DM access. The DM scope then controls all
+  `message.*` permissions. Owners do not bypass membership. Operators who are
+  not participants cannot read or manage a DM.
 - A bot must never start or fetch a DM through `RoomService.StartDM`, even when
   it has `message.post` or the DM already exists. A human must start the DM.
-  After that, the bot can read it through membership and can use its normal
-  message permissions inside it.
+  After that, the bot needs membership, an explicit bot grant, and sufficient
+  current authority from its owner.
 - Permission strings are opaque, stable identifiers. Punctuation helps humans
   recognize current identifiers, but it does not define authorization.
 - Define permission inclusion explicitly in the Go permission catalog. Validate
@@ -283,7 +282,7 @@ authorization, live events, backup and restore, and backend tests.
   metadata. Currently, `message.read` includes
   `message.read-interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
-  DM-boundary behavior.
+  DM-scope behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses
   `role.assign`, direct user permissions use `user.manage-permissions`, room
   bans use `room.ban-member`. A non-owner's role assignment authority is bounded

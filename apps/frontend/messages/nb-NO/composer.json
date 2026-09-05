@@ -5,6 +5,7 @@
     "send": "Send melding",
     "send_label": "Send",
     "also_send_to_channel": "Send også til kanalen",
+    "also_send_to_conversation": "Send også til samtalen",
     "post_as_thread": "Publiser som tråd",
     "thread_label": "Tråd",
     "echo_label": "Ekko",

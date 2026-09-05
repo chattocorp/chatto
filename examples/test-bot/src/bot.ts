@@ -65,23 +65,15 @@ interface SessionResult {
   retryAfterMs?: number;
 }
 
-interface ReplyTargetBase {
+/** Source message and thread placement for one TestBot reply. */
+export interface ReplyTarget {
   roomId: string;
   sourceEventId: string;
   sourceActorId: string;
   sourceBody: string;
+  threadRootEventId: string;
+  trigger: "direct_mention" | "direct_message";
 }
-
-/** Source message and conversation placement for one TestBot reply. */
-export type ReplyTarget = ReplyTargetBase &
-  (
-    | {
-        scope: { case: "thread"; threadRootEventId: string };
-      }
-    | {
-        scope: { case: "directMessage" };
-      }
-  );
 
 /** Narrow public API operations required by the reply workflow. */
 export interface BotAPI {
@@ -210,30 +202,18 @@ async function connectPublicAPI(
         actorId: target.sourceActorId,
         body: target.sourceBody,
       };
-      if (
-        target.scope.case === "thread" &&
-        target.scope.threadRootEventId === target.sourceEventId
-      ) {
+      if (target.threadRootEventId === target.sourceEventId) {
         return [source];
       }
       let events: RoomTimelineEvent[];
       try {
-        if (target.scope.case === "directMessage") {
-          const response = await roomOperations.getRoomEventsAround({
-            roomId: target.roomId,
-            eventId: target.sourceEventId,
-            limit: MAXIMUM_CONVERSATION_MESSAGES,
-          });
-          events = response.page?.events ?? [];
-        } else {
-          const response = await threads.getThreadEventsAround({
-            roomId: target.roomId,
-            threadRootEventId: target.scope.threadRootEventId,
-            eventId: target.sourceEventId,
-            limit: MAXIMUM_CONVERSATION_MESSAGES,
-          });
-          events = response.page?.events ?? [];
-        }
+        const response = await threads.getThreadEventsAround({
+          roomId: target.roomId,
+          threadRootEventId: target.threadRootEventId,
+          eventId: target.sourceEventId,
+          limit: MAXIMUM_CONVERSATION_MESSAGES,
+        });
+        events = response.page?.events ?? [];
       } catch (error) {
         if (ConnectError.from(error).code === Code.NotFound) return [source];
         throw error;
@@ -247,10 +227,7 @@ async function connectPublicAPI(
     async updateTypingIndicator(target): Promise<void> {
       const response = await roomOperations.updateTypingIndicator({
         roomId: target.roomId,
-        threadRootEventId:
-          target.scope.case === "thread"
-            ? target.scope.threadRootEventId
-            : undefined,
+        threadRootEventId: target.threadRootEventId,
       });
       if (!response.updated) {
         throw new Error("typing indicator was not accepted");
@@ -260,12 +237,8 @@ async function connectPublicAPI(
       const response = await messages.createMessage({
         roomId: target.roomId,
         body,
-        ...(target.scope.case === "thread"
-          ? {
-              threadRootEventId: target.scope.threadRootEventId,
-              inReplyTo: target.sourceEventId,
-            }
-          : {}),
+        threadRootEventId: target.threadRootEventId,
+        inReplyTo: target.sourceEventId,
       });
       const replyEventId = response.message?.id;
       if (!replyEventId) {
@@ -303,14 +276,11 @@ function threadKey(roomId: string, threadRootEventId: string): string {
 }
 
 function conversationKey(target: ReplyTarget): string {
-  return target.scope.case === "thread"
-    ? threadKey(target.roomId, target.scope.threadRootEventId)
-    : `${target.roomId}\0direct-message`;
+  return threadKey(target.roomId, target.threadRootEventId);
 }
 
 function conversationSessionId(target: ReplyTarget): string {
-  const kind = target.scope.case === "thread" ? "thread" : "dm";
-  return `chatto-${kind}-${createHash("sha256")
+  return `chatto-thread-${createHash("sha256")
     .update(conversationKey(target))
     .digest("hex")
     .slice(0, 32)}`;
@@ -407,20 +377,13 @@ function messageConversationInput(
     sourceActorId: event.actorId,
     sourceBody: message.bodyPlaintext,
   };
-  if (roomKind === RoomKind.DM) {
-    return {
-      activates,
-      target: { ...base, scope: { case: "directMessage" } },
-    };
-  }
   return {
     activates,
     target: {
       ...base,
-      scope: {
-        case: "thread",
-        threadRootEventId: message.inThread || event.id,
-      },
+      threadRootEventId: message.inThread || event.id,
+      trigger:
+        roomKind === RoomKind.DM ? "direct_message" : "direct_mention",
     },
   };
 }
@@ -448,9 +411,10 @@ function candidateRoomId(
 function targetLogFields(
   target: ReplyTarget,
 ): Record<string, boolean | number | string> {
-  return target.scope.case === "thread"
-    ? { thread_root_event_id: target.scope.threadRootEventId }
-    : { direct_message: true };
+  return {
+    thread_root_event_id: target.threadRootEventId,
+    ...(target.trigger === "direct_message" ? { direct_message: true } : {}),
+  };
 }
 
 /** Refresh a conversation typing indicator until the operation stops. */
@@ -485,10 +449,7 @@ export async function replyToTarget(
     status: "ai_reply_started",
     source_event_id: target.sourceEventId,
     ...targetLogFields(target),
-    trigger:
-      target.scope.case === "directMessage"
-        ? "direct_message"
-        : "direct_mention",
+    trigger: target.trigger,
   });
 
   const conversation = await api.loadConversation(target);
@@ -506,10 +467,7 @@ export async function replyToTarget(
     source_event_id: target.sourceEventId,
     ...targetLogFields(target),
     reply_event_id: replyEventId,
-    trigger:
-      target.scope.case === "directMessage"
-        ? "direct_message"
-        : "direct_mention",
+    trigger: target.trigger,
   });
 }
 

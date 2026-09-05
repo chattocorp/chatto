@@ -121,6 +121,12 @@ describe('createPermissionAPI', () => {
             label: 'Server',
             kind: PermissionScopeKind.SERVER,
             parentGroupId: ''
+          },
+          {
+            id: 'dm',
+            label: 'Direct messages',
+            kind: PermissionScopeKind.DM,
+            parentGroupId: ''
           }
         ],
         cells: [
@@ -138,13 +144,16 @@ describe('createPermissionAPI', () => {
     const result = await api.getRolePermissionMatrix('admin');
 
     expect(mocks.getRolePermissionMatrix).toHaveBeenCalledWith(
-      { roleName: 'admin' },
+      { roleName: 'admin', includeDirectMessageScope: true },
       { headers: undefined }
     );
     expect(result).toEqual({
       roleName: 'admin',
       applicablePermissions: ['message.post'],
-      scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+      scopes: [
+        { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
+        { id: 'dm', label: 'Direct messages', kind: 'DM', parentGroupId: '' }
+      ],
       cells: [
         {
           permission: 'message.post',
@@ -154,6 +163,22 @@ describe('createPermissionAPI', () => {
         }
       ]
     });
+  });
+
+  it('rejects unknown permission matrix scope kinds', async () => {
+    mocks.getRolePermissionMatrix.mockResolvedValue({
+      matrix: {
+        roleName: 'admin',
+        applicablePermissions: [],
+        scopes: [{ id: 'future', label: 'Future', kind: 99, parentGroupId: '' }],
+        cells: []
+      }
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: null });
+
+    await expect(api.getRolePermissionMatrix('admin')).rejects.toThrow(
+      'unsupported permission matrix scope kind: 99'
+    );
   });
 
   it('loads role permission decisions as scoped entries', async () => {
@@ -179,7 +204,7 @@ describe('createPermissionAPI', () => {
     const result = await api.listRolePermissionDecisions('admin');
 
     expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith(
-      { roleName: 'admin' },
+      { roleName: 'admin', includeDirectMessageScope: true },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(result).toEqual({
@@ -257,7 +282,7 @@ describe('createPermissionAPI', () => {
     const result = await api.listUserPermissionDecisions('U1');
 
     expect(mocks.listUserPermissionDecisions).toHaveBeenCalledWith(
-      { userId: 'U1' },
+      { userId: 'U1', includeDirectMessageScope: true },
       { headers: undefined }
     );
     expect(result).toEqual({

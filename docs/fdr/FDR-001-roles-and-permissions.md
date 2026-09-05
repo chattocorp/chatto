@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-04
 
 ## Overview
 
@@ -15,12 +15,15 @@ Chatto controls who can do what through role-based access control. Every authent
 - A permission identifier is an opaque, stable value. Current identifiers use
   punctuation to help developers recognize them, but punctuation does not
   define authority. The permission catalog defines inclusion explicitly.
-- Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
+- Permission grants and denies can be configured at Server, Direct messages,
+  Room group, and Room scope. Channel checks use Room, Room group, then Server.
+  DM checks use Direct messages, then Server. Each direct user or named role
+  contributes its nearest decision. Denies win across those explicit subjects.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads. `message.read` supplies broad
   read authority and includes `message.read-interactions`, which
-  supplies authority for related threads only. DM membership authorizes DM
-  reads. `message.post` separately
+  supplies authority for related threads only. The same read rules apply in
+  DMs after the membership check. `message.post` separately
   gates root-message posting and permits human users to start DMs. Bot accounts
   cannot start DMs regardless of their permissions.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
@@ -52,10 +55,18 @@ Chatto controls who can do what through role-based access control. Every authent
 **Why:** Operators can express an allowlist by denying the `everyone` baseline and granting a named role, while a named restriction role such as `suspended` still reliably denies. Role position remains irrelevant to authorization. See ADR-052.
 **Tradeoff:** An `everyone` deny can be overridden deliberately at its own scope or a nearer one. A restriction role's deny beats other subjects' grants, but a nearer allow configured on that same role replaces its broader deny. Direct-user decisions follow the same nearest-scope rule. ADR-052 records the compatibility audit.
 
-### 3. Three permission scopes (server / group / room)
+### 3. Four permission scopes
 
-**Decision:** For each subject, room checks use the nearest decision at room, group, or server scope. Server-scope message and room permissions act as broad defaults; room/group decisions are local overrides for that same subject. Fresh dev/bootstrap servers grant ordinary member capabilities such as `room.list`, `room.join`, `message.read`, `message.post`, `message.post-in-thread`, `message.attach`, `message.react`, and `message.echo` to `everyone` at server scope. The effective `message.read` allow includes `message.read-interactions`; bootstrap does not store a second grant. Fresh servers do not grant `room.create` to `everyone`. Admins get explicit server-tier administrative and `room.*` defaults plus `message.manage`, while ordinary content participation continues to come from `everyone`. Moderators get server-tier `message.manage` and `room.ban-member`.
-**Why:** Operators want both "system-wide policy" and "this one channel works differently" without modelling separate role systems. See ADR-031 and ADR-052.
+**Decision:** For each subject, channel checks use the nearest decision at Room,
+Room group, or Server scope. DM checks use the nearest decision at Direct
+messages or Server scope. All `message.*` permissions apply to Direct messages.
+No `room.*` permission applies there. Fresh servers store no Direct messages
+decision, so human users inherit Server decisions. Bots need an explicit
+direct-user allow at the applicable scope. The effective `message.read` allow
+includes `message.read-interactions`; bootstrap does not store a second grant.
+**Why:** Operators need system-wide defaults, channel overrides, and a DM-only
+policy for integrations without one permission object for each DM. See ADR-031,
+ADR-052, and ADR-091.
 **Tradeoff:** Scope precedence is per subject, not global: one role's room allow does not erase a different named role's deny.
 
 ### 4. Owners are effective-owner overrides
@@ -127,16 +138,14 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 - `user.manage-permissions` — edit direct per-user permission overrides.
 - `admin.view-users`, `admin.view-audit` — gate specific admin UI sub-views; admin UI entry is derived from concrete capabilities rather than a standalone `admin.access` permission. System diagnostics are owner-only and exposed through a viewer capability, not through grantable RBAC.
 - `message.read` — read message content and message-specific metadata in
-  channel rooms. Fresh servers grant this to `everyone` at server scope.
+  channel rooms and DMs. Fresh servers grant this to `everyone` at server scope.
   Existing servers are not backfilled or reconciled, so operators must add any
-  wanted grants during upgrade. DM membership authorizes DM reads without this
-  permission.
-- `message.read-interactions` — read only channel-room threads that the account
+  wanted grants during upgrade.
+- `message.read-interactions` — read only threads that the account
   started or where another account directly mentioned it. A relationship gives
   access to the complete thread. An effective `message.read` allow includes
   this permission. Fresh servers store only the `message.read` grant for
-  `everyone`. Existing servers are not backfilled or reconciled. DM membership
-  authorizes DM reads without this permission.
+  `everyone`. Existing servers are not backfilled or reconciled.
 - `message.post` — post root messages in rooms and let human users start DMs.
   Bot accounts cannot start DMs. Fresh servers grant this permission to
   `everyone` at server scope. Fresh announcement rooms replace that baseline
