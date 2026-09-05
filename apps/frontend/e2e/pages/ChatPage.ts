@@ -141,9 +141,11 @@ export class ChatPage {
       .getByRole('button', { name: 'Create and configure' });
   }
 
-  /** The room header (visible after navigating to a room) */
+  /** The main-pane room header (visible after navigating to a room). */
   getRoomHeader(roomName: string): Locator {
-    return this.page.getByRole('heading', { name: `# ${roomName}` });
+    return this.page
+      .getByTestId('room-main-pane')
+      .getByRole('heading', { name: `# ${roomName}`, exact: true });
   }
 
   /**
