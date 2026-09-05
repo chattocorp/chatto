@@ -26,11 +26,13 @@ func TestBotWebhooksEnvironment(t *testing.T) {
 	t.Setenv("CHATTO_CORE_SECRET_KEY", "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789")
 	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff")
 	t.Setenv("CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS", "9")
+	t.Setenv("CHATTO_JOBS_MAX_AGE", "9d")
 	t.Setenv("CHATTO_BOT_WEBHOOKS_RETRY_DELAY", "15s")
 	t.Setenv("CHATTO_BOT_WEBHOOKS_EXPIRY", "2h")
 	cfg, err := ReadConfig("")
 	require.NoError(t, err)
 	require.Equal(t, 9, cfg.BotWebhooks.MaxAttemptsOrDefault())
+	require.Equal(t, 9*24*time.Hour, cfg.Jobs.MaxAgeOrDefault())
 	require.Equal(t, 15*time.Second, cfg.BotWebhooks.RetryDelayOrDefault())
 	require.Equal(t, 2*time.Hour, cfg.BotWebhooks.ExpiryOrDefault())
 }

@@ -125,12 +125,14 @@ durable EVT records serving as security audit facts rather than an email queue.
 
 The [webhook worker](../../cli/internal/core/bot_webhook_worker.go) consumes EVT
 independently of notifications. It publishes one stable-ID job per destination
-to `BOT_WEBHOOKS`. The delivery worker checks current configuration and access,
+to `JOBS`. The delivery worker checks current configuration and access,
 sends signed JSON, and double-acknowledges success or an intentional skip.
 
 HTTP failures retry through delayed NAK. The delay uses the consumer delivery
 count and doubles up to 30 minutes, bounded by remaining expiry. The worker
 records exhausted or expired jobs as deduplicated EVT failures before ack.
+The shared queue also discards outstanding jobs at its hard retention limit
+(seven days by default), even without a failure record.
 No application-owned KV attempt state or success ledger is used. JetStream
 tracks pending jobs. Receivers must tolerate duplicates and reordered jobs.
 See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

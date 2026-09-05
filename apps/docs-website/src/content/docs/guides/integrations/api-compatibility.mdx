@@ -257,17 +257,3 @@ clients and servers from opposite sides of that development-only change.
 3. Test authentication, required RPCs, error handling, pagination, and realtime
    reconnect behaviour that your integration depends on.
 4. Deploy the server and client changes together when the API changed.
-
-## Outbound bot webhooks
-
-Chatto 0.5.0-alpha.8 adds `GetBotOutboundWebhook`,
-`ReplaceBotOutboundWebhook`, and `DeleteBotOutboundWebhook` to `BotService`.
-These methods require bot ownership or `bot.manage`. They do not change the
-existing bot resource or incoming webhook contract. The bundled client hides
-the editor on earlier servers. Custom clients must regenerate their bindings.
-
-The outbound HTTP body has its own `version: 1` JSON contract. It carries a
-stable delivery ID, event type, trigger list, and currently readable message
-text. Receivers must tolerate repeated requests and unknown added fields.
-Configuration and delivery facts are additive in persisted protobufs. Existing
-bots have no outbound endpoint until a manager configures one.

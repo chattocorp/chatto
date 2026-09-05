@@ -608,3 +608,22 @@ The network policy is checked on each attempt.
 
 See [outbound bot webhooks](/guides/integrations/bot-accounts/#outbound-webhooks)
 for the request body, signature scheme, and receiver requirements.
+
+## Background job queue
+
+```toml
+[jobs]
+max_age = "7d"
+```
+
+<EnvVar name="CHATTO_JOBS_MAX_AGE" toml="jobs.max_age" default="7d">
+  Hard retention limit for the shared background job queue. Completed jobs are
+  removed immediately. Outstanding jobs are discarded after this age, including
+  jobs that no worker picked up. The value must be positive; zero uses the
+  default. There is no byte or message-count limit.
+</EnvVar>
+
+Restart the server after a change. This stream setting applies to existing and
+new queued jobs. Age starts when the job enters the queue. Individual features
+can stop retrying earlier, such as the default 24-hour webhook expiry measured
+from the source message. Queue age expiry does not produce a failure event.

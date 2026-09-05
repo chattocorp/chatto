@@ -22,7 +22,7 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// One pending job in the BOT_WEBHOOKS work queue. JetStream owns retry state.
+// One pending job in the JOBS work queue. JetStream owns retry state.
 // References retain no message plaintext or destination credentials.
 type BotWebhookDelivery struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`

@@ -19,14 +19,14 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/jobqueue"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	webhookv1 "hmans.de/chatto/internal/pb/chatto/core/webhook/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 const (
-	botWebhookStreamName       = "BOT_WEBHOOKS"
-	botWebhookJobFilter        = "bot_webhook.>"
+	botWebhookJobType          = "bot_webhook.deliver"
 	botWebhookSourceConsumer   = "chatto-bot-webhook-source-v1"
 	botWebhookDeliveryConsumer = "chatto-bot-webhook-delivery-v1"
 	botWebhookRequestTimeout   = 10 * time.Second
@@ -55,15 +55,8 @@ func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProj
 	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now}
 }
 func (m *botWebhookModel) initialize(ctx context.Context) error {
-	var err error
-	// WorkQueue retention removes acknowledged jobs. No MaxAge: the worker
-	// must record expiry failures, including after an extended server outage.
-	m.queue, err = m.core.js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name: botWebhookStreamName, Subjects: []string{botWebhookJobFilter},
-		Description: "Pending outbound bot webhook deliveries",
-		Retention:   jetstream.WorkQueuePolicy, Storage: jetstream.FileStorage,
-		Replicas: m.core.config.Replicas, Duplicates: 2 * time.Minute,
-	})
+	m.queue = m.core.storage.jobs.Stream()
+	jobSubject, err := jobqueue.Subject(botWebhookJobType)
 	if err != nil {
 		return err
 	}
@@ -73,7 +66,7 @@ func (m *botWebhookModel) initialize(ctx context.Context) error {
 		target       *jetstream.Consumer
 	}{
 		{m.core.storage.serverEvtStream, botWebhookSourceConsumer, evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted), &m.sourceConsumer},
-		{m.queue, botWebhookDeliveryConsumer, botWebhookJobFilter, &m.deliveryConsumer},
+		{m.queue, botWebhookDeliveryConsumer, jobSubject, &m.deliveryConsumer},
 	} {
 		*item.target, err = evtstream.CreateEffectConsumer(ctx, item.stream, evtstream.EffectConsumerConfig{Name: item.name, Description: "Outbound bot webhook worker", FilterSubjects: []string{item.filter}, AckWait: time.Minute, MaxAckPending: botWebhookConcurrency, DeliverPolicy: jetstream.DeliverAllPolicy})
 		if err != nil {
@@ -181,7 +174,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 		if err != nil {
 			return err
 		}
-		if _, err = m.core.js.Publish(ctx, "bot_webhook."+id, data, jetstream.WithMsgID(id)); err != nil {
+		if err = m.core.storage.jobs.Enqueue(ctx, botWebhookJobType, id, data); err != nil {
 			return err
 		}
 	}

@@ -3,7 +3,7 @@ package chatto.core.webhook.v1;
 import "google/protobuf/timestamp.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/webhook/v1;webhookv1";
 
-// One pending job in the BOT_WEBHOOKS work queue. JetStream owns retry state.
+// One pending job in the JOBS work queue. JetStream owns retry state.
 // References retain no message plaintext or destination credentials.
 message BotWebhookDelivery {
   string delivery_id = 1;

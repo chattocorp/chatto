@@ -330,5 +330,10 @@ does not clear a previous failure.
 
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
+The shared job queue discards any outstanding job after seven days by default,
+even if no worker picked it up. This hard retention limit is separate from
+webhook expiry and does not produce a failure record. Operators can change it
+with `jobs.max_age` or `CHATTO_JOBS_MAX_AGE`.
+
 The default network policy permits public HTTPS destinations. An operator can
 allow private networks and HTTP for trusted internal tools.

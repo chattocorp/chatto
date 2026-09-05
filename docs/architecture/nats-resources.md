@@ -95,12 +95,22 @@ support more than one application-owned event log without mixing coordinates.
 It acknowledges after publishing each selected destination job. Configuration
 sequence prevents old messages from activating new endpoints.
 
-`BOT_WEBHOOKS` is a file-backed WorkQueue stream on `bot_webhook.>`. Jobs use
-`chatto.core.webhook.v1.BotWebhookDelivery`. The stream uses the configured
-replica count, a two-minute publish deduplication window, and no age limit.
-Acknowledged jobs are removed. `chatto-bot-webhook-delivery-v1` consumes this
-queue with DeliverAll and explicit acknowledgement. Its delivery count owns
-retry progress; delayed NAK schedules exponential retries. Both durable
-consumers allow eight pending messages. Backup includes both streams and their
-consumers, with EVT captured before the queue. See
-[ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).
+`chatto-bot-webhook-delivery-v1` consumes `jobs.bot_webhook.deliver` from the
+shared `JOBS` stream. Its delivery count owns retry progress; delayed NAK
+schedules exponential retries. Both webhook consumers allow eight pending
+messages. See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).
+
+## Shared background job queue
+
+[`jobqueue.Queue`](../../cli/internal/jobqueue/queue.go) owns `JOBS`: a
+file-backed WorkQueue stream on `jobs.>`. It uses the configured replica count,
+a two-minute publish deduplication window (or the retention age if shorter),
+and a seven-day default `MaxAge`. Operators set `jobs.max_age` or
+`CHATTO_JOBS_MAX_AGE`. There are no byte or message-count limits.
+
+Acknowledged jobs are removed immediately. Age expiry removes any outstanding
+job, even if no worker processed it, without an application failure event.
+Each job type owns a named durable consumer with a non-overlapping subject
+filter. Workers use explicit acknowledgement and retain their consumer across
+restarts. Backup includes JOBS and its consumers after EVT. See
+[ADR-098](../adr/ADR-098-shared-background-job-queue.md).

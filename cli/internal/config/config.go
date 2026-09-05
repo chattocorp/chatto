@@ -15,6 +15,7 @@ import (
 // ChattoConfig is the canonical aggregate configuration decoded from TOML and
 // environment variables before derived defaults, normalization, and validation.
 type ChattoConfig struct {
+	Jobs            JobsConfig            `toml:"jobs,commented" comment:"Shared background job queue."`
 	BotWebhooks     BotWebhooksConfig     `toml:"bot_webhooks,commented" comment:"Outbound bot webhook delivery policy."`
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
@@ -96,6 +97,9 @@ func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
+	if err := c.Jobs.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
 	if err := c.BotWebhooks.Validate(); err != nil {
 		errs = append(errs, err.Error())
 	}

@@ -259,7 +259,8 @@ private current or historical attachment prefixes. Disallowed classes return
 
 ## Outbound webhook delivery state
 
-Outbound webhooks use no KV keys. `BOT_WEBHOOKS` jobs and the durable delivery
+Outbound webhooks use no KV keys. `JOBS` jobs and the durable delivery
 consumer hold pending work, delivery counts, and delayed retries. Acknowledged
-jobs are removed. See [NATS resources](nats-resources.md) and
+jobs are removed. Outstanding jobs also expire at the shared retention limit,
+seven days by default. No byte limit applies. See [NATS resources](nats-resources.md) and
 [durable effects](durable-effects.md).

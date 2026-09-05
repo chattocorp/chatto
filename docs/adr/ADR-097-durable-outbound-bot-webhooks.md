@@ -11,7 +11,7 @@ event history, and JetStream already tracks pending work.
 ## Decision
 
 Consume direct mentions and DM messages from EVT. Publish one protobuf job per
-bot endpoint to the file-backed `BOT_WEBHOOKS` work queue. Confirm every publish
+bot endpoint to the shared `JOBS` work queue from ADR-098. Confirm every publish
 before acknowledging the source message. Jobs contain message references,
 endpoint generation, attempt limit, retry delay, and source-time expiry.
 They contain no plaintext message body or destination credentials.
@@ -26,9 +26,10 @@ acknowledgement. Double-acknowledge success and intentional skips. Do not use
 KV attempt reservations, success records, or application-owned pending state.
 
 Append only terminal failures to EVT. Aggregate OCC permits one failure fact
-per delivery ID. Acknowledge the job after that failure commits. Keep failures
-for expired work too: the queue has no age limit that could silently discard
-jobs during an outage. No EVT request, success, or skip facts are written.
+per delivery ID. Acknowledge the job after that failure commits. Workers record
+job-expiry failures while jobs remain in the queue. The shared queue discards
+all outstanding jobs after seven days by default, including jobs with no
+recorded failure. No EVT request, success, or skip facts are written.
 
 Keep one encrypted endpoint configuration per bot. Use the bot's PII key for
 its URL, optional Authorization value, and signing secret. Replacement creates
