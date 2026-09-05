@@ -1,26 +1,26 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-09-04
 
 ## Overview
 
 Message access controls which message content Chatto can give to a human or
-bot. Channel rooms use explicit broad or interaction-scoped read permissions.
-DM membership continues to authorize complete DM reads.
+bot. Channel rooms and DMs use explicit broad or interaction-scoped read
+permissions. Room membership remains a separate requirement.
 
 ## Behavior
 
-- Channel-room membership is always necessary for message access. It is not
+- Room membership is always necessary for message access. It is not
   sufficient.
-- `message.read` gives broad access to message content in a channel room and
+- `message.read` gives broad access to message content in a room and
   includes `message.read-interactions`.
-- `message.read-interactions` gives access only to channel-room threads where
+- `message.read-interactions` gives access only to threads where
   the account has an interaction relationship.
 - The same permissions and rules apply to human and bot accounts.
 - A direct mention from another account creates an interaction relationship.
   The mention can be in a root message or a reply.
-- Authoring a channel-room root message creates an interaction relationship
+- Authoring a room root message creates an interaction relationship
   with that thread.
 - A self-mention, role mention, `@all`, `@here`, or authored reply does not
   create an interaction relationship.
@@ -32,8 +32,8 @@ DM membership continues to authorize complete DM reads.
 - This slice has no action to end a relationship. Permission loss or room
   membership loss closes current access. Permission restoration or room
   re-entry opens an existing relationship again.
-- A DM participant can read the complete DM. `message.read` and
-  `message.read-interactions` decisions do not restrict DM reads.
+- A DM participant with `message.read` can read the complete DM. A participant
+  with only `message.read-interactions` can read its interaction threads.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
 - A channel-room operation that reads or returns an existing message also
@@ -123,9 +123,8 @@ relationship again. A later explicit end feature will need a durable end fact.
 
 ### 5. All message-derived surfaces use one thread boundary
 
-**Decision:** Apply broad or interaction-scoped access to every surface that
-can expose channel-room message content or message-specific metadata. Keep DM
-versions membership-based.
+**Decision:** Apply broad or interaction-scoped access to every channel-room or
+DM surface that can expose message content or message-specific metadata.
 **Why:** Search, notifications, files, typing, or realtime must not bypass the
 primary timeline boundary.
 **Tradeoff:** List and room-wide surfaces must filter their results instead of
@@ -164,22 +163,21 @@ relevant message and thread IDs from its normal notification occurrences.
 ## Permissions
 
 - `message.read` — read all message content and message-specific metadata in a
-  channel room at the configured scope. It includes
+  room at the configured scope. It includes
   `message.read-interactions`.
 - `message.read-interactions` — read message content and message-specific
-  metadata only in channel-room threads with a current interaction
+  metadata only in threads with a current interaction
   relationship.
 - `message.post` — post root messages and send messages in an existing DM.
-- `message.post-in-thread` — post replies in a channel-room thread.
-
-DM membership, not a message-read permission, authorizes DM reads.
+- `message.post-in-thread` — post replies in a channel-room or DM thread.
 
 ## Related
 
 - **ADRs:** ADR-031 (room-group permission scopes), ADR-037 (DM access through
   membership), ADR-040 (permission-only RBAC with owner override), ADR-045
   (public API stability), ADR-051 (resumable client projection), ADR-080
-  (`message.read`), ADR-082 (derived interaction relationships)
+  (`message.read`), ADR-082 (derived interaction relationships), ADR-091 (DM
+  permission scope and threads)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-004
   (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions),
   FDR-007 (Direct Messages), FDR-008 (File Attachments & Video Processing),

@@ -194,7 +194,7 @@ func TestMessageServiceCreateMessageRequiresAuthMembershipAndPermission(t *testi
 	}
 }
 
-func TestMessageServiceRejectsDMThreads(t *testing.T) {
+func TestMessageServiceSupportsDMThreads(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-dm-thread-participant", "DM Thread Participant", "password")
 	if err != nil {
@@ -213,13 +213,16 @@ func TestMessageServiceRejectsDMThreads(t *testing.T) {
 	}
 	rootID := root.Msg.GetMessage().GetId()
 
-	_, err = env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+	reply, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:            dm.Id,
-		Body:              "forbidden thread reply",
+		Body:              "thread reply",
 		ThreadRootEventId: rootID,
 	}))
-	if got := connect.CodeOf(err); got != connect.CodeInvalidArgument {
-		t.Fatalf("CreateMessage DM thread code = %v, want invalid argument", got)
+	if err != nil {
+		t.Fatalf("CreateMessage DM thread reply: %v", err)
+	}
+	if got := reply.Msg.GetMessage().GetThreadRootEventId(); got != rootID {
+		t.Fatalf("CreateMessage DM thread root = %q, want %q", got, rootID)
 	}
 
 	flat, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{

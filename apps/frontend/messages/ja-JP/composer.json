@@ -5,6 +5,7 @@
     "send": "メッセージを送信",
     "send_label": "送信",
     "also_send_to_channel": "チャンネルにも送信します",
+    "also_send_to_conversation": "会話にも送信します",
     "post_as_thread": "スレッドとして投稿",
     "thread_label": "スレッド",
     "echo_label": "エコー",

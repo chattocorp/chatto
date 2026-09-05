@@ -4,6 +4,7 @@ export type { PermissionState };
 
 export type MutationScope =
   | { tier: 'server'; roleName: string }
+  | { tier: 'dm'; roleName: string }
   | { tier: 'group'; roleName: string; groupId: string }
   | { tier: 'room'; roleName: string; roomId: string };
 

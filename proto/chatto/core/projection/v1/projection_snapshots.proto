@@ -85,6 +85,7 @@ message ThreadProjectionSnapshot {
   repeated string channel_room_ids = 6;
   repeated ThreadMessageSnapshot messages = 7;
   repeated ThreadInteractionSnapshot interactions = 8;
+  repeated string direct_message_room_ids = 9;
 }
 
 message ThreadSnapshot {

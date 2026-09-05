@@ -294,12 +294,19 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	}
 	visible := make([]visibleDMRoom, 0, len(rooms))
 	for _, room := range rooms {
-		lastMessageAt, err := s.core.GetRoomLastMessageAt(ctx, KindDM, room.GetId())
+		canAccess, err := s.core.CanAccessRoomMessages(ctx, actorID, KindDM, room.GetId())
 		if err != nil {
 			return nil, err
 		}
-		if !includeEmpty && lastMessageAt.IsZero() {
-			continue
+		var lastMessageAt time.Time
+		if canAccess {
+			lastMessageAt, err = s.core.GetRoomLastMessageAt(ctx, KindDM, room.GetId())
+			if err != nil {
+				return nil, err
+			}
+			if !includeEmpty && lastMessageAt.IsZero() {
+				continue
+			}
 		}
 		dirRoom, err := s.directoryRoom(ctx, actorID, room)
 		if err != nil {
@@ -307,7 +314,8 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 		}
 		visible = append(visible, visibleDMRoom{room: dirRoom, lastMessageAt: lastMessageAt})
 	}
-	// DM membership authorizes message activity, so active DMs sort newest-first.
+	// Only readable message activity affects ordering. A member without read
+	// permission still sees the conversation without message-derived state.
 	sort.SliceStable(visible, func(i, j int) bool {
 		return visible[i].lastMessageAt.After(visible[j].lastMessageAt)
 	})

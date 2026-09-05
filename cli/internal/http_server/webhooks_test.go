@@ -89,7 +89,7 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 		t.Fatalf("DM webhook = %d %q", response.Code, response.Body.String())
 	}
 	response = post(path, `{"text":"threaded DM","channel":"`+dm.GetId()+`","create_thread":true}`)
-	if response.Code != http.StatusBadRequest || response.Body.String() != "invalid_payload" {
+	if response.Code != http.StatusOK || response.Body.String() != "ok" {
 		t.Fatalf("threaded DM webhook = %d %q", response.Code, response.Body.String())
 	}
 

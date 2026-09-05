@@ -223,22 +223,20 @@
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
   let composerCanCreateThread = $derived(
-    !room.isDM &&
-      permissions.canPostMessage &&
+    permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
         (permissions.canPostInThread &&
           (threadingMode === RoomThreadingMode.ENABLED ||
             threadingMode === RoomThreadingMode.ENCOURAGED)))
   );
   let composerRequiresThread = $derived(
-    !room.isDM && permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
+    permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
   );
 
   function getRecentThreadRootCandidate() {
     const currentUserId = currentUser.user?.id;
     if (
       !currentUserId ||
-      room.isDM ||
       !permissions.canPostInThread ||
       threadingMode === RoomThreadingMode.DISABLED
     ) {
@@ -752,9 +750,7 @@
               <HeaderIconButton
                 icon="icon-[uil--info-circle]"
                 label={m('chat.profile.title')}
-                tone={activeRoomSidebarProfileUserId
-                  ? 'active'
-                  : 'default'}
+                tone={activeRoomSidebarProfileUserId ? 'active' : 'default'}
                 onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
               />
             {/if}
@@ -803,6 +799,7 @@
 
         <MessageComposer
           {roomId}
+          echoToConversation={room.isDM}
           canPost={permissions.canPostMessage}
           canAttach={composerCanAttach}
           slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
@@ -854,7 +851,8 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={room.roomData.room.name}
+            roomName={presentation.title}
+            isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
             canPostInThread={room.roomData.canPostInThread &&

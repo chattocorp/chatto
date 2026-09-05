@@ -15,9 +15,7 @@ describe('normalizeRoomThreadingMode', () => {
   });
 
   it('maps omitted historical channel values to Enabled and unknown values to Disabled', () => {
-    expect(normalizeRoomThreadingMode(RoomKind.CHANNEL, undefined)).toBe(
-      RoomThreadingMode.ENABLED
-    );
+    expect(normalizeRoomThreadingMode(RoomKind.CHANNEL, undefined)).toBe(RoomThreadingMode.ENABLED);
     expect(normalizeRoomThreadingMode(RoomKind.CHANNEL, RoomThreadingMode.UNSPECIFIED)).toBe(
       RoomThreadingMode.ENABLED
     );
@@ -26,9 +24,12 @@ describe('normalizeRoomThreadingMode', () => {
     );
   });
 
-  it('keeps direct messages threadless regardless of the received value', () => {
+  it('keeps direct messages at fixed Enabled behavior regardless of the received value', () => {
     expect(normalizeRoomThreadingMode(RoomKind.DM, RoomThreadingMode.REQUIRED)).toBe(
-      RoomThreadingMode.UNSPECIFIED
+      RoomThreadingMode.ENABLED
+    );
+    expect(normalizeRoomThreadingMode(RoomKind.DM, RoomThreadingMode.DISABLED)).toBe(
+      RoomThreadingMode.ENABLED
     );
   });
 });

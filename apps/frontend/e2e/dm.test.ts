@@ -74,13 +74,11 @@ test.describe('Direct Messages (room-shaped)', () => {
       const postedBody = `dm round-trip ${Date.now()}`;
       const postedMessage = await roomA.sendMessage(postedBody);
 
-      // DMs support flat reply attribution, but threads are a channel-room-only
-      // capability. The server-provided room capability must suppress thread
-      // actions on both desktop and mobile surfaces.
+      // DMs use fixed Enabled threading behavior. Both reply types are
+      // available on the normal message action surface.
       await postedMessage.revealHoverToolbar();
       await expect(postedMessage.hoverToolbar.getByLabel('Reply', { exact: true })).toBeVisible();
-      await expect(postedMessage.hoverToolbar.getByLabel('Reply in thread')).toHaveCount(0);
-      await expect(postedMessage.hoverToolbar.getByLabel('Open thread')).toHaveCount(0);
+      await expect(postedMessage.hoverToolbar.getByLabel('Reply in thread')).toBeVisible();
 
       // Bug #2 (the reload-redirect): on reload the rooms store is briefly
       // unloaded — the layout must wait for it before resolving spaceId,
@@ -333,7 +331,7 @@ test.describe('Direct Messages (room-shaped)', () => {
     });
   });
 
-  test('message.read denial does not hide a DM from its participant', async ({
+  test('message.read denial hides DM message content from its participant', async ({
     page,
     browser,
     serverURL
@@ -356,9 +354,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       const dmRoomId = (await startResp.json()).room.id as string;
       await postMessageViaConnect(page, dmRoomId, 'seed');
 
-      // Deny both permissions before the regular user navigates. message.post
-      // must stop creating DMs and sending messages, while message.read is
-      // inapplicable to DM reads.
+      // Deny both permissions before the regular user navigates. Membership
+      // still exposes the conversation identity, but it does not bypass either
+      // message permission.
       const denyPostRole = await denyUserPermission(page, regularUser.id!, 'message.post');
       const denyReadRole = await denyUserPermission(page, regularUser.id!, 'message.read');
       try {
@@ -387,35 +385,19 @@ test.describe('Direct Messages (room-shaped)', () => {
           timeout: TIMEOUTS.UI_STANDARD
         });
 
-        // DM read access is membership-based, so the seeded DM still appears
-        // while message.post and message.read are denied.
-        await expect(regularPage.getByRole('button', { name: /direct messages/i })).toBeVisible({
-          timeout: TIMEOUTS.UI_STANDARD
-        });
-
         await regularPage.goto(routes.room(dmRoomId));
         await regularPage.waitForURL(routes.patterns.anyRoom);
 
         const roomPage = new RoomPage(regularPage);
-        await expect(roomPage.getMessage('seed').locator).toBeVisible({
-          timeout: TIMEOUTS.UI_STANDARD
-        });
+        await expect(
+          regularPage.getByText('You do not have permission to read messages in this room.')
+        ).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+        await expect(roomPage.getMessage('seed').locator).toBeHidden();
         const liveBody = `live DM after message.read denial ${Date.now()}`;
         await postMessageViaConnect(page, dmRoomId, liveBody);
-        await expect(roomPage.getMessage(liveBody).locator).toBeVisible({
-          timeout: TIMEOUTS.REALTIME_EVENT
-        });
+        await expect(roomPage.getMessage(liveBody).locator).toBeHidden();
         await expect(roomPage.messageInput).toHaveAttribute('contenteditable', 'false');
         await expect(roomPage.sendButton).toBeDisabled();
-
-        await roomPage
-          .getMessage('seed')
-          .locator.getByRole('button', { name: adminUser.displayName })
-          .click();
-
-        const profileDialog = regularPage.getByRole('dialog', { name: 'User profile' });
-        await expect(profileDialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-        await expect(profileDialog.getByRole('button', { name: 'Send Message' })).toBeHidden();
       } finally {
         await clearUserPermissionOverride(page, regularUser.id!, 'message.read', denyReadRole);
         await clearUserPermissionOverride(page, regularUser.id!, 'message.post', denyPostRole);

@@ -2,6 +2,9 @@
 
 **Date:** 2026-08-23
 
+> **Partially superseded 2026-09-04:** ADR-091 extends explicit message-read
+> permissions to DMs. DM membership remains an additional requirement.
+
 ## Context
 
 Chatto uses room membership as the first message-read boundary. ADR-037 makes

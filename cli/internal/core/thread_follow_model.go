@@ -17,18 +17,25 @@ type ThreadFollowModel struct {
 	core *ChattoCore
 }
 
-func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, limit, offset int) (*FollowedThreadsPage, error) {
+func (s *ThreadFollowModel) ListFollowedThreads(ctx context.Context, actorID string, includeDM bool, limit, offset int) (*FollowedThreadsPage, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	return s.core.ListFollowedThreadsPage(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)}, limit, offset)
+	spaceIDs := []string{LegacySpaceIDForRoomKind(KindChannel)}
+	if includeDM {
+		spaceIDs = append(spaceIDs, LegacySpaceIDForRoomKind(KindDM))
+	}
+	return s.core.ListFollowedThreadsPage(ctx, actorID, spaceIDs, limit, offset)
 }
 
 func (s *ThreadFollowModel) HasUnreadFollowedThreads(ctx context.Context, actorID string) (bool, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return false, err
 	}
-	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{LegacySpaceIDForRoomKind(KindChannel)})
+	return s.core.HasUnreadFollowedThreads(ctx, actorID, []string{
+		LegacySpaceIDForRoomKind(KindChannel),
+		LegacySpaceIDForRoomKind(KindDM),
+	})
 }
 
 // ListFollowedThreadViewerStates returns an exhaustive, authoritative set for
@@ -38,7 +45,10 @@ func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, 
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	return s.core.listFollowedThreadViewerStates(ctx, actorID)
+	return s.core.listFollowedThreadViewerStates(ctx, actorID, []string{
+		LegacySpaceIDForRoomKind(KindChannel),
+		LegacySpaceIDForRoomKind(KindDM),
+	})
 }
 
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {

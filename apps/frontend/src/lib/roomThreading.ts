@@ -7,7 +7,7 @@ export function normalizeRoomThreadingMode(
   kind: RoomKind,
   mode: RoomThreadingMode | undefined
 ): RoomThreadingMode {
-  if (kind === RoomKind.DM) return RoomThreadingMode.UNSPECIFIED;
+  if (kind === RoomKind.DM) return RoomThreadingMode.ENABLED;
   if (mode === undefined || mode === RoomThreadingMode.UNSPECIFIED) {
     return RoomThreadingMode.ENABLED;
   }

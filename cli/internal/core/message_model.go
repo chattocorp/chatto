@@ -217,9 +217,6 @@ func (s *MessageModel) validatePostBeforeUpload(ctx context.Context, input Messa
 		if targetMessage == nil {
 			return invalidArgument("in_reply_to target is not a message event")
 		}
-		if authorization.Kind == KindDM && targetMessage.GetInThread() != "" {
-			return ErrDMThreadsUnsupported
-		}
 	}
 
 	if err := validateLinkPreview(input.LinkPreview); err != nil {
@@ -287,13 +284,8 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 	if !isMember {
 		return nil, ErrNotRoomMember
 	}
-	if kind == KindDM && (strings.TrimSpace(input.ThreadRootEventID) != "" || input.CreateThread) {
-		return nil, ErrDMThreadsUnsupported
-	}
-	if kind == KindChannel {
-		if err := s.validateRoomThreadingPolicy(ctx, room, input); err != nil {
-			return nil, err
-		}
+	if err := s.validateRoomThreadingPolicy(ctx, room, input); err != nil {
+		return nil, err
 	}
 
 	if input.ThreadRootEventID != "" {
@@ -376,7 +368,7 @@ func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *ev
 			return fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
 		}
 		if inReplyTo != "" {
-			target, err := s.core.GetRoomEventByEventID(ctx, KindChannel, room.GetId(), inReplyTo)
+			target, err := s.core.GetRoomEventByEventID(ctx, KindOfRoom(room), room.GetId(), inReplyTo)
 			if err != nil {
 				return fmt.Errorf("resolve reply target for threading policy: %w", err)
 			}
@@ -455,12 +447,11 @@ func (s *MessageModel) slowModeNextPostAt(room *evtv1.Room, actorID string, bypa
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room
-// member. Channel-room edits also require message.read. DM membership
-// authorizes the DM read. Authors may edit their own messages within the core
-// edit window. Effective message.manage bypasses the window and permits edits
-// to other authors' messages. Changing a thread reply's channel echo state is
-// author-only and, when enabling the echo, additionally requires message.echo
-// and message.post.
+// member and authorized to read the message. Authors may edit their own
+// messages within the core edit window. Effective message.manage bypasses the
+// window and permits edits to other authors' messages. Changing a thread
+// reply's room-timeline echo state is author-only and, when enabling the echo,
+// additionally requires message.echo and message.post.
 func (s *MessageModel) UpdateMessage(ctx context.Context, input MessageUpdateInput) (*evtv1.Event, RoomKind, error) {
 	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
 	if err != nil {
@@ -607,14 +598,21 @@ func (s *MessageModel) DeleteLinkPreview(ctx context.Context, input MessageLinkP
 }
 
 // SendTypingIndicator publishes a live-only typing indicator. Authorization:
-// actor must be a room member; there is intentionally no message-posting
-// permission check.
+// actor must be a room member and must be authorized to read the destination
+// timeline. There is intentionally no message-posting permission check.
 func (s *MessageModel) SendTypingIndicator(ctx context.Context, input TypingIndicatorInput) error {
-	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	var room *evtv1.Room
+	var kind RoomKind
+	var err error
+	if input.ThreadRootEventID == nil {
+		room, kind, err = s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
+	} else {
+		room, kind, err = s.core.requireThreadMessageReader(ctx, input.ActorID, input.RoomID, *input.ThreadRootEventID)
+	}
 	if err != nil {
 		return err
 	}
-	if kind == KindChannel && input.ThreadRootEventID != nil && EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+	if input.ThreadRootEventID != nil && EffectiveRoomThreadingMode(room) == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
 		return fmt.Errorf("%w: thread replies are disabled in this room", ErrRoomThreadingPolicy)
 	}
 	return s.core.PublishTypingIndicator(ctx, input.ActorID, kind, room.Id, input.ThreadRootEventID)

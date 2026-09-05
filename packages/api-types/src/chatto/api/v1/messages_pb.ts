@@ -67,8 +67,8 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
 
   /**
    * True to establish the new root message as a thread immediately. Requires
-   * both message.post and message.post-in-thread. Channel rooms only; cannot
-   * be combined with thread_root_event_id.
+   * both message.post and message.post-in-thread. Cannot be combined with
+   * thread_root_event_id.
    *
    * @generated from field: bool create_thread = 11;
    */

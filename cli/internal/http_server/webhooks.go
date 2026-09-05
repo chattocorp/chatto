@@ -79,7 +79,7 @@ func (s *HTTPServer) handleIncomingWebhook(c *gin.Context) {
 			incomingWebhookError(c, http.StatusTooManyRequests, "rate_limited")
 		case errors.Is(err, core.ErrRoomArchived):
 			incomingWebhookError(c, http.StatusConflict, "channel_is_archived")
-		case errors.Is(err, core.ErrInvalidArgument), errors.Is(err, core.ErrMessageTooLong), errors.Is(err, core.ErrDMThreadsUnsupported), errors.Is(err, core.ErrRoomThreadingPolicy):
+		case errors.Is(err, core.ErrInvalidArgument), errors.Is(err, core.ErrMessageTooLong), errors.Is(err, core.ErrRoomThreadingPolicy):
 			incomingWebhookError(c, http.StatusBadRequest, "invalid_payload")
 		default:
 			incomingWebhookError(c, http.StatusInternalServerError, "internal_error")

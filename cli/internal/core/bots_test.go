@@ -902,12 +902,19 @@ func TestBotPermissionCeilingResolvesExplicitInclusion(t *testing.T) {
 	}
 }
 
-func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
+func TestBotDMGrantIsScopedAndUsesDynamicOwnerCeiling(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "dm-bot-owner", "DM Bot Owner", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser owner: %v", err)
+	}
+	admin, err := c.CreateUser(ctx, SystemActorID, "dm-bot-admin", "DM Bot Admin", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := c.AssignAdminRole(ctx, admin.GetId()); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
 	}
 	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_reader_bot", "DM Reader Bot")
 	if err != nil {
@@ -921,25 +928,43 @@ func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	message, err := c.PostMessage(ctx, KindDM, dm.GetId(), participant.GetId(), "message for bot participant", nil, "", "", nil, false)
-	if err != nil {
-		t.Fatalf("PostMessage: %v", err)
+	for _, permission := range []Permission{PermMessageRead, PermMessagePost, PermMessagePostInThread} {
+		if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, permission, PermissionStateAllow); err != nil {
+			t.Fatalf("grant bot DM %s: %v", permission, err)
+		}
 	}
-	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
-		t.Fatalf("DenyServerPermission message.read: %v", err)
+	for _, check := range []struct {
+		name string
+		fn   func(RoomKind, string) (bool, error)
+	}{
+		{name: "read", fn: func(kind RoomKind, roomID string) (bool, error) {
+			return c.CanReadMessages(ctx, bot.User.GetId(), kind, roomID)
+		}},
+		{name: "post", fn: func(kind RoomKind, roomID string) (bool, error) {
+			return c.CanPostMessage(ctx, bot.User.GetId(), kind, roomID)
+		}},
+		{name: "post in thread", fn: func(kind RoomKind, roomID string) (bool, error) {
+			return c.CanPostInThread(ctx, bot.User.GetId(), kind, roomID)
+		}},
+	} {
+		if allowed, err := check.fn(KindDM, dm.GetId()); err != nil || !allowed {
+			t.Fatalf("bot DM %s = %v, %v; want true", check.name, allowed, err)
+		}
+		if allowed, err := check.fn(KindChannel, ""); err != nil || allowed {
+			t.Fatalf("bot channel %s = %v, %v; want false", check.name, allowed, err)
+		}
 	}
-	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindChannel, ""); err != nil || canRead {
-		t.Fatalf("unconfigured bot channel CanReadMessages = %v, %v; want false", canRead, err)
+	if err := c.SetUserPermissionState(ctx, admin.GetId(), owner.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateDeny); err != nil {
+		t.Fatalf("deny owner DM message.read: %v", err)
 	}
-	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || !canRead {
-		t.Fatalf("bot DM CanReadMessages = %v, %v; want true", canRead, err)
+	if allowed, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || allowed {
+		t.Fatalf("owner-capped bot DM read = %v, %v; want false", allowed, err)
 	}
-	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), dm.GetId(), message.GetId()); err != nil {
-		t.Fatalf("GetMessage as bot DM participant: %v", err)
+	if err := c.SetUserPermissionState(ctx, admin.GetId(), owner.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow); err != nil {
+		t.Fatalf("restore owner DM message.read: %v", err)
 	}
-	occurrences := testNotificationOccurrences(t, c, bot.User.GetId())
-	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMessage) {
-		t.Fatalf("bot DM occurrences = %+v, want the human-authored direct message", occurrences)
+	if allowed, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || !allowed {
+		t.Fatalf("restored owner-capped bot DM read = %v, %v; want true", allowed, err)
 	}
 }
 

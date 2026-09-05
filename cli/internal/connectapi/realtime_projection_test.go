@@ -88,6 +88,13 @@ func TestBuildRealtimeProjectionPresencesReturnsLatestServerDirectoryState(t *te
 
 func TestRealtimeProjectionSnapshotIncludesEmptyJoinedDM(t *testing.T) {
 	env := newConnectAPITestEnv(t)
+	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-dm-admin", "Projection DM Admin", "password")
+	if err != nil {
+		t.Fatalf("CreateUser admin: %v", err)
+	}
+	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
+		t.Fatalf("AssignAdminRole: %v", err)
+	}
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-empty-dm", "Projection Empty DM", "password")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
@@ -130,15 +137,57 @@ foundEmpty:
 	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
 		t.Fatalf("used DM has_message_history = %v, want true after message retraction", room.HasMessageHistory)
 	}
-	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, dm.Id, env.viewer.Id, core.PermMessageRead); err != nil {
-		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	if err := env.core.SetUserPermissionState(env.ctx, admin.Id, env.viewer.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageRead, core.PermissionStateDeny); err != nil {
+		t.Fatalf("deny DM message.read: %v", err)
 	}
 	room, err = env.api.BuildRealtimeProjectionRoomSummary(env.ctx, env.viewer.Id, dm.Id)
 	if err != nil {
 		t.Fatalf("BuildRealtimeProjectionRoomSummary after message.read denial: %v", err)
 	}
-	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
-		t.Fatalf("DM has_message_history after inapplicable denial = %v, want true", room.HasMessageHistory)
+	if room.HasMessageHistory == nil || *room.HasMessageHistory {
+		t.Fatalf("DM has_message_history after message.read denial = %v, want explicit false", room.HasMessageHistory)
+	}
+}
+
+func TestRealtimeProjectionIncludesDMThreads(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-dm-thread-member", "Projection DM Thread Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "DM thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	reply, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, other.Id, "DM thread reply", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage reply: %v", err)
+	}
+	if err := env.core.FollowThread(env.ctx, core.KindDM, env.viewer.Id, dm.Id, root.Id); err != nil {
+		t.Fatalf("FollowThread: %v", err)
+	}
+
+	timeline, err := env.api.BuildRealtimeProjectionRoomTimeline(env.ctx, env.viewer.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomTimeline: %v", err)
+	}
+	projectedRoot := timelinePageEvent(timeline.Page, root.Id).GetMessagePosted().GetMessage()
+	if projectedRoot.GetThread() == nil || projectedRoot.GetThread().GetReplyCount() != 1 {
+		t.Fatalf("DM root thread summary = %+v, want one reply", projectedRoot.GetThread())
+	}
+	if event, _, _, err := env.api.BuildRealtimeProjectionTimelineEvent(env.ctx, env.viewer.Id, dm.Id, reply.Id); err != nil || event.GetMessagePosted().GetMessage().GetThreadRootEventId() != root.Id {
+		t.Fatalf("DM reply hydration = %+v, %v; want thread root %q", event, err, root.Id)
+	}
+	states, err := env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionThreadViewerStates: %v", err)
+	}
+	if len(states) != 1 || states[0].RoomID != dm.Id || states[0].ThreadRootEventID != root.Id {
+		t.Fatalf("DM thread viewer states = %+v, want followed DM thread", states)
 	}
 }
 

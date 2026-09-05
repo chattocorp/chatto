@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-09-04
 
 ## Overview
 
@@ -19,8 +19,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - Human users can start a DM with themselves. The product does not let users create group DMs, even though the underlying room model and public API can represent a larger fixed participant set.
 - A bot cannot call `RoomService.StartDM`. This rule applies to self-DMs, new
   DMs, group DMs, and DMs that already exist. A human must start a DM that
-  includes a bot. The bot can then read the DM through membership and use its
-  normal message permissions in the DM.
+  includes a bot. The bot then needs explicit DM-scoped message grants.
 - Starting a DM creates the durable room and participant memberships immediately so the complete composer is available, but the empty conversation stays out of every participant's navigation until its first message is sent.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
@@ -28,16 +27,22 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
-- A user can read a DM only when they are a participant. `message.read` and
-  `message.read-interactions` do not apply to DMs, and there is no `dm.*` read
-  permission.
+- A user can discover a DM only when they are a participant. The main timeline
+  also needs `message.read`. An interaction thread can instead use
+  `message.read-interactions` when the account authored the root or another
+  account directly mentioned it in that thread.
 - Operators can prevent a human user from creating new DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`. A human user
   can still open an existing DM that they are a participant in.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
-- Inside a DM room, ordinary message-related features apply: posting, flat reply attribution, reactions, edits, deletes, mentions, and attachments.
-- DMs do not support threads. The client does not offer thread actions, and the server rejects attempts to create or extend a DM thread even for owners. Thread data written by older versions remains readable but read-only.
-- Server admins / moderators cannot moderate DM contents — `message.manage`, `room.manage`, and `message.echo` are unconditionally denied in DM rooms regardless of role grants. The channel-style `room.create` is also denied inside DMs; DMs have their own creation and membership APIs.
+- Inside a DM room, ordinary message features apply. This includes threads,
+  follows, unread state, echoes, reactions, edits, deletes, mentions, and
+  attachments. DMs always use Enabled threading behavior.
+- A participant with `message.manage` can manage another participant's
+  message. The permission does not expose a DM to a non-participant.
+- All `message.*` permissions apply at the global Direct messages scope. No
+  `room.*` permission applies there. DMs keep their dedicated creation and
+  membership rules.
 
 ## Design Decisions
 
@@ -47,26 +52,29 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 **Why:** Room infrastructure already models the hard parts: membership, messages, reactions, attachments, unread state, live delivery, and notification fan-out. Reusing the room aggregate keeps DMs boring and makes the event-sourced room model apply uniformly. See ADR-033, ADR-034, and ADR-037.
 **Tradeoff:** Some room code still has to branch on `kind` for DM-only policy, but those branches should be about behavior (creation, privacy boundary, presentation), not storage or delivery plumbing.
 
-### 2. Membership authorizes DM reads
+### 2. Membership and message permissions authorize DM reads
 
-**Decision:** DM membership authorizes complete DM reads for humans and bots.
-`message.read` and `message.read-interactions` grants and denials do not change
-DM access. A human needs `message.post` to create a DM. A human participant
-can open an existing DM without that permission. All users need `message.post`
-to post messages in an existing DM. Reply attribution does not
-change that permission, and thread posting does not apply to DMs.
-**Why:** Membership is the fixed private participant boundary. Chatto has no
-permission UI for one DM, and hiding a DM from its participant is surprising.
-See ADR-037 and ADR-080.
-**Tradeoff:** Operators cannot use a message-read permission to hide an
-existing DM from one of its participants. They can revoke posting authority or
-suspend the account.
+**Decision:** Membership authorizes discovery and participant metadata.
+`message.read` authorizes the main timeline and broad message-derived state.
+`message.read-interactions` can authorize one derived interaction thread. A
+human needs DM-scoped `message.post` to create a DM. Every participant needs it
+to post a root in an existing DM.
+**Why:** The fixed participant set remains the privacy boundary, while the
+global Direct messages scope gives operators a useful content and automation
+control without a permission object for each conversation. See ADR-091.
+**Tradeoff:** A participant can know that a DM exists while its message content
+and message-derived state are hidden.
 
-### 3. Threads are channel-room-only
+### 3. DMs use fixed Enabled threading
 
-**Decision:** DMs support reply attribution in the room timeline but do not support thread containment. The prohibition is a room-kind invariant rather than an RBAC restriction, so owner permission overrides cannot bypass it. Historical DM threads remain readable for compatibility.
-**Why:** A direct conversation is already a focused message timeline; branching it into parallel threads makes the conversation model and navigation unnecessarily complex. Enforcing the distinction in Core keeps every transport and privileged caller consistent.
-**Tradeoff:** Older DM thread history can still be opened but cannot receive new replies. Users who need threaded discussions should use a channel room.
+**Decision:** Every DM behaves like an Enabled channel room for thread writes.
+The room does not store a configurable Threading Mode. The existing thread
+event model, follows, unread state, notifications, links, echoes, and My
+Threads feed apply.
+**Why:** One thread model lets people and DM-only bots keep structured private
+conversations without channel access.
+**Tradeoff:** Clients must identify DM rows from participant metadata instead
+of a channel name.
 
 ### 4. Deterministic room IDs
 
@@ -89,11 +97,15 @@ group a conversation into one row while its badge still counts every unread
 message. Self-DMs do not notify their author, and ordinary DMs default to Push
 notification.
 
-### 6. Moderation deny-list inside DMs
+### 6. DM moderation requires participation
 
-**Decision:** Even users with admin/moderator roles cannot edit others' messages, delete others' messages, or otherwise moderate inside a DM room. The deny-list is unconditional regardless of role.
-**Why:** DMs are private by design. An admin who could moderate DMs would have a privacy boundary problem. Treating the deny as a static rule (not a configurable permission) prevents accidental misconfiguration.
-**Tradeoff:** Genuine abuse inside DMs has no in-product moderation path — operators have to address it at the user level (suspend, kick from server) instead. See `dmBoundaryDeniedPermissions` in `permission_resolver.go`.
+**Decision:** `message.manage` applies in DMs, but the normal membership check
+remains mandatory. An effective owner does not receive access to a DM where
+they are not a participant.
+**Why:** A participant with delegated moderation authority can respond to
+abuse without giving server operators global access to private conversations.
+**Tradeoff:** Operators still need account-level action when no authorized
+participant can manage the content.
 
 ### 7. Empty rooms are latent conversations
 
@@ -116,14 +128,21 @@ realtime events.
 - `message.post` — let a human create DMs, and let a human or bot send messages
   in existing DM rooms. It does not prevent a human participant from opening
   an existing DM.
+- `message.read` — read the main DM timeline and all accessible DM message
+  state.
+- `message.read-interactions` — read complete DM threads that the account
+  started or where another account directly mentioned it.
+- `message.post-in-thread` — create a thread or post a thread reply.
+- `message.echo` — echo a thread reply to the main conversation timeline. The
+  action also needs `message.post`.
+- `message.manage` — manage another participant's message while the manager is
+  also a DM participant.
 - `message.react` — add and remove reactions in DM rooms.
 
-DMs have no `dm.*` permissions. Membership authorizes reads. Message-action and
-reaction permissions apply inside DM rooms subject to the moderation deny-list
-above. `message.post-in-thread` does not apply to DMs regardless of the
-viewer's effective permissions.
+DMs have no `dm.*` permission names. They use the normal `message.*` names at
+the Direct messages scope. No `room.*` permission applies at that scope.
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM membership boundary), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-091 (DM permission scope and threads)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions)

@@ -85,7 +85,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 		return "", time.Time{}, false, err
 	}
 	interactions := false
-	if !broad && kind != KindDM {
+	if !broad {
 		interactions, err = c.CanReadMessageInteractions(ctx, userID, kind, roomID)
 		if err != nil {
 			return "", time.Time{}, false, err
@@ -95,7 +95,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 		if entry == nil || !entry.IsMessagePost() || entry.InThreadEventID != "" {
 			return false
 		}
-		if broad || kind == KindDM {
+		if broad {
 			return true
 		}
 		return interactions && c.roomModel.hasThreadInteraction(userID, roomID, entry.ThreadRootEventID)

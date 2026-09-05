@@ -1127,6 +1127,7 @@ One followed thread for the current user.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the thread. |
 | `thread` | [`ThreadSummary`](#chatto-api-v1-ThreadSummary) | Aggregated thread state. |
 | `latest_reply` | [`Message`](#chatto-api-v1-Message) | Most recent visible reply, when the thread has one. |
+| `direct_message_participant_user_ids` | `repeated string` | User IDs used to derive a direct-message conversation label. Empty for channel rooms. |
 
 <a id="chatto-api-v1-ThreadFollowState"></a>
 
@@ -1462,7 +1463,7 @@ Stored permission decision returned after a write.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, direct-message, group, or room scope for this decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Stored decision after the write. NONE means no explicit decision remains. |
 
 <a id="chatto-admin-v1-PermissionExplanation"></a>
@@ -1502,7 +1503,7 @@ Matrix column scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Stable scope ID for the server, a group, or a room. |
+| `id` | `string` | Stable scope ID for the server, direct messages, a group, or a room. |
 | `label` | `string` | Human-readable label. |
 | `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
 | `parent_group_id` | `string` | Parent group ID for room scopes. |
@@ -1516,7 +1517,7 @@ Permission scope reference.
 | Field | Type | Description |
 | --- | --- | --- |
 | `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
-| `id` | `string` | Scope ID for group or room scope. Empty for server scope. |
+| `id` | `string` | Scope ID for group or room scope. Empty for server or direct-message scope. |
 
 <a id="chatto-admin-v1-PermissionTraceEntry"></a>
 
@@ -1556,7 +1557,7 @@ shape when building integrations that do not need matrix column joins.
 | Field | Type | Description |
 | --- | --- | --- |
 | `permission` | `string` | Permission identifier. |
-| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, group, or room scope this decision applies to. |
+| `scope` | [`PermissionScope`](#chatto-admin-v1-PermissionScope) | Server, direct-message, group, or room scope for this decision. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision stored at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision after inherited broader scopes are applied. |
 
@@ -1986,6 +1987,7 @@ Level at which a permission explanation found a decision.
 | `PERMISSION_DECISION_LEVEL_SERVER` | `1` | Server-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_GROUP` | `2` | Room-group-level role or user decision. |
 | `PERMISSION_DECISION_LEVEL_ROOM` | `3` | Room-level role or user decision. |
+| `PERMISSION_DECISION_LEVEL_DM` | `4` | Direct-message-level role or user decision. |
 
 <a id="chatto-admin-v1-PermissionScopeKind"></a>
 
@@ -1999,6 +2001,7 @@ Scope tier for permission matrices and write requests.
 | `PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
 | `PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
+| `PERMISSION_SCOPE_KIND_DM` | `4` | Server-wide direct-message tier. |
 
 <a id="chatto-admin-v1-AdminRoomLayoutItemKind"></a>
 

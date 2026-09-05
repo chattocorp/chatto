@@ -883,3 +883,37 @@ func TestDirectMessagesRemainExactOccurrences(t *testing.T) {
 		t.Fatalf("DM occurrences = %+v, want one per message", occurrences)
 	}
 }
+
+func TestDMThreadReplyProducesOneFollowedThreadOccurrence(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "dm-thread-alice", "DM Thread Alice", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "dm-thread-bob", "DM Thread Bob", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, err := chattoCore.PostMessage(ctx, KindDM, room.Id, alice.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reply, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "thread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	occurrences := testNotificationOccurrences(t, chattoCore, alice.Id)
+	if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], notificationTestSignalFollowedThread) {
+		t.Fatalf("DM thread occurrences = %+v, want one followed-thread occurrence", occurrences)
+	}
+	reference := NotificationOccurrenceMessageReference(occurrences[0])
+	if reference.GetRoomId() != room.Id || reference.GetEventId() != reply.Id || reference.GetThreadRootEventId() != root.Id {
+		t.Fatalf("DM thread target = %+v, want room %q, event %q, and thread %q", reference, room.Id, reply.Id, root.Id)
+	}
+}

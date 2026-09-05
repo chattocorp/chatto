@@ -9,10 +9,14 @@ import type { User } from '@chatto/api-types/api/v1/users_pb';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { messageToTimelineEvent } from './roomTimeline.js';
 import type { UserAvatarUserView } from '$lib/render/users';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 export type FollowedThread = {
   roomId: string;
   roomName: string;
+  isDirectMessage: boolean;
+  directMessageParticipants: UserAvatarUserView[];
   threadRootEventId: string;
   rootMessage: TimelineEventView | null;
   latestReply: TimelineEventView | null;
@@ -53,7 +57,10 @@ export function createThreadAPI(config: ConnectAPIConfig) {
     ): Promise<FollowedThreadsPage> {
       try {
         const response = await client.listFollowedThreads(
-          { page: { limit: input.limit, offset: input.offset } },
+          {
+            includeDirectMessageThreads: true,
+            page: { limit: input.limit, offset: input.offset }
+          },
           {
             headers: headers(),
             ...(options.signal ? { signal: options.signal } : {})
@@ -68,6 +75,19 @@ export function createThreadAPI(config: ConnectAPIConfig) {
             return {
               roomId: thread.room?.id ?? '',
               roomName: thread.room?.name ?? '',
+              isDirectMessage: thread.room?.kind === RoomKind.DM,
+              directMessageParticipants: (thread.directMessageParticipantUserIds ?? [])
+                .map((id) => users[id])
+                .filter((user): user is User => user !== undefined)
+                .map((user) => ({
+                  id: user.id,
+                  login: user.login,
+                  displayName: user.displayName,
+                  deleted: user.deleted,
+                  isBot: user.isBot,
+                  avatarUrl: user.avatarUrl || null,
+                  presenceStatus: PresenceStatus.OFFLINE
+                })),
               threadRootEventId: thread.thread?.threadRootEventId ?? '',
               rootMessage,
               latestReply: thread.latestReply

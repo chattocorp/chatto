@@ -129,8 +129,8 @@ idempotent operations:
 - lightweight state for every room visible to the viewer and the complete
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events for
-  retained DMs. For a retained channel room, it includes all roots with
-  `message.read`, or only related roots with `message.read-interactions`;
+  retained rooms. It includes all roots with `message.read`, or only related
+  roots with `message.read-interactions`;
 - the newest finite Notifications 2.0 occurrences, exact total and Important
   unread-occurrence counts, and complete per-room counterparts;
 - every active call visible to the viewer; and
@@ -145,7 +145,8 @@ Never-viewed room bodies are not decrypted during bootstrap.
 
 The projection's room set is exhaustive rather than message-read-filtered. It
 includes joined DMs that do not yet contain a message. Each DM summary says
-whether it has root-message history. DM membership authorizes the read. The
+whether it has root-message history. DM membership and current read permission
+authorize this message-derived value. The
 bundled client retains empty DMs for routing and authorization but omits them
 from the sidebar and quick switcher.
 The first `room_activity` operation promotes the room into navigation, while an
@@ -161,6 +162,10 @@ message stores are created lazily, and selecting a cold room sends
 `hydrate_room`. The response atomically replaces its full room membership and
 current timeline through the normal projection reducer; it is not a ConnectRPC
 bootstrap.
+
+DM threads use the same protocol-v2 projection operations as channel threads.
+The stream includes DM thread replies, echoes, root thread summaries, and
+followed-thread viewer state without a separate client capability.
 
 Timeline replacements carry an opaque cursor for every retained row, and later
 row upserts carry that row's cursor. The reducer can therefore advance its
@@ -247,9 +252,8 @@ This lets new browsers refetch transient hydrated search plaintext without
 materialising room timelines, while older projection-v1 clients safely reapply
 the familiar state and advance their cursor.
 
-Effective membership and channel-room message-read permission changes are
-authoritative timeline boundaries. DM membership is the complete DM read
-boundary. An interaction-scoped timeline contains only related roots, and each
+Effective membership and message-read permission changes are authoritative
+timeline boundaries for channel rooms and DMs. An interaction-scoped timeline contains only related roots, and each
 durable message-derived operation is authorized against its canonical thread
 root. A direct-mention post waits for the Threads projection before delivery,
 so the source operation can establish and use the relationship in order.
@@ -461,10 +465,9 @@ Administrative membership facts replace the complete current member-reference
 list for existing viewers.
 
 Message and asset facts are delivered only when the viewer is a member. A
-channel-room viewer also needs broad `message.read`, or
+viewer also needs broad `message.read`, or
 `message.read-interactions` with a relationship to the canonical thread root.
-DM membership authorizes DM delivery. The hub and public projection mapper
-both check this boundary.
+The hub and public projection mapper both check this boundary.
 
 Message facts do not carry room summaries or room viewer state. Root messages
 carry a content-free `room_activity` operation for room order and first-message

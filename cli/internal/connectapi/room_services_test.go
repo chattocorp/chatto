@@ -865,9 +865,11 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	}
 	if apiRoomPermissionGranted(dmRoom, core.PermRoomJoin) ||
 		apiRoomPermissionGranted(dmRoom, core.PermRoomManage) ||
-		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) ||
-		apiRoomPermissionGranted(dmRoom, core.PermMessagePostInThread) {
+		apiRoomPermissionGranted(dmRoom, core.PermRoomMemberBan) {
 		t.Fatalf("DM exposes channel-only actions: %+v", dmRoom)
+	}
+	if !apiRoomPermissionGranted(dmRoom, core.PermMessagePostInThread) {
+		t.Fatalf("DM message.post-in-thread = false, want true: %+v", dmRoom)
 	}
 	batchResp, err := env.directory.BatchGetRooms(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.BatchGetRoomsRequest{
 		RoomIds: []string{visible.Id, hidden.Id, dm.Id, visible.Id, "missing-room"},
@@ -903,8 +905,8 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("owner GetRoom DM: %v", err)
 	}
-	if apiRoomPermissionGranted(ownerResp.Msg.GetRoom(), core.PermMessagePostInThread) {
-		t.Fatal("owner DM viewer state grants message.post-in-thread")
+	if !apiRoomPermissionGranted(ownerResp.Msg.GetRoom(), core.PermMessagePostInThread) {
+		t.Fatal("owner DM viewer state does not grant message.post-in-thread")
 	}
 }
 

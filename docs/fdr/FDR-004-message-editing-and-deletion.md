@@ -18,10 +18,10 @@ attachments and initially leave a "[Message deleted]" placeholder.
   The window value is queryable through `Server.messageEditWindowSeconds` so
   the frontend can show countdown timers and disable the edit action at the
   correct time.
-- Editing requires current room membership. In a channel room, it also requires
+- Editing requires current room membership. It also requires
   broad `message.read`, or `message.read-interactions` with a relationship to
   the message's thread. The operation reads and returns the current message.
-  DM membership authorizes the read. Posting and deletion remain independently
+  Posting and deletion remain independently
   authorized and do not return surrounding message state.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
@@ -108,9 +108,8 @@ message's thread summary contains a reply.
 
 - `message.manage` — edit messages at any time, and edit and delete other users'
   messages.
-- `message.read` — read and edit any channel-room message.
-- `message.read-interactions` — read and edit a channel-room message in a
-  related thread. DM membership authorizes DM reads without either permission.
+- `message.read` — read and edit any room message.
+- `message.read-interactions` — read and edit a message in a related thread.
   Deletion remains independently authorized by authorship or `message.manage`.
 - There is no separate edit-own or delete-own permission. Authorship permits
   deletion and permits editing within the edit window.

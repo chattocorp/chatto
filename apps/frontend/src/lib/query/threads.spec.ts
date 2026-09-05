@@ -24,6 +24,8 @@ function thread(
   return {
     roomId: 'room-1',
     roomName: 'general',
+    isDirectMessage: false,
+    directMessageParticipants: [],
     threadRootEventId,
     rootMessage: null,
     latestReply: null,

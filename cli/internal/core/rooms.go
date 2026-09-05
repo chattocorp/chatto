@@ -165,11 +165,14 @@ func IsValidRoomThreadingMode(mode evtv1.RoomThreadingMode) bool {
 
 // EffectiveRoomThreadingMode normalizes persisted room data. Historical
 // channel events predate the field and therefore resolve UNSPECIFIED to
-// ENABLED. Unknown future values fail closed to DISABLED. DMs remain
-// threadless.
+// ENABLED. DMs always use ENABLED. Unknown future channel values fail closed
+// to DISABLED.
 func EffectiveRoomThreadingMode(room *evtv1.Room) evtv1.RoomThreadingMode {
-	if room == nil || room.GetKind() == evtv1.RoomKind_ROOM_KIND_DM {
+	if room == nil {
 		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+	}
+	if room.GetKind() == evtv1.RoomKind_ROOM_KIND_DM {
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
 	}
 	if room.GetThreadingMode() == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
 		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED

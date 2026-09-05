@@ -25,8 +25,9 @@ Reads room directory data.
 ### ListRooms
 
 Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM membership authorizes DM
-reads. Empty DMs are omitted. Results are returned as a finite navigation
+rooms visible through membership or room.list. DM membership exposes room
+and participant metadata. Message-derived DM state also requires current
+read permission. Empty DMs are omitted. Results are returned as a finite navigation
 snapshot.
 
 ```http

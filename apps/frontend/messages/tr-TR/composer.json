@@ -5,6 +5,7 @@
     "send": "Mesaj gönder",
     "send_label": "Gönder",
     "also_send_to_channel": "Ayrıca kanala gönder",
+    "also_send_to_conversation": "Ayrıca konuşmaya gönder",
     "post_as_thread": "Konu olarak gönder",
     "thread_label": "Konu",
     "echo_label": "Yankı",

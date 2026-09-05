@@ -5,6 +5,7 @@
     "send": "أرسل الرسالة",
     "send_label": "إرسال",
     "also_send_to_channel": "أرسل أيضًا إلى القناة",
+    "also_send_to_conversation": "أرسل أيضًا إلى المحادثة",
     "post_as_thread": "نشر كموضوع",
     "thread_label": "الموضوع",
     "echo_label": "صدى",

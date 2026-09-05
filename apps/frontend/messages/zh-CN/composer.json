@@ -5,6 +5,7 @@
     "send": "发送消息",
     "send_label": "发送",
     "also_send_to_channel": "同时发送到频道",
+    "also_send_to_conversation": "同时发送到对话",
     "post_as_thread": "作为讨论串发布",
     "thread_label": "话题串",
     "echo_label": "回声",

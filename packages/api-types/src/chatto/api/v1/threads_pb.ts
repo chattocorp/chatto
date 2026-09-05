@@ -297,6 +297,14 @@ export class FollowedThread extends Message<FollowedThread> {
    */
   latestReply?: Message$1;
 
+  /**
+   * User IDs used to derive a direct-message conversation label. Empty for
+   * channel rooms.
+   *
+   * @generated from field: repeated string direct_message_participant_user_ids = 11;
+   */
+  directMessageParticipantUserIds: string[] = [];
+
   constructor(data?: PartialMessage<FollowedThread>) {
     super();
     proto3.util.initPartial(data, this);
@@ -309,6 +317,7 @@ export class FollowedThread extends Message<FollowedThread> {
     { no: 8, name: "room", kind: "message", T: RoomSummary },
     { no: 9, name: "thread", kind: "message", T: ThreadSummary },
     { no: 10, name: "latest_reply", kind: "message", T: Message$1 },
+    { no: 11, name: "direct_message_participant_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedThread {
@@ -341,6 +350,14 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
    */
   page?: PageRequest;
 
+  /**
+   * Include followed direct-message threads. Defaults to false so older
+   * clients retain the channel-only result shape.
+   *
+   * @generated from field: bool include_direct_message_threads = 4;
+   */
+  includeDirectMessageThreads = false;
+
   constructor(data?: PartialMessage<ListFollowedThreadsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -350,6 +367,7 @@ export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsReque
   static readonly typeName = "chatto.api.v1.ListFollowedThreadsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 3, name: "page", kind: "message", T: PageRequest },
+    { no: 4, name: "include_direct_message_threads", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListFollowedThreadsRequest {
