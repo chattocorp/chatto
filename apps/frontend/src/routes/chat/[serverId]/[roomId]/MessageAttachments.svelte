@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { trackScrollEdges } from '$lib/ui/scrollEdges';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
@@ -234,43 +235,10 @@
     return attachment.thumbnailUrl ?? attachment.url;
   }
 
-  function updateGalleryScrollEdges(el: HTMLElement) {
-    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
-    const scrollLeft = Math.min(Math.max(el.scrollLeft, 0), maxScrollLeft);
-    const canScroll = maxScrollLeft > 1;
-
-    galleryScrolledFromLeft = canScroll && scrollLeft > 1;
-    galleryScrolledFromRight = canScroll && maxScrollLeft - scrollLeft > 1;
-  }
-
-  function trackGalleryScrollEdges(el: HTMLElement) {
-    const update = () => updateGalleryScrollEdges(el);
-
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of el.children) {
-      if (child instanceof HTMLElement) ro.observe(child);
-    }
-
-    const mo = new MutationObserver(() => {
-      ro.disconnect();
-      ro.observe(el);
-      for (const child of el.children) {
-        if (child instanceof HTMLElement) ro.observe(child);
-      }
-      update();
-    });
-    mo.observe(el, { childList: true });
-
-    return () => {
-      el.removeEventListener('scroll', update);
-      mo.disconnect();
-      ro.disconnect();
-    };
-  }
+  const trackGalleryScrollEdges = trackScrollEdges('x', (edges) => {
+    galleryScrolledFromLeft = edges.start;
+    galleryScrolledFromRight = edges.end;
+  });
 
   const imageAttachments = $derived(attachments.filter(isGalleryImageAttachment));
   const hasImageGallery = $derived(imageAttachments.length > 1);
