@@ -2,3 +2,12 @@ packages:
   - apps/*
   - examples/*
   - packages/*
+
+engineStrict: true
+
+allowBuilds:
+  esbuild: true
+  sharp: true
+  '@tailwindcss/oxide': false
+  '@google/genai': false
+  protobufjs: false

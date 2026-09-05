@@ -3,7 +3,7 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "packageManager": "pnpm@10.26.0",
+  "packageManager": "pnpm@11.25.0",
   "scripts": {
     "build:api-types": "pnpm --filter @chatto/api-types build",
     "build:lingua": "pnpm --filter @chatto/lingua build",
@@ -21,15 +21,6 @@
     "test": "pnpm run build:api-types && pnpm run build:lingua && pnpm --recursive --if-present --workspace-concurrency=1 run test",
     "test:lingua": "pnpm --filter @chatto/lingua test",
     "test:frontend": "pnpm run build:api-types && pnpm run build:lingua && pnpm --filter chatto-frontend test:unit:run"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "sharp"
-    ],
-    "ignoredBuiltDependencies": [
-      "@tailwindcss/oxide"
-    ]
   },
   "devDependencies": {
     "knip": "^6.22.0"
