@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { untrack } from 'svelte';
+  import { DraftField } from '$lib/components/settings/DraftField.svelte';
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import Panel from '$lib/ui/Panel.svelte';
   import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
@@ -23,49 +23,17 @@
   } = $props();
 
   // The parent keys this editor by room identity and successful save revision.
-  let originalName = $state(untrack(() => room.name));
-  let originalDescription = $state(untrack(() => room.description ?? ''));
-  let originalUniversal = $state(untrack(() => room.isUniversal));
-  let originalSlowModeSeconds = $state(untrack(() => room.slowModeSeconds));
-  let originalThreadingMode = $state(untrack(() => room.threadingMode));
-  let name = $state(untrack(() => room.name));
-  let description = $state(untrack(() => room.description ?? ''));
-  let universal = $state(untrack(() => room.isUniversal));
-  let slowModeSeconds = $state(untrack(() => String(room.slowModeSeconds)));
-  let threadingMode = $state(untrack(() => String(room.threadingMode)));
+  const name = new DraftField(() => room.name);
+  const description = new DraftField(() => room.description ?? '');
+  const universal = new DraftField(() => room.isUniversal);
+  const slowModeSeconds = new DraftField(() => room.slowModeSeconds);
+  const threadingMode = new DraftField(() => room.threadingMode);
 
-  // Query snapshots may refresh while this editor is mounted. Adopt each remote
-  // field only when that field is pristine, preserving unrelated local edits.
-  $effect(() => {
-    const nextName = room.name;
-    const nextDescription = room.description ?? '';
-    const nextUniversal = room.isUniversal;
-    const nextSlowModeSeconds = room.slowModeSeconds;
-    const nextThreadingMode = room.threadingMode;
-    untrack(() => {
-      const nameWasPristine = name === originalName;
-      const descriptionWasPristine = description === originalDescription;
-      const universalWasPristine = universal === originalUniversal;
-      const slowModeWasPristine = Number(slowModeSeconds) === originalSlowModeSeconds;
-      const threadingModeWasPristine = Number(threadingMode) === originalThreadingMode;
-      originalName = nextName;
-      originalDescription = nextDescription;
-      originalUniversal = nextUniversal;
-      originalSlowModeSeconds = nextSlowModeSeconds;
-      originalThreadingMode = nextThreadingMode;
-      if (nameWasPristine) name = nextName;
-      if (descriptionWasPristine) description = nextDescription;
-      if (universalWasPristine) universal = nextUniversal;
-      if (slowModeWasPristine) slowModeSeconds = String(nextSlowModeSeconds);
-      if (threadingModeWasPristine) threadingMode = String(nextThreadingMode);
-    });
-  });
-
-  const normalizedName = $derived(normalizeRoomName(name));
+  const normalizedName = $derived(normalizeRoomName(name.value));
   const nameError = $derived.by(() => {
-    if (!name) return undefined;
-    if (name.trim() === '') return m('admin.rooms_admin.room_name_empty');
-    if (name !== name.trim()) return m('admin.rooms_admin.room_name_trim');
+    if (!name.value) return undefined;
+    if (name.value.trim() === '') return m('admin.rooms_admin.room_name_empty');
+    if (name.value !== name.value.trim()) return m('admin.rooms_admin.room_name_trim');
     const validationError = roomNameValidationError(normalizedName);
     if (validationError === 'empty') return m('admin.rooms_admin.room_name_empty');
     if (validationError === 'too_long') {
@@ -75,11 +43,11 @@
     return undefined;
   });
   const changed = $derived(
-    normalizedName !== originalName ||
-      description.trim() !== originalDescription ||
-      universal !== originalUniversal ||
-      Number(slowModeSeconds) !== originalSlowModeSeconds ||
-      Number(threadingMode) !== originalThreadingMode
+    normalizedName !== name.original ||
+      description.value.trim() !== description.original ||
+      universal.value !== universal.original ||
+      slowModeSeconds.value !== slowModeSeconds.original ||
+      threadingMode.value !== threadingMode.original
   );
   const slowModeOptions = $derived.by(() => {
     const locale = getLocale();
@@ -90,7 +58,7 @@
           ? m('admin.rooms_admin.slow_mode_off')
           : formatSlowModeInterval(seconds, locale)
     }));
-    const current = Number(slowModeSeconds);
+    const current = slowModeSeconds.value;
     if (!SLOW_MODE_PRESETS.some((seconds) => seconds === current)) {
       options.splice(1, 0, {
         value: String(current),
@@ -126,23 +94,23 @@
 
   function save(event: SubmitEvent): void {
     event.preventDefault();
-    if (saving || nameError || !name.trim() || !changed) return;
+    if (saving || nameError || !name.value.trim() || !changed) return;
     onSave(
       buildRoomSettingsUpdate(
         room.id,
         {
-          name,
-          description,
-          universal,
-          slowModeSeconds: Number(slowModeSeconds),
-          threadingMode: Number(threadingMode) as RoomThreadingMode
+          name: name.value,
+          description: description.value,
+          universal: universal.value,
+          slowModeSeconds: slowModeSeconds.value,
+          threadingMode: threadingMode.value
         },
         {
-          name: originalName,
-          description: originalDescription,
-          universal: originalUniversal,
-          slowModeSeconds: originalSlowModeSeconds,
-          threadingMode: originalThreadingMode
+          name: name.original,
+          description: description.original,
+          universal: universal.original,
+          slowModeSeconds: slowModeSeconds.original,
+          threadingMode: threadingMode.original
         }
       )
     );
@@ -154,7 +122,7 @@
     <TextInput
       id="room-settings-name"
       label={m('rbac.role_form.name')}
-      bind:value={name}
+      bind:value={name.value}
       required
       disabled={saving}
       error={nameError}
@@ -162,21 +130,23 @@
     <TextArea
       id="room-settings-description"
       label={m('rbac.role_form.description')}
-      bind:value={description}
+      bind:value={description.value}
       rows={3}
       disabled={saving}
       placeholder={m('admin.rooms_admin.room_description_placeholder')}
     />
     <Checkbox
       id="room-settings-universal"
-      bind:checked={universal}
+      bind:checked={universal.value}
       disabled={saving}
       label={m('admin.rooms_admin.universal_room')}
       description={UNIVERSAL_ROOM_HELP_TEXT}
     />
     <Select
       id="room-settings-slow-mode"
-      bind:value={slowModeSeconds}
+      bind:value={
+        () => String(slowModeSeconds.value), (value) => (slowModeSeconds.value = Number(value))
+      }
       disabled={saving}
       label={m('admin.rooms_admin.slow_mode')}
       description={m('admin.rooms_admin.slow_mode_description')}
@@ -197,15 +167,19 @@
           <ChoiceRow
             label={option.label}
             description={option.description}
-            selected={threadingMode === option.value}
+            selected={String(threadingMode.value) === option.value}
             disabled={saving}
-            onclick={() => (threadingMode = option.value)}
+            onclick={() => (threadingMode.value = Number(option.value))}
           />
         {/each}
       </div>
     </div>
     <div class="flex justify-end">
-      <Button type="submit" loading={saving} disabled={!name.trim() || !!nameError || !changed}>
+      <Button
+        type="submit"
+        loading={saving}
+        disabled={!name.value.trim() || !!nameError || !changed}
+      >
         {m('admin.permissions.save_changes')}
       </Button>
     </div>
