@@ -122,3 +122,30 @@ test("a failed rerun cannot clear the required status", async () => {
   await assert.rejects(rerunProto(f), /Protobuf revalidation failed/);
   assert.equal(f.statuses.at(-1).state, "failure");
 });
+
+test("queued reruns stay pending while job records and steps are incomplete", async () => {
+  const f = fixture();
+  const original = f.github.paginate;
+  let reads = 0;
+  f.github.paginate = async (...args) => {
+    reads++;
+    if (reads === 2) return [];
+    if (reads === 3)
+      return [
+        {
+          id: 9,
+          name: "codegen-proto-drift",
+          run_attempt: 2,
+          status: "queued",
+          steps: [],
+        },
+      ];
+    return original(...args);
+  };
+  await rerunProto(f);
+  assert.equal(reads, 4);
+  assert.deepEqual(
+    f.statuses.map(({ state }) => state),
+    ["pending", "success"],
+  );
+});
