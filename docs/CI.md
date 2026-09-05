@@ -77,17 +77,34 @@ measurements are available in the `go-parallelism-benchmark` artifact.
 Do not increase concurrency based on compilation time alone. Check every pass
 for failures and compare both test passes for each setting.
 
+The [5 September 2026 benchmark](https://github.com/chattocorp/chatto/actions/runs/33962183553)
+used the same application revision and Ubuntu runner for all four passes:
+
+| Package parallelism | First pass | Second pass | Result |
+| --- | ---: | ---: | --- |
+| `-p 1` | 183.8 s | 187.4 s | Both passed |
+| `-p 2` | 126.8 s | 128.7 s | Second pass failed |
+
+The failed pass reported
+`TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress` after 30
+seconds. This does not prove that package concurrency caused the failure, but
+it does not establish reliable execution at `-p 2`. CI keeps `-p 1` until the
+failure is understood and repeated comparisons pass.
+
 ## Public API waiver changes
 
 Ordinary label changes do not start or cancel `ci`. Changes to
 `api-breaking-change` start `proto-label.yml`. This workflow reads only trusted
-default-branch code. It waits for the current revision's CI run to finish, then
-requests a rerun of `codegen-proto-drift`. It does not execute pull-request code
+default-branch code. It sets the required protobuf status to pending, waits for
+the current revision's CI run to finish, then requests a rerun of
+`codegen-proto-drift`. It does not execute pull-request code
 with its write token. The rerun uses the original job's read-only permissions
-and reads the current labels before it checks compatibility.
+and reads the current labels before it checks compatibility. The label workflow
+clears the pending status only after the rerun passes. This prevents merging
+with an old waiver result while revalidation is waiting.
 
 The label workflow becomes active after it is merged into the default branch.
-If it cannot find a completed CI run within 20 minutes, it fails with a request
-to rerun the protobuf job. For CI runs that predate live waiver checks, update
+If it cannot finish revalidation within 40 minutes, it fails with a request to
+rerun the label workflow. For CI runs that predate live waiver checks, update
 the PR branch from main and start a new CI run first. Label changes do not
 bypass persisted-schema checks.

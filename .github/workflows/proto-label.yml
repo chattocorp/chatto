@@ -8,6 +8,7 @@ permissions:
   contents: read
   pull-requests: read
   actions: write
+  statuses: write
 
 concurrency:
   group: proto-label-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
@@ -17,7 +18,7 @@ jobs:
   recheck:
     if: github.event.label.name == 'api-breaking-change'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       # This privileged workflow must never load code from the PR revision.
       - uses: actions/checkout@v6

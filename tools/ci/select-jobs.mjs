@@ -102,6 +102,8 @@ function main() {
     }
   }
   const mode = event.inputs?.suite ?? "full";
+  if (!["full", "performance", "benchmark-go"].includes(mode))
+    throw new Error("Unknown CI suite");
   const selected =
     process.env.GITHUB_EVENT_NAME === "workflow_dispatch" && mode !== "full"
       ? { ...selectJobs([]), performance: mode === "performance" }
