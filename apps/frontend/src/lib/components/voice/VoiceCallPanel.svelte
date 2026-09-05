@@ -245,6 +245,9 @@ Room sidebar panel for voice/video calls.
         const index = speakingCards.indexOf(entry);
         if (index !== -1) speakingCards.splice(index, 1);
         stopSpeakingIndicatorLoopIfIdle();
+        node.style.removeProperty('--call-speaking-ring-opacity');
+        node.style.removeProperty('--call-speaking-ring-strength');
+        delete node.dataset.callSpeaking;
       };
     };
   }
@@ -418,63 +421,39 @@ Room sidebar panel for voice/video calls.
   {@const showVideo = mode === 'video' && hasVideo(participant)}
   {@const showVoiceActions = isInThisCall && !showVideo}
   {@const actions = showVideo ? 'media' : showVoiceActions ? 'voice' : 'none'}
-  {#if isInThisCall}
-    <div
-      class={[
-        callTileCardClass,
-        mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
-      ]}
-      {@attach speakingCard(participant.key)}
-      title={participantTitle(participant)}
-      data-testid="call-participant-card"
-      data-speaking-ring
-      data-call-media-card={showVideo ? true : undefined}
-    >
-      {@render participantHeader(participant, participant.displayName, actions)}
+  <div
+    class={[
+      callTileCardClass,
+      mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
+    ]}
+    {@attach isInThisCall && speakingCard(participant.key)}
+    title={participantTitle(participant)}
+    data-testid="call-participant-card"
+    data-speaking-ring={isInThisCall ? true : undefined}
+    data-call-media-card={showVideo ? true : undefined}
+  >
+    {@render participantHeader(
+      participant,
+      participant.displayName,
+      isInThisCall ? actions : 'none',
+      isInThisCall
+    )}
 
-      {#if showVideo}
-        <button
-          type="button"
-          class={callTileMediaButtonClass}
-          onclick={(e) => showUserMenu(participant, e)}
-        >
-          <VideoThumbnail
-            track={participant.videoTrack!}
-            name={participant.displayName}
-            user={participant.avatarUser}
-            showIdentityOverlay={false}
-          />
-        </button>
-      {/if}
-    </div>
-  {:else}
-    <div
-      class={[
-        callTileCardClass,
-        mode === 'video' ? 'participant-card-video' : 'participant-card-compact'
-      ]}
-      title={participantTitle(participant)}
-      data-testid="call-participant-card"
-      data-call-media-card={showVideo ? true : undefined}
-    >
-      {@render participantHeader(participant, participant.displayName, 'none', false)}
-
-      {#if showVideo}
-        <button
-          type="button"
-          class={callTileMediaButtonClass}
-          onclick={(e) => showUserMenu(participant, e)}
-        >
-          <VideoThumbnail
-            track={participant.videoTrack!}
-            name={participant.displayName}
-            user={participant.avatarUser}
-            showIdentityOverlay={false}
-          />
-        </button>
-      {/if}
-    </div>
-  {/if}
+    {#if showVideo}
+      <button
+        type="button"
+        class={callTileMediaButtonClass}
+        onclick={(e) => showUserMenu(participant, e)}
+      >
+        <VideoThumbnail
+          track={participant.videoTrack!}
+          name={participant.displayName}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+        />
+      </button>
+    {/if}
+  </div>
 {/snippet}
 
 {#snippet screenShareCard(participant: DisplayParticipant)}
