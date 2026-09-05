@@ -16,6 +16,7 @@
   import { m } from '$lib/i18n/messages';
   import { formatDateTime, type TimeFormatSettings } from '$lib/utils/formatTime';
   import { SvelteDate } from 'svelte/reactivity';
+  import Interval from '$lib/lifecycle/Interval.svelte';
 
   const fallbackTimestampSettings: TimeFormatSettings = {
     get effectiveTimezone() {
@@ -65,19 +66,6 @@
       ? formatRelativeMessageTimestamp(activeTimestamp.date, activeTimestampLocale, liveNow)
       : ''
   );
-
-  $effect(() => {
-    if (!activeTimestamp) return;
-
-    liveNow.setTime(Date.now());
-    const interval = window.setInterval(() => {
-      liveNow.setTime(Date.now());
-    }, 1000);
-
-    return () => {
-      window.clearInterval(interval);
-    };
-  });
 
   function injectMessageStateMarkers(
     html: string,
@@ -168,6 +156,7 @@
       if (!Number.isSafeInteger(epochSeconds)) return;
       event.preventDefault();
       const rect = timestamp.getBoundingClientRect();
+      liveNow.setTime(Date.now());
       activeTimestamp = {
         epochSeconds,
         date: new Date(epochSeconds * 1000),
@@ -232,6 +221,7 @@
 </div>
 
 {#if activeTimestamp}
+  <Interval milliseconds={1000} ontick={() => liveNow.setTime(Date.now())} />
   <ContextMenu
     anchor={activeTimestamp.anchor}
     role="dialog"
