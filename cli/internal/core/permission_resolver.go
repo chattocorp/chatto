@@ -80,27 +80,27 @@ type TraceEntry struct {
 //     deny only when it is at least as specific; named denies always win.
 //  5. Apply explicit permission inclusion to effective allows.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
-	return r.resolveInContentView(func() (DecisionKind, error) {
-		return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
+	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		return r.resolveWithGroup(readCtx, userID, kind, roomID, "", perm)
 	})
 }
 
 // ResolveGroup is like Resolve but for group-scope checks (no room context).
 // Used by CanCreateRoom and other group-scoped capability gates.
 func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, kind RoomKind, groupID string, perm Permission) (DecisionKind, error) {
-	return r.resolveInContentView(func() (DecisionKind, error) {
-		return r.resolveWithGroup(ctx, userID, kind, "", groupID, perm)
+	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		return r.resolveWithGroup(readCtx, userID, kind, "", groupID, perm)
 	})
 }
 
-func (r *PermissionResolver) resolveInContentView(resolve func() (DecisionKind, error)) (DecisionKind, error) {
+func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve func(context.Context) (DecisionKind, error)) (DecisionKind, error) {
 	if r.core.contentView == nil {
-		return resolve()
+		return resolve(ctx)
 	}
 	decision := DecisionNone
-	err := r.core.contentView.Read(func(uint64) error {
+	err := r.core.ReadServerContentView(ctx, func(readCtx context.Context, _ uint64) error {
 		var resolveErr error
-		decision, resolveErr = resolve()
+		decision, resolveErr = resolve(readCtx)
 		return resolveErr
 	})
 	return decision, err

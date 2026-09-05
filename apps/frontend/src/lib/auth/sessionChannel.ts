@@ -3,7 +3,7 @@
  *
  * When a user logs out in one tab, this notifies all other same-origin tabs
  * instantly (no server round-trip needed). This complements the server-side
- * SessionTerminatedEvent which handles cross-device and admin-initiated logout.
+ * session-termination close frame, which handles cross-device and admin-initiated logout.
  */
 
 const CHANNEL_NAME = 'chatto-session';

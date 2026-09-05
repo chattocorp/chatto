@@ -31,7 +31,7 @@ await collectGeneratedTypeScript('packages/api-types/src/chatto');
 for (const generatedFile of generatedFiles) {
   const filePath = path.join(repoRoot, generatedFile);
   const content = await readFile(filePath, 'utf8');
-  const normalized = `${content.trimEnd()}\n`;
+  const normalized = `${content.replace(/[ \t]+$/gm, '').trimEnd()}\n`;
   if (normalized !== content) {
     await writeFile(filePath, normalized);
   }

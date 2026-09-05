@@ -5,17 +5,17 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"slices"
 	"sort"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -339,7 +339,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 				return time.Time{}, fmt.Errorf("wait for created thread marker: %w", err)
 			}
 			c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+			c.publishThreadViewerStateChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 			return previousTime, nil
 		}
 
@@ -366,7 +366,7 @@ func (c *ChattoCore) SetThreadLastReadEventID(ctx context.Context, kind RoomKind
 		}
 
 		c.logger.Debug("Set thread last read event", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "event_id", eventID)
-		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+		c.publishThreadViewerStateChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -406,7 +406,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 				return time.Time{}, fmt.Errorf("wait for created thread marker: %w", err)
 			}
 			c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+			c.publishThreadViewerStateChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 			return previousTime, nil
 		}
 
@@ -434,7 +434,7 @@ func (c *ChattoCore) SetThreadLastOpenedAt(ctx context.Context, kind RoomKind, u
 			return time.Time{}, fmt.Errorf("wait for updated thread marker: %w", err)
 		}
 		c.logger.Debug("Set legacy thread last opened timestamp", "user_id", userID, "room_id", roomID, "thread_root_event_id", threadRootEventID, "previous", previousTime, "at", ts)
-		c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
+		c.publishThreadViewerStateChangedEvent(ctx, userID, kind, roomID, threadRootEventID, c.roomModel.threadFollowState(userID, roomID, threadRootEventID) == ThreadFollowStateFollowing)
 		return previousTime, nil
 	}
 
@@ -531,7 +531,6 @@ func (c *ChattoCore) appendThreadFollowStateEvent(ctx context.Context, kind Room
 			if err := c.roomModel.waitForThreads(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
 				return true, err
 			}
-			c.publishThreadFollowChangedEvent(ctx, userID, kind, roomID, threadRootEventID, target == ThreadFollowStateFollowing)
 			return true, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -566,7 +565,7 @@ func (c *ChattoCore) waitForThreadFollowStateCurrent(ctx context.Context, agg ev
 
 // FollowThread marks a user as following a thread so they receive reply notifications.
 // Stores durable follow state in EVT. Idempotent.
-// Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
+// Publishes a ThreadViewerStateChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) FollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
 	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_MANUAL, false)
 	return err
@@ -579,7 +578,7 @@ func (c *ChattoCore) FollowThreadWithSource(ctx context.Context, kind RoomKind, 
 
 // UnfollowThread removes a user's follow on a thread so they stop receiving reply notifications.
 // Idempotent - calling when not following is a no-op.
-// Publishes a ThreadFollowChangedEvent for multi-tab sync when state changes.
+// Publishes a ThreadViewerStateChangedEvent for multi-tab sync when state changes.
 func (c *ChattoCore) UnfollowThread(ctx context.Context, kind RoomKind, userID, roomID, threadRootEventID string) error {
 	_, err := c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateUnfollowed, evtv1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_UNSPECIFIED, false)
 	return err
@@ -591,13 +590,13 @@ func (c *ChattoCore) FollowThreadIfNeverSet(ctx context.Context, kind RoomKind, 
 	return c.appendThreadFollowStateEvent(ctx, kind, userID, roomID, threadRootEventID, ThreadFollowStateFollowing, source, true)
 }
 
-// publishThreadFollowChangedEvent publishes a user-scoped thread viewer-state
+// publishThreadViewerStateChangedEvent publishes a user-scoped thread state
 // invalidation. It fires for follow changes and read-marker advances; projection
 // transports hydrate the complete current root row from its identifiers.
-func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_ThreadFollowChanged{
-			ThreadFollowChanged: &livev1.ThreadFollowChangedEvent{
+func (c *ChattoCore) publishThreadViewerStateChangedEvent(ctx context.Context, userID string, kind RoomKind, roomID, threadRootEventID string, isFollowing bool) {
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_ThreadViewerStateChanged{
+			ThreadViewerStateChanged: &realtimev1.ThreadViewerStateChangedEvent{
 				RoomId:            roomID,
 				ThreadRootEventId: threadRootEventID,
 				IsFollowing:       isFollowing,
@@ -605,8 +604,7 @@ func (c *ChattoCore) publishThreadFollowChangedEvent(ctx context.Context, userID
 		},
 	})
 
-	subject := subjects.LiveSyncUserEvent(userID, "thread_follow_changed")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		c.logger.Warn("Failed to publish thread follow changed event", "error", err, "user_id", userID, "thread_root_event_id", threadRootEventID)
 	}
 }

@@ -19,6 +19,7 @@ import type {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
+import { Code, isConnectCode } from '$lib/api-client/connect';
 import type { JumpToMessageState } from '../composerContext.svelte';
 import { INITIAL_ROOM_MESSAGE_BACKFILL_TARGET, PAGE_SIZE } from './queries';
 import { getActorId, unmask } from './helpers';
@@ -255,6 +256,11 @@ export class MessagesStore {
     this.applyDeletion(messageEventId, new SvelteDate().toISOString());
   }
 
+  /** Fold a canonical retraction into every loaded original or echo row immediately. */
+  applyMessageRetraction(messageEventId: string, retractedAt: string): void {
+    this.applyDeletion(messageEventId, retractedAt);
+  }
+
   /**
    * Apply a provisional local reaction update. The returned handle can
    * reconcile the touched emoji from the RPC response or roll back if the
@@ -414,7 +420,7 @@ export class MessagesStore {
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
     // Reset already purged the pre-prefix state. Preserve writes ingested
-    // after that reset: the compacted page was captured before those writes
+    // after that reset: the snapshot page was captured before those writes
     // and its later arrival must not erase read-your-writes.
     this.replaceWithFetchedAndUpdateCursors(connection);
     this.hasReachedStart = !connection.hasOlder;
@@ -426,6 +432,15 @@ export class MessagesStore {
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
+  }
+
+  /** Restore the authoritative latest room window after crossing a route boundary. */
+  restoreLatestWindow(): Promise<boolean> {
+    if (this.scope !== 'room') return Promise.resolve(false);
+    this.#jumpId++;
+    this.#windowId++;
+    this.#pendingJumpId = null;
+    return this.resetAndFetchLatest();
   }
 
   /** Restore this retained room's canonical latest projection at a route boundary. */
@@ -445,21 +460,24 @@ export class MessagesStore {
     this.isInitialLoading = false;
   }
 
-  /** Purge retained rows without changing this store's identity for mounted consumers. */
+  /** Purge retained rows without starting a read outside a realtime boundary. */
   resetProjectionState(): void {
     const thisLoad = this.startLoad();
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
-    this.#pendingAuthoritativeLoadId = null;
+    this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
+  }
 
-    // Thread detail is intentionally lazy and is not part of the compacted
-    // server prefix. Reload an open thread through its existing read model.
-    if (this.scope === 'thread' && this.roomId && this.threadRootEventId) {
-      void this.fetchCurrent(thisLoad);
-    }
+  /** Reload this mounted timeline at the resource boundary for a reset. */
+  hydrateRealtimeProjection(minimumCursor: string, acceptResult: () => boolean): Promise<boolean> {
+    if (!this.source) return Promise.resolve(false);
+    const thisLoad = this.startLoad();
+    this.#pendingAuthoritativeLoadId = thisLoad;
+    this.isInitialLoading = true;
+    return this.fetchCurrent(thisLoad, minimumCursor, acceptResult);
   }
 
   /**
@@ -825,20 +843,28 @@ export class MessagesStore {
    * clearing the buffer. Used after tab wake / reconnect when the client may
    * have missed subscription events.
    */
-  async refreshCurrentWindow(anchorEventId?: string | null): Promise<RefreshCurrentWindowResult> {
+  async refreshCurrentWindow(
+    anchorEventId?: string | null,
+    forward = false,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
+  ): Promise<RefreshCurrentWindowResult> {
     const source = this.source;
     if (!source) return skippedRefreshResult();
 
     const thisLoad = this.startLoad();
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     const anchor = anchorEventId ?? null;
-    const mode = anchor
-      ? source.scope === 'thread'
-        ? 'thread-around'
-        : 'around'
-      : source.scope === 'thread'
-        ? 'thread-latest'
-        : 'latest';
+    const forwardCursor = forward && anchor ? (this.newestCursor ?? null) : null;
+    const mode = forwardCursor
+      ? 'forward'
+      : anchor
+        ? source.scope === 'thread'
+          ? 'thread-around'
+          : 'around'
+        : source.scope === 'thread'
+          ? 'thread-latest'
+          : 'latest';
     console.debug('[room-refresh] store refresh started', {
       roomId: source.roomId,
       scope: source.scope,
@@ -847,14 +873,20 @@ export class MessagesStore {
     });
 
     try {
-      const page = anchor
-        ? await source.fetchAround(anchor, PAGE_SIZE)
-        : await source.fetchPage({ limit: PAGE_SIZE });
-      if (this.isStale(thisLoad) || this.source !== source) return skippedRefreshResult();
+      const page = forwardCursor
+        ? await source.fetchPage({ limit: PAGE_SIZE, after: forwardCursor, minimumCursor })
+        : anchor
+          ? await source.fetchAround(anchor, PAGE_SIZE, undefined, minimumCursor)
+          : await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) {
+        return skippedRefreshResult();
+      }
       const changed = this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch, {
         preserveExistingWindow:
           source.scope === 'room' || anchor === null || anchor !== source.threadRootEventId,
-        latestSnapshot: anchor === null
+        latestSnapshot: anchor === null,
+        forwardSnapshot: forwardCursor !== null,
+        reconciledEventId: forwardCursor === null ? anchor : null
       });
       const result = {
         hasOlder: page.hasOlder,
@@ -872,9 +904,47 @@ export class MessagesStore {
       });
       return result;
     } catch (error) {
-      if (this.isStale(thisLoad)) return skippedRefreshResult();
+      if (this.isStale(thisLoad) || !acceptResult()) return skippedRefreshResult();
+      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
+        return skippedRefreshResult();
+      }
       console.error('MessagesStore: refreshCurrentWindow failed:', error);
+      if (minimumCursor) throw error;
       return skippedRefreshResult();
+    }
+  }
+
+  /**
+   * Read and ingest one newly posted message before the wider cursor window is
+   * reconciled. This keeps realtime delivery responsive without treating the
+   * canonical event as a second message-resource shape. The result reports
+   * whether this same timeline is still active and can be reconciled.
+   */
+  async refreshPostedMessage(
+    eventId: string,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
+  ): Promise<boolean> {
+    const source = this.source;
+    if (!source || !eventId) return false;
+
+    try {
+      const event = await this.roomTimeline.getMessage({
+        roomId: source.roomId,
+        eventId,
+        minimumCursor
+      });
+      if (this.source !== source || !acceptResult()) return false;
+      if (event) this.ingestEvent(event);
+      return true;
+    } catch (error) {
+      if (!acceptResult()) return false;
+      if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
+        return this.source === source;
+      }
+      console.error('MessagesStore: refreshPostedMessage failed:', error);
+      if (minimumCursor) throw error;
+      return this.source === source;
     }
   }
 
@@ -1147,7 +1217,12 @@ export class MessagesStore {
       hasOlder?: boolean;
     },
     existingBeforeFetch: ReadonlyMap<string, string>,
-    options: { preserveExistingWindow?: boolean; latestSnapshot?: boolean } = {}
+    options: {
+      preserveExistingWindow?: boolean;
+      latestSnapshot?: boolean;
+      forwardSnapshot?: boolean;
+      reconciledEventId?: string | null;
+    } = {}
   ): boolean {
     const fetched = this.unmaskEvents(connection.events);
     const newSeen = new SvelteSet<string>();
@@ -1199,6 +1274,16 @@ export class MessagesStore {
       ) {
         continue;
       }
+      if (
+        options.reconciledEventId &&
+        existingBeforeFetch.has(e.id) &&
+        this.isLinkedToMessage(e, options.reconciledEventId)
+      ) {
+        // An around read is authoritative for its message family. If the
+        // projection no longer returns a linked echo, do not retain that echo
+        // merely because the rest of the scrolled window is merge-preserved.
+        continue;
+      }
       if (newSeen.has(e.id)) continue;
       newSeen.add(e.id);
       mergedIndexByID.set(e.id, merged.length);
@@ -1215,9 +1300,10 @@ export class MessagesStore {
 
     if (options.preserveExistingWindow && !discontinuousLatestSnapshot) {
       this.oldestCursor = previousOldestCursor ?? connection.startCursor ?? undefined;
-      this.newestCursor = options.latestSnapshot
-        ? (connection.endCursor ?? previousNewestCursor ?? undefined)
-        : (previousNewestCursor ?? connection.endCursor ?? undefined);
+      this.newestCursor =
+        options.latestSnapshot || options.forwardSnapshot
+          ? (connection.endCursor ?? previousNewestCursor ?? undefined)
+          : (previousNewestCursor ?? connection.endCursor ?? undefined);
       this.hasReachedStart = previousHasReachedStart || !(connection.hasOlder ?? false);
     } else {
       this.oldestCursor = connection.startCursor ?? undefined;
@@ -1236,6 +1322,15 @@ export class MessagesStore {
     return changed;
   }
 
+  private isLinkedToMessage(event: TimelineEventView, eventId: string): boolean {
+    if (event.id === eventId) return true;
+    const payload = event.event;
+    return (
+      isMessagePostedPayload(payload) &&
+      (payload.echoOfEventId === eventId || payload.channelEchoEventId === eventId)
+    );
+  }
+
   private resetAndFetchLatest(): Promise<boolean> {
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
@@ -1244,32 +1339,45 @@ export class MessagesStore {
     return this.fetchCurrent(thisLoad);
   }
 
-  private async fetchCurrent(thisLoad: number): Promise<boolean> {
+  private async fetchCurrent(
+    thisLoad: number,
+    minimumCursor?: string,
+    acceptResult: () => boolean = () => true
+  ): Promise<boolean> {
     const source = this.source;
     if (!source) return false;
     const existingBeforeFetch = snapshotEventFingerprints(this.events);
     try {
-      const page = await source.fetchPage({ limit: PAGE_SIZE });
-      if (this.isStale(thisLoad) || this.source !== source) return false;
+      const page = await source.fetchPage({ limit: PAGE_SIZE, minimumCursor });
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       if (source.scope === 'room') {
         this.replaceWithFetchedAndUpdateCursors(page);
         this.hasReachedStart = !page.hasOlder;
-        await this.backfillInitialRoomWindow(thisLoad);
+        if (!minimumCursor) await this.backfillInitialRoomWindow(thisLoad);
       } else {
         // Merge with any subscription events that arrived during the
         // in-flight query (e.g. the user's own reply or a fast cross-user
         // reply). Overwriting would drop them.
         this.replaceWithSnapshotAndUpdateCursors(page, existingBeforeFetch);
       }
-      if (this.isStale(thisLoad) || this.source !== source) return false;
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
       return true;
     } catch (error: unknown) {
-      if (this.isStale(thisLoad) || this.source !== source) return false;
-      console.error('MessagesStore: fetchCurrent failed:', error);
+      if (this.isStale(thisLoad) || this.source !== source || !acceptResult()) return false;
+      if (!isConnectCode(error, Code.PermissionDenied) && !isConnectCode(error, Code.NotFound)) {
+        console.error('MessagesStore: fetchCurrent failed:', error);
+      }
       this.#pendingAuthoritativeLoadId = null;
       this.isInitialLoading = false;
+      if (
+        minimumCursor &&
+        !isConnectCode(error, Code.PermissionDenied) &&
+        !isConnectCode(error, Code.NotFound)
+      ) {
+        throw error;
+      }
       return false;
     }
   }

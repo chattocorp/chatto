@@ -20,6 +20,34 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Provides authenticated server-wide reads.
 
+<a id="chatto-api-v1-ServerService-GetServerProfile"></a>
+
+### GetServerProfile
+
+Returns the current public server profile to an authenticated caller.
+
+```http
+POST /api/connect/chatto.api.v1.ServerService/GetServerProfile
+```
+
+<a id="chatto-api-v1-GetServerProfileRequest"></a>
+
+#### Input: GetServerProfileRequest
+
+Request for the authenticated public server profile.
+
+
+<a id="chatto-api-v1-GetServerProfileResponse"></a>
+
+#### Result: GetServerProfileResponse
+
+Authenticated public server profile response.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `profile` | [`ServerPublicProfile`](/reference/connectrpc-api/types/#chatto-api-v1-ServerPublicProfile) | Current public server profile. |
+
+
 <a id="chatto-api-v1-ServerService-GetMotd"></a>
 
 ### GetMotd

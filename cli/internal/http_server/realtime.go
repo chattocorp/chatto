@@ -5,9 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"net/http"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -15,17 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
-	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 const (
 	realtimePath                    = "/api/realtime"
-	realtimeProtocolVersion         = 2
+	realtimeProtocolVersion         = 4
 	realtimeReadLimitBytes          = 64 << 10
 	realtimeReadBufferBytes         = 256
 	realtimeWriteBufferBytes        = 512
@@ -33,20 +31,9 @@ const (
 	realtimeHandshakeTimeout        = 10 * time.Second
 	realtimeWriteTimeout            = 10 * time.Second
 	realtimeCredentialCheckInterval = time.Minute
-	// Bound compacted reset construction as well as the long-lived per-socket
-	// projection. Each retained room can carry up to 50 decrypted timeline rows.
-	realtimeMaxRetainedRooms         = 64
-	realtimeMaxRoomIDBytes           = 256
-	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
 )
 
-var realtimeServerCapabilities = []string{
-	"chatto.realtime.events.live.v1",
-	"chatto.realtime.heartbeat.v1",
-	"chatto.realtime.ping.v1",
-	"chatto.realtime.events.resume.v1",
-	"chatto.realtime.projection.v1",
-}
+var errRealtimeEventOmitted = errors.New("realtime event is not public")
 
 func (s *HTTPServer) setupRealtimeAPI() {
 	if s.metrics == nil {
@@ -132,48 +119,41 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}
 		return conn.WriteMessage(websocket.BinaryMessage, data)
 	}
-	writeError := func(code, message string, fatal bool) {
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-			Error: &realtimev1.RealtimeError{Code: code, Message: message, Fatal: fatal},
-		}})
-	}
-	writeRoomError := func(code, message, roomID string, retryAfter time.Duration) {
-		realtimeError := &realtimev1.RealtimeError{
-			Code: code, Message: message, RoomId: proto.String(roomID),
-		}
+	writeClose := func(code realtimev1.RealtimeCloseCode, message string, reconnect bool, retryAfter time.Duration) {
+		close := &realtimev1.RealtimeClose{Code: code, Message: message, Reconnect: reconnect}
 		if retryAfter > 0 {
-			realtimeError.RetryAfterMs = proto.Uint32(uint32(retryAfter.Milliseconds()))
+			close.RetryAfter = durationpb.New(retryAfter)
 		}
-		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-			Error: realtimeError,
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: close,
 		}})
 	}
-
-	hello, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
+	subscribe, err := readRealtimeSubscribe(conn, realtimeHandshakeTimeout)
 	if err != nil {
-		writeError("bad_hello", "expected binary protobuf hello frame", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "expected a binary protobuf subscription", false, 0)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "invalid subscription"), time.Now().Add(time.Second))
 		return
 	}
-	clientHello := hello.GetHello()
-	if clientHello == nil {
-		writeError("bad_hello", "first frame must be hello", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad hello"), time.Now().Add(time.Second))
-		return
-	}
-	if clientHello.ProtocolVersion != realtimeProtocolVersion {
-		writeError("unsupported_protocol", "unsupported realtime protocol version", true)
+	if subscribe.GetProtocolVersion() != realtimeProtocolVersion {
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_UNSUPPORTED_PROTOCOL, "unsupported realtime protocol version", false, 0)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
 	}
-	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
+	if subscribe.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_UNSPECIFIED ||
+		(subscribe.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY &&
+			subscribe.GetInitialState() != realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT) {
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "initial_state is required", false, 0)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "invalid subscription"), time.Now().Add(time.Second))
+		return
+	}
+	ctx, user, err := s.realtimeAuthenticatedUser(ctx, subscribe)
 	if err != nil {
 		if !errors.Is(err, core.ErrNotAuthenticated) {
-			writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "authentication service temporarily unavailable", true, time.Second)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 			return
 		}
-		writeError("authentication_required", "authentication required", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 		return
 	}
@@ -320,65 +300,34 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
-	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
-		Hello: &realtimev1.RealtimeServerHello{
-			ProtocolVersion:          realtimeProtocolVersion,
-			ServerVersion:            s.version,
-			HeartbeatIntervalSeconds: realtimeHeartbeatIntervalSeconds,
-			Capabilities:             append([]string(nil), realtimeServerCapabilities...),
-		},
-	}}); err != nil {
-		return
-	}
-
-	subscribe, err := readRealtimeClientFrame(conn, realtimeHandshakeTimeout)
-	if err != nil {
-		writeError("bad_subscribe", "expected subscribe_events frame", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-	subscribeEvents := subscribe.GetSubscribeEvents()
-	if subscribeEvents == nil {
-		writeError("bad_subscribe", "second frame must be subscribe_events", true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
 	if err := s.revalidateRealtimeCredential(ctx); err != nil {
 		if errors.Is(err, core.ErrNotAuthenticated) {
-			writeError("authentication_required", "authentication required", true)
+			writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED, "authentication required", false, 0)
 			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 			return
 		}
-		writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "authentication service temporarily unavailable", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 		return
 	}
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
 		return
 	}
-	retainedRooms, err := realtimeRetainedRoomSet(subscribeEvents.GetRetainedRoomIds())
-	if err != nil {
-		writeError("bad_subscribe", err.Error(), true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
-		return
-	}
-
-	resumeCursor := strings.TrimSpace(subscribeEvents.GetResumeCursor())
+	resumeCursor := strings.TrimSpace(subscribe.GetResumeCursor())
 	cursorAtBoundary, err := s.core.RealtimeCursorAtCurrentBoundary(ctx, user.Id, resumeCursor)
 	if err != nil {
-		writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime replay is temporarily unavailable", true, time.Second)
 		return
 	}
-	// A cursorless compacted bootstrap cannot request historical events. Bound
-	// it by catch-up concurrency and timeout, while reserving the per-user rate
-	// budget for explicit stale-cursor replay attempts (including cursor reuse).
+	// A cursorless snapshot or live-only start cannot request history.
+	// Bound it by catch-up concurrency and timeout. Reserve the per-user rate
+	// budget for explicit stale-cursor replay attempts, including cursor reuse.
 	meteredReplay := resumeCursor != "" && !cursorAtBoundary
 	releaseCatchUp, admissionErr := s.realtimeCatchUps.acquire(user.Id, meteredReplay)
 	if admissionErr != nil {
 		s.metrics.realtimeCatchUpRejected(admissionErr.code)
-		retryAfterMs := uint32(admissionErr.retryAfter.Milliseconds())
 		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-			Close: &realtimev1.RealtimeClose{Code: admissionErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+			Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(admissionErr.retryAfter)},
 		}})
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, admissionErr.code), time.Now().Add(time.Second))
 		return
@@ -405,12 +354,12 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			s.metrics.realtimeCatchUpTimedOut()
 			s.logger.Warn("Realtime catch-up timed out", "error", err)
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: "catch_up_timeout", Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfterMs: 1000},
+				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up exceeded its time budget", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 			}})
 			return
 		}
 		s.logger.Warn(logMessage, "error", err)
-		writeError("replay_unavailable", "realtime projection replay is temporarily unavailable", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime recovery is temporarily unavailable", true, time.Second)
 	}
 	handleCatchUpWriteError := func(err error) {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
@@ -420,67 +369,65 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 
 	events, err := s.core.StreamMyEventsWithOptions(ctx, user.Id, core.StreamMyEventsOptions{TouchPresence: false})
 	if err != nil {
-		writeError("subscribe_failed", "failed to start realtime event stream", true)
+		writeClose(realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "failed to start realtime event stream", true, time.Second)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "subscribe failed"), time.Now().Add(time.Second))
 		return
 	}
-	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribeEvents.GetResumeCursor())
+	replayPlan, err := s.core.PlanRealtimeReplay(catchUpCtx, user.Id, subscribe.GetResumeCursor())
 	if err != nil {
 		if errors.Is(catchUpCtx.Err(), context.DeadlineExceeded) {
 			failCatchUp("Realtime replay planning timed out", err)
 			return
 		}
-		code, message := realtimeReplayError(err)
-		writeError(code, message, true)
-		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, code), time.Now().Add(time.Second))
+		code, message := realtimeReplayClose(err)
+		writeClose(code, message, code == realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, time.Second)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "replay unavailable"), time.Now().Add(time.Second))
 		return
 	}
 	if resumeCursor != "" && !meteredReplay && replayPlan.HadSequenceGap {
 		// EVT advanced after the current-boundary check. Charge the newly-real
-		// replay gap before emitting subscribed or projection frames.
+		// replay gap before emitting subscribed, snapshot, or event frames.
 		if chargeErr := s.realtimeCatchUps.consumeReplayToken(user.Id); chargeErr != nil {
 			s.metrics.realtimeCatchUpRejected(chargeErr.code)
-			retryAfterMs := uint32(chargeErr.retryAfter.Milliseconds())
 			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-				Close: &realtimev1.RealtimeClose{Code: chargeErr.code, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfterMs: retryAfterMs},
+				Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "realtime catch-up capacity is temporarily unavailable", Reconnect: true, RetryAfter: durationpb.New(chargeErr.retryAfter)},
 			}})
 			return
 		}
 	}
 
-	subscribed := &realtimev1.RealtimeSubscribed{StartCursor: &replayPlan.StartCursor}
-	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Subscribed{
-		Subscribed: subscribed,
-	}}); err != nil {
-		handleCatchUpWriteError(err)
-		return
-	}
-
-	hydrateRooms := make(chan string, 16)
-	go s.readRealtimeControlFrames(ctx, cancel, conn, writeFrame, hydrateRooms)
-	var roomMarkerFence *uint64
+	boundaryCursor := replayPlan.BoundaryCursor
+	boundarySequence := replayPlan.BoundarySequence
+	var snapshotFrame *realtimev1.RealtimeServerFrame
 	if replayPlan.Reset {
-		retainedRoomIDs := make([]string, 0, len(retainedRooms))
-		for roomID := range retainedRooms {
-			retainedRoomIDs = append(retainedRoomIDs, roomID)
+		if subscribe.GetInitialState() == realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_SNAPSHOT {
+			var snapshotErr error
+			boundarySequence, snapshotFrame, snapshotErr = s.realtimeSnapshotFrame(catchUpCtx, user.Id)
+			if snapshotErr != nil {
+				failCatchUp("Realtime snapshot capture failed", snapshotErr)
+				return
+			}
+			boundaryCursor, snapshotErr = s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
+			if snapshotErr != nil {
+				failCatchUp("Realtime snapshot cursor creation failed", snapshotErr)
+				return
+			}
 		}
-		slices.Sort(retainedRoomIDs)
-		revision, err := s.writeRealtimeProjectionSnapshot(catchUpCtx, user.Id, retainedRoomIDs, writeCatchUpFrame)
-		if err != nil {
-			failCatchUp("Realtime compacted projection replay failed", err)
+	}
+	go s.watchRealtimeClient(ctx, cancel, conn, writeFrame)
+	if snapshotFrame != nil {
+		if err := writeCatchUpFrame(snapshotFrame); err != nil {
+			handleCatchUpWriteError(err)
 			return
 		}
-		roomMarkerFence = &revision
 	}
 	for _, event := range replayPlan.Events {
-		frame, handled, err := s.realtimeProjectionFrameForEventWithRooms(catchUpCtx, user.Id, event, retainedRooms)
+		frame, err := s.realtimeServerFrameForEvent(catchUpCtx, user.Id, event)
 		if err != nil {
-			failCatchUp("Realtime replay mapping failed", err)
-			return
-		}
-		if !handled {
-			s.logger.Warn("Realtime durable event has no projection mapping", "event_id", event.ID())
-			writeError("replay_unavailable", "realtime replay is temporarily unavailable", true)
+			if errors.Is(err, errRealtimeEventOmitted) {
+				continue
+			}
+			failCatchUp("Realtime replay projection failed", err)
 			return
 		}
 		if err := writeCatchUpFrame(frame); err != nil {
@@ -488,94 +435,72 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 			return
 		}
 	}
-	reconciliation, err := s.realtimeProjectionReconciliationFrame(catchUpCtx, user.Id, roomMarkerFence)
-	if err != nil {
-		failCatchUp("Realtime latest-value reconciliation failed", err)
-		return
+	recovery := realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED
+	if replayPlan.Reset {
+		recovery = realtimev1.RealtimeRecovery_REALTIME_RECOVERY_LIVE_ONLY
+		if snapshotFrame != nil {
+			recovery = realtimev1.RealtimeRecovery_REALTIME_RECOVERY_SNAPSHOT
+		}
 	}
-	if err := writeCatchUpFrame(reconciliation); err != nil {
-		handleCatchUpWriteError(err)
-		return
-	}
+	// Release catch-up admission before the client can observe caught_up and
+	// immediately reconnect with its new cursor. The final marker contains no
+	// authorization work, and finishCatchUp is idempotent on write failure.
+	finishCatchUp()
 	if err := writeCatchUpFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_CaughtUp{
-		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: replayPlan.BoundaryCursor},
+		CaughtUp: &realtimev1.RealtimeCaughtUp{Cursor: boundaryCursor, Recovery: recovery},
 	}}); err != nil {
 		handleCatchUpWriteError(err)
 		return
 	}
 	cancelCatchUp()
-	finishCatchUp()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case roomID := <-hydrateRooms:
-			if _, retained := retainedRooms[roomID]; retained {
-				continue
-			}
-			if len(retainedRooms) >= realtimeMaxRetainedRooms {
-				writeRoomError("too_many_retained_rooms", "too many retained room timelines", roomID, 0)
-				continue
-			}
-			releaseHydration, admissionErr := s.realtimeCatchUps.acquireHydration(user.Id)
-			if admissionErr != nil {
-				writeRoomError(admissionErr.code, "room hydration capacity is temporarily unavailable", roomID, admissionErr.retryAfter)
-				continue
-			}
-			// Retain the request even if authorization currently fails. If this
-			// viewer joins later on the same socket, that membership fact can
-			// atomically materialise the room without a second client mechanism.
-			retainedRooms[roomID] = struct{}{}
-			frame, hydrateErr := s.realtimeProjectionRoomTimelineFrame(ctx, user.Id, roomID)
-			releaseHydration()
-			if hydrateErr != nil {
-				if errors.Is(hydrateErr, core.ErrNotFound) || errors.Is(hydrateErr, core.ErrPermissionDenied) || errors.Is(hydrateErr, core.ErrNotRoomMember) {
-					writeRoomError("room_unavailable", "room timeline is unavailable", roomID, 0)
-					continue
-				}
-				s.logger.Warn("Realtime room hydration failed", "error", hydrateErr)
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: "room_hydration_failed", Message: "room timeline hydration failed", Reconnect: true},
-				}})
-				return
-			}
-			if err := writeFrame(frame); err != nil {
-				return
-			}
 		case event, ok := <-events:
 			if !ok {
 				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-					Close: &realtimev1.RealtimeClose{Code: "stream_closed", Message: "event stream closed", Reconnect: true, RetryAfterMs: 1000},
+					Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "event stream closed", Reconnect: true, RetryAfter: durationpb.New(time.Second)},
 				}})
 				return
 			}
-			if event.DeliverySeq() > 0 && event.DeliverySeq() <= replayPlan.BoundarySequence {
+			if event.DeliverySeq() > 0 && event.DeliverySeq() <= boundarySequence {
 				continue
 			}
-			var frame *realtimev1.RealtimeServerFrame
-			var handled bool
-			var mapErr error
-			frame, handled, mapErr = s.realtimeProjectionFrameForEventWithRooms(ctx, user.Id, event, retainedRooms)
-			if mapErr == nil && !handled {
-				if event.DeliverySeq() > 0 {
-					mapErr = errors.New("durable event has no projection mapping")
-				} else {
-					frame, mapErr = s.realtimeServerFrameForEvent(ctx, user.Id, event)
-				}
-			}
+			frame, mapErr := s.realtimeServerFrameForEvent(ctx, user.Id, event)
 			if mapErr != nil {
+				if errors.Is(mapErr, errRealtimeEventOmitted) {
+					// The viewer has safely processed this global boundary even
+					// though it produced no public frame. Let a later heartbeat
+					// move resume past the omitted fact.
+					if event.DeliverySeq() > boundarySequence {
+						boundarySequence = event.DeliverySeq()
+					}
+					continue
+				}
 				s.logger.Warn("Dropping unsupported realtime event", "event_id", event.ID(), "error", mapErr)
 				if event.DeliverySeq() > 0 {
 					_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
-						Close: &realtimev1.RealtimeClose{Code: "projection_mapping_failed", Message: "durable projection mapping failed", Reconnect: true},
+						Close: &realtimev1.RealtimeClose{Code: realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, Message: "durable realtime event mapping failed", Reconnect: true},
 					}})
 					return
 				}
 				continue
 			}
+			if heartbeat := frame.GetHeartbeat(); heartbeat != nil {
+				cursor, cursorErr := s.core.RealtimeCursorForSequence(user.Id, boundarySequence)
+				if cursorErr != nil {
+					s.logger.Warn("Failed to refresh realtime heartbeat cursor", "error", cursorErr)
+					return
+				}
+				heartbeat.Cursor = &cursor
+			}
 			if err := writeFrame(frame); err != nil {
 				return
+			}
+			if event.DeliverySeq() > boundarySequence {
+				boundarySequence = event.DeliverySeq()
 			}
 			if frame.GetClose() != nil {
 				return
@@ -587,16 +512,14 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	}
 }
 
-func realtimeReplayError(err error) (code, message string) {
+func realtimeReplayClose(err error) (code realtimev1.RealtimeCloseCode, message string) {
 	switch {
 	case errors.Is(err, core.ErrRealtimeCursorInvalid):
-		return "invalid_cursor", "the realtime resume cursor is invalid for this server history"
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "the realtime resume cursor is invalid for this server history"
 	case errors.Is(err, core.ErrRealtimeCursorExpired):
-		return "cursor_expired", "the realtime resume cursor is no longer retained"
-	case errors.Is(err, core.ErrRealtimeReplayLimitExceeded):
-		return "replay_limit_exceeded", "the realtime gap is too large to replay; refresh projected state"
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST, "the realtime resume cursor is no longer retained"
 	default:
-		return "replay_unavailable", "realtime replay is temporarily unavailable"
+		return realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_TEMPORARILY_UNAVAILABLE, "realtime replay is temporarily unavailable"
 	}
 }
 
@@ -621,7 +544,7 @@ func realtimeCredentialDeadline(credential authctx.RuntimeCredential, cookieTTL 
 	}
 }
 
-func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeClientFrame, error) {
+func readRealtimeSubscribe(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeSubscribe, error) {
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
 	}
@@ -632,11 +555,11 @@ func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*real
 	if mt != websocket.BinaryMessage {
 		return nil, errors.New("expected binary message")
 	}
-	var frame realtimev1.RealtimeClientFrame
-	if err := proto.Unmarshal(data, &frame); err != nil {
+	var subscribe realtimev1.RealtimeSubscribe
+	if err := proto.Unmarshal(data, &subscribe); err != nil {
 		return nil, err
 	}
-	return &frame, nil
+	return &subscribe, nil
 }
 
 // terminateRealtimeForOAuthClientBlock cancels authorized work before any
@@ -650,7 +573,7 @@ func terminateRealtimeForOAuthClientBlock(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the OAuth client has been blocked",
 			Reconnect: false,
 		},
@@ -668,7 +591,7 @@ func terminateRealtimeForBearerExpiry(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the access token has expired",
 			Reconnect: true,
 		},
@@ -684,7 +607,7 @@ func terminateRealtimeForCredentialRevocation(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the session is no longer valid",
 			Reconnect: false,
 		},
@@ -704,7 +627,7 @@ func terminateRealtimeForCookieRenewal(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "session_renewal_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED,
 			Message:   "the browser session is ready for renewal",
 			Reconnect: true,
 		},
@@ -723,7 +646,7 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	cancel()
 	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 		Close: &realtimev1.RealtimeClose{
-			Code:      "authentication_required",
+			Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED,
 			Message:   "the bot API key is no longer valid",
 			Reconnect: false,
 		},
@@ -731,7 +654,9 @@ func terminateRealtimeForBotAPIKeyInvalidation(
 	closeConnection()
 }
 
-func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error, hydrateRooms chan<- string) {
+// watchRealtimeClient owns the WebSocket read loop after subscription. The
+// protocol is server-streaming, so any later application message is invalid.
+func (s *HTTPServer) watchRealtimeClient(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error) {
 	defer cancel()
 	for {
 		select {
@@ -739,67 +664,23 @@ func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel conte
 			return
 		default:
 		}
-		mt, data, err := conn.ReadMessage()
+		_, _, err := conn.ReadMessage()
 		if err != nil {
 			return
 		}
-		if mt != websocket.BinaryMessage {
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "expected binary protobuf frame", Fatal: true},
-			}})
-			return
-		}
-		var frame realtimev1.RealtimeClientFrame
-		if err := proto.Unmarshal(data, &frame); err != nil {
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "invalid protobuf frame", Fatal: true},
-			}})
-			return
-		}
-		switch payload := frame.GetFrame().(type) {
-		case *realtimev1.RealtimeClientFrame_Ping:
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Pong{
-				Pong: &realtimev1.RealtimePong{Nonce: payload.Ping.GetNonce()},
-			}})
-		case *realtimev1.RealtimeClientFrame_HydrateRoom:
-			roomID := strings.TrimSpace(payload.HydrateRoom.GetRoomId())
-			if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
-				_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-					Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "invalid room hydration request", Fatal: true},
-				}})
-				return
-			}
-			select {
-			case hydrateRooms <- roomID:
-			case <-ctx.Done():
-				return
-			}
-		default:
-			_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Error{
-				Error: &realtimev1.RealtimeError{Code: "bad_frame", Message: "unexpected control frame", Fatal: true},
-			}})
-			return
-		}
+		_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_INVALID_REQUEST,
+				Message:   "unexpected client message after subscription",
+				Reconnect: false,
+			},
+		}})
+		return
 	}
 }
 
-func realtimeRetainedRoomSet(roomIDs []string) (map[string]struct{}, error) {
-	if len(roomIDs) > realtimeMaxRetainedRooms {
-		return nil, errors.New("too many retained room timelines")
-	}
-	rooms := make(map[string]struct{}, len(roomIDs))
-	for _, rawRoomID := range roomIDs {
-		roomID := strings.TrimSpace(rawRoomID)
-		if roomID == "" || len(roomID) > realtimeMaxRoomIDBytes {
-			return nil, errors.New("invalid retained room ID")
-		}
-		rooms[roomID] = struct{}{}
-	}
-	return rooms, nil
-}
-
-func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realtimev1.RealtimeClientHello) (context.Context, *evtv1.User, error) {
-	if token := strings.TrimSpace(hello.GetBearerToken()); token != "" {
+func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, subscribe *realtimev1.RealtimeSubscribe) (context.Context, *evtv1.User, error) {
+	if token := strings.TrimSpace(subscribe.GetBearerToken()); token != "" {
 		credential, ok, err := s.bearerPresentedCredential(ctx, token)
 		if err != nil {
 			return ctx, nil, err
@@ -859,51 +740,57 @@ func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID s
 	if event == nil {
 		return nil, errors.New("nil event")
 	}
-	if heartbeat := event.HeartbeatEvent(); heartbeat != nil {
+	if event.Heartbeat() {
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Heartbeat{
-			Heartbeat: &realtimev1.RealtimeHeartbeat{Id: event.ID(), CreatedAt: event.CreatedAt()},
+			Heartbeat: &realtimev1.RealtimeHeartbeat{},
 		}}, nil
 	}
-	envelope, err := s.realtimeEventEnvelope(ctx, viewerID, event)
+	if terminated := core.EventSessionTerminated(event); terminated != nil {
+		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED,
+				Message:   "session terminated: " + terminated.GetReason(),
+				Reconnect: false,
+			},
+		}}, nil
+	}
+	if core.IsRBACEvent(event.EVTEvent()) {
+		// RBAC payloads are internal, but an RBAC fact can invalidate any
+		// authorization-dependent resource that the caller retained. Ask the
+		// client to reconnect without exposing that fact. Its cursor remains
+		// before this durable sequence, so replay selects the authorized fallback.
+		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+			Close: &realtimev1.RealtimeClose{
+				Code:      realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED,
+				Message:   "realtime authorization changed",
+				Reconnect: true,
+			},
+		}}, nil
+	}
+	publicEvent, err := s.publicRealtimeEvent(ctx, viewerID, event)
 	if err != nil {
 		return nil, err
 	}
-	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: envelope}}, nil
+	return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Event{Event: publicEvent}}, nil
 }
 
-func (s *HTTPServer) realtimeEventEnvelope(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEventEnvelope, error) {
-	envelope := &realtimev1.RealtimeEventEnvelope{
-		Id:        event.ID(),
-		CreatedAt: event.CreatedAt(),
-		ActorId:   optionalRealtimeString(event.ActorID()),
+func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeEvent, error) {
+	durable := event.EVTEvent()
+	pubsub := event.PubSubEvent()
+	if durable == nil && pubsub == nil {
+		return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
 	}
-
-	if event.EVTEvent() != nil {
-		return nil, errors.New("durable events must use projection operations")
-	}
-	if live := event.LiveEvent(); live != nil {
-		if err := s.mapRealtimeLive(ctx, viewerID, envelope, live); err != nil {
-			return nil, err
-		}
-		return envelope, nil
-	}
-	return nil, fmt.Errorf("unknown event envelope %T", event.Payload())
-}
-
-func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envelope *realtimev1.RealtimeEventEnvelope, event *livev1.LiveEvent) error {
-	switch payload := event.GetEvent().(type) {
-	case *livev1.LiveEvent_UserTyping:
-		typing := payload.UserTyping
+	if typing := pubsub.GetUserTyping(); typing != nil {
 		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		isMember, err := s.core.RoomMembershipExists(ctx, kind, viewerID, typing.GetRoomId())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !isMember {
-			return core.ErrPermissionDenied
+			return nil, core.ErrPermissionDenied
 		}
 		var canRead bool
 		if typing.GetThreadRootEventId() != "" {
@@ -912,87 +799,171 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 			canRead, err = s.core.CanReadMessages(ctx, viewerID, kind, typing.GetRoomId())
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if !canRead {
-			return core.ErrPermissionDenied
+			return nil, core.ErrPermissionDenied
 		}
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserTyping{UserTyping: &realtimev1.RealtimeTypingEvent{
-			RoomId: typing.GetRoomId(), ThreadRootEventId: optionalRealtimeString(typing.GetThreadRootEventId()),
-		}}
-	case *livev1.LiveEvent_PresenceChanged:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_PresenceChanged{PresenceChanged: &realtimev1.RealtimePresenceChangedEvent{
-			UserId: event.GetActorId(), Status: apiPresenceStatus(payload.PresenceChanged.GetStatus()),
-		}}
-	case *livev1.LiveEvent_SessionTerminated:
-		envelope.Event = &realtimev1.RealtimeEventEnvelope_SessionTerminated{SessionTerminated: &realtimev1.RealtimeSessionTerminatedEvent{
-			Reason: payload.SessionTerminated.GetReason(),
-		}}
-	default:
-		return fmt.Errorf("unsupported live event %T", payload)
 	}
-	return nil
-}
-
-func optionalRealtimeString(value string) *string {
-	if value == "" {
-		return nil
-	}
-	return proto.String(value)
-}
-
-func (s *HTTPServer) realtimeDMConversationName(ctx context.Context, viewerID, roomID string) string {
-	participants, err := s.core.GetRoomMembersList(ctx, core.KindDM, roomID)
+	projected, err := s.projectViewerRealtimeEvent(ctx, viewerID, durable)
 	if err != nil {
-		return "Direct Message"
+		return nil, err
 	}
-
-	names := make([]string, 0, len(participants))
-	for _, participant := range participants {
-		userID := participant.GetUserId()
-		if userID == "" || userID == viewerID {
-			continue
+	if pubsub != nil {
+		projected = projectRealtimePubSubEvent(pubsub)
+	}
+	if projected == nil {
+		return nil, errRealtimeEventOmitted
+	}
+	// Use the same retained ownership lookup as asset-event authorization.
+	// Unattached or unresolved assets must not cause a global client refresh.
+	switch durable.GetEvent().(type) {
+	case *evtv1.Event_AssetProcessingStarted, *evtv1.Event_AssetProcessingSucceeded,
+		*evtv1.Event_AssetProcessingFailed, *evtv1.Event_AssetDeleted:
+		roomID, messageID, ok := s.core.AssetEventTimelineTarget(durable)
+		if !ok {
+			return nil, errRealtimeEventOmitted
 		}
-		user, err := s.core.GetUser(ctx, userID)
+		switch value := projected.GetEvent().(type) {
+		case *realtimev1.RealtimeEvent_AssetProcessingStarted:
+			value.AssetProcessingStarted.RoomId = roomID
+			value.AssetProcessingStarted.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetProcessingSucceeded:
+			value.AssetProcessingSucceeded.RoomId = roomID
+			value.AssetProcessingSucceeded.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetProcessingFailed:
+			value.AssetProcessingFailed.RoomId = roomID
+			value.AssetProcessingFailed.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetDeleted:
+			value.AssetDeleted.RoomId = roomID
+			value.AssetDeleted.MessageEventId = messageID
+		}
+	}
+	if durable != nil && durable.GetMessagePosted() != nil {
+		body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
 		}
-		if user.GetDisplayName() != "" {
-			names = append(names, user.GetDisplayName())
-		} else if user.GetLogin() != "" {
-			names = append(names, user.GetLogin())
+		kind, err := s.core.FindRoomKind(ctx, durable.GetMessagePosted().GetRoomId())
+		if err != nil {
+			return nil, fmt.Errorf("resolve realtime room kind: %w", err)
+		}
+		projected.GetMessagePosted().RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
+		if body != nil {
+			projected.GetMessagePosted().BodyPlaintext = proto.String(body.Body)
 		}
 	}
-	if len(names) == 0 {
-		return "Direct Message"
+	if sequence := event.DeliverySeq(); sequence > 0 {
+		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)
+		if err != nil {
+			return nil, err
+		}
+		projected.Cursor = &cursor
 	}
-	return strings.Join(names, ", ")
+	return projected, nil
 }
 
-func (s *HTTPServer) viewerCanReadRealtimeRoomLabel(ctx context.Context, viewerID string, room *evtv1.Room) bool {
-	if s == nil || s.core == nil || viewerID == "" || room == nil {
-		return false
+// projectViewerRealtimeEvent maps one durable fact to its public semantic
+// event. Viewer-specific cases are handled here because one stored fact can
+// invalidate a private viewer resource, a public user resource, or neither.
+func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID string, event *evtv1.Event) (*realtimev1.RealtimeEvent, error) {
+	if event == nil || event.GetEvent() == nil {
+		return nil, nil
 	}
-	kind := core.KindOfRoom(room)
-	if kind == core.KindDM {
-		ok, err := s.core.RoomMembershipExists(ctx, core.KindDM, viewerID, room.GetId())
-		return err == nil && ok
+	base := func() *realtimev1.RealtimeEvent {
+		result := &realtimev1.RealtimeEvent{Id: event.GetId(), CreatedAt: event.GetCreatedAt()}
+		if event.GetActorId() != "" {
+			result.ActorId = proto.String(event.GetActorId())
+		}
+		return result
 	}
-	ok, err := s.core.CanSeeRoom(ctx, viewerID, kind, room.GetId())
-	return err == nil && ok
-}
+	viewerPreferences := func() *realtimev1.RealtimeEvent {
+		result := base()
+		result.Event = &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}
+		return result
+	}
+	userProfile := func(userID string) *realtimev1.RealtimeEvent {
+		result := base()
+		result.Event = &realtimev1.RealtimeEvent_UserProfileChanged{UserProfileChanged: &realtimev1.UserProfileChangedEvent{UserId: userID}}
+		return result
+	}
 
-func apiPresenceStatus(status string) apiv1.PresenceStatus {
-	switch status {
-	case core.PresenceStatusOffline:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE
-	case core.PresenceStatusOnline:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE
-	case core.PresenceStatusAway:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_AWAY
-	case core.PresenceStatusDoNotDisturb:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserTimezoneChanged:
+		userID := payload.UserTimezoneChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		settings, err := s.core.GetUserSettings(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("read user settings for realtime projection: %w", err)
+		}
+		if settings != nil && settings.GetShareTimezone() {
+			return userProfile(userID), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimezoneCleared:
+		userID := payload.UserTimezoneCleared.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		settings, err := s.core.GetUserSettings(ctx, userID)
+		if err != nil {
+			return nil, fmt.Errorf("read user settings for realtime projection: %w", err)
+		}
+		if settings != nil && settings.GetShareTimezone() {
+			return userProfile(userID), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimezoneSharingChanged:
+		userID := payload.UserTimezoneSharingChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		return userProfile(userID), nil
+	case *evtv1.Event_UserTimeFormatChanged:
+		if viewerID == payload.UserTimeFormatChanged.GetUserId() {
+			return viewerPreferences(), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserTimeFormatCleared:
+		if viewerID == payload.UserTimeFormatCleared.GetUserId() {
+			return viewerPreferences(), nil
+		}
+		return nil, nil
+	case *evtv1.Event_UserServerPreferencesChanged:
+		userID := payload.UserServerPreferencesChanged.GetUserId()
+		if viewerID == userID {
+			return viewerPreferences(), nil
+		}
+		// A historical composite preference fact can either expose or hide the
+		// public time zone. Refresh the public user resource in both cases.
+		return userProfile(userID), nil
+	case *evtv1.Event_RoomMemberUnbanned:
+		roomID := payload.RoomMemberUnbanned.GetRoomId()
+		userID := payload.RoomMemberUnbanned.GetUserId()
+		isMember, err := s.core.RoomMembershipExists(ctx, core.KindChannel, userID, roomID)
+		if err != nil {
+			return nil, fmt.Errorf("resolve unbanned room membership: %w", err)
+		}
+		if !isMember {
+			return nil, nil
+		}
+		result := base()
+		result.ActorId = proto.String(userID)
+		result.Event = &realtimev1.RealtimeEvent_UserJoinedRoom{UserJoinedRoom: &realtimev1.UserJoinedRoomEvent{RoomId: roomID}}
+		return result, nil
+	case *evtv1.Event_ThreadFollowed:
+		if viewerID != payload.ThreadFollowed.GetUserId() {
+			return nil, nil
+		}
+		return projectRealtimeEvent(viewerID, event), nil
+	case *evtv1.Event_ThreadUnfollowed:
+		if viewerID != payload.ThreadUnfollowed.GetUserId() {
+			return nil, nil
+		}
+		return projectRealtimeEvent(viewerID, event), nil
 	default:
-		return apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
+		return projectRealtimeEvent(viewerID, event), nil
 	}
 }

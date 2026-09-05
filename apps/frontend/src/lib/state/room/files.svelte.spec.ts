@@ -292,6 +292,21 @@ describe('RoomFilesStore', () => {
     release();
   });
 
+  it('refreshes a retained file page after a canonical invalidation', async () => {
+    attachmentMocks.listRoomAttachments
+      .mockResolvedValueOnce({ items: [roomFileItem('att-1')], totalCount: 1, hasMore: false })
+      .mockResolvedValueOnce({ items: [roomFileItem('att-2')], totalCount: 1, hasMore: false });
+    const store = new RoomFilesStore(serverConnection(), 'room-1');
+    const release = store.retain();
+    await vi.waitFor(() => expect(store.items[0]?.attachment.id).toBe('att-1'));
+
+    store.refreshRetained();
+
+    await vi.waitFor(() => expect(store.items[0]?.attachment.id).toBe('att-2'));
+    expect(attachmentMocks.listRoomAttachments).toHaveBeenCalledTimes(2);
+    release();
+  });
+
   it('stays empty after authorization loss until a positive access grant', async () => {
     attachmentMocks.listRoomAttachments
       .mockResolvedValueOnce({ items: [roomFileItem()], totalCount: 1, hasMore: false })

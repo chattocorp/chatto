@@ -704,6 +704,8 @@ type projectedUserSnapshot struct {
 	login       *projectedPIISnapshot
 	displayName *projectedPIISnapshot
 	bio         *projectedPIISnapshot
+	avatar      *evtv1.AssetRecord
+	preferences *evtv1.ServerUserPreferences
 	deleted     bool
 	shredded    bool
 }
@@ -742,14 +744,73 @@ func (p *UserProjection) userSnapshotLocked(userID string, u *projectedUser) *pr
 	if u.user != nil {
 		user = proto.Clone(u.user).(*evtv1.User)
 	}
+	var avatar *evtv1.AssetRecord
+	if u.avatar != nil {
+		avatar = proto.Clone(u.avatar).(*evtv1.AssetRecord)
+	}
+	var preferences *evtv1.ServerUserPreferences
+	if u.preferences != nil {
+		preferences = proto.Clone(u.preferences).(*evtv1.ServerUserPreferences)
+	}
 	return &projectedUserSnapshot{
 		user:        user,
 		login:       p.piiSnapshotLocked(userID, u.login),
 		displayName: p.piiSnapshotLocked(userID, u.displayName),
 		bio:         p.piiSnapshotLocked(userID, u.bio),
+		avatar:      avatar,
+		preferences: preferences,
 		deleted:     u.deleted,
 		shredded:    u.shredded,
 	}
+}
+
+func (p *UserProjection) contentSnapshot(userID string) *projectedUserSnapshot {
+	p.RLock()
+	defer p.RUnlock()
+	return p.userSnapshotLocked(userID, p.users[userID])
+}
+
+func cloneProjectedUserSnapshot(source *projectedUserSnapshot) *projectedUserSnapshot {
+	if source == nil {
+		return nil
+	}
+	clonePII := func(value *projectedPIISnapshot) *projectedPIISnapshot {
+		if value == nil {
+			return nil
+		}
+		clone := &projectedPIISnapshot{}
+		if value.value != nil {
+			clone.value = &projectedUserPII{
+				eventID:   value.value.eventID,
+				eventType: value.value.eventType,
+				purpose:   value.value.purpose,
+			}
+			if value.value.encrypted != nil {
+				clone.value.encrypted = proto.Clone(value.value.encrypted).(*evtv1.EncryptedUserString)
+			}
+		}
+		if value.dekEvent != nil {
+			clone.dekEvent = proto.Clone(value.dekEvent).(*evtv1.UserDEKGeneratedEvent)
+		}
+		return clone
+	}
+	clone := &projectedUserSnapshot{
+		login:       clonePII(source.login),
+		displayName: clonePII(source.displayName),
+		bio:         clonePII(source.bio),
+		deleted:     source.deleted,
+		shredded:    source.shredded,
+	}
+	if source.user != nil {
+		clone.user = proto.Clone(source.user).(*evtv1.User)
+	}
+	if source.avatar != nil {
+		clone.avatar = proto.Clone(source.avatar).(*evtv1.AssetRecord)
+	}
+	if source.preferences != nil {
+		clone.preferences = proto.Clone(source.preferences).(*evtv1.ServerUserPreferences)
+	}
+	return clone
 }
 
 func (p *UserProjection) decryptPIISnapshot(ctx context.Context, userID string, snapshot *projectedPIISnapshot) (string, bool, error) {

@@ -112,8 +112,9 @@ Do not generate playground links for code written into this repository.
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.
 - `$lib/render/timelineEvents` contains the hand-owned timeline presentation
-  model; transient realtime signals belong in `$lib/realtimeEvents`. Do not
-  combine the two delivery paths or add calls for the retired legacy API.
+  model. Realtime handlers consume the generated public `RealtimeEvent`
+  catalogue directly. Do not add a second frontend event taxonomy or calls for
+  the retired legacy API.
 - Query permissions/capability hints from the backend instead of duplicating
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package
@@ -268,10 +269,11 @@ Do not generate playground links for code written into this repository.
   responses cannot restore deleted or superseded data.
 - Keep a realtime resume cursor RAM-only and owned by the exact per-server
   projection it advances. Socket teardown must not discard either one, and a
-  recreated projection must resume without a cursor so it receives a reset.
-- Treat undecodable realtime frames and unknown projection operations as fatal
-  for that socket. Validate each projection event before mutation and never
-  advance a cursor across input the reducer did not fully understand.
+  recreated projection must resume without a cursor so it performs an exact
+  WebSocket snapshot and cursor-bounded targeted resource reads.
+- Treat undecodable realtime frames and unknown top-level frames as fatal for
+  that socket. Protocol 4 makes additive semantic event variants
+  skippable because the common cursor stays outside the event `oneof`.
 - Treat authorization loss, message deletion, key shredding, and account
   deletion as asynchronous privacy boundaries. Clearing current render state
   is insufficient: invalidate or fence older reads and optimistic rollbacks,

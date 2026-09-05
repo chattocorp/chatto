@@ -129,7 +129,6 @@ func (c *ChattoCore) createRoomGroup(ctx context.Context, actorID, name, descrip
 				return nil, fmt.Errorf("wait for created room group and layout: %w", err)
 			}
 			c.logger.Info("Created room group", "group_id", group.Id, "name", name, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "create_group")
 			created, ok := c.roomModel.roomGroup(group.GetId())
 			if !ok {
 				return nil, ErrRoomGroupNotFound
@@ -207,7 +206,6 @@ func (c *ChattoCore) updateRoomGroupFields(ctx context.Context, actorID, groupID
 		}
 
 		c.logger.Info("Updated room group", "group_id", groupID, "name", nextName, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "update_group")
 		updated, _ := c.roomModel.roomGroup(groupID)
 		return updated, nil
 	}
@@ -527,7 +525,6 @@ func (c *ChattoCore) deleteRoomGroup(ctx context.Context, actorID, groupID strin
 		}
 
 		c.logger.Info("Deleted room group", "group_id", groupID, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "delete_group")
 		return nil
 	}
 	return fmt.Errorf("delete-room-group OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -672,10 +669,9 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
-			// Wait on the final seq — the projector applies in stream order
-			// so reaching the last batch entry's seq implies every earlier
-			// entry's Apply has also landed. Publish the transient invalidation
-			// only after the local read model can serve the committed move.
+			// Wait on the final sequence. The projector applies in stream order,
+			// so reaching the last batch entry means that it applied every earlier
+			// entry. The command returns only after the local read model is current.
 			lastDomainIndex := len(entries) - 1
 			lastSubject := entries[lastDomainIndex].Subject
 			if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(lastSubject, seqs[lastDomainIndex])); err != nil {
@@ -683,7 +679,6 @@ func (c *ChattoCore) moveRoomToGroup(ctx context.Context, actorID, roomID, autho
 			}
 
 			c.logger.Info("Moved room to group", "room_id", roomID, "group_id", targetGroupID, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_room")
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -737,7 +732,6 @@ func (c *ChattoCore) reorderRoomGroups(ctx context.Context, actorID string, orde
 	}
 
 	c.logger.Info("Reordered room groups", "order", orderedGroupIDs, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "reorder_groups")
 	return nil
 }
 
@@ -783,7 +777,6 @@ func (c *ChattoCore) placeRoomGroup(ctx context.Context, actorID, groupID, befor
 			return fmt.Errorf("publish relative room-group placement: %w", err)
 		}
 		c.logger.Info("Moved room group", "group_id", groupID, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "move_group")
 		return nil
 	}
 	return fmt.Errorf("move-room-group OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -852,7 +845,6 @@ func (c *ChattoCore) ReorderRoomsInGroup(ctx context.Context, actorID, groupID s
 	}
 
 	c.logger.Info("Reordered rooms in group", "group_id", groupID, "actor_id", actorID)
-	c.notifyRoomLayoutChanged(ctx, actorID, "reorder_rooms_in_group")
 	return nil
 }
 
@@ -903,7 +895,6 @@ func (c *ChattoCore) createSidebarLink(ctx context.Context, actorID, groupID, la
 		}
 
 		c.logger.Info("Created sidebar link", "group_id", groupID, "link_id", link.Id, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "create_sidebar_link")
 		return link, nil
 	}
 	return nil, fmt.Errorf("create-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -962,7 +953,6 @@ func (c *ChattoCore) updateSidebarLinkInGroup(ctx context.Context, actorID, grou
 		}
 
 		c.logger.Info("Updated sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "update_sidebar_link")
 		return &evtv1.SidebarLink{Id: linkID, Label: label, Url: rawURL}, nil
 	}
 	return nil, fmt.Errorf("update-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -1015,7 +1005,6 @@ func (c *ChattoCore) deleteSidebarLinkInGroup(ctx context.Context, actorID, grou
 		}
 
 		c.logger.Info("Deleted sidebar link", "group_id", groupID, "link_id", linkID, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "delete_sidebar_link")
 		return nil
 	}
 	return fmt.Errorf("delete-sidebar-link OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -1107,7 +1096,6 @@ func (c *ChattoCore) moveSidebarLinkBetweenGroups(ctx context.Context, actorID, 
 				return fmt.Errorf("wait for room group layout projection: %w", err)
 			}
 			c.logger.Info("Moved sidebar link", "link_id", linkID, "source_group_id", snapshot.SourceGroupID, "target_group_id", targetGroupID, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_sidebar_link")
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -1190,7 +1178,6 @@ func (c *ChattoCore) placeSidebarItem(
 				}
 				return fmt.Errorf("publish sidebar item placement: %w", err)
 			}
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_sidebar_item")
 			return nil
 		}
 
@@ -1208,7 +1195,6 @@ func (c *ChattoCore) placeSidebarItem(
 				return fmt.Errorf("wait for room-group projection after sidebar placement: %w", err)
 			}
 			c.logger.Info("Moved sidebar item", "item_id", item.GetId(), "source_group_id", snapshot.SourceGroupID, "target_group_id", targetGroupID, "actor_id", actorID)
-			c.notifyRoomLayoutChanged(ctx, actorID, "move_sidebar_item")
 			return nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
@@ -1336,7 +1322,6 @@ func (c *ChattoCore) reorderSidebarItemsInGroup(ctx context.Context, actorID, gr
 		}
 
 		c.logger.Info("Reordered sidebar items in group", "group_id", groupID, "actor_id", actorID)
-		c.notifyRoomLayoutChanged(ctx, actorID, "reorder_sidebar_items_in_group")
 		return nil
 	}
 	return fmt.Errorf("reorder-sidebar-items OCC retry exhausted after %d attempts: %w", maxMoveRoomToGroupRetries, events.ErrConflict)
@@ -1457,27 +1442,6 @@ func (c *ChattoCore) publishLayoutOrdering(ctx context.Context, actorID string, 
 		return fmt.Errorf("publish RoomGroupsReorderedEvent: %w", err)
 	}
 	return nil
-}
-
-// notifyRoomLayoutChanged is the central place every room-layout mutator calls
-// to nudge connected clients. It waits for the group-layout projection before
-// it publishes because realtime handlers build their replacement payload from
-// that projection. Without this read-your-writes fence, a fast live event can
-// replace a client's current sidebar with stale data.
-//
-// This notification remains best-effort: a wait or publish failure does not
-// roll back the durable mutation that preceded it. reason is only for log
-// forensics.
-func (c *ChattoCore) notifyRoomLayoutChanged(ctx context.Context, actorID, reason string) {
-	if err := c.roomModel.waitForGroupLayoutCurrent(ctx, c.EventPublisher); err != nil {
-		c.logger.Warn("Failed to wait for room layout before publishing update event",
-			"error", err, "actor_id", actorID, "reason", reason)
-		return
-	}
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, KindChannel); err != nil {
-		c.logger.Warn("Failed to publish room layout update event",
-			"error", err, "actor_id", actorID, "reason", reason)
-	}
 }
 
 // ----------------------------------------------------------------------

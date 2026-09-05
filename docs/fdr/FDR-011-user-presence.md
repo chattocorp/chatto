@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-01
 
 ## Overview
 
@@ -67,7 +67,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 ### 8. Delivery gaps force latest-value recovery
 
 **Decision:** A connection that cannot keep up with presence transitions is closed and reconnects rather than silently dropping transitions while remaining live.
-**Why:** Presence is latest-value state. Every realtime subscription includes a complete `presences_replace` reconciliation before `caught_up`, so reconnect repairs a missed transition through the same projection stream without a separate user read. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049 and ADR-051.
+**Why:** Presence is latest-value state. After every catch-up, cursor-bounded user or member reads return current presence for the users that the client shows. Keeping an incomplete stream open would leave a presence dot stale indefinitely. See ADR-049, ADR-091, and ADR-093.
 **Tradeoff:** A sufficiently large presence burst can reconnect a slow client, but only that lagging connection is affected and normal reconnect catch-up already handles the gap.
 
 ### 9. Presence display is immediate while member-list grouping settles
@@ -82,5 +82,5 @@ Presence status is public. Any authenticated user can see any other authenticate
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-051 (server-scoped resumable client projection)
-- **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-025 (multi-instance client architecture), ADR-049 (process-wide realtime event hub), ADR-091 (semantic realtime events)
+- **FDRs:** FDR-012 (Notifications), FDR-022 (User Profile), FDR-045 (Realtime Event Stream)

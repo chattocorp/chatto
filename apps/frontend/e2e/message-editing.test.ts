@@ -325,7 +325,7 @@ test.describe('Message editing', () => {
         await roomPage.expectMessageVisible(editedMessage);
         await roomPage.expectMessageNotVisible(originalMessage);
 
-        // User 2 should also see the edited message via LiveEvent
+        // User 2 should also see the edited message through public realtime delivery.
         if (eventId) {
           const message2 = roomPage2.getMessageByEventId(eventId);
           await expect(message2.locator.getByText(editedMessage)).toBeVisible({

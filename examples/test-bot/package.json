@@ -1,0 +1,33 @@
+{
+  "name": "@chatto/test-bot",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Long-running Chatto public API and realtime example bot",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.4"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "clean": "rm -rf dist",
+    "start": "node dist/index.js",
+    "test": "pnpm build && node --test dist/**/*.test.js"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "1.10.1",
+    "@chatto/api-types": "workspace:*",
+    "@connectrpc/connect": "1.7.0",
+    "@connectrpc/connect-web": "1.7.0",
+    "@earendil-works/pi-agent-core": "0.85.0",
+    "@earendil-works/pi-ai": "0.85.0",
+    "@earendil-works/pi-coding-agent": "0.85.0",
+    "@earendil-works/pi-server": "0.85.0",
+    "undici": "7.29.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^6.0.3"
+  }
+}

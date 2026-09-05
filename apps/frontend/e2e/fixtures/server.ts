@@ -20,6 +20,8 @@ export interface ServerInfo {
   metricsURL?: string;
   startupDurationMs: number;
   preserveDataDirectory: boolean;
+  /** Show-once API key file for the optional bootstrapped test bot. */
+  bootstrapBotCredentialFile?: string;
 }
 
 const PORT_STRIDE = 2;
@@ -125,6 +127,8 @@ export interface StartServerOptions {
   startupTimeoutMs?: number;
   /** Enable the localhost-only Prometheus and pprof listener. */
   metrics?: boolean;
+  /** Create the public-API test bot and write its key inside the test data directory. */
+  bootstrapTestBot?: boolean;
 }
 
 function safePathSegment(value: string): string {
@@ -152,6 +156,9 @@ export async function startServer(
   const baseURL = serverBaseURLForTest(testInfo, options);
   const metricsURL = options.metrics ? `http://127.0.0.1:${ports.metrics}` : undefined;
   const logPath = testInfo.outputPath(`${instanceId}-server.log`);
+  const bootstrapBotCredentialFile = options.bootstrapTestBot
+    ? path.join(dataDir, 'bootstrap', 'test_bot.key')
+    : undefined;
   // Unix-domain socket paths are short (roughly 100 bytes on macOS/Linux), so
   // keep operator sockets out of the potentially long workspace/test path.
   const operatorDir = options.operatorApi
@@ -180,6 +187,18 @@ export async function startServer(
       CHATTO_VIDEO_ENABLED: 'false',
       CHATTO_TEST_EMAIL_ENDPOINT: 'true',
       ...options.env,
+      ...(bootstrapBotCredentialFile
+        ? {
+            CHATTO_BOOTSTRAP_BOTS_0_LOGIN: 'test_bot',
+            CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME: 'TestBot',
+            CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN: 'e2eadmin',
+            CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME: 'E2E',
+            CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE: bootstrapBotCredentialFile,
+            CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS:
+              'room.join,room.list,message.read,message.post-in-thread',
+            CHATTO_BOOTSTRAP_BOTS_0_ROOMS: 'general'
+          }
+        : {}),
       ...(searchDirectory
         ? {
             CHATTO_SEARCH_ENABLED: 'true',
@@ -226,7 +245,7 @@ export async function startServer(
   });
   serverProcess.on('close', () => logStream.end());
 
-  const server = {
+  const server: ServerInfo = {
     baseURL,
     port: ports.webserver,
     process: serverProcess,
@@ -237,7 +256,8 @@ export async function startServer(
     operatorSocketPath,
     metricsURL,
     startupDurationMs: 0,
-    preserveDataDirectory: options.preserveDataDirectory ?? false
+    preserveDataDirectory: options.preserveDataDirectory ?? false,
+    ...(bootstrapBotCredentialFile ? { bootstrapBotCredentialFile } : {})
   };
   try {
     await waitForServer(baseURL, serverProcess, logPath, options.startupTimeoutMs);

@@ -4,7 +4,7 @@
 
 **Status:** Partially superseded
 
-**DM amendment:** ADR-091 replaces the membership-only DM read rule and the
+**DM amendment:** ADR-095 replaces the membership-only DM read rule and the
 static DM permission deny list with the global Direct messages scope. DMs
 remain outside room groups.
 

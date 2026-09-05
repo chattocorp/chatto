@@ -86,6 +86,74 @@ func RoomIDOfEvent(event *evtv1.Event) string {
 	return roomIDOfEvent(event)
 }
 
+// userIDOfUserEvent returns the user aggregate ID carried by a durable user
+// fact that can affect public realtime state. Delivery compares this value
+// with the EVT subject before it trusts the fact.
+func userIDOfUserEvent(event *evtv1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserAccountCreated:
+		return payload.UserAccountCreated.GetUserId()
+	case *evtv1.Event_UserLoginChanged:
+		return payload.UserLoginChanged.GetUserId()
+	case *evtv1.Event_UserDisplayNameChanged:
+		return payload.UserDisplayNameChanged.GetUserId()
+	case *evtv1.Event_UserAvatarSet:
+		return payload.UserAvatarSet.GetUserId()
+	case *evtv1.Event_UserAvatarCleared:
+		return payload.UserAvatarCleared.GetUserId()
+	case *evtv1.Event_UserAccountDeleted:
+		return payload.UserAccountDeleted.GetUserId()
+	case *evtv1.Event_UserKeyShreddingRequested:
+		return payload.UserKeyShreddingRequested.GetUserId()
+	case *evtv1.Event_UserKeyShredded:
+		return payload.UserKeyShredded.GetUserId()
+	case *evtv1.Event_UserCustomStatusSet:
+		return payload.UserCustomStatusSet.GetUserId()
+	case *evtv1.Event_UserCustomStatusCleared:
+		return payload.UserCustomStatusCleared.GetUserId()
+	case *evtv1.Event_UserBioChanged:
+		return payload.UserBioChanged.GetUserId()
+	case *evtv1.Event_UserServerPreferencesChanged:
+		return payload.UserServerPreferencesChanged.GetUserId()
+	case *evtv1.Event_AssetCreated:
+		return payload.AssetCreated.GetUserId()
+	default:
+		return ""
+	}
+}
+
+// UserIDOfPublicProfileEvent returns the user whose public resource changed.
+// It intentionally accepts historical granular profile facts and the current
+// user-scoped avatar fact so all of them map to one public hydration hint.
+func UserIDOfPublicProfileEvent(event *evtv1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserLoginChanged:
+		return payload.UserLoginChanged.GetUserId()
+	case *evtv1.Event_UserDisplayNameChanged:
+		return payload.UserDisplayNameChanged.GetUserId()
+	case *evtv1.Event_UserAvatarSet:
+		return payload.UserAvatarSet.GetUserId()
+	case *evtv1.Event_UserAvatarCleared:
+		return payload.UserAvatarCleared.GetUserId()
+	case *evtv1.Event_UserCustomStatusSet:
+		return payload.UserCustomStatusSet.GetUserId()
+	case *evtv1.Event_UserCustomStatusCleared:
+		return payload.UserCustomStatusCleared.GetUserId()
+	case *evtv1.Event_UserBioChanged:
+		return payload.UserBioChanged.GetUserId()
+	case *evtv1.Event_AssetCreated:
+		return payload.AssetCreated.GetUserId()
+	default:
+		return ""
+	}
+}
+
 // MessageReadProtectedEventRoomID identifies a durable fact whose public
 // delivery can expose message content or message-specific metadata.
 func (c *ChattoCore) MessageReadProtectedEventRoomID(event *evtv1.Event) (string, bool) {
@@ -332,10 +400,10 @@ func isDeliverableLiveEVTRoomEventType(eventType string) bool {
 		evtstream.EventRoomThreadingModeChanged,
 		evtstream.EventUserJoinedRoom,
 		evtstream.EventUserLeftRoom,
-		evtstream.EventRoomMemberAdded,
-		evtstream.EventRoomMemberRemoved,
-		evtstream.EventRoomMemberBanned,
+		evtstream.EventRoomMemberUnbanned,
 		evtstream.EventThreadCreated,
+		evtstream.EventThreadFollowed,
+		evtstream.EventThreadUnfollowed,
 		evtstream.EventMessagePosted,
 		evtstream.EventMessageEdited,
 		evtstream.EventMessageRetracted,
@@ -378,8 +446,8 @@ func isDeliverableLiveEVTUserEvent(event *evtv1.Event) bool {
 }
 
 // IsRBACEvent reports whether event changes roles or permission resolution.
-// Realtime protocol v2 uses this to invalidate an authorization-dependent
-// client projection without exposing the internal RBAC payload.
+// The public realtime protocol uses this to invalidate authorization-dependent
+// client state without exposing the internal RBAC payload.
 func IsRBACEvent(event *evtv1.Event) bool {
 	if event == nil {
 		return false
@@ -410,14 +478,72 @@ func isDeliverableLiveEVTUserEventType(eventType string) bool {
 		evtstream.EventUserBioChanged,
 		evtstream.EventUserAvatarSet,
 		evtstream.EventUserAvatarCleared,
+		evtstream.EventAssetCreated,
 		evtstream.EventUserAccountDeleted,
 		evtstream.EventUserKeyShreddingRequested,
 		evtstream.EventUserKeyShredded,
 		evtstream.EventUserCustomStatusSet,
-		evtstream.EventUserCustomStatusCleared:
+		evtstream.EventUserCustomStatusCleared,
+		evtstream.EventUserServerPreferencesChanged:
 		return true
 	default:
 		return false
+	}
+}
+
+func isDeliverableLiveEVTServerConfigEvent(event *evtv1.Event) bool {
+	return event != nil && isDeliverableLiveEVTServerConfigEventType(evtstream.EventTypeOf(event))
+}
+
+func isDeliverableLiveEVTServerConfigEventType(eventType string) bool {
+	switch eventType {
+	case evtstream.EventServerNameChanged,
+		evtstream.EventServerDescriptionChanged,
+		evtstream.EventServerMotdChanged,
+		evtstream.EventServerLogoSet,
+		evtstream.EventServerLogoCleared,
+		evtstream.EventServerBannerSet,
+		evtstream.EventServerBannerCleared:
+		return true
+	default:
+		return false
+	}
+}
+
+func isDeliverableLiveEVTUserConfigEvent(event *evtv1.Event) bool {
+	return event != nil && isDeliverableLiveEVTUserConfigEventType(evtstream.EventTypeOf(event))
+}
+
+func isDeliverableLiveEVTUserConfigEventType(eventType string) bool {
+	switch eventType {
+	case evtstream.EventUserTimezoneChanged,
+		evtstream.EventUserTimezoneCleared,
+		evtstream.EventUserTimeFormatChanged,
+		evtstream.EventUserTimeFormatCleared,
+		evtstream.EventUserTimezoneSharingChanged:
+		return true
+	default:
+		return false
+	}
+}
+
+func userIDOfUserConfigEvent(event *evtv1.Event) string {
+	if event == nil {
+		return ""
+	}
+	switch payload := event.GetEvent().(type) {
+	case *evtv1.Event_UserTimezoneChanged:
+		return payload.UserTimezoneChanged.GetUserId()
+	case *evtv1.Event_UserTimezoneCleared:
+		return payload.UserTimezoneCleared.GetUserId()
+	case *evtv1.Event_UserTimeFormatChanged:
+		return payload.UserTimeFormatChanged.GetUserId()
+	case *evtv1.Event_UserTimeFormatCleared:
+		return payload.UserTimeFormatCleared.GetUserId()
+	case *evtv1.Event_UserTimezoneSharingChanged:
+		return payload.UserTimezoneSharingChanged.GetUserId()
+	default:
+		return ""
 	}
 }
 

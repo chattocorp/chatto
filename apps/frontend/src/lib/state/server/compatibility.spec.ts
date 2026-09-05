@@ -73,7 +73,8 @@ describe('server compatibility evaluation', () => {
   });
 
   it('derives feature support from the server release that introduced it', () => {
-    expect(supportsServerFeature('0.5.0-beta.1', 'realtimeProjection')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.6', 'realtimeProjection')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.5', 'realtimeProjection')).toBe(false);
     expect(supportsServerFeature('0.5.0', 'messageSearch')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'neighbors')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botOwnerReassignment')).toBe(true);

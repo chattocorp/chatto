@@ -408,7 +408,7 @@ func (*MessageMention_All) isMessageMention_Cause() {}
 
 // MessageBodyEvent carries the encrypted body payload for a message post or
 // body update. It is durable, room-scoped projection input but is not delivered
-// as a public live event. The target message event remains MessagePostedEvent;
+// as a public realtime event. The target message event remains MessagePostedEvent;
 // edits also emit a bodyless MessageEditedEvent as the public semantic signal.
 type MessageBodyEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`

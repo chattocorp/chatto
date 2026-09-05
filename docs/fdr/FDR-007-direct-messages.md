@@ -26,6 +26,10 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 - Active DM navigation uses message history to include and order DMs for their
   participants. Exhaustive authenticated state also retains membership-derived
   room metadata for routing.
+- `RoomDirectoryService.ListRooms` returns accessible empty DMs as authorized
+  room state. Each DM `RoomWithViewerState` contains its participant user IDs
+  and an optional `has_message_history` value. Navigation hides a DM only when
+  that value is explicitly false. An absent value is unknown and stays visible.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can discover a DM only when they are a participant. The main timeline
   also needs `message.read`. An interaction thread can instead use
@@ -144,5 +148,5 @@ the Direct messages scope. No `room.*` permission applies at that scope.
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM membership boundary), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-091 (DM permission scope and threads)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM membership boundary), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-093 (public realtime event union), ADR-095 (DM permission scope and threads)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-038 (Bot Accounts), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)

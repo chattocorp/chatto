@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { usePresenceChange, useProjectionEvent } from '$lib/hooks/useEvent.svelte';
-  import { apiPresenceStatus } from '$lib/api-client/memberDirectory';
   import { getPresenceCache } from '$lib/state/presenceCache.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
 
@@ -14,21 +14,27 @@
     presenceCache.update({ serverId: serverScope.serverId, userId }, status);
   });
 
-  // Presence is transient rather than EVT-backed. Every subscription sends a
-  // complete latest-value reconciliation before caught_up so returning to a
-  // retained server cannot display transitions missed while it was dormant.
+  // Snapshot users omit runtime presence. Later canonical user reads can carry
+  // current presence, and live presence events keep the cache up to date.
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'presencesReplace') continue;
-      presenceCache.replaceServer(
-        serverScope.serverId,
-        new Map(
-          Object.entries(operation.operation.value.statuses).map(([userId, status]) => [
-            userId,
-            apiPresenceStatus(status)
-          ])
-        )
-      );
+    if (event.reset) {
+      presenceCache.replaceServer(serverScope.serverId, new Map());
+      return;
+    }
+    if (event.resource?.case !== 'users') return;
+    const statuses = new Map(
+      event.resource.value.users.flatMap((member) =>
+        member.user?.id && member.user.presenceStatus !== PresenceStatus.UNSPECIFIED
+          ? [[member.user.id, member.user.presenceStatus] as const]
+          : []
+      )
+    );
+    if (event.replaceResource) {
+      presenceCache.replaceServer(serverScope.serverId, statuses);
+      return;
+    }
+    for (const [userId, status] of statuses) {
+      presenceCache.update({ serverId: serverScope.serverId, userId }, status);
     }
   });
 </script>

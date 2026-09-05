@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -11,7 +10,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -337,21 +335,6 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner); err != nil {
 			c.logger.Warn("Failed to auto-assign owner role on signup", "user_id", userID, "error", err)
 		}
-	}
-
-	// Publish a best-effort transient signal for the new public user.
-	event := newLiveEvent(eventActorID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_UserCreated{
-			UserCreated: &livev1.UserCreatedSyncEvent{
-				UserId:      userID,
-				Login:       login,
-				DisplayName: displayName,
-			},
-		},
-	})
-	subject := subjects.LiveSyncUserEvent(userID, "created")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Error("failed to publish user created event", "error", err, "user_id", userID)
 	}
 
 	c.logger.Info("Created user", "id", userID)

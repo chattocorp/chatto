@@ -39,11 +39,40 @@ from discovery metadata.
 The bundled 0.5 web client requires a 0.5 server. It does not fall back to the
 0.4 room-at-a-time ConnectRPC bootstrap, so it reports 0.4 servers as
 unsupported and asks the operator to upgrade them. A 0.5 server accepts only
-realtime protocol 2; older clients must migrate to the server-scoped projection
-stream.
+realtime protocol 4. Protocol 4 replaces earlier development protocols during
+the 0.5 alpha. It uses exact canonical-resource snapshots, authorized public
+events, explicit `SNAPSHOT` or `LIVE_ONLY` startup, targeted cursor-bounded
+ConnectRPC reads, and bounded cursor resume. Normal event frames contain one
+`chatto.realtime.v1.RealtimeEvent`. Its public payload union and optional opaque
+cursor are sibling fields. Public union members use dedicated public payloads
+with source-independent names and compact numbers. The public schema does not
+show whether the server obtained an event from durable EVT storage or transient
+pubsub delivery. Regenerate clients and update the subscription and reducers
+together. Protocol 4 uses one
+`RealtimeSubscribe` client message and does not use hello or subscribed frames.
+The server sends only snapshot, event, caught-up, heartbeat, and close frames.
 
-Protocol 2 uses `room_viewer_activity_replace` for room unread and Slow Mode
-changes. This operation does not repeat room membership and permission state.
+Notification change events use `created_notification_id`, not a sound-candidate
+field. A creation ID does not mean that the client should play a sound. Clients
+check current notification state and their own alert preferences. This changes
+the unshipped protocol 4 API only; stored EVT and notification facts are unchanged.
+
+Public payload field numbers are independent from stored EVT payloads. The
+optional cursor uses a separate field. Integrations must regenerate their
+clients for the dedicated realtime payload messages.
+
+The `chatto.realtime.v1` protobuf package name does not select behavioral
+protocol version 1. The `RealtimeSubscribe.protocol_version` field selects the complete
+required behavior. Chatto does not publish a separate capability matrix for
+required frame semantics.
+
+Chatto 0.5 adds `member_user_ids` and optional `has_message_history` fields to
+`RoomWithViewerState`. It also makes `RoomDirectoryService.ListRooms` return
+accessible empty DMs. An older client ignores the additive fields but can show
+an empty DM that it did not expect. Filter an empty DM from navigation only
+when `has_message_history` is explicitly false. A new client connected to an
+older server sees no empty DM rows, and it must treat an absent history value
+on a returned DM as unknown rather than false.
 
 The 0.5 authentication boundary also replaces sliding human bearer tokens with
 short-lived access tokens and rotating refresh credentials. A 0.5 server
@@ -149,10 +178,10 @@ DM-scoped decisions or new DM thread writes.
 
 Full permission matrices and decision lists expose the new scope only when the
 request sets `include_direct_message_scope`. `ListFollowedThreads` uses
-`include_direct_message_threads`. DM threads use the existing protocol-v2
-realtime projection operations and do not require a separate client
-capability. Regenerate client bindings and set the ConnectRPC opt-ins when the
-client supports the new enum and list rows.
+`include_direct_message_threads`. DM threads use the protocol 4 semantic event
+catalogue and do not require a separate realtime capability. Regenerate client
+bindings and set the ConnectRPC opt-ins when the client supports the new enum
+and list rows.
 
 Chatto 0.5.0-alpha.6 moves avatar upload and deletion from
 `MyAccountService` to `UserService`. The two methods now require a target user
@@ -175,15 +204,40 @@ ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or
 read-your-writes handling with assumptions about projection internals.
 
-Protocol 2 resume cursors are opaque, viewer-bound, and valid for up to 24
-hours. Retain a cursor only with the projection state produced before it, and
-replace it after each `caught_up` frame. A missing, expired, or unusable cursor
-does not fail convergence: the server sends a compacted `reset` and current
-projection state through the same operation stream. An integration that is
-offline for more than 24 hours recovers current state but cannot request every
-historical transition from that interval.
+Chatto 0.5 adds the authenticated `ServerService.GetServerProfile` method. This
+additive method returns the same public profile resource as server discovery,
+but it can participate in a viewer-bound realtime resource boundary. Public
+server discovery remains unauthenticated. An older server returns
+`Unimplemented` for the new authenticated method.
+
+Protocol 4 cursors are authenticated, encrypted, viewer-bound tokens that are
+valid for 15 minutes. Clients must not parse them. They expose no EVT or
+JetStream sequence. Retain a cursor only after the complete event succeeds,
+and replace it after each `caught_up` frame. A missing, expired, or unusable
+cursor selects the subscription's explicit fallback. A `SNAPSHOT` client
+receives exact current content through the WebSocket. A `LIVE_ONLY` client
+starts at the current boundary. An integration that is offline for more than
+15 minutes cannot request every transition from that interval.
 
 ### Migrating from 0.5 development snapshots
+
+Regenerate realtime bindings. Outbound event and heartbeat fields use `cursor`;
+subscribe still uses `resume_cursor`. `caught_up.recovery` reports `RESUMED`,
+`SNAPSHOT`, or `LIVE_ONLY`. `RESYNC_REQUIRED` replaces the earlier projection
+reset close name. Posted messages use `thread_root_event_id`, `room_kind`, and
+structured `mentions`; the redundant `mentioned_user_ids` field is removed.
+Mention entries now describe distinct targets instead of expanded recipients.
+Read direct user IDs from `direct.user_id` and the caller's original
+recipient decision from `includes_viewer`. Role and broadcast targets occur
+once, regardless of recipient count. Regenerate clients that used the earlier
+`MessageMention.user_id` field.
+Edit and retraction targets use `message_event_id`. Room-group and sidebar
+variants become `RoomLayoutChangedEvent`. Asset processing completion no longer
+contains a duplicate video resource tree. Asset processing and deletion events
+include `room_id` and `message_event_id` for targeted resource reads.
+
+Treat sealed cursors as opaque strings. Their compact internal encoding is not
+a client contract. Stored EVT schemas and data do not change.
 
 An unreleased 0.5 development version of server discovery exposed
 `compatibility.protocolCapabilities`. The final 0.5 contract removes that

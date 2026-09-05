@@ -1,5 +1,10 @@
 # ADR-034: Single Domain Event Stream with Event-Type Subject Lanes
 
+**Status:** Accepted. [ADR-093](ADR-093-use-a-public-realtime-event-union.md)
+defines the public realtime mapping, and
+[ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) defines the
+separate transient envelope.
+
 **Date:** 2026-05-24
 
 **Updated:** 2026-08-19
@@ -96,9 +101,21 @@ The realtime websocket consumes `live.evt.>` server-side and turns it into the u
 
 Ordinary projectors must not publish live events from `Apply`. Every app replica has its own local projectors, so projector-side publish effects would multiply one committed EVT event by the number of Chatto replicas.
 
-Transient UI and latest-value sync signals that are not durable facts use a separate `livev1.LiveEvent` wrapper on `live.sync.>`. The realtime websocket consumes these server-side and applies the same room/user/config authorization gates. Genuinely transient activity such as typing and presence may become a public `RealtimeEventEnvelope`; notification, preference, profile, read-state, and layout signals instead trigger authoritative client-projection operations or a reset. The internal `LiveEvent` shape is not the public contract. Voice-call state is durable EVT state and converges through `active_calls_replace`.
+Non-durable activity and latest-value invalidations use the
+`pubsubv1.PubSubEvent` wrapper on `live.sync.>`. The realtime WebSocket
+applies the same room, user, and config authorization gates. Transient activity
+such as typing and presence becomes a public realtime event. Notification,
+preference, profile, read-state, and layout signals include authoritative
+current state. Voice-call state is durable EVT state and converges through call
+events with current active-call state.
 
-`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated EVT-backed mutations should not publish direct Event-envelope live mirrors. `live.evt.>` and `live.sync.>` are the only server-side ingress roots for the public realtime stream: durable facts reach the mapper through EVT republish, while ephemeral activity and latest-value invalidations reach it through `LiveEvent`. Both are converted to authorized public projection operations or explicitly transient envelopes.
+`SERVER_EVENTS` no longer republishes onto `live.server.>`, and migrated
+EVT-backed mutations must not publish direct event-envelope live mirrors.
+`live.evt.>` and `live.sync.>` are the only server-side ingress roots for the
+public realtime stream. Durable facts reach the mapper through EVT republish.
+Ephemeral activity and latest-value invalidations reach it as `PubSubEvent`
+values. Selected inputs become authorized public events with dedicated public
+payload messages. Internal controls can become protocol frames. See ADR-094.
 
 ### Replication and retention
 
@@ -123,7 +140,7 @@ During the migration window (ADR-035), the existing `SERVER_EVENTS` stream serve
 - **Wildcard filters become first-class.** A `User.rooms` projection consumes `evt.room.>` and indexes by member; a per-room projection consumes `evt.room.{thisRoom}.>`. The framework wraps consumer creation around the projection's declared subjects.
 - **No implicit cross-aggregate ordering guarantee.** Independent commands can interleave. An explicit atomic batch gives its entries one adjacent stream order, and projections apply that recorded order. Projections that compare independent facts still use their event data instead of assuming a global command order.
 - **Legacy stream is decommissioned.** Historical backups may still contain `SERVER_EVENTS`, but current runtime behavior is centered on `EVT`.
-- **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `LiveEvent` signals.
+- **Live delivery is split by durability.** Storage and live delivery are deliberately separate for migrated aggregates: `EVT` is durable truth, `live.evt.>` is the raw committed-event feed, and `live.sync.>` carries non-durable `PubSubEvent` values.
 
 ## Out of scope for this ADR
 

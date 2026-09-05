@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -892,7 +892,7 @@ func TestDMNotifications(t *testing.T) {
 		}
 	})
 
-	t.Run("DM message creates silent notification for do not disturb participants", func(t *testing.T) {
+	t.Run("DM message reports notification creation for do not disturb participants", func(t *testing.T) {
 		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
 			t.Fatalf("SetPresence DND: %v", err)
 		}
@@ -916,19 +916,16 @@ func TestDMNotifications(t *testing.T) {
 		if err != nil {
 			t.Fatalf("waiting for DND notification occurrence change: %v", err)
 		}
-		var live livev1.LiveEvent
-		if err := proto.Unmarshal(msg.Data, &live); err != nil {
-			t.Fatalf("unmarshal live event: %v", err)
+		var pubsub pubsubv1.PubSubEvent
+		if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
+			t.Fatalf("unmarshal pubsub event: %v", err)
 		}
-		event := live.GetNotificationOccurrencesInvalidated()
+		event := pubsub.GetNotificationOccurrencesChanged()
 		if event == nil {
-			t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
+			t.Fatalf("expected NotificationOccurrencesChangedEvent, got %T", pubsub.Event)
 		}
-		if event.GetAlertCandidateNotificationId() != "" {
-			t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
-		}
-		if event.GetSoundCandidateNotificationId() != "" {
-			t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+		if event.GetCreatedNotificationId() == "" {
+			t.Fatal("NotificationOccurrencesChangedEvent must report creation during DND")
 		}
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {

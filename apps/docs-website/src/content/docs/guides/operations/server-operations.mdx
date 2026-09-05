@@ -3,19 +3,25 @@ title: Server Operations
 description: Day-to-day operations for Chatto admins and self-hosters, including diagnostics, metrics, backups, upgrades, and recovery.
 ---
 
-import { Aside, CardGrid, LinkCard, Tabs, TabItem } from "@astrojs/starlight/components";
+import {
+  Aside,
+  CardGrid,
+  LinkCard,
+  Tabs,
+  TabItem,
+} from "@astrojs/starlight/components";
 
 Running Chatto is mostly about keeping the process healthy, watching storage growth, testing backups, and knowing which tool to use when an account or deployment needs repair.
 
 ## Operator Surfaces
 
-| Surface | Use for |
-| ------- | ------- |
-| Admin UI | Member management, roles, permissions, room layout, server branding, event log, and system diagnostics. |
+| Surface          | Use for                                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Admin UI         | Member management, roles, permissions, room layout, server branding, event log, and system diagnostics.                       |
 | Metrics listener | Per-process Prometheus metrics such as Go runtime, readiness, realtime counters, NATS client counters, and projection health. |
-| Exporter | Deployment-wide metrics from NATS resources and asset storage. |
-| Operator CLI | Local recovery and bootstrap actions over a Unix socket. |
-| Backups | Disaster recovery, migration rehearsal, and upgrade safety. |
+| Exporter         | Deployment-wide metrics from NATS resources and asset storage.                                                                |
+| Operator CLI     | Local recovery and bootstrap actions over a Unix socket.                                                                      |
+| Backups          | Disaster recovery, migration rehearsal, and upgrade safety.                                                                   |
 
 ## Admin Dashboard
 
@@ -126,7 +132,8 @@ Use it for tasks such as:
 - deleting an account
 
 <Aside type="danger">
-  Treat operator socket access like root access to Chatto. Do not mount the socket into untrusted containers or expose it over TCP.
+  Treat operator socket access like root access to Chatto. Do not mount the
+  socket into untrusted containers or expose it over TCP.
 </Aside>
 
 ## Upgrade Practice
@@ -135,7 +142,7 @@ Use it for tasks such as:
   Stop every 0.4 Chatto server replica before starting 0.5. Do not use a rolling
   server deployment across these releases: their message lifecycle projections
   make different decisions when an edit races a deletion. Upgrade the bundled
-  frontend with the server replicas because realtime protocol 2 is also a
+  frontend with the server replicas because realtime protocol 4 is also a
   coordinated compatibility boundary. Users whose browsers still carry the
   retired pre-typed cookie-session format are signed out once and must sign in
   again after the upgrade.
@@ -151,10 +158,34 @@ Use it for tasks such as:
 ## Related Guides
 
 <CardGrid>
-  <LinkCard title="Backup & Restore" href="/guides/operations/backup-restore/" description="Backup, restore, key export, and disaster recovery procedures." />
-  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Local recovery and bootstrap commands." />
-  <LinkCard title="Enabling Search" href="/guides/operations/search/" description="Configure local message indexing and language analyzers." />
-  <LinkCard title="High Availability" href="/guides/infrastructure/high-availability/" description="Run Chatto with replicated infrastructure." />
-  <LinkCard title="Horizontal Scaling" href="/guides/infrastructure/horizontal-scaling/" description="Scale server processes and externalize runtime dependencies." />
-  <LinkCard title="Environment Variables" href="/reference/environment-variables/#metrics" description="Metrics, exporter, and operator API configuration reference." />
+  <LinkCard
+    title="Backup & Restore"
+    href="/guides/operations/backup-restore/"
+    description="Backup, restore, key export, and disaster recovery procedures."
+  />
+  <LinkCard
+    title="Operator CLI"
+    href="/guides/operations/operator-cli/"
+    description="Local recovery and bootstrap commands."
+  />
+  <LinkCard
+    title="Enabling Search"
+    href="/guides/operations/search/"
+    description="Configure local message indexing and language analyzers."
+  />
+  <LinkCard
+    title="High Availability"
+    href="/guides/infrastructure/high-availability/"
+    description="Run Chatto with replicated infrastructure."
+  />
+  <LinkCard
+    title="Horizontal Scaling"
+    href="/guides/infrastructure/horizontal-scaling/"
+    description="Scale server processes and externalize runtime dependencies."
+  />
+  <LinkCard
+    title="Environment Variables"
+    href="/reference/environment-variables/#metrics"
+    description="Metrics, exporter, and operator API configuration reference."
+  />
 </CardGrid>

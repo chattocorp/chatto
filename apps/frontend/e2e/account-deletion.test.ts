@@ -176,7 +176,7 @@ test.describe('Account Deletion', () => {
           await accountPage.deleteAccount();
 
           // WITHOUT REFRESHING: User B should see the context-free row disappear
-          // in real time. ServerMemberDeletedEvent triggers a refetch, and the body
+          // in real time. The user-account-deleted event triggers a refetch, and the body
           // has been crypto-shredded.
           await expect(page2.getByText(messageText)).not.toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT

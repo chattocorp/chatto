@@ -5,13 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core/subjects"
 )
 
 var (
@@ -468,13 +467,12 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 //
 // Reasons: "logout", "admin_boot", "account_deleted"
 func (c *ChattoCore) PublishSessionTerminated(ctx context.Context, userID, reason string) error {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_SessionTerminated{
-			SessionTerminated: &livev1.SessionTerminatedEvent{
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_SessionTerminated{
+			SessionTerminated: &pubsubv1.SessionTerminatedEvent{
 				Reason: reason,
 			},
 		},
 	})
-	subject := subjects.LiveSyncUserEvent(userID, "session_terminated")
-	return c.publishLiveEvent(ctx, subject, event)
+	return c.publishUserPubSubEvent(ctx, userID, event)
 }

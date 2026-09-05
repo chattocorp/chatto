@@ -43,6 +43,10 @@ message RoomWithViewerState {
   Room room = 1;
   // State and permission decisions resolved for the current user.
   RoomViewerState viewer_state = 14;
+  // Complete participant user IDs for a DM. Empty for channel rooms.
+  repeated string member_user_ids = 15;
+  // Whether this DM has received a root message. Absent for channel rooms.
+  optional bool has_message_history = 16;
 }
 
 // Sidebar link metadata for room group navigation.
@@ -188,8 +192,8 @@ service RoomDirectoryService {
   // Lists rooms visible to the current user. Channel rooms are non-archived
   // rooms visible through membership or room.list. DM membership exposes room
   // and participant metadata. Message-derived DM state also requires current
-  // read permission. Empty DMs are omitted. Results are returned as a finite navigation
-  // snapshot.
+  // read permission. Accessible empty DMs are included. Results are returned as a finite
+  // navigation snapshot.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
   // Lists ordered channel room groups and sidebar items visible to the current
   // user as a finite navigation snapshot. Hidden room entries are omitted.

@@ -17,6 +17,11 @@ For public API packages:
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
   realtime WebSocket protobuf protocol.
+- `chatto.realtime.v1.RealtimeEvent.event` is the public realtime catalogue.
+  Every member uses a dedicated payload from
+  `chatto/realtime/v1/events.proto`. Do not import core EVT or private pubsub
+  payload messages into the public union. A client-facing `PubSubEvent` variant
+  can reference the public payload in the other direction.
 - Write comments for API users, not Chatto maintainers.
 - Add useful comments to each public service, RPC, message, enum, enum value,
   and important field.
@@ -31,8 +36,10 @@ For public API packages:
 
 - Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
   ownership and storage compatibility. Put new durable `Event` payloads in the
-  applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads that are used
-  only by `LiveEvent` in `chatto/core/live/v1/live_events.proto`.
+  applicable `chatto/core/evt/v1/*_events.proto` file. Put client-facing
+  pubsub payloads in `chatto/realtime/v1/events.proto` and reference them from
+  the restricted `PubSubEvent` union. Keep private pubsub control payloads in
+  `chatto/core/pubsub/v1/event.proto`.
 - Protobuf file placement affects generated source and descriptor names. Do not
   move a stored symbol only to reorganize it. A transient symbol that is in the
   wrong package can move as an approved source-breaking change. Do not keep a

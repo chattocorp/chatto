@@ -8,7 +8,10 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
+	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -28,6 +31,138 @@ func TestMyEventsHubPrefiltersMessageBodiesBeforeDecode(t *testing.T) {
 	}
 	if got := model.hub.prefiltered.Load(); got != 1 {
 		t.Fatalf("prefiltered events = %d, want 1", got)
+	}
+}
+
+func TestMyEventsHubResetsForUnknownFutureRoomEvent(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	data := protowire.AppendTag(nil, 19_999, protowire.BytesType)
+	data = protowire.AppendBytes(data, nil)
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateRoom + ".room-1.future_room_fact",
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("unknown future room event did not require a snapshot")
+	}
+	if got := hub.decoded.Load(); got != 1 {
+		t.Fatalf("decoded events = %d, want unknown event classification after decode", got)
+	}
+}
+
+func TestMyEventsHubDiscardsKnownPrivateUserEventAfterValidation(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	event := &evtv1.Event{
+		Event: &evtv1.Event_UserPasswordHashChanged{
+			UserPasswordHashChanged: &evtv1.UserPasswordHashChangedEvent{},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal private user event: %v", err)
+	}
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateUser + ".user-1." + evtstream.EventUserPasswordHashChanged,
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); discontinuity {
+		t.Fatal("known private user event caused a delivery discontinuity")
+	}
+	if got := hub.decoded.Load(); got != 1 {
+		t.Fatalf("decoded events = %d, want one validated private event", got)
+	}
+}
+
+func TestMyEventsHubResetsForUnknownAggregateNamespace(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	msg := &nats.Msg{Subject: evtstream.LiveSubjectRoot + "future.resource-1.changed"}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("unknown aggregate namespace did not require a snapshot")
+	}
+	if got := hub.decoded.Load(); got != 0 {
+		t.Fatalf("decoded events = %d, want namespace classification before decode", got)
+	}
+}
+
+func TestMyEventsHubResetsForMismatchedUserSubject(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	event := &evtv1.Event{
+		Event: &evtv1.Event_UserCustomStatusSet{
+			UserCustomStatusSet: &evtv1.UserCustomStatusSetEvent{UserId: "user-2"},
+		},
+	}
+	data, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal user event: %v", err)
+	}
+	msg := &nats.Msg{
+		Subject: evtstream.LiveSubjectRoot + evtstream.AggregateUser + ".user-1." + evtstream.EventUserCustomStatusSet,
+		Header:  nats.Header{nats.JSSequence: []string{"42"}},
+		Data:    data,
+	}
+
+	if discontinuity := hub.handleLiveEVT(context.Background(), msg); !discontinuity {
+		t.Fatal("mismatched user subject did not require a snapshot")
+	}
+}
+
+func TestMyEventsHubResetsForUnprojectedServerConfigFacts(t *testing.T) {
+	core := &ChattoCore{logger: testCoreLogger()}
+	hub := NewMyEventsModel(core).hub
+	subject := evtstream.LiveSubjectRoot + evtstream.AggregateConfig + "." + evtstream.ConfigSingletonID + "." + evtstream.EventServerNameChanged
+	if discontinuity := hub.handleLiveEVT(context.Background(), &nats.Msg{Subject: subject}); !discontinuity {
+		t.Errorf("content fact %q did not require a snapshot", subject)
+	}
+	if got := hub.decoded.Load(); got != 0 {
+		t.Fatalf("decoded events = %d, want reset classification before decode", got)
+	}
+}
+
+func TestMyEventsHubDeliversRoomGroupFactAfterProjection(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "group-viewer", "Group Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	group, err := core.CreateRoomGroup(ctx, viewer.Id, "Engineering", "Product engineering")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-stream:
+			if !ok {
+				t.Fatal("myEvents stream closed before room-group delivery")
+			}
+			event := envelope.EVTEvent()
+			created := event.GetRoomGroupCreated()
+			if created == nil || created.GetGroupId() != group.Id {
+				continue
+			}
+			if got, ok := core.roomModel.roomGroup(group.Id); !ok || got.GetName() != "Engineering" {
+				t.Fatalf("room-group projection at delivery = %+v, want Engineering", got)
+			}
+			return
+		case <-timer.C:
+			t.Fatal("timed out waiting for durable room-group event")
+		}
 	}
 }
 
@@ -90,6 +225,86 @@ func TestMyEventsHubSharesDecodedEventAcrossUserSessions(t *testing.T) {
 	event2 := receiveEVTEventByID(t, stream2, posted.Id)
 	if event1 != event2 {
 		t.Fatal("sessions received different decoded event pointers")
+	}
+}
+
+func TestMyEventsHubDeliversServerMOTDChangedEvent(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := core.CreateUser(ctx, SystemActorID, "motd-viewer", "MOTD Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	stream, err := core.StreamMyEventsWithOptions(ctx, viewer.Id, StreamMyEventsOptions{})
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
+	if err := core.configModel.SetServerConfig(ctx, SystemActorID, &configv1.ServerConfig{Motd: "Public MOTD"}); err != nil {
+		t.Fatalf("SetServerConfig: %v", err)
+	}
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case envelope, ok := <-stream:
+			if !ok {
+				t.Fatal("myEvents stream closed before server MOTD delivery")
+			}
+			event := envelope.EVTEvent()
+			if event == nil || event.GetServerMotdChanged() == nil {
+				continue
+			}
+			if got := event.GetServerMotdChanged().GetMotd(); got != "Public MOTD" {
+				t.Fatalf("MOTD = %q, want Public MOTD", got)
+			}
+			return
+		case <-timer.C:
+			t.Fatal("server MOTD event was not delivered")
+		}
+	}
+}
+
+func TestRealtimeEVTRequiresSnapshotClassifiesServerConfig(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+		want      bool
+	}{
+		{name: "public profile", eventType: evtstream.EventServerNameChanged, want: false},
+		{name: "public event", eventType: evtstream.EventServerMotdChanged, want: false},
+		{name: "private blocked usernames", eventType: evtstream.EventServerBlockedUsernamesChanged, want: false},
+		{name: "separate neighbor resource", eventType: evtstream.EventServerNeighborCreated, want: false},
+		{name: "unknown future event", eventType: "future_server_setting_changed", want: true},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			subject := evtstream.ConfigAggregate().Subject(test.eventType)
+			if got := realtimeEVTRequiresSnapshot(subject, test.eventType); got != test.want {
+				t.Fatalf("realtimeEVTRequiresSnapshot(%q, %q) = %t, want %t", subject, test.eventType, got, test.want)
+			}
+		})
+	}
+}
+
+func TestRealtimeEVTRequiresSnapshotAcceptsRoomGroupFacts(t *testing.T) {
+	tests := []struct {
+		subject   string
+		eventType string
+	}{
+		{
+			subject:   evtstream.GroupAggregate("group-1").Subject(evtstream.EventRoomGroupUpdated),
+			eventType: evtstream.EventRoomGroupUpdated,
+		},
+		{
+			subject:   evtstream.LayoutAggregate().Subject(evtstream.EventRoomGroupsReordered),
+			eventType: evtstream.EventRoomGroupsReordered,
+		},
+	}
+	for _, test := range tests {
+		if realtimeEVTRequiresSnapshot(test.subject, test.eventType) {
+			t.Errorf("realtimeEVTRequiresSnapshot(%q, %q) = true, want false", test.subject, test.eventType)
+		}
 	}
 }
 

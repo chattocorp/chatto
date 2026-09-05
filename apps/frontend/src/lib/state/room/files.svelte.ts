@@ -140,6 +140,12 @@ export class RoomFilesStore {
     };
   }
 
+  /** Refresh a visible file page after a canonical message or asset event. */
+  refreshRetained(): void {
+    if (this.retainCount === 0) return;
+    this.reset({ rehydrateRetained: true });
+  }
+
   /** Reconcile a current timeline message into an already-hydrated file cache. */
   applyTimelineEvent(event: RoomTimelineEvent, sourceEventId: string): void {
     const replacement = roomFileItemsForTimelineEvent(event);

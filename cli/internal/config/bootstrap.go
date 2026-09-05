@@ -1,12 +1,14 @@
 package config
 
-// BootstrapConfig declares users and the server config to be auto-applied
-// on startup, for fast iteration while developing and for E2E test fixtures.
+// BootstrapConfig declares development accounts and server data to auto-apply
+// on the first startup, for fast iteration while developing and for E2E test
+// fixtures.
 // ONLY honored by builds compiled with the `bootstrap` build tag — release
 // binaries parse the section but ignore its contents. Plaintext passwords
 // are fine here for the same reason.
 type BootstrapConfig struct {
 	Users          []BootstrapUser  `toml:"users"`
+	Bots           []BootstrapBot   `toml:"bots"`
 	Server         *BootstrapServer `toml:"server,commented" comment:"Seeds the server config (name) and the deployment's primary room group on first boot."`
 	LegacyInstance *BootstrapServer `toml:"instance,commented" comment:"Deprecated alias for [bootstrap.server]. Prefer [bootstrap.server]."`
 }
@@ -28,6 +30,19 @@ func (u BootstrapUser) RoleOrDefault() string {
 		return u.ServerRole
 	}
 	return u.InstanceRole
+}
+
+// BootstrapBot describes a bot account to create on first boot in
+// bootstrap-tag builds. The bootstrap writes the show-once API key to
+// CredentialFile with owner-only access. Release builds ignore this data.
+type BootstrapBot struct {
+	Login          string   `toml:"login" comment:"Required. The bot's login name."`
+	DisplayName    string   `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	OwnerLogin     string   `toml:"owner_login" comment:"Required. Login name of a bootstrapped human owner."`
+	APIKeyName     string   `toml:"api_key_name,commented" comment:"Optional display name for the initial API key."`
+	CredentialFile string   `toml:"credential_file" comment:"Required. File that receives the show-once API key with mode 0600."`
+	Permissions    []string `toml:"permissions,commented" comment:"Optional server-scope permissions delegated by the owner."`
+	Rooms          []string `toml:"rooms,commented" comment:"Optional channel room names that the bot joins."`
 }
 
 // ServerOrDefault returns the normalized bootstrap server, honoring the

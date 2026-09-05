@@ -1,4 +1,4 @@
-# ADR-091: Direct-Message Permission Scope and Threads
+# ADR-095: Direct-Message Permission Scope and Threads
 
 **Date:** 2026-09-04
 

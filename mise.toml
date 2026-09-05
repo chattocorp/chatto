@@ -69,7 +69,7 @@ dir = "."
 run = "pnpm install"
 # package.json also contains app metadata and scripts; the lockfile is the
 # dependency-resolution input that should trigger installs.
-sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "apps/*/package.json", "packages/*/package.json"]
+sources = ["package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", ".npmrc", "apps/*/package.json", "examples/*/package.json", "packages/*/package.json"]
 
 [tasks.deps]
 description = "Install all dependencies"
@@ -177,6 +177,20 @@ depends = ["setup-frontend"]
 dir = "packages/lingua"
 run = "pnpm build"
 sources = ["package.json", "tsconfig.json", "src/**/*"]
+
+[tasks.test-bot-build]
+description = "Build the public-API development bot example"
+depends = ["setup-frontend", "build-api-types"]
+dir = "examples/test-bot"
+run = "pnpm build"
+sources = [
+  "../../pnpm-lock.yaml",
+  "../../packages/api-types/dist/**/*",
+  "package.json",
+  "tsconfig.json",
+  "src/**/*",
+]
+outputs = ["dist/index.js"]
 
 [tasks.build-frontend]
 description = "Build the frontend application"
@@ -314,7 +328,7 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 
 [tasks.dev]
 description = "Run the regular local development services with Portless"
-depends = ["setup-frontend", "build-api-types", "build-lingua"]
+depends = ["setup-frontend", "build-api-types", "build-lingua", "test-bot-build"]
 env = {
   PORTLESS_PORT = "{{env.CHATTO_DEV_PROXY_PORT | default(value='42444')}}",
   PORTLESS_HTTPS = "1",
@@ -322,9 +336,9 @@ env = {
   CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
 run = '''
-exec tools/dev-supervisor.sh mise run --jobs 5 --output prefix \
+exec tools/dev-supervisor.sh mise run --jobs 6 --output prefix \
   dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
-  dev-stack-backend ::: dev-stack-frontend
+  dev-stack-backend ::: dev-stack-frontend ::: dev-stack-test-bot
 '''
 
 [tasks.dev-stack-mailpit]
@@ -451,10 +465,19 @@ env = {
   CHATTO_BOOTSTRAP_USERS_1_DISPLAY_NAME = "Bob",
   CHATTO_BOOTSTRAP_USERS_1_EMAIL = "bob@example.com",
   CHATTO_BOOTSTRAP_USERS_1_PASSWORD = "foobar123",
+  CHATTO_BOOTSTRAP_BOTS_0_LOGIN = "test_bot",
+  CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
+  CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
+  CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
+  CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "./data/bootstrap/test_bot.key",
+  CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
+  CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
   CHATTO_BOOTSTRAP_SERVER_NAME = "Chatto + Authling",
 }
 run = '''
 set -eu
+project_dir=$(pwd -P)
+data_root=${CHATTO_DEV_DATA_ROOT:-$project_dir/cli/data}
 chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 livekit_url=$(portless get "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
@@ -463,6 +486,7 @@ authling_url=${authling_url/http:/https:}
 livekit_url=${livekit_url/http:/https:}
 mkdir -p cli/internal/http_server/.client
 touch cli/internal/http_server/.client/.gitkeep
+mkdir -p "$data_root/bootstrap" "$data_root/nats" "$data_root/search"
 cd cli
 go build -trimpath -tags 'bootstrap nomsgpack' -ldflags "-X main.Version=$CHATTO_DEVELOPMENT_VERSION" -o bin/chatto-dev .
 export CHATTO_WEBSERVER_URL="$chatto_url"
@@ -470,7 +494,25 @@ export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="$authling_url"
 export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="$chatto_url/oauth/client-metadata.json"
 export CHATTO_LIVEKIT_URL="${livekit_url/https:/wss:}"
 export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit"
+export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
+export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
+export CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE="$data_root/bootstrap/test_bot.key"
 exec bin/chatto-dev start
+'''
+
+[tasks.dev-stack-test-bot]
+hide = true
+tools = { node = "24" }
+env = {
+  CHATTO_TEST_BOT_SERVER_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+}
+run = '''
+set -eu
+project_dir=$(pwd -P)
+data_root=${CHATTO_DEV_DATA_ROOT:-$project_dir/cli/data}
+export CHATTO_TEST_BOT_API_KEY_FILE="$data_root/bootstrap/test_bot.key"
+export CHATTO_TEST_BOT_STATE_FILE="$data_root/bootstrap/test_bot.state.json"
+exec node examples/test-bot/dist/index.js
 '''
 
 [tasks.dev-stack-frontend]
@@ -700,7 +742,7 @@ run = "tools/test-desktop-macos-capture.sh"
 
 [tasks.test-e2e]
 description = "Run E2E tests"
-depends = ["setup-frontend", "build-e2e-server"]
+depends = ["setup-frontend", "build-e2e-server", "test-bot-build"]
 dir = "apps/frontend"
 run = "pnpm exec playwright test"
 

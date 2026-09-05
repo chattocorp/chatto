@@ -118,7 +118,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Link Preview** — Auto-generated preview card for URLs in messages. See [FDR-009](fdr/FDR-009-link-previews.md).
 
-**Typing Indicator** — Ephemeral "X is typing…" signal. Published as a live event, never persisted. See [FDR-010](fdr/FDR-010-typing-indicators.md).
+**Typing Indicator** — Ephemeral "X is typing…" signal. Published internally as a pubsub event and exposed as a cursorless realtime event. It is never persisted. See [FDR-010](fdr/FDR-010-typing-indicators.md).
 
 **Presence** — A user's online/away/offline state. See [FDR-011](fdr/FDR-011-user-presence.md).
 
@@ -154,7 +154,7 @@ Chatto's RBAC model. Read top-to-bottom — terms build on each other.
 Room group, or Room. A channel check uses Room, Room group, then Server. A DM
 check uses Direct messages, then Server. Each direct user or named role
 contributes only its nearest explicit decision. See
-[ADR-091](adr/ADR-091-direct-message-permission-scope-and-threads.md).
+[ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 **Request-time authorization** — Command authorization decision that becomes final after Chatto confirms that its projected RBAC, room-group, user, and other declared inputs did not change during evaluation. A later concurrent authorization change does not cancel the command; domain invariants use OCC separately. See [ADR-087](adr/ADR-087-request-time-authorization-with-aggregate-occ.md).
 
@@ -167,7 +167,7 @@ and access. Membership is necessary but not sufficient for message content.
 Normal `message.*` permissions apply through the Direct messages scope.
 `room.*` permissions do not apply. Ownership does not grant access to another
 person's DM. See
-[ADR-091](adr/ADR-091-direct-message-permission-scope-and-threads.md).
+[ADR-095](adr/ADR-095-direct-message-permission-scope-and-threads.md).
 
 ## Backend
 
@@ -193,9 +193,11 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **KV (Key-Value Bucket)** — JetStream-backed key/value store. Chatto uses several current buckets, especially `RUNTIME_STATE`, `MEMORY_CACHE`, and `ENCRYPTION_KEYS`; event-sourced domain state is sourced from `EVT`. See [ADR-033](adr/ADR-033-event-sourced-state-with-projections.md).
 
-**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; transient sync uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
+**Subject** — NATS message topic. Current durable facts use `evt.{aggregateType}.{aggregateId}.{eventType}`; pubsub uses `live.sync.…`; committed EVT facts are internally republished on `live.evt.…`. See [`cli/AGENTS.md`](../cli/AGENTS.md) and the [subject and event inventory](architecture/subjects-and-events.md#evt-subject-patterns).
 
-**Event** — Durable domain fact stored on `EVT` using the `evtv1.Event` wrapper. Contrast with *Live Event*.
+**Event** — `evtv1.Event` envelope and payload that describe one durable Chatto
+domain fact. EVT stores this value. See
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 **Materialization** — Loom term for disposable state derived from the event log; Chatto projections are materializations and may live in RAM, NATS, local storage, or an external store. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
@@ -225,9 +227,52 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **CIMD (Client ID Metadata Document)** — Public OAuth client metadata served at the client's URL identifier and used by Chatto to bind that client identity to exact callbacks without prior operator registration. See [ADR-071](adr/ADR-071-cimd-identified-open-oauth-clients.md).
 
-**Live Event** — Internal `livev1.LiveEvent` signal published on `live.sync.>` for ephemeral activity and latest-value invalidation. The server may expose a genuinely transient signal such as typing or presence through `RealtimeEventEnvelope`, or use the signal to assemble an authoritative `RealtimeProjectionOperation`; the internal shape is never the public contract. Durable EVT facts reach live subscribers through `live.evt.>` after server-side projection readiness and authorization checks. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
+**Pubsub Event** — A non-durable `pubsubv1.PubSubEvent` envelope published on
+`live.sync.>` through NATS Core. Its client-facing variants reference public
+realtime payloads. Private control variants can keep private payloads. It is not
+stored in EVT. Durable Events reach the internal live ingress separately through
+EVT republish on `live.evt.>`. See
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
-**Client Projection** — Authenticated, server-scoped current state delivered by realtime protocol 2. Compacted bootstrap, resumable replay, live mutation, and lazy room hydration all use the same ordered projection operations and reducer. It is a convergence feed rather than an audit log and does not replace the resource-oriented `chatto.api.v1` integrations API. See [ADR-051](adr/ADR-051-server-scoped-resumable-client-projection.md).
+**Public Realtime Event** — Fresh authorized `RealtimeEvent` value for bots,
+integrations, alternate clients, and the bundled frontend. Its explicit event
+union and dedicated payloads in `events.proto` form the public event catalogue.
+Its names and compact field numbers do not expose whether an internal source
+is EVT or pubsub. Public payload field numbers are independent from EVT. A
+client-facing Pubsub Event can reuse the public payload type. An optional cursor
+remains outside the payload union. Internal variants and storage-only fields do
+not exist in the public schema. The server can add authorized public-only
+plaintext fields. Raw
+EVT bytes, subjects, stream identities, and sequence numbers are not public
+API. See
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
+[FDR-045](fdr/FDR-045-realtime-event-stream.md).
+
+**Client Projection** — Authenticated, server-scoped current state that a client
+builds from an exact realtime snapshot and maintains with Public Realtime
+Events plus targeted resource reads. It is a convergence view, not an audit
+log. It does not replace the resource-oriented `chatto.api.v1` API for
+explicit reads, commands, pagination, and history. See
+[ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md) and
+[ADR-094](adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
+
+**Realtime Resource Boundary** — Exact EVT boundary `E` for one authorized
+realtime snapshot. The server sends later authorized public events only after
+that snapshot. A client can also use the opaque
+Resume Cursor for `E` as the
+minimum consistency token for a targeted ConnectRPC read. See
+[ADR-093](adr/ADR-093-use-a-public-realtime-event-union.md).
+
+**Resume Cursor** — Authenticated, encrypted token for bounded recovery after a
+recent realtime disconnect. It is bound to the viewer, subscription scope, and
+stream incarnation. It also supplies a minimum EVT content boundary for a
+ConnectRPC request. It does not expose its position or promise historical
+resource reads. It expires after
+15 minutes. When safe resume is not possible, Chatto uses the subscription's
+snapshot or live-only fallback. See
+[ADR-091](adr/ADR-091-semantic-realtime-events-with-bounded-resume.md) and
+[FDR-045](fdr/FDR-045-realtime-event-stream.md).
 
 **Republish** — JetStream feature that mirrors accepted stream messages onto another NATS subject. Chatto uses it to expose committed EVT facts on `live.evt.>`; `myEvents` treats that as an internal feed, not a client contract. See [`cli/AGENTS.md`](../cli/AGENTS.md).
 

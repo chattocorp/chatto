@@ -18,8 +18,8 @@ export const RoomDirectoryService = {
      * Lists rooms visible to the current user. Channel rooms are non-archived
      * rooms visible through membership or room.list. DM membership exposes room
      * and participant metadata. Message-derived DM state also requires current
-     * read permission. Empty DMs are omitted. Results are returned as a finite navigation
-     * snapshot.
+     * read permission. Accessible empty DMs are included. Results are returned as a finite
+     * navigation snapshot.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRooms
      */

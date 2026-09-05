@@ -6,6 +6,8 @@ import (
 	"sort"
 	"time"
 
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
@@ -20,6 +22,22 @@ type UserModel struct {
 	users       events.ProjectionHandle[*UserProjection]
 	auth        events.ProjectionHandle[*UserAuthProjection]
 	contentKeys events.ProjectionHandle[*ContentKeyProjection]
+}
+
+// UserContentSnapshot is an immutable capture of one user's content-view
+// state. It contains encrypted PII and can be hydrated after the content-view
+// read barrier is released.
+type UserContentSnapshot struct {
+	state      *projectedUserSnapshot
+	capturedAt time.Time
+}
+
+// HydratedUserContent contains the public user state that was captured in one
+// UserContentSnapshot. Presence is runtime state and is not included.
+type HydratedUserContent struct {
+	User        *evtv1.User
+	Avatar      *evtv1.AssetRecord
+	Preferences *evtv1.ServerUserPreferences
 }
 
 func newUserModel(
@@ -106,6 +124,42 @@ func (m *UserModel) contentKeyAtEpoch(userID string, purpose evtv1.UserDEKPurpos
 
 func (m *UserModel) user(ctx context.Context, userID string) (*evtv1.User, bool, error) {
 	return m.users.Projection().GetContext(ctx, userID)
+}
+
+// CaptureUserContentSnapshot copies one user's projected state without
+// resolving encryption keys. Callers can use it inside a content-view read
+// barrier because it performs bounded in-memory work only.
+func (c *ChattoCore) CaptureUserContentSnapshot(userID string) *UserContentSnapshot {
+	if c == nil || c.userModel == nil || c.userModel.users.Projection() == nil {
+		return nil
+	}
+	state := c.userModel.users.Projection().contentSnapshot(userID)
+	if state == nil {
+		return nil
+	}
+	return &UserContentSnapshot{state: state, capturedAt: time.Now()}
+}
+
+// HydrateUserContentSnapshot resolves encrypted PII after the content-view
+// read barrier is released. The returned state still represents the captured
+// content generation.
+func (c *ChattoCore) HydrateUserContentSnapshot(ctx context.Context, snapshot *UserContentSnapshot) (*HydratedUserContent, bool, error) {
+	if c == nil || c.userModel == nil || c.userModel.users.Projection() == nil || snapshot == nil || snapshot.state == nil {
+		return nil, false, nil
+	}
+	state := cloneProjectedUserSnapshot(snapshot.state)
+	user, ok, err := c.userModel.users.Projection().hydrateUserSnapshot(WithDEKRequestCache(ctx), state, snapshot.capturedAt)
+	if err != nil || !ok {
+		return nil, ok, err
+	}
+	result := &HydratedUserContent{User: user}
+	if state.avatar != nil {
+		result.Avatar = proto.Clone(state.avatar).(*evtv1.AssetRecord)
+	}
+	if state.preferences != nil {
+		result.Preferences = proto.Clone(state.preferences).(*evtv1.ServerUserPreferences)
+	}
+	return result, true, nil
 }
 
 func (m *UserModel) userReference(ctx context.Context, userID string) (*evtv1.User, bool, error) {

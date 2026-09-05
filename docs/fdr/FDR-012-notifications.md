@@ -298,7 +298,12 @@ follows the thread explicitly.
 
 **Decision:** The client stores notification sound and sound-filter choices for
 each registered server. For a live notification, the client uses the choices
-for the server that produced the notification. During an upgrade, the client
+for the server that produced the notification. The server reports creations,
+not sound instructions, including during Do Not Disturb. The client checks its
+local Do Not Disturb setting and current unread state before playback. It groups
+creations received during one refresh into one sound. Duplicate hints, failed
+reads, missing rows, and quiet reconciliation do not cause another sound.
+During an upgrade, the client
 copies the old global sound choice when it first creates the slot for a server.
 
 **Why:** The client plays the sound, but all notification behavior is a User
@@ -308,28 +313,29 @@ existing sound choice.
 
 **Tradeoff:** Sound choices do not sync to another browser or device. The
 client keeps a small local-storage entry for each server. Both Notification and
-Push notification can request the configured local sound. Do Not Disturb and
-current notification policy can suppress that request.
+Push notification can cause the configured local sound. The client can miss a
+sound if its bounded resource page does not contain the created occurrence.
+These hints are not durable delivery. Web Push retains server-side policy and
+Do Not Disturb checks.
 
-### 10. Notification occurrences activate bot integrations
+### 10. Notification occurrences are one bot event family
 
-**Decision:** A bot uses the same notification occurrences and realtime
-notification replacement as a human account. Direct messages, direct mentions,
-replies, and followed-thread activity are the supported activation causes for
-bot integrations. Chatto does not create a separate bot-interaction event or
-realtime subscription. Other notification causes can be present in the shared
-replacement. An integration must filter the replacement by cause.
+**Decision:** A bot receives notification changes through the same semantic
+public event stream as a human account. Direct messages, direct mentions,
+replies, and followed-thread activity can create notification occurrences, but
+they do not define the complete bot event set. A bot can also receive every
+other authorized semantic public event, such as message edits, reactions, room
+changes, and membership changes. Chatto does not create a separate
+interaction-only realtime subscription.
 
-**Why:** The occurrence already contains the source-time cause, stable identity,
-exact message target, current visibility checks, and bounded durable history.
-One semantic source can support realtime now and a durable webhook delivery
-adapter later.
+**Why:** Notification policy describes attention state, not all domain activity
+that can interest an integration. One public event stream gives bots complete
+authorized activity without making the frontend notification model the bot API.
 
-**Tradeoff:** Realtime sends a finite latest-value replacement instead of an
-append-only activation feed. Integrations must checkpoint stable occurrence
-IDs. One message can create more than one cause, so an integration that wants
-one action per message must also deduplicate by the referenced message event
-ID.
+**Tradeoff:** An integration must filter the shared event stream for the event
+types that it uses. An active realtime connection can still miss intermediate
+changes outside the bounded resume window. A future webhook adapter needs its
+own delivery, retry, and acknowledgement rules.
 
 ## Compatibility
 
@@ -366,7 +372,7 @@ separate permission to manage another user's notification list.
 
 ## Related
 
-- **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
-  ADR-077, ADR-080, ADR-082, ADR-087
+- **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-069, ADR-076, ADR-077,
+  ADR-080, ADR-082, ADR-087, ADR-089, ADR-091
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
-  FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039, FDR-044
+  FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039, FDR-044, FDR-045

@@ -8,18 +8,22 @@ import { Aside, CardGrid, LinkCard } from "@astrojs/starlight/components";
 Chatto exposes typed protobuf APIs for clients, bots, tools, and operator automation. Start with the [ConnectRPC API overview](/reference/connectrpc-api/) to explore the available services and methods. Use the public ConnectRPC API for normal integrations, the realtime WebSocket protocol for live updates, and the local operator socket only for trusted recovery workflows.
 
 <Aside type="caution">
-  Chatto's public API is experimental while Chatto is pre-1.0. We prefer additive changes, but breaking changes can happen in the `0.x` line. Pin server versions for production integrations, test the releases you support, and read release notes before upgrading. See [API Compatibility](/guides/integrations/api-compatibility/).
+  Chatto's public API is experimental while Chatto is pre-1.0. We prefer
+  additive changes, but breaking changes can happen in the `0.x` line. Pin
+  server versions for production integrations, test the releases you support,
+  and read release notes before upgrading. See [API
+  Compatibility](/guides/integrations/api-compatibility/).
 </Aside>
 
 ## API Surfaces
 
-| Surface | Path or transport | Use for |
-| ------- | ----------------- | ------- |
-| Public ConnectRPC API | `/api/connect/chatto.api.v1.*` | Normal client and integration behavior. |
-| Admin ConnectRPC API | `/api/connect/chatto.admin.v1.*` | Permission-gated administrative tooling on the public web listener. |
-| Realtime WebSocket | `/api/realtime` | Protobuf live events and resumable server-projection delivery for authenticated clients. |
-| MCP | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations. |
-| Operator API | Unix socket | Root-equivalent local automation and recovery. |
+| Surface               | Path or transport                               | Use for                                                                                         |
+| --------------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| Public ConnectRPC API | `/api/connect/chatto.api.v1.*`                  | Normal client and integration behavior.                                                         |
+| Admin ConnectRPC API  | `/api/connect/chatto.admin.v1.*`                | Permission-gated administrative tooling on the public web listener.                             |
+| Realtime WebSocket    | `/api/realtime`                                 | Exact resource snapshots, public semantic events, and bounded resume for authenticated clients. |
+| MCP                   | `/mcp` on the public HTTP listener when enabled | Experimental agent tool discovery and bounded user-scoped operations.                           |
+| Operator API          | Unix socket                                     | Root-equivalent local automation and recovery.                                                  |
 
 Do not expose the Operator API over a network. It is intentionally separate from the public web listener.
 
@@ -31,13 +35,13 @@ Discovery is also the right place for custom clients to learn public server iden
 
 ## Authentication Choices
 
-| Client shape | Credential |
-| ------------ | ---------- |
-| Same-origin browser app | HttpOnly cookie session. Dedicated bundled-browser authentication does not create or return bearer credentials. |
-| Cross-origin Chatto frontend | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
-| Bot integration | Bot API key created in Server Admin → Bots. |
-| User-authorized client | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
-| Local recovery automation | Operator socket, not user auth. |
+| Client shape                 | Credential                                                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| Same-origin browser app      | HttpOnly cookie session. Dedicated bundled-browser authentication does not create or return bearer credentials. |
+| Cross-origin Chatto frontend | OAuth authorization code with PKCE, then a renewable opaque bearer session.                                     |
+| Bot integration              | Bot API key created in Server Admin → Bots.                                                                     |
+| User-authorized client       | OAuth authorization code with PKCE, then a renewable opaque bearer session.                                     |
+| Local recovery automation    | Operator socket, not user auth.                                                                                 |
 
 Human bearer sessions return a short-lived access token, a rotating refresh
 credential, and both lifetimes. Send only the access token to ConnectRPC and
@@ -62,42 +66,68 @@ agent integration.
 
 ## Realtime Delivery
 
-Authenticated realtime clients connect to `/api/realtime` and exchange protobuf `chatto.realtime.v1` frames. The package name is the protobuf namespace; 0.5 servers accept only behavioural protocol version 2. It sends one ordered server-scoped projection stream for initial state, bounded replay after reconnect, lazy room-timeline hydration, and later live mutations. A subscription includes IDs for room timelines the client already retains; `hydrate_room` adds another joined room through the same projection reducer. Resume and timeline cursors are opaque capabilities: clients must store and return them unchanged and must not infer persistence coordinates from them. Timeline cursors are bound to the authenticated viewer and exact room or thread that issued them; cross-resource reuse is rejected.
+Authenticated realtime clients connect to `/api/realtime` and exchange
+protobuf `chatto.realtime.v1` frames. The package name is the protobuf
+namespace; 0.5 servers accept only behavioral protocol version 4. The stream
+sends authorized public events for messages, edits, reactions, rooms,
+membership, profiles, calls, and other public activity.
+
+A subscription selects a `SNAPSHOT` or `LIVE_ONLY` fallback. A bot can select
+`LIVE_ONLY` and use ConnectRPC for resource detail. The bundled frontend
+selects `SNAPSHOT` and receives canonical resource shapes from the exact
+WebSocket content boundary. A valid cursor resumes a bounded recent gap before
+live delivery.
+
+Resume and timeline cursors are opaque. Clients must store and return them
+unchanged and must not infer persistence coordinates from them. The server
+binds cursors to the authenticated viewer. It also binds timeline cursors to
+the exact room or thread that issued them.
 
 Start with the [Realtime Protocol Overview](/guides/integrations/realtime-protocol/)
 for the connection lifecycle and reducer rules. Then use the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to connect a
 small browser client.
 
-For 0.5, durable message, reaction, room, asset, and call changes are `RealtimeProjectionEvent` operations, not `RealtimeEventEnvelope` alternatives. The latter is reserved for transient, non-replayable signals. This is a breaking migration from the 0.4 live-event contract.
+Each event contains one authorized public payload and can contain an opaque
+resume cursor. Cursorless events are safe to miss, or a snapshot or ConnectRPC
+read can restore their current effect. Snapshot frames reuse canonical public
+resource messages. Clients use event variants as refresh hints and read
+additional resources through ConnectRPC. See the
+[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+reference for the public variants and their dedicated public payload types.
 
-Notification, viewer-preference, thread follow/read, profile, layout, and
-member changes also arrive as authoritative projection operations. A live
-notification replacement can carry optional transition metadata for effects
-such as sounds; bootstrap, resume reconciliation, and reset omit that metadata.
-Mention and new-DM attention use notification occurrences, not separate
-transient hints. The remaining transient envelopes are typing, presence, and
-session termination.
-
-The projection stream does not replace `chatto.api.v1`. Integrations should continue to use its resource-oriented ConnectRPC services for explicit reads, pagination, commands, and read-your-writes responses, and add realtime protocol 2 only when they need an ordered local projection that can resume after a disconnect.
+Realtime does not replace `chatto.api.v1`. Use the resource-oriented
+ConnectRPC services for explicit reads, pagination, commands, and
+read-your-writes responses. Add realtime when an integration must react to new
+activity or repair a recent connection gap.
 
 Realtime delivery uses the same room membership, RBAC, projection readiness, and session-termination checks as the rest of the server.
 
+## Runnable Node Example
+
+Use the repository's [test bot example](https://github.com/chattocorp/chatto/tree/main/examples/test-bot) as a small integration starting point. It uses generated ConnectRPC clients, the protobuf realtime WebSocket, and the Pi SDK. A direct mention in a channel starts a reply in that channel thread. Each human message in a DM starts a reply without a mention. A human must start the DM and include the bot. The example combines short message bursts and permits only one active model call in each conversation. Different conversations can run in parallel. The bot saves its opaque resume cursor only after it handles each frame.
+
+TestBot sends every answer as a thread reply. A root message in a channel or DM
+becomes the thread root. Therefore, the bot needs `message.post-in-thread`, but
+it does not need `message.post`.
+
+The example gives Pi only a restricted public web-fetch tool and does not log message text, prompts, replies, user names, or credentials. A configured external AI provider receives the text of up to 40 messages from the active channel thread or DM. The example replaces user IDs with prompt-local labels before the model request. Local development uses Pi's no-cost faux provider unless you explicitly configure a real provider and model. With an empty local data directory, `mise dev` creates `test_bot` on the first startup, makes Alice its owner, and starts the Node process. This setup uses development-only bootstrap code. Release builds ignore the bootstrap configuration.
+
 ## Integration Patterns
 
-| Goal | Recommended API |
-| ---- | --------------- |
-| Render room navigation | `RoomDirectoryService` |
-| Read room history | `RoomService.GetRoomEvents` and `RoomService.GetRoomEventsAround` |
-| Post, edit, or delete messages | `MessageService` |
-| React to messages | `ReactionService` |
-| Track unread state | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead` |
-| React to bot activations | `notification_occurrences_replace` and `NotificationService.ListNotificationOccurrences` |
-| Start DMs | `RoomService` |
-| Read users and profiles | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers` |
-| Manage bot identities and keys | `BotService` |
-| Manage roles or permissions | `chatto.admin.v1` role and permission services |
-| Inspect operational health | `AdminDiagnosticsService`, metrics, and exporter |
+| Goal                           | Recommended API                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------- |
+| Render room navigation         | `RoomDirectoryService`                                                          |
+| Read room history              | `RoomService.GetRoomEvents` and `RoomService.GetRoomEventsAround`               |
+| Post, edit, or delete messages | `MessageService`                                                                |
+| React to messages              | `MessageService.AddReaction` and `MessageService.RemoveReaction`                |
+| Track unread state             | `RoomService.MarkRoomAsRead` and `ThreadService.MarkThreadAsRead`               |
+| React to bot activations       | Canonical realtime events and `NotificationService.ListNotificationOccurrences` |
+| Start DMs                      | `RoomService`                                                                   |
+| Read users and profiles        | `UserService.ListUsers`, `GetUser`, and `BatchGetUsers`                         |
+| Manage bot identities and keys | `BotService`                                                                    |
+| Manage roles or permissions    | `chatto.admin.v1` role and permission services                                  |
+| Inspect operational health     | `AdminDiagnosticsService`, metrics, and exporter                                |
 
 ## Message Body Tokens
 
@@ -124,11 +154,39 @@ support inline timestamps.
 ## Related Reference
 
 <CardGrid>
-  <LinkCard title="ConnectRPC API" href="/reference/connectrpc-api/" description="Generated public, admin, and realtime API reference." />
-  <LinkCard title="Realtime Overview" href="/guides/integrations/realtime-protocol/" description="Connection lifecycle, projection semantics, hydration, and reconnect behavior." />
-  <LinkCard title="Realtime TypeScript Tutorial" href="/guides/integrations/realtime-typescript/" description="Generate bindings and connect a small browser client." />
-  <LinkCard title="Realtime API" href="/reference/connectrpc-api/realtime/" description="Protobuf realtime WebSocket frame reference." />
-  <LinkCard title="Server Discovery" href="/reference/connectrpc-api/server-discovery/" description="Discovery endpoint for compatible clients." />
-  <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Experimental API posture and version-skew guidance." />
-  <LinkCard title="Operator CLI" href="/guides/operations/operator-cli/" description="Trusted local automation over the operator socket." />
+  <LinkCard
+    title="ConnectRPC API"
+    href="/reference/connectrpc-api/"
+    description="Generated public, admin, and realtime API reference."
+  />
+  <LinkCard
+    title="Realtime Overview"
+    href="/guides/integrations/realtime-protocol/"
+    description="Connection lifecycle, projection semantics, hydration, and reconnect behavior."
+  />
+  <LinkCard
+    title="Realtime TypeScript Tutorial"
+    href="/guides/integrations/realtime-typescript/"
+    description="Generate bindings and connect a small browser client."
+  />
+  <LinkCard
+    title="Realtime API"
+    href="/reference/connectrpc-api/realtime/"
+    description="Protobuf realtime WebSocket frame reference."
+  />
+  <LinkCard
+    title="Server Discovery"
+    href="/reference/connectrpc-api/server-discovery/"
+    description="Discovery endpoint for compatible clients."
+  />
+  <LinkCard
+    title="API Compatibility"
+    href="/guides/integrations/api-compatibility/"
+    description="Experimental API posture and version-skew guidance."
+  />
+  <LinkCard
+    title="Operator CLI"
+    href="/guides/operations/operator-cli/"
+    description="Trusted local automation over the operator socket."
+  />
 </CardGrid>

@@ -110,12 +110,12 @@ func handlerOptionsWithReadMax(readMaxBytes int, webserver config.WebserverConfi
 }
 
 func (a *API) Handlers() []Handler {
-	options := HandlerOptionsForWebserver(a.config.Webserver)
+	options := a.publicHandlerOptions(MaxRequestMessageBytes)
 	uploadOptions := options
 	assetUploadOptions := options
 	if a.core != nil {
-		uploadOptions = handlerOptionsWithReadMax(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize), a.config.Webserver)
-		assetUploadOptions = handlerOptionsWithReadMax(assetUploadRequestMaxBytes(), a.config.Webserver)
+		uploadOptions = a.publicHandlerOptions(uploadRequestMaxBytes(a.core.AssetsConfig().MaxUploadSize))
+		assetUploadOptions = a.publicHandlerOptions(assetUploadRequestMaxBytes())
 	}
 
 	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
@@ -179,6 +179,14 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: voicePath, Handler: voiceHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 	}
 	return append(handlers, reflectionHandlers(options)...)
+}
+
+func (a *API) publicHandlerOptions(readMaxBytes int) []connect.HandlerOption {
+	options := handlerOptionsWithReadMax(readMaxBytes, a.config.Webserver)
+	if a.core == nil {
+		return options
+	}
+	return append(options, connect.WithInterceptors(a.realtimeConsistencyInterceptor()))
 }
 
 // OperatorHandlers returns the local, root-equivalent operator API surface.

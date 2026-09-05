@@ -48,13 +48,13 @@ permissions. Room membership remains a separate requirement.
   each complete thread through the thread API.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
-- The normal realtime protocol carries authorized updates for retained room
-  timelines. A client that knows a thread root can use the thread API to get
-  complete context.
-- The normal realtime protocol also carries notification occurrence
-  replacements. A bot can use direct-mention, direct-message, reply, and
-  followed-thread occurrences to learn the message and thread IDs that it must
-  load through the normal API.
+- The normal realtime protocol carries authorized semantic message events.
+  Room and thread timelines use the paginated ConnectRPC APIs. A client that
+  knows a thread root can use the thread API to get complete context.
+- The normal realtime protocol also carries authorized semantic events for
+  message edits, reactions, room changes, membership changes, and notification
+  state. A bot can filter these events and use ConnectRPC when it needs more
+  resource context.
 - A delivered direct mention in a channel-room root or reply attempts to
   follow that thread when the recipient has no prior follow state. Notification
   policy Off suppresses the occurrence and this follow, but it does not remove
@@ -175,14 +175,15 @@ relevant message and thread IDs from its normal notification occurrences.
 
 - **ADRs:** ADR-031 (room-group permission scopes), ADR-037 (DM access through
   membership), ADR-040 (permission-only RBAC with owner override), ADR-045
-  (public API stability), ADR-051 (resumable client projection), ADR-080
-  (`message.read`), ADR-082 (derived interaction relationships), ADR-091 (DM
+  (public API stability), ADR-080 (`message.read`), ADR-082 (derived
+  interaction relationships), ADR-091 (semantic realtime events), ADR-095 (DM
   permission scope and threads)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-004
   (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions),
   FDR-007 (Direct Messages), FDR-008 (File Attachments & Video Processing),
   FDR-010 (Typing Indicators), FDR-012 (Notifications), FDR-033 (Message
-  Search), FDR-037 (Pinned Messages), FDR-038 (Bot Accounts)
+  Search), FDR-037 (Pinned Messages), FDR-038 (Bot Accounts), FDR-045 (Realtime
+  Event Stream)
 
 ## Open Questions
 

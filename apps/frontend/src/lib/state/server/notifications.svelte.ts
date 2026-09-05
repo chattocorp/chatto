@@ -180,7 +180,7 @@ export class NotificationStore {
     this.error = null;
   }
 
-  /** Invalidate projection-owned state while a compacted reset hydrates. */
+  /** Invalidate projection-owned state while a snapshot hydrates. */
   resetProjectionState(): void {
     this.pushRevision++;
     this.#handledPushIds.clear();
@@ -202,7 +202,7 @@ export class NotificationStore {
     this.loading = true;
     // The empty reset boundary is already authoritative. Keep this true so
     // badge synchronisation clears stale native notification counts even when
-    // a later snapshot frame never arrives.
+    // a later resource read does not return a row.
     this.hasLoaded = true;
     this.error = null;
   }

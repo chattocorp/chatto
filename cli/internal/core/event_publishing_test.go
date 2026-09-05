@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strconv"
 	"strings"
 	"testing"
@@ -12,9 +11,12 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/dynamicpb"
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -22,12 +24,80 @@ func TestEventPublishingHelpers_RejectInvalidEvents(t *testing.T) {
 	core := &ChattoCore{}
 	ctx := testContext(t)
 
-	t.Run("publishLiveEvent rejects invalid payload", func(t *testing.T) {
-		err := core.publishLiveEvent(ctx, "live.sync.test", &livev1.LiveEvent{})
+	t.Run("publishUserPubSubEvent rejects invalid payload", func(t *testing.T) {
+		err := core.publishUserPubSubEvent(ctx, "user-id", &pubsubv1.PubSubEvent{})
 		if !errors.Is(err, ErrInvalidEvent) {
 			t.Fatalf("expected ErrInvalidEvent, got: %v", err)
 		}
 	})
+}
+
+func TestPubSubPublicationScopeRejectsMismatches(t *testing.T) {
+	typing := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
+	}})
+	if _, err := userPubSubEventPublication("user-id", typing).subject(); err == nil {
+		t.Fatal("user-scoped typing publication succeeded")
+	}
+	if _, err := roomPubSubEventPublication(KindChannel, "other-room", typing).subject(); err == nil {
+		t.Fatal("room-scoped publication accepted a mismatched payload room")
+	}
+	if got, err := roomPubSubEventPublication(KindChannel, "room-id", typing).subject(); err != nil {
+		t.Fatalf("valid room-scoped publication: %v", err)
+	} else if got != "live.sync.room.channel.room-id.user_typing" {
+		t.Fatalf("subject = %q, want canonical typing subject", got)
+	}
+}
+
+func TestPubSubEventWireDoesNotUseTheEVTEnvelope(t *testing.T) {
+	event := newPubSubEvent("actor-id", &pubsubv1.PubSubEvent{Event: &pubsubv1.PubSubEvent_UserTyping{
+		UserTyping: &realtimev1.UserTypingEvent{RoomId: "room-id"},
+	}})
+	wire, err := proto.Marshal(event)
+	if err != nil {
+		t.Fatalf("marshal PubSubEvent: %v", err)
+	}
+	var decoded pubsubv1.PubSubEvent
+	if err := proto.Unmarshal(wire, &decoded); err != nil {
+		t.Fatalf("unmarshal PubSubEvent: %v", err)
+	}
+	if decoded.GetId() != event.GetId() || decoded.GetUserTyping().GetRoomId() != "room-id" {
+		t.Fatalf("decoded PubSubEvent = %+v, want metadata and typing payload", &decoded)
+	}
+	var stored evtv1.Event
+	if err := proto.Unmarshal(wire, &stored); err != nil {
+		t.Fatalf("unmarshal PubSubEvent bytes as Event: %v", err)
+	}
+	if stored.GetEvent() != nil {
+		t.Fatalf("PubSubEvent bytes selected durable EVT variant %T", stored.GetEvent())
+	}
+}
+
+func TestEveryPubSubEventVariantPassesValidation(t *testing.T) {
+	descriptor := (&pubsubv1.PubSubEvent{}).ProtoReflect().Descriptor()
+	oneof := descriptor.Oneofs().ByName("event")
+	if oneof == nil {
+		t.Fatal("PubSubEvent.event descriptor is missing")
+	}
+	for index := 0; index < oneof.Fields().Len(); index++ {
+		field := oneof.Fields().Get(index)
+		if got, want := int(field.Number()), index+10; got != want {
+			t.Errorf("PubSubEvent field %s has tag %d, want compact tag %d", field.FullName(), got, want)
+		}
+		dynamicEvent := dynamicpb.NewMessage(descriptor)
+		dynamicEvent.Set(field, dynamicEvent.NewField(field))
+		wire, err := proto.Marshal(dynamicEvent)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", field.FullName(), err)
+		}
+		var event pubsubv1.PubSubEvent
+		if err := proto.Unmarshal(wire, &event); err != nil {
+			t.Fatalf("unmarshal %s: %v", field.FullName(), err)
+		}
+		if err := validatePubSubEvent(&event); err != nil {
+			t.Errorf("validate %s: %v", field.FullName(), err)
+		}
+	}
 }
 
 func TestRoomMutationsDoNotWriteServerEvents(t *testing.T) {
@@ -661,7 +731,7 @@ func TestStreamMyEvents_DeliversDMEventsWhenMessagePostDenied(t *testing.T) {
 			if !ok {
 				t.Fatal("event stream closed unexpectedly")
 			}
-			if liveEventRoomID(ev) == room.Id && EventMessagePosted(ev) != nil {
+			if pubsubEventRoomID(ev) == room.Id && EventMessagePosted(ev) != nil {
 				return
 			}
 		case <-timeout:
@@ -735,7 +805,7 @@ func TestStreamMyEvents_DeliversRawEVTRepublish(t *testing.T) {
 	}
 }
 
-func liveEventRoomID(event EventEnvelope) string {
+func pubsubEventRoomID(event EventEnvelope) string {
 	evt := event.EVTEvent()
 	if evt == nil {
 		return ""

@@ -11,8 +11,8 @@ protocol, but start with no permissions and cannot sign in through Chatto's
 login forms.
 
 <Aside type="caution">
-  A bot API key does not expire automatically. Treat it like a password: keep
-  it out of source control, logs, URLs, screenshots, and support requests.
+  A bot API key does not expire automatically. Treat it like a password: keep it
+  out of source control, logs, URLs, screenshots, and support requests.
 </Aside>
 
 ## Create and configure a bot
@@ -126,21 +126,26 @@ Use the normal `subscribe_events` realtime subscription. See the
 [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) for the
 connection and resume model, or follow the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to build a
-small client. Chatto sends the bot's visible notification occurrences in
-`notification_occurrences_replace`. Chatto does not use a bot-only realtime
-channel or a separate bot-interaction event.
+small client. Chatto does not use a bot-only realtime channel or a separate
+bot-interaction event. The same subscription sends semantic events for all
+authorized public activity, including messages, edits, reactions, rooms,
+membership, profiles, and calls. Select `LIVE_ONLY` when the bot does not need
+an initial current-resource snapshot. Use the
+[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+reference to select the variants that the bot handles.
 
-Filter the replacement by cause. Use these notification causes to activate an
-integration:
+Read `NotificationService.ListNotificationOccurrences` and filter by cause when
+the integration needs Chatto's attention policy instead of all visible
+activity:
 
-| Cause | When Chatto creates it |
-| ----- | ---------------------- |
-| `direct_message_received` | Another account sends a message in a DM that a human started with the bot. |
-| `direct_mention_received` | Another account directly mentions the bot in a channel-room root or reply. |
-| `reply_received` | Another account replies to a message from the bot. |
-| `followed_thread_activity` | Another account posts in a thread that the bot follows. |
+| Cause                      | When Chatto creates it                                                     |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `direct_message_received`  | Another account sends a message in a DM that a human started with the bot. |
+| `direct_mention_received`  | Another account directly mentions the bot in a channel-room root or reply. |
+| `reply_received`           | Another account replies to a message from the bot.                         |
+| `followed_thread_activity` | Another account posts in a thread that the bot follows.                    |
 
-The replacement can also contain other notification causes that apply to the
+The response can also contain other notification causes that apply to the
 account. Ignore causes that the integration does not use.
 
 A delivered direct mention in a channel-room root or reply also attempts to
@@ -156,10 +161,9 @@ more than once. One message can create multiple causes. If the integration
 must act only once for each message, also deduplicate by the referenced
 `event_id`.
 
-The realtime replacement contains the newest finite page. After a disconnect,
-use `NotificationService.ListNotificationOccurrences` for longer recovery
-within the notification retention period. Then use the message reference with
-the normal message or thread API. For example, use
+The notification read contains the newest finite page. Read it again after a
+disconnect for recovery within the notification retention period. Then use the
+message reference with the normal message or thread API. For example, use
 `ThreadService.GetThreadEvents` to get the complete thread. The server returns
 content only when the bot has current membership, permission, and interaction
 access.

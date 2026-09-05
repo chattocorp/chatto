@@ -175,7 +175,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		if _, err := s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerEventID); err != nil {
 			return nil, fmt.Errorf("reconcile thread read state with notifications: %w", err)
 		}
-		s.core.NotifyNotificationUnreadChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
+		s.core.NotifyNotificationUnreadStateChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }

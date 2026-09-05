@@ -1,17 +1,18 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import {
+  ListRoomsResponse,
+  RoomViewerState,
+  RoomWithViewerState
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { UserAccountDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionOperation,
-  RealtimeProjectionRoom,
-  RealtimeProjectionRoomRemove,
-  RealtimeProjectionUserRemove
-} from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
   DirectoryMember,
   MemberDirectoryAPI,
@@ -25,7 +26,7 @@ import RoomMembersPanel from './RoomMembersPanel.svelte';
 const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
-  projectionHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
+  projectionHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
   directoryAPI: null as MemberDirectoryAPI | null,
   commandAPI: null as RoomCommandAPI | null,
   queryScope: 'session-1',
@@ -37,8 +38,8 @@ vi.mock('$lib/state/presenceCache.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
@@ -77,7 +78,7 @@ vi.mock('$lib/ui/ConfirmDialog.svelte', async () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionHandler = handler;
   }
 }));
@@ -191,6 +192,28 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+function roomSnapshot(room: RoomWithViewerState | null): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    resource: new RealtimeResourceUpdate({
+      resource: {
+        case: 'rooms',
+        value: new ListRoomsResponse({ rooms: room ? [room] : [] })
+      }
+    })
+  });
+}
+
+function userRemoved(userId: string): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    event: new PublicRealtimeEvent({
+      event: {
+        case: 'userAccountDeleted',
+        value: new UserAccountDeletedEvent({ userId })
+      }
+    })
+  });
+}
+
 describe('RoomMembersPanel', () => {
   beforeEach(() => {
     queryClient.clear();
@@ -301,18 +324,7 @@ describe('RoomMembersPanel', () => {
     await settle();
     expect(container.textContent).toContain('Alice');
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
-        operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomRemove',
-              value: new RealtimeProjectionRoomRemove({ roomId: 'room-1' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(roomSnapshot(null));
     flushSync();
 
     expect(container.textContent).not.toContain('Alice');
@@ -333,21 +345,12 @@ describe('RoomMembersPanel', () => {
     await settle();
 
     mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
-        operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'roomUpsert',
-              value: new RealtimeProjectionRoom({
-                room: new RoomWithViewerState({
-                  room: new Room({ id: 'room-1' }),
-                  viewerState: new RoomViewerState({ isMember: false })
-                })
-              })
-            }
-          })
-        ]
-      })
+      roomSnapshot(
+        new RoomWithViewerState({
+          room: new Room({ id: 'room-1' }),
+          viewerState: new RoomViewerState({ isMember: false })
+        })
+      )
     );
     await settle();
 
@@ -419,18 +422,7 @@ describe('RoomMembersPanel', () => {
     flushSync();
     expect(buttonByText(rendered.container, 'Add member').disabled).toBe(false);
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
-        operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'userRemove',
-              value: new RealtimeProjectionUserRemove({ userId: 'bob' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(userRemoved('bob'));
     flushSync();
 
     expect(buttonByText(rendered.container, 'Add member').disabled).toBe(true);
@@ -446,18 +438,7 @@ describe('RoomMembersPanel', () => {
     flushSync();
     expect(document.querySelector('dialog')).not.toBeNull();
 
-    mocks.projectionHandler?.(
-      new RealtimeProjectionEvent({
-        operations: [
-          new RealtimeProjectionOperation({
-            operation: {
-              case: 'userRemove',
-              value: new RealtimeProjectionUserRemove({ userId: 'alice' })
-            }
-          })
-        ]
-      })
-    );
+    mocks.projectionHandler?.(userRemoved('alice'));
     flushSync();
 
     expect(document.querySelector('dialog')).toBeNull();

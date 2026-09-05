@@ -25,7 +25,7 @@ When a user is composing a message, others see a small typing indicator — the 
 
 **Decision:** Typing events publish as transient live messages on the live-event channel. They are not written to JetStream.
 **Why:** Typing has zero audit value — it's interesting only in the moment. Storing a stream of "X is typing" events would bloat the event log without ever being read back. See ADR-012.
-**Tradeoff:** A client that misses the live event briefly doesn't see the indicator. Acceptable: the indicator is decoration, not state.
+**Tradeoff:** A client that misses the cursorless realtime event briefly does not see the indicator. This is acceptable because the indicator is decoration, not state.
 
 ### 2. 2-second send debounce, 6-second display TTL
 

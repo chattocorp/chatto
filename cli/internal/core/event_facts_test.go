@@ -313,7 +313,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			}},
 			lifecycle:   false,
 			liveAsset:   false,
-			liveRoomEVT: false,
+			liveRoomEVT: true,
 			reactions:   false,
 			threads:     true,
 			directory:   false,
@@ -326,7 +326,7 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			}},
 			lifecycle:   false,
 			liveAsset:   false,
-			liveRoomEVT: false,
+			liveRoomEVT: true,
 			reactions:   false,
 			threads:     true,
 			directory:   false,
@@ -369,6 +369,19 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			reactions:   false,
 			threads:     false,
 			directory:   false,
+			callState:   false,
+		},
+		{
+			name: "room member unbanned",
+			event: &evtv1.Event{Event: &evtv1.Event_RoomMemberUnbanned{
+				RoomMemberUnbanned: &evtv1.RoomMemberUnbannedEvent{RoomId: "R1", UserId: "U1"},
+			}},
+			lifecycle:   false,
+			liveAsset:   false,
+			liveRoomEVT: true,
+			reactions:   false,
+			threads:     false,
+			directory:   true,
 			callState:   false,
 		},
 		{
@@ -465,6 +478,13 @@ func TestEventFactsUserLiveEVT(t *testing.T) {
 			name: "login change refreshes the public user projection",
 			event: &evtv1.Event{Event: &evtv1.Event_UserLoginChanged{
 				UserLoginChanged: &evtv1.UserLoginChangedEvent{UserId: "U1"},
+			}},
+			want: true,
+		},
+		{
+			name: "bio change refreshes the public user projection",
+			event: &evtv1.Event{Event: &evtv1.Event_UserBioChanged{
+				UserBioChanged: &evtv1.UserBioChangedEvent{UserId: "U1"},
 			}},
 			want: true,
 		},

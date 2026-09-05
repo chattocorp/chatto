@@ -14,7 +14,6 @@
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
-    reconcileFollowedThreadViewerStates,
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
@@ -48,8 +47,6 @@
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
-  let reconciledQueryScope: string | null = null;
-  let reconciledMountedSnapshot = false;
   let actionThreadId = $state<string | null>(null);
 
   const threadsQuery = createInfiniteQuery(
@@ -67,7 +64,7 @@
             nextOffset: pageParam + result.threads.length
           };
           if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
-          return reconcilePageWithCurrentProjection(pageData, pageParam);
+          return pageData;
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
@@ -112,76 +109,6 @@
       activeLocale
     )
   );
-
-  function reconcilePageWithCurrentProjection(
-    pageData: FollowedThreadsData['pages'][number],
-    pageParam: number
-  ): FollowedThreadsData['pages'][number] {
-    if (!serverStore.realtimeSync.hasUsableProjection) return pageData;
-    let data: FollowedThreadsData | undefined = { pages: [pageData], pageParams: [pageParam] };
-    data = reconcileFollowedThreadViewerStates(
-      data,
-      serverStore.projection.threadViewerStates
-    ).data;
-    for (const thread of data?.pages[0]?.threads ?? []) {
-      data = applyProjectedTimelineSummary(data, thread);
-    }
-    return data?.pages[0] ?? pageData;
-  }
-
-  function applyProjectedTimelineSummary(
-    data: FollowedThreadsData | undefined,
-    thread: FollowedThread
-  ): FollowedThreadsData | undefined {
-    const event = serverStore.projection.timelines
-      .get(thread.roomId)
-      ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
-    const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
-    const summary = message?.thread;
-    if (!summary) return data;
-    return updateFollowedThreadSummary(data, {
-      roomId: thread.roomId,
-      threadRootEventId: thread.threadRootEventId,
-      replyCount: summary.replyCount,
-      lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
-      hasUnreadReplies: summary.viewerState?.hasUnreadReplies
-    });
-  }
-
-  function reconcileCachedProjection(
-    states: ReadonlyMap<string, { hasUnreadReplies?: boolean }>,
-    refetchUnknown: boolean
-  ) {
-    const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
-    const current = queryClient.getQueryData<FollowedThreadsData>(queryKey);
-    if (!current) return;
-
-    const reconciled = reconcileFollowedThreadViewerStates(current, states);
-    let next = reconciled.data;
-    for (const thread of flattenFollowedThreads(next)) {
-      next = applyProjectedTimelineSummary(next, thread);
-    }
-    if (next !== current) queryClient.setQueryData(queryKey, next);
-    if (refetchUnknown && reconciled.hasUnknownThreads) {
-      void queryClient.invalidateQueries({ queryKey, exact: true });
-    }
-  }
-
-  // Reconcile after every query commit so an append cannot restore an older
-  // page snapshot over a projection update that arrived while it was in flight.
-  $effect(() => {
-    const queryScope = serverScope.connection.queryScope;
-    const queryData = threadsQuery.data;
-    if (reconciledQueryScope !== queryScope) {
-      reconciledQueryScope = queryScope;
-      reconciledMountedSnapshot = false;
-    }
-
-    if (!serverStore.realtimeSync.hasUsableProjection || !queryData) return;
-    const refetchUnknown = !reconciledMountedSnapshot;
-    reconciledMountedSnapshot = true;
-    reconcileCachedProjection(serverStore.projection.threadViewerStates, refetchUnknown);
-  });
 
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;

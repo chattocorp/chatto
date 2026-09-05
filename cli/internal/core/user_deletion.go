@@ -202,11 +202,10 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.credentialUsage.ForgetAll(ctx, userID)
 	}
 
-	// Clean per-kind user artifacts AFTER the user projection marks the
-	// account deleted, so ServerMemberDeletedEvent refetches already see
-	// "Deleted User".
+	// Clean per-kind user artifacts after the user projection marks the
+	// account deleted.
 	for _, kind := range allKinds {
-		if err := c.CleanupUserState(ctx, userID, kind, true); err != nil {
+		if err := c.CleanupUserState(ctx, userID, kind); err != nil {
 			c.logger.Warn("Failed to clean up user state during deletion", "user_id", userID, "kind", kind, "error", err)
 		}
 	}

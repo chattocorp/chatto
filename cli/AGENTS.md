@@ -225,24 +225,35 @@ authorization, live events, backup and restore, and backend tests.
   potentially valid checkpoint. Define backup exclusion, deletion, and
   plaintext/privacy behavior for each checkpointed feature.
 
-## Live Events
+## Realtime Event Sources
 
 - Durable facts publish to `evt.>` through `EventPublisher`; JetStream republish
   exposes committed facts on `live.evt.>`.
-- Transient UI sync publishes `livev1.LiveEvent` on `live.sync.>` through
-  `publishLiveEvent`.
+- Non-durable pubsub activity publishes `pubsubv1.PubSubEvent` values on
+  `live.sync.>` through `publishUserPubSubEvent`,
+  `publishRoomPubSubEvent`, or a typed batch of the same scopes. Do not let a
+  caller supply an arbitrary pubsub subject. The publisher must derive the
+  subject from the payload type and verify all scope IDs.
+- A `live.sync.>` consumer must verify that the subject family, scope, suffix,
+  and payload IDs agree before it performs authorization. Reject wildcards,
+  extra tokens, unknown suffixes, and cross-user or cross-room mismatches.
 - Pick one delivery path per conceptual update. Do not double-publish both a
-  durable event and a transient live event for the same UI change.
+  durable event and a pubsub event for the same UI change.
 - Do not publish from projector `Apply` methods; every replica runs projectors.
 - Do not use a locally published NATS message as a global ordering fence for
   JetStream republish or messages from other replicas. Tie projection snapshots
   and stale-event suppression to authoritative EVT stream sequences.
 - `StreamMyEvents` is the authorized gate for realtime delivery. It waits for
   projection readiness and filters per subscriber before publishing events.
-- New live event types usually require protobuf, publishing, authorization,
-  realtime mapping, frontend subscription handling, and tests. If a visible room
-  timeline event is added, update the Connect timeline assembler and mapping
-  tests.
+- New client-visible event types require a dedicated payload in
+  `proto/chatto/realtime/v1/events.proto`, a matching `RealtimeEvent` union
+  member, authorization and mapping coverage, frontend subscription handling,
+  generated clients, documentation, and tests. Public names and compact field
+  numbers must not expose whether the source is `Event` or `PubSubEvent`.
+  Client-facing `PubSubEvent` variants must reference the public payload
+  directly, while the explicit mapper keeps the private union as the allow-list
+  for cursorless events. If a visible room timeline event is added, also update
+  the Connect timeline assembler and mapping tests.
 
 ## Authorization And RBAC
 

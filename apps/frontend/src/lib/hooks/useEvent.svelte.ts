@@ -30,7 +30,7 @@ function useServerEvent<Handler>(
   $effect(() => subscribe(selectServerId(), handler));
 }
 
-/** Subscribe to canonical projection operations on the route or explicitly selected server. */
+/** Subscribe to canonical realtime events and snapshot resource updates for one server. */
 export function useProjectionEvent(
   handler: ProjectionHandler,
   getServerId?: ServerIdSelector

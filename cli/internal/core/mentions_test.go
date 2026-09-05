@@ -1,13 +1,13 @@
 package core
 
 import (
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
 	"time"
 
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/core/subjects"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 func TestExtractMentionUsernames(t *testing.T) {
@@ -571,23 +571,23 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if err != nil {
 		t.Fatalf("waiting for DND notification occurrence change: %v", err)
 	}
-	var live livev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
-		t.Fatalf("unmarshal live event: %v", err)
+	var pubsub pubsubv1.PubSubEvent
+	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
+		t.Fatalf("unmarshal pubsub event: %v", err)
 	}
-	event := live.GetNotificationOccurrencesInvalidated()
+	event := pubsub.GetNotificationOccurrencesChanged()
 	if event == nil {
-		t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
+		t.Fatalf("expected NotificationOccurrencesChangedEvent, got %T", pubsub.Event)
 	}
-	if event.GetAlertCandidateNotificationId() != "" {
-		t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
-	}
-	if event.GetSoundCandidateNotificationId() != "" {
-		t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+	if event.GetCreatedNotificationId() == "" {
+		t.Fatal("NotificationOccurrencesChangedEvent must report creation during DND")
 	}
 	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {
 		t.Fatalf("notifications after DND mention = %d, want 2", len(notifications))
+	}
+	if _, err := core.NotificationOccurrences().Get(ctx, mentioned.Id, event.GetCreatedNotificationId()); err != nil {
+		t.Fatalf("read created notification: %v", err)
 	}
 }
 

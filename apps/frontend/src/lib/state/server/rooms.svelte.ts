@@ -94,7 +94,7 @@ export class NavigationStore {
   readonly #rooms = $derived.by((): RoomsListItem[] => {
     if (!this.readiness.hasUsableProjection) return [];
     return [...this.projection.rooms.values()].flatMap((entry) => {
-      const room = entry.room ? mapDirectoryRoom(entry.room) : null;
+      const room = entry.room ? mapDirectoryRoom(entry) : null;
       if (!room || room.archived) return [];
       const members = entry.memberUserIds.flatMap((userId) => {
         const member = this.projection.users.get(userId);

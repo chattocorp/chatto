@@ -832,8 +832,12 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListRooms empty DMs: %v", err)
 	}
-	if len(dmResp.Msg.GetRooms()) != 0 {
-		t.Fatalf("empty DM list len = %d, want 0", len(dmResp.Msg.GetRooms()))
+	if len(dmResp.Msg.GetRooms()) != 1 {
+		t.Fatalf("empty DM list len = %d, want 1", len(dmResp.Msg.GetRooms()))
+	}
+	emptyDM := dmResp.Msg.GetRooms()[0]
+	if emptyDM.GetRoom().GetId() != dm.Id || emptyDM.GetHasMessageHistory() || len(emptyDM.GetMemberUserIds()) != 2 {
+		t.Fatalf("empty DM resource = %+v, want canonical participants and false history", emptyDM)
 	}
 	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, caller.Id, "hello DM", nil, "", "", nil, false); err != nil {
 		t.Fatalf("CreateMessage DM: %v", err)
@@ -859,6 +863,9 @@ func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
 	}
 	if !dmRoom.GetViewerState().GetIsMember() {
 		t.Fatalf("DM IsMember = false, want true")
+	}
+	if !dmRoom.GetHasMessageHistory() || len(dmRoom.GetMemberUserIds()) != 2 {
+		t.Fatalf("active DM resource = %+v, want canonical participants and true history", dmRoom)
 	}
 	if !apiRoomPermissionGranted(dmRoom, core.PermRoomList) {
 		t.Fatalf("DM CanListRoom = false, want true")
@@ -2050,13 +2057,6 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 		counts[0].GetImportantUnreadCount() != int32(defaultNotificationLimit+5) {
 		t.Fatalf("bounded room occurrence metadata = %+v", counts)
 	}
-	projection, err := env.api.BuildRealtimeProjectionNotifications(env.ctx, env.viewer.Id)
-	if err != nil ||
-		projection.Occurrences.GetNextExpiryAt() == nil ||
-		projection.Occurrences.GetImportantUnreadCount() != int32(defaultNotificationLimit+5) {
-		t.Fatalf("realtime expiry boundary = %+v, %v", projection, err)
-	}
-
 	live, err := env.nc.SubscribeSync(subjects.LiveSyncUserEvent(env.viewer.Id, "notification_v2"))
 	if err != nil {
 		t.Fatalf("subscribe to notification invalidations: %v", err)
@@ -2537,12 +2537,6 @@ func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
 	}
 	assertDMCall("ListActiveCalls participant", listed.Msg.GetCalls())
 
-	projected, err := env.api.BuildRealtimeProjectionActiveCalls(env.ctx, participant.Id)
-	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionActiveCalls participant: %v", err)
-	}
-	assertDMCall("realtime projection participant", projected)
-
 	outsiderCtx := withCaller(env.ctx, outsider)
 	outsiderListed, err := env.voice.ListActiveCalls(outsiderCtx, connect.NewRequest(&apiv1.ListActiveCallsRequest{}))
 	if err != nil {
@@ -2550,13 +2544,6 @@ func TestVoiceCallServiceListsDMCallsForParticipants(t *testing.T) {
 	}
 	if len(outsiderListed.Msg.GetCalls()) != 0 {
 		t.Fatalf("ListActiveCalls outsider calls = %+v, want none", outsiderListed.Msg.GetCalls())
-	}
-	outsiderProjected, err := env.api.BuildRealtimeProjectionActiveCalls(env.ctx, outsider.Id)
-	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionActiveCalls outsider: %v", err)
-	}
-	if len(outsiderProjected) != 0 {
-		t.Fatalf("realtime projection outsider calls = %+v, want none", outsiderProjected)
 	}
 }
 

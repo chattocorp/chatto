@@ -1,6 +1,7 @@
 # ADR-084: Separate Internal Protobufs by Storage Contract
 
-**Status:** Accepted
+**Status:** Accepted. ADR-094 refines the separate durable and transient
+envelope rule for realtime protocol 4.
 **Date:** 2026-08-28
 
 ## Context
@@ -34,7 +35,7 @@ storage contract:
 | `chatto.core.key_material.v1` | KMS records stored in `ENCRYPTION_KEYS` |
 | `chatto.core.cache_state.v1` | Volatile shared records stored in `MEMORY_CACHE` |
 | `chatto.core.projection.v1` | Rebuildable projection snapshot payloads |
-| `chatto.core.live.v1` | Transient internal signals published on `live.sync.>` |
+| `chatto.core.pubsub.v1` | Internal pubsub events published on `live.sync.>` |
 
 Types that are part of an EVT fact stay in `chatto.core.evt.v1`, even when a
 projection or runtime operation also uses them. For example, notification
@@ -55,9 +56,10 @@ move when this test passes. Normal strict Buf checks apply after the new layout
 is in the comparison base.
 
 The projection package move deliberately changes projection snapshot contract
-IDs. Servers can ignore old snapshots and replay EVT. The live package move can
-break generated source and the internal live wire during the 0.5 development
-cycle. The public realtime protocol remains a separate mapped contract.
+IDs. Servers can ignore old snapshots and replay EVT. The pubsub package can
+break generated source and the internal NATS Core wire during the 0.5
+development cycle. The public realtime protocol remains a separate mapped
+contract.
 
 Future contributors must not move a stored symbol only to improve organization.
 A later move needs explicit compatibility review and an executable fixture for
