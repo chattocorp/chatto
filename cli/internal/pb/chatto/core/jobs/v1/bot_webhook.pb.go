@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.11
 // 	protoc        (unknown)
-// source: chatto/core/webhook/v1/delivery.proto
+// source: chatto/core/jobs/v1/bot_webhook.proto
 
-package webhookv1
+package jobsv1
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -24,7 +24,7 @@ const (
 
 // One pending job in the JOBS work queue. JetStream owns retry state.
 // References retain no message plaintext or destination credentials.
-type BotWebhookDelivery struct {
+type BotWebhookDeliveryJob struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeliveryId    string                 `protobuf:"bytes,1,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`
 	BotUserId     string                 `protobuf:"bytes,2,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
@@ -41,21 +41,21 @@ type BotWebhookDelivery struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BotWebhookDelivery) Reset() {
-	*x = BotWebhookDelivery{}
-	mi := &file_chatto_core_webhook_v1_delivery_proto_msgTypes[0]
+func (x *BotWebhookDeliveryJob) Reset() {
+	*x = BotWebhookDeliveryJob{}
+	mi := &file_chatto_core_jobs_v1_bot_webhook_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BotWebhookDelivery) String() string {
+func (x *BotWebhookDeliveryJob) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BotWebhookDelivery) ProtoMessage() {}
+func (*BotWebhookDeliveryJob) ProtoMessage() {}
 
-func (x *BotWebhookDelivery) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_webhook_v1_delivery_proto_msgTypes[0]
+func (x *BotWebhookDeliveryJob) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_jobs_v1_bot_webhook_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -66,87 +66,87 @@ func (x *BotWebhookDelivery) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BotWebhookDelivery.ProtoReflect.Descriptor instead.
-func (*BotWebhookDelivery) Descriptor() ([]byte, []int) {
-	return file_chatto_core_webhook_v1_delivery_proto_rawDescGZIP(), []int{0}
+// Deprecated: Use BotWebhookDeliveryJob.ProtoReflect.Descriptor instead.
+func (*BotWebhookDeliveryJob) Descriptor() ([]byte, []int) {
+	return file_chatto_core_jobs_v1_bot_webhook_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *BotWebhookDelivery) GetDeliveryId() string {
+func (x *BotWebhookDeliveryJob) GetDeliveryId() string {
 	if x != nil {
 		return x.DeliveryId
 	}
 	return ""
 }
 
-func (x *BotWebhookDelivery) GetBotUserId() string {
+func (x *BotWebhookDeliveryJob) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
 	}
 	return ""
 }
 
-func (x *BotWebhookDelivery) GetWebhookId() string {
+func (x *BotWebhookDeliveryJob) GetWebhookId() string {
 	if x != nil {
 		return x.WebhookId
 	}
 	return ""
 }
 
-func (x *BotWebhookDelivery) GetSourceEventId() string {
+func (x *BotWebhookDeliveryJob) GetSourceEventId() string {
 	if x != nil {
 		return x.SourceEventId
 	}
 	return ""
 }
 
-func (x *BotWebhookDelivery) GetRoomId() string {
+func (x *BotWebhookDeliveryJob) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
 	return ""
 }
 
-func (x *BotWebhookDelivery) GetTriggers() []string {
+func (x *BotWebhookDeliveryJob) GetTriggers() []string {
 	if x != nil {
 		return x.Triggers
 	}
 	return nil
 }
 
-func (x *BotWebhookDelivery) GetOccurredAt() *timestamppb.Timestamp {
+func (x *BotWebhookDeliveryJob) GetOccurredAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OccurredAt
 	}
 	return nil
 }
 
-func (x *BotWebhookDelivery) GetExpiresAt() *timestamppb.Timestamp {
+func (x *BotWebhookDeliveryJob) GetExpiresAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.ExpiresAt
 	}
 	return nil
 }
 
-func (x *BotWebhookDelivery) GetMaxAttempts() uint32 {
+func (x *BotWebhookDeliveryJob) GetMaxAttempts() uint32 {
 	if x != nil {
 		return x.MaxAttempts
 	}
 	return 0
 }
 
-func (x *BotWebhookDelivery) GetRetryDelayMs() int64 {
+func (x *BotWebhookDeliveryJob) GetRetryDelayMs() int64 {
 	if x != nil {
 		return x.RetryDelayMs
 	}
 	return 0
 }
 
-var File_chatto_core_webhook_v1_delivery_proto protoreflect.FileDescriptor
+var File_chatto_core_jobs_v1_bot_webhook_proto protoreflect.FileDescriptor
 
-const file_chatto_core_webhook_v1_delivery_proto_rawDesc = "" +
+const file_chatto_core_jobs_v1_bot_webhook_proto_rawDesc = "" +
 	"\n" +
-	"%chatto/core/webhook/v1/delivery.proto\x12\x16chatto.core.webhook.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x92\x03\n" +
-	"\x12BotWebhookDelivery\x12\x1f\n" +
+	"%chatto/core/jobs/v1/bot_webhook.proto\x12\x13chatto.core.jobs.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x95\x03\n" +
+	"\x15BotWebhookDeliveryJob\x12\x1f\n" +
 	"\vdelivery_id\x18\x01 \x01(\tR\n" +
 	"deliveryId\x12\x1e\n" +
 	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x1d\n" +
@@ -161,29 +161,29 @@ const file_chatto_core_webhook_v1_delivery_proto_rawDesc = "" +
 	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12!\n" +
 	"\fmax_attempts\x18\t \x01(\rR\vmaxAttempts\x12$\n" +
 	"\x0eretry_delay_ms\x18\n" +
-	" \x01(\x03R\fretryDelayMsB\xe4\x01\n" +
-	"\x1acom.chatto.core.webhook.v1B\rDeliveryProtoP\x01Z<hmans.de/chatto/internal/pb/chatto/core/webhook/v1;webhookv1\xa2\x02\x03CCW\xaa\x02\x16Chatto.Core.Webhook.V1\xca\x02\x16Chatto\\Core\\Webhook\\V1\xe2\x02\"Chatto\\Core\\Webhook\\V1\\GPBMetadata\xea\x02\x19Chatto::Core::Webhook::V1b\x06proto3"
+	" \x01(\x03R\fretryDelayMsB\xd1\x01\n" +
+	"\x17com.chatto.core.jobs.v1B\x0fBotWebhookProtoP\x01Z6hmans.de/chatto/internal/pb/chatto/core/jobs/v1;jobsv1\xa2\x02\x03CCJ\xaa\x02\x13Chatto.Core.Jobs.V1\xca\x02\x13Chatto\\Core\\Jobs\\V1\xe2\x02\x1fChatto\\Core\\Jobs\\V1\\GPBMetadata\xea\x02\x16Chatto::Core::Jobs::V1b\x06proto3"
 
 var (
-	file_chatto_core_webhook_v1_delivery_proto_rawDescOnce sync.Once
-	file_chatto_core_webhook_v1_delivery_proto_rawDescData []byte
+	file_chatto_core_jobs_v1_bot_webhook_proto_rawDescOnce sync.Once
+	file_chatto_core_jobs_v1_bot_webhook_proto_rawDescData []byte
 )
 
-func file_chatto_core_webhook_v1_delivery_proto_rawDescGZIP() []byte {
-	file_chatto_core_webhook_v1_delivery_proto_rawDescOnce.Do(func() {
-		file_chatto_core_webhook_v1_delivery_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_webhook_v1_delivery_proto_rawDesc), len(file_chatto_core_webhook_v1_delivery_proto_rawDesc)))
+func file_chatto_core_jobs_v1_bot_webhook_proto_rawDescGZIP() []byte {
+	file_chatto_core_jobs_v1_bot_webhook_proto_rawDescOnce.Do(func() {
+		file_chatto_core_jobs_v1_bot_webhook_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_chatto_core_jobs_v1_bot_webhook_proto_rawDesc), len(file_chatto_core_jobs_v1_bot_webhook_proto_rawDesc)))
 	})
-	return file_chatto_core_webhook_v1_delivery_proto_rawDescData
+	return file_chatto_core_jobs_v1_bot_webhook_proto_rawDescData
 }
 
-var file_chatto_core_webhook_v1_delivery_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
-var file_chatto_core_webhook_v1_delivery_proto_goTypes = []any{
-	(*BotWebhookDelivery)(nil),    // 0: chatto.core.webhook.v1.BotWebhookDelivery
+var file_chatto_core_jobs_v1_bot_webhook_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chatto_core_jobs_v1_bot_webhook_proto_goTypes = []any{
+	(*BotWebhookDeliveryJob)(nil), // 0: chatto.core.jobs.v1.BotWebhookDeliveryJob
 	(*timestamppb.Timestamp)(nil), // 1: google.protobuf.Timestamp
 }
-var file_chatto_core_webhook_v1_delivery_proto_depIdxs = []int32{
-	1, // 0: chatto.core.webhook.v1.BotWebhookDelivery.occurred_at:type_name -> google.protobuf.Timestamp
-	1, // 1: chatto.core.webhook.v1.BotWebhookDelivery.expires_at:type_name -> google.protobuf.Timestamp
+var file_chatto_core_jobs_v1_bot_webhook_proto_depIdxs = []int32{
+	1, // 0: chatto.core.jobs.v1.BotWebhookDeliveryJob.occurred_at:type_name -> google.protobuf.Timestamp
+	1, // 1: chatto.core.jobs.v1.BotWebhookDeliveryJob.expires_at:type_name -> google.protobuf.Timestamp
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -191,26 +191,26 @@ var file_chatto_core_webhook_v1_delivery_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_chatto_core_webhook_v1_delivery_proto_init() }
-func file_chatto_core_webhook_v1_delivery_proto_init() {
-	if File_chatto_core_webhook_v1_delivery_proto != nil {
+func init() { file_chatto_core_jobs_v1_bot_webhook_proto_init() }
+func file_chatto_core_jobs_v1_bot_webhook_proto_init() {
+	if File_chatto_core_jobs_v1_bot_webhook_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_webhook_v1_delivery_proto_rawDesc), len(file_chatto_core_webhook_v1_delivery_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_jobs_v1_bot_webhook_proto_rawDesc), len(file_chatto_core_jobs_v1_bot_webhook_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   1,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
-		GoTypes:           file_chatto_core_webhook_v1_delivery_proto_goTypes,
-		DependencyIndexes: file_chatto_core_webhook_v1_delivery_proto_depIdxs,
-		MessageInfos:      file_chatto_core_webhook_v1_delivery_proto_msgTypes,
+		GoTypes:           file_chatto_core_jobs_v1_bot_webhook_proto_goTypes,
+		DependencyIndexes: file_chatto_core_jobs_v1_bot_webhook_proto_depIdxs,
+		MessageInfos:      file_chatto_core_jobs_v1_bot_webhook_proto_msgTypes,
 	}.Build()
-	File_chatto_core_webhook_v1_delivery_proto = out.File
-	file_chatto_core_webhook_v1_delivery_proto_goTypes = nil
-	file_chatto_core_webhook_v1_delivery_proto_depIdxs = nil
+	File_chatto_core_jobs_v1_bot_webhook_proto = out.File
+	file_chatto_core_jobs_v1_bot_webhook_proto_goTypes = nil
+	file_chatto_core_jobs_v1_bot_webhook_proto_depIdxs = nil
 }

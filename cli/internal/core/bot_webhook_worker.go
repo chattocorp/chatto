@@ -21,7 +21,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jobqueue"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	webhookv1 "hmans.de/chatto/internal/pb/chatto/core/webhook/v1"
+	jobsv1 "hmans.de/chatto/internal/pb/chatto/core/jobs/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -169,7 +169,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 		}
 		webhookID := cfg.GetBotOutboundWebhookConfigured().GetWebhookId()
 		id := botWebhookDeliveryID(botID, webhookID, e.GetId())
-		request := &webhookv1.BotWebhookDelivery{DeliveryId: id, BotUserId: botID, WebhookId: webhookID, SourceEventId: e.GetId(), RoomId: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt(), ExpiresAt: timestamppb.New(expiry), MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelayMs: m.core.config.BotWebhooks.RetryDelayOrDefault().Milliseconds()}
+		request := &jobsv1.BotWebhookDeliveryJob{DeliveryId: id, BotUserId: botID, WebhookId: webhookID, SourceEventId: e.GetId(), RoomId: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt(), ExpiresAt: timestamppb.New(expiry), MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelayMs: m.core.config.BotWebhooks.RetryDelayOrDefault().Milliseconds()}
 		data, err := proto.Marshal(request)
 		if err != nil {
 			return err
@@ -204,7 +204,7 @@ type botWebhookMessage struct {
 }
 
 func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery) error {
-	r := &webhookv1.BotWebhookDelivery{}
+	r := &jobsv1.BotWebhookDeliveryJob{}
 	if err := proto.Unmarshal(d.Data, r); err != nil || r.GetDeliveryId() == "" || r.GetExpiresAt() == nil || r.GetMaxAttempts() == 0 {
 		return events.TerminateDelivery("invalid outbound webhook request", nil)
 	}
@@ -346,7 +346,7 @@ func minTime(a, b time.Time) time.Time {
 	}
 	return b
 }
-func webhookRetryDelay(r *webhookv1.BotWebhookDelivery, attempt uint64) time.Duration {
+func webhookRetryDelay(r *jobsv1.BotWebhookDeliveryJob, attempt uint64) time.Duration {
 	delay := time.Duration(r.GetRetryDelayMs()) * time.Millisecond
 	for i := uint64(1); i < attempt && delay < 30*time.Minute; i++ {
 		delay *= 2
@@ -356,7 +356,7 @@ func webhookRetryDelay(r *webhookv1.BotWebhookDelivery, attempt uint64) time.Dur
 
 // fail records terminal failures only. OCC prevents duplicate failure facts
 // when publishing succeeded but acknowledging the work queue did not.
-func (m *botWebhookModel) fail(ctx context.Context, r *webhookv1.BotWebhookDelivery, attempts uint32, reason string, httpStatus int) error {
+func (m *botWebhookModel) fail(ctx context.Context, r *jobsv1.BotWebhookDeliveryJob, attempts uint32, reason string, httpStatus int) error {
 	x := &evtv1.BotWebhookDeliveryCompletedEvent{DeliveryId: r.GetDeliveryId(), BotUserId: r.GetBotUserId(), WebhookId: r.GetWebhookId(), SourceEventId: r.GetSourceEventId(), Status: "failed", Reason: reason, Attempts: attempts, HttpStatus: uint32(httpStatus)}
 	event := newEvent("", &evtv1.Event{Event: &evtv1.Event_BotWebhookDeliveryCompleted{BotWebhookDeliveryCompleted: x}})
 	agg := botWebhookAggregate(r.GetDeliveryId())

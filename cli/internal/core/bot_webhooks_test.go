@@ -21,7 +21,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	webhookv1 "hmans.de/chatto/internal/pb/chatto/core/webhook/v1"
+	jobsv1 "hmans.de/chatto/internal/pb/chatto/core/jobs/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -292,7 +292,7 @@ func TestBotOutboundWebhookConsumerRetainsRetryState(t *testing.T) {
 	waitWebhookQueueDrained(t, replica)
 	// A lost job acknowledgement after recording failure must not append another
 	// failure or send again. Failure lookup is the only terminal EVT bookkeeping.
-	job := &webhookv1.BotWebhookDelivery{DeliveryId: result.GetDeliveryId(), BotUserId: bot, WebhookId: result.GetWebhookId(), SourceEventId: source.GetId(), RoomId: room, MaxAttempts: 2, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}
+	job := &jobsv1.BotWebhookDeliveryJob{DeliveryId: result.GetDeliveryId(), BotUserId: bot, WebhookId: result.GetWebhookId(), SourceEventId: source.GetId(), RoomId: room, MaxAttempts: 2, ExpiresAt: timestamppb.New(time.Now().Add(time.Hour))}
 	data, err := proto.Marshal(job)
 	require.NoError(t, err)
 	require.NoError(t, replica.botWebhooks.deliver(ctx, events.DurableDelivery{Data: data, NumDelivered: 3}))
@@ -303,7 +303,7 @@ func TestBotOutboundWebhookConsumerRetainsRetryState(t *testing.T) {
 }
 
 func TestBotOutboundWebhookBackoff(t *testing.T) {
-	job := &webhookv1.BotWebhookDelivery{RetryDelayMs: 30000}
+	job := &jobsv1.BotWebhookDeliveryJob{RetryDelayMs: 30000}
 	for i, want := range []time.Duration{30 * time.Second, time.Minute, 2 * time.Minute, 4 * time.Minute, 8 * time.Minute, 16 * time.Minute, 30 * time.Minute, 30 * time.Minute} {
 		require.Equal(t, want, webhookRetryDelay(job, uint64(i+1)))
 	}
