@@ -139,7 +139,7 @@ func (a *API) BuildRealtimeProjectionRoomViewerStates(ctx context.Context, userI
 // BuildRealtimeProjectionThreadViewerStates returns the complete followed
 // thread set, including RUNTIME_STATE-backed reply read cursors.
 func (a *API) BuildRealtimeProjectionThreadViewerStates(ctx context.Context, userID string) ([]*RealtimeProjectionThreadViewerState, error) {
-	threads, err := a.core.ThreadFollows().ListFollowedThreadViewerStates(ctx, userID, RealtimeDMThreadsEnabled(ctx))
+	threads, err := a.core.ThreadFollows().ListFollowedThreadViewerStates(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -304,9 +304,6 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 	if err != nil {
 		return nil, err
 	}
-	if result.Kind == core.KindDM && !RealtimeDMThreadsEnabled(ctx) {
-		apiPage.Events = filterLegacyDMTimelineEvents(apiPage.Events)
-	}
 	apiPage.StartCursor, err = a.formatRoomTimelineCursor(userID, roomID, "", page.StartCursorSeq)
 	if err != nil {
 		return nil, err
@@ -326,21 +323,6 @@ func (a *API) BuildRealtimeProjectionRoomTimeline(ctx context.Context, userID, r
 		}
 	}
 	return &RealtimeProjectionRoomTimeline{RoomID: roomID, Page: apiPage, EventCursors: eventCursors}, nil
-}
-
-func filterLegacyDMTimelineEvents(events []*apiv1.RoomTimelineEvent) []*apiv1.RoomTimelineEvent {
-	filtered := make([]*apiv1.RoomTimelineEvent, 0, len(events))
-	for _, event := range events {
-		message := event.GetMessagePosted().GetMessage()
-		if message.GetThreadRootEventId() != "" || message.GetEchoFromThreadRootEventId() != "" {
-			continue
-		}
-		if message != nil {
-			message.Thread = nil
-		}
-		filtered = append(filtered, event)
-	}
-	return filtered
 }
 
 // BuildRealtimeProjectionServerState returns current authenticated server
@@ -535,15 +517,6 @@ func (a *API) BuildRealtimeProjectionTimelineEvent(ctx context.Context, userID, 
 	event, includes, err := newRoomTimelineAssembler(a).hydrateEvent(ctx, userID, result.Kind, result.Event)
 	if err != nil {
 		return nil, nil, "", err
-	}
-	if result.Kind == core.KindDM && !RealtimeDMThreadsEnabled(ctx) {
-		message := event.GetMessagePosted().GetMessage()
-		if message.GetThreadRootEventId() != "" || message.GetEchoFromThreadRootEventId() != "" {
-			return nil, nil, "", core.ErrNotFound
-		}
-		if message != nil {
-			message.Thread = nil
-		}
 	}
 	seq, err := a.core.GetEventSequence(ctx, result.Kind, roomID, eventID)
 	if err != nil {

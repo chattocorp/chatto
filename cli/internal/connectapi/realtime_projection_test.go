@@ -1,7 +1,6 @@
 package connectapi
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -150,7 +149,7 @@ foundEmpty:
 	}
 }
 
-func TestRealtimeProjectionDMThreadsRequireClientCapability(t *testing.T) {
+func TestRealtimeProjectionIncludesDMThreads(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-dm-thread-member", "Projection DM Thread Member", "password")
 	if err != nil {
@@ -172,52 +171,23 @@ func TestRealtimeProjectionDMThreadsRequireClientCapability(t *testing.T) {
 		t.Fatalf("FollowThread: %v", err)
 	}
 
-	legacyTimeline, err := env.api.BuildRealtimeProjectionRoomTimeline(env.ctx, env.viewer.Id, dm.Id)
+	timeline, err := env.api.BuildRealtimeProjectionRoomTimeline(env.ctx, env.viewer.Id, dm.Id)
 	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionRoomTimeline legacy: %v", err)
+		t.Fatalf("BuildRealtimeProjectionRoomTimeline: %v", err)
 	}
-	if timelinePageEvent(legacyTimeline.Page, reply.Id) != nil {
-		t.Fatalf("legacy DM timeline exposed reply %q", reply.Id)
+	projectedRoot := timelinePageEvent(timeline.Page, root.Id).GetMessagePosted().GetMessage()
+	if projectedRoot.GetThread() == nil || projectedRoot.GetThread().GetReplyCount() != 1 {
+		t.Fatalf("DM root thread summary = %+v, want one reply", projectedRoot.GetThread())
 	}
-	for _, event := range legacyTimeline.Page.GetEvents() {
-		message := event.GetMessagePosted().GetMessage()
-		if message.GetThreadRootEventId() != "" || message.GetEchoFromThreadRootEventId() != "" {
-			t.Fatalf("legacy DM timeline exposed thread-only message %+v", message)
-		}
+	if event, _, _, err := env.api.BuildRealtimeProjectionTimelineEvent(env.ctx, env.viewer.Id, dm.Id, reply.Id); err != nil || event.GetMessagePosted().GetMessage().GetThreadRootEventId() != root.Id {
+		t.Fatalf("DM reply hydration = %+v, %v; want thread root %q", event, err, root.Id)
 	}
-	legacyRoot := timelinePageEvent(legacyTimeline.Page, root.Id).GetMessagePosted().GetMessage()
-	if legacyRoot.GetThread() != nil {
-		t.Fatalf("legacy DM root exposed thread summary: %+v", legacyRoot.GetThread())
-	}
-	legacyStates, err := env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
+	states, err := env.api.BuildRealtimeProjectionThreadViewerStates(env.ctx, env.viewer.Id)
 	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionThreadViewerStates legacy: %v", err)
+		t.Fatalf("BuildRealtimeProjectionThreadViewerStates: %v", err)
 	}
-	if len(legacyStates) != 0 {
-		t.Fatalf("legacy DM thread viewer states = %+v, want none", legacyStates)
-	}
-
-	capableCtx := WithRealtimeDMThreads(env.ctx)
-	capableTimeline, err := env.api.BuildRealtimeProjectionRoomTimeline(capableCtx, env.viewer.Id, dm.Id)
-	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionRoomTimeline capable: %v", err)
-	}
-	capableRoot := timelinePageEvent(capableTimeline.Page, root.Id).GetMessagePosted().GetMessage()
-	if capableRoot.GetThread() == nil || capableRoot.GetThread().GetReplyCount() != 1 {
-		t.Fatalf("capable DM root thread summary = %+v, want one reply", capableRoot.GetThread())
-	}
-	if _, _, _, err := env.api.BuildRealtimeProjectionTimelineEvent(env.ctx, env.viewer.Id, dm.Id, reply.Id); !errors.Is(err, core.ErrNotFound) {
-		t.Fatalf("legacy DM reply hydration error = %v, want ErrNotFound", err)
-	}
-	if event, _, _, err := env.api.BuildRealtimeProjectionTimelineEvent(capableCtx, env.viewer.Id, dm.Id, reply.Id); err != nil || event.GetMessagePosted().GetMessage().GetThreadRootEventId() != root.Id {
-		t.Fatalf("capable DM reply hydration = %+v, %v; want thread root %q", event, err, root.Id)
-	}
-	capableStates, err := env.api.BuildRealtimeProjectionThreadViewerStates(capableCtx, env.viewer.Id)
-	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionThreadViewerStates capable: %v", err)
-	}
-	if len(capableStates) != 1 || capableStates[0].RoomID != dm.Id || capableStates[0].ThreadRootEventID != root.Id {
-		t.Fatalf("capable DM thread viewer states = %+v, want followed DM thread", capableStates)
+	if len(states) != 1 || states[0].RoomID != dm.Id || states[0].ThreadRootEventID != root.Id {
+		t.Fatalf("DM thread viewer states = %+v, want followed DM thread", states)
 	}
 }
 

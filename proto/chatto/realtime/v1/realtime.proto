@@ -67,10 +67,6 @@ message RealtimeClientHello {
   uint32 protocol_version = 1;
   // Optional bearer token. When present, it takes precedence over cookie auth.
   optional string bearer_token = 2;
-  // Stable protocol capability keys supported by this client. A client that
-  // can apply direct-message thread projection changes advertises
-  // `chatto.realtime.projection.dm-threads.v1`.
-  repeated string capabilities = 4;
 }
 
 // Initial server hello.
@@ -87,8 +83,7 @@ message RealtimeServerHello {
   // Stable protocol capability keys supported by this server. Current keys:
   // `chatto.realtime.events.live.v1`, `chatto.realtime.heartbeat.v1`,
   // `chatto.realtime.ping.v1`, `chatto.realtime.events.resume.v1`, and
-  // `chatto.realtime.projection.v1`, and
-  // `chatto.realtime.projection.dm-threads.v1`.
+  // `chatto.realtime.projection.v1`.
   repeated string capabilities = 5;
 }
 

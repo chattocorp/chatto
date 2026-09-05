@@ -149,10 +149,10 @@ DM-scoped decisions or new DM thread writes.
 
 Full permission matrices and decision lists expose the new scope only when the
 request sets `include_direct_message_scope`. `ListFollowedThreads` uses
-`include_direct_message_threads`. Realtime clients advertise
-`chatto.realtime.projection.dm-threads.v1` before the server sends DM thread
-projection shapes. Regenerate client bindings and set these opt-ins when the
-client supports the new enum and fields.
+`include_direct_message_threads`. DM threads use the existing protocol-v2
+realtime projection operations and do not require a separate client
+capability. Regenerate client bindings and set the ConnectRPC opt-ins when the
+client supports the new enum and list rows.
 
 Chatto 0.5.0-alpha.6 moves avatar upload and deletion from
 `MyAccountService` to `UserService`. The two methods now require a target user

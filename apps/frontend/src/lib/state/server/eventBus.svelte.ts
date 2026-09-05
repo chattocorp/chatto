@@ -30,7 +30,6 @@ const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
 const HYDRATION_RETRY_FALLBACK_MS = 1_000;
 const FATAL_REALTIME_CLOSE_CODE = 4000;
-const DM_THREADS_CAPABILITY = 'chatto.realtime.projection.dm-threads.v1';
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -89,8 +88,7 @@ function clientHelloFrame(token: string | null): Uint8Array {
       case: 'hello',
       value: new RealtimeClientHello({
         protocolVersion: 2,
-        bearerToken: token ?? undefined,
-        capabilities: [DM_THREADS_CAPABILITY]
+        bearerToken: token ?? undefined
       })
     }
   }).toBinary();

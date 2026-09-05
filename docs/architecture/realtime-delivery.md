@@ -163,12 +163,9 @@ message stores are created lazily, and selecting a cold room sends
 current timeline through the normal projection reducer; it is not a ConnectRPC
 bootstrap.
 
-The client hello can advertise
-`chatto.realtime.projection.dm-threads.v1`. A connection with this capability
-receives DM thread replies, echoes, root thread summaries, and followed-thread
-viewer state. A connection without it receives the older DM projection shape.
-Replay still advances its durable cursor when it suppresses one of these
-events.
+DM threads use the same protocol-v2 projection operations as channel threads.
+The stream includes DM thread replies, echoes, root thread summaries, and
+followed-thread viewer state without a separate client capability.
 
 Timeline replacements carry an opaque cursor for every retained row, and later
 row upserts carry that row's cursor. The reducer can therefore advance its

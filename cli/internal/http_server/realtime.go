@@ -38,7 +38,6 @@ const (
 	realtimeMaxRetainedRooms         = 64
 	realtimeMaxRoomIDBytes           = 256
 	realtimeHeartbeatIntervalSeconds = uint32(core.MyEventsHeartbeatInterval / time.Second)
-	realtimeDMThreadsCapability      = "chatto.realtime.projection.dm-threads.v1"
 )
 
 var realtimeServerCapabilities = []string{
@@ -47,7 +46,6 @@ var realtimeServerCapabilities = []string{
 	"chatto.realtime.ping.v1",
 	"chatto.realtime.events.resume.v1",
 	"chatto.realtime.projection.v1",
-	realtimeDMThreadsCapability,
 }
 
 func (s *HTTPServer) setupRealtimeAPI() {
@@ -167,9 +165,6 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		writeError("unsupported_protocol", "unsupported realtime protocol version", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "unsupported protocol"), time.Now().Add(time.Second))
 		return
-	}
-	if slices.Contains(clientHello.GetCapabilities(), realtimeDMThreadsCapability) {
-		ctx = connectapi.WithRealtimeDMThreads(ctx)
 	}
 	ctx, user, err := s.realtimeAuthenticatedUser(ctx, clientHello)
 	if err != nil {

@@ -263,7 +263,6 @@ describe('eventBusManager realtime transport', () => {
     expect(hello.frame.case).toBe('hello');
     if (hello.frame.case !== 'hello') throw new Error('expected hello frame');
     expect(hello.frame.value.protocolVersion).toBe(2);
-    expect(hello.frame.value.capabilities).toEqual(['chatto.realtime.projection.dm-threads.v1']);
 
     await sockets[0].receive(helloFrame());
     expect(sockets[0].sent).toHaveLength(2);
