@@ -31,6 +31,8 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
   });
 </script>
 
+{#snippet promptDescription()}{m('search.prompt.description')}{/snippet}
+
 <div class="flex min-h-full flex-col" aria-live="polite">
   {#if store.error}
     <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('search.error.title')}>
@@ -46,9 +48,11 @@ mode preserves the sidebar's loading indicator, spacing, and shorter prompt.
       {m('search.no_results.description')}
     </EmptyState>
   {:else if !store.hasSearched}
-    <EmptyState icon="icon-[uil--search]" title={m('search.prompt.title')}>
-      {#if !compact}{m('search.prompt.description')}{/if}
-    </EmptyState>
+    <EmptyState
+      icon="icon-[uil--search]"
+      title={m('search.prompt.title')}
+      children={compact ? undefined : promptDescription}
+    />
   {:else}
     <ol class={['selectable-list', compact ? 'gap-3 py-2' : 'gap-4']}>
       {#each store.results as result (result.id)}
