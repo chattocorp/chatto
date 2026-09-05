@@ -143,6 +143,10 @@ func initializeCoreServices(
 	)
 	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationDecisions)
 	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
+	core.botWebhooks = newBotWebhookModel(core, projections.botWebhooks)
+	if err := core.botWebhooks.initialize(ctx); err != nil {
+		return fmt.Errorf("initialize bot webhooks: %w", err)
+	}
 	pushCleanupLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
 		Name:   pushSubscriptionReconcileLeaseName,
 		Bucket: "MEMORY_CACHE",

@@ -11,9 +11,9 @@ separate components behind that barrier.
 
 `initializeCoreProjections` registers each top-level projector once with a
 stable machine-readable key and a human display name. `NewChattoCore` installs
-that registry into the core runtime. The registry contains six projectors:
+that registry into the core runtime. The registry contains seven projectors:
 `server_content_view`, `notification_decisions`, `notifications`, `user_auth`,
-`invitations`, and `oauth_clients`. Each registration also declares whether
+`invitations`, `oauth_clients`, and `bot_webhooks`. Each registration also declares whether
 that key is eligible for shared snapshots.
 
 Core couples each projection pointer to its exact projector as one typed
@@ -25,10 +25,10 @@ diagnostics, and snapshot policy remain in the core registration layer. This
 boundary follows [ADR-056](../adr/ADR-056-extractable-nats-event-sourcing-framework.md).
 
 `ChattoCore.Run` starts one process-local ordered consumer for each registered
-projector. `ServerContentView` and the four independent EVT projectors read
+projector. `ServerContentView` and the five independent EVT projectors read
 `EVT`. Notifications reads `NOTIFICATIONS`. Each projector owns its physical
 filters, replay progress, failure state, and readiness. Chatto waits for all
-six registered projectors before it completes boot.
+seven registered projectors before it completes boot.
 
 Writers wait for the relevant projector sequence before returning
 read-your-writes. Projection-aware domain models keep the projector references
@@ -364,3 +364,12 @@ A webhook fact from the first unreleased implementation has no ID and projects
 to the synthetic `legacy` ID.
 The raw API key and incoming webhook credential are never projection values,
 snapshot fields, or retrievable resources.
+
+## Bot webhook projection
+
+[`botWebhookProjection`](../../cli/internal/core/bot_webhook_projection.go)
+uses cold EVT replay. It retains the encrypted configuration and latest terminal
+outcome per configured bot. Deletion removes these entries. It consumes bot
+webhook configuration, account deletion, and delivery completion facts. Full
+delivery history is not retained in memory. The worker reads an exact terminal
+subject to detect completed work.

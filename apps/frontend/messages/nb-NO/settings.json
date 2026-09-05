@@ -496,7 +496,36 @@
       "webhook_last_used": "Sist brukt",
       "webhook_no_use_recorded": "Ingen bruk registrert",
       "webhook_last_used_unavailable": "Midlertidig utilgjengelig",
-      "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd."
+      "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd.",
+      "outbound": {
+        "title": "Utgående webhook",
+        "description": "Send direkte omtaler og direktemeldinger til verktøyet ditt. Serveroperatøren angir nye forsøk og utløpstid.",
+        "url": "Måladresse",
+        "authorization": "Authorization-header (valgfri)",
+        "enabled": "Aktiver levering",
+        "save": "Lagre endepunkt",
+        "replace": "Erstatt endepunkt",
+        "remove": "Fjern endepunkt",
+        "empty": "Ingen utgående webhook er konfigurert.",
+        "active": "Levering er aktivert.",
+        "disabled": "Levering er deaktivert.",
+        "replace_help": "Adressen og påloggingsopplysningene kan ikke hentes. Angi alle innstillingene for å erstatte endepunktet. Ventende leveringer avbrytes.",
+        "error": "Kunne ikke oppdatere den utgående webhooken.",
+        "load_error": "Kunne ikke laste den utgående webhooken.",
+        "pending": "Ingen fullført levering er registrert.",
+        "delivered": "Den siste leveringen lyktes.",
+        "failed": "Den siste leveringen mislyktes.",
+        "skipped": "Den siste leveringen ble hoppet over.",
+        "attempts": "Forsøk: {attempts}",
+        "http_status": "HTTP-status: {status}",
+        "reason": "Årsak: {reason}",
+        "secret_title": "Hemmelig signeringsnøkkel for webhook",
+        "secret_warning": "Kopier nøkkelen nå hvis verktøyet ditt bekrefter Chatto-signaturer. Den kan ikke vises igjen.",
+        "secret_copied": "Signeringsnøkkel kopiert",
+        "refresh": "Oppdater leveringsstatus",
+        "remove_title": "Fjerne utgående webhook?",
+        "remove_description": "Dette stopper nye leveringer og avbryter ventende leveringer."
+      }
     }
   }
 }

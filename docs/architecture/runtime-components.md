@@ -120,3 +120,11 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `AssetUploadModel`               | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                    | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup           |
 | `projectionSnapshotWorker`       | [`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go) | Optional per-pass elected post-boot and daily publication of encrypted scalar generations and complete `ServerContentView` projection snapshot cohorts; a separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns lifecycle cleanup |
 | `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Synchronous video/animated-GIF processing attempts: web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and terminal asset processing events; queue and concurrency remain owned by `video.Unit` |
+
+## Outbound bot webhooks
+
+[`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
+selection, per-destination requests, attempts, and HTTP delivery. Core creates
+its two durable consumers before startup and runs them after boot. The
+[`management operations`](../../cli/internal/core/bot_webhooks.go) own bot-manager
+authorization, encrypted configuration, and read-your-writes.

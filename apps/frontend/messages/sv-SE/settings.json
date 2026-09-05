@@ -496,7 +496,36 @@
       "webhook_last_used": "Senast använd",
       "webhook_no_use_recorded": "Ingen användning registrerad",
       "webhook_last_used_unavailable": "Tillfälligt otillgänglig",
-      "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts."
+      "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts.",
+      "outbound": {
+        "title": "Utgående webhook",
+        "description": "Skicka direkta omnämnanden och direktmeddelanden till ditt verktyg. Serveroperatören anger återförsök och giltighetstid.",
+        "url": "Måladress",
+        "authorization": "Authorization-header (valfri)",
+        "enabled": "Aktivera leverans",
+        "save": "Spara slutpunkt",
+        "replace": "Ersätt slutpunkt",
+        "remove": "Ta bort slutpunkt",
+        "empty": "Ingen utgående webhook har konfigurerats.",
+        "active": "Leverans är aktiverad.",
+        "disabled": "Leverans är inaktiverad.",
+        "replace_help": "Adressen och autentiseringsuppgifterna kan inte hämtas. Ange alla inställningar för att ersätta slutpunkten. Väntande leveranser avbryts.",
+        "error": "Det gick inte att uppdatera den utgående webhooken.",
+        "load_error": "Det gick inte att läsa in den utgående webhooken.",
+        "pending": "Ingen slutförd leverans har registrerats.",
+        "delivered": "Den senaste leveransen lyckades.",
+        "failed": "Den senaste leveransen misslyckades.",
+        "skipped": "Den senaste leveransen hoppades över.",
+        "attempts": "Försök: {attempts}",
+        "http_status": "HTTP-status: {status}",
+        "reason": "Orsak: {reason}",
+        "secret_title": "Hemlig signeringsnyckel för webhook",
+        "secret_warning": "Kopiera nyckeln nu om ditt verktyg verifierar Chatto-signaturer. Den kan inte visas igen.",
+        "secret_copied": "Signeringsnyckeln har kopierats",
+        "refresh": "Uppdatera leveransstatus",
+        "remove_title": "Ta bort utgående webhook?",
+        "remove_description": "Detta stoppar nya leveranser och avbryter väntande leveranser."
+      }
     }
   }
 }

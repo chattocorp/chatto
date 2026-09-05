@@ -496,7 +496,36 @@
       "webhook_last_used": "Last used",
       "webhook_no_use_recorded": "No use recorded",
       "webhook_last_used_unavailable": "Temporarily unavailable",
-      "webhook_limit_reached": "You have reached the limit of 20 incoming webhooks."
+      "webhook_limit_reached": "You have reached the limit of 20 incoming webhooks.",
+      "outbound": {
+        "title": "Outbound webhook",
+        "description": "Send direct mentions and direct messages to your tool. Delivery retries and expiry are set by the server operator.",
+        "url": "Destination URL",
+        "authorization": "Authorization header (optional)",
+        "enabled": "Enable delivery",
+        "save": "Save endpoint",
+        "replace": "Replace endpoint",
+        "remove": "Remove endpoint",
+        "empty": "No outbound webhook is configured.",
+        "active": "Delivery is enabled.",
+        "disabled": "Delivery is disabled.",
+        "replace_help": "The URL and credentials cannot be retrieved. Enter all settings to replace the endpoint. This cancels pending deliveries.",
+        "error": "Could not update the outbound webhook.",
+        "load_error": "Could not load the outbound webhook.",
+        "pending": "No completed delivery recorded.",
+        "delivered": "Latest delivery succeeded.",
+        "failed": "Latest delivery failed.",
+        "skipped": "Latest delivery was skipped.",
+        "attempts": "Attempts: {attempts}",
+        "http_status": "HTTP status: {status}",
+        "reason": "Reason: {reason}",
+        "secret_title": "Webhook signing secret",
+        "secret_warning": "Copy this secret now if your tool verifies Chatto signatures. It cannot be shown again.",
+        "secret_copied": "Signing secret copied",
+        "refresh": "Refresh delivery status",
+        "remove_title": "Remove outbound webhook?",
+        "remove_description": "This stops new deliveries and cancels pending work."
+      }
     }
   }
 }

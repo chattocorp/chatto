@@ -120,3 +120,18 @@ clients treat those messages as invalidations and recover authoritative state
 through projected reads. Auth email delivery is also outside this inventory:
 registration, verification, and reset credentials live in `RUNTIME_STATE`, with
 durable EVT records serving as security audit facts rather than an email queue.
+
+## Outbound bot webhook delivery
+
+The [webhook worker](../../cli/internal/core/bot_webhook_worker.go) consumes EVT
+independently of notifications. A source worker commits deterministic requests
+for each destination. A delivery worker checks current configuration and access,
+reserves an attempt with KV CAS, sends a signed JSON request, and commits one
+terminal outcome with aggregate OCC. An HTTP 2xx response means success. All
+other HTTP results and transport failures retry until the attempt limit or
+source-time expiry. Delays double up to 30 minutes. Redirects are not followed.
+
+An uncertain attempt after a crash counts toward the limit. A success before a
+crash can repeat, so receivers deduplicate the delivery ID. Work never moves to
+a replacement endpoint. No plaintext message body is retained in delivery work.
+See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

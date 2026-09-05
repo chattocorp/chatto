@@ -15,6 +15,7 @@ import (
 // ChattoConfig is the canonical aggregate configuration decoded from TOML and
 // environment variables before derived defaults, normalization, and validation.
 type ChattoConfig struct {
+	BotWebhooks     BotWebhooksConfig     `toml:"bot_webhooks,commented" comment:"Outbound bot webhook delivery policy."`
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
@@ -95,6 +96,9 @@ func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
+	if err := c.BotWebhooks.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
 
 	// Required fields
 	if err := validateHexSecret("webserver.cookie_signing_secret", c.Webserver.CookieSigningSecret, true); err != nil {

@@ -496,7 +496,36 @@
       "webhook_last_used": "Pēdējo reizi izmantots",
       "webhook_no_use_recorded": "Nav reģistrēts lietojums",
       "webhook_last_used_unavailable": "Īslaicīgi nav pieejams",
-      "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums."
+      "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums.",
+      "outbound": {
+        "title": "Izejošais tīmekļa aizķēres pieprasījums",
+        "description": "Sūti tiešas pieminēšanas un tiešās ziņas savam rīkam. Servera operators nosaka atkārtotos mēģinājumus un derīguma termiņu.",
+        "url": "Galamērķa URL",
+        "authorization": "Authorization galvene (neobligāta)",
+        "enabled": "Iespējot piegādi",
+        "save": "Saglabāt galapunktu",
+        "replace": "Aizstāt galapunktu",
+        "remove": "Noņemt galapunktu",
+        "empty": "Izejošā tīmekļa aizķēre nav konfigurēta.",
+        "active": "Piegāde ir iespējota.",
+        "disabled": "Piegāde ir atspējota.",
+        "replace_help": "URL un piekļuves datus nevar izgūt. Ievadi visus iestatījumus, lai aizstātu galapunktu. Tas atceļ gaidošās piegādes.",
+        "error": "Neizdevās atjaunināt izejošo tīmekļa aizķēri.",
+        "load_error": "Neizdevās ielādēt izejošo tīmekļa aizķēri.",
+        "pending": "Nav reģistrēta pabeigta piegāde.",
+        "delivered": "Pēdējā piegāde bija veiksmīga.",
+        "failed": "Pēdējā piegāde neizdevās.",
+        "skipped": "Pēdējā piegāde tika izlaista.",
+        "attempts": "Mēģinājumi: {attempts}",
+        "http_status": "HTTP statuss: {status}",
+        "reason": "Iemesls: {reason}",
+        "secret_title": "Tīmekļa aizķēres slepenā parakstīšanas atslēga",
+        "secret_warning": "Nokopē šo atslēgu tagad, ja tavs rīks pārbauda Chatto parakstus. To nevarēs parādīt vēlreiz.",
+        "secret_copied": "Parakstīšanas atslēga nokopēta",
+        "refresh": "Atjaunināt piegādes statusu",
+        "remove_title": "Noņemt izejošo tīmekļa aizķēri?",
+        "remove_description": "Tas aptur jaunas piegādes un atceļ gaidošās piegādes."
+      }
     }
   }
 }

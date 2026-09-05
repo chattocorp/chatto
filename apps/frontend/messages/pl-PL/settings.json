@@ -496,7 +496,36 @@
       "webhook_last_used": "Ostatnio użyto",
       "webhook_no_use_recorded": "Nie zarejestrowano użycia",
       "webhook_last_used_unavailable": "Tymczasowo niedostępne",
-      "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków."
+      "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków.",
+      "outbound": {
+        "title": "Wychodzący webhook",
+        "description": "Wysyłaj bezpośrednie wzmianki i wiadomości prywatne do swojego narzędzia. Operator serwera ustala ponowne próby i czas wygaśnięcia.",
+        "url": "Docelowy adres URL",
+        "authorization": "Nagłówek Authorization (opcjonalny)",
+        "enabled": "Włącz dostarczanie",
+        "save": "Zapisz punkt końcowy",
+        "replace": "Zastąp punkt końcowy",
+        "remove": "Usuń punkt końcowy",
+        "empty": "Nie skonfigurowano wychodzącego webhooka.",
+        "active": "Dostarczanie jest włączone.",
+        "disabled": "Dostarczanie jest wyłączone.",
+        "replace_help": "Nie można odczytać adresu URL ani danych uwierzytelniających. Wprowadź wszystkie ustawienia, aby zastąpić punkt końcowy. Anuluje to oczekujące dostarczenia.",
+        "error": "Nie udało się zaktualizować wychodzącego webhooka.",
+        "load_error": "Nie udało się wczytać wychodzącego webhooka.",
+        "pending": "Nie zarejestrowano ukończonego dostarczenia.",
+        "delivered": "Ostatnie dostarczenie powiodło się.",
+        "failed": "Ostatnie dostarczenie nie powiodło się.",
+        "skipped": "Ostatnie dostarczenie zostało pominięte.",
+        "attempts": "Próby: {attempts}",
+        "http_status": "Status HTTP: {status}",
+        "reason": "Powód: {reason}",
+        "secret_title": "Tajny klucz podpisu webhooka",
+        "secret_warning": "Skopiuj ten klucz teraz, jeśli Twoje narzędzie weryfikuje podpisy Chatto. Nie będzie można go ponownie wyświetlić.",
+        "secret_copied": "Skopiowano klucz podpisu",
+        "refresh": "Odśwież status dostarczenia",
+        "remove_title": "Usunąć wychodzący webhook?",
+        "remove_description": "Zatrzyma to nowe dostarczenia i anuluje oczekujące."
+      }
     }
   }
 }

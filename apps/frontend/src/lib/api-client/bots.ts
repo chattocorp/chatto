@@ -44,6 +44,23 @@ export function createBotAPI(config: BotAPIConfig) {
   const client = createChattoClient(BotService, config);
   const headers = () => authHeaders(config);
   return {
+    async getOutboundWebhook(botUserId: string, signal?: AbortSignal) {
+      return (
+        (await client.getBotOutboundWebhook({ botUserId }, { headers: headers(), signal }))
+          .webhook ?? null
+      );
+    },
+    async replaceOutboundWebhook(input: {
+      botUserId: string;
+      url: string;
+      authorization: string;
+      enabled: boolean;
+    }) {
+      return client.replaceBotOutboundWebhook(input, { headers: headers() });
+    },
+    async deleteOutboundWebhook(botUserId: string) {
+      await client.deleteBotOutboundWebhook({ botUserId }, { headers: headers() });
+    },
     async listBots(
       input: { search?: string | null; limit: number; offset: number },
       options: { signal?: AbortSignal } = {}

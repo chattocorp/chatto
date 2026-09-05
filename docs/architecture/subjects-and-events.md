@@ -484,3 +484,15 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   pubsub activity remains live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
+
+## Outbound bot webhooks
+
+Bot configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` and
+user-aggregate OCC. It carries encrypted endpoint credentials and a generation
+ID. Delivery requests and outcomes use
+`evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_requested` and
+`evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_completed`.
+The delivery ID hashes the bot, configuration, and source event IDs. Each
+aggregate permits one request and one terminal outcome. Payloads are defined in
+[`bot_webhook_events.proto`](../../proto/chatto/core/evt/v1/bot_webhook_events.proto).
+These facts are internal and do not enter the public realtime catalogue.

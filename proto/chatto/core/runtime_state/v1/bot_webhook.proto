@@ -1,0 +1,9 @@
+syntax = "proto3";
+package chatto.core.runtime_state.v1;
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1";
+// Durable attempt reservation. CAS bounds attempts across workers and restarts.
+// Kept until a terminal EVT outcome exists; contains no credentials or content.
+message BotWebhookAttempt {
+  uint32 attempts = 1;
+  int64 next_attempt_unix_ms = 2;
+}
