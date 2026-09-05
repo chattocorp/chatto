@@ -123,7 +123,8 @@ Use `alice` when you need server administration access.
 
 ## Continuous Integration
 
-Pull requests select complete product checks from these source roots:
+The path filters in `.github/workflows/ci.yml` select complete product checks
+for pull requests from these source roots:
 
 | Product | Source roots |
 | --- | --- |

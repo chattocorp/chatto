@@ -27,18 +27,47 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      pull-requests: read
     outputs:
-      chatto: ${{ steps.select.outputs.chatto }}
-      desktop: ${{ steps.select.outputs.desktop }}
-      authling: ${{ steps.select.outputs.authling }}
-      docs: ${{ steps.select.outputs.docs }}
+      chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
+      desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
+      authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
     steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
       - name: Select affected products
+        if: github.event_name == 'pull_request'
         id: select
-        run: node tools/ci/select-jobs.mjs
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            chatto:
+              - 'cli/**'
+              - 'pkg/**'
+              - 'apps/frontend/**'
+              - 'packages/**'
+              - 'proto/**'
+              - 'docker/**'
+            authling:
+              - 'authling/**'
+              - 'pkg/**'
+            docs:
+              - 'apps/docs-website/**'
+            desktop:
+              - 'apps/desktop/**'
+              - 'apps/frontend/**'
+              - 'packages/**'
+              - 'proto/**'
+              - 'tools/test-desktop-*'
+            # Files outside product roots and repository documentation run all products.
+            common:
+              - '**'
+              - '!{cli,pkg,authling,packages,proto,docker}/**'
+              - '!apps/{frontend,desktop,docs-website}/**'
+              - '!tools/test-desktop-*'
+              - '!{docs,.agents,.claude,.conductor}/**'
+              - '!*.md'
 
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -144,9 +173,6 @@ jobs:
 
       - name: Check workflows and shell scripts
         run: mise lint-actions
-
-      - name: Test CI selection
-        run: node --test tools/ci/select-jobs.test.mjs
 
   desktop:
     needs: changes
