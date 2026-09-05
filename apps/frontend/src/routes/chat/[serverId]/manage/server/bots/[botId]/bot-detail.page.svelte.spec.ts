@@ -11,6 +11,7 @@ import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestSt
 
 const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
+  getOutboundWebhook: vi.fn(),
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
   createBotAPIKey: vi.fn(),
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   canManageBots: true,
   canManageAccounts: false,
   supportsMultipleAPIKeys: true,
+  supportsOutboundWebhooks: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -57,7 +59,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {
       serverInfo: {
         supportsFeature: (feature: string) =>
-          feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
+          feature === 'botOutboundWebhooks'
+            ? mocks.supportsOutboundWebhooks
+            : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
       },
       currentUser: { user: { settings: mocks.settings } },
       permissions: { canAdminManageAccounts: mocks.canManageAccounts },
@@ -74,6 +78,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       queryScope: 'session-1',
       getAPI: () => ({
         getBot: mocks.getBot,
+        getOutboundWebhook: mocks.getOutboundWebhook,
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
         createBotAPIKey: mocks.createBotAPIKey,
@@ -127,6 +132,8 @@ describe('Bot detail page', () => {
     mocks.canManageBots = true;
     mocks.canManageAccounts = false;
     mocks.supportsMultipleAPIKeys = true;
+    mocks.supportsOutboundWebhooks = true;
+    mocks.getOutboundWebhook.mockResolvedValue(null);
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
@@ -170,6 +177,14 @@ describe('Bot detail page', () => {
     mocks.deleteAvatar.mockResolvedValue({ id: mocks.bot.id, avatarUrl: null });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
+  });
+
+  it.each([true, false])('gates outbound webhook settings on server support (%s)', async (supported) => {
+    mocks.supportsOutboundWebhooks = supported;
+    const { container } = render(BotDetailPage);
+    await settle();
+    expect(container.querySelector('[data-testid="bot-outbound-webhook"]') !== null).toBe(supported);
+    expect(mocks.getOutboundWebhook).toHaveBeenCalledTimes(supported ? 1 : 0);
   });
 
   it('creates a named incoming webhook and shows its URL once', async () => {
