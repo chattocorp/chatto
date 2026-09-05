@@ -23,6 +23,7 @@ Include this component once in the application root so signed-out pages also cle
   } from '$lib/notifications/appBadge';
   import Deadline from '$lib/lifecycle/Deadline.svelte';
   import Interval from '$lib/lifecycle/Interval.svelte';
+  import PushNotificationSync from './PushNotificationSync.svelte';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
 
   const reconciliationIntervalMs = 60_000;
@@ -104,6 +105,15 @@ Include this component once in the application root so signed-out pages also cle
 {#each serverRegistry.servers as instance (instance.id)}
   {@const stores = serverRegistry.getStore(instance.id)}
   {#if stores.isAuthenticated}
+    {#if stores.currentUser?.user?.id}
+      {#key stores.currentUser.user.id}
+        <PushNotificationSync
+          serverUrl={instance.url}
+          recipientId={stores.currentUser.user.id}
+          notifications={stores.notifications}
+        />
+      {/key}
+    {/if}
     <!-- Core NATS invalidations are latency hints; the notification stream is authoritative. -->
     <Interval
       milliseconds={reconciliationIntervalMs}

@@ -132,6 +132,35 @@ describe('service worker notifications', () => {
     expect(worker.clients.claim).toHaveBeenCalledOnce();
   });
 
+  it.each(['legacy', 'declarative', 'event'])(
+    'preserves cleanup identity from %s push payloads',
+    async (format) => {
+      const worker = await importServiceWorker();
+      const data = {
+        notificationId: 'occurrence',
+        serverOrigin: 'https://chat.example.com',
+        recipientId: 'recipient'
+      };
+      const notification = { title: 'Push', data };
+      await worker.dispatch(
+        'push',
+        format === 'event'
+          ? { notification }
+          : {
+              data: {
+                json: () => (format === 'legacy' ? { title: 'Push', ...data } : { notification })
+              }
+            }
+      );
+      expect(worker.registration.showNotification).toHaveBeenCalledWith(
+        'Push',
+        expect.objectContaining({
+          data: expect.objectContaining(data)
+        })
+      );
+    }
+  );
+
   it('uses declarative push notification fields when legacy root fields are absent', async () => {
     const worker = await importServiceWorker();
 

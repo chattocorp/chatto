@@ -1300,3 +1300,78 @@ describe('NotificationStore', () => {
     expect(remoteStore.error).toContain('Cannot query field');
   });
 });
+
+describe('native push reconciliation', () => {
+  it('uses a fresh read instead of optimistic or reset state', async () => {
+    const api = makeAPI({ notifications: page([mention('unread')]) });
+    const store = new NotificationStore(api);
+    store.resetProjectionState();
+    expect(await store.handledPushNotificationIds(['unread', 'deleted'])).toEqual(
+      new Set(['deleted'])
+    );
+  });
+
+  it('keeps unknown IDs in partial pages while closing explicit read rows', async () => {
+    const api = makeAPI({
+      notifications: {
+        items: [{ ...mention('read'), unread: false }, mention('unread')],
+        totalCount: 100,
+        hasMore: true
+      }
+    });
+    const store = new NotificationStore(api);
+    expect(await store.handledPushNotificationIds(['read', 'unread', 'older'])).toEqual(
+      new Set(['read'])
+    );
+  });
+
+  it('closes unknown IDs when the fresh total has no unread occurrences', async () => {
+    const api = makeAPI();
+    api.listNotificationOccurrences.mockResolvedValue({
+      ...notificationPage(page([])),
+      hasMore: true,
+      unreadCount: 0
+    });
+    const store = new NotificationStore(api);
+    expect(await store.handledPushNotificationIds(['older'])).toEqual(new Set(['older']));
+  });
+
+  it('waits for confirmed deletion and retains exact IDs outside the first page', async () => {
+    const api = makeAPI({ notifications: { items: [], totalCount: 100, hasMore: true } });
+    const deletion = deferred<number>();
+    api.batchDeleteNotificationOccurrences.mockReturnValue(deletion.promise);
+    const store = new NotificationStore(api);
+    const pending = store.deleteOccurrences(['older']);
+    expect(await store.handledPushNotificationIds(['older'])).toEqual(new Set());
+    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
+    deletion.resolve(1);
+    await pending;
+    expect(await store.handledPushNotificationIds(['older'])).toEqual(new Set(['older']));
+  });
+
+  it('does not close an occurrence after a failed optimistic deletion', async () => {
+    const api = makeAPI({ notifications: page([mention('kept')]) });
+    api.batchDeleteNotificationOccurrences.mockRejectedValue(new Error('failed'));
+    const store = new NotificationStore(api);
+    await expect(store.deleteOccurrences(['kept'])).rejects.toThrow('failed');
+    expect(await store.handledPushNotificationIds(['kept'])).toEqual(new Set());
+  });
+
+  it('remembers confirmed reads even outside the retained page', async () => {
+    const api = makeAPI({ notifications: { items: [], totalCount: 100, hasMore: true } });
+    const store = new NotificationStore(api);
+    await store.markRead('older');
+    expect(await store.handledPushNotificationIds(['older'])).toEqual(new Set(['older']));
+  });
+
+  it('discards a stale server read after an authoritative replacement', async () => {
+    const api = makeAPI();
+    const read = deferred<NotificationOccurrencePage>();
+    api.listNotificationOccurrences.mockReturnValue(read.promise);
+    const store = new NotificationStore(api);
+    const pending = store.handledPushNotificationIds(['new']);
+    store.replaceOccurrenceProjection(notificationPage(page([mention('new')])));
+    read.resolve(notificationPage(page([])));
+    expect(await pending).toEqual(new Set());
+  });
+});
