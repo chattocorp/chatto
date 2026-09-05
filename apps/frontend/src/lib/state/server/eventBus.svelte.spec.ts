@@ -377,17 +377,14 @@ describe('eventBusManager realtime transport', () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-before-failure');
     const fake = new FakeServerConnection();
-    const completeProjectionCatchUp = vi.fn((cursor: string) =>
-      cursor === 'cursor-failed'
-        ? Promise.reject(new Error('resource read failed'))
-        : Promise.resolve()
-    );
+    const waitForReconciliation = vi.fn().mockRejectedValue(new Error('resource read failed'));
     eventBusManager.startBus(
       TEST_SERVER,
       fake as unknown as ServerConnection,
       true,
       sync,
-      completeProjectionCatchUp
+      undefined,
+      waitForReconciliation
     );
     const socket = sockets[0];
     socket.open();
@@ -655,16 +652,15 @@ describe('eventBusManager realtime transport', () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('before-heartbeat');
     const reconciliation = deferred<void>();
-    const completeProjectionCatchUp = vi.fn((cursor: string) =>
-      cursor === 'heartbeat-cursor' ? reconciliation.promise : Promise.resolve()
-    );
+    const waitForReconciliation = vi.fn(() => reconciliation.promise);
     const fake = new FakeServerConnection();
     eventBusManager.startBus(
       TEST_SERVER,
       fake as unknown as ServerConnection,
       true,
       sync,
-      completeProjectionCatchUp
+      undefined,
+      waitForReconciliation
     );
     const socket = sockets[0];
     socket.open();
@@ -685,6 +681,70 @@ describe('eventBusManager realtime transport', () => {
 
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
+  });
+
+  it('refreshes auxiliary state once per catch-up, not per replay event or heartbeat', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('before-replay');
+    const completeCatchUp = vi.fn().mockResolvedValue(undefined);
+    const pendingRead = deferred<void>();
+    const waitForReconciliation = vi.fn(() => pendingRead.promise);
+    eventBusManager.startBus(
+      TEST_SERVER,
+      new FakeServerConnection() as unknown as ServerConnection,
+      true,
+      sync,
+      completeCatchUp,
+      waitForReconciliation
+    );
+    const socket = sockets[0];
+    socket.open();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    for (let index = 0; index < 100; index++)
+      await socket.receive(projectionFrame(`event-${index}`));
+    await socket.receive(heartbeatFrame('heartbeat-before-caught-up'));
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'caught-up' }) })
+    );
+    expect(completeCatchUp).not.toHaveBeenCalled();
+    expect(sync.resumeCursor).toBe('before-replay');
+    pendingRead.resolve();
+    await vi.waitFor(() => expect(sync.resumeCursor).toBe('caught-up'));
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('caught-up');
+    await socket.receive(projectionFrame('live-event'));
+    await socket.receive(heartbeatFrame('idle-heartbeat'));
+    await vi.waitFor(() => expect(sync.resumeCursor).toBe('idle-heartbeat'));
+    expect(completeCatchUp).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retain event or heartbeat cursors before snapshot hydration completes', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('expired');
+    const hydration = deferred<void>();
+    const completeCatchUp = vi.fn(() => hydration.promise);
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(
+      TEST_SERVER,
+      fake as unknown as ServerConnection,
+      true,
+      sync,
+      completeCatchUp,
+      async () => {}
+    );
+    const socket = sockets[0];
+    socket.open();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(vi.fn());
+    await socket.receive(snapshotFrame());
+    await socket.receive(projectionFrame('snapshot-event'));
+    await socket.receive(heartbeatFrame('snapshot-heartbeat'));
+    expect(sync.resumeCursor).toBeNull();
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'hydrated' }) })
+    );
+    expect(completeCatchUp).toHaveBeenCalledExactlyOnceWith('hydrated');
+    expect(sync.resumeCursor).toBeNull();
+    hydration.resolve();
+    await vi.waitFor(() => expect(sync.resumeCursor).toBe('hydrated'));
   });
 
   it('installs a registered projection reducer before opening its transport', async () => {

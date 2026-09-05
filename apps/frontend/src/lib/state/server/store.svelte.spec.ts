@@ -3,6 +3,8 @@ import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { AuthenticatedServerState } from '$lib/api-client/serverState';
 import type { RoomFileItem } from '$lib/api-client/attachments';
+import { createRoomTimelineAPI, type EventConnectionPage } from '$lib/api-client/roomTimeline';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import { GetMotdResponse } from '@chatto/api-types/api/v1/server_state_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
@@ -24,6 +26,8 @@ import {
   UserJoinedRoomEvent,
   UserLeftRoomEvent,
   MessagePostedEvent,
+  MessageEditedEvent,
+  ReactionAddedEvent,
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
   NotificationUnreadStateChangedEvent,
@@ -692,6 +696,137 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(apiMocks.readRealtimeUsers).toHaveBeenNthCalledWith(2, ['U3'], undefined);
   });
 
+  it.each(['profile', 'dm', 'catch-up'] as const)(
+    'does not restore a deleted profile from a late %s read or publish it to consumers',
+    async (path) => {
+      const response = deferred<RealtimeResourceUpdate[]>();
+      apiMocks.readRealtimeUsers.mockReturnValueOnce(response.promise);
+      const fake = new FakeServerConnection([]);
+      const store = makeStore(fake);
+      eventBusManager.ensureBus(
+        store.serverId,
+        fake as unknown as ServerConnection,
+        true,
+        store.realtimeSync,
+        store.realtimeProjectionHandler
+      );
+      const observer = vi.fn<(update: RealtimeProjectionUpdate) => void>();
+      eventBusManager.getBus(store.serverId)!.projectionHandlers.add(observer);
+      const deleted = new DirectoryMember({
+        user: new User({ id: 'U2', displayName: 'Old profile' })
+      });
+      const retained = new DirectoryMember({ user: new User({ id: 'U3' }) });
+      let completion: Promise<void> | undefined;
+      if (path === 'catch-up') {
+        store.projection.users.set('U2', deleted);
+        completion = store.completeRealtimeCatchUp('before-deletion');
+      } else if (path === 'dm') {
+        apiMocks.readRealtimeResource.mockResolvedValueOnce([
+          roomResource([
+            new RoomWithViewerState({ room: new Room({ id: 'DM1' }), memberUserIds: ['U2', 'U3'] })
+          ])
+        ]);
+        store.realtimeProjectionHandler(userLeftRoom('R1', 'U3'));
+      } else {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            event: new RealtimeEvent({
+              event: {
+                case: 'userProfileChanged',
+                value: new UserProfileChangedEvent({ userId: 'U2' })
+              }
+            })
+          })
+        );
+      }
+      await vi.waitFor(() => expect(apiMocks.readRealtimeUsers).toHaveBeenCalledTimes(1));
+      store.realtimeProjectionHandler(userDeleted('U2'));
+      response.resolve([
+        new RealtimeResourceUpdate({
+          resource: { case: 'users', value: { users: [deleted, retained] } },
+          replace: false
+        })
+      ]);
+      await completion;
+      await flushPromises(20);
+      expect(store.projection.users.has('U2')).toBe(false);
+      expect(store.projection.users.get('U3')).toEqual(retained);
+      const publishedUsers = observer.mock.calls.flatMap(([update]) =>
+        update.resource?.case === 'users' ? update.resource.value.users : []
+      );
+      expect(publishedUsers.map((member) => member.user?.id)).toEqual(['U3']);
+      expect(deleted.user?.displayName).toBe('Old profile');
+    }
+  );
+
+  it.each(['room', 'thread'] as const)(
+    'keeps edits and reactions at distinct queued %s anchors',
+    async (scope) => {
+      const store = makeStore(new FakeServerConnection([]));
+      const messages =
+        scope === 'room' ? store.messagesForRoom('R1') : store.messagesForThread('R1', 'ROOT');
+      await flushPromises(20);
+      const row = (id: number, updated = false): TimelineEventView => ({
+        id: `M${id}`,
+        createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, id)).toISOString(),
+        event: {
+          kind: TimelineEventKind.MessagePosted,
+          roomId: 'R1',
+          threadRootEventId: scope === 'thread' ? 'ROOT' : null,
+          body: updated ? 'edited' : 'original',
+          attachments: [],
+          replyCount: 0,
+          threadParticipants: [],
+          reactions: updated ? [{ emoji: 'ok', count: 1, hasReacted: false, users: [] }] : []
+        }
+      });
+      for (let id = 1; id <= 140; id++) messages.ingestEvent(row(id));
+      const page = (id: number): EventConnectionPage => ({
+        events: [row(id, true)],
+        startCursor: null,
+        endCursor: null,
+        hasOlder: true,
+        hasNewer: true
+      });
+      const first = deferred<EventConnectionPage>();
+      const api: ReturnType<typeof createRoomTimelineAPI> = vi
+        .mocked(createRoomTimelineAPI)
+        .mock.results.at(-1)!.value;
+      const read = vi
+        .mocked(scope === 'room' ? api.getRoomEventsAround : api.getThreadEventsAround)
+        .mockImplementation(({ eventId }) => Promise.resolve(page(Number(eventId.slice(1)))))
+        .mockReturnValueOnce(first.promise);
+      for (const id of [1, 70, 140]) {
+        store.realtimeProjectionHandler(
+          new RealtimeProjectionUpdate({
+            cursor: `cursor-${id}`,
+            event: new RealtimeEvent({
+              event:
+                id === 140
+                  ? {
+                      case: 'reactionAdded',
+                      value: new ReactionAddedEvent({ roomId: 'R1', messageEventId: `M${id}` })
+                    }
+                  : {
+                      case: 'messageEdited',
+                      value: new MessageEditedEvent({ roomId: 'R1', messageEventId: `M${id}` })
+                    }
+            })
+          })
+        );
+      }
+      expect(read).toHaveBeenCalledTimes(1);
+      first.resolve(page(1));
+      await vi.waitFor(() => expect(read).toHaveBeenCalledTimes(3));
+      await flushPromises(20);
+      expect(read.mock.calls.map(([input]) => input.eventId)).toEqual(['M1', 'M70', 'M140']);
+      expect(messages.getEventById('M70')?.event).toMatchObject({ body: 'edited' });
+      expect(messages.getEventById('M140')?.event).toMatchObject({
+        reactions: [{ emoji: 'ok', count: 1 }]
+      });
+    }
+  );
+
   it('converges after join, leave, and join overlap one room resource read', async () => {
     const firstRooms = deferred<RealtimeResourceUpdate[]>();
     const finalRooms = roomResource([
@@ -858,7 +993,7 @@ describe('ServerStateStore unified realtime resources', () => {
     );
     expect(hydrate).toHaveBeenCalledWith('E-POST', 'opaque-message-cursor', expect.any(Function));
 
-    const completion = store.completeRealtimeCatchUp('opaque-message-cursor');
+    const completion = store.waitForRealtimeReconciliation();
     let completed = false;
     void completion.then(
       () => {
@@ -872,6 +1007,87 @@ describe('ServerStateStore unified realtime resources', () => {
     const failure = new Error('message read failed');
     messageRead.reject(failure);
     await expect(completion).rejects.toBe(failure);
+  });
+
+  it('waits for cursorless window reads and every queued direction without auxiliary RPCs', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    await flushPromises(20);
+    const first = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
+    const last = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
+    const result = { hasOlder: false, hasNewer: false, refreshed: true, changed: true };
+    const refresh = vi
+      .spyOn(messages, 'refreshCurrentWindow')
+      .mockResolvedValue(result)
+      .mockReturnValueOnce(first.promise);
+    vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(true);
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'FIRST'));
+    await flushPromises(20);
+    apiMocks.readRealtimeResource.mockClear();
+    apiMocks.readRealtimeUsers.mockClear();
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'post-cursor',
+        event: new RealtimeEvent({
+          id: 'POST',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'R1' })
+          }
+        })
+      })
+    );
+    await flushPromises(20);
+    apiMocks.readRealtimeResource.mockClear();
+    apiMocks.readRealtimeUsers.mockClear();
+    const edit = new RealtimeProjectionUpdate({
+      cursor: 'edit-cursor',
+      event: new RealtimeEvent({
+        event: {
+          case: 'messageEdited',
+          value: new MessageEditedEvent({ roomId: 'R1', messageEventId: 'POST' })
+        }
+      })
+    });
+    store.realtimeProjectionHandler(edit);
+    store.realtimeProjectionHandler(edit);
+    refresh.mockResolvedValueOnce(result).mockReturnValueOnce(last.promise);
+    const complete = vi.fn();
+    const completion = store.waitForRealtimeReconciliation().then(complete);
+    await flushPromises(20);
+    expect(complete).not.toHaveBeenCalled();
+    first.resolve(result);
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalledTimes(3));
+    expect(
+      refresh.mock.calls.map(([anchor, forward, cursor]) => [anchor, forward, cursor])
+    ).toEqual([
+      ['FIRST', false, undefined],
+      ['POST', true, 'post-cursor'],
+      ['POST', false, 'edit-cursor']
+    ]);
+    expect(complete).not.toHaveBeenCalled();
+    last.resolve(result);
+    await completion;
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+    expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
+    await store.waitForRealtimeReconciliation();
+    expect(apiMocks.readRealtimeResource).not.toHaveBeenCalled();
+    expect(apiMocks.readRealtimeUsers).not.toHaveBeenCalled();
+  });
+
+  it('discards queued message reads when a snapshot replaces the projection', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    await flushPromises(20);
+    const first = deferred<Awaited<ReturnType<typeof messages.refreshCurrentWindow>>>();
+    const refresh = vi.spyOn(messages, 'refreshCurrentWindow').mockReturnValue(first.promise);
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'OLD-1'));
+    store.realtimeProjectionHandler(userLeftRoom('R1', 'U2', 'OLD-2'));
+    store.realtimeProjectionHandler(new RealtimeProjectionUpdate({ reset: true }));
+    first.resolve({ hasOlder: false, hasNewer: false, refreshed: false, changed: false });
+    await flushPromises(20);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.calls[0][3]!()).toBe(false);
   });
 
   it('publishes refreshed canonical resources to every projection consumer', async () => {

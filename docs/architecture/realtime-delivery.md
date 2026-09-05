@@ -293,6 +293,9 @@ presence with cursor-bounded ConnectRPC results. It replaces mounted timelines
 only after snapshot fallback because durable replay already repairs timeline
 changes. It saves the `caught_up` cursor only after this reconciliation and all
 earlier event-triggered resource reads succeed.
+Event and heartbeat cursors wait for pending reads without starting this
+auxiliary refresh. Thus a replay runs one auxiliary refresh at `caught_up`,
+not one refresh per event.
 If the socket closes during a snapshot, the client has no resume cursor and
 requests a new snapshot.
 
@@ -300,8 +303,18 @@ The projection stores canonical public resources. It does not store
 realtime-specific resource copies. Resource invalidation events start
 coalesced ConnectRPC reads. If another event reaches the same resource family
 during a read, the frontend runs one follow-up read at the newest event cursor.
-Timeline-derived stores refresh their current ConnectRPC windows. A failed
-refresh closes the socket without saving that event cursor.
+Timeline-derived stores retain each distinct pending anchor, direction, and
+minimum cursor. They run these reads in order. One bounded page cannot replace
+a read for another anchor. Identical pending reads share one request. Cursor
+advancement waits for active and queued reads, including reads that started
+without a cursor. A failed refresh closes the socket without saving that event
+cursor.
+
+After account deletion, the frontend rejects that user's profile in later
+user-resource responses before it updates local state or notifies other consumers.
+This applies to profile refreshes, DM user reads, and catch-up user batches.
+The deletion record stays in memory until the next exact snapshot resets the
+projection. Reads from an earlier reset generation cannot update that snapshot.
 
 The browser keeps one in-memory resource view and cursor for each
 authenticated server. Only the active server keeps a persistent socket.

@@ -64,8 +64,10 @@ export type RealtimeServerRegistration = {
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler?: ProjectionHandler;
-  /** Wait until event-triggered resource reconciliation has settled. */
+  /** Refresh auxiliary state once at the subscription's caught-up boundary. */
   completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  /** Wait for event-triggered reads without fetching unrelated resources. */
+  waitForProjectionReconciliation?: () => Promise<void>;
 };
 
 type TransportController = {
@@ -121,7 +123,8 @@ class EventBusManager {
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
+    waitForProjectionReconciliation?: () => Promise<void>
   ): () => void {
     const controller = this.ensureBus(
       serverId,
@@ -129,7 +132,8 @@ class EventBusManager {
       realtimeProjectionSupported,
       sync,
       undefined,
-      completeProjectionCatchUp
+      completeProjectionCatchUp,
+      waitForProjectionReconciliation
     );
     if (realtimeProjectionSupported) controller.setMode('live');
     return () => this.stopBus(serverId);
@@ -142,7 +146,8 @@ class EventBusManager {
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
     projectionHandler?: ProjectionHandler,
-    completeProjectionCatchUp?: (cursor: string) => Promise<void>
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
+    waitForProjectionReconciliation?: () => Promise<void>
   ): TransportController {
     const existing = this.#controllers.get(serverId);
     if (existing) {
@@ -347,6 +352,7 @@ class EventBusManager {
       let cursorReconciliation = Promise.resolve();
       let reconciliationFailed = false;
       let snapshotReceived = false;
+      let catchUpComplete = false;
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
@@ -360,13 +366,16 @@ class EventBusManager {
 
       const commitEventCursor = (cursor: string | undefined) => {
         if (!cursor) return;
-        if (!completeProjectionCatchUp) {
-          sync.acceptProjectionEvent(cursor, false);
+        if (!waitForProjectionReconciliation) {
+          if (!snapshotReceived || catchUpComplete) sync.acceptProjectionEvent(cursor, false);
           return;
         }
         cursorReconciliation = cursorReconciliation.then(async () => {
-          await completeProjectionCatchUp(cursor);
           if (stopped || socket !== nextSocket) return;
+          await waitForProjectionReconciliation();
+          // A snapshot is not resumable until its auxiliary reads and timelines
+          // are hydrated at caught_up, even if intervening event reads succeed.
+          if (stopped || socket !== nextSocket || (snapshotReceived && !catchUpComplete)) return;
           sync.acceptProjectionEvent(cursor, false);
         });
         void cursorReconciliation.catch(failReconciliation);
@@ -464,6 +473,7 @@ class EventBusManager {
                   return;
                 }
                 if (stopped || socket !== nextSocket) return;
+                catchUpComplete = true;
                 sync.markCaughtUp(frame.frame.value.cursor);
                 resolvePoll(true);
                 if (mode === 'polling') {
@@ -484,7 +494,10 @@ class EventBusManager {
                     try {
                       handler(frame.frame.value.message);
                     } catch (error) {
-                      console.error(`[eventBus:${serverId}] session termination handler threw`, error);
+                      console.error(
+                        `[eventBus:${serverId}] session termination handler threw`,
+                        error
+                      );
                     }
                   }
                   becomeDormant(true, 'disconnected');
@@ -675,7 +688,8 @@ class EventBusManager {
         registration.projectionSupported,
         registration.sync,
         registration.projectionHandler,
-        registration.completeProjectionCatchUp
+        registration.completeProjectionCatchUp,
+        registration.waitForProjectionReconciliation
       );
     }
     // Close the previous live transport before opening the next one so a

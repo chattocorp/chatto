@@ -24,6 +24,7 @@ import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
 import {
   createRealtimeResourceAPI,
+  RealtimeResourceUpdate,
   type RealtimeResourceAPI,
   type RealtimeResourceFamily
 } from '$lib/api-client/realtimeResources';
@@ -77,6 +78,14 @@ import {
 export type ServerIndicator = 'notification' | 'unread' | null;
 
 const MAX_RETAINED_ROOM_SEARCHES = 10;
+
+/** One bounded timeline read. Different anchors or directions need separate reads. */
+type MessageWindowRefresh = {
+  anchorEventId: string | null;
+  forward: boolean;
+  minimumCursor?: string;
+  generation: number;
+};
 
 function viewerAuthorizationLost(
   previous: GetViewerResponse | null,
@@ -167,6 +176,8 @@ export class ServerStateStore {
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
+  /** Deletions stay authoritative until the next exact snapshot resets this projection. */
+  readonly #deletedRealtimeUserIds = new SvelteSet<string>();
   readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
   readonly #pendingResourceRefreshes = new SvelteMap<
     RealtimeResourceFamily,
@@ -178,11 +189,9 @@ export class ServerStateStore {
   #pendingUserRefreshCursor: string | undefined;
   #pendingUserRefreshGeneration = 0;
   #reconciliationError: unknown = null;
-  readonly #messageWindowRefreshes = new WeakMap<MessagesStore, Promise<void>>();
-  readonly #pendingMessageWindowRefreshes = new WeakMap<
-    MessagesStore,
-    { anchorEventId: string | null; forward: boolean; minimumCursor?: string; generation: number }
-  >();
+  /** Active reads stay owned until settlement, including reads started without a cursor. */
+  readonly #messageWindowRefreshes = new SvelteMap<MessagesStore, Promise<void>>();
+  readonly #pendingMessageWindowRefreshes = new WeakMap<MessagesStore, MessageWindowRefresh[]>();
   readonly #projectionReconciliations = new SvelteSet<Promise<void>>();
 
   constructor(
@@ -295,16 +304,25 @@ export class ServerStateStore {
       this.requireCurrentRealtimeProjection(generation);
       this.#realtimeSnapshotPending = false;
     }
+    await this.waitForRealtimeReconciliation();
+  }
+
+  /** Wait for queued event reads without starting catch-up resource reads. */
+  async waitForRealtimeReconciliation(): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
     while (
       this.#resourceRefreshes.size > 0 ||
       this.#userRefresh ||
+      this.#messageWindowRefreshes.size > 0 ||
       this.#projectionReconciliations.size > 0
     ) {
       await Promise.all([
         ...this.#resourceRefreshes.values(),
         ...(this.#userRefresh ? [this.#userRefresh] : []),
+        ...this.#messageWindowRefreshes.values(),
         ...this.#projectionReconciliations
       ]);
+      this.requireCurrentRealtimeProjection(generation);
     }
     if (this.#reconciliationError) {
       const error = this.#reconciliationError;
@@ -493,6 +511,7 @@ export class ServerStateStore {
     if (update.reset) {
       const generation = ++this.#realtimeProjectionGeneration;
       this.#realtimeSnapshotPending = true;
+      this.#deletedRealtimeUserIds.clear();
       this.#reconciliationError = null;
       this.#pendingResourceRefreshes.clear();
       this.#pendingUserRefreshIds.clear();
@@ -700,6 +719,23 @@ export class ServerStateStore {
 
   /** Apply a refreshed resource and notify every consumer of the server bus. */
   private publishProjectionUpdate(update: RealtimeProjectionUpdate): void {
+    // Filter before both the local reducer and bus consumers see the response.
+    // This covers profile refreshes, DM hydration, and catch-up user batches.
+    if (update.resource?.case === 'users' && this.#deletedRealtimeUserIds.size > 0) {
+      update = new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: {
+            case: 'users',
+            value: {
+              users: update.resource.value.users.filter(
+                (member) => !this.#deletedRealtimeUserIds.has(member.user?.id ?? '')
+              )
+            }
+          },
+          replace: update.replaceResource
+        })
+      });
+    }
     this.ingestProjectionEvent(update);
     const bus = eventBusManager.getBus(this.serverId);
     if (!bus) return;
@@ -717,6 +753,8 @@ export class ServerStateStore {
     switch (payload.case) {
       case 'userAccountDeleted': {
         const userId = payload.value.userId;
+        this.#deletedRealtimeUserIds.add(userId);
+        this.#pendingUserRefreshIds.delete(userId);
         this.projection.removeUser(userId);
         this.scrubRemovedUser(userId);
         return;
@@ -744,8 +782,7 @@ export class ServerStateStore {
       case 'reactionRemoved':
       case 'assetDeleted': {
         const anchorEventId =
-          rawValue?.messageEventId ??
-          (payload.case === 'messagePosted' ? event.id : null);
+          rawValue?.messageEventId ?? (payload.case === 'messagePosted' ? event.id : null);
         const roomAnchorEventId =
           payload.case === 'messagePosted' && payload.value.threadRootEventId
             ? payload.value.threadRootEventId
@@ -774,7 +811,8 @@ export class ServerStateStore {
         else this.forEachMessageSearch((store) => store.clearResults());
         if (payload.case === 'messagePosted') {
           this.refreshRealtimeResource('rooms');
-          if (payload.value.threadRootEventId) refreshRegisteredFollowedThreadQueries(this.serverId);
+          if (payload.value.threadRootEventId)
+            refreshRegisteredFollowedThreadQueries(this.serverId);
         }
         if (payload.case === 'messageRetracted') {
           refreshRegisteredFollowedThreadQueries(this.serverId);
@@ -1007,7 +1045,7 @@ export class ServerStateStore {
     }
   }
 
-  /** Coalesce invalidations and run one follow-up read after an active read. */
+  /** Keep every distinct pending read; a bounded page cannot cover other anchors. */
   private scheduleMessageWindowRefresh(
     store: MessagesStore,
     anchorEventId: string | null,
@@ -1016,14 +1054,21 @@ export class ServerStateStore {
   ): void {
     const generation = this.#realtimeProjectionGeneration;
     if (this.#messageWindowRefreshes.has(store)) {
-      const pending = this.#pendingMessageWindowRefreshes.get(store);
-      this.#pendingMessageWindowRefreshes.set(store, {
-        anchorEventId,
-        forward,
-        minimumCursor:
-          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
-        generation
-      });
+      const pending = (this.#pendingMessageWindowRefreshes.get(store) ?? []).filter(
+        (request) => request.generation === generation
+      );
+      // Opaque cursors cannot be sorted. Only identical requests can be dropped.
+      if (
+        !pending.some(
+          (request) =>
+            request.anchorEventId === anchorEventId &&
+            request.forward === forward &&
+            request.minimumCursor === minimumCursor
+        )
+      ) {
+        pending.push({ anchorEventId, forward, minimumCursor, generation });
+      }
+      this.#pendingMessageWindowRefreshes.set(store, pending);
       return;
     }
     const refresh = store
@@ -1040,10 +1085,13 @@ export class ServerStateStore {
       })
       .finally(() => {
         this.#messageWindowRefreshes.delete(store);
-        const pending = this.#pendingMessageWindowRefreshes.get(store);
+        const queue = this.#pendingMessageWindowRefreshes
+          .get(store)
+          ?.filter((request) => request.generation === this.#realtimeProjectionGeneration);
+        const pending = queue?.shift();
+        if (queue?.length) this.#pendingMessageWindowRefreshes.set(store, queue);
+        else this.#pendingMessageWindowRefreshes.delete(store);
         if (!pending) return;
-        this.#pendingMessageWindowRefreshes.delete(store);
-        if (pending.generation !== this.#realtimeProjectionGeneration) return;
         this.scheduleMessageWindowRefresh(
           store,
           pending.anchorEventId,
