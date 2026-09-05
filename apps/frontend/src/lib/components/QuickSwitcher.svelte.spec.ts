@@ -436,7 +436,7 @@ describe('QuickSwitcher', () => {
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
   });
 
-  it('marks bot user results', async () => {
+  it('shows bot user results without a badge on tiny avatars', async () => {
     mocks.listUsers.mockResolvedValue({
       members: [user('user-helper', 'helper_bot', 'Helper', true)],
       totalCount: 1,
@@ -447,7 +447,8 @@ describe('QuickSwitcher', () => {
     setSearch(container, 'helper');
     await waitForDebouncedUserSearch('helper');
     await vi.waitFor(() => {
-      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+      expect(container.querySelector('[aria-label="helper_bot"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="bot-badge"]')).toBeNull();
     });
   });
 

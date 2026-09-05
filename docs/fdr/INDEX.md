@@ -46,8 +46,8 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-20 |
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-30 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
-| [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-08-30 |
-| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-04 |
+| [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-09-01 |
+| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-05 |
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-04 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |

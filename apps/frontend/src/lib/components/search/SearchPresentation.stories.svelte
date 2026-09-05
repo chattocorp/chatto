@@ -16,6 +16,17 @@
   import ClampedMessagePreview from '../../../routes/chat/[serverId]/[roomId]/ClampedMessagePreview.svelte';
   import SearchAvailability from './SearchAvailability.svelte';
   import SearchResult from './SearchResult.svelte';
+  import SearchResults from './SearchResults.svelte';
+
+  const resultsState = {
+    error: false,
+    loading: false,
+    loadingMore: false,
+    hasSearched: false,
+    results: [],
+    nextCursor: null,
+    loadMore: async () => {}
+  };
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
 
@@ -52,7 +63,10 @@
       {#snippet frame(content)}<Panel>{@render content()}</Panel>{/snippet}
       <Panel title="Search query">
         <p>Search is ready.</p>
-        <Button variant="secondary" onclick={() => (availabilityState = MessageSearchState.UNAVAILABLE)}>
+        <Button
+          variant="secondary"
+          onclick={() => (availabilityState = MessageSearchState.UNAVAILABLE)}
+        >
           Show unavailable state
         </Button>
       </Panel>
@@ -140,5 +154,26 @@
       </li>
     </ol>
     {#if opened}<p role="status">Result selected.</p>{/if}
+  </div>
+</Story>
+
+<Story name="Result states" asChild>
+  <div class="grid w-full max-w-4xl gap-4 md:grid-cols-2">
+    <Panel title="Page prompt" noPadding>
+      <SearchResults store={resultsState}><span>Result</span></SearchResults>
+    </Panel>
+    <Panel title="Sidebar loading" noPadding>
+      <SearchResults store={{ ...resultsState, loading: true }} compact
+        ><span>Result</span></SearchResults
+      >
+    </Panel>
+    <Panel title="Empty results" noPadding>
+      <SearchResults store={{ ...resultsState, hasSearched: true }}
+        ><span>Result</span></SearchResults
+      >
+    </Panel>
+    <Panel title="Search error" noPadding>
+      <SearchResults store={{ ...resultsState, error: true }}><span>Result</span></SearchResults>
+    </Panel>
   </div>
 </Story>

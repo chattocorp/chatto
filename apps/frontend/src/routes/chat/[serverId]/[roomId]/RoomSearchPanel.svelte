@@ -16,9 +16,9 @@ so switching rooms cannot leak a query or plaintext results into another room.
     type MessageSearchStore
   } from '$lib/state/server/messageSearch.svelte';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
-  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { EmptyState, Hint, ScrollFader } from '$lib/ui';
+  import { Hint, ScrollFader } from '$lib/ui';
   import { TextInput } from '$lib/ui/form';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
@@ -41,11 +41,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
   const search = useDebouncedMessageSearch({
     getStore: () => store,
     getInput: (query) => ({ query, roomId, order: MessageSearchOrder.RELEVANCE })
-  });
-  const loadMoreWhenVisible = useLoadMoreWhenVisible({
-    getCursor: () => store.nextCursor,
-    loadMore: () => store.loadMore(),
-    hasError: () => store.error
   });
 
   $effect(() => {
@@ -109,68 +104,34 @@ so switching rooms cannot leak a query or plaintext results into another room.
     </div>
 
     <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-      <div class="flex min-h-full flex-col" aria-live="polite">
-        {#if store.error}
-          <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('search.error.title')}>
-            {m('search.error.description')}
-          </EmptyState>
-        {:else if store.loading && store.results.length === 0}
-          <div class="flex min-h-32 flex-1 items-center justify-center p-4 text-sm text-muted">
-            <span class="iconify me-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"
-            ></span>
-            {m('search.searching')}
-          </div>
-        {:else if store.hasSearched && store.results.length === 0 && !store.nextCursor}
-          <EmptyState icon="icon-[uil--search-minus]" title={m('search.no_results.title')}>
-            {m('search.no_results.description')}
-          </EmptyState>
-        {:else if !store.hasSearched}
-          <EmptyState icon="icon-[uil--search]" title={m('search.prompt.title')} />
-        {:else}
-          <ol class="selectable-list gap-3 py-2">
-            {#each store.results as result (result.id)}
-              <li>
-                <SearchResult
-                  {result}
-                  aria-label={`${result.actor?.displayName || result.actor?.login || m('common.unknown')}: ${result.body}`}
-                  data-room-search-result-id={result.id}
-                  class="group/search-result"
-                  viewerLogin={serverScope.store.currentUser.user?.login}
-                  timestampSettings={userSettings}
-                  timestampLocale={activeLocale}
-                  attachmentClass="text-xs"
-                  onOpen={(result) => onOpenResult?.(result.id, result.threadRootEventId)}
-                >
-                  {#snippet preview(content)}
-                    <div class="pointer-events-none" inert data-room-search-result-preview>
-                      <ClampedMessagePreview>{@render content()}</ClampedMessagePreview>
-                    </div>
-                  {/snippet}
-                  {#snippet headerMeta()}
-                    {#if result.createdAt}
-                      <time class="text-xs text-muted" datetime={result.createdAt}>
-                        {formatTimestamp(result.createdAt)}
-                      </time>
-                    {/if}
-                  {/snippet}
-                </SearchResult>
-              </li>
-            {/each}
-          </ol>
-          {#if store.nextCursor}
-            <div
-              {@attach loadMoreWhenVisible}
-              class="flex h-12 items-center justify-center text-sm text-muted"
-            >
-              {#if store.loadingMore}
-                <span class="iconify me-2 icon-[uil--spinner-alt] animate-spin" aria-hidden="true"
-                ></span>
-                {m('search.loading_more')}
+      <SearchResults {store} compact>
+        {#snippet children(result)}
+          <SearchResult
+            {result}
+            aria-label={`${result.actor?.displayName || result.actor?.login || m('common.unknown')}: ${result.body}`}
+            data-room-search-result-id={result.id}
+            class="group/search-result"
+            viewerLogin={serverScope.store.currentUser.user?.login}
+            timestampSettings={userSettings}
+            timestampLocale={activeLocale}
+            attachmentClass="text-xs"
+            onOpen={(result) => onOpenResult?.(result.id, result.threadRootEventId)}
+          >
+            {#snippet preview(content)}
+              <div class="pointer-events-none" inert data-room-search-result-preview>
+                <ClampedMessagePreview>{@render content()}</ClampedMessagePreview>
+              </div>
+            {/snippet}
+            {#snippet headerMeta()}
+              {#if result.createdAt}
+                <time class="text-xs text-muted" datetime={result.createdAt}>
+                  {formatTimestamp(result.createdAt)}
+                </time>
               {/if}
-            </div>
-          {/if}
-        {/if}
-      </div>
+            {/snippet}
+          </SearchResult>
+        {/snippet}
+      </SearchResults>
     </ScrollFader>
   </div>
 </SearchAvailability>

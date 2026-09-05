@@ -18,7 +18,7 @@
     createComposerContext,
     type QuoteInsertionRequest
   } from '$lib/state/room';
-  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import { expoOutTransition } from '$lib/ui/motion';
@@ -98,18 +98,11 @@
       mountedStores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
   });
 
-  $effect(() =>
-    onRoomMessageMutated((detail) => {
-      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
-      if (detail.reason === 'message-deleted') {
-        store.applyLocalMessageDeletion(detail.eventId);
-        return;
-      }
-      const anchorEventId = store.refreshAnchorForMessageMutation(detail.eventId);
-      if (!anchorEventId) return;
-      void store.refreshCurrentWindow(anchorEventId);
-    })
-  );
+  useTimelineMutations(() => ({
+    serverId: activeServerId,
+    roomId,
+    timeline: store
+  }));
 
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);

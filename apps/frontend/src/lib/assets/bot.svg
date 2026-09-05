@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- SPDX-FileCopyrightText: 2026 ChattoCorp GmbH -->
+  <!-- SPDX-License-Identifier: Apache-2.0 -->
+  <!-- Embedded SVG images inherit the host's colour scheme. Keep the same
+       silhouette and face contrast in both themes; only the shell changes. -->
+  <style>
+    :root { --top: #E4F5F2; --middle: #AFD6D4; --bottom: #6FA5AF; --edge: #427582; }
+    @media (prefers-color-scheme: dark) {
+      :root { --top: #D3EDE8; --middle: #9FCAC9; --bottom: #6095A2; --edge: #A4D2D1; }
+    }
+  </style>
+  <defs>
+    <linearGradient id="shell" x1="10" y1="9" x2="22" y2="30" gradientUnits="userSpaceOnUse">
+      <stop stop-color="var(--top)"/>
+      <stop offset=".5" stop-color="var(--middle)"/>
+      <stop offset="1" stop-color="var(--bottom)"/>
+    </linearGradient>
+  </defs>
+  <path d="M16 9V4" stroke="#608D99" stroke-width="2.5"/>
+  <circle cx="16" cy="3.5" r="2.5" fill="var(--middle)" stroke="var(--edge)" stroke-width=".75"/>
+  <rect x="1" y="16" width="6" height="9" rx="3" fill="#608D99"/>
+  <rect x="25" y="16" width="6" height="9" rx="3" fill="#608D99"/>
+  <rect x="4.5" y="8.5" width="23" height="21" rx="7" fill="url(#shell)" stroke="var(--edge)"/>
+  <rect x="9" y="15" width="4" height="6" rx="2" fill="#214353"/>
+  <rect x="19" y="15" width="4" height="6" rx="2" fill="#214353"/>
+  <path d="M14 24q2 1.5 4 0" stroke="#214353" stroke-width="1.5" stroke-linecap="round"/>
+</svg>

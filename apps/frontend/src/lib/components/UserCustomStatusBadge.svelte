@@ -48,6 +48,7 @@ independent of presence and hides itself after its expiry timestamp.
       className
     ]}
     {title}
+    role="img"
     aria-label={title}
   >
     <span aria-hidden="true">{activeStatus.emoji}</span>

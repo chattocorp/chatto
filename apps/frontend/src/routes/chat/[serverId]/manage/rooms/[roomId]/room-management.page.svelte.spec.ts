@@ -344,6 +344,27 @@ describe('room management page identity and realtime authority', () => {
     });
   });
 
+  it('saves a numeric slow-mode selection as a sparse patch', async () => {
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    const { container } = render(RoomManagementPage);
+    await settle();
+
+    const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    select.value = '10';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+    const submit = container.querySelector('form button[type="submit"]') as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    submit.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateRoom).toHaveBeenCalledWith({
+        roomId: 'shared-room',
+        slowModeSeconds: 10
+      });
+    });
+  });
+
   it('saves a threading mode selected from the explanatory radio choices', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     mocks.updateRoom.mockResolvedValueOnce({
