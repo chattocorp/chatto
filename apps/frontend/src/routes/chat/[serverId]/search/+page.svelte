@@ -17,18 +17,10 @@ in the active server store so browser Back can restore the current search.
   import { MessageSearchOrder, MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { getLocale } from '$lib/i18n/runtime';
   import { useDebouncedMessageSearch } from '$lib/hooks/useDebouncedMessageSearch.svelte';
-  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { buildMessageLinkPath } from '$lib/messageLinks';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import {
-    EmptyState,
-    Hint,
-    PageTitle,
-    PaneContent,
-    PaneHeader,
-    ScrollFader,
-    SegmentedControl
-  } from '$lib/ui';
+  import { Hint, PageTitle, PaneContent, PaneHeader, ScrollFader, SegmentedControl } from '$lib/ui';
   import { TextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
 
@@ -48,11 +40,6 @@ in the active server store so browser Back can restore the current search.
   const search = useDebouncedMessageSearch({
     getStore: () => store,
     getInput: (query) => ({ query, order: store.order })
-  });
-  const loadMoreWhenVisible = useLoadMoreWhenVisible({
-    getCursor: () => store.nextCursor,
-    loadMore: () => store.loadMore(),
-    hasError: () => store.error
   });
   $effect(() => {
     void store.ensureStatus();
@@ -131,84 +118,50 @@ in the active server store so browser Back can restore the current search.
 
         <Panel title={m('search.results')} noPadding fillHeight>
           <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
-            <div class="flex min-h-full flex-col" aria-live="polite">
-              {#if store.error}
-                <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('search.error.title')}>
-                  {m('search.error.description')}
-                </EmptyState>
-              {:else if store.hasSearched && !store.loading && store.results.length === 0 && !store.nextCursor}
-                <EmptyState icon="icon-[uil--search-minus]" title={m('search.no_results.title')}>
-                  {m('search.no_results.description')}
-                </EmptyState>
-              {:else if !store.hasSearched}
-                <EmptyState icon="icon-[uil--search]" title={m('search.prompt.title')}>
-                  {m('search.prompt.description')}
-                </EmptyState>
-              {:else}
-                <ol class="selectable-list gap-4">
-                  {#each store.results as result (result.id)}
-                    <li>
-                      <SearchResult
-                        {result}
-                        data-search-result-id={result.id}
-                        viewerLogin={serverStore.currentUser.user?.login}
-                        timestampSettings={timeFormatSettings}
-                        timestampLocale={activeLocale}
-                        onOpen={navigateToResult}
+            <SearchResults {store}>
+              {#snippet children(result)}
+                <SearchResult
+                  {result}
+                  data-search-result-id={result.id}
+                  viewerLogin={serverStore.currentUser.user?.login}
+                  timestampSettings={timeFormatSettings}
+                  timestampLocale={activeLocale}
+                  onOpen={navigateToResult}
+                >
+                  {#snippet headerMeta()}
+                    <a
+                      class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                      href={resolve('/chat/[serverId]/[roomId]', {
+                        serverId: serverIdToSegment(serverId),
+                        roomId: result.roomId
+                      })}
+                    >
+                      {#if result.roomKind === RoomKind.DM}
+                        {m('room.title.direct_message')}
+                      {:else}
+                        <bdi>#{result.roomName ?? m('search.scope.room')}</bdi>
+                      {/if}
+                    </a>
+                    {#if result.createdAt}
+                      <span class="text-xs text-muted" aria-hidden="true">·</span>
+                      <!-- eslint-disable svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route -->
+                      <a
+                        class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
+                        href={buildMessageLinkPath(
+                          serverId,
+                          result.roomId,
+                          result.id,
+                          result.threadRootEventId
+                        )}
                       >
-                        {#snippet headerMeta()}
-                          <a
-                            class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                            href={resolve('/chat/[serverId]/[roomId]', {
-                              serverId: serverIdToSegment(serverId),
-                              roomId: result.roomId
-                            })}
-                          >
-                            {#if result.roomKind === RoomKind.DM}
-                              {m('room.title.direct_message')}
-                            {:else}
-                              <bdi>#{result.roomName ?? m('search.scope.room')}</bdi>
-                            {/if}
-                          </a>
-                          {#if result.createdAt}
-                            <span class="text-xs text-muted" aria-hidden="true">·</span>
-                            <!-- eslint-disable svelte/no-navigation-without-resolve -- buildMessageLinkPath() returns a resolved app route -->
-                            <a
-                              class="min-w-0 truncate text-xs text-muted hover:text-text hover:underline"
-                              href={buildMessageLinkPath(
-                                serverId,
-                                result.roomId,
-                                result.id,
-                                result.threadRootEventId
-                              )}
-                            >
-                              <time datetime={result.createdAt}
-                                >{formatTimestamp(result.createdAt)}</time
-                              >
-                            </a>
-                            <!-- eslint-enable svelte/no-navigation-without-resolve -->
-                          {/if}
-                        {/snippet}
-                      </SearchResult>
-                    </li>
-                  {/each}
-                </ol>
-                {#if store.nextCursor}
-                  <div
-                    {@attach loadMoreWhenVisible}
-                    class="flex h-12 items-center justify-center text-muted"
-                  >
-                    {#if store.loadingMore}
-                      <span
-                        class="iconify me-2 icon-[uil--spinner-alt] animate-spin"
-                        aria-hidden="true"
-                      ></span>
-                      {m('search.loading_more')}
+                        <time datetime={result.createdAt}>{formatTimestamp(result.createdAt)}</time>
+                      </a>
+                      <!-- eslint-enable svelte/no-navigation-without-resolve -->
                     {/if}
-                  </div>
-                {/if}
-              {/if}
-            </div>
+                  {/snippet}
+                </SearchResult>
+              {/snippet}
+            </SearchResults>
           </ScrollFader>
         </Panel>
       </SearchAvailability>
