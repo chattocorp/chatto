@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -59,6 +59,9 @@ targets, unread counts, read state, or deletion semantics.
   The server saves delivery rules. The client saves sound and sound-filter
   choices for each server. Notifications from different registered servers can
   use different sounds.
+- A root message in a direct-message room uses the Direct message cause. A
+  message inside a direct-message thread uses Followed thread activity for its
+  followers. It does not also create a Direct message occurrence.
 
 ## Design Decisions
 
@@ -112,7 +115,7 @@ server value.
 
 | Cause                          | Default           |
 | ------------------------------ | ----------------- |
-| Direct message                 | Push notification |
+| Root direct message            | Push notification |
 | Root message in a channel room | Badge             |
 | Direct username mention        | Push notification |
 | Reply to the user's message    | Push notification |
@@ -279,6 +282,9 @@ source whose delivery is still controlled by notification policy. Follow
 controls belong to threads, not to notification rows. Root channel-room
 activity uses the Room messages cause. A room-specific Room messages policy
 supplies the required opt-in control without a separate room-follow state.
+Root direct-message activity uses the Direct messages cause. Thread activity
+uses Followed threads in both channel rooms and direct-message rooms, so one
+thread message does not also create a broad Direct messages occurrence.
 
 **Why:** A subscription describes future interest in a conversation; a
 notification occurrence describes one past activity. Keeping them separate

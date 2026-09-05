@@ -5,6 +5,7 @@ import { withServerUser } from './fixtures/serverUser';
 import { DMPage } from './pages/DMPage';
 import { MyThreadsPage } from './pages/MyThreadsPage';
 import { TIMEOUTS } from './constants';
+import * as routes from './routes';
 
 test.describe('Direct-message threads', () => {
   test('creates, replies to, follows, and lists a DM thread', async ({
@@ -37,6 +38,36 @@ test.describe('Direct-message threads', () => {
       await room.expectThreadPaneVisible();
       await room.expectTextInThreadPane(rootText);
       await room.expectTextInThreadPane(replyText);
+    });
+  });
+
+  test('creates one notification for a DM thread reply', async ({
+    page,
+    browser,
+    serverURL,
+    notificationsPage
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
+      const roomA = await new DMPage(page).startConversation(userB.login);
+      const roomB = await new DMPage(pageB).startConversation(userA.login);
+      const rootText = `DM notification root ${Date.now()}`;
+      const replyText = `DM notification reply ${Date.now()}`;
+
+      await roomA.sendMessage(rootText);
+      await roomB.expectMessageVisible(rootText, { timeout: TIMEOUTS.REALTIME_EVENT });
+      await roomB.getMessage(rootText).openThread();
+      await roomB.expectThreadPaneVisible();
+
+      await page.goto(routes.settings);
+      await roomB.postThreadReply(replyText);
+
+      await notificationsPage.goto();
+      await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
+      await expect(
+        notificationsPage.getNotificationBySummary('replied in a thread you follow.')
+      ).toBeVisible();
     });
   });
 });
