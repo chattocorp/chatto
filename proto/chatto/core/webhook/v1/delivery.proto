@@ -18,4 +18,3 @@ message BotWebhookDelivery {
   uint32 max_attempts = 9;
   int64 retry_delay_ms = 10;
 }
-
