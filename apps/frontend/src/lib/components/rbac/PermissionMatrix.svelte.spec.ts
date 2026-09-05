@@ -294,7 +294,7 @@ describe('PermissionMatrix', () => {
     const stickyBody = panel.querySelector('tbody th[scope="row"].sticky') as HTMLElement;
     const surfaceColor = getComputedStyle(panel).backgroundColor;
     const headerColor = getComputedStyle(tableHeader).backgroundColor;
-    const viewport = panel.querySelector('table')?.parentElement?.parentElement as HTMLElement;
+    const viewport = panel.querySelector<HTMLElement>('.data-table-viewport')!;
     const inset = panel.querySelector(':scope > div:last-child > div') as HTMLElement;
     const frame = inset.parentElement as HTMLElement;
 
@@ -309,10 +309,10 @@ describe('PermissionMatrix', () => {
     expect(frame.className).toContain('pb-1');
     expect(viewport.className).toContain('data-table-viewport');
     expect(viewport.className).not.toContain('rounded-md');
-    expect((panel.querySelector('table')?.parentElement as HTMLElement).className).toContain(
+    expect((viewport.querySelector('.overflow-y-auto') as HTMLElement).className).toContain(
       'overflow-y-auto'
     );
-    expect((panel.querySelector('table')?.parentElement as HTMLElement).className).toContain(
+    expect((viewport.querySelector('.overflow-y-auto') as HTMLElement).className).toContain(
       'overflow-x-auto'
     );
     expect(getComputedStyle(tableHeader).backgroundColor).toBe(headerColor);

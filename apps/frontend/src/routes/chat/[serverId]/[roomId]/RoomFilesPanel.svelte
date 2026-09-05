@@ -4,6 +4,7 @@
 Room-scoped file list for the room sidebar.
 -->
 <script lang="ts">
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
@@ -115,21 +116,10 @@ Room-scoped file list for the room sidebar.
     void store.refreshUrlsForItem(item);
   }
 
-  function loadMoreWhenVisible(node: HTMLElement) {
-    if (typeof IntersectionObserver === 'undefined') return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
-        if (!store.hasMore || store.isLoadingMore) return;
-        void store.loadMore();
-      },
-      { rootMargin: '160px 0px' }
-    );
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => store.hasMore ? store.items.length : null,
+    loadMore: () => store.loadMore()
+  });
 
   function formatTimestamp(value: string): string {
     return formatDateTime(value, userSettings, activeLocale);
