@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.24](https://github.com/chattocorp/chatto/compare/v0.4.23...v0.4.24) (2026-09-05)
+
+
+### Bug Fixes
+
+* **assets:** backport 10 MiB upload chunks to 0.4 ([#2314](https://github.com/chattocorp/chatto/issues/2314)) ([4536f82](https://github.com/chattocorp/chatto/commit/4536f820e71dbbf7d768f630dada02a52b9e8f08))
+
 ## [0.4.23](https://github.com/chattocorp/chatto/compare/v0.4.22...v0.4.23) (2026-09-03)
 
 
