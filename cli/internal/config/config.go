@@ -35,7 +35,7 @@ type ChattoConfig struct {
 	AssetProcessing AssetProcessingConfig `toml:"asset_processing" comment:"Built-in durable asset-processing worker."`
 	LiveKit         LiveKitConfig         `toml:"livekit,commented" comment:"LiveKit voice call configuration."`
 	NATS            NATSConfig            `toml:"nats"`
-	Bootstrap       BootstrapConfig       `toml:"bootstrap,commented" comment:"Dev/E2E-only: users and spaces auto-created on startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
+	Bootstrap       BootstrapConfig       `toml:"bootstrap,commented" comment:"Dev/E2E-only: users, bots, and server data auto-created on first startup. ONLY honored by builds compiled with the 'bootstrap' build tag; release binaries ignore this section entirely."`
 }
 
 // ApplyDefaults fills derived config values that are safe to compute from other
@@ -205,6 +205,9 @@ func (c *ChattoConfig) Validate() error {
 		}
 		if c.NATS.Embedded.HTTPPort < 0 || c.NATS.Embedded.HTTPPort > 65535 {
 			errs = append(errs, "nats.embedded.http_port must be between 0 and 65535")
+		}
+		if _, _, err := c.NATS.Embedded.ParsedSyncInterval(); err != nil {
+			errs = append(errs, fmt.Sprintf("nats.embedded.sync_interval %v", err))
 		}
 		// Require auth token when TCP port is enabled
 		if c.NATS.Embedded.Port > 0 && c.NATS.Embedded.AuthToken == "" {

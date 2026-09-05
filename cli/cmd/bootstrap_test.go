@@ -4,6 +4,9 @@ package cmd
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -147,6 +150,131 @@ func TestApplyBootstrap_CreatesUsersAndServer(t *testing.T) {
 	}
 }
 
+func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
+	c := setupCore(t)
+	ctx := context.Background()
+	credentialFile := filepath.Join(t.TempDir(), "credentials", "test_bot.key")
+
+	applyBootstrap(ctx, c, config.BootstrapConfig{
+		Users: []config.BootstrapUser{{
+			Login: "alice", DisplayName: "Alice", Password: "devpassword", ServerRole: "owner",
+		}},
+		Bots: []config.BootstrapBot{{
+			Login:          "test_bot",
+			DisplayName:    "TestBot",
+			OwnerLogin:     "alice",
+			APIKeyName:     "Local development",
+			CredentialFile: credentialFile,
+			Permissions:    []string{"room.join", "message.read", "message.post-in-thread"},
+			Rooms:          []string{"general"},
+		}},
+		Server: &config.BootstrapServer{Name: "Engineering"},
+	})
+
+	owner, err := c.GetUserByLogin(ctx, "alice")
+	if err != nil {
+		t.Fatalf("get bot owner: %v", err)
+	}
+	bot, err := c.GetUserByLogin(ctx, "test_bot")
+	if err != nil {
+		t.Fatalf("get bootstrap bot: %v", err)
+	}
+	if !bot.GetIsBot() {
+		t.Fatal("expected test_bot to be a bot account")
+	}
+	if bot.GetDisplayName() != "TestBot" {
+		t.Fatalf("bot display name = %q, want TestBot", bot.GetDisplayName())
+	}
+	if bot.GetBotOwnerUserId() != owner.GetId() {
+		t.Fatalf("bot owner = %q, want %q", bot.GetBotOwnerUserId(), owner.GetId())
+	}
+
+	credentialBytes, err := os.ReadFile(credentialFile)
+	if err != nil {
+		t.Fatalf("read bootstrap bot credential: %v", err)
+	}
+	credential := strings.TrimSpace(string(credentialBytes))
+	if credential == "" {
+		t.Fatal("bootstrap bot credential is empty")
+	}
+	info, err := os.Stat(credentialFile)
+	if err != nil {
+		t.Fatalf("stat bootstrap bot credential: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("credential mode = %04o, want 0600", got)
+	}
+	authenticated, err := c.ValidateBotAPIKey(ctx, credential)
+	if err != nil {
+		t.Fatalf("authenticate bootstrap bot credential: %v", err)
+	}
+	if authenticated.GetId() != bot.GetId() {
+		t.Fatalf("authenticated user = %q, want %q", authenticated.GetId(), bot.GetId())
+	}
+
+	rooms, err := c.ListRooms(ctx, core.KindChannel)
+	if err != nil {
+		t.Fatalf("list rooms: %v", err)
+	}
+	var generalID string
+	for _, room := range rooms {
+		if room.GetName() == "general" {
+			generalID = room.GetId()
+			break
+		}
+	}
+	if generalID == "" {
+		t.Fatal("general room not found")
+	}
+	member, err := c.RoomMembershipExists(ctx, core.KindChannel, bot.GetId(), generalID)
+	if err != nil {
+		t.Fatalf("check bot room membership: %v", err)
+	}
+	if !member {
+		t.Fatal("expected bootstrap bot to join general")
+	}
+	canRead, err := c.CanReadMessages(ctx, bot.GetId(), core.KindChannel, generalID)
+	if err != nil {
+		t.Fatalf("check bot message.read: %v", err)
+	}
+	if !canRead {
+		t.Fatal("expected bootstrap bot to have message.read")
+	}
+	canPostInThread, err := c.CanPostInThread(ctx, bot.GetId(), core.KindChannel, generalID)
+	if err != nil {
+		t.Fatalf("check bot message.post-in-thread: %v", err)
+	}
+	if !canPostInThread {
+		t.Fatal("expected bootstrap bot to have message.post-in-thread")
+	}
+	canPost, err := c.CanPostMessage(ctx, bot.GetId(), core.KindChannel, generalID)
+	if err != nil {
+		t.Fatalf("check bot message.post: %v", err)
+	}
+	if canPost {
+		t.Fatal("bootstrap bot must not gain unconfigured message.post")
+	}
+}
+
+func TestApplyBootstrap_SkipsBotWithoutHumanOwner(t *testing.T) {
+	c := setupCore(t)
+	ctx := context.Background()
+	credentialFile := filepath.Join(t.TempDir(), "test_bot.key")
+
+	applyBootstrap(ctx, c, config.BootstrapConfig{
+		Bots: []config.BootstrapBot{{
+			Login: "test_bot", OwnerLogin: "missing", CredentialFile: credentialFile,
+		}},
+	})
+
+	if bot, err := c.GetUserByLogin(ctx, "test_bot"); err == nil && bot != nil {
+		t.Fatal("expected bootstrap bot not to exist without a human owner")
+	}
+	if _, err := os.Stat(credentialFile); !os.IsNotExist(err) {
+		t.Fatalf("credential file should not exist, stat error = %v", err)
+	}
+}
+
 func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
@@ -187,6 +315,7 @@ func TestApplyBootstrap_IsIdempotent(t *testing.T) {
 func TestApplyBootstrap_SkipsWhenServerHasData(t *testing.T) {
 	c := setupCore(t)
 	ctx := context.Background()
+	credentialFile := filepath.Join(t.TempDir(), "test_bot.key")
 
 	if _, err := c.CreateUser(ctx, "system", "existing", "Existing User", "devpassword"); err != nil {
 		t.Fatalf("create existing user: %v", err)
@@ -197,6 +326,9 @@ func TestApplyBootstrap_SkipsWhenServerHasData(t *testing.T) {
 		Users: []config.BootstrapUser{
 			{Login: "alice", Email: "alice@example.com", Password: "devpassword", ServerRole: "owner"},
 		},
+		Bots: []config.BootstrapBot{{
+			Login: "test_bot", OwnerLogin: "alice", CredentialFile: credentialFile,
+		}},
 		Server: &config.BootstrapServer{Name: "Should Not Apply", Rooms: []string{"random"}},
 	}
 	applyBootstrap(ctx, c, cfg)
@@ -207,6 +339,12 @@ func TestApplyBootstrap_SkipsWhenServerHasData(t *testing.T) {
 	}
 	if user, err := c.GetUserByLogin(ctx, "alice"); err == nil && user != nil {
 		t.Fatal("expected bootstrap user not to be created on non-empty server")
+	}
+	if bot, err := c.GetUserByLogin(ctx, "test_bot"); err == nil && bot != nil {
+		t.Fatal("expected bootstrap bot not to be created on non-empty server")
+	}
+	if _, err := os.Stat(credentialFile); !os.IsNotExist(err) {
+		t.Fatalf("credential file should not exist, stat error = %v", err)
 	}
 }
 

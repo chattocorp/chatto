@@ -17,6 +17,7 @@ scroll container; children render inside the scroll container.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ScrollArea from './ScrollArea.svelte';
+  import { readScrollEdges, trackScrollEdges, type ScrollEdges } from './scrollEdges';
 
   type Props = {
     children: Snippet;
@@ -61,51 +62,16 @@ scroll container; children render inside the scroll container.
     ...rest
   }: Props = $props();
 
-  let scrolledFromTop = $state(false);
-  let scrolledFromBottom = $state(false);
-
-  function updateScrollEdges(el: HTMLElement) {
-    const maxScrollTop = Math.max(0, el.scrollHeight - el.clientHeight);
-    const scrollTop = Math.min(Math.max(el.scrollTop, 0), maxScrollTop);
-    const canScroll = maxScrollTop > 1;
-
-    scrolledFromTop = canScroll && scrollTop > 1;
-    scrolledFromBottom = canScroll && maxScrollTop - scrollTop > 1;
-  }
-
-  function trackScrollEdges(el: HTMLElement) {
-    const update = () => {
-      updateScrollEdges(el);
-    };
-
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of el.children) {
-      if (child instanceof HTMLElement) ro.observe(child);
-    }
-    const mo = new MutationObserver(() => {
-      ro.disconnect();
-      ro.observe(el);
-      for (const child of el.children) {
-        if (child instanceof HTMLElement) ro.observe(child);
-      }
-      update();
-    });
-    mo.observe(el, { childList: true });
-    return () => {
-      el.removeEventListener('scroll', update);
-      mo.disconnect();
-      ro.disconnect();
-    };
-  }
+  let edges = $state<ScrollEdges>({ start: false, end: false });
+  const observeScrollEdges = trackScrollEdges('y', (value) => {
+    edges = value;
+  });
 
   export function refresh() {
     if (!scrollEl) return;
 
     requestAnimationFrame(() => {
-      if (scrollEl) updateScrollEdges(scrollEl);
+      if (scrollEl) edges = readScrollEdges(scrollEl, 'y');
     });
   }
 </script>
@@ -119,7 +85,7 @@ scroll container; children render inside the scroll container.
         fadeColorClass,
         topFadeOffset,
         fadeHeight,
-        !scrolledFromTop && 'opacity-0'
+        !edges.start && 'opacity-0'
       ]}
     ></div>
   {/if}
@@ -130,7 +96,7 @@ scroll container; children render inside the scroll container.
         'pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t to-transparent transition-opacity',
         fadeColorClass,
         fadeHeight,
-        !scrolledFromBottom && 'opacity-0'
+        !edges.end && 'opacity-0'
       ]}
     ></div>
   {/if}
@@ -143,7 +109,7 @@ scroll container; children render inside the scroll container.
   {scrollClass}
   bind:scrollEl
   {keyboardFocusable}
-  scrollAttachment={trackScrollEdges}
+  contentAttachment={observeScrollEdges}
   overlay={fades}
   {...rest}
 >

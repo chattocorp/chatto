@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -66,7 +66,8 @@ exercise more authority than its human owner currently possesses.
 - An incoming webhook uses stable room IDs. It can select any channel room
   where the bot is a member and has the normal posting permissions. It can
   select an existing human-started DM that contains the bot. It cannot create
-  or find a DM, and it cannot create a thread in a DM.
+  or find a DM. It can create or reply in a DM thread when its DM-scoped
+  allowlist and owner ceiling permit it.
 - Newly issued keys use a 128-bit random secret to remain compact enough for
   copy-and-paste workflows. Previously issued 256-bit keys remain valid until
   a manager revokes them.
@@ -77,14 +78,19 @@ exercise more authority than its human owner currently possesses.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
-- A bot uses the normal `subscribe_events` realtime subscription. Chatto sends
-  its visible notification occurrences through
-  `notification_occurrences_replace`; there is no bot-only realtime channel.
-- Direct-message, direct-mention, reply, and followed-thread occurrences are
-  the supported activation causes for bot integrations. The bot uses the
-  message reference in the occurrence to fetch context through the normal API.
-  Other notification causes can be present, so the integration must filter by
-  cause.
+- A bot uses the normal realtime event subscription. There is no bot-only
+  channel. It receives the same authorized semantic events as other clients,
+  including message posts, edits, retractions, reactions, membership changes,
+  room changes, and other public activity.
+- A bot can use stable event IDs to deduplicate delivery. It uses event
+  resource references with the normal ConnectRPC API when it needs more
+  context.
+- A recent reconnect can resume from the bot's last safe cursor. A long,
+  invalid, unsafe, or expensive gap returns current snapshot state instead of
+  every historical transition.
+- Notification occurrences remain available through `NotificationService` and
+  current-state snapshots. They are not the only activation contract for bot
+  integrations.
 - A delivered direct mention in a channel-room root or reply attempts to
   follow that thread if the bot has no prior follow state. Later replies can
   then create followed-thread occurrences for the bot.
@@ -97,8 +103,8 @@ exercise more authority than its human owner currently possesses.
   an explicit `message.read` grant for broad access or an explicit
   `message.read-interactions` grant for related threads. The broad grant
   includes the narrow permission. Each grant is bounded by sufficient
-  effective authority on its owner. DM membership authorizes the bot to read
-  that DM.
+  effective authority on its owner. DM membership remains necessary, and the
+  bot also needs a DM-scoped broad or interaction read grant.
 - A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
   has `message.post` or the DM already exists. A human must start a DM that
   includes the bot. The bot can then interact in that DM through its normal
@@ -257,7 +263,9 @@ their keys.
 ### 8. Bot identity is visible on canonical user surfaces
 
 **Decision:** Public user representations identify bot accounts, and clients
-render an accessible bot marker anywhere user identity is presented.
+render an accessible bot marker on user identity surfaces. The bundled client
+omits this marker from extra-small avatars to keep them clear. Larger avatars
+keep the marker.
 **Why:** People should know when messages or other actions come from automation.
 Using the canonical user representation keeps the distinction consistent
 across existing and future surfaces.
@@ -276,25 +284,23 @@ incorrect permission grant.
 existing DM. It must use the room state that Chatto sends after a human starts
 the DM.
 
-### 10. Notification occurrences are the bot activation contract
+### 10. Semantic public events are the bot activation contract
 
-**Decision:** Bots receive the same exact notification occurrences as human
-accounts through `NotificationService` and the normal realtime projection.
-Integrations use direct messages, direct mentions, replies, and
-followed-thread activity as activation causes. A future webhook transport must
-deliver these same occurrences instead of introducing separate bot events.
+**Decision:** Bots receive every authorized public realtime event type through
+the normal client stream. Notification occurrences remain a separate current
+state and triage feature. They do not limit which message, reaction, room,
+membership, profile, or call changes a bot can observe. See ADR-091 and
+FDR-045.
 
-**Why:** Notification occurrences already own recipient selection, user policy,
-current visibility, stable identity, and bounded recovery. Reusing them keeps
-activation semantics independent of transport and avoids a second event model
-that can disagree with the notification model.
+**Why:** A bot author should react to what happened in Chatto instead of
+interpreting frontend projection replacements or relying only on notification
+policy. The same public event meaning can serve bots, the bundled frontend,
+alternate clients, and a future reliable delivery transport.
 
-**Tradeoff:** Realtime replacements can repeat occurrences and can contain
-more than one cause for the same message. Integrations must checkpoint
-occurrence IDs and can deduplicate by the referenced message event ID when they
-want one action for each source message. The current realtime replacement
-contains only the newest finite page; longer recovery uses the paginated
-notification API.
+**Tradeoff:** Realtime provides bounded reconnect recovery, not indefinite
+delivery. Bots must deduplicate stable event IDs. An integration that must
+process every event after a long outage needs a future acknowledged webhook or
+paged activity feature.
 
 ### 11. Incoming webhooks use a separate action credential
 
@@ -325,12 +331,20 @@ deferred.
 - `bot.manage` — view and manage every bot on the server, including reassigning
   its owner, while preserving the current owner's permission ceiling.
 - `message.read` — give the bot broad message access in configured channel
-  rooms, subject to membership and the owner's effective broad-read authority.
+  rooms or in DMs, subject to membership and the owner's effective broad-read
+  authority at the same scope.
   This grant includes `message.read-interactions`.
 - `message.read-interactions` — give the bot complete access to a
-  channel-room thread that it started or where another account directly
+  thread that it started or where another account directly
   mentioned it, subject to membership and the owner's effective broad or
   narrow read authority.
+- `message.post` — post room-timeline messages at configured scopes. A bot can
+  receive this permission only at Direct messages scope when it must not post
+  in channels.
+- `message.post-in-thread` — create and reply in threads at configured scopes.
+  A bot that responds only in private-conversation threads can combine this
+  DM-scoped allow with DM-scoped `message.read`. It does not need
+  `message.post`.
 
 Notification delivery modes are user preferences, not permissions. A bot can
 change its own notification policy through the normal notification policy API
@@ -394,20 +408,22 @@ service, and send the target user ID.
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
-  runtime credentials), ADR-051 (resumable client projection), ADR-052
+  runtime credentials), ADR-052
   (subject-specific RBAC), ADR-076 (deterministic notification occurrences),
   ADR-077 (persistent notification list), ADR-080 (explicit message-read
   permissions), ADR-083 (action-limited bot incoming webhooks), ADR-085
   (user-scoped MCP integration), ADR-087 (request-time authorization with
-  aggregate OCC)
+  aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime
+  events)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-006
   (@Mentions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-018
   (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
   Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
-  & Interactions), FDR-043 (Model Context Protocol Integration)
+  & Interactions), FDR-043 (Model Context Protocol Integration), FDR-045
+  (Realtime Event Stream)
 
 ## Open Questions
 
 - API-key expiry is deferred.
-- Define durable webhook registration, signing, retry, and delivery status for
-  the same bot activation occurrences.
+- Define durable outgoing-webhook registration, signing, retry, and delivery
+  status for semantic public events that need reliable automation delivery.

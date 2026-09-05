@@ -929,6 +929,8 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 		switch normalized.Kind {
 		case MatrixScopeServer:
 			normalized.ID = ""
+		case MatrixScopeDM:
+			normalized.ID = ""
 		case MatrixScopeGroup:
 			if normalized.ID == "" {
 				return fmt.Errorf("%w: group scope requires an ID", ErrInvalidArgument)
@@ -988,6 +990,8 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 		if state == PermissionStateAllow {
 			var decision DecisionKind
 			switch normalized.Kind {
+			case MatrixScopeDM:
+				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindDM, "", perm)
 			case MatrixScopeGroup:
 				decision, err = c.PermResolver().ResolveGroup(ctx, currentBot.GetBotOwnerUserId(), KindChannel, normalized.ID, perm)
 			case MatrixScopeRoom:
@@ -1009,6 +1013,9 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 	}
 	var coreScope PermissionScope
 	switch normalized.Kind {
+	case MatrixScopeDM:
+		coreScope = ScopeDM
+		normalized.ID = ""
 	case MatrixScopeGroup:
 		coreScope = ScopeGroup
 	case MatrixScopeRoom:

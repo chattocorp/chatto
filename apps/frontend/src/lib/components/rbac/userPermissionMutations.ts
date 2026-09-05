@@ -7,7 +7,10 @@ import type {
 export type UserPermissionState = PermissionState;
 
 export type UserMutationScope =
-  { tier: 'server' } | { tier: 'group'; groupId: string } | { tier: 'room'; roomId: string };
+  | { tier: 'server' }
+  | { tier: 'dm' }
+  | { tier: 'group'; groupId: string }
+  | { tier: 'room'; roomId: string };
 
 export async function setUserPermission(
   api: PermissionAPI,

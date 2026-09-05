@@ -831,23 +831,26 @@ Line 8: This is the last line of this long message.`;
       expect(info.scrollHeight).toBeLessThanOrEqual(info.clientHeight + 5);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
 
-    // Verify: messages are bottom-aligned, not top-aligned
+    // Verify: messages are bottom-aligned, not top-aligned. The timeline can
+    // replace a provisional row with its canonical resource between frames,
+    // so take both measurements in one retried assertion.
     const lastMessage = page.getByText(`Second message - ${timestamp}`);
-    const containerBox = await messagesContainer.boundingBox();
-    const messageBox = await lastMessage.boundingBox();
+    await expect(async () => {
+      const containerBox = await messagesContainer.boundingBox();
+      const messageBox = await lastMessage.boundingBox();
+      expect(containerBox).not.toBeNull();
+      expect(messageBox).not.toBeNull();
 
-    expect(containerBox).not.toBeNull();
-    expect(messageBox).not.toBeNull();
+      // The last message's bottom edge should be near the container's bottom.
+      const containerBottom = containerBox!.y + containerBox!.height;
+      const messageBottom = messageBox!.y + messageBox!.height;
+      const distanceFromBottom = containerBottom - messageBottom;
+      expect(distanceFromBottom).toBeLessThan(150);
 
-    // The last message's bottom edge should be near the container's bottom
-    const containerBottom = containerBox!.y + containerBox!.height;
-    const messageBottom = messageBox!.y + messageBox!.height;
-    const distanceFromBottom = containerBottom - messageBottom;
-    expect(distanceFromBottom).toBeLessThan(150);
-
-    // Messages should NOT be stuck at the top (significant gap above them)
-    const distanceFromTop = messageBox!.y - containerBox!.y;
-    expect(distanceFromTop).toBeGreaterThan(100);
+      // Messages should not stay at the top. They need a significant gap above.
+      const distanceFromTop = messageBox!.y - containerBox!.y;
+      expect(distanceFromTop).toBeGreaterThan(100);
+    }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: POLLING_INTERVALS });
   });
 
   test('does not show false new messages indicator when returning to a room after navigating away', async ({

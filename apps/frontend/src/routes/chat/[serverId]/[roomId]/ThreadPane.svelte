@@ -18,7 +18,7 @@
     createComposerContext,
     type QuoteInsertionRequest
   } from '$lib/state/room';
-  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import { expoOutTransition } from '$lib/ui/motion';
@@ -34,6 +34,7 @@
   let {
     roomId,
     roomName,
+    isDirectMessage = false,
     threadRootEventId,
     onClose,
     canPostInThread = true,
@@ -54,6 +55,7 @@
   }: {
     roomId: string;
     roomName: string;
+    isDirectMessage?: boolean;
     threadRootEventId: string;
     onClose: () => void;
     canPostInThread?: boolean;
@@ -96,18 +98,11 @@
       mountedStores.releaseMessagesForThread(mountedRoomId, mountedThreadRootEventId, mountedStore);
   });
 
-  $effect(() =>
-    onRoomMessageMutated((detail) => {
-      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
-      if (detail.reason === 'message-deleted') {
-        store.applyLocalMessageDeletion(detail.eventId);
-        return;
-      }
-      const anchorEventId = store.refreshAnchorForMessageMutation(detail.eventId);
-      if (!anchorEventId) return;
-      void store.refreshCurrentWindow(anchorEventId);
-    })
-  );
+  useTimelineMutations(() => ({
+    serverId: activeServerId,
+    roomId,
+    timeline: store
+  }));
 
   let threadEvents = $derived(store.threadEvents);
   let updateCounter = $derived(threadEvents.length);
@@ -155,6 +150,9 @@
   });
 
   let canPost = $derived(canPostInThread);
+  let threadTitle = $derived(
+    isDirectMessage ? roomName : m('room.thread.title', { room: roomName })
+  );
 
   // Reload thread events when the thread prop changes. Silent reconnect +
   // tab-resume catch-ups are owned by the server event bus.
@@ -228,18 +226,18 @@
   // forward to the store, and mark the thread as read (with explicit event
   // ID) for replies arriving from other users while the user is present.
   useProjectionEvent((projectionEvent) => {
-    for (const operation of projectionEvent.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
-      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
-      if (update.event.event.value.message?.threadRootEventId !== threadRootEventId) continue;
+    const semantic = projectionEvent.event?.event;
+    if (
+      semantic?.case !== 'messagePosted' ||
+      semantic.value.roomId !== roomId ||
+      semantic.value.threadRootEventId !== threadRootEventId
+    ) return;
 
-      const actorId = projectionEvent.actorId;
+      const actorId = projectionEvent.event?.actorId;
       if (actorId) typingIndicator.removeTypingUser(actorId);
       if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-        void unread.markAsRead(threadRootEventId, projectionEvent.id);
+        void unread.markAsRead(threadRootEventId, projectionEvent.event?.id ?? '');
       }
-    }
   });
 
   const threadFollow = new ThreadFollowState({
@@ -285,12 +283,12 @@
       onResize={(width) => threadPaneWidth.set(width)}
       onReset={() => threadPaneWidth.reset()}
       edge="start"
-      label={`${m('ui.resize_handle.resize')}: ${m('room.thread.title', { room: roomName })}`}
+      label={`${m('ui.resize_handle.resize')}: ${threadTitle}`}
     />
   {/if}
   <DropZoneOverlay visible={isDraggingFiles} />
   <PaneHeader
-    title={m('room.thread.title', { room: roomName })}
+    title={threadTitle}
     onBack={onClose}
     backLabel={m('room.thread.back_to_room')}
   >
@@ -338,6 +336,7 @@
   />
   <MessageComposer
     {roomId}
+    echoToConversation={isDirectMessage}
     inThread={threadRootEventId}
     inReplyTo={replyState.messageEventId ?? undefined}
     replyDisplayName={replyState.actorDisplayName || undefined}

@@ -1,13 +1,13 @@
 # FDR-044: My Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-04
 
 ## Overview
 
-My Threads is a conversation inbox for channel-room threads that the current
-user follows. It helps the user return to active conversations and find replies
-that they have not read.
+My Threads is a conversation inbox for channel-room and DM threads that the
+current user follows. It helps the user return to active conversations and
+find replies that they have not read.
 
 ## Behavior
 
@@ -15,6 +15,8 @@ that they have not read.
   them by activity date.
 - Each row shows the room, root message, latest visible reply when one exists,
   last activity, reply count, and a participant preview.
+- A DM row uses participant names and avatars instead of a channel name. It
+  does not show a `#` channel prefix.
 - The Unread filter includes only threads with replies after the user's thread
   read cursor.
 - A row with a matching unread notification uses notification orange for
@@ -88,7 +90,7 @@ persisted follow, read, and notification data still upgrades without changes.
 
 ## Permissions
 
-- `message.read` — read channel-room and thread messages.
+- `message.read` — read room and thread messages.
 - `message.read-interactions` — read an accessible interaction thread when the
   user does not have the general message-read permission.
 

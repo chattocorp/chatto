@@ -2,7 +2,8 @@ package core
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -13,13 +14,19 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/internal/publiccursor"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
-	realtimeCursorVersion         = 2
-	realtimeCursorPurpose         = "realtime-resume-v2"
-	realtimeCursorLifetime        = 24 * time.Hour
-	realtimeCursorFutureSkew      = 5 * time.Minute
+	realtimeCursorVersion    = 4
+	realtimeCursorPurpose    = "chatto-realtime-resume-v4"
+	realtimeCursorScope      = "all-events"
+	realtimeCursorLifetime   = 15 * time.Minute
+	realtimeCursorFutureSkew = 5 * time.Minute
+	// The sealed payload is version (1), sequence (8), issue time (8), and
+	// stream identity digest (16). The version fixes the 15-minute lifetime.
+	realtimeCursorPayloadSize     = 33
+	realtimeCursorWaitTimeout     = 10 * time.Second
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
 )
@@ -31,17 +38,20 @@ var (
 	// ErrRealtimeCursorExpired means the cursor is older than its public
 	// lifetime or precedes retained EVT history.
 	ErrRealtimeCursorExpired = errors.New("realtime cursor expired")
-	// ErrRealtimeReplayLimitExceeded means the requested gap exceeds the
-	// bounded reconnect replay budget.
-	ErrRealtimeReplayLimitExceeded = errors.New("realtime replay limit exceeded")
 )
 
-type realtimeCursorPayload struct {
-	Version        int    `json:"v"`
-	StreamIdentity string `json:"i"`
-	Sequence       uint64 `json:"s"`
-	UserID         string `json:"u"`
-	IssuedAtUnix   int64  `json:"t"`
+type realtimeCursorClaims struct {
+	Sequence       uint64
+	StreamIdentity [16]byte
+	Version        int
+	IssuedAt       int64
+}
+
+// realtimeStreamIdentity binds a cursor to the opaque EVT incarnation without
+// copying its text prefix and hex encoding into every event delivery.
+func realtimeStreamIdentity(identity string) [16]byte {
+	digest := sha256.Sum256([]byte(identity))
+	return [16]byte(digest[:16])
 }
 
 // RealtimeReplayPlan is a bounded, authorized durable replay ending at one
@@ -49,11 +59,8 @@ type realtimeCursorPayload struct {
 // plan, buffers that stream while replay is sent, and discards buffered EVT
 // events through BoundarySequence before continuing live.
 type RealtimeReplayPlan struct {
-	// Reset requires a compacted current-state prefix before replay/live events.
+	// Reset requires the transport to use the requested current-state fallback.
 	Reset bool
-	// StartCursor is the validated request cursor, or BoundaryCursor for a
-	// subscription that did not request history.
-	StartCursor string
 	// BoundaryCursor is safe to persist after all Events have been applied.
 	BoundaryCursor string
 	// BoundarySequence is the EVT cutoff used to suppress buffered duplicates.
@@ -78,30 +85,54 @@ func (c *ChattoCore) RealtimeCursorForSequence(userID string, sequence uint64) (
 // RealtimeCursorAtCurrentBoundary reports whether cursor already names the
 // current EVT boundary for userID. It lets transport admission distinguish a
 // cheap, no-gap reconnect from a replay attempt without exposing the internal
-// stream sequence carried by the opaque cursor.
+// stream sequence inside the sealed token.
 func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID, cursor string) (bool, error) {
 	if strings.TrimSpace(cursor) == "" {
-		return false, nil
-	}
-	decoded, err := c.decodeRealtimeCursor(userID, cursor)
-	if err != nil {
-		// Invalid, expired, cross-user, and old-incarnation cursors all take the
-		// normal metered path. PlanRealtimeReplay will later turn them into a
-		// safe compacted reset.
 		return false, nil
 	}
 	identity, err := evtstream.Identity(c.storage.serverEvtStream)
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream identity: %w", err)
 	}
-	if decoded.StreamIdentity != identity {
-		return false, nil
-	}
 	info, err := c.storage.serverEvtStream.Info(ctx)
 	if err != nil {
 		return false, fmt.Errorf("read EVT stream info: %w", err)
 	}
-	return decoded.Sequence == info.State.LastSeq, nil
+	claims, err := c.parseRealtimeCursorAt(userID, cursor, time.Now())
+	if err != nil {
+		// Invalid, expired, and cross-user cursors take the normal metered
+		// recovery path. PlanRealtimeReplay turns them into a safe fallback.
+		return false, nil
+	}
+	return claims.StreamIdentity == realtimeStreamIdentity(identity) && claims.Sequence == info.State.LastSeq, nil
+}
+
+// WaitForRealtimeCursor validates one viewer-bound public cursor and waits
+// until this replica's server content view includes at least that EVT boundary.
+//
+// This is a lower bound, not a historical read. The view consumes all evt.>
+// sequences, including facts that do not change its resources. Other projections
+// and asynchronous effects are not part of this barrier. The server caps the
+// wait even if the caller provides no deadline.
+func (c *ChattoCore) WaitForRealtimeCursor(ctx context.Context, userID, cursor string) error {
+	ctx, cancel := context.WithTimeout(ctx, realtimeCursorWaitTimeout)
+	defer cancel()
+	identity, err := evtstream.Identity(c.storage.serverEvtStream)
+	if err != nil {
+		return fmt.Errorf("read EVT stream identity: %w", err)
+	}
+	info, err := c.storage.serverEvtStream.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("read EVT stream info: %w", err)
+	}
+	sequence, err := c.resolveRealtimeCursorAt(userID, strings.TrimSpace(cursor), identity, info.State.FirstSeq, info.State.LastSeq, time.Now())
+	if err != nil {
+		return err
+	}
+	if err := c.contentView.projector.WaitFor(ctx, events.SubjectPosition("evt.>", sequence)); err != nil {
+		return fmt.Errorf("wait for realtime resource boundary: %w", err)
+	}
+	return nil
 }
 
 // PlanRealtimeReplay builds a caller-wide replay of public durable events after
@@ -127,7 +158,7 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return RealtimeReplayPlan{}, err
 	}
 	// The public cursor promises that every current-state read used to shape
-	// authorization or a compacted reset includes all durable facts through
+	// authorization or a snapshot fallback includes all durable facts through
 	// this boundary. Waiting here, before any reset early-return or membership
 	// capture, prevents a lagging replica from publishing stale plaintext or
 	// permissions and then discarding the durable facts that would correct it.
@@ -137,7 +168,6 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 
 	plan := RealtimeReplayPlan{
 		Reset:            strings.TrimSpace(resumeCursor) == "",
-		StartCursor:      boundaryCursor,
 		BoundaryCursor:   boundaryCursor,
 		BoundarySequence: boundarySeq,
 	}
@@ -145,32 +175,20 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		return plan, nil
 	}
 
-	cursor, err := c.decodeRealtimeCursor(userID, resumeCursor)
-	if err != nil {
+	cursorSequence, err := c.resolveRealtimeCursorAt(userID, resumeCursor, identity, info.State.FirstSeq, boundarySeq, time.Now())
+	if err != nil || boundarySeq-cursorSequence > realtimeReplayMaxSequenceSpan {
 		plan.Reset = true
+		plan.HadSequenceGap = true
 		return plan, nil
 	}
-	if cursor.StreamIdentity != identity || cursor.Sequence > boundarySeq {
-		plan.Reset = true
-		return plan, nil
-	}
-	plan.HadSequenceGap = cursor.Sequence < boundarySeq
-	if info.State.FirstSeq > 0 && cursor.Sequence < info.State.FirstSeq-1 {
-		plan.Reset = true
-		return plan, nil
-	}
-	if boundarySeq-cursor.Sequence > realtimeReplayMaxSequenceSpan {
-		plan.Reset = true
-		return plan, nil
-	}
-	plan.StartCursor = resumeCursor
+	plan.HadSequenceGap = cursorSequence < boundarySeq
 
 	memberRooms := make(map[string]struct{})
 	if err := c.myEventsModel.populateMemberRoomsCache(ctx, userID, memberRooms); err != nil {
 		return RealtimeReplayPlan{}, fmt.Errorf("load replay room visibility: %w", err)
 	}
 
-	for seq := cursor.Sequence + 1; seq <= boundarySeq; seq++ {
+	for seq := cursorSequence + 1; seq <= boundarySeq; seq++ {
 		msg, err := stream.GetMsg(ctx, seq)
 		if err != nil {
 			if errors.Is(err, jetstream.ErrMsgNotFound) {
@@ -185,13 +203,11 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			// resource that the viewer may no longer read.
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 		if realtimeReplayRequiresReset(msg.Subject) {
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 
@@ -199,17 +215,26 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		if err := proto.Unmarshal(msg.Data, &event); err != nil {
 			return RealtimeReplayPlan{}, fmt.Errorf("decode EVT sequence %d: %w", seq, err)
 		}
+		if evtstream.EventTypeOf(&event) != liveEventType(msg.Subject) {
+			// Protobuf preserves an unknown future oneof field as unknown bytes,
+			// which leaves Event unset on this older server. The subject can also
+			// disagree with a known payload after damaged or invalid publication.
+			// In both cases only a current exact snapshot is safe.
+			plan.Reset = true
+			plan.Events = nil
+			return plan, nil
+		}
 		if event.GetUserKeyShreddingRequested() != nil || event.GetUserKeyShredded() != nil {
 			// Key shredding can tombstone messages across many retained rooms.
 			// A reset purges every cached plaintext row in one ordered operation.
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
 		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
-		_, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		userIDFromSubject, userSubject := evtstream.ParseUserSubject(msg.Subject)
+		configSubjectID, configSubject := liveEVTConfigSubjectID(msg.Subject)
 		switch {
 		case roomSubject:
 			if !isDeliverableLiveEVTRoomEvent(&event) {
@@ -220,16 +245,19 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 				continue
 			}
 			if _, authorized := memberRooms[roomID]; !authorized {
-				// A caller that lost access during the gap must discard its old
-				// room state. A compacted replay is the only safe way to do that
-				// without disclosing rooms it never held.
-				if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
+				// A visibility-closing fact for this viewer is safe and necessary:
+				// it removes state that the client could have retained before the
+				// gap. Other visibility changes need a new snapshot because current
+				// state cannot prove that this viewer saw the earlier room.
+				if eventClosesUserRoomVisibility(&event, userID) {
+					// Continue and deliver the closing fact.
+				} else if eventChangesRoomVisibility(&event) || isRoomDirectoryProjectionEvent(&event) {
 					plan.Reset = true
 					plan.Events = nil
-					plan.StartCursor = boundaryCursor
 					return plan, nil
+				} else {
+					continue
 				}
-				continue
 			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 			err = c.myEventsModel.waitForLiveEVTRoomEvent(waitCtx, msg.Subject, &event, seq)
@@ -264,13 +292,60 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			if !isDeliverableLiveEVTUserEvent(&event) {
 				continue
 			}
+			if userIDOfUserEvent(&event) != userIDFromSubject {
+				plan.Reset = true
+				plan.Events = nil
+				return plan, nil
+			}
 			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 			err = c.myEventsModel.waitForLiveEVTUserEvent(waitCtx, msg.Subject, seq)
 			cancel()
 			if err != nil {
 				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay sequence %d: %w", seq, err)
 			}
+			if event.GetUserServerPreferencesChanged() != nil {
+				waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+				err = c.configModel.waitFor(waitCtx, events.SubjectPosition(msg.Subject, seq))
+				cancel()
+				if err != nil {
+					return RealtimeReplayPlan{}, fmt.Errorf("wait for replay legacy preference sequence %d: %w", seq, err)
+				}
+			}
+		case configSubject:
+			if configSubjectID == evtstream.ConfigSingletonID {
+				if !isDeliverableLiveEVTServerConfigEvent(&event) {
+					if isKnownNonSnapshotServerConfigEventType(evtstream.EventTypeOf(&event)) {
+						continue
+					}
+					plan.Reset = true
+					plan.Events = nil
+					return plan, nil
+				}
+			} else {
+				if !isDeliverableLiveEVTUserConfigEvent(&event) {
+					continue
+				}
+				if userIDOfUserConfigEvent(&event) != configSubjectID {
+					plan.Reset = true
+					plan.Events = nil
+					return plan, nil
+				}
+			}
+			waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
+			err = c.configModel.waitFor(waitCtx, events.SubjectPosition(msg.Subject, seq))
+			cancel()
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("wait for replay config sequence %d: %w", seq, err)
+			}
 		default:
+			if !isKnownNonRealtimeEVTSubject(msg.Subject) {
+				// A newer server can introduce an aggregate that contributes to
+				// the exact snapshot. Match live delivery and fail closed because
+				// this replica cannot classify the fact's state impact.
+				plan.Reset = true
+				plan.Events = nil
+				return plan, nil
+			}
 			continue
 		}
 		if protectedRoomID, protected := c.MessageReadProtectedEventRoomID(&event); protected {
@@ -293,12 +368,32 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 		if len(plan.Events) > realtimeReplayMaxEvents {
 			plan.Reset = true
 			plan.Events = nil
-			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
 	}
 
 	return plan, nil
+}
+
+// eventClosesUserRoomVisibility reports facts that remove the viewer's own
+// room access. These facts are safe to replay after current authorization has
+// removed the room because they only delete state the client might retain.
+// Opening and room-wide visibility facts need snapshot fallback when current
+// state cannot prove that the viewer may see the room.
+func eventClosesUserRoomVisibility(event *evtv1.Event, userID string) bool {
+	if event == nil || userID == "" {
+		return false
+	}
+	switch payload := event.Event.(type) {
+	case *evtv1.Event_UserLeftRoom:
+		return event.GetActorId() == userID
+	case *evtv1.Event_RoomMemberRemoved:
+		return payload.RoomMemberRemoved.GetUserId() == userID
+	case *evtv1.Event_RoomMemberBanned:
+		return payload.RoomMemberBanned.GetUserId() == userID
+	default:
+		return false
+	}
 }
 
 func realtimeReplayRequiresReset(subject string) bool {
@@ -307,7 +402,7 @@ func realtimeReplayRequiresReset(subject string) bool {
 		return false
 	}
 	switch parts[1] {
-	case evtstream.AggregateConfig, evtstream.AggregateGroup, evtstream.AggregateLayout:
+	case evtstream.AggregateGroup, evtstream.AggregateLayout:
 		return true
 	default:
 		return false
@@ -327,45 +422,61 @@ func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequenc
 }
 
 func (c *ChattoCore) encodeRealtimeCursorAt(userID, streamIdentity string, sequence uint64, now time.Time) (string, error) {
-	if userID == "" || !evtstream.ValidIdentity(streamIdentity) {
+	if userID == "" || !evtstream.ValidIdentity(streamIdentity) || now.Unix() < 0 {
 		return "", ErrRealtimeCursorInvalid
 	}
-	payload, err := json.Marshal(realtimeCursorPayload{
-		Version:        realtimeCursorVersion,
-		StreamIdentity: streamIdentity,
-		Sequence:       sequence,
-		UserID:         userID,
-		IssuedAtUnix:   now.Unix(),
-	})
-	if err != nil {
-		return "", fmt.Errorf("encode realtime cursor: %w", err)
-	}
-	token, err := publiccursor.Seal(c.config.SecretKey, realtimeCursorPurpose, userID, payload)
-	if err != nil {
-		return "", fmt.Errorf("seal realtime cursor: %w", err)
-	}
-	return token, nil
+	payload := make([]byte, realtimeCursorPayloadSize)
+	payload[0] = realtimeCursorVersion
+	binary.BigEndian.PutUint64(payload[1:9], sequence)
+	binary.BigEndian.PutUint64(payload[9:17], uint64(now.Unix()))
+	identity := realtimeStreamIdentity(streamIdentity)
+	copy(payload[17:], identity[:])
+	return publiccursor.Seal(c.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00"+userID, payload)
 }
 
-func (c *ChattoCore) decodeRealtimeCursor(userID, cursor string) (realtimeCursorPayload, error) {
-	return c.decodeRealtimeCursorAt(userID, cursor, time.Now())
+func (c *ChattoCore) parseRealtimeCursorAt(userID, cursor string, now time.Time) (realtimeCursorClaims, error) {
+	if userID == "" {
+		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	}
+	payload, err := publiccursor.Open(c.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00"+userID, cursor)
+	if err != nil {
+		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	}
+	if len(payload) != realtimeCursorPayloadSize || payload[0] != realtimeCursorVersion {
+		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	}
+	claims := realtimeCursorClaims{
+		Version:        int(payload[0]),
+		Sequence:       binary.BigEndian.Uint64(payload[1:9]),
+		IssuedAt:       int64(binary.BigEndian.Uint64(payload[9:17])),
+		StreamIdentity: [16]byte(payload[17:]),
+	}
+	if claims.IssuedAt < 0 || claims.IssuedAt > now.Add(realtimeCursorFutureSkew).Unix() {
+		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
+	}
+	if now.Unix()-claims.IssuedAt >= int64(realtimeCursorLifetime/time.Second) {
+		return realtimeCursorClaims{}, ErrRealtimeCursorExpired
+	}
+	return claims, nil
 }
 
-func (c *ChattoCore) decodeRealtimeCursorAt(userID, cursor string, now time.Time) (realtimeCursorPayload, error) {
-	payload, err := publiccursor.Open(c.config.SecretKey, realtimeCursorPurpose, userID, cursor)
+// resolveRealtimeCursorAt opens the sealed coordinates and validates their
+// stream bounds. Replay work limits belong to the planner, not cursor validity:
+// an RPC can wait for a valid boundary outside the replay scan window.
+func (c *ChattoCore) resolveRealtimeCursorAt(
+	userID, cursor, streamIdentity string,
+	firstSequence, lastSequence uint64,
+	now time.Time,
+) (uint64, error) {
+	claims, err := c.parseRealtimeCursorAt(userID, cursor, now)
 	if err != nil {
-		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
+		return 0, err
 	}
-	var decoded realtimeCursorPayload
-	if err := json.Unmarshal(payload, &decoded); err != nil || decoded.Version != realtimeCursorVersion || decoded.UserID != userID || decoded.IssuedAtUnix <= 0 || !evtstream.ValidIdentity(decoded.StreamIdentity) {
-		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
+	if claims.StreamIdentity != realtimeStreamIdentity(streamIdentity) || claims.Sequence > lastSequence {
+		return 0, ErrRealtimeCursorInvalid
 	}
-	issuedAt := time.Unix(decoded.IssuedAtUnix, 0)
-	if issuedAt.After(now.Add(realtimeCursorFutureSkew)) {
-		return realtimeCursorPayload{}, ErrRealtimeCursorInvalid
+	if firstSequence > 0 && claims.Sequence < firstSequence-1 {
+		return 0, ErrRealtimeCursorExpired
 	}
-	if now.Sub(issuedAt) > realtimeCursorLifetime {
-		return realtimeCursorPayload{}, ErrRealtimeCursorExpired
-	}
-	return decoded, nil
+	return claims.Sequence, nil
 }

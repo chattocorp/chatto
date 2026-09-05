@@ -2,6 +2,17 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "chatto/api/v1/server.proto";
+
+// Request for the authenticated public server profile.
+message GetServerProfileRequest {}
+
+// Authenticated public server profile response.
+message GetServerProfileResponse {
+  // Current public server profile.
+  ServerPublicProfile profile = 1;
+}
+
 // Request for the authenticated message of the day.
 message GetMotdRequest {}
 
@@ -42,6 +53,8 @@ message GetRuntimeConfigResponse {
 
 // Provides authenticated server-wide reads.
 service ServerService {
+  // Returns the current public server profile to an authenticated caller.
+  rpc GetServerProfile(GetServerProfileRequest) returns (GetServerProfileResponse);
   // Returns the authenticated message of the day.
   rpc GetMotd(GetMotdRequest) returns (GetMotdResponse);
   // Returns authenticated runtime settings used by clients.

@@ -60,13 +60,14 @@ enum RbacPermissionScopeKind {
   RBAC_PERMISSION_SCOPE_KIND_SERVER = 1;
   RBAC_PERMISSION_SCOPE_KIND_GROUP = 2;
   RBAC_PERMISSION_SCOPE_KIND_ROOM = 3;
+  RBAC_PERMISSION_SCOPE_KIND_DM = 4;
 }
 
 message RbacPermissionScope {
   RbacPermissionScopeKind kind = 1;
 
-  // Empty for server-scope decisions. For group and room scope, this is the
-  // target group ID or room ID.
+  // Empty for server and direct-message decisions. For group and room scope,
+  // this is the target group ID or room ID.
   string id = 2;
 }
 

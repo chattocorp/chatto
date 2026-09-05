@@ -7,7 +7,8 @@ Key files: [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/s
 [`cli/internal/search/contract.go`](../../cli/internal/search/contract.go),
 [`proto/chatto/core/evt/v1/event.proto`](../../proto/chatto/core/evt/v1/event.proto),
 [`proto/chatto/core/notification/v1/notification.proto`](../../proto/chatto/core/notification/v1/notification.proto),
-[`proto/chatto/core/live/v1/live_events.proto`](../../proto/chatto/core/live/v1/live_events.proto),
+[`proto/chatto/core/pubsub/v1/event.proto`](../../proto/chatto/core/pubsub/v1/event.proto),
+[`proto/chatto/realtime/v1/events.proto`](../../proto/chatto/realtime/v1/events.proto),
 and [`proto/chatto/search/v1/search.proto`](../../proto/chatto/search/v1/search.proto)
 
 Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md),
@@ -15,18 +16,23 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-040](../adr/ADR-040-permission-only-rbac-with-owner-override.md),
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
-[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
-[ADR-076](../adr/ADR-076-deterministic-notification-occurrences.md), and
-[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md).
+[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md),
+[ADR-076](../adr/ADR-076-deterministic-notification-occurrences.md),
+[ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md),
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md), and
+[ADR-094](../adr/ADR-094-separate-durable-and-pubsub-event-envelopes.md).
 
 ## Event envelopes
 
-Chatto uses `evtv1.Event` as the durable EVT wrapper and `livev1.LiveEvent` as the transient NATS Core wrapper. The realtime API maps both through public protobuf frames, while the protobuf wire envelopes stay separate so live-only sync signals cannot leak into the durable audit/event log shape.
+Chatto uses `evtv1.Event` as the wrapper for durable EVT facts. It uses
+`pubsubv1.PubSubEvent` as the wrapper for NATS Core pubsub events. The EVT
+storage boundary accepts only `Event`.
 
 - **Wrapper fields**: `id`, `created_at`, `actor_id`
-- **Concrete event**: `event` oneof on the relevant wire envelope; contextual fields (`roomId`, etc.) live on the concrete payloads.
+- **Concrete event**: `event` oneof on the selected envelope; contextual fields (`room_id`, etc.) live on the concrete payloads.
 
-The active `Event.event` oneof variants are all durable EVT payloads, regardless of numeric tag. Transient-only pubsub signals belong in `livev1.LiveEvent`, not `evtv1.Event`.
+Durable variants keep their existing field numbers. `PubSubEvent` field
+numbers are local to its NATS wire shape.
 
 Existing `Event` oneof field numbers are part of the persisted JetStream wire format; do not renumber or reuse them.
 
@@ -34,23 +40,30 @@ Existing `Event` oneof field numbers are part of the persisted JetStream wire fo
 
 | Package | Contents | Safety |
 | ---- | -------- | ------ |
-| `chatto.core.evt.v1` | Durable `Event` wrapper, facts, and fact-owned values | Field numbers and structures are stored in JetStream and need storage compatibility |
+| `chatto.core.evt.v1` | `Event` wrapper, durable facts, and fact-owned values | Existing field numbers and structures are stored in JetStream and need storage compatibility |
 | `chatto.core.notification.v1` | Bounded `NotificationEvent` wrapper and lifecycle facts | Field numbers and structures are stored in JetStream and need storage compatibility |
-| `chatto.core.live.v1` | Transient `LiveEvent` wrapper and live-only messages | Records are not stored, but changes need transient-wire review |
+| `chatto.core.pubsub.v1` | Restricted `PubSubEvent` wrapper and private control payloads; client-facing variants reference public realtime payloads | Records are not stored, but changes need rolling-wire review |
+| `chatto.realtime.v1` | Public event union and dedicated public payload catalogue | Contains only client-visible fields; names and compact field numbers do not expose the internal source |
 
 The packages generate separate Go packages. `core.EventEnvelope` is the
 in-process realtime delivery interface. Private implementations let it carry a
-durable EVT fact, a transient live signal, or a heartbeat.
+durable EVT fact, a pubsub event, or a heartbeat.
 
 **Event Categories:**
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
-| Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
-| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, NotificationOccurrencesInvalidated, NotificationUnreadChanged, PresenceChanged | Cross-tab sync, notification-state invalidation, server lifecycle |
+| Room pubsub                 | NATS Core  | UserTyping | Ephemeral room activity where another store or projection is the source of truth |
+| User pubsub | NATS Core | NotificationOccurrencesChanged, NotificationUnreadStateChanged, RoomReadStateChanged, ThreadViewerStateChanged, SessionTerminated | Private latest-value convergence and session control |
+| Process-local transient | In-memory hub | PresenceChanged | Ephemeral current presence changes |
 
-The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `evtv1.Event`, transient signals use `livev1.LiveEvent`. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
+The separate `Event` and `PubSubEvent` wrapper types make the distinction
+between stored and non-durable events explicit. Client-facing `PubSubEvent`
+variants reuse public payload messages, while the restricted private union
+prevents durable-only variants from entering the cursorless path. The
+publishers enforce this boundary.
+Room queries and server subscriptions are delivery contexts.
 
 **Self-Contained Events:** Each concrete event contains all the IDs and context it needs:
 
@@ -64,8 +77,9 @@ User-facing live delivery is built from two internal NATS Core subject roots:
 
 1. **Primary Stream** (persistent):
    - `EVT` (subjects `evt.>`) holds event-sourced domain state. Its stream-level `RePublish` config forwards every committed event once onto `live.evt.>`. This is a raw committed-event feed, not a client contract.
-2. **Direct Live Publish** (transient):
-   - Transient UI sync signals publish as `livev1.LiveEvent` via NATS Core to `live.sync.>` — no stream storage.
+2. **Direct Pubsub Publish** (non-durable):
+   - `pubsubv1.PubSubEvent` values publish through NATS Core to `live.sync.>`
+     with no stream storage.
 
 On the durable write path,
 [`evtstream.Publisher`](../../cli/internal/evtstream/publisher.go) validates the
@@ -145,11 +159,12 @@ Visibility changes processed during hydration force a retry. Late
 cross-publisher facts already covered by the snapshot are suppressed by EVT
 stream sequence; admission does not assume global NATS publisher ordering.
 
-Transient `LiveEvent` messages are adapted at this boundary into public
-protobuf `/api/realtime` frames and remain live-only. Protocol v2 maps durable
-facts to current public projection operations; fresh or unsafe resumes begin
-with a compacted server projection. Subscriber overflow closes only that
-session.
+Pubsub events remain live-only. Protocol 4 maps selected durable and pubsub
+events to an authorized public event
+catalogue. The delivery boundary removes caller-specific hidden room
+references. Durable events can have an opaque resume cursor. Fresh or unsafe
+subscriptions use an exact authorized content snapshot or the caller's
+live-only fallback. Subscriber overflow closes only that session.
 
 Process-wide ingress loss or projection-readiness failure quarantines
 admission, closes every current session, flushes and drains the old
@@ -157,18 +172,19 @@ subscriptions, and opens a fresh ingress generation. No session continues or
 reconnects across an unobservable gap.
 
 The bundled web client watches server heartbeats for silent stalls. Its
-in-memory server projection resumes a short socket gap or accepts a compacted
-reset; page reload deliberately starts without a cursor. Protocol v2 creates no
-long-lived per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
-and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
+in-memory server projection resumes a short socket gap or rebuilds from an
+exact WebSocket snapshot; page reload starts without a cursor. Protocol 4
+creates no per-connection JetStream consumer. See [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md)
+[ADR-091](../adr/ADR-091-semantic-realtime-events-with-bounded-resume.md), and
+[ADR-093](../adr/ADR-093-use-a-public-realtime-event-union.md).
 
-## Durable and live subject patterns
+## Durable and pubsub subject patterns
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
 | `EVT`                        | `evtv1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. Notification materialization derives exact-sequence output directly from existing source/lifecycle facts; it adds no notification-only EVT facts or prepared-work records. |
 | `NOTIFICATIONS`              | `notificationv1.NotificationEvent` | User occurrence | Bounded 90-day notification lifecycle log on four fixed subjects. A 24-hour broker cleanup grace follows the application expiry. Its projector owns the current list; the push worker consumes signalled facts directly. |
-| Live Sync                    | `livev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
+| Live Sync                    | `pubsubv1.PubSubEvent` | Non-durable | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidations. `StreamMyEvents` authorizes them. Selected values become public realtime events. Internal controls can become protocol frames. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
 
@@ -191,7 +207,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |
 | `evt.user.*.{eventType}`                         | One user event type across all users                                            |
-| `evt.rbac.{server\|scopeId}.{eventType}`         | Server-level RBAC or scoped RBAC decision facts for a room/group ID             |
+| `evt.rbac.{server\|dm\|scopeId}.{eventType}`      | Server, global DM, room-group, or room RBAC facts                                |
 | `evt.authorization.server.fence_advanced`        | Historical authorization-fence records; current writers do not publish them     |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `evt.invitation.{invitationId}.{eventType}`      | Invitation creation, redemption, and revocation facts                           |
@@ -345,9 +361,9 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.rbac.{server\|scopeId}.roles_reordered`                | `RbacRolesReorderedEvent`                          |
 | `evt.rbac.{server\|scopeId}.role_assigned`                  | `RbacRoleAssignedEvent`                            |
 | `evt.rbac.{server\|scopeId}.role_revoked`                   | `RbacRoleRevokedEvent`                             |
-| `evt.rbac.{server\|scopeId}.permission_granted`             | `RbacPermissionGrantedEvent`                       |
-| `evt.rbac.{server\|scopeId}.permission_denied`              | `RbacPermissionDeniedEvent`                        |
-| `evt.rbac.{server\|scopeId}.permission_cleared`             | `RbacPermissionClearedEvent`                       |
+| `evt.rbac.{server\|dm\|scopeId}.permission_granted`          | `RbacPermissionGrantedEvent`                       |
+| `evt.rbac.{server\|dm\|scopeId}.permission_denied`           | `RbacPermissionDeniedEvent`                        |
+| `evt.rbac.{server\|dm\|scopeId}.permission_cleared`          | `RbacPermissionClearedEvent`                       |
 | `evt.authorization.server.fence_advanced`                    | `AuthorizationFenceAdvancedEvent` (historical replay only) |
 | `evt.auth.server.registration_verification_code_issued`    | `RegistrationVerificationCodeIssuedEvent`           |
 | `evt.auth.server.login_failed`                             | `LoginFailedEvent`                                  |
@@ -379,39 +395,42 @@ durably discoverable. An ambiguous success append is checked by exact event ID;
 if that confirmation also fails, the processor retains the output rather than
 risk deleting assets referenced by a committed manifest.
 
-## Transient live subjects
+## Pubsub subjects
 
-Transient sync signals use `livev1.LiveEvent` and are published directly on NATS Core. They are not persisted. Genuinely ephemeral activity may be mapped to a public transient event; latest-value invalidations are inputs to live projection assembly but are not replay facts themselves.
+Pubsub activity uses `pubsubv1.PubSubEvent` values and is published directly
+on NATS Core. It is not persisted. Genuinely ephemeral activity
+can be a public cursorless event. Latest-value invalidations are inputs to live
+projection assembly but are not replay facts.
 
-Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for raw EVT committed facts. `myEvents` consumes both roots server-side:
+Patterns: `live.sync.>` for `PubSubEvent` values and `live.evt.>`
+for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
-- Direct NATS Core publishes (`publishLiveEvent()`): transient `livev1.LiveEvent` messages on `live.sync.>` with no stream storage.
+- Direct NATS Core publishes: `PubSubEvent` messages on `live.sync.>` with
+  no stream storage.
 - `EVT` RePublish (`evt.>` → `live.evt.>`): every committed event-sourced fact is re-emitted once by JetStream. Chatto replicas must wait for local projection readiness and authorize before exposing deliverable room or asset events to clients.
 
 `SERVER_EVENTS` no longer has a `RePublish` live path and runtime code no longer writes legacy `server.>` mirrors. Historical `SERVER_EVENTS` streams may still appear in old backups, but current boot and live-delivery paths do not read or import them.
 
-**Transient live sync events** (`live.sync.{user,config,room}.>`):
+**Pubsub events** (`live.sync.{user,config,room}.>`):
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.sync.user.{userId}.created`                        | User registration completed  |
-| `live.sync.user.{userId}.profile_updated`                | User profile changed (broadcast for login/display/avatar/bio/shared-time-zone updates; custom status set/clear is delivered from `live.evt.>`) |
-| `live.sync.config.server_updated`                        | Public server profile/config changed (name/MOTD/welcome/logo/banner/description) |
-| `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
-| `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
+| `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; requests a current occurrence/count read and includes the notification ID on creation, independent of sound policy |
 | `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement. A thread marker contributes to its parent room state |
-| `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
-| `live.sync.user.{userId}.settings_updated`               | Private user preferences, including the stored time zone and its sharing setting, changed |
+| `live.sync.user.{userId}.thread_viewer_state`            | Current thread follow or read state changed outside the durable follow command |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
-| `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |
 | `live.sync.room.{kind}.{roomId}.user_typing`             | User typing in a room        |
 
-Cross-group room and sidebar-link moves publish
-`live.sync.config.room_groups_updated` only after the local
-`RoomGroupLayoutProjection` has applied the final domain fact in the committed
-atomic batch. The command path owns this barrier and the best-effort
-invalidation; projection replay does not publish transient signals.
+User profile, private preference, public server profile, and durable thread
+follow changes use their EVT facts on `live.evt.>`. The realtime mapper groups
+related facts into `UserProfileChangedEvent`, `ViewerPreferencesChangedEvent`,
+`ServerProfileChangedEvent`, or `ThreadViewerStateChangedEvent`. Presence comes
+from the process-local `PresenceHub`; it does not use a `live.sync.>` subject.
+
+Room-group and sidebar-layout changes use durable group or layout facts only.
+The command path waits until the local `ServerContentView` applies the final
+fact. JetStream republishes each fact on `live.evt.>` for realtime delivery.
 
 Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,
@@ -445,18 +464,23 @@ cycles. A successful elected pass deletes the counter.
 
 `VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
 `ListCallParticipants` expose the active call ID to integrations and command
-flows. The bundled frontend receives complete authorized active-call state in
-`active_calls_replace` projection operations and infers one-shot join/leave/end
-presentation effects by comparing replacements. Room membership remains the
-authorization boundary for live delivery.
+flows. The bundled frontend receives complete authorized active-call state
+with semantic call events and infers one-shot join, leave, and end presentation
+effects by comparing current state. Room membership remains the authorization
+boundary for live delivery.
 
 The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvents`, which combines:
 
-- One process-wide `ChanSubscribe("live.sync.>")` for transient `LiveEvent`
+- One process-wide `ChanSubscribe("live.sync.>")` for `PubSubEvent`
   messages and one `ChanSubscribe("live.evt.>")` for raw committed EVT facts.
   Subject classification and decoding happen once. Authorization then applies
   per connected user using shared room visibility, asset room membership,
   user/config/member subject gates, and projection readiness.
-- Live delivery plus protocol-v2 bounded replay of durable facts as current public projection operations. The WebSocket subscribes to the hub before capturing its EVT cutoff, replays through that cutoff, then drops buffered duplicates before continuing live. Fresh and unsafe resumes receive a compacted server projection through the same operation stream; transient sync and presence signals remain live-only.
+- Live delivery plus protocol-4 bounded replay of authorized public durable
+  events. The WebSocket subscribes to the hub before it captures its EVT
+  cutoff, replays through that cutoff, and then drops buffered duplicates
+  before it continues live. Fresh and unsafe subscriptions use an exact
+  authorized content snapshot or the requested live-only fallback. Cursorless
+  pubsub activity remains live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).

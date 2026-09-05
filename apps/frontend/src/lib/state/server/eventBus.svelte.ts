@@ -6,30 +6,41 @@
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type { EventHandler, ProjectionHandler, EventBus } from '$lib/eventBus.svelte';
-import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
-import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
-  RealtimeClientFrame,
-  RealtimeClientHello,
-  RealtimeHydrateRoom,
+  RealtimeProjectionUpdate,
+  type EventHandler,
+  type ProjectionHandler,
+  type EventBus
+} from '$lib/eventBus.svelte';
+import {
+  RealtimeInitialState,
+  RealtimeCloseCode,
   RealtimeServerFrame,
-  RealtimeSubscribeEvents,
-  type RealtimeProjectionEvent
+  RealtimeSubscribe,
+  type RealtimeEvent
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import {
+  ListRoomGroupsResponse,
+  ListRoomsResponse
+} from '@chatto/api-types/api/v1/room_directory_pb';
+import { ListActiveCallsResponse } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { ConnectionStatus, ServerConnection } from './serverConnection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 
 const DEFAULT_HEARTBEAT_STALL_MS = 75_000;
-const MIN_HEARTBEAT_STALL_MS = 30_000;
-const MISSED_HEARTBEATS_BEFORE_STALL = 3;
 const HEARTBEAT_WATCHDOG_MS = 15_000;
 const RECONNECT_WAIT_MS = 5_000;
 const INACTIVE_POLL_INTERVAL_MS = 60_000;
 const INACTIVE_POLL_JITTER_MS = 10_000;
 const INACTIVE_POLL_TIMEOUT_MS = 30_000;
-const HYDRATION_RETRY_FALLBACK_MS = 1_000;
 const FATAL_REALTIME_CLOSE_CODE = 4000;
+const REALTIME_PROTOCOL_VERSION = 4;
+
+function durationMilliseconds(value: { seconds: bigint; nanos: number } | undefined): number {
+  if (!value) return 0;
+  return Number(value.seconds) * 1000 + Math.floor(value.nanos / 1_000_000);
+}
 
 type RealtimeMessageEvent = { data: ArrayBuffer | Blob | Uint8Array };
 type RealtimeCloseEvent = { code?: number; reason?: string };
@@ -53,6 +64,10 @@ export type RealtimeServerRegistration = {
   sync: RealtimeProjectionSyncState;
   /** Canonical store reducer that must be present before transport startup. */
   projectionHandler?: ProjectionHandler;
+  /** Refresh auxiliary state once at the subscription's caught-up boundary. */
+  completeProjectionCatchUp?: (cursor: string) => Promise<void>;
+  /** Wait for event-triggered reads without fetching unrelated resources. */
+  waitForProjectionReconciliation?: () => Promise<void>;
 };
 
 type TransportController = {
@@ -61,7 +76,6 @@ type TransportController = {
   update(projectionSupported: boolean): void;
   setMode(mode: 'dormant' | 'live'): void;
   pollOnce(): Promise<boolean>;
-  hydrateRoom(roomId: string): void;
   cleanup(): void;
 };
 
@@ -82,51 +96,13 @@ async function messageDataToBytes(data: RealtimeMessageEvent['data']): Promise<U
   return new Uint8Array(await data.arrayBuffer());
 }
 
-function clientHelloFrame(token: string | null): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'hello',
-      value: new RealtimeClientHello({
-        protocolVersion: 2,
-        bearerToken: token ?? undefined
-      })
-    }
+function subscribeFrame(token: string | null, resumeCursor: string | null): Uint8Array {
+  return new RealtimeSubscribe({
+    protocolVersion: REALTIME_PROTOCOL_VERSION,
+    bearerToken: token ?? undefined,
+    resumeCursor: resumeCursor ?? undefined,
+    initialState: RealtimeInitialState.SNAPSHOT
   }).toBinary();
-}
-
-function subscribeEventsFrame(
-  resumeCursor: string | null,
-  retainedRoomIds: string[],
-  refreshAuthorization: boolean
-): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'subscribeEvents',
-      value: new RealtimeSubscribeEvents({
-        resumeCursor: resumeCursor ?? undefined,
-        retainedRoomIds,
-        refreshAuthorization
-      })
-    }
-  }).toBinary();
-}
-
-function hydrateRoomFrame(roomId: string): Uint8Array {
-  return new RealtimeClientFrame({
-    frame: {
-      case: 'hydrateRoom',
-      value: new RealtimeHydrateRoom({ roomId })
-    }
-  }).toBinary();
-}
-
-function heartbeatStallMsForInterval(seconds: number): number {
-  if (seconds <= 0) return DEFAULT_HEARTBEAT_STALL_MS;
-  return Math.max(MIN_HEARTBEAT_STALL_MS, seconds * MISSED_HEARTBEATS_BEFORE_STALL * 1000);
-}
-
-function projectionResets(event: RealtimeProjectionEvent): boolean {
-  return event.operations.some((operation) => operation.operation.case === 'reset');
 }
 
 class EventBusManager {
@@ -146,13 +122,18 @@ class EventBusManager {
     serverId: string,
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
-    sync = new RealtimeProjectionSyncState()
+    sync = new RealtimeProjectionSyncState(),
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
+    waitForProjectionReconciliation?: () => Promise<void>
   ): () => void {
     const controller = this.ensureBus(
       serverId,
       serverConnection,
       realtimeProjectionSupported,
-      sync
+      sync,
+      undefined,
+      completeProjectionCatchUp,
+      waitForProjectionReconciliation
     );
     if (realtimeProjectionSupported) controller.setMode('live');
     return () => this.stopBus(serverId);
@@ -164,7 +145,9 @@ class EventBusManager {
     serverConnection: ServerConnection,
     realtimeProjectionSupported = true,
     sync = new RealtimeProjectionSyncState(),
-    projectionHandler?: ProjectionHandler
+    projectionHandler?: ProjectionHandler,
+    completeProjectionCatchUp?: (cursor: string) => Promise<void>,
+    waitForProjectionReconciliation?: () => Promise<void>
   ): TransportController {
     const existing = this.#controllers.get(serverId);
     if (existing) {
@@ -175,12 +158,13 @@ class EventBusManager {
 
     const handlers = new SvelteSet<EventHandler>();
     const projectionHandlers = new SvelteSet<ProjectionHandler>();
+    const sessionTerminatedHandlers = new SvelteSet<(reason: string) => void>();
     if (projectionHandler) projectionHandlers.add(projectionHandler);
-    const bus: EventBus = { handlers, projectionHandlers };
+    const bus: EventBus = { handlers, projectionHandlers, sessionTerminatedHandlers };
     let projectionSupported = realtimeProjectionSupported;
     let mode: TransportMode = 'dormant';
     let lastEventAt = Date.now();
-    let heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
+    const heartbeatStallMs = DEFAULT_HEARTBEAT_STALL_MS;
     let heartbeatCount = 0;
     let dispatchedEventCount = 0;
     let reconnectCount = 0;
@@ -188,9 +172,6 @@ class EventBusManager {
     let generation = 0;
     let socket: RealtimeSocket | null = null;
     let socketSubscribed = false;
-    let requestedRoomIds = new SvelteSet<string>();
-    let pendingHydrationRoomId: string | null = null;
-    let hydrationRetryTimer: ReturnType<typeof setTimeout> | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
     let pollResolution: ((caughtUp: boolean) => void) | null = null;
     let pollTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -213,43 +194,6 @@ class EventBusManager {
       reconnectTimer = null;
     };
 
-    const clearHydrationRetryTimer = () => {
-      if (!hydrationRetryTimer) return;
-      clearTimeout(hydrationRetryTimer);
-      hydrationRetryTimer = null;
-    };
-
-    const sendNextRoomHydration = () => {
-      if (!socketSubscribed || !socket || pendingHydrationRoomId || hydrationRetryTimer) return;
-      for (const roomId of sync.desiredRoomIds) {
-        if (requestedRoomIds.has(roomId)) continue;
-        requestedRoomIds.add(roomId);
-        pendingHydrationRoomId = roomId;
-        socket.send(hydrateRoomFrame(roomId));
-        return;
-      }
-    };
-
-    const finishRoomHydrationRequest = (roomId: string) => {
-      if (pendingHydrationRoomId !== roomId) return;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
-      sendNextRoomHydration();
-    };
-
-    const retryRoomHydration = (roomId: string, retryAfterMs: number | undefined) => {
-      if (pendingHydrationRoomId === roomId) pendingHydrationRoomId = null;
-      requestedRoomIds.delete(roomId);
-      clearHydrationRetryTimer();
-      hydrationRetryTimer = setTimeout(
-        () => {
-          hydrationRetryTimer = null;
-          sendNextRoomHydration();
-        },
-        Math.max(1, retryAfterMs ?? HYDRATION_RETRY_FALLBACK_MS)
-      );
-    };
-
     const resolvePoll = (caughtUp: boolean) => {
       if (pollTimeout) {
         clearTimeout(pollTimeout);
@@ -264,9 +208,6 @@ class EventBusManager {
       const current = socket;
       socket = null;
       socketSubscribed = false;
-      requestedRoomIds = new SvelteSet<string>();
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       if (!current) return;
       current.onopen = null;
       current.onmessage = null;
@@ -293,8 +234,6 @@ class EventBusManager {
       current.onclose = null;
       if (socket === current) socket = null;
       socketSubscribed = false;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       current.close(1000, 'authentication_required');
@@ -325,8 +264,6 @@ class EventBusManager {
       current.onclose = null;
       if (socket === current) socket = null;
       socketSubscribed = false;
-      pendingHydrationRoomId = null;
-      clearHydrationRetryTimer();
       sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       current.close(1000, 'session_renewal_required');
@@ -349,7 +286,7 @@ class EventBusManager {
     };
 
     const stopForUnsupportedProtocol = (current: RealtimeSocket) => {
-      console.warn(`[eventBus:${serverId}] realtime projection protocol is unsupported`, {
+      console.warn(`[eventBus:${serverId}] realtime protocol is unsupported`, {
         ...debugState()
       });
       projectionSupported = false;
@@ -361,13 +298,13 @@ class EventBusManager {
       resolvePoll(false);
     };
 
-    const dispatchEvent = (event: TransientEventEnvelope) => {
+    const dispatchEvent = (event: RealtimeEvent) => {
       dispatchedEventCount++;
-      console.debug(
-        `[eventBus:${serverId}] event dispatched`,
-        transientEventKind(event.event) ?? '<unknown>',
-        { eventId: event.id, total: dispatchedEventCount, ...debugState() }
-      );
+      console.debug(`[eventBus:${serverId}] event dispatched`, event.event.case ?? '<unknown>', {
+        eventId: event.id,
+        total: dispatchedEventCount,
+        ...debugState()
+      });
       for (const handler of handlers) {
         try {
           handler(event);
@@ -377,11 +314,21 @@ class EventBusManager {
       }
     };
 
-    const dispatchProjectionEvent = (event: RealtimeProjectionEvent) => {
+    const dispatchProjectionUpdate = (update: RealtimeProjectionUpdate) => {
       if (projectionHandlers.size === 0) {
-        throw new Error('projection event received before reducer registration');
+        throw new Error('projection update received before reducer registration');
       }
-      for (const handler of projectionHandlers) handler(event);
+      for (const handler of projectionHandlers) handler(update);
+    };
+
+    const dispatchRealtimeEvent = (event: RealtimeEvent) => {
+      dispatchEvent(event);
+      dispatchProjectionUpdate(
+        new RealtimeProjectionUpdate({
+          event,
+          cursor: event.cursor ?? null
+        })
+      );
     };
 
     const connect = (reason: string) => {
@@ -389,7 +336,6 @@ class EventBusManager {
       clearReconnectTimer();
       generation++;
       const socketGeneration = generation;
-      let requestedAuthorizationRefreshGeneration = 0;
       lastEventAt = Date.now();
       sync.beginCatchUp();
       if (mode === 'live') {
@@ -402,175 +348,211 @@ class EventBusManager {
       });
 
       const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
+      const authorizationRefreshGeneration = sync.pendingAuthorizationRefreshGeneration;
+      let frameProcessing = Promise.resolve();
+      let cursorReconciliation = Promise.resolve();
+      let reconciliationFailed = false;
+      let snapshotReceived = false;
+      let catchUpComplete = false;
       socketSubscribed = false;
       nextSocket.binaryType = 'arraybuffer';
       socket = nextSocket;
 
+      const failReconciliation = (error: unknown) => {
+        if (reconciliationFailed) return;
+        reconciliationFailed = true;
+        console.error(`[eventBus:${serverId}] resource reconciliation failed`, error);
+        nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'resource reconciliation failed');
+      };
+
+      const commitEventCursor = (cursor: string | undefined) => {
+        if (!cursor) return;
+        if (!waitForProjectionReconciliation) {
+          if (!snapshotReceived || catchUpComplete) sync.acceptProjectionEvent(cursor, false);
+          return;
+        }
+        cursorReconciliation = cursorReconciliation.then(async () => {
+          if (stopped || socket !== nextSocket) return;
+          await waitForProjectionReconciliation();
+          // A snapshot is not resumable until its auxiliary reads and timelines
+          // are hydrated at caught_up, even if intervening event reads succeed.
+          if (stopped || socket !== nextSocket || (snapshotReceived && !catchUpComplete)) return;
+          sync.acceptProjectionEvent(cursor, false);
+        });
+        void cursorReconciliation.catch(failReconciliation);
+      };
+
       nextSocket.onopen = () => {
         if (stopped || socket !== nextSocket) return;
-        nextSocket.send(clientHelloFrame(serverConnection.bearerToken));
+        nextSocket.send(subscribeFrame(serverConnection.bearerToken, sync.resumeCursor));
       };
 
       nextSocket.onmessage = (message) => {
-        void (async () => {
-          if (stopped || socket !== nextSocket) return;
-          let frame: RealtimeServerFrame;
-          try {
-            frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
-          } catch (error) {
-            console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
-            // Never continue past a frame we could not understand: a later
-            // caught_up boundary would otherwise make the missing mutation
-            // permanent in the retained projection.
-            nextSocket.close(1003, 'invalid realtime frame');
-            return;
-          }
-
-          lastEventAt = Date.now();
-          switch (frame.frame.case) {
-            case 'hello':
-              sync.takeTransportEvictions();
-              heartbeatStallMs = heartbeatStallMsForInterval(
-                frame.frame.value.heartbeatIntervalSeconds
-              );
-              requestedRoomIds = new SvelteSet(sync.retainedRoomIds);
-              requestedAuthorizationRefreshGeneration =
-                sync.pendingAuthorizationRefreshGeneration;
-              nextSocket.send(
-                subscribeEventsFrame(
-                  sync.resumeCursor,
-                  [...requestedRoomIds],
-                  requestedAuthorizationRefreshGeneration > 0
-                )
-              );
+        frameProcessing = frameProcessing
+          .then(async () => {
+            if (stopped || socket !== nextSocket) return;
+            let frame: RealtimeServerFrame;
+            try {
+              frame = RealtimeServerFrame.fromBinary(await messageDataToBytes(message.data));
+            } catch (error) {
+              console.error(`[eventBus:${serverId}] failed to decode realtime frame`, error);
+              // Never continue past a frame we could not understand: a later
+              // caught_up boundary would otherwise make the missing mutation
+              // permanent in the retained projection.
+              nextSocket.close(1003, 'invalid realtime frame');
               return;
-            case 'subscribed':
+            }
+
+            lastEventAt = Date.now();
+            if (!socketSubscribed) {
               socketSubscribed = true;
               reconnectAttempts = 0;
-              sendNextRoomHydration();
-              if (mode === 'live') serverConnection.setRealtimeConnectionStatus('connected');
               console.debug(`[eventBus:${serverId}] realtime stream subscribed`, {
                 generation: socketGeneration,
                 mode
               });
-              return;
-            case 'heartbeat':
-              heartbeatCount++;
-              return;
-            case 'event': {
-              const event = realtimeEventToEventEnvelope(frame.frame.value);
-              if (event) dispatchEvent(event);
-              return;
             }
-            case 'projectionEvent':
-              try {
-                dispatchProjectionEvent(frame.frame.value);
-              } catch (error) {
-                console.error(`[eventBus:${serverId}] projection reducer failed`, error);
-                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+            switch (frame.frame.case) {
+              case 'heartbeat':
+                heartbeatCount++;
+                commitEventCursor(frame.frame.value.cursor);
                 return;
-              }
-              sync.acceptProjectionEvent(
-                frame.frame.value.resumeCursor,
-                projectionResets(frame.frame.value)
-              );
-              for (const operation of frame.frame.value.operations) {
-                if (operation.operation.case === 'roomTimelineReplace') {
-                  const roomId = operation.operation.value.roomId;
-                  sync.confirmRoom(roomId);
-                  finishRoomHydrationRequest(roomId);
+              case 'snapshot':
+                if (snapshotReceived || !frame.frame.value.server) {
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'invalid snapshot frame');
+                  return;
                 }
-              }
-              return;
-            case 'caughtUp': {
-              sync.markCaughtUp(
-                frame.frame.value.cursor,
-                requestedAuthorizationRefreshGeneration
-              );
-              const completedPoll = pollResolution !== null;
-              resolvePoll(true);
-              if (mode === 'polling') {
-                mode = 'dormant';
-                detachSocket(true, 'caught_up');
-                // The projection is usable, but the closed transport means
-                // absence stops being authoritative immediately.
-                sync.markStale();
-                serverConnection.setRealtimeConnectionStatus('dormant');
-              } else if (completedPoll && mode === 'live') {
-                serverConnection.setRealtimeConnectionStatus('connected');
-              }
-              return;
-            }
-            case 'error':
-              console.error(`[eventBus:${serverId}] realtime error`, {
-                code: frame.frame.value.code,
-                message: frame.frame.value.message,
-                fatal: frame.frame.value.fatal
-              });
-              if (frame.frame.value.code === 'authentication_required') {
-                void recoverFromAuthenticationRequired(nextSocket, 'error frame');
+                snapshotReceived = true;
+                try {
+                  dispatchProjectionUpdate(new RealtimeProjectionUpdate({ reset: true }));
+                  sync.acceptProjectionEvent(undefined, true);
+                  const resources = [
+                    { case: 'server' as const, value: frame.frame.value.server },
+                    {
+                      case: 'rooms' as const,
+                      value: new ListRoomsResponse({ rooms: frame.frame.value.rooms })
+                    },
+                    {
+                      case: 'roomGroups' as const,
+                      value: new ListRoomGroupsResponse({ groups: frame.frame.value.roomGroups })
+                    },
+                    { case: 'users' as const, value: { users: frame.frame.value.users } },
+                    {
+                      case: 'activeCalls' as const,
+                      value: new ListActiveCallsResponse({ calls: frame.frame.value.activeCalls })
+                    }
+                  ];
+                  for (const resource of resources) {
+                    dispatchProjectionUpdate(
+                      new RealtimeProjectionUpdate({
+                        resource: new RealtimeResourceUpdate({ resource, replace: true })
+                      })
+                    );
+                  }
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] snapshot reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'snapshot reducer failed');
+                }
+                return;
+              case 'event': {
+                try {
+                  dispatchRealtimeEvent(frame.frame.value);
+                } catch (error) {
+                  console.error(`[eventBus:${serverId}] projection reducer failed`, error);
+                  nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'projection reducer failed');
+                  return;
+                }
+                commitEventCursor(frame.frame.value.cursor);
                 return;
               }
-              if (frame.frame.value.code === 'unsupported_protocol') {
-                stopForUnsupportedProtocol(nextSocket);
-                return;
-              }
-              if (frame.frame.value.code.startsWith('room_hydration_')) {
-                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
-                if (roomId) retryRoomHydration(roomId, frame.frame.value.retryAfterMs);
-                return;
-              }
-              if (
-                frame.frame.value.code === 'room_unavailable' ||
-                frame.frame.value.code === 'too_many_retained_rooms'
-              ) {
-                const roomId = frame.frame.value.roomId ?? pendingHydrationRoomId;
-                if (roomId) finishRoomHydrationRequest(roomId);
-                return;
-              }
-              if (frame.frame.value.fatal) {
-                nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'fatal realtime error');
-              }
-              return;
-            case 'close':
-              if (frame.frame.value.code === 'authentication_required') {
-                void recoverFromAuthenticationRequired(nextSocket, 'close frame');
-                return;
-              }
-              if (frame.frame.value.code === 'session_renewal_required') {
-                void renewBrowserSession(nextSocket);
-                return;
-              }
-              if (frame.frame.value.code === 'privileged_mode_expired') {
-                sync.invalidateAuthorization();
-              }
-              nextSocket.onclose = null;
-              if (socket === nextSocket) socket = null;
-              // The close frame bypasses the socket's normal onclose handler.
-              // Release socket-scoped hydration state before reconnecting so a
-              // request whose response was lost can be sent on the replacement.
-              socketSubscribed = false;
-              pendingHydrationRoomId = null;
-              clearHydrationRetryTimer();
-              nextSocket.close(1000, frame.frame.value.message || frame.frame.value.code);
-              if (mode === 'live' && frame.frame.value.reconnect) {
-                scheduleReconnect('server requested close', frame.frame.value.retryAfterMs);
-              } else {
-                resolvePoll(false);
+              case 'caughtUp': {
+                try {
+                  await cursorReconciliation;
+                  await completeProjectionCatchUp?.(frame.frame.value.cursor);
+                } catch (error) {
+                  failReconciliation(error);
+                  return;
+                }
+                if (stopped || socket !== nextSocket) return;
+                catchUpComplete = true;
+                sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
+                resolvePoll(true);
                 if (mode === 'polling') {
                   mode = 'dormant';
-                  serverConnection.setRealtimeConnectionStatus('disconnected');
+                  detachSocket(true, 'caught_up');
+                  // The projection is usable, but the closed transport means
+                  // absence stops being authoritative immediately.
+                  sync.markStale();
+                  serverConnection.setRealtimeConnectionStatus('dormant');
+                } else if (mode === 'live') {
+                  serverConnection.setRealtimeConnectionStatus('connected');
                 }
+                return;
               }
-              return;
-            case 'pong':
-              return;
-            case undefined:
-              console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
-              nextSocket.close(1003, 'unsupported realtime frame');
-              return;
-          }
-        })();
+              case 'close':
+                if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
+                  sync.invalidateAuthorization();
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
+                  for (const handler of sessionTerminatedHandlers) {
+                    try {
+                      handler(frame.frame.value.message);
+                    } catch (error) {
+                      console.error(
+                        `[eventBus:${serverId}] session termination handler threw`,
+                        error
+                      );
+                    }
+                  }
+                  becomeDormant(true, 'disconnected');
+                  resolvePoll(false);
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.AUTHENTICATION_REQUIRED) {
+                  void recoverFromAuthenticationRequired(nextSocket, 'close frame');
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.SESSION_RENEWAL_REQUIRED) {
+                  void renewBrowserSession(nextSocket);
+                  return;
+                }
+                if (frame.frame.value.code === RealtimeCloseCode.UNSUPPORTED_PROTOCOL) {
+                  stopForUnsupportedProtocol(nextSocket);
+                  return;
+                }
+                nextSocket.onclose = null;
+                if (socket === nextSocket) socket = null;
+                // The close frame bypasses the socket's normal onclose handler.
+                // Release socket-scoped hydration state before reconnecting so a
+                // request whose response was lost can be sent on the replacement.
+                socketSubscribed = false;
+                nextSocket.close(
+                  1000,
+                  frame.frame.value.message || RealtimeCloseCode[frame.frame.value.code]
+                );
+                if (mode === 'live' && frame.frame.value.reconnect) {
+                  scheduleReconnect(
+                    'server requested close',
+                    durationMilliseconds(frame.frame.value.retryAfter)
+                  );
+                } else {
+                  resolvePoll(false);
+                  if (mode === 'polling') {
+                    mode = 'dormant';
+                    serverConnection.setRealtimeConnectionStatus('disconnected');
+                  }
+                }
+                return;
+              case undefined:
+                console.error(`[eventBus:${serverId}] unsupported realtime server frame`);
+                nextSocket.close(1003, 'unsupported realtime frame');
+                return;
+            }
+          })
+          .catch((error) => {
+            console.error(`[eventBus:${serverId}] realtime frame processing failed`, error);
+            nextSocket.close(FATAL_REALTIME_CLOSE_CODE, 'frame processing failed');
+          });
       };
 
       nextSocket.onerror = (event) => {
@@ -581,8 +563,6 @@ class EventBusManager {
         if (stopped || socket !== nextSocket) return;
         socket = null;
         socketSubscribed = false;
-        pendingHydrationRoomId = null;
-        clearHydrationRetryTimer();
         console.warn(`[eventBus:${serverId}] realtime socket closed`, {
           code: event.code,
           reason: event.reason,
@@ -652,7 +632,9 @@ class EventBusManager {
         // demote this active controller or close a replacement socket.
         resolvePoll(false);
         mode = 'live';
-        serverConnection.setRealtimeConnectionStatus(socketSubscribed ? 'connected' : 'connecting');
+        serverConnection.setRealtimeConnectionStatus(
+          socketSubscribed && sync.phase === 'ready' ? 'connected' : 'connecting'
+        );
         connect('server became active');
       },
       pollOnce() {
@@ -669,20 +651,6 @@ class EventBusManager {
           );
           connect('inactive server catch-up');
         });
-      },
-      hydrateRoom(roomId) {
-        if (!roomId || stopped || !projectionSupported) return;
-        sync.retainRoom(roomId);
-        const evictedRoomIds = sync.takeTransportEvictions();
-        for (const evictedRoomId of evictedRoomIds) requestedRoomIds.delete(evictedRoomId);
-        if (evictedRoomIds.length > 0 && socket) {
-          detachSocket(true, 'room retention rollover');
-          connect('room retention rollover');
-          return;
-        }
-        if (socketSubscribed && socket && !requestedRoomIds.has(roomId)) {
-          sendNextRoomHydration();
-        }
       },
       cleanup() {
         stopped = true;
@@ -702,10 +670,6 @@ class EventBusManager {
   }
 
   /** Materialise one room timeline on the server's existing projection stream. */
-  hydrateRoom(serverId: string, roomId: string): void {
-    this.#controllers.get(serverId)?.hydrateRoom(roomId);
-  }
-
   /**
    * Reconcile all authenticated projections against the URL-active server.
    * This is the only application-level transport ownership entry point.
@@ -727,7 +691,9 @@ class EventBusManager {
         registration.connection,
         registration.projectionSupported,
         registration.sync,
-        registration.projectionHandler
+        registration.projectionHandler,
+        registration.completeProjectionCatchUp,
+        registration.waitForProjectionReconciliation
       );
     }
     // Close the previous live transport before opening the next one so a

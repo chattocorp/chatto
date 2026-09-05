@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -59,11 +59,19 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 **Why:** Server-side recents would mean a "your recents" query on every message hover (frequent and small) and a new write per reaction. Local storage is free and fast. The downside — losing recents between devices — is small relative to the cost.
 **Tradeoff:** Recents don't sync across devices.
 
-### 6. Web reconnect catch-up resumes the server projection
+### 6. Realtime sends semantic reaction changes
 
-**Decision:** The web client retains current message windows for rooms after they are first viewed. Realtime reaction changes upsert the current message row, including aggregate reaction state, and carry the exact add/remove transition for retained rooms. A short socket gap resumes from the last in-memory cursor through the same projection reducer; a fresh or unsafe resume resets lightweight server state plus only the room windows the client still retains.
-**Why:** Reactions mutate existing message rows, but eagerly hydrating every historical DM is disproportionate. A retained room still provides exact transition catch-up without a separate reaction-history query, while a never-viewed room starts from authoritative aggregate state when first opened.
-**Tradeoff:** Integrators receive exact add/remove transitions only for room timelines they ask the stream to retain. A compacted reset and first hydration transmit current aggregate state rather than recreating historical transitions. Reactions on older messages remain available through ordinary timeline pagination because the stream is a convergence feed rather than an audit log.
+**Decision:** Authorized reaction additions and removals are semantic public
+events. The web client applies them to its retained message projection. A short
+socket gap resumes from the last in-memory cursor. A fresh or unsafe resume
+uses current snapshot state for retained data.
+**Why:** Bots and alternate clients need the exact reaction transition, while
+the frontend needs current aggregate reaction state. One semantic event can
+provide the transition and the authorized resource context without exposing a
+frontend-only upsert operation. See ADR-091 and FDR-045.
+**Tradeoff:** A snapshot restores current reaction state but does not recreate
+every add and remove transition from a long offline interval. Reactions on
+older messages remain available through normal timeline pagination.
 
 For an echoed thread reply, the server emits authoritative upserts for both the
 canonical reply and the visible channel echo. This keeps both renderings in
@@ -71,7 +79,7 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 
 ### 7. Web client reaction clicks are optimistic
 
-**Decision:** The web client applies add/remove reaction clicks to the visible message store immediately, then reconciles the touched emoji from the ConnectRPC response. The server remains authoritative: realtime projection upserts replace the local row with current aggregate state.
+**Decision:** The web client applies add/remove reaction clicks to the visible message store immediately, then reconciles the touched emoji from the ConnectRPC response. The server remains authoritative: semantic realtime reaction events reconcile the local row with current aggregate state.
 **Why:** Reaction clicks should feel instant without changing the durable event model or public API.
 **Tradeoff:** Reactor-name tooltips are best-effort during the optimistic window and become exact after the projected row refresh.
 
@@ -104,14 +112,13 @@ a stronger OCC boundary explicitly.
 
 ## Permissions
 
-- `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
-- `message.read` — read any target channel-room message and its aggregate
+- `message.react` — add or remove a reaction on a message at the applicable scope.
+- `message.read` — read any target message and its aggregate
   reaction state.
 - `message.read-interactions` — read the target and reaction state when its
-  thread has an interaction relationship. DM membership authorizes DM reads
-  without either permission.
+  thread has an interaction relationship.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC)
-- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-087 (request-time authorization with aggregate OCC), ADR-089 (server content view), ADR-091 (semantic realtime events)
+- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions), FDR-045 (Realtime Event Stream)

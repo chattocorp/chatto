@@ -23,6 +23,19 @@ func TestLocalDevelopmentConfigUsesSeparateDataDirectories(t *testing.T) {
 	if got := cfg.SearchProvider.DirectoryOrDefault(); got != "./data/search" {
 		t.Errorf("search provider directory = %q, want %q", got, "./data/search")
 	}
+	if len(cfg.Bootstrap.Bots) != 1 {
+		t.Fatalf("bootstrap bots = %#v, want one development bot", cfg.Bootstrap.Bots)
+	}
+	bot := cfg.Bootstrap.Bots[0]
+	if bot.Login != "test_bot" || bot.DisplayName != "TestBot" || bot.OwnerLogin != "alice" {
+		t.Fatalf("development bot identity = %#v", bot)
+	}
+	if bot.CredentialFile != "./data/bootstrap/test_bot.key" {
+		t.Fatalf("development bot credential file = %q", bot.CredentialFile)
+	}
+	if !slices.Equal(bot.Permissions, []string{"room.join", "room.list", "message.read", "message.post-in-thread"}) || !slices.Equal(bot.Rooms, []string{"general"}) {
+		t.Fatalf("development bot access = %#v", bot)
+	}
 }
 
 func TestReadConfig_WithoutConfigFile(t *testing.T) {

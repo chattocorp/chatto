@@ -115,6 +115,57 @@ describe('message search page', () => {
     document.documentElement.dir = 'ltr';
   });
 
+  it.each([
+    [MessageSearchState.UNAVAILABLE, 'Search is unavailable', 'Try Again'],
+    [MessageSearchState.DISABLED, 'Search is disabled', null],
+    [MessageSearchState.STARTING, 'Search is getting ready', 'Check again'],
+    [MessageSearchState.INDEXING, 'Search is getting ready', 'Check again']
+  ] as const)('shows search availability for state %s', async (state, title, action) => {
+    const store = serverStore();
+    store.messageSearch.status.state = state;
+    mocks.serverStores.origin = store;
+    const rendered = render(SearchPageTestHarness);
+
+    await expect.element(rendered.getByText(title, { exact: true })).toBeVisible();
+    await expect.element(rendered.getByRole('textbox')).not.toBeInTheDocument();
+    if (action) {
+      await userEvent.click(rendered.getByRole('button', { name: action }));
+      expect(store.messageSearch.refreshStatus).toHaveBeenCalledOnce();
+    } else {
+      expect(store.messageSearch.refreshStatus).not.toHaveBeenCalled();
+    }
+  });
+
+  it('shows search checking before errors and returns to the form after recovery', async () => {
+    const store = serverStore();
+    store.messageSearch.statusLoading = true;
+    store.messageSearch.statusLoaded = false;
+    store.messageSearch.statusError = true;
+    mocks.serverStores.origin = store;
+    const rendered = render(SearchPageTestHarness);
+
+    await expect.element(rendered.getByText('Checking search availability...')).toBeVisible();
+    store.messageSearch.statusLoading = false;
+    await tick();
+    await expect
+      .element(rendered.getByText('Search is unavailable', { exact: true }))
+      .toBeVisible();
+    store.messageSearch.statusError = false;
+    store.messageSearch.statusLoaded = true;
+    store.messageSearch.status.state = MessageSearchState.DEGRADED;
+    await tick();
+    await expect.element(rendered.getByRole('textbox')).toBeVisible();
+    await expect
+      .element(rendered.getByText('Search is available, but some results may be missing.'))
+      .toBeVisible();
+
+    // A background status read must not unmount an already available search form.
+    const input = rendered.container.querySelector('input');
+    store.messageSearch.statusLoading = true;
+    await tick();
+    expect(rendered.container.querySelector('input')).toBe(input);
+  });
+
   it('mounts as a server page and debounces unscoped searches without a button', async () => {
     const { container } = render(SearchPageTestHarness);
 
@@ -378,7 +429,9 @@ describe('message search page', () => {
         ?.getAttribute('datetime')
     ).toBe('2026-07-22T09:42:00.000Z');
     expect(container.querySelector('[role="article"]')?.textContent).toContain('2');
-    expect(container.querySelector('[role="article"] [class~="icon-[uil--paperclip]"]')).not.toBeNull();
+    expect(
+      container.querySelector('[role="article"] [class~="icon-[uil--paperclip]"]')
+    ).not.toBeNull();
     expect(container.querySelector('[role="article"] button')).toBeNull();
     expect(container.querySelectorAll('[role="article"]')[1]?.textContent).toContain('Unknown');
     expect(container.querySelectorAll('[role="article"]')[1]?.textContent).not.toContain(
@@ -402,5 +455,17 @@ describe('message search page', () => {
     await userEvent.click(firstResult.querySelector('.prose a')!);
     expect(mocks.goto).toHaveBeenCalledOnce();
     expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');
+
+    mocks.goto.mockClear();
+    firstResult.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(mocks.goto).toHaveBeenCalledOnce();
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/origin/room-1/thread-root/m/message-1');
+
+    mocks.goto.mockClear();
+    firstResult
+      .querySelector('a')!
+      .dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

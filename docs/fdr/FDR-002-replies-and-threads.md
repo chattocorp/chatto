@@ -5,12 +5,16 @@
 
 ## Overview
 
-Chatto messages can link to one another via reply attribution, and channel-room messages can live inside threads — conversations branching off a root message. Replies and threads are independent concepts: a message can reply without being in a thread, or live in a thread without referencing a specific parent. Channel rooms can be configured to promote one shape over another; DMs support reply attribution but not threads.
+Chatto messages can link to one another through reply attribution and can live
+inside threads. Replies and threads are independent concepts. Channel rooms
+can configure their Threading Mode. DMs always use Enabled behavior.
 
 ## Behavior
 
 - A message in a room can optionally reference another message as the one it's in reply to.
-- DMs keep replies in their single room timeline and do not offer thread actions. Historical DM threads remain readable but cannot receive new replies.
+- DMs support thread creation, replies, follows, unread state, links,
+  notifications, echoes, and My Threads entries. Their Threading Mode is fixed
+  to Enabled and cannot be configured.
 - A reply renders with a byline above the message body: the referenced author's small avatar, name, and a single-line excerpt of the referenced message.
 - Clicking the byline transports the user to the referenced message and briefly highlights it.
 - Clicking the avatar or name in the byline opens the user's context menu.
@@ -89,7 +93,11 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent. Keeping the room view stable makes **Post as thread** a posting choice rather than an unexpected navigation action.
 **Tradeoff:** Clients must distinguish an established empty thread from an ordinary root with zero replies by checking `Message.thread` presence. Required rooms create an empty thread for every root even when nobody replies.
 
-**Compatibility:** `CreateMessageRequest.create_thread` and the room Threading Mode fields are part of the 0.5 client/server contract. The bundled client does not preserve compatibility with pre-0.5 servers. Historical channel events and snapshots that do not contain a mode normalize to Enabled without a backfill; unknown future channel values fail closed to Disabled on an older binary while remaining raw in projection snapshots, and DMs normalize to Unspecified.
+**Compatibility:** `CreateMessageRequest.create_thread` and the room Threading
+Mode fields are part of the 0.5 client/server contract. Historical channel
+events and snapshots that do not contain a mode normalize to Enabled without a
+backfill. DMs normalize to Enabled. Followed-thread lists and realtime DM
+thread projection data require explicit client opt-ins.
 
 ### 8. Thread presentation is an App Preference
 
@@ -111,14 +119,15 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ## Permissions
 
-- `message.read` — read channel-room and thread timelines. Channel-room
-  membership is also required.
-- `message.read-interactions` — read a complete channel-room thread when the
+- `message.read` — read room and thread timelines. Room membership is also
+  required.
+- `message.read-interactions` — read a complete thread when the
   account authored its root or another account directly mentioned it in that
-  thread. Channel-room membership is also required. DM membership authorizes
-  historical DM thread reads without either read permission.
+  thread. Room membership is also required.
 - `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`; automatic root-thread creation in Required rooms does not.
-- `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
+- `message.post-in-thread` — post a message inside a thread and, together with
+  `message.post`, explicitly establish a root as a thread. This applies to
+  channel rooms and DMs.
 
 ## Related
 

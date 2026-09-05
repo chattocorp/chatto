@@ -1,14 +1,16 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { RoomThreadingMode } from '$lib/roomThreading';
-import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
+import { MessagePostedEvent, UserJoinedRoomEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
-import { MessagesStore } from '$lib/state/room';
+import { MessagesStore, RoomMembersStore } from '$lib/state/room';
 import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
 
@@ -37,7 +39,7 @@ const { mocks } = vi.hoisted(() => {
       pushState: vi.fn(),
       replaceState: vi.fn(),
       markRoomAsRead: vi.fn(),
-      projectionEventHandler: null as ((event: RealtimeProjectionEvent) => void) | null,
+      projectionEventHandler: null as ((event: RealtimeProjectionUpdate) => void) | null,
       resetTypingDebounce: vi.fn(),
       query: vi.fn(() => ({
         toPromise: vi.fn().mockResolvedValue({ data: queryData, error: null })
@@ -169,7 +171,7 @@ vi.mock('$lib/hooks', () => ({
     setUnreadMarkerEventId: vi.fn(),
     clearUnreadMarker: vi.fn()
   }),
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionEventHandler = handler;
   },
   usePresenceChange: vi.fn(),
@@ -458,6 +460,7 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.hasCompleteProjectedRoomMembership.mockReturnValue(true);
   mocks.dmParticipantIds = ['test-user', 'user-1'];
   mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canReadMessages = true;
@@ -476,7 +479,43 @@ beforeEach(() => {
   stubMatchMedia(true);
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('Room interaction bundles', () => {
+  it('loads channel membership through the canonical member directory', async () => {
+    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
+    const ensureLoaded = vi
+      .spyOn(RoomMembersStore.prototype, 'ensureLoaded')
+      .mockImplementation(() => {});
+
+    render(Room, { props: { roomId: 'room-1' } });
+
+    await vi.waitFor(() => expect(ensureLoaded).toHaveBeenCalled());
+  });
+
+  it('refreshes mounted channel membership after a canonical membership event', async () => {
+    mocks.hasCompleteProjectedRoomMembership.mockReturnValue(false);
+    vi.spyOn(RoomMembersStore.prototype, 'ensureLoaded').mockImplementation(() => {});
+    const refresh = vi.spyOn(RoomMembersStore.prototype, 'refresh').mockResolvedValue();
+    render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+
+    mocks.projectionEventHandler?.(
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          event: {
+            case: 'userJoinedRoom',
+            value: new UserJoinedRoomEvent({ roomId: 'room-1' })
+          }
+        })
+      })
+    );
+
+    expect(refresh).toHaveBeenCalledOnce();
+  });
+
   it('restores projected windows through the store that mounted them', async () => {
     const rendered = render(Room, { props: { roomId: 'room-1' } });
 
@@ -693,23 +732,15 @@ describe('Room local message echo', () => {
     await tick();
 
     mocks.projectionEventHandler?.(
-      new RealtimeProjectionEvent({
-        id: 'asset-processing-succeeded-id',
-        actorId: 'system',
-        operations: [
-          {
-            operation: {
-              case: 'roomTimelineEventUpsert',
-              value: {
-                roomId: 'room-1',
-                event: {
-                  id: 'message-event-id',
-                  event: { case: 'messagePosted', value: { message: { threadRootEventId: '' } } }
-                }
-              }
-            }
+      new RealtimeProjectionUpdate({
+        event: new PublicRealtimeEvent({
+          id: 'message-event-id',
+          actorId: 'system',
+          event: {
+            case: 'messagePosted',
+            value: new MessagePostedEvent({ roomId: 'room-1' })
           }
-        ]
+        })
       })
     );
 
@@ -863,13 +894,13 @@ describe('Room local message echo', () => {
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/msg-local');
   });
 
-  it('does not offer thread creation in DMs', async () => {
+  it('offers thread creation in DMs with thread-post permission', async () => {
     mocks.roomKind = RoomKind.DM;
     const { container } = render(Room, { props: { roomId: 'room-1' } });
 
     await expect
       .element(q(container, '[data-testid="composer-can-create-thread"]'))
-      .toHaveTextContent('false');
+      .toHaveTextContent('true');
   });
 
   it('does not offer thread creation without permission to post in threads', async () => {

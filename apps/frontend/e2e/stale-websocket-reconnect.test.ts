@@ -79,7 +79,9 @@ test.describe('WebSocket reconnect recovery', () => {
           await expect(page.getByText(missedMessage)).toBeVisible({
             timeout: TIMEOUTS.REALTIME_EVENT
           });
-          expect(reconnectTimelineReads).toBe(0);
+          // Reconnect invalidates the mounted canonical timeline. The client
+          // recovers missed events through an explicit ConnectRPC read.
+          expect(reconnectTimelineReads).toBeGreaterThanOrEqual(1);
         }
       );
     } finally {

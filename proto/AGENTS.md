@@ -17,11 +17,16 @@ For public API packages:
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
   realtime WebSocket protobuf protocol.
+- `chatto.realtime.v1.RealtimeEvent.event` is the public realtime catalogue.
+  Every member uses a dedicated payload from
+  `chatto/realtime/v1/events.proto`. Do not import core EVT or private pubsub
+  payload messages into the public union. A client-facing `PubSubEvent` variant
+  can reference the public payload in the other direction.
 - Write comments for API users, not Chatto maintainers.
 - Add useful comments to each public service, RPC, message, enum, enum value,
   and important field.
 - Explain what a call reads or changes, required IDs, pagination or cursor
-  rules, login availability, and important response behavior.
+  rules, required authorization, and important response behavior.
 - Keep field comments short for generated tables. Put longer behavior notes on
   messages or RPCs.
 - Do not put maintainer workflow text, such as "run codegen", in comments that
@@ -31,8 +36,10 @@ For public API packages:
 
 - Follow [`chatto/core/AGENTS.md`](chatto/core/AGENTS.md) for internal package
   ownership and storage compatibility. Put new durable `Event` payloads in the
-  applicable `chatto/core/evt/v1/*_events.proto` file. Put payloads that are used
-  only by `LiveEvent` in `chatto/core/live/v1/live_events.proto`.
+  applicable `chatto/core/evt/v1/*_events.proto` file. Put client-facing
+  pubsub payloads in `chatto/realtime/v1/events.proto` and reference them from
+  the restricted `PubSubEvent` union. Keep private pubsub control payloads in
+  `chatto/core/pubsub/v1/event.proto`.
 - Protobuf file placement affects generated source and descriptor names. Do not
   move a stored symbol only to reorganize it. A transient symbol that is in the
   wrong package can move as an approved source-breaking change. Do not keep a
@@ -42,12 +49,13 @@ For public API packages:
   are experimental while Chatto is pre-1.0. Prefer compatibility. A breaking
   change requires explicit user approval, a design benefit, a compatibility
   plan, generated-client and documentation updates, release-note guidance, and
-  the `api-breaking-change` PR label. A release milestone does not remove these
-  requirements.
-- Except for projection-owned snapshot payloads described below, do not
-  renumber fields that may be persisted or consumed by clients.
-- Except for projection-owned snapshot payloads, do not change a field type at
-  an existing tag. Add a new tag instead.
+  the `api-breaking-change` PR label. Apply the current release policy in
+  root `AGENTS.md` when deciding which client versions must remain supported.
+- Except for projection snapshots described below, do not renumber fields that
+  can be persisted or consumed by clients.
+- Except for projection snapshots, do not change a field type at an existing
+  tag. Add a new tag instead.
+- When removing a public field, reserve its old tag and name.
 - Except for projection-owned snapshot payloads, do not remove fields from
   persisted messages. Reserving the old tag and name preserves wire safety but
   does not satisfy Chatto's source-compatibility or storage-contract policy.
@@ -65,20 +73,15 @@ For public API packages:
   `ENCRYPTION_KEYS`, and object metadata need additive evolution plus
   repair/migration code when existing data changes shape. Volatile protobuf
   values in `MEMORY_CACHE` must remain readable across a rolling upgrade.
-- Transient live-event protos are less stable, but `chatto/realtime/v1` is still
-  a public wire protocol and must consider mixed-version clients.
-- For bundled-client version skew, update the frontend's explicit
-  feature-to-minimum-server-version table. Negotiate realtime behavior in the
-  realtime protocol when a software-version gate is insufficient. Keep protocol
-  support distinct from server feature configuration and viewer authorization.
+- For client version support, follow the current root release policy,
+  `apps/frontend/AGENTS.md`, and the realtime package rules. Keep protocol
+  support separate from server configuration and viewer authorization.
 - Public cursor fields are confidential, integrity-protected tokens. Never
   serialize raw or reversibly encoded NATS/JetStream stream identities,
   subjects, sequences, revisions, or consumer positions into them. Explicit,
   owner-only broker diagnostics and event-log inspection messages may expose
   clearly named operational details; do not reuse those shapes as client or
   integration contracts.
-- The `chatto.realtime.v1` package suffix is a protobuf namespace. It currently
-  implements only behavioural protocol version 2; older handshakes are rejected.
 
 ## Presence And API Shape
 
@@ -115,8 +118,8 @@ For public API packages:
   document that reason in the message comment.
 - Prefer returning rich protobuf messages over scalar acknowledgements when the
   server can do so without changing authorization or forcing expensive extra
-  reads. This keeps create/update/delete responses forward-compatible and
-  aligned with list/get/batch shapes.
+  reads. Scalar acknowledgements are acceptable when a resource response would
+  require extra work or imply visibility the caller does not have.
 - For public API messages under `chatto/api/v1`, `chatto/admin/v1`,
   `chatto/auth/v1`, `chatto/discovery/v1`, and `chatto/realtime/v1`, use proto3
   `optional` scalar fields when clients must distinguish

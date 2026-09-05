@@ -162,9 +162,13 @@ type RoomWithViewerState struct {
 	// Public room metadata.
 	Room *Room `protobuf:"bytes,1,opt,name=room,proto3" json:"room,omitempty"`
 	// State and permission decisions resolved for the current user.
-	ViewerState   *RoomViewerState `protobuf:"bytes,14,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	ViewerState *RoomViewerState `protobuf:"bytes,14,opt,name=viewer_state,json=viewerState,proto3" json:"viewer_state,omitempty"`
+	// Complete participant user IDs for a DM. Empty for channel rooms.
+	MemberUserIds []string `protobuf:"bytes,15,rep,name=member_user_ids,json=memberUserIds,proto3" json:"member_user_ids,omitempty"`
+	// Whether this DM has received a root message. Absent for channel rooms.
+	HasMessageHistory *bool `protobuf:"varint,16,opt,name=has_message_history,json=hasMessageHistory,proto3,oneof" json:"has_message_history,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RoomWithViewerState) Reset() {
@@ -209,6 +213,20 @@ func (x *RoomWithViewerState) GetViewerState() *RoomViewerState {
 		return x.ViewerState
 	}
 	return nil
+}
+
+func (x *RoomWithViewerState) GetMemberUserIds() []string {
+	if x != nil {
+		return x.MemberUserIds
+	}
+	return nil
+}
+
+func (x *RoomWithViewerState) GetHasMessageHistory() bool {
+	if x != nil && x.HasMessageHistory != nil {
+		return *x.HasMessageHistory
+	}
+	return false
 }
 
 // Sidebar link metadata for room group navigation.
@@ -1043,10 +1061,13 @@ const file_chatto_api_v1_room_directory_proto_rawDesc = "" +
 	"\n" +
 	"has_unread\x18\x02 \x01(\bR\thasUnread\x12@\n" +
 	"\vpermissions\x18\x03 \x03(\v2\x1e.chatto.api.v1.PermissionGrantR\vpermissions\x12N\n" +
-	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\"\xcd\x02\n" +
+	"\x16slow_mode_next_post_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x12slowModeNextPostAt\"\xc2\x03\n" +
 	"\x13RoomWithViewerState\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\x12A\n" +
-	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerStateJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
+	"\fviewer_state\x18\x0e \x01(\v2\x1e.chatto.api.v1.RoomViewerStateR\vviewerState\x12&\n" +
+	"\x0fmember_user_ids\x18\x0f \x03(\tR\rmemberUserIds\x123\n" +
+	"\x13has_message_history\x18\x10 \x01(\bH\x00R\x11hasMessageHistory\x88\x01\x01B\x16\n" +
+	"\x14_has_message_historyJ\x04\b\x02\x10\x0eR\tis_memberR\n" +
 	"has_unreadR\rcan_list_roomR\rcan_join_roomR\x10can_post_messageR\x12can_post_in_threadR\n" +
 	"can_attachR\tcan_reactR\x10can_echo_messageR\x19can_manage_others_messageR\x0fcan_manage_roomR\x14can_ban_room_members\"E\n" +
 	"\vSidebarLink\x12\x0e\n" +
@@ -1185,6 +1206,7 @@ func file_chatto_api_v1_room_directory_proto_init() {
 	}
 	file_chatto_api_v1_permissions_proto_init()
 	file_chatto_api_v1_rooms_proto_init()
+	file_chatto_api_v1_room_directory_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_room_directory_proto_msgTypes[3].OneofWrappers = []any{
 		(*RoomGroupItem_Room)(nil),
 		(*RoomGroupItem_SidebarLink)(nil),

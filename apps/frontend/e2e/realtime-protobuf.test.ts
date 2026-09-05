@@ -3,16 +3,25 @@ import { test, expect } from './setup';
 import { DMPage } from './pages';
 import { createAndLoginTestUser, type TestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
-import { getRoomIdByNameViaConnect, postMessageViaConnect } from './fixtures/connectHelpers';
+import {
+  connectPost,
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect
+} from './fixtures/connectHelpers';
 import { TIMEOUTS } from './constants';
 import {
-  RealtimeClientFrame,
-  RealtimeClientHello,
-  RealtimeEventEnvelope,
-  RealtimeHydrateRoom,
+  RealtimeEvent,
+  RealtimeInitialState,
+  RealtimeRecovery,
   RealtimeServerFrame,
-  RealtimeSubscribeEvents
+  RealtimeSubscribe
 } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
+
+interface RealtimeConnectOptions {
+  initialState?: RealtimeInitialState;
+  resumeCursor?: string;
+}
 
 class RealtimeProtobufClient {
   readonly #socket: WebSocket;
@@ -23,7 +32,6 @@ class RealtimeProtobufClient {
     reject: (err: Error) => void;
     timer: ReturnType<typeof setTimeout>;
   }> = [];
-
   private constructor(socket: WebSocket) {
     this.#socket = socket;
     socket.addEventListener('message', (message) => {
@@ -37,7 +45,11 @@ class RealtimeProtobufClient {
     });
   }
 
-  static async connect(serverURL: string, bearerToken: string): Promise<RealtimeProtobufClient> {
+  static async connect(
+    serverURL: string,
+    bearerToken: string,
+    options: RealtimeConnectOptions = {}
+  ): Promise<RealtimeProtobufClient> {
     const url = new URL('/api/realtime', serverURL);
     url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
 
@@ -63,23 +75,16 @@ class RealtimeProtobufClient {
       );
     });
 
-    const client = new RealtimeProtobufClient(socket);
-    client.send(
-      new RealtimeClientFrame({
-        frame: {
-          case: 'hello',
-          value: new RealtimeClientHello({ protocolVersion: 2, bearerToken })
-        }
+    const pendingClient = new RealtimeProtobufClient(socket);
+    pendingClient.send(
+      new RealtimeSubscribe({
+        protocolVersion: 4,
+        bearerToken,
+        initialState: options.initialState ?? RealtimeInitialState.SNAPSHOT,
+        resumeCursor: options.resumeCursor
       })
     );
-    await client.waitForFrame((frame) => frame.frame.case === 'hello');
-    client.send(
-      new RealtimeClientFrame({
-        frame: { case: 'subscribeEvents', value: new RealtimeSubscribeEvents() }
-      })
-    );
-    await client.waitForFrame((frame) => frame.frame.case === 'subscribed');
-    return client;
+    return pendingClient;
   }
 
   close(): void {
@@ -87,13 +92,11 @@ class RealtimeProtobufClient {
     this.#rejectAll(new Error('realtime socket closed'));
   }
 
-  send(frame: RealtimeClientFrame): void {
-    this.#socket.send(frame.toBinary());
+  send(message: RealtimeSubscribe): void {
+    this.#socket.send(message.toBinary());
   }
 
-  waitForEvent(
-    predicate: (event: RealtimeEventEnvelope) => boolean
-  ): Promise<RealtimeEventEnvelope> {
+  waitForEvent(predicate: (event: RealtimeEvent) => boolean): Promise<RealtimeEvent> {
     return this.waitForFrame((frame) => {
       const event = frame.frame.case === 'event' ? frame.frame.value : null;
       return event ? predicate(event) : false;
@@ -122,18 +125,6 @@ class RealtimeProtobufClient {
             if (frame.frame.case === 'event') {
               return `event:${frame.frame.value.event.case ?? 'unknown'}`;
             }
-            if (frame.frame.case === 'projectionEvent') {
-              const operations = frame.frame.value.operations.map((operation) => {
-                if (operation.operation.case !== 'notificationOccurrencesReplace') {
-                  return operation.operation.case ?? 'unknown';
-                }
-                const signals = operation.operation.value.occurrences?.occurrences.map(
-                  (occurrence) => occurrence.signal?.kind.case ?? 'unknown'
-                );
-                return `notificationOccurrencesReplace[${signals?.join(',') ?? ''}]`;
-              });
-              return `projectionEvent:${operations.join('+')}`;
-            }
             return frame.frame.case ?? 'unknown';
           });
           reject(new Error(`timed out waiting for realtime frame; queued: ${queued.join(', ')}`));
@@ -145,6 +136,11 @@ class RealtimeProtobufClient {
 
   async #handleMessage(data: unknown): Promise<void> {
     const frame = RealtimeServerFrame.fromBinary(await websocketDataToBytes(data));
+    if (frame.frame.case === 'close') {
+      this.#rejectAll(
+        new Error(`realtime server closed: ${frame.frame.value.code}: ${frame.frame.value.message}`)
+      );
+    }
     const waiterIndex = this.#waiters.findIndex((waiter) => waiter.predicate(frame));
     if (waiterIndex >= 0) {
       const [waiter] = this.#waiters.splice(waiterIndex, 1);
@@ -181,62 +177,146 @@ async function loginForBearerToken(page: Page, user: TestUser): Promise<string> 
 }
 
 test.describe('protobuf realtime stream', () => {
-  test('materialises a cold room timeline through the projection stream', async ({
+  test('hands an exact bounded snapshot to subsequent realtime events', async ({
     page,
-    chatPage,
+    browser,
     serverURL
   }) => {
     const viewer = await createAndLoginTestUser(page);
-    await chatPage.goto();
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
-    const messageId = await postMessageViaConnect(page, roomId, `lazy realtime ${Date.now()}`);
     const token = await loginForBearerToken(page, viewer);
-    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+    let unrelatedUserId: string | undefined;
+    await withServerUser(browser!, serverURL, async ({ user }) => {
+      unrelatedUserId = user.id;
+    });
 
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
     try {
-      await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
-      realtime.send(
-        new RealtimeClientFrame({
-          frame: {
-            case: 'hydrateRoom',
-            value: new RealtimeHydrateRoom({ roomId })
-          }
-        })
+      const snapshot = await realtime.waitForFrame((frame) => frame.frame.case === 'snapshot');
+      if (snapshot.frame.case !== 'snapshot') throw new Error('expected snapshot frame');
+      expect(snapshot.frame.value.server?.name).toBeTruthy();
+      expect(snapshot.frame.value.rooms.some((room) => room.room?.id === roomId)).toBe(true);
+      expect(snapshot.frame.value.users.some((user) => user.user?.id === viewer.id)).toBe(true);
+      expect(snapshot.frame.value.users.some((user) => user.user?.id === unrelatedUserId)).toBe(
+        false
       );
 
-      const hydrated = await realtime.waitForFrame((frame) => {
-        if (frame.frame.case !== 'projectionEvent') return false;
-        return frame.frame.value.operations.some((operation) => {
-          if (operation.operation.case !== 'roomTimelineReplace') return false;
-          return (
-            operation.operation.value.roomId === roomId &&
-            operation.operation.value.page?.events.some((event) => event.id === messageId)
-          );
-        });
-      });
-      expect(hydrated.frame.case).toBe('projectionEvent');
-      if (hydrated.frame.case !== 'projectionEvent') throw new Error('expected projection event');
-      expect(
-        hydrated.frame.value.operations.some(
-          (operation) =>
-            operation.operation.case === 'roomUpsert' &&
-            operation.operation.value.room?.room?.id === roomId &&
-            operation.operation.value.memberUserIds.includes(viewer.id)
-        )
-      ).toBe(true);
+      // The snapshot boundary is captured before this frame arrives. This
+      // message must therefore arrive after caught_up.
+      const messageId = await postMessageViaConnect(
+        page,
+        roomId,
+        `snapshot boundary ${Date.now()}`
+      );
+
+      const caughtUp = await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+      if (caughtUp.frame.case !== 'caughtUp') throw new Error('expected caught_up frame');
+      expect(caughtUp.frame.value.cursor).toBeTruthy();
+      expect(caughtUp.frame.value.recovery).toBe(RealtimeRecovery.SNAPSHOT);
+
+      const event = await realtime.waitForEvent((candidate) => candidate.id === messageId);
+      expect(event.cursor).toBeTruthy();
+      expect(event.cursor).not.toBe(caughtUp.frame.value.cursor);
     } finally {
       realtime.close();
     }
   });
 
-  test('delivers mention and DM occurrence display payloads over /api/realtime', async ({
+  test('bundled resource bootstrap does not list the complete user directory', async ({
+    page,
+    chatPage
+  }) => {
+    let fullUserDirectoryReads = 0;
+    page.on('request', (request) => {
+      if (request.url().includes('chatto.api.v1.UserService/ListUsers')) {
+        fullUserDirectoryReads++;
+      }
+    });
+    await createAndLoginTestUser(page);
+
+    await chatPage.goto();
+    await expect(chatPage.getRoomLink('general')).toBeVisible();
+
+    expect(fullUserDirectoryReads).toBe(0);
+  });
+
+  test('delivers unretained semantic events and resumes them from a cursor', async ({
+    page,
+    serverURL
+  }) => {
+    const viewer = await createAndLoginTestUser(page);
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const token = await loginForBearerToken(page, viewer);
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token, {
+      initialState: RealtimeInitialState.LIVE_ONLY
+    });
+
+    try {
+      await realtime.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+      const messageId = await postMessageViaConnect(
+        page,
+        roomId,
+        `semantic realtime ${Date.now()}`
+      );
+      const posted = await realtime.waitForEvent(
+        (event) => event.event.case === 'messagePosted' && event.id === messageId
+      );
+      expect(posted.cursor).toBeTruthy();
+      if (posted.event.case !== 'messagePosted') {
+        throw new Error('expected canonical message-post event');
+      }
+      expect(posted.event.value.bodyPlaintext).toContain('semantic realtime');
+      realtime.close();
+
+      await connectPost(page, 'chatto.api.v1.MessageService/AddReaction', {
+        roomId,
+        messageEventId: messageId,
+        emoji: 'thumbsup'
+      });
+
+      const resumed = await RealtimeProtobufClient.connect(serverURL, token, {
+        initialState: RealtimeInitialState.LIVE_ONLY,
+        resumeCursor: posted.cursor
+      });
+      try {
+        const reaction = await resumed.waitForEvent(
+          (event) =>
+            event.event.case === 'reactionAdded' && event.event.value.messageEventId === messageId
+        );
+        expect(reaction.event.case).toBe('reactionAdded');
+        expect(reaction.cursor).toBeTruthy();
+        const recovery = await resumed.waitForFrame((frame) => frame.frame.case === 'caughtUp');
+        if (recovery.frame.case !== 'caughtUp') throw new Error('expected caught_up');
+        expect(recovery.frame.value.recovery).toBe(RealtimeRecovery.RESUMED);
+
+        await connectPost(page, 'chatto.api.v1.MessageService/UpdateMessage', {
+          roomId,
+          eventId: messageId,
+          body: `edited semantic realtime ${Date.now()}`
+        });
+        const edited = await resumed.waitForEvent(
+          (event) =>
+            event.event.case === 'messageEdited' && event.event.value.messageEventId === messageId
+        );
+        expect(edited.cursor).toBeTruthy();
+      } finally {
+        resumed.close();
+      }
+    } finally {
+      realtime.close();
+    }
+  });
+
+  test('uses public events as notification resource refresh hints', async ({
     page,
     browser,
     serverURL
   }) => {
     const viewer = await createAndLoginTestUser(page);
     const token = await loginForBearerToken(page, viewer);
-    const realtime = await RealtimeProtobufClient.connect(serverURL, token);
+    const realtime = await RealtimeProtobufClient.connect(serverURL, token, {
+      initialState: RealtimeInitialState.LIVE_ONLY
+    });
 
     try {
       let mentionActorDisplayName = '';
@@ -246,42 +326,51 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`@${viewer.login} protobuf mention ${Date.now()}`);
       });
 
-      const mentionFrame = await realtime.waitForFrame((frame) =>
-        frame.frame.case === 'projectionEvent'
-          ? frame.frame.value.operations.some((operation) =>
-              operation.operation.case === 'notificationOccurrencesReplace'
-                ? operation.operation.value.occurrences?.occurrences.some(
-                    (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
-                  )
-                : false
-            )
-          : false
+      await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
+      const mentionHint = await realtime.waitForEvent(
+        (event) =>
+          event.event.case === 'notificationOccurrencesChanged' &&
+          !!event.event.value.createdNotificationId
       );
-      expect(mentionFrame.frame.case).toBe('projectionEvent');
-      if (mentionFrame.frame.case !== 'projectionEvent') {
-        throw new Error('expected mention projection event');
-      }
-      const mentionReplacement = mentionFrame.frame.value.operations
-        .map((operation) =>
-          operation.operation.case === 'notificationOccurrencesReplace'
-            ? operation.operation.value
-            : null
-        )
-        .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const mention = mentionReplacement?.occurrences?.occurrences.find(
-        (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
-      );
-      expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
-      expect(mention?.actor?.id).toBeTruthy();
-      expect(mention?.signal?.kind.case).toBe('directMentionReceived');
-      const mentionMessage =
-        mention?.signal?.kind.case === 'directMentionReceived'
-          ? mention.signal.kind.value.message
-          : null;
-      expect(mentionMessage?.room?.name).toBe('general');
-      expect(mentionMessage?.room?.id).toBeTruthy();
+      const mentionNotificationId =
+        mentionHint.event.case === 'notificationOccurrencesChanged'
+          ? mentionHint.event.value.createdNotificationId
+          : undefined;
+      await expect
+        .poll(async () => {
+          const json = await connectPost<Record<string, unknown>>(
+            page,
+            'chatto.api.v1.NotificationService/ListNotificationOccurrences'
+          );
+          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const occurrence = response.occurrences.find(
+            (item) => item.signal?.kind.case === 'directMentionReceived'
+          );
+          const message =
+            occurrence?.signal?.kind.case === 'directMentionReceived'
+              ? occurrence.signal.kind.value.message
+              : undefined;
+          return {
+            id: occurrence?.id,
+            actorId: occurrence?.actor?.id,
+            actorDisplayName: occurrence?.actor?.displayName,
+            roomId: message?.room?.id,
+            roomName: message?.room?.name
+          };
+        })
+        .toMatchObject({
+          id: mentionNotificationId,
+          actorId: expect.any(String),
+          actorDisplayName: mentionActorDisplayName,
+          roomId: expect.any(String),
+          roomName: 'general'
+        });
 
       let dmSenderDisplayName = '';
+      await connectPost(page, 'chatto.api.v1.MyAccountService/UpdatePresence', {
+        status: 'PRESENCE_STATUS_DO_NOT_DISTURB',
+        userSelected: true
+      });
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
         dmSenderDisplayName = user.displayName;
         const dmPage = new DMPage(senderPage);
@@ -289,37 +378,44 @@ test.describe('protobuf realtime stream', () => {
         await roomPage.sendMessage(`protobuf dm ${Date.now()}`);
       });
 
-      const dmFrame = await realtime.waitForFrame((frame) =>
-        frame.frame.case === 'projectionEvent'
-          ? frame.frame.value.operations.some((operation) =>
-              operation.operation.case === 'notificationOccurrencesReplace'
-                ? operation.operation.value.occurrences?.occurrences.some(
-                    (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
-                  )
-                : false
-            )
-          : false
+      await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
+      const dmHint = await realtime.waitForEvent(
+        (event) =>
+          event.event.case === 'notificationOccurrencesChanged' &&
+          !!event.event.value.createdNotificationId &&
+          event.event.value.createdNotificationId !== mentionNotificationId
       );
-      expect(dmFrame.frame.case).toBe('projectionEvent');
-      if (dmFrame.frame.case !== 'projectionEvent') {
-        throw new Error('expected direct-message projection event');
-      }
-      const dmReplacement = dmFrame.frame.value.operations
-        .map((operation) =>
-          operation.operation.case === 'notificationOccurrencesReplace'
-            ? operation.operation.value
-            : null
-        )
-        .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const dm = dmReplacement?.occurrences?.occurrences.find(
-        (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
-      );
-      expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
-      expect(dm?.actor?.id).toBeTruthy();
-      expect(dm?.signal?.kind.case).toBe('directMessageReceived');
-      const dmMessage =
-        dm?.signal?.kind.case === 'directMessageReceived' ? dm.signal.kind.value.message : null;
-      expect(dmMessage?.room?.id).toBeTruthy();
+      const dmNotificationId =
+        dmHint.event.case === 'notificationOccurrencesChanged'
+          ? dmHint.event.value.createdNotificationId
+          : undefined;
+      await expect
+        .poll(async () => {
+          const json = await connectPost<Record<string, unknown>>(
+            page,
+            'chatto.api.v1.NotificationService/ListNotificationOccurrences'
+          );
+          const response = ListNotificationOccurrencesResponse.fromJson(json);
+          const occurrence = response.occurrences.find(
+            (item) => item.signal?.kind.case === 'directMessageReceived'
+          );
+          const message =
+            occurrence?.signal?.kind.case === 'directMessageReceived'
+              ? occurrence.signal.kind.value.message
+              : undefined;
+          return {
+            id: occurrence?.id,
+            actorId: occurrence?.actor?.id,
+            actorDisplayName: occurrence?.actor?.displayName,
+            roomId: message?.room?.id
+          };
+        })
+        .toMatchObject({
+          id: dmNotificationId,
+          actorId: expect.any(String),
+          actorDisplayName: dmSenderDisplayName,
+          roomId: expect.any(String)
+        });
     } finally {
       realtime.close();
     }

@@ -207,9 +207,14 @@ test.describe('App and User Preferences', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    // Type a timezone
+    // Type a timezone that differs from the browser default. The browser can
+    // run in Europe/Berlin, in which case selecting it is not a change.
+    const browserTimezone = await page.evaluate(
+      () => Intl.DateTimeFormat().resolvedOptions().timeZone
+    );
+    const timezone = browserTimezone === 'Europe/Berlin' ? 'America/New_York' : 'Europe/Berlin';
     const timezoneInput = page.getByTestId('timezone-input');
-    await timezoneInput.fill('Europe/Berlin');
+    await timezoneInput.fill(timezone);
 
     // Save button should be enabled
     const saveButton = page.getByRole('button', { name: 'Save time settings' });
@@ -223,7 +228,7 @@ test.describe('App and User Preferences', () => {
 
     // Reload and verify persistence
     await page.reload();
-    await expect(timezoneInput).toHaveValue('Europe/Berlin', {
+    await expect(timezoneInput).toHaveValue(timezone, {
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

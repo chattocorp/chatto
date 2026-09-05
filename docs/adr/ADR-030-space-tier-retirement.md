@@ -96,7 +96,7 @@ Each phase is shippable independently. Phases 1 and 2 are good candidates to com
 
 ### Deferred
 
-- Persisted shapes that can't be renamed without a JetStream migration: `space_id` fields on persisted event payloads and the orphan `space.{spaceId}` KV record. Same reasoning as ADR-029: cosmetic gain not worth a stream rewrite. The event variant name was corrected to `ServerMemberDeletedEvent` before 0.1 deployment while keeping proto field 320 stable; unused live server lifecycle messages were removed from `LiveEvent`.
+- Persisted shapes that can't be renamed without a JetStream migration: `space_id` fields on persisted event payloads and the orphan `space.{spaceId}` KV record. Same reasoning as ADR-029: cosmetic gain not worth a stream rewrite. The event variant name was corrected to `ServerMemberDeletedEvent` before 0.1 deployment while keeping proto field 320 stable; unused server lifecycle messages were removed from the then-current live-event envelope.
 
 ## Alternatives considered
 

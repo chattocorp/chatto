@@ -31,7 +31,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { m } from '$lib/i18n/messages';
 
   export type MatrixDecision = 'ALLOW' | 'DENY' | 'NONE';
-  export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM';
+  export type MatrixScopeKind = 'SERVER' | 'GROUP' | 'ROOM' | 'DM';
 
   export type MatrixScope = {
     id: string;
@@ -85,9 +85,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   // here so rooms nest visually under their parent group.
   const orderedScopes = $derived.by<MatrixScope[]>(() => {
     const server = data.scopes.filter((s) => s.kind === 'SERVER');
+    const dm = data.scopes.filter((s) => s.kind === 'DM');
     const groups = data.scopes.filter((s) => s.kind === 'GROUP');
     const rooms = data.scopes.filter((s) => s.kind === 'ROOM');
-    const out: MatrixScope[] = [...server];
+    const out: MatrixScope[] = [...server, ...dm];
     for (const g of groups) {
       out.push(g);
       const groupId = g.id.startsWith('group:') ? g.id.slice('group:'.length) : '';
@@ -155,6 +156,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       ? (cellFor(serverScope.id, permission)?.override ?? 'NONE')
       : 'NONE';
     if (scope.kind === 'SERVER') return 'NONE';
+    if (scope.kind === 'DM') return serverDecision;
     if (scope.kind === 'GROUP') return serverDecision;
 
     const groupScope = data.scopes.find(
@@ -191,6 +193,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
     if (kind === 'SERVER') return 'bg-surface-emphasized/40';
+    if (kind === 'DM') return 'bg-surface-emphasized/30';
     if (kind === 'GROUP') return 'bg-surface-emphasized/20';
     return '';
   }
@@ -245,8 +248,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         <span
           class={[
             scope.kind === 'SERVER' ? 'font-semibold' : '',
+            scope.kind === 'DM' ? 'font-medium' : '',
             highlighted ? 'text-action' : '',
-            !highlighted && scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+            !highlighted && (scope.kind === 'GROUP' || scope.kind === 'DM')
+              ? 'text-neutral-action'
+              : '',
             !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
           ]}
           title={`${scope.label} (${scope.kind.toLowerCase()})`}
@@ -258,8 +264,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         <span
           data-testid="permission-name"
           title={getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
-          >{permission}</span
+          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}>{permission}</span
         >
       {/snippet}
       {#snippet cell(permission, scope)}
@@ -338,9 +343,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   ov !== 'neutral'
                     ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
                     : null,
-                  includedBy
-                    ? `Effective Allow (included by ${includedBy})`
-                    : null,
+                  includedBy ? `Effective Allow (included by ${includedBy})` : null,
                   ov === 'neutral' && eff !== 'neutral'
                     ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
                     : null,

@@ -211,6 +211,57 @@ describe('createRoomTimelineAPI', () => {
       event: { kind: 'messagePosted', body: 'thread reply', threadRootEventId: 'root-1' }
     });
   });
+
+  it('bounds realtime-triggered message reads by the event cursor', async () => {
+    mocks.getMessage.mockResolvedValue({
+      message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
+    });
+    const api = createRoomTimelineAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'remote-token'
+    });
+
+    await api.getMessage({
+      roomId: 'room-1',
+      eventId: 'message-1',
+      minimumCursor: 'opaque-event-cursor'
+    });
+
+    const options = mocks.getMessage.mock.calls[0]?.[1];
+    expect(options?.headers).toBeInstanceOf(Headers);
+    expect((options?.headers as Headers).get('Authorization')).toBe('Bearer remote-token');
+    expect((options?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
+      'opaque-event-cursor'
+    );
+    expect(options?.timeoutMs).toBe(10_000);
+    const userOptions = mocks.batchGetUsers.mock.calls[0]?.[1];
+    expect(userOptions?.headers).toBeInstanceOf(Headers);
+    expect((userOptions?.headers as Headers).get('Chatto-Realtime-Minimum-Cursor')).toBe(
+      'opaque-event-cursor'
+    );
+    expect(userOptions?.timeoutMs).toBe(10_000);
+  });
+
+  it('fails a cursor-bound message read when its user hydration fails', async () => {
+    mocks.getMessage.mockResolvedValue({
+      message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
+    });
+    const failure = new Error('user projection unavailable');
+    mocks.batchGetUsers.mockRejectedValue(failure);
+    const api = createRoomTimelineAPI({
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+
+    await expect(
+      api.getMessage({
+        roomId: 'room-1',
+        eventId: 'message-1',
+        minimumCursor: 'opaque-event-cursor'
+      })
+    ).rejects.toBe(failure);
+  });
 });
 
 describe('roomTimelinePageToEventConnectionPage', () => {

@@ -2,7 +2,6 @@ package core
 
 import (
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
 	"testing"
 	"time"
@@ -12,9 +11,10 @@ import (
 
 	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
-func subscribeRoomReadLiveEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {
+func subscribeRoomReadPubSubEvents(t *testing.T, nc *nats.Conn, userID string) *nats.Subscription {
 	t.Helper()
 
 	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(userID, "room_read"))
@@ -27,41 +27,41 @@ func subscribeRoomReadLiveEvents(t *testing.T, nc *nats.Conn, userID string) *na
 	return sub
 }
 
-func expectRoomReadLiveEvent(t *testing.T, sub *nats.Subscription, roomID string) {
+func expectRoomReadPubSubEvent(t *testing.T, sub *nats.Subscription, roomID string) {
 	t.Helper()
 
 	msg, err := sub.NextMsg(2 * time.Second)
 	if err != nil {
-		t.Fatalf("waiting for room_read live event: %v", err)
+		t.Fatalf("waiting for room_read pubsub event: %v", err)
 	}
-	var live livev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
-		t.Fatalf("unmarshal room_read live event: %v", err)
+	var pubsub pubsubv1.PubSubEvent
+	if err := proto.Unmarshal(msg.Data, &pubsub); err != nil {
+		t.Fatalf("unmarshal room_read pubsub event: %v", err)
 	}
-	event := live.GetRoomMarkedAsRead()
+	event := pubsub.GetRoomReadStateChanged()
 	if event == nil {
-		t.Fatalf("expected RoomMarkedAsReadEvent, got %T", live.Event)
+		t.Fatalf("expected RoomReadStateChangedEvent, got %T", pubsub.Event)
 	}
 	if event.GetRoomId() != roomID {
 		t.Fatalf("room_read room id = %q, want %q", event.GetRoomId(), roomID)
 	}
 }
 
-func expectNoRoomReadLiveEvent(t *testing.T, sub *nats.Subscription) {
+func expectNoRoomReadPubSubEvent(t *testing.T, sub *nats.Subscription) {
 	t.Helper()
 
 	if msg, err := sub.NextMsg(200 * time.Millisecond); err == nil {
-		var live livev1.LiveEvent
-		if unmarshalErr := proto.Unmarshal(msg.Data, &live); unmarshalErr != nil {
-			t.Fatalf("unexpected room_read live event with invalid payload: %v", unmarshalErr)
+		var pubsub pubsubv1.PubSubEvent
+		if unmarshalErr := proto.Unmarshal(msg.Data, &pubsub); unmarshalErr != nil {
+			t.Fatalf("unexpected room_read pubsub event with invalid payload: %v", unmarshalErr)
 		}
-		t.Fatalf("unexpected room_read live event: %T", live.Event)
+		t.Fatalf("unexpected room_read pubsub event: %T", pubsub.Event)
 	} else if !errors.Is(err, nats.ErrTimeout) {
-		t.Fatalf("waiting for absent room_read live event: %v", err)
+		t.Fatalf("waiting for absent room_read pubsub event: %v", err)
 	}
 }
 
-func TestReadStateModel_MarkRoomAsReadSkipsLiveEventWhenCursorUnchanged(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadSkipsPubSubEventWhenCursorUnchanged(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -89,15 +89,15 @@ func TestReadStateModel_MarkRoomAsReadSkipsLiveEventWhenCursorUnchanged(t *testi
 		t.Fatalf("SetLastReadEventID: %v", err)
 	}
 
-	sub := subscribeRoomReadLiveEvents(t, nc, reader.Id)
+	sub := subscribeRoomReadPubSubEvents(t, nc, reader.Id)
 	if _, err := core.ReadState().MarkRoomAsRead(ctx, reader.Id, room.Id, ""); err != nil {
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	expectNoRoomReadLiveEvent(t, sub)
+	expectNoRoomReadPubSubEvent(t, sub)
 }
 
-func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenCursorAdvances(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenCursorAdvances(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -122,15 +122,15 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenCursorAdvances(t *te
 		t.Fatalf("PostMessage second: %v", err)
 	}
 
-	sub := subscribeRoomReadLiveEvents(t, nc, reader.Id)
+	sub := subscribeRoomReadPubSubEvents(t, nc, reader.Id)
 	if _, err := core.ReadState().MarkRoomAsRead(ctx, reader.Id, room.Id, ""); err != nil {
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	expectRoomReadLiveEvent(t, sub, room.Id)
+	expectRoomReadPubSubEvent(t, sub, room.Id)
 }
 
-func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRead(t *testing.T) {
+func TestReadStateModel_MarkRoomAsReadPublishesPubSubEventWhenOccurrencesBecomeRead(t *testing.T) {
 	core, nc := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -174,12 +174,12 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		t.Fatalf("Create occurrence: %v", err)
 	}
 
-	sub := subscribeRoomReadLiveEvents(t, nc, reader.Id)
+	sub := subscribeRoomReadPubSubEvents(t, nc, reader.Id)
 	if _, err := core.ReadState().MarkRoomAsRead(ctx, reader.Id, room.Id, ""); err != nil {
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	expectRoomReadLiveEvent(t, sub, room.Id)
+	expectRoomReadPubSubEvent(t, sub, room.Id)
 	remaining, err := core.NotificationOccurrences().List(ctx, reader.Id)
 	if err != nil {
 		t.Fatalf("List occurrences: %v", err)

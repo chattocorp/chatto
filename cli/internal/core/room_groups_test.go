@@ -1067,3 +1067,57 @@ func TestReorderRoomGroups_RejectsUnknownID(t *testing.T) {
 		t.Errorf("err = %v, want ErrRoomGroupOrderMismatch", err)
 	}
 }
+
+func TestReorderRoomsInGroupPersistsOrder(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	group, err := core.CreateRoomGroup(ctx, "actor", "Group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	r1, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "alpha", "")
+	r2, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "beta", "")
+	r3, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "gamma", "")
+
+	want := []string{r3.Id, r2.Id, r1.Id}
+	if err := core.ReorderRoomsInGroup(ctx, "actor", group.Id, want); err != nil {
+		t.Fatalf("ReorderRoomsInGroup: %v", err)
+	}
+	got, err := core.GetRoomGroup(ctx, group.Id)
+	if err != nil {
+		t.Fatalf("GetRoomGroup: %v", err)
+	}
+	if !equalStrings(got.RoomIds, want) {
+		t.Errorf("RoomIds = %v, want %v", got.RoomIds, want)
+	}
+}
+
+func TestReorderRoomsInGroupRejectsSetMismatch(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	group, _ := core.CreateRoomGroup(ctx, "actor", "Group", "")
+	a, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "a", "")
+	b, _ := core.CreateRoom(ctx, "actor", KindChannel, group.Id, "b", "")
+
+	for name, order := range map[string][]string{
+		"missing room":   {a.Id},
+		"unknown room":   {a.Id, b.Id, "RbogusXX"},
+		"duplicate room": {a.Id, a.Id},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if err := core.ReorderRoomsInGroup(ctx, "actor", group.Id, order); !errors.Is(err, ErrRoomGroupOrderMismatch) {
+				t.Fatalf("ReorderRoomsInGroup() error = %v, want ErrRoomGroupOrderMismatch", err)
+			}
+		})
+	}
+
+	got, err := core.GetRoomGroup(ctx, group.Id)
+	if err != nil {
+		t.Fatalf("GetRoomGroup: %v", err)
+	}
+	if !equalStrings(got.RoomIds, []string{a.Id, b.Id}) {
+		t.Errorf("RoomIds changed after rejected reorder: %v", got.RoomIds)
+	}
+}

@@ -54,6 +54,10 @@ const LayoutSingletonID = "default"
 // group scoped decisions use their room/group ID directly as the aggregate ID.
 const RBACServerID = "server"
 
+// RBACDMID is the stable singleton aggregate ID for direct-message-scoped
+// permission decisions.
+const RBACDMID = "dm"
+
 // AuthServerID is the singleton aggregate ID for anonymous/server-wide auth
 // audit facts, such as registration code issuance before a user exists.
 const AuthServerID = "server"
@@ -619,6 +623,12 @@ func RBACAggregate() Aggregate {
 // RBACServerAggregate is the typed constructor for server-level RBAC events.
 func RBACServerAggregate() Aggregate {
 	return Aggregate{Type: AggregateRBAC, ID: RBACServerID}
+}
+
+// RBACDMAggregate is the typed constructor for direct-message-scoped RBAC
+// permission decisions.
+func RBACDMAggregate() Aggregate {
+	return Aggregate{Type: AggregateRBAC, ID: RBACDMID}
 }
 
 // RBACScopedAggregate is the typed constructor for scoped RBAC decisions. The

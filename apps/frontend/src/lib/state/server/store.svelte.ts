@@ -22,18 +22,24 @@ import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { createMessageSearchAPI, type MessageSearchAPI } from '$lib/api-client/messageSearch';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import { createRoleAPI } from '$lib/api-client/roles';
+import {
+  createRealtimeResourceAPI,
+  RealtimeResourceUpdate,
+  type RealtimeResourceAPI,
+  type RealtimeResourceFamily
+} from '$lib/api-client/realtimeResources';
 import { eventBusManager } from './eventBus.svelte';
-import type { ProjectionHandler } from '$lib/eventBus.svelte';
+import { RealtimeProjectionUpdate, type ProjectionHandler } from '$lib/eventBus.svelte';
 import type { ServerConnection } from './serverConnection.svelte';
 import type { ServerRegistration } from './catalog.svelte';
 import type { ServerSession } from './sessions.svelte';
 import { playCallSound } from '$lib/audio/callSounds';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteDate, SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
-import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import {
@@ -49,28 +55,23 @@ import {
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import {
   reconcileRegisteredAdminRoomGroupQueries,
-  reconcileRegisteredAdminRoomQueries,
-  reconcileRegisteredFollowedThreadQueries,
-  invalidateRegisteredRoomMemberQueries,
   purgeRegisteredRoomMemberQueries,
   refreshRegisteredAdminQueries,
   removeRegisteredAdminQueries,
   removeRegisteredAdminUserQueries,
   removeRegisteredServerQueries,
   resetRegisteredFollowedThreadQueries,
-  scrubRegisteredFollowedThreadMessage,
   scrubRegisteredFollowedThreadRoom,
   scrubRegisteredFollowedThreadUser,
   refreshRegisteredFollowedThreadQueries,
-  scrubRegisteredRoomMemberUser,
-  updateRegisteredFollowedThreadSummary
+  scrubRegisteredRoomMemberUser
 } from '$lib/query/cacheRegistry';
 
 /**
@@ -83,6 +84,14 @@ export type ServerIndicator = 'notification' | 'unread' | null;
 
 const MAX_RETAINED_ROOM_SEARCHES = 10;
 
+/** One bounded timeline read. Different anchors or directions need separate reads. */
+type MessageWindowRefresh = {
+  anchorEventId: string | null;
+  forward: boolean;
+  minimumCursor?: string;
+  generation: number;
+};
+
 function viewerAuthorizationLost(
   previous: GetViewerResponse | null,
   current: GetViewerResponse
@@ -90,7 +99,7 @@ function viewerAuthorizationLost(
   if (!previous) return false;
   if (previous.user?.profile?.id !== current.user?.profile?.id) return true;
 
-  const currentGrants = new Set([
+  const currentGrants = new SvelteSet([
     ...(current.capabilities?.grants ?? [])
       .filter((grant) => grant.granted)
       .map((grant) => `capability:${grant.capability}`),
@@ -170,6 +179,26 @@ export class ServerStateStore {
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
   readonly #privilegedModeAPI: PrivilegedModeAPI;
+  readonly #realtimeResources: RealtimeResourceAPI;
+  #realtimeProjectionGeneration = 0;
+  #realtimeSnapshotPending = false;
+  /** Deletions stay authoritative until the next exact snapshot resets this projection. */
+  readonly #deletedRealtimeUserIds = new SvelteSet<string>();
+  readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<boolean>>();
+  readonly #pendingResourceRefreshes = new SvelteMap<
+    RealtimeResourceFamily,
+    { minimumCursor?: string; generation: number }
+  >();
+  #currentEventMinimumCursor: string | undefined;
+  #userRefresh: Promise<void> | null = null;
+  readonly #pendingUserRefreshIds = new SvelteSet<string>();
+  #pendingUserRefreshCursor: string | undefined;
+  #pendingUserRefreshGeneration = 0;
+  #reconciliationError: unknown = null;
+  /** Active reads stay owned until settlement, including reads started without a cursor. */
+  readonly #messageWindowRefreshes = new SvelteMap<MessagesStore, Promise<void>>();
+  readonly #pendingMessageWindowRefreshes = new WeakMap<MessagesStore, MessageWindowRefresh[]>();
+  readonly #projectionReconciliations = new SvelteSet<Promise<void>>();
 
   constructor(
     registration: ServerRegistration,
@@ -195,6 +224,7 @@ export class ServerStateStore {
     const adminRoomLayoutAPI = serverConnection.getAPI(createAdminRoomLayoutAPI);
     const messageSearchAPI = serverConnection.getAPI(createMessageSearchAPI);
     this.#messageSearchAPI = messageSearchAPI;
+    this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
     this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
@@ -288,16 +318,121 @@ export class ServerStateStore {
     this.setPermissions(viewer);
   }
 
+  /** Reject work whose resource boundary was superseded by a newer reset. */
+  private requireCurrentRealtimeProjection(generation: number): void {
+    if (generation !== this.#realtimeProjectionGeneration) {
+      throw new Error('realtime projection read was superseded by a newer reset');
+    }
+  }
+
+  /** Complete auxiliary reads and event reconciliation through `cursor`. */
+  async completeRealtimeCatchUp(cursor: string): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    const batches = await Promise.all(
+      (['serverState', 'viewer', 'rooms', 'notifications'] as RealtimeResourceFamily[]).map(
+        (family) => this.#realtimeResources.read(family, cursor)
+      )
+    );
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of batches.flat()) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+
+    // Presence and other user current values are not durable replay events.
+    // Refresh every user that the retained projection still references after
+    // the authoritative room read has been applied.
+    const userIds = new SvelteSet(this.projection.users.keys());
+    for (const room of this.projection.rooms.values()) {
+      for (const userId of room.memberUserIds) userIds.add(userId);
+    }
+    const userResources = await this.#realtimeResources.readUsers(userIds, cursor);
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of userResources) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+
+    if (this.#realtimeSnapshotPending) {
+      await Promise.all(
+        [...Object.values(this.#roomMessages), ...Object.values(this.#threadMessages)].map(
+          (store) =>
+            store.hydrateRealtimeProjection(
+              cursor,
+              () => generation === this.#realtimeProjectionGeneration
+            )
+        )
+      );
+      this.requireCurrentRealtimeProjection(generation);
+      this.#realtimeSnapshotPending = false;
+    }
+    await this.waitForRealtimeReconciliation();
+  }
+
+  /** Wait for queued event reads without starting catch-up resource reads. */
+  async waitForRealtimeReconciliation(): Promise<void> {
+    const generation = this.#realtimeProjectionGeneration;
+    while (
+      this.#resourceRefreshes.size > 0 ||
+      this.#userRefresh ||
+      this.#messageWindowRefreshes.size > 0 ||
+      this.#projectionReconciliations.size > 0
+    ) {
+      await Promise.all([
+        ...this.#resourceRefreshes.values(),
+        ...(this.#userRefresh ? [this.#userRefresh] : []),
+        ...this.#messageWindowRefreshes.values(),
+        ...this.#projectionReconciliations
+      ]);
+      this.requireCurrentRealtimeProjection(generation);
+    }
+    if (this.#reconciliationError) {
+      const error = this.#reconciliationError;
+      this.#reconciliationError = null;
+      throw error;
+    }
+  }
+
+  /** Wait for this family's queued reads without consuming cursor-owner errors.
+   * Returns false if a read failed. Does not start another resource request.
+   */
+  async waitForRealtimeResourceRefresh(family: RealtimeResourceFamily): Promise<boolean> {
+    const generation = this.#realtimeProjectionGeneration;
+    let succeeded = true;
+    let refresh: Promise<boolean> | undefined;
+    while ((refresh = this.#resourceRefreshes.get(family))) {
+      const result = await refresh;
+      this.requireCurrentRealtimeProjection(generation);
+      succeeded = succeeded && result;
+    }
+    return succeeded;
+  }
+
   /** Stable room timeline owner used by routes as a rendering selector. */
   messagesForRoom(roomId: string): MessagesStore {
     let store = this.#roomMessages[roomId];
     if (store) return store;
     store = new MessagesStore(this.#serverConnection, () => this.currentUser.user?.id ?? null);
-    store.awaitRoomProjection(roomId);
+    store.setRoom(roomId);
     this.#roomMessages[roomId] = store;
-    const page = this.projection.timelines.get(roomId);
-    if (page) store.replaceRoomProjectionPage(roomId, page);
     return store;
+  }
+
+  /** Return known follow state from a loaded canonical room timeline. */
+  loadedThreadFollowState(roomId: string, threadRootEventId: string): boolean | null {
+    const event = this.#roomMessages[roomId]?.getEventById(threadRootEventId);
+    if (event?.event.kind !== TimelineEventKind.MessagePosted) return null;
+    return event.event.viewerIsFollowingThread ?? null;
+  }
+
+  /** Check loaded canonical room timelines for one unread followed thread. */
+  hasUnreadFollowedThreadInLoadedRooms(): boolean {
+    return Object.values(this.#roomMessages).some((store) =>
+      store.rootEvents.some(
+        (event) =>
+          event.event.kind === TimelineEventKind.MessagePosted &&
+          event.event.viewerIsFollowingThread === true &&
+          event.event.viewerHasUnreadThread === true
+      )
+    );
   }
 
   /** Stable lazy file-list owner for one room on this server. */
@@ -345,23 +480,11 @@ export class ServerStateStore {
 
   /** Restore the canonical latest window when a route selects this room. */
   restoreProjectedRoomWindow(roomId: string): void {
-    const evictedRoomId = this.realtimeSync.retainRoom(roomId);
-    if (evictedRoomId) this.evictRetainedRoom(evictedRoomId);
     const messages = this.messagesForRoom(roomId);
-    // Route entry and cleanup both supersede an in-flight historical jump,
-    // even when this room's first projection page has not arrived yet.
-    const page = this.projection.timelines.get(roomId);
-    if (page) messages.restoreRoomProjectionPage(roomId, page);
-    else {
-      messages.cancelPendingHistoricalJump();
-      eventBusManager.hydrateRoom(this.serverId, roomId);
-    }
+    void messages.restoreLatestWindow();
   }
 
   private evictRetainedRoom(roomId: string): void {
-    const room = this.projection.rooms.get(roomId)?.room;
-    const clearMembership = room ? mapDirectoryRoom(room)?.kind !== RoomKind.DM : false;
-    this.projection.evictRoomTimeline(roomId, clearMembership);
     this.#roomMessages[roomId]?.dispose();
     delete this.#roomMessages[roomId];
     this.#roomPins[roomId]?.dispose();
@@ -453,293 +576,660 @@ export class ServerStateStore {
     delete this.#threadMessageRefCounts[key];
   }
 
-  private ingestProjectionEvent(event: RealtimeProjectionEvent): void {
+  private ingestProjectionEvent(update: RealtimeProjectionUpdate): void {
     const previousViewer = this.projection.viewer;
-    const resetsProjection = event.operations.some(
-      (operation) => operation.operation.case === 'reset'
-    );
-    const existingTimelineRows = new SvelteSet<string>();
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
-      if (
-        update.event &&
-        this.projection.timelines
-          .get(update.roomId)
-          ?.events.some((candidate) => candidate.id === update.event?.id)
-      ) {
-        existingTimelineRows.add(`${update.roomId}\u0000${update.event.id}`);
-      }
+    const previousUserIds = new SvelteSet(this.projection.users.keys());
+    const previousRoomIds = new SvelteSet(this.projection.rooms.keys());
+    const sourceEvent = update.event;
+    let adminRoomLayoutChanged = update.reset;
+
+    if (update.reset) {
+      const generation = ++this.#realtimeProjectionGeneration;
+      this.#realtimeSnapshotPending = true;
+      this.#deletedRealtimeUserIds.clear();
+      this.#reconciliationError = null;
+      this.#pendingResourceRefreshes.clear();
+      this.#pendingUserRefreshIds.clear();
+      this.#pendingUserRefreshCursor = undefined;
+      this.#pendingUserRefreshGeneration = generation;
+      resetRegisteredFollowedThreadQueries(this.serverId);
+      this.resetProjectionMirrors();
+      this.forEachMessageSearch((store) => store.clearResults());
     }
-    this.projection.apply(event);
-    let adminRoomLayoutChanged = false;
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'reset':
-          resetRegisteredFollowedThreadQueries(this.serverId);
-          this.resetProjectionMirrors();
-          this.forEachMessageSearch((store) => store.clearResults());
-          adminRoomLayoutChanged = true;
+
+    this.projection.apply(update);
+    const resource = update.resource;
+    if (resource) {
+      switch (resource.case) {
+        case 'server':
+          this.serverInfo.applyProjectionProfile(resource.value);
           break;
-        case 'serverUpsert':
-          this.serverInfo.applyProjectionProfile(operation.operation.value);
-          break;
-        case 'serverStateUpsert':
-          this.serverInfo.applyProjectionState(operation.operation.value);
-          this.forEachMessageSearch((store) => store.refreshRetainedResults());
-          if (operation.operation.value.pinnedMessageChange) {
-            this.#roomPins[
-              operation.operation.value.pinnedMessageChange.roomId
-            ]?.applyRealtimeChange(operation.operation.value.pinnedMessageChange, event.id);
+        case 'motd':
+        case 'runtimeConfig':
+          if (this.projection.serverState) {
+            this.serverInfo.applyProjectionState(this.projection.serverState);
           }
           break;
-        case 'viewerUpsert': {
-          if (viewerAuthorizationLost(previousViewer, operation.operation.value)) {
+        case 'viewer': {
+          const response = resource.value;
+          if (viewerAuthorizationLost(previousViewer, response)) {
             removeRegisteredAdminQueries(this.serverId);
           }
-          const viewer = viewerResponseToState(operation.operation.value);
+          const viewer = viewerResponseToState(response);
           this.currentUser.user = viewer.user;
           this.currentUser.loading = false;
           this.setPermissions(viewer);
           this.roomUnread.acknowledgeViewerProjection();
           break;
         }
-        case 'userUpsert': {
-          const member = mapDirectoryMember(operation.operation.value);
-          if (!member.id) break;
-          notifyUserSummaries(this.serverId, [member]);
-          break;
-        }
-        case 'userRemove': {
-          const userId = operation.operation.value.userId;
-          scrubRegisteredFollowedThreadUser(this.serverId);
-          scrubRegisteredRoomMemberUser(this.serverId, userId);
-          removeRegisteredAdminUserQueries(this.serverId, userId);
-          this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
-          removeUserSummaryCacheEntry(this.serverId, userId);
-          this.notifications.scrubUser(userId);
-          this.activeCallRooms.scrubUser(userId);
-          for (const store of Object.values(this.#roomMessages)) {
-            store.scrubUserReferences(userId);
-          }
-          for (const store of Object.values(this.#threadMessages)) {
-            store.scrubUserReferences(userId);
+        case 'users': {
+          const members = resource.value.users.map(mapDirectoryMember);
+          notifyUserSummaries(this.serverId, members);
+          for (const userId of previousUserIds) {
+            if (!this.projection.users.has(userId)) this.scrubRemovedUser(userId);
           }
           break;
         }
-        case 'roomUpsert': {
-          adminRoomLayoutChanged = true;
-          const roomId = operation.operation.value.room?.room?.id;
-          if (!roomId) break;
-          reconcileRegisteredAdminRoomQueries(this.serverId, roomId);
-          const viewerState = operation.operation.value.room?.viewerState;
-          this.roomDirectory.acknowledgeMembership(roomId, viewerState?.isMember);
-          this.roomUnread.acknowledgeRoomProjection(roomId, viewerState?.hasUnread);
-          if (viewerState?.isMember === false) {
-            this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-            this.clearRoomAccess(roomId);
-          } else if (viewerState?.isMember === true) {
-            this.restoreRoomAccess(roomId);
+        case 'rooms':
+          for (const [roomId, room] of this.projection.rooms) {
+            this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
+            this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);
+            if (room.viewerState?.isMember === false) this.clearRoomAccess(roomId);
+            else if (room.viewerState?.isMember === true) this.restoreRoomAccess(roomId);
           }
-          invalidateRegisteredRoomMemberQueries(this.serverId, roomId);
-          break;
-        }
-        case 'roomRemove': {
+          for (const roomId of previousRoomIds) {
+            if (!this.projection.rooms.has(roomId)) this.scrubRemovedRoom(roomId);
+          }
           adminRoomLayoutChanged = true;
-          const roomId = operation.operation.value.roomId;
-          reconcileRegisteredAdminRoomQueries(this.serverId, roomId, true);
-          this.roomDirectory.removeMembershipProjection(roomId);
-          this.roomUnread.removeRoomProjection(roomId);
-          this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
-          purgeRegisteredRoomMemberQueries(this.serverId, roomId);
-          this.clearRoomAccess(roomId, true);
           break;
-        }
-        case 'roomGroupsReplace': {
-          adminRoomLayoutChanged = true;
+        case 'roomGroups':
           reconcileRegisteredAdminRoomGroupQueries(
             this.serverId,
-            operation.operation.value.groups.map((group) => group.id)
+            resource.value.groups.map((group) => group.id)
+          );
+          adminRoomLayoutChanged = true;
+          break;
+        case 'notifications':
+          this.notifications.replaceOccurrenceProjection(
+            mapNotificationOccurrencePage(resource.value)
           );
           break;
-        }
-        case 'roomTimelineReplace': {
-          const replacement = operation.operation.value;
-          this.forRoomMessageSearch(replacement.roomId, (store) =>
-            store.invalidateRoom(replacement.roomId)
-          );
-          if (replacement.page) {
-            this.#roomMessages[replacement.roomId]?.replaceRoomProjectionPage(
-              replacement.roomId,
-              replacement.page
-            );
-          }
-          break;
-        }
-        case 'roomTimelineEventUpsert': {
-          const update = operation.operation.value;
-          const projectedMessage =
-            update.event?.event.case === 'messagePosted' ? update.event.event.value.message : null;
-          if (update.event && projectedMessage?.deletedAt) {
-            scrubRegisteredFollowedThreadMessage(this.serverId, update.roomId, update.event.id);
-            this.#roomPins[update.roomId]?.applyMessageRetraction(update.event.id);
-          } else if (update.event && projectedMessage) {
-            this.#roomPins[update.roomId]?.applyMessageUpdate(update.event.id, projectedMessage);
-          }
-          const threadSummary = projectedMessage?.thread;
-          if (projectedMessage?.threadRootEventId) {
-            refreshRegisteredFollowedThreadQueries(this.serverId);
-          }
-          if (
-            update.event &&
-            projectedMessage &&
-            !projectedMessage.threadRootEventId &&
-            threadSummary
-          ) {
-            updateRegisteredFollowedThreadSummary(this.serverId, {
-              roomId: update.roomId,
-              threadRootEventId: update.event.id,
-              replyCount: threadSummary.replyCount,
-              lastReplyAt: threadSummary.lastReplyAt?.toDate().toISOString() ?? null,
-              hasUnreadReplies: threadSummary.viewerState?.hasUnreadReplies
-            });
-          }
-          if (update.event && !update.reactionChange) {
-            const eventId = update.event.id;
-            this.forRoomMessageSearch(update.roomId, (store) =>
-              store.invalidateMessage(
-                update.roomId,
-                eventId,
-                existingTimelineRows.has(`${update.roomId}\u0000${eventId}`)
-              )
-            );
-          }
-          if (update.event) {
-            const retainedByProjection = Boolean(
-              this.projection.timelines
-                .get(update.roomId)
-                ?.events.some((candidate) => candidate.id === update.event?.id)
-            );
-            this.#roomMessages[update.roomId]?.upsertRoomProjectionEvent(
-              update.roomId,
-              update.event,
-              update.includes,
-              update.retainDeletedRow,
-              retainedByProjection
-            );
-            if (!update.reactionChange) {
-              this.#roomFiles[update.roomId]?.applyTimelineEvent(update.event, event.id);
-            }
-            for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-              if (!key.startsWith(`${update.roomId}\u0000`)) continue;
-              threadStore.upsertRoomProjectionEvent(
-                update.roomId,
-                update.event,
-                update.includes,
-                update.retainDeletedRow
-              );
-            }
-          }
-          break;
-        }
-        case 'notificationOccurrencesReplace': {
-          const replacement = operation.operation.value;
-          if (replacement.occurrences) {
-            this.notifications.replaceOccurrenceProjection(
-              mapNotificationOccurrencePage(replacement.occurrences)
-            );
-          }
-          break;
-        }
-        case 'roomViewerStateReplace': {
-          const replacement = operation.operation.value;
-          this.roomDirectory.acknowledgeMembership(
-            replacement.roomId,
-            replacement.viewerState?.isMember
-          );
-          this.roomUnread.acknowledgeRoomProjection(
-            replacement.roomId,
-            replacement.viewerState?.hasUnread
-          );
-          if (replacement.viewerState?.isMember === false) {
-            this.forRoomMessageSearch(replacement.roomId, (store) =>
-              store.revokeRoom(replacement.roomId)
-            );
-            this.clearRoomAccess(replacement.roomId);
-          } else if (replacement.viewerState?.isMember === true) {
-            this.restoreRoomAccess(replacement.roomId);
-          }
-          break;
-        }
-        case 'roomViewerActivityReplace': {
-          const replacement = operation.operation.value;
-          this.roomUnread.acknowledgeRoomProjection(replacement.roomId, replacement.hasUnread);
-          break;
-        }
-        case 'activeCallsReplace': {
-          const calls = operation.operation.value.calls;
-          this.reconcileActiveCallTransition(event, calls);
-          this.activeCallRooms.replaceProjection(calls);
-          break;
-        }
-        case 'presencesReplace': {
-          break;
-        }
-        case 'threadViewerStatesReplace': {
-          reconcileRegisteredFollowedThreadQueries(
-            this.serverId,
-            this.projection.threadViewerStates
-          );
-          // A reply updates this projection even when the room timeline is not
-          // retained. Refresh the feed so its preview, count, and activity order
-          // do not depend on an open room or thread pane.
-          if (!resetsProjection) refreshRegisteredFollowedThreadQueries(this.serverId);
-          for (const [roomId, page] of this.projection.timelines) {
-            for (const projectedEvent of page.events) {
-              if (
-                projectedEvent.event.case !== 'messagePosted' ||
-                !projectedEvent.event.value.message?.thread
-              ) {
-                continue;
-              }
-              this.#roomMessages[roomId]?.upsertRoomProjectionEvent(
-                roomId,
-                projectedEvent,
-                page.includes
-              );
-              for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-                if (!key.startsWith(`${roomId}\u0000`)) continue;
-                threadStore.upsertRoomProjectionEvent(roomId, projectedEvent, page.includes);
-              }
-            }
-          }
-          break;
-        }
-        case 'roomTimelineEventRemove': {
-          const removal = operation.operation.value;
-          scrubRegisteredFollowedThreadMessage(this.serverId, removal.roomId, removal.eventId);
-          this.forRoomMessageSearch(removal.roomId, (store) =>
-            store.invalidateMessage(removal.roomId, removal.eventId, true)
-          );
-          this.#roomMessages[removal.roomId]?.removeRoomProjectionEvent(
-            removal.roomId,
-            removal.eventId
-          );
-          for (const [key, threadStore] of Object.entries(this.#threadMessages)) {
-            if (!key.startsWith(`${removal.roomId}\u0000`)) continue;
-            threadStore.removeRoomProjectionEvent(removal.roomId, removal.eventId);
-          }
-          break;
-        }
-        case 'roomActivity':
+        case 'activeCalls':
+          this.activeCallRooms.replaceProjection(resource.value.calls);
           break;
         case undefined:
-          // ServerProjectionStore validates the whole event before either
-          // reducer mutates state, so this is unreachable for accepted input.
-          throw new Error('unsupported realtime projection operation');
+          break;
+      }
+    }
+
+    if (sourceEvent?.event.case === 'messagePinned') {
+      const pin = sourceEvent.event.value;
+      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, true, sourceEvent.id);
+    } else if (sourceEvent?.event.case === 'messageUnpinned') {
+      const pin = sourceEvent.event.value;
+      this.#roomPins[pin.roomId]?.applyRealtimeChange(pin, false, sourceEvent.id);
+    }
+    if (sourceEvent) {
+      this.#currentEventMinimumCursor = update.cursor ?? undefined;
+      try {
+        this.invalidateRealtimeEvent(sourceEvent);
+      } finally {
+        this.#currentEventMinimumCursor = undefined;
       }
     }
     if (adminRoomLayoutChanged) this.scheduleAdminRoomLayoutRefresh();
+  }
+  private scrubRemovedUser(userId: string): void {
+    scrubRegisteredFollowedThreadUser(this.serverId);
+    scrubRegisteredRoomMemberUser(this.serverId, userId);
+    removeRegisteredAdminUserQueries(this.serverId, userId);
+    this.forEachMessageSearch((store) => store.invalidateAuthor(userId));
+    removeUserSummaryCacheEntry(this.serverId, userId);
+    this.notifications.scrubUser(userId);
+    this.activeCallRooms.scrubUser(userId);
+    for (const store of Object.values(this.#roomMessages)) store.scrubUserReferences(userId);
+    for (const store of Object.values(this.#threadMessages)) store.scrubUserReferences(userId);
+  }
+
+  private scrubRemovedRoom(roomId: string): void {
+    this.roomDirectory.removeMembershipProjection(roomId);
+    this.roomUnread.removeRoomProjection(roomId);
+    this.forRoomMessageSearch(roomId, (store) => store.revokeRoom(roomId));
+    purgeRegisteredRoomMemberQueries(this.serverId, roomId);
+    this.clearRoomAccess(roomId, true);
+  }
+
+  private refreshRealtimeResource(family: RealtimeResourceFamily, minimumCursor?: string): void {
+    minimumCursor ??= this.#currentEventMinimumCursor;
+    const generation = this.#realtimeProjectionGeneration;
+    if (this.#resourceRefreshes.has(family)) {
+      const pending = this.#pendingResourceRefreshes.get(family);
+      this.#pendingResourceRefreshes.set(family, {
+        minimumCursor:
+          minimumCursor ?? (pending?.generation === generation ? pending.minimumCursor : undefined),
+        generation
+      });
+      return;
+    }
+    const refresh = this.#realtimeResources
+      .read(family, minimumCursor)
+      .then(async (resources) => {
+        this.requireCurrentRealtimeProjection(generation);
+        for (const resource of resources) {
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+        }
+        if (family === 'rooms') {
+          await this.hydrateProjectedDMUsers(minimumCursor, generation);
+        }
+        return true;
+      })
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return false;
+        this.#reconciliationError ??= error;
+        console.error(`[server:${this.serverId}] resource refresh failed`, family, error);
+        return false;
+      })
+      .finally(() => {
+        this.#resourceRefreshes.delete(family);
+        const pending = this.#pendingResourceRefreshes.get(family);
+        if (!pending) return;
+        this.#pendingResourceRefreshes.delete(family);
+        if (pending.generation !== this.#realtimeProjectionGeneration) return;
+        this.refreshRealtimeResource(family, pending.minimumCursor);
+      });
+    this.#resourceRefreshes.set(family, refresh);
+  }
+
+  private async hydrateProjectedDMUsers(
+    minimumCursor?: string,
+    generation = this.#realtimeProjectionGeneration
+  ): Promise<void> {
+    this.requireCurrentRealtimeProjection(generation);
+    const userIds = [...this.projection.rooms.values()].flatMap((room) => room.memberUserIds);
+    const missingIds = userIds.filter((userId) => !this.projection.users.has(userId));
+    const resources = await this.#realtimeResources.readUsers(missingIds, minimumCursor);
+    this.requireCurrentRealtimeProjection(generation);
+    for (const resource of resources) {
+      this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+    }
+  }
+
+  private refreshRealtimeUsers(userIds: Iterable<string>, minimumCursor?: string): void {
+    for (const userId of userIds) if (userId) this.#pendingUserRefreshIds.add(userId);
+    if (this.#pendingUserRefreshIds.size === 0) return;
+    const nextCursor = minimumCursor ?? this.#currentEventMinimumCursor;
+    const generation = this.#realtimeProjectionGeneration;
+    if (this.#pendingUserRefreshGeneration !== generation) {
+      this.#pendingUserRefreshCursor = undefined;
+    }
+    this.#pendingUserRefreshGeneration = generation;
+    if (nextCursor || !this.#pendingUserRefreshCursor) {
+      this.#pendingUserRefreshCursor = nextCursor;
+    }
+    if (this.#userRefresh) return;
+    let failedGeneration = generation;
+    this.#userRefresh = (async () => {
+      while (this.#pendingUserRefreshIds.size > 0) {
+        const ids = [...this.#pendingUserRefreshIds];
+        this.#pendingUserRefreshIds.clear();
+        const cursor = this.#pendingUserRefreshCursor;
+        const readGeneration = this.#pendingUserRefreshGeneration;
+        this.#pendingUserRefreshCursor = undefined;
+        failedGeneration = readGeneration;
+        const resources = await this.#realtimeResources.readUsers(ids, cursor);
+        this.requireCurrentRealtimeProjection(readGeneration);
+        for (const resource of resources) {
+          this.publishProjectionUpdate(new RealtimeProjectionUpdate({ resource }));
+        }
+      }
+    })()
+      .catch((error) => {
+        if (failedGeneration !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+        console.error(`[server:${this.serverId}] user resource refresh failed`, error);
+      })
+      .finally(() => {
+        this.#userRefresh = null;
+        if (this.#pendingUserRefreshIds.size > 0) this.refreshRealtimeUsers([]);
+      });
+  }
+
+  /** Apply a refreshed resource and notify every consumer of the server bus. */
+  private publishProjectionUpdate(update: RealtimeProjectionUpdate): void {
+    // Filter before both the local reducer and bus consumers see the response.
+    // This covers profile refreshes, DM hydration, and catch-up user batches.
+    if (update.resource?.case === 'users' && this.#deletedRealtimeUserIds.size > 0) {
+      update = new RealtimeProjectionUpdate({
+        resource: new RealtimeResourceUpdate({
+          resource: {
+            case: 'users',
+            value: {
+              users: update.resource.value.users.filter(
+                (member) => !this.#deletedRealtimeUserIds.has(member.user?.id ?? '')
+              )
+            }
+          },
+          replace: update.replaceResource
+        })
+      });
+    }
+    this.ingestProjectionEvent(update);
+    const bus = eventBusManager.getBus(this.serverId);
+    if (!bus) return;
+    for (const handler of bus.projectionHandlers) {
+      if (handler !== this.realtimeProjectionHandler) handler(update);
+    }
+  }
+
+  private invalidateRealtimeEvent(event: RealtimeEvent): void {
+    const payload = event.event;
+    const rawValue = payload.value as
+      { eventId?: string; messageEventId?: string; roomId?: string; userId?: string } | undefined;
+    const roomId = rawValue?.roomId ?? '';
+
+    switch (payload.case) {
+      case 'userAccountDeleted': {
+        const userId = payload.value.userId;
+        this.#deletedRealtimeUserIds.add(userId);
+        this.#pendingUserRefreshIds.delete(userId);
+        this.projection.removeUser(userId);
+        this.scrubRemovedUser(userId);
+        return;
+      }
+      case 'roomDeleted':
+        this.projection.removeRoom(payload.value.roomId);
+        this.scrubRemovedRoom(payload.value.roomId);
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'userLeftRoom':
+        if (event.actorId === this.currentUser.user?.id) {
+          if (roomId) this.clearRoomAccess(roomId);
+        }
+        if (payload.case === 'userLeftRoom') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'messagePosted':
+      case 'messageEdited':
+      case 'messageRetracted':
+      case 'reactionAdded':
+      case 'reactionRemoved':
+      case 'assetDeleted': {
+        const anchorEventId =
+          rawValue?.messageEventId ?? (payload.case === 'messagePosted' ? event.id : null);
+        const roomAnchorEventId =
+          payload.case === 'messagePosted' && payload.value.threadRootEventId
+            ? payload.value.threadRootEventId
+            : anchorEventId;
+        if (payload.case === 'messagePosted') this.ingestRealtimeMessagePost(event);
+        this.refreshLoadedMessageWindows(
+          roomId,
+          anchorEventId,
+          roomAnchorEventId,
+          payload.case === 'messagePosted' && !payload.value.threadRootEventId,
+          payload.case === 'messagePosted' && !!payload.value.threadRootEventId,
+          payload.case === 'messagePosted'
+        );
+        if (payload.case === 'messageRetracted') {
+          this.applyLoadedMessageRetraction(
+            roomId,
+            payload.value.messageEventId,
+            event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString()
+          );
+        }
+        this.refreshLoadedTimelineResources(roomId, {
+          files: payload.case !== 'reactionAdded' && payload.case !== 'reactionRemoved',
+          pins: payload.case !== 'messagePosted'
+        });
+        if (roomId) this.forRoomMessageSearch(roomId, (store) => store.invalidateRoom(roomId));
+        else this.forEachMessageSearch((store) => store.clearResults());
+        if (payload.case === 'messagePosted') {
+          this.refreshRealtimeResource('rooms');
+          if (payload.value.threadRootEventId)
+            refreshRegisteredFollowedThreadQueries(this.serverId);
+        }
+        if (payload.case === 'messageRetracted') {
+          refreshRegisteredFollowedThreadQueries(this.serverId);
+        }
+        return;
+      }
+      case 'assetProcessingStarted':
+      case 'assetProcessingSucceeded':
+      case 'assetProcessingFailed':
+        this.refreshLoadedMessageWindows(roomId, rawValue?.messageEventId ?? null);
+        this.refreshLoadedTimelineResources(roomId, { files: true, pins: true });
+        return;
+      case 'voiceCallParticipantJoined':
+        this.playCallTransitionSound(
+          event.id,
+          'join',
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallParticipantLeft':
+        this.playCallTransitionSound(
+          event.id,
+          'leave',
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null
+        );
+        this.voiceCall.handleParticipantLeftEvent(
+          payload.value.roomId,
+          payload.value.callId || null,
+          event.actorId || null,
+          this.currentUserId()
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallEnded':
+        this.voiceCall.handleCallEndedEvent(payload.value.roomId, payload.value.callId || null);
+        this.refreshLoadedMessageWindows(
+          payload.value.roomId,
+          event.id || null,
+          event.id || null,
+          true
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'voiceCallStarted':
+        this.refreshLoadedMessageWindows(
+          payload.value.roomId,
+          event.id || null,
+          event.id || null,
+          true
+        );
+        this.refreshRealtimeResource('activeCalls');
+        return;
+      case 'notificationOccurrencesChanged':
+        this.refreshRealtimeResource('notifications');
+        return;
+      case 'notificationUnreadStateChanged':
+        this.refreshRealtimeResource('notifications');
+        this.refreshRealtimeResource('rooms');
+        return;
+      case 'roomCreated':
+      case 'roomUpdated':
+      case 'roomArchived':
+      case 'roomUnarchived':
+      case 'roomUniversalChanged':
+      case 'roomSlowModeChanged':
+      case 'roomThreadingModeChanged':
+      case 'userJoinedRoom':
+        if (payload.case === 'userJoinedRoom') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
+        if (payload.case === 'roomThreadingModeChanged') {
+          this.refreshLoadedMessageWindows(roomId, event.id || null);
+        }
+        this.refreshRealtimeResource('rooms');
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'roomLayoutChanged':
+        this.refreshRealtimeResource('roomGroups');
+        return;
+      case 'serverProfileChanged':
+        this.refreshRealtimeResource('server');
+        return;
+      case 'serverMotdChanged':
+        this.refreshRealtimeResource('serverState');
+        return;
+      case 'userProfileChanged':
+      case 'userAccountCreated':
+        if (rawValue?.userId) this.refreshRealtimeUsers([rawValue.userId]);
+        return;
+      case 'viewerPreferencesChanged':
+        this.refreshRealtimeResource('viewer');
+        this.refreshRealtimeResource('rooms');
+        if (this.currentUser.user?.id) this.refreshRealtimeUsers([this.currentUser.user.id]);
+        return;
+      case 'roomReadStateChanged':
+        this.refreshRealtimeResource('rooms');
+        return;
+      case 'threadViewerStateChanged': {
+        this.applyThreadFollowChange(
+          roomId,
+          payload.value.threadRootEventId,
+          payload.value.isFollowing
+        );
+        refreshRegisteredFollowedThreadQueries(this.serverId);
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
+  /** Render an authorized public post while its resource hydration runs. */
+  private ingestRealtimeMessagePost(event: RealtimeEvent): void {
+    const posted = event.event.case === 'messagePosted' ? event.event.value : null;
+    if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
+    const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;
+    const timelineEvent: TimelineEventView = {
+      id: event.id,
+      createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
+      actorId: event.actorId || null,
+      actor: actorMember ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember)) : null,
+      event: {
+        kind: TimelineEventKind.MessagePosted,
+        roomId: posted.roomId,
+        body: posted.bodyPlaintext,
+        attachments: [],
+        linkPreview: null,
+        reactions: [],
+        updatedAt: null,
+        inReplyTo: posted.inReplyTo || null,
+        threadRootEventId: posted.threadRootEventId || null,
+        echoOfEventId: posted.echoOfEventId || null,
+        echoFromThreadRootEventId: posted.echoFromThreadRootEventId || null,
+        channelEchoEventId: null,
+        deletedAt: null,
+        pinned: false,
+        threadExists: false,
+        replyCount: 0,
+        lastReplyAt: null,
+        threadParticipantCount: 0,
+        threadParticipants: [],
+        viewerIsFollowingThread: null,
+        viewerHasUnreadThread: null
+      }
+    };
+    for (const [roomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId === posted.roomId) store.ingestEvent(timelineEvent);
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (key.startsWith(`${posted.roomId}\u0000`)) store.ingestEvent(timelineEvent);
+    }
+  }
+
+  private refreshLoadedMessageWindows(
+    roomId: string,
+    anchorEventId: string | null,
+    roomAnchorEventId: string | null = anchorEventId,
+    roomForward = false,
+    threadForward = false,
+    hydratePostedMessage = false,
+    minimumCursor = this.#currentEventMinimumCursor
+  ): void {
+    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId && candidateRoomId !== roomId) continue;
+      const visibleAnchor = roomAnchorEventId
+        ? (store.refreshAnchorForMessageMutation(roomAnchorEventId) ?? roomAnchorEventId)
+        : null;
+      if (hydratePostedMessage && roomForward) {
+        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
+      } else {
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, roomForward, minimumCursor);
+      }
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
+      const visibleAnchor = anchorEventId
+        ? (store.refreshAnchorForMessageMutation(anchorEventId) ?? anchorEventId)
+        : null;
+      if (hydratePostedMessage && threadForward) {
+        this.schedulePostedMessageRefresh(store, visibleAnchor, minimumCursor);
+      } else {
+        this.scheduleMessageWindowRefresh(store, visibleAnchor, threadForward, minimumCursor);
+      }
+    }
+  }
+
+  /** Hydrate a new post first, then advance its retained timeline window. */
+  private schedulePostedMessageRefresh(
+    store: MessagesStore,
+    anchorEventId: string | null,
+    minimumCursor?: string
+  ): void {
+    if (!anchorEventId) {
+      this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
+      return;
+    }
+    const generation = this.#realtimeProjectionGeneration;
+    const refresh = store
+      .refreshPostedMessage(
+        anchorEventId,
+        minimumCursor,
+        () => generation === this.#realtimeProjectionGeneration
+      )
+      .then((timelineIsCurrent) => {
+        if (timelineIsCurrent && generation === this.#realtimeProjectionGeneration) {
+          this.scheduleMessageWindowRefresh(store, anchorEventId, true, minimumCursor);
+        }
+      });
+    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
+  }
+
+  private applyLoadedMessageRetraction(
+    roomId: string,
+    messageEventId: string,
+    retractedAt: string
+  ): void {
+    if (!messageEventId) return;
+    for (const [candidateRoomId, store] of Object.entries(this.#roomMessages)) {
+      if (roomId && candidateRoomId !== roomId) continue;
+      store.applyMessageRetraction(messageEventId, retractedAt);
+    }
+    for (const [key, store] of Object.entries(this.#threadMessages)) {
+      if (roomId && !key.startsWith(`${roomId}\u0000`)) continue;
+      store.applyMessageRetraction(messageEventId, retractedAt);
+    }
+  }
+
+  /** Keep every distinct pending read; a bounded page cannot cover other anchors. */
+  private scheduleMessageWindowRefresh(
+    store: MessagesStore,
+    anchorEventId: string | null,
+    forward = false,
+    minimumCursor?: string
+  ): void {
+    const generation = this.#realtimeProjectionGeneration;
+    if (this.#messageWindowRefreshes.has(store)) {
+      const pending = (this.#pendingMessageWindowRefreshes.get(store) ?? []).filter(
+        (request) => request.generation === generation
+      );
+      // Opaque cursors cannot be sorted. Only identical requests can be dropped.
+      if (
+        !pending.some(
+          (request) =>
+            request.anchorEventId === anchorEventId &&
+            request.forward === forward &&
+            request.minimumCursor === minimumCursor
+        )
+      ) {
+        pending.push({ anchorEventId, forward, minimumCursor, generation });
+      }
+      this.#pendingMessageWindowRefreshes.set(store, pending);
+      return;
+    }
+    const refresh = store
+      .refreshCurrentWindow(
+        anchorEventId,
+        forward,
+        minimumCursor,
+        () => generation === this.#realtimeProjectionGeneration
+      )
+      .then(() => undefined)
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+      })
+      .finally(() => {
+        this.#messageWindowRefreshes.delete(store);
+        const queue = this.#pendingMessageWindowRefreshes
+          .get(store)
+          ?.filter((request) => request.generation === this.#realtimeProjectionGeneration);
+        const pending = queue?.shift();
+        if (queue?.length) this.#pendingMessageWindowRefreshes.set(store, queue);
+        else this.#pendingMessageWindowRefreshes.delete(store);
+        if (!pending) return;
+        this.scheduleMessageWindowRefresh(
+          store,
+          pending.anchorEventId,
+          pending.forward,
+          pending.minimumCursor
+        );
+      });
+    this.#messageWindowRefreshes.set(store, refresh);
+    this.trackProjectionReconciliation(refresh, minimumCursor, generation);
+  }
+
+  /** Keep the durable cursor behind every ConnectRPC read caused by its event. */
+  private trackProjectionReconciliation(
+    refresh: Promise<unknown>,
+    minimumCursor: string | undefined,
+    generation: number
+  ): void {
+    if (!minimumCursor) return;
+    const tracked = refresh
+      .then(() => undefined)
+      .catch((error) => {
+        if (generation !== this.#realtimeProjectionGeneration) return;
+        this.#reconciliationError ??= error;
+      })
+      .finally(() => {
+        this.#projectionReconciliations.delete(tracked);
+      });
+    this.#projectionReconciliations.add(tracked);
+  }
+
+  /** Apply user-scoped follow state without restarting an active thread read. */
+  private applyThreadFollowChange(
+    roomId: string,
+    threadRootEventId: string,
+    isFollowing: boolean
+  ): void {
+    if (!roomId || !threadRootEventId) return;
+    const roomStore = this.#roomMessages[roomId];
+    roomStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
+    if (roomStore) this.scheduleMessageWindowRefresh(roomStore, threadRootEventId);
+
+    const threadStore = this.#threadMessages[`${roomId}\u0000${threadRootEventId}`];
+    threadStore?.setThreadRootFollowState(threadRootEventId, isFollowing);
+  }
+
+  private refreshLoadedTimelineResources(
+    roomId: string,
+    resources: { files: boolean; pins: boolean }
+  ): void {
+    if (resources.files) {
+      for (const [candidateRoomId, store] of Object.entries(this.#roomFiles)) {
+        if (roomId && candidateRoomId !== roomId) continue;
+        store.refreshRetained();
+      }
+    }
+    if (resources.pins) {
+      for (const [candidateRoomId, store] of Object.entries(this.#roomPins)) {
+        if (roomId && candidateRoomId !== roomId) continue;
+        store.retry();
+      }
+    }
   }
 
   get #adminRoomLayoutActive(): boolean {
@@ -814,8 +1304,7 @@ export class ServerStateStore {
 
   /** Whether membership references are authoritative for this projected room. */
   hasCompleteProjectedRoomMembership(roomId: string): boolean {
-    if (this.projection.timelines.has(roomId)) return true;
-    const room = this.projection.rooms.get(roomId)?.room;
+    const room = this.projection.rooms.get(roomId);
     return room ? mapDirectoryRoom(room)?.kind === RoomKind.DM : false;
   }
 
@@ -914,56 +1403,6 @@ export class ServerStateStore {
     void playCallSound(kind);
   }
 
-  private reconcileActiveCallTransition(
-    event: RealtimeProjectionEvent,
-    calls: readonly ActiveCall[]
-  ): void {
-    const actorId = event.actorId;
-    const previousActorCall = actorId ? this.activeCallRooms.findParticipantCall(actorId) : null;
-    const nextActorCall = actorId ? projectedParticipantCall(calls, actorId) : null;
-
-    if (!previousActorCall && nextActorCall) {
-      this.playCallTransitionSound(
-        event.id,
-        'join',
-        nextActorCall.roomId,
-        nextActorCall.callId,
-        actorId ?? null
-      );
-    } else if (
-      previousActorCall &&
-      !nextActorCall &&
-      calls.some(
-        (call) =>
-          call.room?.id === previousActorCall.roomId &&
-          (call.callId || null) === previousActorCall.callId
-      )
-    ) {
-      this.playCallTransitionSound(
-        event.id,
-        'leave',
-        previousActorCall.roomId,
-        previousActorCall.callId,
-        actorId ?? null
-      );
-      this.voiceCall.handleParticipantLeftEvent(
-        previousActorCall.roomId,
-        previousActorCall.callId,
-        actorId ?? null,
-        this.currentUserId()
-      );
-    }
-
-    const connectedRoomId = this.voiceCall.roomId;
-    if (!connectedRoomId) return;
-    const previousCallId = this.activeCallRooms.getCallId(connectedRoomId);
-    if (!previousCallId) return;
-    const nextCallId = calls.find((call) => call.room?.id === connectedRoomId)?.callId ?? null;
-    if (nextCallId !== previousCallId) {
-      this.voiceCall.handleCallEndedEvent(connectedRoomId, previousCallId);
-    }
-  }
-
   private rememberPlayedCallSoundEvent(eventId: string): void {
     this.#playedCallSoundEventIds.push(eventId);
     if (this.#playedCallSoundEventIds.length > 500) {
@@ -1005,18 +1444,4 @@ export class ServerStateStore {
     this.activeCallRooms.clear();
     this.messageSearch.reset();
   }
-}
-
-function projectedParticipantCall(
-  calls: readonly ActiveCall[],
-  userId: string
-): { roomId: string; callId: string | null } | null {
-  for (const call of calls) {
-    const roomId = call.room?.id;
-    if (!roomId) continue;
-    if (call.participants.some((participant) => participant.user?.id === userId)) {
-      return { roomId, callId: call.callId || null };
-    }
-  }
-  return null;
 }

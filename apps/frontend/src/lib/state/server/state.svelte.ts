@@ -4,7 +4,7 @@
 
 import { getPublicServerInfo, type PublicServerInfo } from '$lib/api-client/server';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
-import type { RealtimeProjectionServerState } from '@chatto/api-types/realtime/v1/realtime_pb';
+import type { ProjectedServerState } from './projection.svelte';
 import {
   evaluateServerCompatibility,
   supportsServerFeature,
@@ -135,7 +135,7 @@ export class ServerInfoState {
   }
 
   /** Apply authenticated runtime state carried by the realtime projection. */
-  applyProjectionState(state: RealtimeProjectionServerState): void {
+  applyProjectionState(state: ProjectedServerState): void {
     this.motd = state.motd ?? null;
     const runtime = state.runtime;
     if (!runtime) return;

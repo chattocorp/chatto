@@ -67,6 +67,7 @@
     onCancelReply,
     onEscape,
     showAlsoSendToChannel = false,
+    echoToConversation = false,
     showCreateThread = false,
     createThreadRequired = false,
     createThreadDefault = false,
@@ -222,11 +223,11 @@
     />
   {/if}
 
-	<div
-		data-testid="composer-input-surface"
-		class="composer-surface @container relative flex min-h-12 min-w-0 items-end gap-1 px-2.5 py-1.5"
-		class:opacity-50={composer.inputDisabled}
-	>
+  <div
+    data-testid="composer-input-surface"
+    class="@container relative flex min-h-12 min-w-0 items-end gap-1 composer-surface px-2.5 py-1.5"
+    class:opacity-50={composer.inputDisabled}
+  >
     {#if composer.autocomplete.emoji}
       <EmojiAutocomplete
         bind:this={composer.autocomplete.emojiRef}
@@ -268,10 +269,7 @@
       <span aria-hidden="true">Aa</span>
     </button>
 
-    <div
-      class="min-h-9 min-w-0 flex-1 px-0.5 py-0.5"
-      data-testid="composer-editor-row"
-    >
+    <div class="min-h-9 min-w-0 flex-1 px-0.5 py-0.5" data-testid="composer-editor-row">
       {#await editorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
       {:then { default: Editor }}
@@ -305,6 +303,7 @@
       onToggleCreateThread={() => (composer.createThread = !composer.createThread)}
       showAlsoSendToChannel={(showAlsoSendToChannel && !composer.isEditing) ||
         composer.showEditEchoToggle}
+      {echoToConversation}
       alsoSendToChannel={composer.alsoSendToChannel}
       onToggleAlsoSendToChannel={() => (composer.alsoSendToChannel = !composer.alsoSendToChannel)}
       onsubmit={() => composer.submit()}

@@ -4,6 +4,10 @@
 
 **Status:** Partially superseded
 
+**DM amendment:** ADR-095 replaces the membership-only DM read rule and the
+static DM permission deny list with the global Direct messages scope. DMs
+remain outside room groups.
+
 **Storage evolution:** ADR-033, ADR-034, and ADR-035 replaced the original KV
 and `RoomLayout` storage model with event-sourced group and layout aggregates.
 The room-group permission-container decision remains current.

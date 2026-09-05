@@ -11,8 +11,7 @@ independent of presence and hides itself after its expiry timestamp.
 <script lang="ts">
   import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
   import { formatCustomStatusText } from '$lib/customStatusTemplates';
-
-  const MAX_TIMEOUT_DELAY_MS = 2_147_483_647;
+  import Deadline from '$lib/lifecycle/Deadline.svelte';
 
   let {
     status,
@@ -36,31 +35,12 @@ independent of presence and hides itself after its expiry timestamp.
   const title = $derived(
     activeStatus ? `${activeStatus.emoji}${displayText ? ` ${displayText}` : ''}` : undefined
   );
-
-  $effect(() => {
-    const expiresAt = status?.expiresAt;
-    if (!expiresAt) return;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-
-    const schedule = () => {
-      const expiresAtMs = new Date(expiresAt).getTime();
-      if (Number.isNaN(expiresAtMs)) return;
-      const delay = expiresAtMs - Date.now();
-      if (delay <= 0) {
-        expiryTick += 1;
-        return;
-      }
-      timeout = setTimeout(schedule, Math.min(delay, MAX_TIMEOUT_DELAY_MS));
-    };
-
-    schedule();
-    return () => {
-      if (timeout) clearTimeout(timeout);
-    };
-  });
 </script>
 
 {#if activeStatus}
+  {#if activeStatus.expiresAt}
+    <Deadline at={activeStatus.expiresAt} onreached={() => (expiryTick += 1)} />
+  {/if}
   <span
     class={[
       'inline-flex min-w-0 shrink-0 items-center align-middle leading-none',
@@ -68,6 +48,7 @@ independent of presence and hides itself after its expiry timestamp.
       className
     ]}
     {title}
+    role="img"
     aria-label={title}
   >
     <span aria-hidden="true">{activeStatus.emoji}</span>

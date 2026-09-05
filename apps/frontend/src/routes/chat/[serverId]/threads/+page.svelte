@@ -14,7 +14,6 @@
   import { queryClient } from '$lib/query/client';
   import {
     flattenFollowedThreads,
-    reconcileFollowedThreadViewerStates,
     threadQueryKeys,
     updateFollowedThreadSummary,
     type FollowedThreadsData
@@ -37,6 +36,7 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
+  import { buildDirectMessagePresentation } from '$lib/render/users';
   import { NotificationAttentionLevel } from '$lib/api-client/notifications';
   import { notificationAttentionForThread } from '$lib/state/server/notifications.svelte';
 
@@ -47,8 +47,6 @@
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 
-  let reconciledQueryScope: string | null = null;
-  let reconciledMountedSnapshot = false;
   let actionThreadId = $state<string | null>(null);
 
   const threadsQuery = createInfiniteQuery(
@@ -66,7 +64,7 @@
             nextOffset: pageParam + result.threads.length
           };
           if (!serverScope.isCurrent() || connection !== serverScope.connection) return pageData;
-          return reconcilePageWithCurrentProjection(pageData, pageParam);
+          return pageData;
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
@@ -111,76 +109,6 @@
       activeLocale
     )
   );
-
-  function reconcilePageWithCurrentProjection(
-    pageData: FollowedThreadsData['pages'][number],
-    pageParam: number
-  ): FollowedThreadsData['pages'][number] {
-    if (!serverStore.realtimeSync.hasUsableProjection) return pageData;
-    let data: FollowedThreadsData | undefined = { pages: [pageData], pageParams: [pageParam] };
-    data = reconcileFollowedThreadViewerStates(
-      data,
-      serverStore.projection.threadViewerStates
-    ).data;
-    for (const thread of data?.pages[0]?.threads ?? []) {
-      data = applyProjectedTimelineSummary(data, thread);
-    }
-    return data?.pages[0] ?? pageData;
-  }
-
-  function applyProjectedTimelineSummary(
-    data: FollowedThreadsData | undefined,
-    thread: FollowedThread
-  ): FollowedThreadsData | undefined {
-    const event = serverStore.projection.timelines
-      .get(thread.roomId)
-      ?.events.find((candidate) => candidate.id === thread.threadRootEventId);
-    const message = event?.event.case === 'messagePosted' ? event.event.value.message : null;
-    const summary = message?.thread;
-    if (!summary) return data;
-    return updateFollowedThreadSummary(data, {
-      roomId: thread.roomId,
-      threadRootEventId: thread.threadRootEventId,
-      replyCount: summary.replyCount,
-      lastReplyAt: summary.lastReplyAt?.toDate().toISOString() ?? null,
-      hasUnreadReplies: summary.viewerState?.hasUnreadReplies
-    });
-  }
-
-  function reconcileCachedProjection(
-    states: ReadonlyMap<string, { hasUnreadReplies?: boolean }>,
-    refetchUnknown: boolean
-  ) {
-    const queryKey = threadQueryKeys.followed(serverScope.serverId, serverScope.connection);
-    const current = queryClient.getQueryData<FollowedThreadsData>(queryKey);
-    if (!current) return;
-
-    const reconciled = reconcileFollowedThreadViewerStates(current, states);
-    let next = reconciled.data;
-    for (const thread of flattenFollowedThreads(next)) {
-      next = applyProjectedTimelineSummary(next, thread);
-    }
-    if (next !== current) queryClient.setQueryData(queryKey, next);
-    if (refetchUnknown && reconciled.hasUnknownThreads) {
-      void queryClient.invalidateQueries({ queryKey, exact: true });
-    }
-  }
-
-  // Reconcile after every query commit so an append cannot restore an older
-  // page snapshot over a projection update that arrived while it was in flight.
-  $effect(() => {
-    const queryScope = serverScope.connection.queryScope;
-    const queryData = threadsQuery.data;
-    if (reconciledQueryScope !== queryScope) {
-      reconciledQueryScope = queryScope;
-      reconciledMountedSnapshot = false;
-    }
-
-    if (!serverStore.realtimeSync.hasUsableProjection || !queryData) return;
-    const refetchUnknown = !reconciledMountedSnapshot;
-    reconciledMountedSnapshot = true;
-    reconcileCachedProjection(serverStore.projection.threadViewerStates, refetchUnknown);
-  });
 
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;
@@ -276,10 +204,28 @@
   }
 
   function rowActors(thread: FollowedThread): FollowedThread['participants'] {
+    if (thread.isDirectMessage) {
+      return buildDirectMessagePresentation(
+        thread.directMessageParticipants,
+        serverStore.currentUser.user?.id,
+        m('common.you'),
+        getLiveDisplayName
+      ).visibleParticipants;
+    }
     const participants = thread.participants.slice(0, 2);
     if (participants.length > 0) return participants;
     const actor = thread.latestReply?.actor ?? thread.rootMessage?.actor;
     return actor ? [actor] : [];
+  }
+
+  function roomLabel(thread: FollowedThread): string {
+    if (!thread.isDirectMessage) return `#${thread.roomName}`;
+    return buildDirectMessagePresentation(
+      thread.directMessageParticipants,
+      serverStore.currentUser.user?.id,
+      m('common.you'),
+      getLiveDisplayName
+    ).label;
   }
 
   function primaryEvent(thread: FollowedThread): FollowedThread['rootMessage'] {
@@ -414,7 +360,7 @@
                   <span class="flex min-w-0 items-baseline gap-2 text-sm text-muted">
                     <bdi class="min-w-0 flex-1 truncate" dir="auto">
                       <span class="font-medium"
-                        >#{thread.roomName}
+                        >{roomLabel(thread)}
                         {#if thread.latestReply}<span class="font-normal"
                             >· {actorName(thread.rootMessage)}: {messageExcerpt(
                               thread.rootMessage

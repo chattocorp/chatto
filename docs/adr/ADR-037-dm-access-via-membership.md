@@ -2,6 +2,10 @@
 
 **Date:** 2026-05-31
 
+> **Partially superseded 2026-09-04:** ADR-095 keeps DM membership as the
+> participant privacy boundary. It replaces the membership-only message-read
+> rule, the DM thread prohibition, and the static message-permission deny list.
+
 ## Context
 
 Direct messages used to carry two server-scope permissions:

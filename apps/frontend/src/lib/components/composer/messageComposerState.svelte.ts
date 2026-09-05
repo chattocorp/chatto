@@ -72,15 +72,14 @@ export type MessageComposerProps = {
   onCancelReply?: () => void;
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
+  /** Use direct-message copy for the room-timeline echo control. */
+  echoToConversation?: boolean;
   showCreateThread?: boolean;
   createThreadRequired?: boolean;
   createThreadDefault?: boolean;
   threadsEncouraged?: boolean;
   getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
-  onThreadMessageSent?: (
-    threadRootEventId: string,
-    event: TimelineEventView | null
-  ) => void;
+  onThreadMessageSent?: (threadRootEventId: string, event: TimelineEventView | null) => void;
 };
 
 type MessageComposerDependencies = {

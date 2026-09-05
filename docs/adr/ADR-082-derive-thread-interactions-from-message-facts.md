@@ -6,6 +6,9 @@
 > values and defines inclusion in the permission catalog. The explicit
 > relationship between `message.read` and `message.read-interactions` remains.
 
+> **Amended 2026-09-04:** ADR-091 extends message-fact-derived interaction
+> relationships and the two read permissions to DMs.
+
 ## Context
 
 ADR-080 adds broad channel-room access through `message.read`. Chatto also

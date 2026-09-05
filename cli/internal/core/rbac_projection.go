@@ -357,13 +357,15 @@ func permissionScopeFromProto(scope *evtv1.RbacPermissionScope) (PermissionScope
 		return ScopeGroup, scope.GetId() != ""
 	case evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_ROOM:
 		return ScopeRoom, scope.GetId() != ""
+	case evtv1.RbacPermissionScopeKind_RBAC_PERMISSION_SCOPE_KIND_DM:
+		return ScopeDM, scope.GetId() == ""
 	default:
 		return "", false
 	}
 }
 
 func rbacDecisionKeyFor(scope PermissionScope, scopeID, subject string, perm Permission) rbacDecisionKey {
-	if scope == ScopeServer {
+	if scope == ScopeServer || scope == ScopeDM {
 		scopeID = ""
 	}
 	return rbacDecisionKey{

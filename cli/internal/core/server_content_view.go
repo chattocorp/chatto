@@ -5,6 +5,7 @@
 package core
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -13,6 +14,13 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
+
+type serverContentViewReadContextKey struct{}
+
+type serverContentViewReadContext struct {
+	view     *ServerContentView
+	sequence uint64
+}
 
 const serverContentViewSnapshotSemantics = "v1"
 
@@ -142,6 +150,30 @@ func (v *ServerContentView) Read(read func(sequence uint64) error) error {
 		return fmt.Errorf("ServerContentView projector is not bound")
 	}
 	return v.projector.WithReadBarrier(read)
+}
+
+// ReadServerContentView runs one bounded in-memory operation against an exact
+// ServerContentView generation. Calls to other content-view-backed core reads
+// from the callback reuse the same barrier instead of trying to acquire a
+// nested barrier. The callback must not perform network, storage, or other
+// unbounded work.
+func (c *ChattoCore) ReadServerContentView(
+	ctx context.Context,
+	read func(context.Context, uint64) error,
+) error {
+	if c.contentView == nil {
+		return read(ctx, 0)
+	}
+	if active, ok := ctx.Value(serverContentViewReadContextKey{}).(serverContentViewReadContext); ok && active.view == c.contentView {
+		return read(ctx, active.sequence)
+	}
+	return c.contentView.Read(func(sequence uint64) error {
+		readCtx := context.WithValue(ctx, serverContentViewReadContextKey{}, serverContentViewReadContext{
+			view:     c.contentView,
+			sequence: sequence,
+		})
+		return read(readCtx, sequence)
+	})
 }
 
 func (v *ServerContentView) adminProjectionEstimate(components ...events.SnapshotComponentModel) (int64, int64, []ProjectionAdminMetric) {

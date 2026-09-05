@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
@@ -57,8 +58,7 @@
   let refreshPromise: Promise<Map<string, RefreshedAttachmentUrls>> | null = null;
   const failedAssetRefreshKeys = new SvelteSet<string>();
   const retainAssetUrl = createAssetUrlRetainer();
-  let galleryScrolledFromLeft = $state(false);
-  let galleryScrolledFromRight = $state(false);
+  let galleryEdges = $state<ScrollEdges>({ start: false, end: false });
 
   function normalizeAssetUrl(value: ExpiringAssetUrl | null | undefined): ExpiringAssetUrl | null {
     if (!value) return null;
@@ -234,43 +234,9 @@
     return attachment.thumbnailUrl ?? attachment.url;
   }
 
-  function updateGalleryScrollEdges(el: HTMLElement) {
-    const maxScrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
-    const scrollLeft = Math.min(Math.max(el.scrollLeft, 0), maxScrollLeft);
-    const canScroll = maxScrollLeft > 1;
-
-    galleryScrolledFromLeft = canScroll && scrollLeft > 1;
-    galleryScrolledFromRight = canScroll && maxScrollLeft - scrollLeft > 1;
-  }
-
-  function trackGalleryScrollEdges(el: HTMLElement) {
-    const update = () => updateGalleryScrollEdges(el);
-
-    update();
-    el.addEventListener('scroll', update, { passive: true });
-
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    for (const child of el.children) {
-      if (child instanceof HTMLElement) ro.observe(child);
-    }
-
-    const mo = new MutationObserver(() => {
-      ro.disconnect();
-      ro.observe(el);
-      for (const child of el.children) {
-        if (child instanceof HTMLElement) ro.observe(child);
-      }
-      update();
-    });
-    mo.observe(el, { childList: true });
-
-    return () => {
-      el.removeEventListener('scroll', update);
-      mo.disconnect();
-      ro.disconnect();
-    };
-  }
+  const trackGalleryScrollEdges = trackScrollEdges('x', (edges) => {
+    galleryEdges = edges;
+  });
 
   const imageAttachments = $derived(attachments.filter(isGalleryImageAttachment));
   const hasImageGallery = $derived(imageAttachments.length > 1);
@@ -643,20 +609,21 @@
     <div class="mt-2 flex min-w-0 flex-col gap-2 first:mt-0">
       <div class="relative w-full max-w-full min-w-0">
         <div
-          {@attach trackGalleryScrollEdges}
-          class="flex w-full gap-3 overflow-x-auto overscroll-x-contain p-1"
+          class="w-full overflow-x-auto overscroll-x-contain"
           data-testid="message-image-gallery"
         >
-          {#each imageAttachments as attachment (attachment.id)}
-            {@render imageAttachmentButton(attachment, 'gallery')}
-          {/each}
+          <div class="flex w-max min-w-full gap-3 p-1" {@attach trackGalleryScrollEdges}>
+            {#each imageAttachments as attachment (attachment.id)}
+              {@render imageAttachmentButton(attachment, 'gallery')}
+            {/each}
+          </div>
         </div>
         <div
           aria-hidden="true"
           data-testid="message-image-gallery-left-fade"
           class={[
             'pointer-events-none absolute inset-y-0 left-0 z-10 w-8 bg-gradient-to-r from-background to-transparent transition-opacity',
-            !galleryScrolledFromLeft && 'opacity-0'
+            !galleryEdges.start && 'opacity-0'
           ]}
         ></div>
         <div
@@ -664,7 +631,7 @@
           data-testid="message-image-gallery-right-fade"
           class={[
             'pointer-events-none absolute inset-y-0 right-0 z-10 w-8 bg-gradient-to-l from-background to-transparent transition-opacity',
-            !galleryScrolledFromRight && 'opacity-0'
+            !galleryEdges.end && 'opacity-0'
           ]}
         ></div>
       </div>

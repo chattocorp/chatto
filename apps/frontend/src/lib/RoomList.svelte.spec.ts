@@ -716,7 +716,7 @@ describe('RoomList', () => {
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
-    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).toBeNull();
     expect(dmRow!.querySelector('[data-testid="room-call-participants"]')?.nextElementSibling).toBe(
       icon
     );

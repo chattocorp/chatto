@@ -4,8 +4,8 @@ Read this file first. It contains rules for the complete repository.
 
 ## Product Boundaries And Instruction Routing
 
-This repository has two independent products and an incubating shared-framework
-boundary:
+This repository contains two independent products and shared framework modules
+under development:
 
 - **Chatto** is the chat server, bundled client, CLI, and existing public
   protocols. Unless a path is explicitly Authling-owned or shared, existing
@@ -38,7 +38,10 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 
 - Chatto is public, self-hosted, pre-1.0 software with real user data and mixed versions in use.
 - Follow ADR-045 and `proto/AGENTS.md` for public and persisted protocol compatibility.
-- We are working on version 0.5 of Chatto. 0.5's API already contains many breaking changes from previous versions, so keeping API and frontend compatibility is no longer a priority; but you must make sure that pre-0.5 Chatto servers can be upgraded cleanly, so all protocol buffers involved in persistence need to be backwards compatible where feasible.
+- Chatto 0.5 includes breaking public API changes. Public API and frontend
+  compatibility with earlier versions is not a priority for this release.
+  Preserve upgrades from pre-0.5 servers. Keep persisted protobufs backward
+  compatible where feasible.
 
 ## Additional Agent Rules & Context
 
@@ -58,16 +61,10 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - [cli/AGENTS.md](cli/AGENTS.md) — Go backend, ConnectRPC, NATS/JetStream, authz, live events, backup/restore, and backend tests.
 - [apps/frontend/AGENTS.md](apps/frontend/AGENTS.md) — SvelteKit frontend, Tailwind, i18n, browser verification, frontend tests, e2e, and Storybook.
 - [proto/AGENTS.md](proto/AGENTS.md) — protobuf and generated public API reference guidance.
-- [proto/chatto/api/v1/AGENTS.md](proto/chatto/api/v1/AGENTS.md) — public ConnectRPC API consistency rules for `chatto.api.v1`.
-- [proto/chatto/admin/v1/AGENTS.md](proto/chatto/admin/v1/AGENTS.md) — administrative ConnectRPC API consistency rules for `chatto.admin.v1`.
-- [proto/chatto/auth/v1/AGENTS.md](proto/chatto/auth/v1/AGENTS.md) — public authentication and capability-token API consistency rules.
-- [proto/chatto/discovery/v1/AGENTS.md](proto/chatto/discovery/v1/AGENTS.md) — unauthenticated discovery and bootstrap API consistency rules.
-- [proto/chatto/realtime/v1/AGENTS.md](proto/chatto/realtime/v1/AGENTS.md) — realtime WebSocket protobuf protocol rules for `chatto.realtime.v1`.
 - [apps/desktop/AGENTS.md](apps/desktop/AGENTS.md) — desktop integration and native-helper testing guidance.
 - [apps/docs-website/AGENTS.md](apps/docs-website/AGENTS.md) — public docs website guidance.
-- `.agents/skills/**` — discoverable workflow skills. Skills prefixed
-  `authling-` are Authling-specific; existing generic and `chatto-` skills are
-  Chatto-specific unless their text explicitly says otherwise.
+- `.agents/skills/**` — workflow skills. The `chatto/` group and skills with
+  the `chatto-` prefix apply to Chatto. Other skills state their scope.
 - `docs/fdr/INDEX.md` — Chatto feature behavior and rationale.
 - `docs/adr/INDEX.md` — Chatto and explicitly repository-wide architecture
   decisions.
@@ -83,22 +80,6 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 Use Chrome DevTools MCP only to inspect and verify Chatto or Authling browser
 behavior. Do not use it for general web research or public documentation
 research. Use the available web or document research tools for those tasks.
-
-```sh
-mise test
-mise test-cli
-mise test-events
-mise test-natsruntime
-mise test-datacrypto
-mise test-appconfig
-mise test-frontend
-mise test-e2e
-mise codegen
-mise codegen-proto
-(cd authling && mise test)
-(cd authling && mise test-e2e)
-(cd authling && mise build)
-```
 
 Run Authling's unprefixed tasks from `authling/`; its nested `mise.toml` owns
 the Authling toolchain and workflow.
@@ -153,3 +134,11 @@ Never leave a dev stack running in a detached or yielded terminal session.
 - Always create pull requests as full, ready-for-review PRs. Create a draft PR only when the user explicitly asks for a draft.
 - PR bodies should use clean Markup and summarize changes and link relevant FDRs, ADRs, glossary terms, and issues.
 - If a PR closes an issue, include a GitHub closing keyword such as `Closes #123.` in the body.
+
+## Human-owned agent instructions
+
+- Humans maintain all AGENTS.md, CLAUDE.md, and agent skill files, including skill references, metadata, and command prompts.
+- Do not create, edit, delete, rename, or regenerate these files.
+- Do not change them through symlinks, scripts, tools, or other agents.
+- A coding task, review, cleanup, or retrospective does not authorize changes to these files.
+- Report a needed correction briefly in your response. Leave the files unchanged and continue work that does not depend on it.

@@ -18,6 +18,13 @@ func applyBootstrapEnv(cfg *ChattoConfig) error {
 	if usersSet {
 		cfg.Bootstrap.Users = users
 	}
+	bots, botsSet, err := bootstrapBotsFromEnv()
+	if err != nil {
+		return err
+	}
+	if botsSet {
+		cfg.Bootstrap.Bots = bots
+	}
 
 	name, nameSet := os.LookupEnv("CHATTO_BOOTSTRAP_SERVER_NAME")
 	rooms, roomsSet := os.LookupEnv("CHATTO_BOOTSTRAP_SERVER_ROOMS")
@@ -28,6 +35,69 @@ func applyBootstrapEnv(cfg *ChattoConfig) error {
 		}
 	}
 	return nil
+}
+
+func bootstrapBotsFromEnv() ([]BootstrapBot, bool, error) {
+	const prefix = "CHATTO_BOOTSTRAP_BOTS_"
+	botsByIndex := make(map[int]*BootstrapBot)
+
+	for _, entry := range os.Environ() {
+		name, value, ok := strings.Cut(entry, "=")
+		if !ok || !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		rest := strings.TrimPrefix(name, prefix)
+		indexPart, field, ok := strings.Cut(rest, "_")
+		if !ok {
+			return nil, false, fmt.Errorf("%s must use CHATTO_BOOTSTRAP_BOTS_<index>_<field>", name)
+		}
+		index, err := strconv.Atoi(indexPart)
+		if err != nil || index < 0 {
+			return nil, false, fmt.Errorf("%s uses invalid bootstrap bot index %q", name, indexPart)
+		}
+
+		bot := botsByIndex[index]
+		if bot == nil {
+			bot = &BootstrapBot{}
+			botsByIndex[index] = bot
+		}
+		switch field {
+		case "LOGIN":
+			bot.Login = value
+		case "DISPLAY_NAME":
+			bot.DisplayName = value
+		case "OWNER_LOGIN":
+			bot.OwnerLogin = value
+		case "API_KEY_NAME":
+			bot.APIKeyName = value
+		case "CREDENTIAL_FILE":
+			bot.CredentialFile = value
+		case "PERMISSIONS":
+			bot.Permissions = splitCommaSeparatedEnv(value)
+		case "ROOMS":
+			bot.Rooms = splitCommaSeparatedEnv(value)
+		default:
+			return nil, false, fmt.Errorf("%s uses unknown bootstrap bot field %q", name, field)
+		}
+	}
+
+	if len(botsByIndex) == 0 {
+		return nil, false, nil
+	}
+	indices := make([]int, 0, len(botsByIndex))
+	for index := range botsByIndex {
+		indices = append(indices, index)
+	}
+	sort.Ints(indices)
+	bots := make([]BootstrapBot, 0, len(indices))
+	for expected, index := range indices {
+		if index != expected {
+			return nil, false, fmt.Errorf("CHATTO_BOOTSTRAP_BOTS_* indexes must be contiguous starting at 0; missing index %d", expected)
+		}
+		bots = append(bots, *botsByIndex[index])
+	}
+	return bots, true, nil
 }
 
 func bootstrapUsersFromEnv() ([]BootstrapUser, bool, error) {

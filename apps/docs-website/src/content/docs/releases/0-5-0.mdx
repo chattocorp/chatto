@@ -21,54 +21,62 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     best-ranked matches from all your registered servers into one quick result list.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Rooms are easier to discover and manage" size="large">
-    Preview joinable rooms before entering, use natural room names with spaces,
-    punctuation, emoji, and any writing system, and manage explicit channel members from
-    room settings. Context menus put join, leave, read, and management actions directly
-    beside rooms, groups, and servers.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard
+  title="Rooms are easier to discover and manage"
+  size="large"
+>
+  Preview joinable rooms before entering, use natural room names with spaces,
+  punctuation, emoji, and any writing system, and manage explicit channel
+  members from room settings. Context menus put join, leave, read, and
+  management actions directly beside rooms, groups, and servers.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Native social post previews">
-    Bluesky and Mastodon links render as native cards with quoted posts, attached media,
-    link cards, and concealed content warnings instead of relying on third-party embeds.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Native social post previews">
+  Bluesky and Mastodon links render as native cards with quoted posts, attached
+  media, link cards, and concealed content warnings instead of relying on
+  third-party embeds.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="More expressive messages">
-    Insert localized timestamps, render GFM tables, and copy message text from its action
-    menu. Attachment sends now show per-file progress and preserve failed uploads for retry.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="More expressive messages">
+  Insert localized timestamps, render GFM tables, and copy message text from its
+  action menu. Attachment sends now show per-file progress and preserve failed
+  uploads for retry.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="More useful user profiles">
-    Open a user's profile from their user card, add a Markdown bio to your own profile, and see
-    the local time that a user chooses to share. Stored time zones are private by default. You
-    can use your time zone for date formatting without publishing it on your profile. Bios can
-    contain up to 1,000 characters. Local times use your preferred 12-hour or 24-hour format.
-    Bots use the same self-profile API when authenticated with their API key. Bot owners and
-    authorized account or bot managers can also upload or remove a bot avatar.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="More useful user profiles">
+  Open a user's profile from their user card, add a Markdown bio to your own
+  profile, and see the local time that a user chooses to share. Stored time
+  zones are private by default. You can use your time zone for date formatting
+  without publishing it on your profile. Bios can contain up to 1,000
+  characters. Local times use your preferred 12-hour or 24-hour format. Bots use
+  the same self-profile API when authenticated with their API key. Bot owners
+  and authorized account or bot managers can also upload or remove a bot avatar.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Notifications that stay useful after you read them">
-    Notifications now stay in one chronological list after you read them. Delete an item whenever
-    you no longer want to retain it; per-signal-class controls distinguish mentions,
-    replies, followed conversations, direct messages, and reactions.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Notifications that stay useful after you read them">
+  Notifications now stay in one chronological list after you read them. Delete
+  an item whenever you no longer want to retain it; per-signal-class controls
+  distinguish mentions, replies, followed conversations, direct messages, and
+  reactions.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="My Threads becomes a conversation inbox">
-    Scan the root and latest reply together, see participants and recent activity, and act
-    without opening the thread. The Unread filter uses the existing thread read cursor. Unread
-    conversations can be marked read, and any conversation can be unfollowed.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="My Threads becomes a conversation inbox">
+  Scan the root and latest reply together, see participants and recent activity,
+  and act without opening the thread. The Unread filter uses the existing thread
+  read cursor. Unread conversations can be marked read, and any conversation can
+  be unfollowed.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Pinned messages">
-    Room managers can pin useful channel messages in a shared sidebar. A subtle dot shows
-    when a newer pin has not been viewed.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Pinned messages">
+  Room managers can pin useful channel messages in a shared sidebar. A subtle
+  dot shows when a newer pin has not been viewed.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="More languages and regional choices">
-    Choose from complete regional catalogues for English, German, Dutch, Swedish, French,
-    Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese, Esperanto, Simplified
-    Chinese, and Traditional Chinese.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="More languages and regional choices">
+  Choose from complete regional catalogues for English, German, Dutch, Swedish,
+  French, Spanish, Portuguese, Norwegian, Polish, Ukrainian, Japanese,
+  Esperanto, Simplified Chinese, and Traditional Chinese.
+</ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Remote sign-in stays in context" size="small">
     Authentication for another server opens in a focused popup, keeping your main client
@@ -85,59 +93,69 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     role assignment is bounded by the manager's own authority.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Delete accounts from member administration" size="small">
-    Admins with `user.delete-any` can permanently delete another human member from the
-    member detail page. They confirm the exact login before deletion; this action does not
-    request the admin's password.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard
+  title="Delete accounts from member administration"
+  size="small"
+>
+  Admins with `user.delete-any` can permanently delete another human member from
+  the member detail page. They confirm the exact login before deletion; this
+  action does not request the admin's password.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Version-aware compatibility">
-    Public server discovery reports the running server version. The multi-server client owns
-    its minimum expected server release and uses explicit release boundaries to show useful
-    upgrade guidance. If a discovered server is incompatible or does not report a valid version,
-    the Server Directory opens that server's own client instead of adding it to the current app.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Version-aware compatibility">
+  Public server discovery reports the running server version. The multi-server
+  client owns its minimum expected server release and uses explicit release
+  boundaries to show useful upgrade guidance. If a discovered server is
+  incompatible or does not report a valid version, the Server Directory opens
+  that server's own client instead of adding it to the current app.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Advertise friendly Chatto servers">
-    Server administrators can maintain a public Neighbor directory. The Server
-    Directory shows direct recommendations from a user's registered servers. It
-    follows a remote server recursively only when both servers advertise each
-    other, for at most two mutual hops. Results appear as requests finish, and
-    one additional batch can load when a user scrolls near the end. Fixed batch,
-    concurrency, timeout, and page-session limits bound browser work.
-    Each result identifies the registered servers that supplied the
-    recommendation. Server profile cards use a tapestry layout. Mutuality is a
-    current client observation, not a verified relationship or trust statement.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Advertise friendly Chatto servers">
+  Server administrators can maintain a public Neighbor directory. The Server
+  Directory shows direct recommendations from a user's registered servers. It
+  follows a remote server recursively only when both servers advertise each
+  other, for at most two mutual hops. Results appear as requests finish, and one
+  additional batch can load when a user scrolls near the end. Fixed batch,
+  concurrency, timeout, and page-session limits bound browser work. Each result
+  identifies the registered servers that supplied the recommendation. Server
+  profile cards use a tapestry layout. Mutuality is a current client
+  observation, not a verified relationship or trust statement.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Remote clients connect without allowlists" size="large">
-    Browser frontends publish a verifiable CIMD identity and exact callback, while Chatto
-    Desktop uses its built-in identity. Servers accept bearer-authenticated cross-origin API
-    and realtime traffic without CORS or OAuth redirect-origin configuration. Server managers
-    can review successfully authorized clients, label them trusted, or block their access.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard
+  title="Remote clients connect without allowlists"
+  size="large"
+>
+  Browser frontends publish a verifiable CIMD identity and exact callback, while
+  Chatto Desktop uses its built-in identity. Servers accept bearer-authenticated
+  cross-origin API and realtime traffic without CORS or OAuth redirect-origin
+  configuration. Server managers can review successfully authorized clients,
+  label them trusted, or block their access.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Bearer sessions renew without another login">
-    Human clients use short-lived access tokens and rotating refresh credentials. The bundled
-    frontend renews the session window in the background and reconnects realtime in place
-    without reopening OAuth, showing a manual warning, or losing the current route. The bundled
-    same-origin client uses only its safer HttpOnly cookie and renews it automatically.
-    Separately hosted browser clients use Chatto OAuth for renewable bearer sessions.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Bearer sessions renew without another login">
+  Human clients use short-lived access tokens and rotating refresh credentials.
+  The bundled frontend renews the session window in the background and
+  reconnects realtime in place without reopening OAuth, showing a manual
+  warning, or losing the current route. The bundled same-origin client uses only
+  its safer HttpOnly cookie and renews it automatically. Separately hosted
+  browser clients use Chatto OAuth for renewable bearer sessions.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Faster, leaner restarts">
-    Encrypted projection snapshots and faster cold replay shorten restart catch-up on
-    servers with substantial history, while more compact timeline state reduces memory use.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Faster, leaner restarts">
+  Encrypted projection snapshots and faster cold replay shorten restart catch-up
+  on servers with substantial history, while more compact timeline state reduces
+  memory use.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="A more practical permission baseline">
-    The `everyone` role now acts as a scoped default that named roles and direct-user
-    decisions can override at the same or a narrower scope. Fresh announcement rooms also
-    give admins an explicit room-level posting grant. The new `message.read` and
-    `message.read-interactions` permissions separate broad and relationship-scoped
-    channel-room message access from membership. Broad read access includes the narrower
-    interaction permission.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="A more practical permission baseline">
+  The `everyone` role now acts as a scoped default that named roles and
+  direct-user decisions can override at the same or a narrower scope. Fresh
+  announcement rooms also give admins an explicit room-level posting grant. The
+  new `message.read` and `message.read-interactions` permissions separate broad
+  and relationship-scoped channel-room message access from membership. Broad
+  read access includes the narrower interaction permission.
+</ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Privileged permissions stay off until you need them">
     Chatto now keeps administrative and moderation permissions inactive during ordinary
@@ -148,23 +166,31 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     permission behavior.
   </ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Bots activate through normal notifications" size="large">
-    Bot integrations can use the same ConnectRPC API and realtime subscription as human
-    clients. Direct messages, direct mentions, replies, and followed-thread activity arrive
-    as exact notification occurrences. A direct mention in a root or reply follows that
-    thread for later activity when notification policy permits it. Each bot can also have up
-    to 20 named API keys. Managers can replace one integration key without stopping the others.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard
+  title="Bots activate through normal notifications"
+  size="large"
+>
+  Bot integrations can use the same ConnectRPC API and realtime subscription as
+  human clients. Direct messages, direct mentions, replies, and followed-thread
+  activity arrive as exact notification occurrences. A direct mention in a root
+  or reply follows that thread for later activity when notification policy
+  permits it. Live notification hints report created IDs even during Do Not
+  Disturb; clients decide whether to play a sound from current unread state and
+  local preferences. These hints are not durable bot delivery. Each bot can also
+  have up to 20 named API keys. Managers can replace one integration key without
+  stopping the others.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Visible cleanup health" size="small">
-    Owner diagnostics show whether physical asset cleanup is healthy, catching up, or
-    accumulating retries without exposing asset details.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Visible cleanup health" size="small">
+  Owner diagnostics show whether physical asset cleanup is healthy, catching up,
+  or accumulating retries without exposing asset details.
+</ReleaseFeatureCard>
 
-  <ReleaseFeatureCard title="Test Web Push delivery" size="small">
-    Members can send themselves a real test notification from notification settings and get
-    direct feedback when a subscription has expired or delivery fails.
-  </ReleaseFeatureCard>
+<ReleaseFeatureCard title="Test Web Push delivery" size="small">
+  Members can send themselves a real test notification from notification
+  settings and get direct feedback when a subscription has expired or delivery
+  fails.
+</ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Opt-in community badges" size="small">
     Operators can publish aggregate online and registered-member counts through
@@ -235,20 +261,21 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   threads. A server-level `everyone` grant for `message.read` preserves broad
   access and includes the narrow mode. Chatto never migrates, backfills, or
   reconciles existing RBAC state. Fresh servers receive only the broad grant
-  during empty-stream bootstrap. DM membership continues to authorize DM
-  reads. Upgrade every replica before you rely on a channel-room deny, missing
-  grant, or narrow-read availability.
+  during empty-stream bootstrap. Existing human accounts inherit these Server
+  decisions in the new DM scope. DM membership remains mandatory but is not
+  sufficient by itself. Upgrade every replica before you rely on a channel or
+  DM deny, missing grant, or narrow-read availability.
 - Bot integrations must not call `RoomService.StartDM`. Chatto 0.5 denies this
   operation to every bot, including when the DM already exists. A human must
   start the DM before the bot can read or post in it. Upgrade every replica
   before you depend on this boundary because an older replica can still accept
   the call.
-- Bot integrations can use `notification_occurrences_replace` on the normal
-  realtime subscription as their activation source. Save stable occurrence
-  IDs and deduplicate by the referenced message event ID when one message must
-  cause only one action. During a mixed-replica rollout, an older replica can
-  omit the follow created by a direct root mention. Complete the rollout before
-  you depend on later followed-thread activations.
+- Bot integrations receive semantic events for all authorized public activity
+  on the normal realtime subscription. Notification state remains available
+  when a bot wants Chatto's attention policy. Save stable event or occurrence
+  IDs and make effects idempotent. During a mixed-replica rollout, an older
+  replica can omit the follow created by a direct root mention. Complete the
+  rollout before you depend on later followed-thread activations.
 - Existing bot API keys stay valid after upgrade and appear as the default
   named key. Complete the replica rollout before an integration uses a newly
   added named key because older replicas do not recognize it. The experimental
@@ -279,10 +306,32 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   refresh without another permission prompt when the user opens it and
   notification permission is still granted. Push delivery can be unavailable
   until that first visit.
-- Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
+- Realtime protocol 4 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
-  and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must
-  migrate to the stable protocol 2 reference.
+  and a 0.5 server does not accept an earlier realtime protocol version. Integrations that use
+  `/api/realtime` must regenerate their clients. Protocol 4 sends authorized public
+  events for bots and clients, requires an explicit `SNAPSHOT` or `LIVE_ONLY` startup choice, and supports
+  15-minute bounded cursor resume with encrypted, viewer-bound tokens.
+  Outbound events and heartbeats use `cursor`; subscribe uses `resume_cursor`.
+  `caught_up.recovery` explicitly reports resume, snapshot, or live-only startup.
+  Posted messages include room kind, thread-root context, and compact mention
+  targets with the caller's original recipient decision. Layout changes use
+  one refresh hint. Asset processing and deletion events identify the affected
+  room and message; processed asset detail stays in message resources.
+  Minimum-cursor RPCs wait for the requested content boundary, with a 10-second
+  server limit, rather than waiting for unrelated projections.
+  The client sends one `RealtimeSubscribe`
+  message. The server can send `snapshot`, `event`, `caught_up`, `heartbeat`,
+  and `close` frames. Snapshot clients receive one atomic frame with canonical
+  resource shapes. `RealtimeEvent` has one source-independent public catalogue;
+  its names and field numbers do not expose EVT or internal pubsub. Session
+  termination uses a non-reconnecting `close` frame. Room and thread timelines stay in the paginated ConnectRPC
+  APIs; protocol 4 has no retained-room control. The additive authenticated
+  `ServerService.GetServerProfile` method remains available for explicit reads. Public server
+  discovery stays unauthenticated.
+  `RoomWithViewerState` now contains DM participant IDs and optional message-history state,
+  and `ListRooms` returns accessible empty DMs. Hide an empty DM from navigation only when
+  `has_message_history` is explicitly false; absence means unknown for an older server.
 - Upgrade every Chatto server replica from 0.4 to 0.5 together rather than using a rolling
   server deployment. A 0.4 replica can accept a late message edit after another replica has
   deleted that message and can temporarily render its body again. Once every replica runs
@@ -354,8 +403,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   notifications as phantom DMs.
 - App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
-- Realtime message delivery no longer repeats room permissions. Room unread and Slow Mode
-  changes use a small, focused activity update.
+- Realtime uses separate internal envelopes for stored facts and NATS Core pubsub activity, plus
+  a dedicated public payload catalogue. Explicit typed mappers keep public payload layouts
+  independent from both internal wire formats. The
+  public union excludes internal event variants and storage-only fields. The
+  WebSocket sends an exact, bounded resource snapshot and then sends public events. Clients use
+  ConnectRPC for resources that are not in the snapshot and for details that are not in an event.
 
 ### Administration and interface polish
 

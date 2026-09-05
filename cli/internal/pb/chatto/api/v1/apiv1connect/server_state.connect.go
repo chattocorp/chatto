@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// ServerServiceGetServerProfileProcedure is the fully-qualified name of the ServerService's
+	// GetServerProfile RPC.
+	ServerServiceGetServerProfileProcedure = "/chatto.api.v1.ServerService/GetServerProfile"
 	// ServerServiceGetMotdProcedure is the fully-qualified name of the ServerService's GetMotd RPC.
 	ServerServiceGetMotdProcedure = "/chatto.api.v1.ServerService/GetMotd"
 	// ServerServiceGetRuntimeConfigProcedure is the fully-qualified name of the ServerService's
@@ -42,6 +45,8 @@ const (
 
 // ServerServiceClient is a client for the chatto.api.v1.ServerService service.
 type ServerServiceClient interface {
+	// Returns the current public server profile to an authenticated caller.
+	GetServerProfile(context.Context, *connect.Request[v1.GetServerProfileRequest]) (*connect.Response[v1.GetServerProfileResponse], error)
 	// Returns the authenticated message of the day.
 	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
 	// Returns authenticated runtime settings used by clients.
@@ -59,6 +64,12 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
 	return &serverServiceClient{
+		getServerProfile: connect.NewClient[v1.GetServerProfileRequest, v1.GetServerProfileResponse](
+			httpClient,
+			baseURL+ServerServiceGetServerProfileProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("GetServerProfile")),
+			connect.WithClientOptions(opts...),
+		),
 		getMotd: connect.NewClient[v1.GetMotdRequest, v1.GetMotdResponse](
 			httpClient,
 			baseURL+ServerServiceGetMotdProcedure,
@@ -76,8 +87,14 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // serverServiceClient implements ServerServiceClient.
 type serverServiceClient struct {
+	getServerProfile *connect.Client[v1.GetServerProfileRequest, v1.GetServerProfileResponse]
 	getMotd          *connect.Client[v1.GetMotdRequest, v1.GetMotdResponse]
 	getRuntimeConfig *connect.Client[v1.GetRuntimeConfigRequest, v1.GetRuntimeConfigResponse]
+}
+
+// GetServerProfile calls chatto.api.v1.ServerService.GetServerProfile.
+func (c *serverServiceClient) GetServerProfile(ctx context.Context, req *connect.Request[v1.GetServerProfileRequest]) (*connect.Response[v1.GetServerProfileResponse], error) {
+	return c.getServerProfile.CallUnary(ctx, req)
 }
 
 // GetMotd calls chatto.api.v1.ServerService.GetMotd.
@@ -92,6 +109,8 @@ func (c *serverServiceClient) GetRuntimeConfig(ctx context.Context, req *connect
 
 // ServerServiceHandler is an implementation of the chatto.api.v1.ServerService service.
 type ServerServiceHandler interface {
+	// Returns the current public server profile to an authenticated caller.
+	GetServerProfile(context.Context, *connect.Request[v1.GetServerProfileRequest]) (*connect.Response[v1.GetServerProfileResponse], error)
 	// Returns the authenticated message of the day.
 	GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error)
 	// Returns authenticated runtime settings used by clients.
@@ -105,6 +124,12 @@ type ServerServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	serverServiceMethods := v1.File_chatto_api_v1_server_state_proto.Services().ByName("ServerService").Methods()
+	serverServiceGetServerProfileHandler := connect.NewUnaryHandler(
+		ServerServiceGetServerProfileProcedure,
+		svc.GetServerProfile,
+		connect.WithSchema(serverServiceMethods.ByName("GetServerProfile")),
+		connect.WithHandlerOptions(opts...),
+	)
 	serverServiceGetMotdHandler := connect.NewUnaryHandler(
 		ServerServiceGetMotdProcedure,
 		svc.GetMotd,
@@ -119,6 +144,8 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/chatto.api.v1.ServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case ServerServiceGetServerProfileProcedure:
+			serverServiceGetServerProfileHandler.ServeHTTP(w, r)
 		case ServerServiceGetMotdProcedure:
 			serverServiceGetMotdHandler.ServeHTTP(w, r)
 		case ServerServiceGetRuntimeConfigProcedure:
@@ -131,6 +158,10 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedServerServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedServerServiceHandler struct{}
+
+func (UnimplementedServerServiceHandler) GetServerProfile(context.Context, *connect.Request[v1.GetServerProfileRequest]) (*connect.Response[v1.GetServerProfileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetServerProfile is not implemented"))
+}
 
 func (UnimplementedServerServiceHandler) GetMotd(context.Context, *connect.Request[v1.GetMotdRequest]) (*connect.Response[v1.GetMotdResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ServerService.GetMotd is not implemented"))

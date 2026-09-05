@@ -837,10 +837,6 @@ func (c *ChattoCore) appendMessageWithOptionalThreadCreated(
 // (if alsoSendToChannel).
 func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, user_id, body string, assetIDs []string, inThread, inReplyTo string, linkPreview *evtv1.LinkPreview, alsoSendToChannel bool, opts ...PostMessageOption) (*evtv1.Event, error) {
 	options := collectPostMessageOptions(opts)
-	if options.createThread && kind == KindDM {
-		return nil, ErrDMThreadsUnsupported
-	}
-
 	if err := validateMessageAttachmentAssetIDs(assetIDs); err != nil {
 		return nil, err
 	}
@@ -929,9 +925,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if options.createThread && inThread != "" {
 		return nil, invalidArgument("thread creation cannot be combined with a thread reply")
-	}
-	if kind == KindDM && inThread != "" {
-		return nil, ErrDMThreadsUnsupported
 	}
 	if kind == KindChannel {
 		switch EffectiveRoomThreadingMode(room) {
@@ -1159,10 +1152,6 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			c.logger.Debug("ThreadsProjector did not catch up", "error", err)
 		}
 	}
-	if options.createThread {
-		c.publishThreadFollowChangedEvent(ctx, user_id, kind, room_id, event.Id, true)
-	}
-
 	c.logger.Debug("Message posted", "kind", kind, "room_id", room_id, "event_id", event.Id, "sequence_id", sequenceID, "user_id", user_id)
 
 	// Mark the room as read for the poster. For root posts, the just-
@@ -1269,7 +1258,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// poster's read boundary and Slow Mode state above are current. Publish one
 	// transient, user-scoped reconciliation only after those post-commit updates
 	// run. Recipient Badge decisions publish their own invalidations.
-	c.NotifyNotificationUnreadChanged(ctx, user_id, user_id, room_id, "")
+	c.NotifyNotificationUnreadStateChanged(ctx, user_id, user_id, room_id, "")
 
 	return event, nil
 }

@@ -5,6 +5,7 @@
     "send": "Nachricht senden",
     "send_label": "Senden",
     "also_send_to_channel": "Auch an Kanal senden",
+    "also_send_to_conversation": "Auch an Unterhaltung senden",
     "post_as_thread": "Als Thread posten",
     "thread_label": "Thread",
     "echo_label": "Echo",

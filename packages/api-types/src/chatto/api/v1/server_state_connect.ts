@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { GetMotdRequest, GetMotdResponse, GetRuntimeConfigRequest, GetRuntimeConfigResponse } from "./server_state_pb.js";
+import { GetMotdRequest, GetMotdResponse, GetRuntimeConfigRequest, GetRuntimeConfigResponse, GetServerProfileRequest, GetServerProfileResponse } from "./server_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,17 @@ import { MethodKind } from "@bufbuild/protobuf";
 export const ServerService = {
   typeName: "chatto.api.v1.ServerService",
   methods: {
+    /**
+     * Returns the current public server profile to an authenticated caller.
+     *
+     * @generated from rpc chatto.api.v1.ServerService.GetServerProfile
+     */
+    getServerProfile: {
+      name: "GetServerProfile",
+      I: GetServerProfileRequest,
+      O: GetServerProfileResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Returns the authenticated message of the day.
      *

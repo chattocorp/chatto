@@ -1,0 +1,441 @@
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createInterface } from 'node:readline';
+import type { TestInfo } from '@playwright/test';
+import {
+  connectPost,
+  getRoomIdByNameViaConnect,
+  postMessageViaConnect,
+  postThreadReplyViaConnect
+} from './fixtures/connectHelpers';
+import { loginAsAdminAndUsePrimaryServer } from './fixtures/testUser';
+import { expect, test } from './setup';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BOT_SCRIPT = path.resolve(__dirname, '../../../examples/test-bot/dist/index.js');
+const BOT_KEY_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/;
+const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
+const FAUX_AI_REPLY = 'This reply was generated through the Pi agent.';
+
+type BotLogRecord = Record<string, boolean | number | string>;
+
+interface GetMessageResponse {
+  message?: {
+    id?: string;
+    actorId?: string;
+    body?: string;
+    inReplyTo?: string;
+    threadRootEventId?: string;
+  };
+}
+
+interface StartDMResponse {
+  room?: { id?: string };
+}
+
+class TestBotProcess {
+  readonly records: BotLogRecord[] = [];
+  readonly output: string[] = [];
+  readonly #process: ChildProcessWithoutNullStreams;
+  readonly #waiters = new Set<{
+    predicate: (record: BotLogRecord) => boolean;
+    resolve: (record: BotLogRecord) => void;
+    reject: (error: Error) => void;
+    timer: NodeJS.Timeout;
+  }>();
+
+  private constructor(process: ChildProcessWithoutNullStreams) {
+    this.#process = process;
+    const lines = createInterface({ input: process.stdout });
+    lines.on('line', (line) => {
+      this.output.push(line);
+      let record: BotLogRecord;
+      try {
+        record = JSON.parse(line) as BotLogRecord;
+      } catch {
+        return;
+      }
+      this.records.push(record);
+      for (const waiter of this.#waiters) {
+        if (!waiter.predicate(record)) continue;
+        clearTimeout(waiter.timer);
+        this.#waiters.delete(waiter);
+        waiter.resolve(record);
+      }
+    });
+    process.stderr.on('data', (chunk) => this.output.push(chunk.toString()));
+    process.once('exit', (code) => {
+      for (const waiter of this.#waiters) {
+        clearTimeout(waiter.timer);
+        waiter.reject(new Error(`test bot exited with code ${String(code)}`));
+      }
+      this.#waiters.clear();
+    });
+  }
+
+  static start(config: {
+    serverUrl: string;
+    apiKeyFile: string;
+    stateFile: string;
+  }): TestBotProcess {
+    return new TestBotProcess(
+      spawn(process.execPath, [BOT_SCRIPT], {
+        env: {
+          ...process.env,
+          CHATTO_TEST_BOT_SERVER_URL: config.serverUrl,
+          CHATTO_TEST_BOT_API_KEY_FILE: config.apiKeyFile,
+          CHATTO_TEST_BOT_STATE_FILE: config.stateFile,
+          CHATTO_TEST_BOT_AI_PROVIDER: 'faux',
+          CHATTO_TEST_BOT_AI_FAUX_RESPONSE: FAUX_AI_REPLY
+        },
+        stdio: ['ignore', 'pipe', 'pipe']
+      })
+    );
+  }
+
+  waitFor(predicate: (record: BotLogRecord) => boolean, timeoutMs = 10_000): Promise<BotLogRecord> {
+    const existing = this.records.find(predicate);
+    if (existing) return Promise.resolve(existing);
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        predicate,
+        resolve,
+        reject,
+        timer: setTimeout(() => {
+          this.#waiters.delete(waiter);
+          reject(new Error(`timed out waiting for test bot record; output: ${this.safeOutput()}`));
+        }, timeoutMs)
+      };
+      this.#waiters.add(waiter);
+    });
+  }
+
+  safeOutput(): string {
+    return this.output.join('\n').replaceAll(BOT_KEY_IN_TEXT_PATTERN, '[REDACTED]');
+  }
+
+  containsCredential(): boolean {
+    return this.output.some((line) => BOT_KEY_PATTERN.test(line));
+  }
+
+  async stop(): Promise<void> {
+    if (this.#process.exitCode !== null) return;
+    this.#process.kill('SIGTERM');
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        this.#process.kill('SIGKILL');
+        resolve();
+      }, 5_000);
+      this.#process.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+}
+
+async function attachBotOutput(testInfo: TestInfo, name: string, process: TestBotProcess) {
+  await testInfo.attach(name, {
+    body: process.safeOutput(),
+    contentType: 'text/plain'
+  });
+}
+
+test.describe('public API test bot', () => {
+  test.use({ serverOptions: { bootstrapTestBot: true } });
+
+  test('reports a recovery gap when the server cannot resume', async ({ server, serverURL }, testInfo) => {
+    const credentialFile = server.bootstrapBotCredentialFile;
+    if (!credentialFile) throw new Error('test server did not expose the bot credential file');
+    const stateFile = testInfo.outputPath('test_bot.state.json');
+    await writeFile(stateFile, JSON.stringify({
+      resumeCursor: 'obsolete-development-cursor',
+      processedEventIds: []
+    }), { mode: 0o600 });
+    const bot = TestBotProcess.start({ serverUrl: serverURL, apiKeyFile: credentialFile, stateFile });
+    try {
+      const caughtUp = await bot.waitFor((record) => record.status === 'caught_up');
+      expect(caughtUp).toMatchObject({ recovery: 'LIVE_ONLY', resumed: false });
+      const gap = await bot.waitFor((record) => record.status === 'recovery_gap');
+      expect(gap.past_events_unavailable).toBe(true);
+      const state = JSON.parse(await readFile(stateFile, 'utf8'));
+      expect(state.resumeCursor).toBeTruthy();
+      expect(state.resumeCursor).not.toBe('obsolete-development-cursor');
+      expect(bot.containsCredential()).toBe(false);
+    } finally {
+      await bot.stop();
+      await attachBotOutput(testInfo, 'test-bot-fallback.log', bot);
+    }
+  });
+
+  test('answers channel mentions and DMs, then resumes a disconnected gap', async ({
+    page,
+    server,
+    serverURL
+  }, testInfo) => {
+    test.setTimeout(60_000);
+    const credentialFile = server.bootstrapBotCredentialFile;
+    if (!credentialFile) throw new Error('test server did not expose the bot credential file');
+    const stateFile = testInfo.outputPath('test_bot.state.json');
+    await loginAsAdminAndUsePrimaryServer(page);
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+
+    const first = TestBotProcess.start({
+      serverUrl: serverURL,
+      apiKeyFile: credentialFile,
+      stateFile
+    });
+    let second: TestBotProcess | undefined;
+    try {
+      const ready = await first.waitFor((record) => record.status === 'api_ready');
+      expect(ready.viewer_id).toBeTruthy();
+      const startup = await first.waitFor((record) => record.status === 'caught_up');
+      expect(startup).toMatchObject({ resumed: false, recovery: 'LIVE_ONLY' });
+
+      const startedDM = await connectPost<StartDMResponse>(
+        page,
+        'chatto.api.v1.RoomService/StartDM',
+        { participantIds: [String(ready.viewer_id)] }
+      );
+      const dmRoomId = startedDM.room?.id;
+      if (!dmRoomId) throw new Error('The TestBot DM did not return a room ID');
+      const dmEventId = await postMessageViaConnect(
+        page,
+        dmRoomId,
+        'Please answer this DM without a mention'
+      );
+      const dmTyping = await first.waitFor(
+        (record) =>
+          record.status === 'typing_started' &&
+          record.direct_message === true &&
+          record.source_event_id === dmEventId
+      );
+      const dmStarted = await first.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_message' &&
+          record.source_event_id === dmEventId
+      );
+      const dmReply = await first.waitFor(
+        (record) =>
+          record.status === 'ai_replied' &&
+          record.trigger === 'direct_message' &&
+          record.source_event_id === dmEventId
+      );
+      expect(first.records.indexOf(dmTyping)).toBeLessThan(first.records.indexOf(dmStarted));
+      const dmReplyEventId = String(dmReply.reply_event_id);
+      const createdDMReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId: dmRoomId, eventId: dmReplyEventId }
+      );
+      expect(createdDMReply.message).toMatchObject({
+        id: dmReplyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY,
+        inReplyTo: dmEventId,
+        threadRootEventId: dmEventId
+      });
+
+      const firstEventId = await postMessageViaConnect(
+        page,
+        roomId,
+        'First message for the public API test bot'
+      );
+      await first.waitFor(
+        (record) =>
+          record.status === 'event' &&
+          record.event === 'messagePosted' &&
+          record.event_id === firstEventId
+      );
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            resumeCursor?: string;
+            processedEventIds?: string[];
+          };
+          return Boolean(state.resumeCursor && state.processedEventIds?.includes(firstEventId));
+        })
+        .toBe(true);
+
+      const mentionEventId = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        '@test_bot please confirm this thread mention',
+        firstEventId
+      );
+      const mentionTyping = await first.waitFor(
+        (record) => record.status === 'typing_started' && record.source_event_id === mentionEventId
+      );
+      const mentionStarted = await first.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === mentionEventId
+      );
+      const mentionReply = await first.waitFor(
+        (record) =>
+          record.status === 'ai_replied' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === mentionEventId
+      );
+      const replyEventId = String(mentionReply.reply_event_id);
+      expect(first.records.indexOf(mentionTyping)).toBeLessThan(
+        first.records.indexOf(mentionStarted)
+      );
+      const createdReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: replyEventId }
+      );
+      expect(createdReply.message).toMatchObject({
+        id: replyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY,
+        inReplyTo: mentionEventId,
+        threadRootEventId: firstEventId
+      });
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            processedEventIds?: string[];
+          };
+          return {
+            hasObsoletePendingReplies: Object.hasOwn(state, 'pendingReplies'),
+            sourceProcessed: state.processedEventIds?.includes(mentionEventId)
+          };
+        })
+        .toEqual({ hasObsoletePendingReplies: false, sourceProcessed: true });
+
+      const rapidMention = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        '@test_bot answer this rapid prompt',
+        firstEventId
+      );
+      const rapidContinuation = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        'and include this continuation without another mention',
+        firstEventId
+      );
+      const rapidReply = await first.waitFor(
+        (record) => record.status === 'ai_replied' && record.source_event_id === rapidContinuation
+      );
+      const rapidResponse = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: String(rapidReply.reply_event_id) }
+      );
+      expect(rapidResponse.message).toMatchObject({
+        body: FAUX_AI_REPLY,
+        inReplyTo: rapidContinuation,
+        threadRootEventId: firstEventId
+      });
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            processedEventIds?: string[];
+          };
+          return {
+            hasObsoletePendingReplies: Object.hasOwn(state, 'pendingReplies'),
+            sourcesProcessed: [rapidMention, rapidContinuation].every((eventId) =>
+              state.processedEventIds?.includes(eventId)
+            )
+          };
+        })
+        .toEqual({ hasObsoletePendingReplies: false, sourcesProcessed: true });
+      expect(
+        first.records.some(
+          (record) => record.status === 'ai_replied' && record.source_event_id === rapidMention
+        )
+      ).toBe(false);
+
+      const followUpEventId = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        'Continue helping in this thread without another mention',
+        firstEventId
+      );
+      await expect
+        .poll(async () => {
+          const state = JSON.parse(await readFile(stateFile, 'utf8')) as {
+            resumeCursor?: string;
+            processedEventIds?: string[];
+          };
+          return Boolean(state.resumeCursor && state.processedEventIds?.includes(followUpEventId));
+        })
+        .toBe(true);
+      expect(
+        first.records.some(
+          (record) => record.status === 'ai_replied' && record.source_event_id === followUpEventId
+        )
+      ).toBe(false);
+
+      await first.stop();
+      const missedEventId = await postThreadReplyViaConnect(
+        page,
+        roomId,
+        '@test_bot Please answer this after reconnecting',
+        firstEventId
+      );
+
+      second = TestBotProcess.start({
+        serverUrl: serverURL,
+        apiKeyFile: credentialFile,
+        stateFile
+      });
+      const resumedStarted = await second.waitFor(
+        (record) =>
+          record.status === 'ai_reply_started' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === missedEventId
+      );
+      const resumedTyping = await second.waitFor(
+        (record) => record.status === 'typing_started' && record.source_event_id === missedEventId
+      );
+      await second.waitFor(
+        (record) =>
+          record.status === 'ai_replied' &&
+          record.trigger === 'direct_mention' &&
+          record.source_event_id === missedEventId
+      );
+      await second.waitFor((record) => record.status === 'caught_up' && record.resumed === true);
+
+      const resumedReply = second.records.find(
+        (record) => record.status === 'ai_replied' && record.source_event_id === missedEventId
+      );
+      const resumedReplyEventId = String(resumedReply?.reply_event_id);
+      expect(second.records.indexOf(resumedTyping)).toBeLessThan(
+        second.records.indexOf(resumedStarted)
+      );
+      const createdResumedReply = await connectPost<GetMessageResponse>(
+        page,
+        'chatto.api.v1.MessageService/GetMessage',
+        { roomId, eventId: resumedReplyEventId }
+      );
+      expect(createdResumedReply.message).toMatchObject({
+        id: resumedReplyEventId,
+        actorId: String(ready.viewer_id),
+        body: FAUX_AI_REPLY,
+        inReplyTo: missedEventId,
+        threadRootEventId: firstEventId
+      });
+
+      expect(
+        second.records.filter(
+          (record) => record.status === 'event' && record.event_id === firstEventId
+        )
+      ).toHaveLength(0);
+      expect(first.containsCredential()).toBe(false);
+      expect(second.containsCredential()).toBe(false);
+    } finally {
+      await first.stop();
+      if (second) await second.stop();
+      await attachBotOutput(testInfo, 'test-bot-first-session.log', first);
+      if (second) await attachBotOutput(testInfo, 'test-bot-resumed-session.log', second);
+    }
+  });
+});

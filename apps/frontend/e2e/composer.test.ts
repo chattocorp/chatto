@@ -268,7 +268,7 @@ test.describe('Markdown composer', () => {
 
     const message = roomPage.getMessage(marker);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await expect(message.locator.locator('strong')).toHaveText(marker);
+    await expect(message.locator.locator('strong').filter({ hasText: marker })).toHaveText(marker);
     await message.editViaToolbar();
     await expect(roomPage.messageInput.locator('.cm-line')).toHaveText([
       `**${marker}**`,

@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
-	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	"hmans.de/chatto/internal/pb/chatto/core/runtime_state/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."
@@ -234,9 +234,9 @@ func (m *NotificationOccurrenceModel) purgeNotificationUnreadMarkers(ctx context
 	return nil
 }
 
-// NotifyNotificationUnreadChanged publishes a content-free, user-scoped
+// NotifyNotificationUnreadStateChanged publishes a content-free, user-scoped
 // invalidation after authoritative Badge state changes.
-func (c *ChattoCore) NotifyNotificationUnreadChanged(ctx context.Context, userID, actorID, roomID, threadRootEventID string) {
+func (c *ChattoCore) NotifyNotificationUnreadStateChanged(ctx context.Context, userID, actorID, roomID, threadRootEventID string) {
 	c.publishNotificationUnreadInvalidations(ctx, []notificationUnreadInvalidation{{
 		userID: userID, actorID: actorID, roomID: roomID, threadRootEventID: threadRootEventID,
 	}})
@@ -253,20 +253,20 @@ type notificationUnreadInvalidation struct {
 // with one final NATS flush. The invalidations are best-effort convergence
 // hints; the unread markers remain authoritative across a lost publication.
 func (c *ChattoCore) publishNotificationUnreadInvalidations(ctx context.Context, invalidations []notificationUnreadInvalidation) {
-	publications := make([]liveEventPublication, 0, len(invalidations))
+	publications := make([]pubsubEventPublication, 0, len(invalidations))
 	for _, invalidation := range invalidations {
-		publications = append(publications, liveEventPublication{
-			subject: subjects.LiveSyncUserEvent(invalidation.userID, "notification_unread"),
-			event: newLiveEvent(invalidation.actorID, &livev1.LiveEvent{
-				Event: &livev1.LiveEvent_NotificationUnreadChanged{
-					NotificationUnreadChanged: &livev1.NotificationUnreadChangedEvent{
+		publications = append(publications, userPubSubEventPublication(
+			invalidation.userID,
+			newPubSubEvent(invalidation.actorID, &pubsubv1.PubSubEvent{
+				Event: &pubsubv1.PubSubEvent_NotificationUnreadStateChanged{
+					NotificationUnreadStateChanged: &realtimev1.NotificationUnreadStateChangedEvent{
 						RoomId: invalidation.roomID, ThreadRootEventId: invalidation.threadRootEventID,
 					},
 				},
 			}),
-		})
+		))
 	}
-	if err := c.publishLiveEvents(ctx, publications); err != nil {
+	if err := c.publishPubSubEvents(ctx, publications); err != nil {
 		c.logger.Warn("Failed to publish notification unread invalidations", "count", len(publications), "error", err)
 	}
 }
@@ -287,6 +287,6 @@ func (m *NotificationOccurrenceModel) publishUnreadMarkerTargetInvalidations(ctx
 				continue
 			}
 		}
-		m.core.NotifyNotificationUnreadChanged(ctx, scope.userID, actorID, scope.roomID, scope.threadRootEventID)
+		m.core.NotifyNotificationUnreadStateChanged(ctx, scope.userID, actorID, scope.roomID, scope.threadRootEventID)
 	}
 }

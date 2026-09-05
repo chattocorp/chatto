@@ -3,13 +3,8 @@ package core
 import (
 	"context"
 	"errors"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"testing"
-	"time"
 
-	"google.golang.org/protobuf/proto"
-
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
 )
@@ -83,44 +78,6 @@ func TestChattoCore_CreateUserUsesProvidedActorID(t *testing.T) {
 		if got := event.GetActorId(); got != SystemActorID {
 			t.Fatalf("DEK generated actor = %q, want %q", got, SystemActorID)
 		}
-	}
-}
-
-func TestChattoCore_CreateUserLiveEventUsesProvidedActorID(t *testing.T) {
-	core, nc := setupTestCore(t)
-	ctx := testContext(t)
-
-	sub, err := nc.SubscribeSync(subjects.LiveSyncAllEvents())
-	if err != nil {
-		t.Fatalf("SubscribeSync live events: %v", err)
-	}
-	defer sub.Unsubscribe()
-	if err := nc.Flush(); err != nil {
-		t.Fatalf("Flush subscription: %v", err)
-	}
-
-	user, err := core.CreateUser(ctx, SystemActorID, "actor-live-create", "Actor Live Create", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-
-	msg, err := sub.NextMsg(2 * time.Second)
-	if err != nil {
-		t.Fatalf("waiting for user created live event: %v", err)
-	}
-	var live livev1.LiveEvent
-	if err := proto.Unmarshal(msg.Data, &live); err != nil {
-		t.Fatalf("unmarshal live event: %v", err)
-	}
-	created := live.GetUserCreated()
-	if created == nil {
-		t.Fatalf("expected UserCreatedSyncEvent, got %T", live.Event)
-	}
-	if created.GetUserId() != user.GetId() {
-		t.Fatalf("created live user_id = %q, want %q", created.GetUserId(), user.GetId())
-	}
-	if got := live.GetActorId(); got != SystemActorID {
-		t.Fatalf("created live actor = %q, want %q", got, SystemActorID)
 	}
 }
 

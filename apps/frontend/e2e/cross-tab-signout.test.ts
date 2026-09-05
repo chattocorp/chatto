@@ -39,7 +39,7 @@ async function logoutViaFetch(page: Page): Promise<void> {
 }
 
 test.describe('Cross-Tab Sign-Out', () => {
-  test('server-side: logout in one tab disconnects another tab via SessionTerminatedEvent', async ({
+  test('server-side: logout in one tab disconnects another tab via a close frame', async ({
     browser,
     serverURL,
     authPage
@@ -79,7 +79,7 @@ test.describe('Cross-Tab Sign-Out', () => {
         timeout: TIMEOUTS.REALTIME_EVENT
       });
 
-      // Log out in tab 1 — this publishes SessionTerminatedEvent
+      // Log out in tab 1. The server sends a session-termination close frame.
       await logoutViaFetch(authPage.page);
 
       // Wait for the session terminated event to be received

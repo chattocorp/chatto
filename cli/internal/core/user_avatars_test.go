@@ -8,7 +8,6 @@ import (
 	"image/png"
 	"io"
 	"testing"
-	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 )
@@ -87,7 +86,7 @@ func TestRequireCanManageUserAvatarAuthorizationMatrix(t *testing.T) {
 }
 
 func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T) {
-	c, nc := setupTestCore(t)
+	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "managedavatarowner", "Managed Avatar Owner", "")
 	if err != nil {
@@ -97,11 +96,6 @@ func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T)
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	sub, err := nc.SubscribeSync("live.sync.user." + bot.User.GetId() + ".profile_updated")
-	if err != nil {
-		t.Fatalf("SubscribeSync: %v", err)
-	}
-
 	updated, err := c.UpdateUserAvatar(ctx, owner.GetId(), bot.User.GetId(), createTestImage(100, 100))
 	if err != nil {
 		t.Fatalf("UpdateUserAvatar: %v", err)
@@ -112,9 +106,6 @@ func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T)
 	if avatar, _ := c.GetUserAvatar(ctx, bot.User.GetId()); avatar == nil {
 		t.Fatal("bot avatar was not projected")
 	}
-	if _, err := sub.NextMsg(time.Second); err != nil {
-		t.Fatalf("profile update after upload: %v", err)
-	}
 	uploadEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.UserAggregate(bot.User.GetId()).Subject(evtstream.EventAssetCreated))
 	if err != nil || len(uploadEvents) != 1 || uploadEvents[0].GetActorId() != owner.GetId() {
 		t.Fatalf("avatar upload events = %+v, %v; want one event by owner", uploadEvents, err)
@@ -122,9 +113,6 @@ func TestManagedBotAvatarUsesCanonicalProjectionAndIdempotentClear(t *testing.T)
 
 	if _, err := c.ClearUserAvatar(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("ClearUserAvatar: %v", err)
-	}
-	if _, err := sub.NextMsg(time.Second); err != nil {
-		t.Fatalf("profile update after clear: %v", err)
 	}
 	if _, err := c.ClearUserAvatar(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("idempotent ClearUserAvatar: %v", err)

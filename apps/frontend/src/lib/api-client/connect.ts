@@ -10,6 +10,9 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 import type { ServiceType } from "@bufbuild/protobuf";
 import { notifyAuthenticationRequired } from "./hooks.js";
 
+/** Request header for a read that must include an accepted realtime boundary. */
+export const REALTIME_MINIMUM_CURSOR_HEADER = "Chatto-Realtime-Minimum-Cursor";
+
 export type ConnectAPIConfig = {
   serverId?: string;
   baseUrl: string;

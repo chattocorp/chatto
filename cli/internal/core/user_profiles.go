@@ -4,14 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"strings"
 	"time"
 	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -25,51 +23,6 @@ const (
 )
 
 var ErrBioTooLong = fmt.Errorf("bio is too long")
-
-// publishUserProfileUpdate publishes a transient snapshot of the current public
-// profile. Durable profile facts remain authoritative in EVT.
-func (c *ChattoCore) publishUserProfileUpdate(ctx context.Context, userID string) {
-	// Get current user data
-	user, err := c.GetUser(ctx, userID)
-	if err != nil {
-		c.logger.Warn("failed to get user for profile update event", "error", err, "user_id", userID)
-		return
-	}
-
-	// Get current avatar URL (full resolution for events)
-	avatarURL, err := c.GetUserAvatarURL(ctx, userID, nil, nil, "")
-	if err != nil {
-		c.logger.Warn("failed to get avatar URL for profile update event", "error", err, "user_id", userID)
-		avatarURL = ""
-	}
-
-	// Include the user's shareable time zone so clients can render local time
-	// without an extra read. Absent settings mean no public zone.
-	timezone := ""
-	if settings, err := c.GetUserSettings(ctx, userID); err == nil && settings != nil && settings.GetShareTimezone() {
-		timezone = settings.GetTimezone()
-	}
-
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_UserProfileUpdated{
-			UserProfileUpdated: &livev1.UserProfileSyncEvent{
-				UserId:      userID,
-				DisplayName: user.DisplayName,
-				AvatarUrl:   avatarURL,
-				Login:       user.Login,
-				Bio:         user.GetBio(),
-				Timezone:    timezone,
-			},
-		},
-	})
-
-	// Publish to live.sync.user.{userId}.profile_updated for real-time delivery.
-	// Profile updates are transient (no need for JetStream storage/replay)
-	subject := subjects.LiveSyncUserEvent(userID, "profile_updated")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
-		c.logger.Warn("failed to publish user profile update event", "error", err, "user_id", userID)
-	}
-}
 
 var ErrCustomStatusEmojiRequired = fmt.Errorf("custom status emoji is required")
 var ErrCustomStatusEmojiInvalid = fmt.Errorf("custom status emoji must be a single supported emoji")
@@ -124,9 +77,6 @@ func (c *ChattoCore) updateUserDisplayNameAs(ctx context.Context, actorID, userI
 	user.DisplayName = displayName
 
 	c.logger.Info("Updated user display name", "id", userID)
-
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
 
 	return user, nil
 }
@@ -306,7 +256,6 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		user.Bio = nextBio
 	}
 	c.logger.Info("Updated user profile", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
 	return user, nil
 }
 
@@ -496,9 +445,6 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 
 	c.logger.Info("Updated user login", "id", userID)
 
-	// Publish profile update event
-	c.publishUserProfileUpdate(ctx, userID)
-
 	return user, nil
 }
 
@@ -531,7 +477,6 @@ func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, us
 		return fmt.Errorf("failed to clear login change cooldown: %w", err)
 	}
 	c.logger.Info("Cleared user login change cooldown", "id", userID)
-	c.publishUserProfileUpdate(ctx, userID)
 	return nil
 }
 

@@ -27,7 +27,7 @@
     createRoomPermissions,
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
-  import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
+  import { useTimelineMutations } from '$lib/hooks/useTimelineMutations.svelte';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { startDMWith } from '$lib/dm/startDM';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -167,18 +167,11 @@
     };
   });
 
-  $effect(() =>
-    onRoomMessageMutated((detail) => {
-      if (detail.serverId !== activeServerId || detail.roomId !== roomId) return;
-      if (detail.reason === 'message-deleted') {
-        roomMessageStore.applyLocalMessageDeletion(detail.eventId);
-        return;
-      }
-      const anchorEventId = roomMessageStore.refreshAnchorForMessageMutation(detail.eventId);
-      if (!anchorEventId) return;
-      void roomMessageStore.refreshCurrentWindow(anchorEventId);
-    })
-  );
+  useTimelineMutations(() => ({
+    serverId: activeServerId,
+    roomId,
+    timeline: roomMessageStore
+  }));
 
   // --- Extracted hooks ---
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
@@ -223,22 +216,20 @@
   let composerCanAttach = $derived(room.roomData === undefined ? true : permissions.canAttach);
   let threadingMode = $derived(room.roomData?.room.threadingMode ?? RoomThreadingMode.ENABLED);
   let composerCanCreateThread = $derived(
-    !room.isDM &&
-      permissions.canPostMessage &&
+    permissions.canPostMessage &&
       (threadingMode === RoomThreadingMode.REQUIRED ||
         (permissions.canPostInThread &&
           (threadingMode === RoomThreadingMode.ENABLED ||
             threadingMode === RoomThreadingMode.ENCOURAGED)))
   );
   let composerRequiresThread = $derived(
-    !room.isDM && permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
+    permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
   );
 
   function getRecentThreadRootCandidate() {
     const currentUserId = currentUser.user?.id;
     if (
       !currentUserId ||
-      room.isDM ||
       !permissions.canPostInThread ||
       threadingMode === RoomThreadingMode.DISABLED
     ) {
@@ -350,25 +341,34 @@
     });
   }
 
-  // Durable message rows arrive only through projection operations. Keep
-  // presence/read side effects and the independent paginated files read model
-  // aligned with those authoritative row replacements.
+  // Canonical facts invalidate the explicit reads that own this room's data.
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomTimelineEventUpsert') continue;
-      const update = operation.operation.value;
-      if (update.roomId !== roomId || update.event?.event.case !== 'messagePosted') continue;
-      const message = update.event.event.value.message;
-      if (!message?.threadRootEventId) {
-        const actorId = event.actorId;
-        if (actorId) typingIndicator.removeTypingUser(actorId);
-        if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
-          // Projection envelopes for row replacements can be driven by an
-          // asset/reaction fact whose ID is not itself part of the room
-          // timeline. Anchor read state to the row being upserted.
-          unread.markRoomAsRead(roomId, update.event.id);
-        }
+    if (event.resource?.case === 'users') {
+      if (!room.isDM) void roomMembersStore.refresh();
+      return;
+    }
+    const semantic = event.event?.event;
+    if (!semantic) return;
+    if (semantic.case === 'messagePosted' && semantic.value.roomId === roomId) {
+      if (semantic.value.threadRootEventId) return;
+      const actorId = event.event?.actorId;
+      if (actorId) typingIndicator.removeTypingUser(actorId);
+      if (currentUser.user && actorId !== currentUser.user.id && appState.isPresent) {
+        unread.markRoomAsRead(roomId, event.event?.id ?? '');
       }
+      return;
+    }
+    if (room.isDM) return;
+    switch (semantic.case) {
+      case 'userJoinedRoom':
+      case 'userLeftRoom':
+        if (semantic.value.roomId === roomId) void roomMembersStore.refresh();
+        return;
+      case 'userAccountDeleted':
+      case 'userProfileChanged':
+      case 'userAccountCreated':
+        void roomMembersStore.refresh();
+        return;
     }
   });
 
@@ -484,7 +484,7 @@
       if (hasCompleteMembership) {
         roomMembersStore.replaceProjection(selectedRoomId, projectedMembers);
       } else {
-        roomMembersStore.awaitProjection(selectedRoomId);
+        roomMembersStore.ensureLoaded();
       }
     });
   };
@@ -752,9 +752,7 @@
               <HeaderIconButton
                 icon="icon-[uil--info-circle]"
                 label={m('chat.profile.title')}
-                tone={activeRoomSidebarProfileUserId
-                  ? 'active'
-                  : 'default'}
+                tone={activeRoomSidebarProfileUserId ? 'active' : 'default'}
                 onclick={() => openDirectMessageProfile(directMessageProfileUserId)}
               />
             {/if}
@@ -803,6 +801,7 @@
 
         <MessageComposer
           {roomId}
+          echoToConversation={room.isDM}
           canPost={permissions.canPostMessage}
           canAttach={composerCanAttach}
           slowModeSeconds={room.roomData?.room.slowModeSeconds ?? 0}
@@ -854,7 +853,8 @@
         {:then { default: ThreadPane }}
           <ThreadPane
             {roomId}
-            roomName={room.roomData.room.name}
+            roomName={presentation.title}
+            isDirectMessage={room.isDM}
             threadRootEventId={threadId}
             onClose={closeThread}
             canPostInThread={room.roomData.canPostInThread &&

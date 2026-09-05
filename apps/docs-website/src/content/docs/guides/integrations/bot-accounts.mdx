@@ -11,8 +11,8 @@ protocol, but start with no permissions and cannot sign in through Chatto's
 login forms.
 
 <Aside type="caution">
-  A bot API key does not expire automatically. Treat it like a password: keep
-  it out of source control, logs, URLs, screenshots, and support requests.
+  A bot API key does not expire automatically. Treat it like a password: keep it
+  out of source control, logs, URLs, screenshots, and support requests.
 </Aside>
 
 ## Create and configure a bot
@@ -56,9 +56,9 @@ the bot must read only complete threads that it started or where another
 account directly mentioned it. A direct mention gives access to messages from
 before the mention. An effective `message.read` allow includes
 `message.read-interactions` for the bot and for its owner. A narrow allow does
-not grant broad access. DM membership authorizes the bot to read that DM.
-Posting remains a separate `message.post` or `message.post-in-thread`
-decision.
+not grant broad access. A DM also needs membership and the matching DM-scoped
+read permission. Posting remains a separate `message.post` or
+`message.post-in-thread` decision.
 
 ## Post from an external webhook
 
@@ -126,21 +126,26 @@ Use the normal `subscribe_events` realtime subscription. See the
 [Realtime Protocol Overview](/guides/integrations/realtime-protocol/) for the
 connection and resume model, or follow the
 [TypeScript tutorial](/guides/integrations/realtime-typescript/) to build a
-small client. Chatto sends the bot's visible notification occurrences in
-`notification_occurrences_replace`. Chatto does not use a bot-only realtime
-channel or a separate bot-interaction event.
+small client. Chatto does not use a bot-only realtime channel or a separate
+bot-interaction event. The same subscription sends semantic events for all
+authorized public activity, including messages, edits, reactions, rooms,
+membership, profiles, and calls. Select `LIVE_ONLY` when the bot does not need
+an initial current-resource snapshot. Use the
+[`RealtimeEvent`](/reference/connectrpc-api/realtime/#chatto-realtime-v1-RealtimeEvent)
+reference to select the variants that the bot handles.
 
-Filter the replacement by cause. Use these notification causes to activate an
-integration:
+Read `NotificationService.ListNotificationOccurrences` and filter by cause when
+the integration needs Chatto's attention policy instead of all visible
+activity:
 
-| Cause | When Chatto creates it |
-| ----- | ---------------------- |
-| `direct_message_received` | Another account sends a message in a DM that a human started with the bot. |
-| `direct_mention_received` | Another account directly mentions the bot in a channel-room root or reply. |
-| `reply_received` | Another account replies to a message from the bot. |
-| `followed_thread_activity` | Another account posts in a thread that the bot follows. |
+| Cause                      | When Chatto creates it                                                     |
+| -------------------------- | -------------------------------------------------------------------------- |
+| `direct_message_received`  | Another account sends a message in a DM that a human started with the bot. |
+| `direct_mention_received`  | Another account directly mentions the bot in a channel-room root or reply. |
+| `reply_received`           | Another account replies to a message from the bot.                         |
+| `followed_thread_activity` | Another account posts in a thread that the bot follows.                    |
 
-The replacement can also contain other notification causes that apply to the
+The response can also contain other notification causes that apply to the
 account. Ignore causes that the integration does not use.
 
 A delivered direct mention in a channel-room root or reply also attempts to
@@ -156,10 +161,9 @@ more than once. One message can create multiple causes. If the integration
 must act only once for each message, also deduplicate by the referenced
 `event_id`.
 
-The realtime replacement contains the newest finite page. After a disconnect,
-use `NotificationService.ListNotificationOccurrences` for longer recovery
-within the notification retention period. Then use the message reference with
-the normal message or thread API. For example, use
+The notification read contains the newest finite page. Read it again after a
+disconnect for recovery within the notification retention period. Then use the
+message reference with the normal message or thread API. For example, use
 `ThreadService.GetThreadEvents` to get the complete thread. The server returns
 content only when the bot has current membership, permission, and interaction
 access.
@@ -170,10 +174,12 @@ A bot cannot start a DM. This rule also prevents a bot from using
 `RoomService.StartDM` to get a self-DM or an existing DM. A permission grant
 cannot change the rule.
 
-A human can start a DM that includes the bot. DM membership then lets the bot
-read the complete DM. Grant `message.post` if the bot must send messages in
-that DM. The owner must also have `message.post`. Messages from another
-participant create normal `direct_message_received` occurrences for the bot.
+A human can start a DM that includes the bot. Membership remains necessary.
+Grant `message.read`, `message.post`, and `message.post-in-thread` at the
+**Direct messages** scope when the bot must run a threaded private
+conversation without channel access. The owner must also have each effective
+permission at that scope. Messages from another participant create normal
+`direct_message_received` occurrences only while the bot can read them.
 
 ## Authenticate requests
 
@@ -187,7 +193,9 @@ Authorization: Bearer cht_BK_…
 The request is authorized as the bot user. For example, posting a message
 requires an explicit effective `message.post` allow and normal room access.
 The canonical `User.is_bot` field identifies bot authors to API clients;
-the bundled client also shows a robot marker on their avatars.
+the bundled client also shows a robot marker on their avatars, except on
+extra-small avatars such as thread participants. The marker uses
+soft shading and changes its colours to match the light or dark theme.
 
 A bot API key can update its own login, display name, and bio through
 `MyAccountService.UpdateProfile`. It can upload or delete its own avatar through

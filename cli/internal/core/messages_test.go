@@ -60,6 +60,7 @@ func TestChattoCore_PostMessage(t *testing.T) {
 	if fetchedBody != messageBody {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
+
 }
 
 func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T) {
@@ -736,7 +737,7 @@ func TestChattoCore_PostMessage_BodyStoredInMessageBodyEvent(t *testing.T) {
 	}
 }
 
-func TestChattoCore_MessageBodyEventsKeepPublicEventsBodyless(t *testing.T) {
+func TestChattoCore_MessageBodyEventsKeepCanonicalPostedEventsBodyless(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 

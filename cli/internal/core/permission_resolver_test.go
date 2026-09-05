@@ -486,13 +486,13 @@ func TestPermissionResolver_HasSpacePermission_DMKind(t *testing.T) {
 		}
 	})
 
-	t.Run("DM rooms allow room.join", func(t *testing.T) {
+	t.Run("DM rooms keep room.join outside the scope", func(t *testing.T) {
 		has, err := core.permissionResolver.HasSpacePermission(ctx, user.Id, KindDM, PermRoomJoin)
 		if err != nil {
 			t.Fatalf("HasSpacePermission() error = %v", err)
 		}
-		if !has {
-			t.Error("Expected DM rooms to allow room.join")
+		if has {
+			t.Error("Expected DM rooms not to resolve room.join")
 		}
 	})
 }
@@ -1043,25 +1043,25 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 		}
 	})
 
-	t.Run("DM boundary deny beats user-level room grant", func(t *testing.T) {
-		// Security invariant: the DM boundary deny-list is checked before
-		// user-level overrides for non-owners. Even an explicit user-level
-		// grant of message.manage in a DM room must not allow it — DM
-		// privacy is non-negotiable.
+	t.Run("DM user grant overrides inherited state", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx2 := testContext(t)
+		admin, _ := c.CreateUser(ctx2, SystemActorID, "dm-scope-admin", "Admin", "password123")
+		if err := c.AssignOwnerRole(ctx2, admin.Id); err != nil {
+			t.Fatalf("AssignOwnerRole: %v", err)
+		}
 		user, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-user", "User", "password123")
 		dmRoomID := "R_dm_boundary_user_test"
-		if err := c.GrantUserRoomPermission(ctx2, SystemActorID, dmRoomID, user.Id, PermMessageManage); err != nil {
-			t.Fatalf("GrantUserRoomPermission: %v", err)
+		if err := c.SetUserPermissionState(ctx2, admin.Id, user.Id, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageManage, PermissionStateAllow); err != nil {
+			t.Fatalf("SetUserPermissionState: %v", err)
 		}
 		has, _ := c.permissionResolver.HasRoomPermission(ctx2, user.Id, KindDM, dmRoomID, PermMessageManage)
-		if has {
-			t.Error("expected DM boundary deny to override user-level grant for message.manage")
+		if !has {
+			t.Error("expected the DM user grant to allow message.manage")
 		}
 	})
 
-	t.Run("owner override beats DM boundary deny", func(t *testing.T) {
+	t.Run("owner override applies only to DM permissions", func(t *testing.T) {
 		c, _ := setupTestCore(t)
 		ctx2 := testContext(t)
 		owner, _ := c.CreateUser(ctx2, SystemActorID, "dm-boundary-owner", "Owner", "password123")
@@ -1074,10 +1074,16 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 			t.Fatal("baseline: owner should resolve allow for message.post")
 		}
 		dmRoomID := "R_dm_boundary_owner_test"
-		for _, perm := range []Permission{PermMessageManage, PermRoomManage, PermRoomMemberBan} {
+		for _, perm := range []Permission{PermMessageManage} {
 			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
 			if !has {
-				t.Errorf("expected owner override to allow %s despite DM boundary", perm)
+				t.Errorf("expected owner override to allow %s", perm)
+			}
+		}
+		for _, perm := range []Permission{PermRoomManage, PermRoomMemberBan} {
+			has, _ := c.permissionResolver.HasRoomPermission(ctx2, owner.Id, KindDM, dmRoomID, perm)
+			if has {
+				t.Errorf("expected %s to remain outside the DM scope", perm)
 			}
 		}
 	})
@@ -1107,10 +1113,9 @@ func TestPermissionResolver_UserLevelOverrides(t *testing.T) {
 }
 
 // ============================================================================
-// DM Permission Contract — locks down what the unified walker resolves
-// in a DM room for a regular participant and for elevated roles. The DM
-// boundary deny-list is the security boundary; everything else flows
-// through normal RBAC.
+// DM Permission Contract locks down what the unified walker resolves in a DM
+// room. All message permissions use the DM-to-Server hierarchy. Room
+// permissions stay outside the DM scope.
 // ============================================================================
 
 func TestPermissionResolver_DMContract(t *testing.T) {
@@ -1139,16 +1144,16 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 		want expected
 		why  string
 	}{
-		// === Boundary-denied (privacy + category mismatch) ===
+		// Room permissions do not apply to direct messages.
 		{PermRoomManage, expected{false, false}, "DM rooms can't be managed channel-style"},
 		{PermRoomMemberBan, expected{false, false}, "DM participants can't be removed"},
-		{PermMessageManage, expected{false, false}, "DM privacy: no cross-user moderation"},
-		{PermMessageEcho, expected{false, false}, "echo channel-only"},
 		{PermRoomCreate, expected{false, false}, "DMs use FindOrCreateDM"},
-		{PermMessagePostInThread, expected{false, false}, "threads are channel-only"},
+		{PermRoomJoin, expected{false, false}, "DM membership uses dedicated rules"},
 
-		// === Resolvable, default-granted to everyone === (so regular passes)
-		{PermRoomJoin, expected{true, true}, "auto-join on DM creation; perm resolves"},
+		// Message permissions resolve through the DM and Server tiers.
+		{PermMessageManage, expected{false, true}, "moderators inherit message management"},
+		{PermMessageEcho, expected{true, true}, "DM thread replies can echo to the conversation"},
+		{PermMessagePostInThread, expected{true, true}, "DM threads use Enabled behavior"},
 		{PermMessagePost, expected{true, true}, "core DM capability"},
 		{PermMessageAttach, expected{true, true}, "core DM capability"},
 		{PermMessageReact, expected{true, true}, "core DM capability"},
@@ -1174,7 +1179,7 @@ func TestPermissionResolver_DMContract(t *testing.T) {
 	}
 }
 
-func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.T) {
+func TestPermissionResolver_DMAttachInheritsAndOverridesServer(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -1189,8 +1194,22 @@ func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.
 	if err != nil {
 		t.Fatalf("HasRoomPermission before deny: %v", err)
 	}
-	if !got {
-		t.Fatal("message.attach should default-allow for DM participants without a persisted grant")
+	if got {
+		t.Fatal("message.attach should be absent after the inherited Server grant is cleared")
+	}
+	admin, _ := core.CreateUser(ctx, SystemActorID, "dmattach-admin", "Admin", "password123")
+	if err := core.AssignOwnerRole(ctx, admin.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageAttach, PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState allow: %v", err)
+	}
+	got, err = core.permissionResolver.HasRoomPermission(ctx, regular.Id, KindDM, dmRoomID, PermMessageAttach)
+	if err != nil || !got {
+		t.Fatalf("DM override result = %v, %v; want allow", got, err)
+	}
+	if err := core.SetUserPermissionState(ctx, admin.Id, regular.Id, PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageAttach, PermissionStateNone); err != nil {
+		t.Fatalf("SetUserPermissionState clear: %v", err)
 	}
 
 	if err := core.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageAttach); err != nil {
@@ -1202,7 +1221,7 @@ func TestPermissionResolver_DMAttachDefaultAllowRespectsExplicitDeny(t *testing.
 		t.Fatalf("HasRoomPermission after deny: %v", err)
 	}
 	if got {
-		t.Fatal("explicit server deny should override the DM message.attach default allow")
+		t.Fatal("explicit Server deny should apply when the DM override is absent")
 	}
 }
 

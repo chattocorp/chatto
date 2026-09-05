@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package chatto.core.pubsub.v1;
+
+import "chatto/realtime/v1/events.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1;pubsubv1";
+
+// ============================================================================
+// PUBSUB EVENT DEFINITIONS
+//
+// PubSubEvent oneof tags are local to this envelope. They do not need to match
+// Event oneof numbers because PubSubEvent is never stored in EVT and never
+// decoded as Event directly.
+// ============================================================================
+
+/*
+   PubSubEvent is the restricted wire-format envelope for NATS Core pubsub
+   signals. These events are never stored in EVT and are not projection input.
+   They are delivered over the live.sync.> subject family.
+
+   Durable facts belong in Event on the EVT stream. Do not add pubsub-only
+   variants to Event. Client-visible variants use their public realtime
+   payload type directly. The separate envelope limits which public event
+   kinds can use the cursorless pubsub path.
+*/
+message PubSubEvent {
+  // Universal event identifier (NanoID) for dedupe and client-side idempotency.
+  string id = 1;
+
+  // When this pubsub event was created.
+  google.protobuf.Timestamp created_at = 2;
+
+  // ID of the user or system actor that triggered this signal.
+  string actor_id = 3;
+
+  oneof event {
+    // ----- Typing -----
+    chatto.realtime.v1.UserTypingEvent user_typing = 10;
+
+    // ----- Presence -----
+    chatto.realtime.v1.PresenceChangedEvent presence_changed = 11;
+
+    // ----- Notification sync -----
+    chatto.realtime.v1.NotificationOccurrencesChangedEvent notification_occurrences_changed = 12;
+    chatto.realtime.v1.NotificationUnreadStateChangedEvent notification_unread_state_changed = 13;
+
+    // ----- Viewer read state -----
+    chatto.realtime.v1.RoomReadStateChangedEvent room_read_state_changed = 14;
+    chatto.realtime.v1.ThreadViewerStateChangedEvent thread_viewer_state_changed = 15;
+
+    // ----- Session termination -----
+    SessionTerminatedEvent session_terminated = 16;
+  }
+}
+
+// ============================================================================
+// SESSION TERMINATION EVENTS (user-scoped)
+// ============================================================================
+
+// Notifies a user that their session has been terminated.
+// Published as a user-scoped event on logout or admin boot.
+// The realtime handler converts this internal event to a close frame.
+message SessionTerminatedEvent {
+  // Reason for termination: "logout", "admin_boot", "account_deleted"
+  string reason = 1;
+}

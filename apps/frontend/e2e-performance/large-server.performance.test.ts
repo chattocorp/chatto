@@ -5,6 +5,7 @@ import {
   test,
   type APIRequestContext,
   type Browser,
+  type Page,
   type TestInfo
 } from '@playwright/test';
 import { connectPost } from '../e2e/fixtures/connectHelpers';
@@ -45,6 +46,7 @@ interface PerformanceMeasurements {
   membersPageMs: number;
   roomPageMs: number;
   realtimeDeliveryMs: number;
+  realtimeSnapshotBytes?: number;
 }
 
 interface PerformanceSample {
@@ -69,7 +71,7 @@ const sampledMetricNames = [
   'realtimeDeliveryMs'
 ] as const;
 
-const performanceMeasurementVersion = 'large-e2e-median-v1';
+const performanceMeasurementVersion = 'large-e2e-median-v2';
 
 const syntheticUsers = integerEnvironment('CHATTO_E2E_PERF_USERS', 2048);
 const messages = integerEnvironment('CHATTO_E2E_PERF_MESSAGES', 50_000);
@@ -83,7 +85,11 @@ const ceilings = {
   memberSearchApiMs: integerEnvironment('CHATTO_E2E_PERF_MAX_MEMBER_SEARCH_API_MS', 15_000),
   membersPageMs: integerEnvironment('CHATTO_E2E_PERF_MAX_MEMBERS_PAGE_MS', 30_000),
   roomPageMs: integerEnvironment('CHATTO_E2E_PERF_MAX_ROOM_PAGE_MS', 30_000),
-  realtimeDeliveryMs: integerEnvironment('CHATTO_E2E_PERF_MAX_REALTIME_MS', 15_000)
+  realtimeDeliveryMs: integerEnvironment('CHATTO_E2E_PERF_MAX_REALTIME_MS', 15_000),
+  realtimeSnapshotBytes: integerEnvironment(
+    'CHATTO_E2E_PERF_MAX_REALTIME_SNAPSHOT_BYTES',
+    2_000_000
+  )
 };
 
 test('large loaded server stays responsive across directory, timeline, and realtime', async ({
@@ -104,6 +110,12 @@ test('large loaded server stays responsive across directory, timeline, and realt
       samples.push(await measureLargeServer(browser, server, fixture, sample));
     }
     const statistics = summarizeSamples(samples);
+    const realtimeSnapshotBytes = await readServerMetric(
+      request,
+      server,
+      'chatto_realtime_snapshot_bytes',
+      booleanEnvironment('CHATTO_E2E_PERF_ALLOW_MISSING_REALTIME_SNAPSHOT_METRIC', false)
+    );
     const measurements: PerformanceMeasurements = {
       measurementVersion: performanceMeasurementVersion,
       sampleCount,
@@ -117,7 +129,8 @@ test('large loaded server stays responsive across directory, timeline, and realt
       memberSearchApiMs: statistics.memberSearchApiMs.median,
       membersPageMs: statistics.membersPageMs.median,
       roomPageMs: statistics.roomPageMs.median,
-      realtimeDeliveryMs: statistics.realtimeDeliveryMs.median
+      realtimeDeliveryMs: statistics.realtimeDeliveryMs.median,
+      realtimeSnapshotBytes
     };
     await attachMeasurements(testInfo, measurements, samples, statistics);
     await attachServerMetrics(request, testInfo, server);
@@ -142,6 +155,12 @@ test('large loaded server stays responsive across directory, timeline, and realt
       measurements.realtimeDeliveryMs,
       'receiver-visible realtime message'
     ).toBeLessThanOrEqual(ceilings.realtimeDeliveryMs);
+    if (measurements.realtimeSnapshotBytes !== undefined) {
+      expect(
+        measurements.realtimeSnapshotBytes,
+        'serialized realtime snapshot'
+      ).toBeLessThanOrEqual(ceilings.realtimeSnapshotBytes);
+    }
   } finally {
     await stopServer(server, testInfo);
   }
@@ -242,11 +261,22 @@ async function measureLargeServer(
     const receiverRoom = new RoomPage(receiverPage);
     await receiverRoom.expectMessageVisible(fixture.lastMessageBody);
 
+    // A room resource can render before the initial realtime reconciliation is
+    // complete. Measure steady-state delivery after both clients finish their
+    // current resource reads, not the remaining bootstrap work.
+    await Promise.all([
+      page.waitForLoadState('networkidle'),
+      receiverPage.waitForLoadState('networkidle')
+    ]);
+
     const liveBody = `Performance live delivery sample ${sample} ${Date.now()}`;
     const realtimeStarted = performance.now();
-    await senderRoom.sendMessage(liveBody);
-    await receiverRoom.expectMessageVisible(liveBody);
-    const realtimeDeliveryMs = performance.now() - realtimeStarted;
+    let realtimeDeliveredAt = 0;
+    const receiverDelivery = waitForRenderedMessage(receiverPage, liveBody).then(() => {
+      realtimeDeliveredAt = performance.now();
+    });
+    await Promise.all([senderRoom.sendMessage(liveBody), receiverDelivery]);
+    const realtimeDeliveryMs = realtimeDeliveredAt - realtimeStarted;
 
     return {
       memberListApiMs,
@@ -318,6 +348,32 @@ async function attachServerMetrics(
     body: await response.body(),
     contentType: 'text/plain'
   });
+}
+
+async function readServerMetric(
+  request: APIRequestContext,
+  server: ServerInfo,
+  name: string,
+  allowMissing = false
+): Promise<number | undefined> {
+  if (!server.metricsURL) throw new Error('server metrics are required for performance tests');
+  const response = await request.get(`${server.metricsURL}/metrics`);
+  if (!response.ok()) throw new Error(`metrics request failed: ${response.status()}`);
+  const match = (await response.text()).match(new RegExp(`^${name} ([0-9.eE+-]+)$`, 'm'));
+  if (!match && allowMissing) return undefined;
+  if (!match) throw new Error(`metric ${name} is missing`);
+  return Number(match[1]);
+}
+
+async function waitForRenderedMessage(page: Page, body: string): Promise<void> {
+  await page.waitForFunction(
+    (messageBody) =>
+      [...document.querySelectorAll('[role="article"]')].some((article) =>
+        article.textContent?.includes(messageBody)
+      ),
+    body,
+    { polling: 'raf' }
+  );
 }
 
 function integerEnvironment(name: string, fallback: number): number {

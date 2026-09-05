@@ -2,9 +2,9 @@ package core
 
 import (
 	"context"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 
-	"hmans.de/chatto/internal/core/subjects"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // PublishTypingIndicator publishes a typing indicator event to other users in the room.
@@ -13,22 +13,20 @@ import (
 //
 // Authorization: Caller must verify room membership before calling.
 func (c *ChattoCore) PublishTypingIndicator(ctx context.Context, actorID string, kind RoomKind, roomID string, threadRootEventID *string) error {
-	typingEvent := &livev1.UserTypingEvent{
+	typingEvent := &realtimev1.UserTypingEvent{
 		RoomId: roomID,
 	}
 	if threadRootEventID != nil {
 		typingEvent.ThreadRootEventId = threadRootEventID
 	}
 
-	event := newLiveEvent(actorID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_UserTyping{
+	event := newPubSubEvent(actorID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_UserTyping{
 			UserTyping: typingEvent,
 		},
 	})
 
-	// Publish directly to live subject (bypass JetStream)
-	subject := subjects.LiveSyncRoomEvent(string(kind), roomID, "user_typing")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishRoomPubSubEvent(ctx, kind, roomID, event); err != nil {
 		c.logger.Warn("Failed to publish typing indicator", "error", err)
 		return err
 	}

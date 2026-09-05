@@ -519,9 +519,8 @@ Active room bans visible to the current moderator.
 ### ListRoomAttachments
 
 Lists current message-owned room attachments. Authentication and room
-membership are required. Channel-room attachments also require message.read
-or a matching thread relationship with message.read-interactions. DM
-membership authorizes DM attachments. The server omits attachments from
+membership are required. Attachments also require message.read or a
+matching thread relationship with message.read-interactions. The server omits attachments from
 inaccessible threads. Returns PERMISSION_DENIED when the room is
 inaccessible to the caller.
 
@@ -700,10 +699,9 @@ Result of refreshing a typing indicator.
 ### GetRoomEvents
 
 Returns one page of room timeline events, including related user data
-needed to render the page. Room membership is required. Channel-room reads
-also require message.read or message.read-interactions. The server returns
-only related thread roots for an interaction-scoped caller. DM membership
-authorizes DM reads.
+needed to render the page. Room membership is required. Reads also require
+message.read or message.read-interactions. The server returns only related
+thread roots for an interaction-scoped caller.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
@@ -746,8 +744,7 @@ Returns a room timeline window centered around a specific event. Use this to
 open a permalink, search result, or notification target in context. Returns
 NOT_FOUND when the anchor event is missing or not visible in the room
 timeline. Returns PERMISSION_DENIED when room membership or both read modes
-are missing, or when the anchor is in an unrelated thread. DM membership
-authorizes DM reads.
+are missing, or when the anchor is in an unrelated thread.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
@@ -786,8 +783,8 @@ Response containing a room timeline window around a specific event.
 ### MarkRoomAsRead
 
 Marks a room timeline as read through the supplied event. Room membership
-is required. Channel-room reads also require message.read or
-message.read-interactions. DM membership authorizes DM reads. If no event
+is required. Reads also require message.read or
+message.read-interactions. If no event
 is supplied, the server marks through the latest root event that the caller
 can read. Clients
 usually call this after the user has viewed the latest visible event in the

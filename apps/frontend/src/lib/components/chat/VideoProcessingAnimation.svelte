@@ -101,6 +101,7 @@
 </script>
 
 <script lang="ts">
+  import { observeCanvas } from '$lib/attachments/observeCanvas';
   let {
     label,
     progress = null
@@ -118,16 +119,14 @@
 
       const texture = getCloudTexture();
       const startedAt = performance.now();
-      const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
       let timer: ReturnType<typeof setTimeout> | undefined;
-      let inViewport = true;
 
       function effectiveProgress(now: number) {
         const suppliedProgress = getProgress();
         if (suppliedProgress !== null) {
           return Math.min(1, Math.max(0, suppliedProgress));
         }
-        if (motionQuery.matches) return 0.72;
+        if (lifecycle.reducedMotion) return 0.72;
         return Math.min(1, (now - startedAt) / 1000 / AMBIENT_REFINEMENT_SECONDS);
       }
 
@@ -153,7 +152,7 @@
         const sourceHeight = Math.min(TEXTURE_HEIGHT - 16, sourceWidth * aspectRatio);
         const travelX = TEXTURE_WIDTH - sourceWidth;
         const travelY = TEXTURE_HEIGHT - sourceHeight;
-        const elapsed = motionQuery.matches ? 2.4 : (now - startedAt) / 1000;
+        const elapsed = lifecycle.reducedMotion ? 2.4 : (now - startedAt) / 1000;
         const sourceX = travelX * (0.5 + Math.sin(elapsed * 0.071) * 0.36);
         const sourceY = travelY * (0.5 + Math.cos(elapsed * 0.053) * 0.36);
 
@@ -170,14 +169,14 @@
           rows
         );
 
-        if (!motionQuery.matches && inViewport && !document.hidden) {
+        if (!lifecycle.reducedMotion && lifecycle.visible) {
           const interval = fidelity >= 1 ? RESOLVED_FRAME_INTERVAL : ACTIVE_FRAME_INTERVAL;
           timer = setTimeout(draw, interval);
         }
       }
 
       function scheduleDraw() {
-        if (timer === undefined && inViewport && !document.hidden) {
+        if (timer === undefined && lifecycle.visible) {
           timer = setTimeout(draw, 0);
         }
       }
@@ -187,27 +186,17 @@
         timer = undefined;
       }
 
-      function handleVisibilityChange() {
-        if (document.hidden) pause();
-        else scheduleDraw();
-      }
-
-      function handleMotionChange() {
-        pause();
-        scheduleDraw();
-      }
-
-      const resizeObserver = new ResizeObserver(scheduleDraw);
-      const intersectionObserver = new IntersectionObserver(([entry]) => {
-        inViewport = entry?.isIntersecting ?? true;
-        if (inViewport) scheduleDraw();
-        else pause();
+      const lifecycle = observeCanvas(canvas, {
+        onResize: scheduleDraw,
+        onVisibilityChange: () => {
+          if (lifecycle.visible) scheduleDraw();
+          else pause();
+        },
+        onMotionChange: () => {
+          pause();
+          scheduleDraw();
+        }
       });
-
-      resizeObserver.observe(canvas);
-      intersectionObserver.observe(canvas);
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-      motionQuery.addEventListener('change', handleMotionChange);
       scheduleDraw();
 
       $effect(() => {
@@ -217,10 +206,7 @@
 
       return () => {
         pause();
-        resizeObserver.disconnect();
-        intersectionObserver.disconnect();
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
-        motionQuery.removeEventListener('change', handleMotionChange);
+        lifecycle.destroy();
       };
     };
   }

@@ -677,14 +677,14 @@ export class RoomPage {
    */
   async closeThread(): Promise<void> {
     await this.page.getByTitle('Back to room').click();
-    await expect(this.page.getByRole('heading', { name: /^Thread in #/ })).not.toBeVisible();
+    await expect(this.threadPane).not.toBeVisible();
   }
 
   /**
    * Assert that the thread pane is visible.
    */
   async expectThreadPaneVisible(): Promise<void> {
-    await expect(this.page.getByRole('heading', { name: /^Thread in #/ })).toBeVisible();
+    await expect(this.threadPane).toBeVisible();
   }
 
   /**

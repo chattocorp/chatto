@@ -1102,6 +1102,9 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 	if _, err := env.serverState.GetMotd(env.ctx, connect.NewRequest(&apiv1.GetMotdRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetMotd code = %v, want unauthenticated", connect.CodeOf(err))
 	}
+	if _, err := env.serverState.GetServerProfile(env.ctx, connect.NewRequest(&apiv1.GetServerProfileRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated GetServerProfile code = %v, want unauthenticated", connect.CodeOf(err))
+	}
 	if _, err := env.serverState.GetRuntimeConfig(env.ctx, connect.NewRequest(&apiv1.GetRuntimeConfigRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetRuntimeConfig code = %v, want unauthenticated", connect.CodeOf(err))
 	}
@@ -1112,6 +1115,13 @@ func TestServerServiceGetMotdAndRuntimeConfig(t *testing.T) {
 	}
 	if motdResp.Msg.GetMotd() != "Authenticated MOTD" {
 		t.Fatalf("MOTD = %q, want Authenticated MOTD", motdResp.Msg.GetMotd())
+	}
+	profileResp, err := env.serverState.GetServerProfile(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetServerProfileRequest{}))
+	if err != nil {
+		t.Fatalf("GetServerProfile: %v", err)
+	}
+	if profileResp.Msg.GetProfile().GetName() == "" {
+		t.Fatal("GetServerProfile returned an empty server name")
 	}
 
 	runtimeResp, err := env.serverState.GetRuntimeConfig(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRuntimeConfigRequest{}))

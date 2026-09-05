@@ -160,10 +160,9 @@
   }
 
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      if (operation.operation.case !== 'roomGroupsReplace') continue;
+    if (event.resource?.case === 'roomGroups') {
       snapshotGeneration += 1;
-      if (operation.operation.value.groups.some((candidate) => candidate.id === groupId)) {
+      if (event.resource.value.groups.some((candidate) => candidate.id === groupId)) {
         invalidateAdminRoomLayoutQueries(
           activeServerId,
           serverScope.connection,
@@ -174,7 +173,6 @@
         privacyGeneration += 1;
         purgeAdminRoomGroupQuery(activeServerId, serverScope.connection, groupId);
       }
-      return;
     }
   });
 

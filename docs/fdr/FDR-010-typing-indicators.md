@@ -10,9 +10,9 @@ When a user is composing a message, others see a small typing indicator — the 
 ## Behavior
 
 - Typing in the composer publishes a typing event to other room members. A
-  channel-room receiver needs `message.read` for a room indicator. A thread
+  receiver needs `message.read` for a room indicator. A thread
   indicator also permits `message.read-interactions` with a relationship to
-  that thread. DM membership authorizes DM delivery.
+  that thread. Room membership is also required.
 - Current clients refresh typing state through ConnectRPC
   `RoomService.UpdateTypingIndicator`.
 - Receiving clients show the indicator (avatar + animated dots) for a short duration after the last typing event.
@@ -25,7 +25,7 @@ When a user is composing a message, others see a small typing indicator — the 
 
 **Decision:** Typing events publish as transient live messages on the live-event channel. They are not written to JetStream.
 **Why:** Typing has zero audit value — it's interesting only in the moment. Storing a stream of "X is typing" events would bloat the event log without ever being read back. See ADR-012.
-**Tradeoff:** A client that misses the live event briefly doesn't see the indicator. Acceptable: the indicator is decoration, not state.
+**Tradeoff:** A client that misses the cursorless realtime event briefly does not see the indicator. This is acceptable because the indicator is decoration, not state.
 
 ### 2. 2-second send debounce, 6-second display TTL
 
@@ -47,11 +47,10 @@ When a user is composing a message, others see a small typing indicator — the 
 
 ## Permissions
 
-Room membership is required to send a typing indicator. A channel-room receiver
+Room membership is required to send a typing indicator. A receiver
 needs effective `message.read` authority for a room indicator. A thread
 indicator also permits `message.read-interactions` with a relationship to that
-thread. DM membership authorizes DM delivery. Sending remains independent of
-read authority so a write-only channel-room account can compose messages
+thread. Sending remains independent of read authority so a write-only account can compose messages
 without receiving other users' message activity.
 
 ## Related

@@ -172,8 +172,8 @@ Realtime sockets are authenticated for the lifetime of the presented access
 token. At expiry the server cancels authorized work, sends a reconnecting
 `authentication_required` close when possible, and closes the socket. The
 frontend rotates once, reconnects the same per-server event bus with the new
-access token, and supplies its in-memory opaque resume cursor and retained-room
-set. The projection and route are not recreated.
+access token, and supplies its in-memory opaque resume cursor. The projection
+and route are not recreated.
 
 Logout presents the refresh credential when available so the server revokes
 the whole renewable session, rather than only one access-token verifier.

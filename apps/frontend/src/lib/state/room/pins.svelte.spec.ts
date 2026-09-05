@@ -1,9 +1,9 @@
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { PinnedMessage } from '@chatto/api-types/api/v1/rooms_pb';
 import {
-  RealtimeProjectionPinnedMessageAction,
-  RealtimeProjectionPinnedMessageChange
-} from '@chatto/api-types/realtime/v1/realtime_pb';
+  MessagePinnedEvent,
+  MessageUnpinnedEvent
+} from '@chatto/api-types/realtime/v1/events_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { PinnedMessagesAPI } from '$lib/api-client/pinnedMessages';
@@ -69,21 +69,21 @@ describe('RoomPinsStore', () => {
     const release = store.retain();
     await vi.waitFor(() => expect(api.list).toHaveBeenCalledTimes(1));
     store.applyRealtimeChange(
-      new RealtimeProjectionPinnedMessageChange({
-        action: RealtimeProjectionPinnedMessageAction.CREATED,
+      new MessagePinnedEvent({
         roomId: 'R1',
         messageEventId: 'M2'
       }),
+      true,
       'P2'
     );
     await vi.waitFor(() => expect(store.items[0]?.message?.id).toBe('M2'));
     expect(store.hasUnseen).toBe(true);
     store.applyRealtimeChange(
-      new RealtimeProjectionPinnedMessageChange({
-        action: RealtimeProjectionPinnedMessageAction.DELETED,
+      new MessageUnpinnedEvent({
         roomId: 'R1',
         messageEventId: 'M2'
       }),
+      false,
       'U2'
     );
     expect(store.items).toEqual([]);
@@ -258,11 +258,11 @@ describe('RoomPinsStore', () => {
     const staleLoad = store.loadMore();
     await vi.waitFor(() => expect(store.isLoadingMore).toBe(true));
     store.applyRealtimeChange(
-      new RealtimeProjectionPinnedMessageChange({
-        action: RealtimeProjectionPinnedMessageAction.CREATED,
+      new MessagePinnedEvent({
         roomId: 'R1',
         messageEventId: 'M2'
       }),
+      true,
       'P2'
     );
 

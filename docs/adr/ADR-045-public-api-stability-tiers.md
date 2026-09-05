@@ -70,6 +70,14 @@ they materially improve the API, but must carry an explicit compatibility
 plan, generated-client updates, public documentation updates, and release-note
 guidance. Persisted internal messages under `chatto.core` remain subject to the
 stronger non-breaking storage contract regardless of this public API posture.
+Protocol 4 uses `chatto.realtime.v1.RealtimeEvent.event` as its public event
+union. Each member uses a dedicated public payload. Public names and compact
+field numbers do not expose whether an internal source is a durable EVT fact or
+a transient pubsub event. Shared semantic values use suitable public types, but
+payload field numbers stay independent from EVT. Client-facing pubsub variants
+reference public payload messages directly. Stored EVT payloads keep their
+stronger storage compatibility, while the public union and its payloads are
+part of the experimental realtime API.
 
 `ServerDiscoveryService.GetServer` reports the server software version. The
 bundled web client maintains explicit minimum server versions for features that
@@ -114,11 +122,12 @@ semantics for deployed clients, and documents any intentional skew boundary.
 
 The realtime protocol is versioned by protocol behavior, not by its protobuf
 package suffix. The `chatto.realtime.v1` namespace currently accepts only
-protocol version 2 and provides compacted projection bootstrap plus bounded
-resume. Public cursors are encrypted, authenticated capabilities and never
-expose NATS/JetStream coordinates. Future frame additions must be additive where
-possible, and new required client behavior must be negotiated through
-hello/capability fields or a new protocol version.
+protocol version 4 and provides exact canonical-resource snapshots, authorized
+public events, cursor-bound targeted ConnectRPC reads, and bounded resume.
+Realtime cursors are authenticated, encrypted, viewer-bound tokens. Their
+internal position is not public, and their format is not a client contract.
+Future frame additions must be additive where possible. New required client
+behavior uses a new protocol version instead of a capability matrix.
 
 Generated API reference documentation is split by domain instead of presented
 as one large mixed page. ConnectRPC service pages, shared ConnectRPC types, and
@@ -129,13 +138,11 @@ realtime frames are distinct references, while `proto/chatto/api/v1/*.proto`,
 CI runs Buf breaking-change checks against `origin/main` and codegen drift
 checks. These checks are guardrails, not a replacement for compatibility review:
 pre-1.0 public API breaking changes can still be accepted when the PR carries
-the `api-breaking-change` label and states the compatibility plan. That label
-only suppresses public API breaking checks for `chatto/auth/v1`,
-`chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
-`chatto/realtime/v1`, plus the explicitly transient
-`chatto/core/live/v1/live_events.proto` wire envelope. Storage and other
-internal protobuf checks, including the persisted packages under
-`chatto/core`, still run.
+the `api-breaking-change` label and states the compatibility plan. CI also
+requires one scoped label, such as `api-breaking-change:realtime`, for each
+public package whose Buf check can be skipped. Checks for all other public
+packages still run. Storage and other internal protobuf checks, including the
+persisted packages under `chatto/core`, always run.
 The local root-equivalent `chatto.operator.v1`
 surface is reviewed separately and is not part of the public network API
 posture.

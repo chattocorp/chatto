@@ -1,14 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import {
-  RealtimeProjectionEvent,
-  RealtimeProjectionOperation,
-  RealtimeProjectionRoom,
-  RealtimeProjectionRoomRemove
-} from '@chatto/api-types/realtime/v1/realtime_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { ListRoomsResponse, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { RealtimeResourceUpdate } from '$lib/api-client/realtimeResources';
+import { RoomDeletedEvent } from '@chatto/api-types/realtime/v1/events_pb';
+import { RealtimeEvent as PublicRealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -23,7 +21,7 @@ import {
 const mocks = vi.hoisted(() => ({
   getRoom: vi.fn(),
   listRoomMembers: vi.fn(),
-  projectionHandlers: [] as Array<(event: RealtimeProjectionEvent) => void>,
+  projectionHandlers: [] as Array<(event: RealtimeProjectionUpdate) => void>,
   updateRoom: vi.fn(),
   refreshLayout: vi.fn(),
   success: vi.fn(),
@@ -38,7 +36,7 @@ vi.mock('$lib/state/activeServer.svelte', () => ({
 }));
 
 vi.mock('$lib/hooks', () => ({
-  useProjectionEvent: (handler: (event: RealtimeProjectionEvent) => void) => {
+  useProjectionEvent: (handler: (event: RealtimeProjectionUpdate) => void) => {
     mocks.projectionHandlers.push(handler);
   }
 }));
@@ -167,21 +165,37 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function dispatchProjection(operation: RealtimeProjectionOperation): void {
-  const event = new RealtimeProjectionEvent({ operations: [operation] });
+function dispatchProjection(event: RealtimeProjectionUpdate): void {
   for (const handler of mocks.projectionHandlers) handler(event);
 }
 
-function roomUpsert(): RealtimeProjectionOperation {
-  return new RealtimeProjectionOperation({
-    operation: {
-      case: 'roomUpsert',
-      value: new RealtimeProjectionRoom({
-        room: new RoomWithViewerState({
-          room: new Room({ id: 'shared-room', name: 'general' })
+function roomSnapshot(present = true): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    resource: new RealtimeResourceUpdate({
+      resource: {
+        case: 'rooms',
+        value: new ListRoomsResponse({
+          rooms: present
+            ? [
+                new RoomWithViewerState({
+                  room: new Room({ id: 'shared-room', name: 'general' })
+                })
+              ]
+            : []
         })
-      })
-    }
+      }
+    })
+  });
+}
+
+function roomRemoved(): RealtimeProjectionUpdate {
+  return new RealtimeProjectionUpdate({
+    event: new PublicRealtimeEvent({
+      event: {
+        case: 'roomDeleted',
+        value: new RoomDeletedEvent({ roomId: 'shared-room' })
+      }
+    })
   });
 }
 
@@ -244,7 +258,7 @@ describe('room management page identity and realtime authority', () => {
     await settle();
     expect(container.querySelector('#room-member-picker')).not.toBeNull();
 
-    dispatchProjection(roomUpsert());
+    dispatchProjection(roomSnapshot());
     await settle();
 
     expect(container.querySelector('#room-member-picker')).toBeNull();
@@ -268,7 +282,7 @@ describe('room management page identity and realtime authority', () => {
     nameInput.dispatchEvent(new Event('input', { bubbles: true }));
     flushSync();
 
-    dispatchProjection(roomUpsert());
+    dispatchProjection(roomSnapshot());
     await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
     await settle();
 
@@ -330,6 +344,27 @@ describe('room management page identity and realtime authority', () => {
     });
   });
 
+  it('saves a numeric slow-mode selection as a sparse patch', async () => {
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    const { container } = render(RoomManagementPage);
+    await settle();
+
+    const select = container.querySelector('#room-settings-slow-mode') as HTMLSelectElement;
+    select.value = '10';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+    const submit = container.querySelector('form button[type="submit"]') as HTMLButtonElement;
+    expect(submit.disabled).toBe(false);
+    submit.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateRoom).toHaveBeenCalledWith({
+        roomId: 'shared-room',
+        slowModeSeconds: 10
+      });
+    });
+  });
+
   it('saves a threading mode selected from the explanatory radio choices', async () => {
     mocks.getRoom.mockResolvedValue(managedRoom('general'));
     mocks.updateRoom.mockResolvedValueOnce({
@@ -385,14 +420,7 @@ describe('room management page identity and realtime authority', () => {
     expect(container.textContent).toContain('#private-room');
 
     mocks.getRoom.mockReturnValueOnce(pendingReload.promise);
-    dispatchProjection(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomRemove',
-          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
-        }
-      })
-    );
+    dispatchProjection(roomRemoved());
     flushSync();
 
     expect(container.textContent).not.toContain('#private-room');
@@ -409,14 +437,7 @@ describe('room management page identity and realtime authority', () => {
     const { container } = render(RoomManagementPage);
     await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
 
-    dispatchProjection(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomRemove',
-          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
-        }
-      })
-    );
+    dispatchProjection(roomRemoved());
     flushSync();
 
     expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
@@ -435,14 +456,7 @@ describe('room management page identity and realtime authority', () => {
     const { container } = render(RoomManagementPage);
     await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
 
-    dispatchProjection(
-      new RealtimeProjectionOperation({
-        operation: {
-          case: 'roomRemove',
-          value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
-        }
-      })
-    );
+    dispatchProjection(roomRemoved());
     flushSync();
     expect(mocks.listRoomMembers).toHaveBeenCalledOnce();
 
@@ -463,15 +477,7 @@ describe('room management page identity and realtime authority', () => {
     render(RoomManagementPage);
     await vi.waitFor(() => expect(mocks.listRoomMembers).toHaveBeenCalledOnce());
 
-    const removal = () =>
-      dispatchProjection(
-        new RealtimeProjectionOperation({
-          operation: {
-            case: 'roomRemove',
-            value: new RealtimeProjectionRoomRemove({ roomId: 'shared-room' })
-          }
-        })
-      );
+    const removal = () => dispatchProjection(roomRemoved());
     removal();
     await vi.waitFor(() => expect(mocks.getRoom).toHaveBeenCalledTimes(2));
     removal();
@@ -506,7 +512,7 @@ describe('room management page identity and realtime authority', () => {
     (container.querySelector('form button[type="submit"]') as HTMLButtonElement).click();
     await settle();
 
-    dispatchProjection(roomUpsert());
+    dispatchProjection(roomSnapshot());
     await settle();
     pendingSave.resolve({
       id: 'shared-room',

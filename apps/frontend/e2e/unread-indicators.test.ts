@@ -20,7 +20,7 @@ import {
 } from './fixtures/serverUser';
 
 test.describe('Multi-Tab Unread Sync', () => {
-  test('entering room clears unread in other tabs via RoomMarkedAsReadEvent', async ({
+  test('entering room clears unread in other tabs via room-read-state event', async ({
     page,
     chatPage,
     browser,
@@ -73,11 +73,11 @@ test.describe('Multi-Tab Unread Sync', () => {
             // realtime connection is established before we trigger events
             await page3.waitForLoadState('networkidle');
 
-            // Tab 1: User A enters general room (this auto-marks room as read and emits RoomMarkedAsReadEvent)
+            // Tab 1: User A enters the general room. This marks it as read and emits a room-read-state event.
             await chatPage.enterRoom('general');
             await waitForRoomReady(page, 'general');
 
-            // Tab 2: Should receive RoomMarkedAsReadEvent and clear room-level unread indicator
+            // Tab 2: The event clears the room-level unread indicator.
             await expect(async () => {
               const roomUnreadDot = page3.locator('[data-testid="room-unread-dot"]');
               await expect(roomUnreadDot).not.toBeVisible();

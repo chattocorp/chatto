@@ -165,11 +165,14 @@ func IsValidRoomThreadingMode(mode evtv1.RoomThreadingMode) bool {
 
 // EffectiveRoomThreadingMode normalizes persisted room data. Historical
 // channel events predate the field and therefore resolve UNSPECIFIED to
-// ENABLED. Unknown future values fail closed to DISABLED. DMs remain
-// threadless.
+// ENABLED. DMs always use ENABLED. Unknown future channel values fail closed
+// to DISABLED.
 func EffectiveRoomThreadingMode(room *evtv1.Room) evtv1.RoomThreadingMode {
-	if room == nil || room.GetKind() == evtv1.RoomKind_ROOM_KIND_DM {
+	if room == nil {
 		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+	}
+	if room.GetKind() == evtv1.RoomKind_ROOM_KIND_DM {
+		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
 	}
 	if room.GetThreadingMode() == evtv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
 		return evtv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
@@ -335,7 +338,6 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 		if err := c.roomModel.waitForGroupLayout(ctx, events.SubjectPosition(groupSubject, seqs[groupEntryIndex])); err != nil {
 			return nil, fmt.Errorf("wait for created room group membership: %w", err)
 		}
-		c.notifyRoomLayoutChanged(ctx, actorID, "create_room")
 	}
 	if len(defaultPermissionEntries) > 0 {
 		last := len(defaultPermissionEntries) - 1
@@ -788,9 +790,6 @@ func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKi
 			return err
 		}
 	}
-	if kind == KindChannel {
-		c.notifyRoomLayoutChanged(ctx, actorID, "delete_room")
-	}
 	return nil
 }
 
@@ -819,10 +818,6 @@ func (c *ChattoCore) ArchiveRoom(ctx context.Context, actorID string, kind RoomK
 	}
 	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
 		return nil, err
-	}
-
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
-		c.logger.Error("failed to publish room layout updated event after archive", "error", err)
 	}
 
 	c.logger.Info("Room archived", "kind", kind, "room_id", roomID)
@@ -854,10 +849,6 @@ func (c *ChattoCore) UnarchiveRoom(ctx context.Context, actorID string, kind Roo
 	}
 	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
 		return nil, err
-	}
-
-	if err := c.PublishRoomGroupsUpdated(ctx, actorID, kind); err != nil {
-		c.logger.Error("failed to publish room layout updated event after unarchive", "error", err)
 	}
 
 	c.logger.Info("Room unarchived", "kind", kind, "room_id", roomID)

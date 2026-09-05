@@ -3,11 +3,11 @@ package core
 import (
 	"context"
 	"fmt"
-	"hmans.de/chatto/internal/pb/chatto/core/live/v1"
 	"time"
 
-	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/jetstreamutil"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
+	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
 
 // ============================================================================
@@ -41,17 +41,15 @@ type LastReadEventIDAdvance struct {
 // a room as read. This enables real-time updates to space unread indicators.
 // This is best-effort - failures are logged but don't affect the mark-as-read operation.
 func (c *ChattoCore) NotifyRoomMarkedAsRead(ctx context.Context, userID string, kind RoomKind, roomID string) {
-	event := newLiveEvent(userID, &livev1.LiveEvent{
-		Event: &livev1.LiveEvent_RoomMarkedAsRead{
-			RoomMarkedAsRead: &livev1.RoomMarkedAsReadEvent{
+	event := newPubSubEvent(userID, &pubsubv1.PubSubEvent{
+		Event: &pubsubv1.PubSubEvent_RoomReadStateChanged{
+			RoomReadStateChanged: &realtimev1.RoomReadStateChangedEvent{
 				RoomId: roomID,
 			},
 		},
 	})
 
-	// Publish to user's server event stream (only they need to know)
-	subject := subjects.LiveSyncUserEvent(userID, "room_read")
-	if err := c.publishLiveEvent(ctx, subject, event); err != nil {
+	if err := c.publishUserPubSubEvent(ctx, userID, event); err != nil {
 		c.logger.Warn("Failed to publish room marked as read event",
 			"user_id", userID,
 			"kind", kind,
@@ -85,7 +83,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 		return "", time.Time{}, false, err
 	}
 	interactions := false
-	if !broad && kind != KindDM {
+	if !broad {
 		interactions, err = c.CanReadMessageInteractions(ctx, userID, kind, roomID)
 		if err != nil {
 			return "", time.Time{}, false, err
@@ -95,7 +93,7 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 		if entry == nil || !entry.IsMessagePost() || entry.InThreadEventID != "" {
 			return false
 		}
-		if broad || kind == KindDM {
+		if broad {
 			return true
 		}
 		return interactions && c.roomModel.hasThreadInteraction(userID, roomID, entry.ThreadRootEventID)

@@ -559,7 +559,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 			created = append(created, stored)
 		}
 	}
-	m.publishCreatedInvalidations(ctx, created)
+	m.core.publishNotificationOccurrenceInvalidations(ctx, created, true)
 	if appendErr != nil {
 		return nil, appendErr
 	}
@@ -632,24 +632,6 @@ func newNotificationSignalledLifecycleEvent(now time.Time, occurrence *notificat
 			AlertExpiresAt:       occurrence.GetAlertExpiresAt(),
 		}},
 	}
-}
-
-func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Context, occurrences []*notificationv1.NotificationOccurrence) {
-	byRecipient := make(map[string]*notificationv1.NotificationOccurrence)
-	for _, occurrence := range occurrences {
-		if occurrence == nil || occurrence.GetRecipientId() == "" {
-			continue
-		}
-		current := byRecipient[occurrence.GetRecipientId()]
-		if current == nil || (!NotificationAlertPending(current) && NotificationAlertPending(occurrence)) {
-			byRecipient[occurrence.GetRecipientId()] = occurrence
-		}
-	}
-	invalidations := make([]*notificationv1.NotificationOccurrence, 0, len(byRecipient))
-	for _, occurrence := range byRecipient {
-		invalidations = append(invalidations, occurrence)
-	}
-	m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, true)
 }
 
 func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificationID string) (*notificationv1.NotificationOccurrence, error) {

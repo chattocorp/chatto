@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 560" role="img" aria-labelledby="title desc" style="display:block;width:100%;height:auto;min-width:42rem;max-width:920px;margin-inline:auto">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 680" role="img" aria-labelledby="title desc" style="display:block;width:100%;height:auto;min-width:42rem;max-width:920px;margin-inline:auto">
   <title id="title">Chatto realtime protocol sequence</title>
-  <desc id="desc">A client opens a WebSocket, exchanges hello frames, subscribes, receives bootstrap or replay operations, reaches caught up, and then receives live operations.</desc>
+  <desc id="desc">A client opens a WebSocket, subscribes, receives an exact resource snapshot or bounded replay through boundary E, receives the caught-up cursor, and then receives live public events.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--sl-color-gray-3, #64748b)"/>
@@ -20,32 +20,29 @@
   <rect x="665" y="20" width="190" height="50" rx="12" class="box"/>
   <text x="160" y="52" text-anchor="middle" class="text">Client</text>
   <text x="760" y="52" text-anchor="middle" class="text">Chatto server</text>
-  <line x1="160" y1="80" x2="160" y2="530" class="lane"/>
-  <line x1="760" y1="80" x2="760" y2="530" class="lane"/>
+  <line x1="160" y1="80" x2="160" y2="650" class="lane"/>
+  <line x1="760" y1="80" x2="760" y2="650" class="lane"/>
 
   <line x1="170" y1="105" x2="748" y2="105" class="flow"/>
   <text x="460" y="96" text-anchor="middle" class="text">Open GET /api/realtime</text>
 
-  <line x1="170" y1="155" x2="748" y2="155" class="flow"/>
-  <text x="460" y="146" text-anchor="middle" class="text">hello · protocol 2 · bearer token if needed</text>
+  <line x1="170" y1="165" x2="748" y2="165" class="flow"/>
+  <text x="460" y="156" text-anchor="middle" class="text">RealtimeSubscribe · protocol 4 · fallback · cursor?</text>
 
-  <line x1="750" y1="205" x2="172" y2="205" class="flow"/>
-  <text x="460" y="196" text-anchor="middle" class="text">hello · accepted version · capabilities · heartbeat</text>
+  <rect x="250" y="205" width="420" height="76" rx="12" class="pill"/>
+  <text x="460" y="232" text-anchor="middle" class="text">Snapshot: one exact content value at boundary E</text>
+  <text x="460" y="259" text-anchor="middle" class="text">Resume: authorized durable events through E</text>
 
-  <line x1="170" y1="255" x2="748" y2="255" class="flow"/>
-  <text x="460" y="246" text-anchor="middle" class="text">subscribe_events · cursor? · retained rooms</text>
+  <line x1="750" y1="325" x2="172" y2="325" class="flow durable"/>
+  <text x="460" y="316" text-anchor="middle" class="text">one atomic snapshot or replayed events</text>
 
-  <line x1="750" y1="305" x2="172" y2="305" class="flow"/>
-  <text x="460" y="296" text-anchor="middle" class="text">subscribed</text>
-
-  <rect x="250" y="330" width="420" height="76" rx="12" class="pill"/>
-  <text x="460" y="357" text-anchor="middle" class="text">Fresh or unusable cursor: reset + current state</text>
-  <text x="460" y="384" text-anchor="middle" class="text">Valid cursor: ordered projection replay</text>
-
-  <line x1="750" y1="435" x2="172" y2="435" class="flow durable"/>
-  <text x="460" y="426" text-anchor="middle" class="text">caught_up · safe resume cursor</text>
+  <line x1="750" y1="405" x2="172" y2="405" class="flow durable"/>
+  <text x="460" y="396" text-anchor="middle" class="text">caught_up · safe resume cursor E</text>
 
   <line x1="750" y1="485" x2="172" y2="485" class="flow durable"/>
-  <text x="460" y="476" text-anchor="middle" class="text">live projection operations + transient events</text>
-  <text x="460" y="535" text-anchor="middle" class="small">Apply projection operations in order. Save a cursor only after the complete event succeeds.</text>
+  <text x="460" y="476" text-anchor="middle" class="text">authorized public events after E</text>
+
+  <line x1="750" y1="565" x2="172" y2="565" class="flow durable"/>
+  <text x="460" y="556" text-anchor="middle" class="text">realtime events and heartbeats</text>
+  <text x="460" y="655" text-anchor="middle" class="small">Save a cursor only after the event and its required resource reads succeed.</text>
 </svg>

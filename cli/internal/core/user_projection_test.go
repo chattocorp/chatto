@@ -242,6 +242,36 @@ func TestUserProjection_RetainsEncryptedPIIAndDecryptsOnRead(t *testing.T) {
 	require.Equal(t, 4, unwrapCalls, "profile and email hydration should share one DEK unwrap")
 }
 
+func TestUserProjectionContentSnapshotDefersHydrationAndKeepsCapturedGeneration(t *testing.T) {
+	key, err := encryption.GenerateKey()
+	require.NoError(t, err)
+	unwrapCalls := 0
+	p := NewUserProjection(staticProjectionKeyWrapper{key: key, unwrapCalls: &unwrapCalls}, staticProjectionDEKStore{})
+	require.NoError(t, p.Apply(&evtv1.Event{
+		Id: "K1",
+		Event: &evtv1.Event_UserDekGenerated{UserDekGenerated: &evtv1.UserDEKGeneratedEvent{
+			UserId:        "U1",
+			Epoch:         1,
+			Purpose:       evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII,
+			ContentKeyRef: "dek.test",
+		}},
+	}, 1))
+	contentKey := &messageContentKey{epoch: 1, purpose: evtv1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, key: key}
+	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "alice", "Alice")), 2))
+	require.Equal(t, 1, unwrapCalls, "projection apply derives the login index")
+
+	snapshot := p.contentSnapshot("U1")
+	require.NotNil(t, snapshot)
+	require.Equal(t, 1, unwrapCalls, "capturing projected state must not resolve a key")
+
+	require.NoError(t, p.Apply(userEvent("E2", time.Now(), displayNameChanged(t, contentKey, "E2", "U1", "Alice Updated")), 3))
+	user, ok, err := p.hydrateUserSnapshot(WithDEKRequestCache(context.Background()), snapshot, time.Now())
+	require.NoError(t, err)
+	require.True(t, ok)
+	require.Equal(t, "Alice", user.GetDisplayName(), "hydration must use the captured generation")
+	require.Equal(t, 2, unwrapCalls, "hydration resolves the captured key after the copy")
+}
+
 func TestUserProjection_ReadErrorsDoNotBecomeAbsenceOrTombstones(t *testing.T) {
 	p, contentKey := newEncryptedUserProjection(t, "U1")
 	require.NoError(t, p.Apply(userEvent("E1", time.Now(), accountCreated(t, contentKey, "E1", "U1", "Alice", "Alice A.")), 2))

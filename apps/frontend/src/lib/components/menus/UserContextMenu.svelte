@@ -129,8 +129,8 @@ keep the compact menu without a navigation action.
       const isOneToOneDM =
         memberIds.length === 2 && memberIds.includes(currentUserId) && memberIds.includes(user.id);
       return (
-        entry.room?.room?.kind === RoomKind.DM &&
-        entry.room.viewerState?.isMember &&
+        entry.room?.kind === RoomKind.DM &&
+        entry.viewerState?.isMember &&
         (isSelfDM || isOneToOneDM)
       );
     });

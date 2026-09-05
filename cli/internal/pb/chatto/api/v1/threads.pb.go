@@ -316,9 +316,12 @@ type FollowedThread struct {
 	// Aggregated thread state.
 	Thread *ThreadSummary `protobuf:"bytes,9,opt,name=thread,proto3" json:"thread,omitempty"`
 	// Most recent visible reply, when the thread has one.
-	LatestReply   *Message `protobuf:"bytes,10,opt,name=latest_reply,json=latestReply,proto3" json:"latest_reply,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	LatestReply *Message `protobuf:"bytes,10,opt,name=latest_reply,json=latestReply,proto3" json:"latest_reply,omitempty"`
+	// User IDs used to derive a direct-message conversation label. Empty for
+	// channel rooms.
+	DirectMessageParticipantUserIds []string `protobuf:"bytes,11,rep,name=direct_message_participant_user_ids,json=directMessageParticipantUserIds,proto3" json:"direct_message_participant_user_ids,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *FollowedThread) Reset() {
@@ -379,13 +382,23 @@ func (x *FollowedThread) GetLatestReply() *Message {
 	return nil
 }
 
+func (x *FollowedThread) GetDirectMessageParticipantUserIds() []string {
+	if x != nil {
+		return x.DirectMessageParticipantUserIds
+	}
+	return nil
+}
+
 // Request for a page of followed threads for the current user.
 type ListFollowedThreadsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Page request. Defaults to 20 results when absent or limit is zero.
-	Page          *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Page *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Include followed direct-message threads. Defaults to false so older
+	// clients retain the channel-only result shape.
+	IncludeDirectMessageThreads bool `protobuf:"varint,4,opt,name=include_direct_message_threads,json=includeDirectMessageThreads,proto3" json:"include_direct_message_threads,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *ListFollowedThreadsRequest) Reset() {
@@ -423,6 +436,13 @@ func (x *ListFollowedThreadsRequest) GetPage() *PageRequest {
 		return x.Page
 	}
 	return nil
+}
+
+func (x *ListFollowedThreadsRequest) GetIncludeDirectMessageThreads() bool {
+	if x != nil {
+		return x.IncludeDirectMessageThreads
+	}
+	return false
 }
 
 // Response containing one followed-thread page.
@@ -510,16 +530,18 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"n\n" +
 	"\x16UnfollowThreadResponse\x12\x1c\n" +
 	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
-	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\xca\x02\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\x98\x03\n" +
 	"\x0eFollowedThread\x129\n" +
 	"\froot_message\x18\x04 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12.\n" +
 	"\x04room\x18\b \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x124\n" +
 	"\x06thread\x18\t \x01(\v2\x1c.chatto.api.v1.ThreadSummaryR\x06thread\x129\n" +
 	"\flatest_reply\x18\n" +
-	" \x01(\v2\x16.chatto.api.v1.MessageR\vlatestReplyJ\x04\b\x01\x10\x04J\x04\b\x05\x10\bR\aroom_idR\troom_nameR\x14thread_root_event_idR\vreply_countR\rlast_reply_atR\n" +
-	"has_unread\"g\n" +
+	" \x01(\v2\x16.chatto.api.v1.MessageR\vlatestReply\x12L\n" +
+	"#direct_message_participant_user_ids\x18\v \x03(\tR\x1fdirectMessageParticipantUserIdsJ\x04\b\x01\x10\x04J\x04\b\x05\x10\bR\aroom_idR\troom_nameR\x14thread_root_event_idR\vreply_countR\rlast_reply_atR\n" +
+	"has_unread\"\xac\x01\n" +
 	"\x1aListFollowedThreadsRequest\x12.\n" +
-	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04pageJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x12C\n" +
+	"\x1einclude_direct_message_threads\x18\x04 \x01(\bR\x1bincludeDirectMessageThreadsJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x05limitR\x06offset\"\xe7\x01\n" +
 	"\x1bListFollowedThreadsResponse\x127\n" +
 	"\athreads\x18\x01 \x03(\v2\x1d.chatto.api.v1.FollowedThreadR\athreads\x12?\n" +
 	"\bincludes\x18\x04 \x01(\v2#.chatto.api.v1.RoomTimelineIncludesR\bincludes\x12+\n" +

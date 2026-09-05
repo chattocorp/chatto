@@ -70,7 +70,9 @@ test.describe('My Threads', () => {
     const threadItem = myThreads.threadItems;
     await expect(threadItem).toBeVisible();
     await expect(threadItem.getByText(rootText)).toBeVisible();
-    await expect(threadItem.getByText('1 reply')).toBeVisible();
+    // The canonical thread projection counts only visible replies. Retraction
+    // removes this reply from both the latest activity and the reply count.
+    await expect(threadItem.getByText('0 replies')).toBeVisible();
     await expect(threadItem.getByText('Message no longer available')).not.toBeVisible();
   });
 

@@ -1,7 +1,7 @@
 # FDR-035: Slow Mode
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-30
 
 ## Overview
 
@@ -77,20 +77,20 @@ would make moderation less responsive.
 **Tradeoff:** A member may continue revising the latest message during the
 cooldown.
 
-### 5. Reuse room realtime operations
+### 5. Reuse room realtime events
 
-**Decision:** Configuration changes emit `room_upsert`; message posts emit the
-existing per-viewer `room_viewer_state_replace` with an optional next-post
-timestamp.
-**Why:** Existing room projection operations already provide ordered
-multi-session convergence and reconnect bootstrap. No Slow-Mode-specific
-realtime operation is needed.
+**Decision:** Configuration changes and message posts use the normal semantic
+room and message events. Their authorized public data includes the current
+next-post time when it changes.
+**Why:** Existing room and message events provide ordered multi-session
+convergence and bounded reconnect resume. No Slow-Mode-specific realtime event
+is needed.
 **Tradeoff:** A room configuration change sends the full projected room row.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-051 (resumable client projection)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-019 (Room Lifecycle)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-091 (semantic realtime events)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-008 (File Attachments & Video Processing), FDR-019 (Room Lifecycle), FDR-045 (Realtime Event Stream)
 - **Issue:** [#999](https://github.com/chattocorp/chatto/issues/999)
 
 ## Open Questions

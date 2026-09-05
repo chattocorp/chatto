@@ -16,6 +16,7 @@ const (
 	ScopeServer PermissionScope = "server"
 	ScopeGroup  PermissionScope = "group"
 	ScopeRoom   PermissionScope = "room"
+	ScopeDM     PermissionScope = "dm"
 )
 
 // PermissionCategory groups related permissions for UI organization.
@@ -70,12 +71,11 @@ const (
 
 	// ===== Message Permissions =====
 
-	// PermMessageRead allows reading message content in channel rooms. Room
-	// membership remains a separate requirement. DM membership authorizes DM
-	// reads without this permission.
+	// PermMessageRead allows reading message content. Room or direct-message
+	// membership remains a separate requirement.
 	PermMessageRead Permission = "message.read"
 
-	// PermMessageReadInteractions allows reading channel-room threads that the
+	// PermMessageReadInteractions allows reading threads that the
 	// account authored or where another account directly mentioned it. Room
 	// membership remains a separate requirement. PermMessageRead explicitly
 	// includes this permission.
@@ -100,7 +100,7 @@ const (
 	// PermMessageReact allows adding/removing reactions to messages.
 	PermMessageReact Permission = "message.react"
 
-	// PermMessageEcho allows echoing thread replies to the main channel.
+	// PermMessageEcho allows echoing thread replies to the room timeline.
 	PermMessageEcho Permission = "message.echo"
 
 	// ===== Role Management Permissions =====
@@ -184,14 +184,14 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 
 	// Message
-	{Permission: PermMessageRead, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, Includes: []Permission{PermMessageReadInteractions}},
-	{Permission: PermMessageReadInteractions, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessagePost, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessagePostInThread, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
-	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
-	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{Permission: PermMessageRead, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}, Includes: []Permission{PermMessageReadInteractions}},
+	{Permission: PermMessageReadInteractions, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermMessagePost, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermMessagePostInThread, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermMessageAttach, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermMessageManage, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}, RequiresPrivilegedMode: true},
+	{Permission: PermMessageReact, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermMessageEcho, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 
 	// Role management
 	{Permission: PermRoleManage, Category: CategoryRole, Scopes: []PermissionScope{ScopeServer}, RequiresPrivilegedMode: true},

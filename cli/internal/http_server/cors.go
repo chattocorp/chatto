@@ -8,7 +8,7 @@ import (
 
 const (
 	serverDiscoveryConnectPath = connectAPIPrefix + "/chatto.discovery.v1.ServerDiscoveryService/GetServer"
-	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, X-CSRF-Token, Range, If-None-Match, If-Modified-Since"
+	corsAllowedHeaders         = "Authorization, Content-Type, Connect-Protocol-Version, Connect-Timeout-Ms, Chatto-Realtime-Minimum-Cursor, X-CSRF-Token, Range, If-None-Match, If-Modified-Since"
 )
 
 // corsMiddleware permits browser clients from any origin to use Chatto's

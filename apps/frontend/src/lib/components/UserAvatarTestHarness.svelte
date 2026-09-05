@@ -5,7 +5,7 @@
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import UserAvatar from './UserAvatar.svelte';
 
-  type Size = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  type Size = 'xs' | 'sm' | 'md' | 'message' | 'lg' | 'xl';
 
   let {
     size = 'md',

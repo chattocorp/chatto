@@ -483,15 +483,14 @@ func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID s
 }
 
 // notificationVisibilityExists is the current content boundary for
-// notification output. DM membership authorizes DM reads; channel members also
-// need message.read when the materializer makes its decision.
+// notification output. Membership and message.read are both required.
 func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, roomID string) bool {
 	if !s.membershipExists(userID, roomID) {
 		return false
 	}
-	kind, exists := s.roomKind(roomID)
-	if !exists || kind == KindDM {
-		return exists
+	_, exists := s.roomKind(roomID)
+	if !exists {
+		return false
 	}
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageRead)
 }
@@ -506,9 +505,9 @@ func (s *notificationDecisionSnapshot) notificationVisibilityExistsForSignal(use
 	if signal.GetDirectMentionReceived() == nil || !s.membershipExists(userID, roomID) {
 		return false
 	}
-	kind, exists := s.roomKind(roomID)
-	if !exists || kind == KindDM {
-		return exists
+	_, exists := s.roomKind(roomID)
+	if !exists {
+		return false
 	}
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
 }
@@ -520,9 +519,9 @@ func (s *notificationDecisionSnapshot) notificationInteractionVisibilityExists(u
 	if !s.membershipExists(userID, roomID) {
 		return false
 	}
-	kind, exists := s.roomKind(roomID)
-	if !exists || kind == KindDM {
-		return exists
+	_, exists := s.roomKind(roomID)
+	if !exists {
+		return false
 	}
 	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageReadInteractions)
 }
@@ -532,10 +531,13 @@ func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, gro
 		return true
 	}
 	scopes := make([]permissionScopeTarget, 0, 3)
-	if PermissionAppliesAtScope(permission, ScopeRoom) {
+	kind, _ := s.roomKind(roomID)
+	if kind == KindDM && PermissionAppliesAtScope(permission, ScopeDM) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeDM, level: LevelDM})
+	} else if PermissionAppliesAtScope(permission, ScopeRoom) {
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
 	}
-	if groupID != "" && PermissionAppliesAtScope(permission, ScopeGroup) {
+	if kind == KindChannel && groupID != "" && PermissionAppliesAtScope(permission, ScopeGroup) {
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeGroup, level: LevelGroup, id: groupID})
 	}
 	if PermissionAppliesAtScope(permission, ScopeServer) {

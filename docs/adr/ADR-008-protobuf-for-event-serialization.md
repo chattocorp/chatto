@@ -25,6 +25,7 @@ Use Protocol Buffers (proto3) for all JetStream event serialization. Proto defin
 - **Fast serialization**: Proto marshal/unmarshal is faster than JSON encode/decode, which matters for high-throughput message delivery.
 - **Schema evolution via field numbers**: New fields can be added without breaking existing data. Old binaries skip unknown fields. This is critical since stored events must remain readable across upgrades.
 - **Proto changes are breaking changes**: Modifying proto definitions affects wire format compatibility. Changes to `proto/` are treated as significant breaking changes according to the project status in `AGENTS.md`.
-- **Not human-readable**: Debugging stream contents requires `protoc --decode_raw` or similar tooling. The `chatto-debugging` skill documents the workflow for inspecting raw stream data.
+- **Binary format**: Use `protoc --decode_raw` or a schema-aware decoder to
+  inspect stored event bytes.
 - **Codegen step required**: Any schema change requires running `mise codegen` to regenerate Go types. Forgetting this causes build failures.
 - **API mapping**: Persisted event protos are storage contracts, not public API contracts. ConnectRPC/realtime API handlers map persisted event shapes into caller-facing API protos instead of exposing storage messages directly.

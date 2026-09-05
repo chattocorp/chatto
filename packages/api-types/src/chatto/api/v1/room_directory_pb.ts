@@ -138,6 +138,20 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
    */
   viewerState?: RoomViewerState;
 
+  /**
+   * Complete participant user IDs for a DM. Empty for channel rooms.
+   *
+   * @generated from field: repeated string member_user_ids = 15;
+   */
+  memberUserIds: string[] = [];
+
+  /**
+   * Whether this DM has received a root message. Absent for channel rooms.
+   *
+   * @generated from field: optional bool has_message_history = 16;
+   */
+  hasMessageHistory?: boolean;
+
   constructor(data?: PartialMessage<RoomWithViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -148,6 +162,8 @@ export class RoomWithViewerState extends Message<RoomWithViewerState> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room", kind: "message", T: Room },
     { no: 14, name: "viewer_state", kind: "message", T: RoomViewerState },
+    { no: 15, name: "member_user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 16, name: "has_message_history", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomWithViewerState {

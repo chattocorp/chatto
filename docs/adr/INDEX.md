@@ -27,7 +27,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-009](ADR-009-webhook-driven-voice-call-state.md) | Durable LiveKit Call State | Accepted | 2026-03-01 |
 | [ADR-010](ADR-010-svelte5-reactive-cache-whitelisting.md) | Svelte 5 Reactive Cache Whitelisting | Accepted | 2026-03-01 |
 | [ADR-011](ADR-011-message-body-event-split.md) | Message Body / Event Split | Partially superseded | 2026-03-01 |
-| [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Accepted | 2026-03-01 |
+| [ADR-012](ADR-012-two-tier-realtime-events.md) | Two-Tier Real-Time Event System | Partially superseded | 2026-03-01 |
 | [ADR-013](ADR-013-per-space-stream-sharding.md) | Per-Space JetStream Stream Sharding with Lazy Initialization | Superseded | 2026-03-01 |
 | [ADR-014](ADR-014-single-subscription-per-space.md) | Single GraphQL Subscription Per Space | Superseded | 2026-03-01 |
 | [ADR-015](ADR-015-dms-as-hidden-space.md) | Direct Messages as a Hidden Space | Superseded | 2026-03-01 |
@@ -49,7 +49,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Partially superseded | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | Superseded | 2026-05-23 |
 | [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | Accepted | 2026-05-24 |
-| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
+| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Partially superseded | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Completed | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Partially superseded | 2026-05-27 |
 | [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Partially superseded | 2026-05-31 |
@@ -66,7 +66,7 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-048](ADR-048-frontend-optimistic-ui.md) | Frontend Optimistic UI Uses Scoped Provisional Patches | Accepted | 2026-07-09 |
 | [ADR-049](ADR-049-process-wide-realtime-event-hub.md) | Process-Wide Realtime Event Hub | Accepted | 2026-07-14 |
 | [ADR-050](ADR-050-ephemeral-encrypted-projection-snapshots.md) | Ephemeral Encrypted Projection Snapshots | Accepted | 2026-07-13 |
-| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Accepted | 2026-07-16 |
+| [ADR-051](ADR-051-server-scoped-resumable-client-projection.md) | Server-Scoped Resumable Client Projection | Superseded | 2026-07-16 |
 | [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md) | Subject-Specific RBAC with an Everyone Baseline | Accepted | 2026-07-19 |
 | [ADR-053](ADR-053-versioned-nats-service-namespaces.md) | Versioned NATS Service Namespaces | Accepted | 2026-07-20 |
 | [ADR-054](ADR-054-optional-projection-persistence.md) | Projection Persistence Is Optional | Accepted | 2026-07-20 |
@@ -95,9 +95,9 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
 | [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
 | [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Partially superseded | 2026-08-22 |
-| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |
+| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Partially superseded | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
-| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |
+| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Partially superseded | 2026-08-25 |
 | [ADR-083](ADR-083-action-limited-bot-incoming-webhooks.md) | Use Action-Limited Credentials for Bot Incoming Webhooks | Accepted | 2026-08-27 |
 | [ADR-084](ADR-084-separate-internal-protobufs-by-storage-contract.md) | Separate Internal Protobufs by Storage Contract | Accepted | 2026-08-28 |
 | [ADR-085](ADR-085-agent-integration-through-mcp.md) | Provide User-Scoped Agent Integration through MCP | Accepted | 2026-08-29 |
@@ -106,4 +106,8 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-088](ADR-088-componentized-projections-behind-one-apply-barrier.md) | Coordinate Projection Components Behind One Apply Barrier | Accepted | 2026-09-02 |
 | [ADR-089](ADR-089-server-content-view.md) | Project Client-Readable EVT State into ServerContentView | Partially superseded | 2026-09-02 |
 | [ADR-090](ADR-090-hydrate-room-timeline-payloads-from-evt.md) | Hydrate Room Timeline Payloads from EVT | Accepted | 2026-09-03 |
-| [ADR-091](ADR-091-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |
+| [ADR-091](ADR-091-semantic-realtime-events-with-bounded-resume.md) | Use Semantic Realtime Events with Bounded Resume | Partially superseded | 2026-08-30 |
+| [ADR-093](ADR-093-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Dedicated Payloads | Accepted | 2026-09-03 |
+| [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) | Separate Durable and Pubsub Event Envelopes | Accepted | 2026-09-03 |
+| [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md) | Direct-Message Permission Scope and Threads | Accepted | 2026-09-04 |
+| [ADR-096](ADR-096-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |

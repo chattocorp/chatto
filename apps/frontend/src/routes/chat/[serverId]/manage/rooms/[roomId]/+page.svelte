@@ -204,29 +204,27 @@
   }
 
   useProjectionEvent((event) => {
-    for (const operation of event.operations) {
-      switch (operation.operation.case) {
-        case 'roomUpsert':
-          if (operation.operation.value.room?.room?.id === roomId) {
-            snapshotGeneration += 1;
-            invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
-            return;
-          }
-          break;
-        case 'roomRemove':
-          if (operation.operation.value.roomId === roomId) {
-            snapshotGeneration += 1;
-            privacyGeneration += 1;
-            pendingMemberRevalidation = {
-              serverId: activeServerId,
-              queryScope: serverScope.connection.queryScope,
-              roomId
-            };
-            purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
-            return;
-          }
-          break;
+    if (event.resource?.case === 'rooms') {
+      if (event.resource.value.rooms.some((room) => room.room?.id === roomId)) {
+        snapshotGeneration += 1;
+        invalidateAdminRoomLayoutQueries(activeServerId, serverScope.connection, roomId);
+        return;
       }
+      snapshotGeneration += 1;
+      privacyGeneration += 1;
+      purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
+      return;
+    }
+    if (event.event?.event.case === 'roomDeleted' && event.event.event.value.roomId === roomId) {
+      snapshotGeneration += 1;
+      privacyGeneration += 1;
+      pendingMemberRevalidation = {
+        serverId: activeServerId,
+        queryScope: serverScope.connection.queryScope,
+        roomId
+      };
+      purgeAdminRoomQuery(activeServerId, serverScope.connection, roomId);
+      return;
     }
   });
 

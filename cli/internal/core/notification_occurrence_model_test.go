@@ -9,9 +9,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/proto"
 
+	"hmans.de/chatto/internal/core/subjects"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 )
 
 func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
@@ -109,6 +112,74 @@ func TestNotificationIdentitySeparatesSignalKinds(t *testing.T) {
 	reply := notificationOccurrenceID(recipientID, sourceID, "reply_received")
 	if mention == reply {
 		t.Fatalf("different signal kinds shared ID %q", mention)
+	}
+}
+
+func TestNotificationCreationHintsReportEveryNewID(t *testing.T) {
+	chattoCore, nc := newTestCore(t)
+	startCoreServices(t, chattoCore)
+	ctx := testContext(t)
+	const recipientID = "U-creation-hints"
+	sub, err := nc.SubscribeSync(subjects.LiveSyncUserEvent(recipientID, "notification_v2"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sub.Unsubscribe()
+	if err := nc.Flush(); err != nil {
+		t.Fatal(err)
+	}
+	inputs := make([]CreateNotificationOccurrenceInput, 2)
+	want := make(map[string]bool)
+	for i := range inputs {
+		sourceID := fmt.Sprintf("E-creation-hint-%d", i)
+		inputs[i] = CreateNotificationOccurrenceInput{
+			RecipientID: recipientID, SourceEventID: sourceID, SourceCreated: time.Now().UTC(),
+			ActorID: "U-actor", Signal: testNotificationSignal(notificationTestSignalAll, "R-hints", sourceID),
+			Mode:           evtv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+			AttentionLevel: notificationv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			InitiallyRead:  i == 1, SkipReadLookup: true,
+		}
+		want[notificationOccurrenceID(recipientID, sourceID, "all_mention_received")] = true
+	}
+	model := chattoCore.NotificationOccurrences()
+	if err := model.CreateMany(ctx, inputs); err != nil {
+		t.Fatal(err)
+	}
+	readHint := func() *pubsubv1.PubSubEvent {
+		t.Helper()
+		msg, err := sub.NextMsg(2 * time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var event pubsubv1.PubSubEvent
+		if err := proto.Unmarshal(msg.Data, &event); err != nil {
+			t.Fatal(err)
+		}
+		return &event
+	}
+	for range inputs {
+		id := readHint().GetNotificationOccurrencesChanged().GetCreatedNotificationId()
+		if !want[id] {
+			t.Fatalf("unexpected or duplicate created ID %q", id)
+		}
+		delete(want, id)
+		if _, err := model.Get(ctx, recipientID, id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := model.CreateMany(ctx, inputs); err != nil {
+		t.Fatal(err)
+	}
+	// Retry publishes no creation. A later read-state hint is an ordered barrier.
+	id := notificationOccurrenceID(recipientID, inputs[0].SourceEventID, "all_mention_received")
+	if _, err := model.MarkRead(ctx, recipientID, id); err != nil {
+		t.Fatal(err)
+	}
+	if event := readHint().GetNotificationOccurrencesChanged(); event == nil || event.CreatedNotificationId != nil {
+		t.Fatalf("read update must not claim a creation: %v", event)
+	}
+	if _, err := sub.NextMsg(50 * time.Millisecond); !errors.Is(err, nats.ErrTimeout) {
+		t.Fatalf("unexpected extra hint after retry and read: %v", err)
 	}
 }
 

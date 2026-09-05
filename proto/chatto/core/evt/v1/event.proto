@@ -35,7 +35,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
        live tags during the EVT cutover. Treat them like persisted tags.
 
      - **>= 1000, except 1050-1051**: retired legacy live-only variant
-       numbers. New transient pubsub signals belong in LiveEvent, not Event.
+       numbers. New non-durable pubsub activity belongs in PubSubEvent, not Event.
 
    Category ownership for the top-level oneof tags is documented in the
    sibling *_events.proto files. The top-level tag is the durable/event
@@ -121,8 +121,8 @@ message Event {
 
     // ----- Config / preferences (500-599, durable) -----
     // These variants live on the EVT stream (subjects under evt.config.>)
-    // per ADRs 033/034/035. Member-visible server profile/config live
-    // invalidation uses LiveEvent.ServerUpdatedEvent instead.
+    // per ADRs 033/034/035. The realtime mapper converts selected committed
+    // facts into a public ServerProfileChangedEvent.
     ServerNameChangedEvent server_name_changed = 501;
     ServerDescriptionChangedEvent server_description_changed = 502;
     ServerWelcomeMessageChangedEvent server_welcome_message_changed = 503;

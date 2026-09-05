@@ -45,6 +45,12 @@ setup. This Compose example runs NATS JetStream separately so you can restart or
 replace Chatto without restarting its data store, scale Chatto to multiple
 replicas, and move to a NATS cluster later.
 
+The included `nats-server.conf` sets `sync_interval: always`. This setting
+syncs every JetStream write to disk before NATS acknowledges it. Keep this
+setting while the example uses a single NATS server. It protects recent acknowledged
+writes if the host stops without a normal shutdown. It also reduces write
+throughput. Review this policy when you move to a replicated NATS cluster.
+
 You are not locked into either model. Chatto's backup command creates a portable
 JetStream archive that can be restored into embedded or external NATS, making it
 straightforward to move between binary, Compose, and clustered deployments. See
@@ -130,8 +136,8 @@ NATS communicate only over the private Compose network.
    with the email address you will use for the first account.
 
    The script is the recommended setup path. It writes `.env` and
-   `livekit.generated.yaml`, generates strong secrets, and keeps the shared
-   values aligned:
+   `livekit.generated.yaml`, prepares the local backup directory, generates
+   strong secrets, and keeps the shared values aligned:
 
    - `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN`
    - Chatto cookie, core, and asset signing secrets
@@ -163,7 +169,12 @@ cp .env.example .env
 
 Fill in the placeholders and make sure the LiveKit key and secret are the same
 in `.env` and `livekit.yaml`. LiveKit requires its API secret to be at least 32
-characters.
+characters. Also prepare the backup directory if you do not run `init-env.sh`:
+
+```bash
+mkdir -p backups
+chmod 700 backups
+```
 
 ## Usage
 
@@ -186,6 +197,76 @@ docker compose down
 # Stop and remove volumes (deletes all data)
 docker compose down -v
 ```
+
+## Backup and Restore
+
+The setup script creates `backups/`. The Compose configuration mounts this
+directory at `/backups` in the Chatto container. Set `CHATTO_BACKUP_DIR` in
+`.env` if you want to use a different host directory.
+
+The passphrase is optional. Run `docker compose run --rm chatto backup` to
+create an unencrypted backup without encryption keys. We recommend encrypted
+backups. Always use encryption when you include encryption keys or store a
+backup outside the server.
+
+Create an encrypted backup while Chatto is running:
+
+```bash
+docker compose run --rm chatto backup \
+  --encrypt \
+  --include-keys
+```
+
+Chatto prompts you to enter and confirm the passphrase. It then writes a
+timestamped archive to `backups/`. Copy the archive to storage on a different
+host. Also keep separate copies of the passphrase, `.env`, and
+`livekit.generated.yaml`. If you use S3 storage, back up that storage
+separately.
+
+For an unattended job, store the passphrase in a restricted host file and send
+it to the one-off container through standard input. The `-T` option disables
+the terminal:
+
+```bash
+chmod 600 /path/to/backup-passphrase
+
+docker compose run --rm -T chatto backup \
+  --encrypt \
+  --include-keys \
+  --passphrase-stdin < /path/to/backup-passphrase
+```
+
+To restore an archive, stop the Chatto server processes but keep NATS running:
+
+```bash
+docker compose stop chatto
+
+docker compose run --rm chatto restore \
+  /backups/2026-09-04T12-00-00Z.tar.gz.age
+
+docker compose up -d chatto
+```
+
+Chatto detects whether an archive is encrypted and prompts for its passphrase.
+An unencrypted archive does not require a passphrase.
+
+Use the same host file for an unattended restore:
+
+```bash
+docker compose run --rm -T chatto restore \
+  /backups/2026-09-04T12-00-00Z.tar.gz.age \
+  --passphrase-stdin < /path/to/backup-passphrase
+```
+
+Restore fails if the target NATS server already contains any backed-up stream.
+Use `--conflict=overwrite` only when you intend to replace the existing data.
+If you previously scaled Chatto, include the required scale when you start it
+again, for example `docker compose up -d --scale chatto=5`.
+
+Do not use `docker compose down` for this procedure because it stops NATS. Do
+not copy the live `nats_data` volume as a substitute for `chatto backup`.
+See the [Backup & Restore guide](https://docs.chatto.run/guides/operations/backup-restore/)
+for retention, automation, and recovery guidance.
 
 ## Scaling
 
@@ -257,6 +338,12 @@ Data is persisted in Docker volumes:
 - `caddy_data` - TLS certificates
 - `caddy_config` - Caddy configuration cache
 
+The NATS service also mounts `nats-server.conf` from this directory as a
+read-only configuration file.
+
+Chatto backup archives use the host directory selected by
+`CHATTO_BACKUP_DIR`. This is a bind mount, not a Docker volume.
+
 ## Disabling Voice and Video Calls
 
 If you don't need calls, remove the `livekit` service from `compose.yml`, delete the selected LiveKit config (`livekit.generated.yaml` or `livekit.yaml`), remove the `livekit.*` block from the `Caddyfile`, and remove the LiveKit environment variables from `.env`. You can then close TCP 7881 and UDP 3478 and 7882 and remove the `livekit.*` DNS record.
@@ -264,6 +351,9 @@ If you don't need calls, remove the `livekit` service from `compose.yml`, delete
 ## Troubleshooting
 
 **Chatto can't connect to NATS**: Ensure `NATS_TOKEN` and `CHATTO_NATS_CLIENT_TOKEN` match in your `.env` file.
+
+**A backup cannot write to `/backups`**: Ensure the host backup directory is
+writable by the user selected through `PUID` and `PGID`.
 
 **Registration says email delivery is not configured**: Configure the SMTP `CHATTO_SMTP_*` settings or set `CHATTO_EMAIL_TRANSPORT=jmap` with the required `CHATTO_EMAIL_JMAP_*` values in `.env`. Direct email/password registration sends a code by email.
 

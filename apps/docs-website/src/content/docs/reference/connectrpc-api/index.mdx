@@ -69,7 +69,7 @@ The API is split by who uses each part and how clients connect to it.
 **`chatto.realtime.v1`**
 
 - **Transport:** WebSocket protobuf frames at `/api/realtime`.
-- **Covers:** Live event delivery and realtime client synchronization.
+- **Covers:** Realtime event delivery and client synchronization.
 - **Contract:** Public realtime wire protocol. It is documented separately because it is not a ConnectRPC service.
 
 This split makes it clear which calls are for ordinary client behavior, which calls are administrative, and which protocol handles live updates.
@@ -256,4 +256,4 @@ Use the service pages below for request and response fields. Shared messages and
 ## Shared References
 
 - [Shared Types And Enums](/reference/connectrpc-api/types/) - common message and enum definitions used by service responses.
-- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames exchanged at `/api/realtime`.
+- [Realtime WebSocket Protocol](/reference/connectrpc-api/realtime/) - `chatto.realtime.v1` binary protobuf frames and public event variants exchanged at `/api/realtime`.

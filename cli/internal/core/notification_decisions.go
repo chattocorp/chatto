@@ -130,7 +130,9 @@ func buildMessageNotificationDecisions(
 		// deliveries conservatively omit only the ambiguous mention kind.
 	}
 
-	if roomKind == KindDM {
+	// Root activity has one room-kind base cause. Thread replies use followed
+	// thread activity in both channel rooms and DMs.
+	if roomKind == KindDM && message.GetInThread() == "" {
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
 			add(userID, &notificationv1.NotificationSignal{Kind: &notificationv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &notificationv1.DirectMessageReceived{Message: proto.Clone(reference).(*notificationv1.NotificationMessageReference)}}})
 		}
