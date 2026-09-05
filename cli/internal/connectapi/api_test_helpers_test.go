@@ -133,7 +133,9 @@ type connectAPITestEnv struct {
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	t.Helper()
 
-	_, nc := testutil.StartSharedNATS(t)
+	// Each environment owns its broker and event log. A shared broker reset
+	// can affect another core that still has subscriptions or pending work.
+	_, nc := testutil.StartNATS(t)
 	// Keep one bounded context for the complete integration-test lifecycle.
 	// Allow a delayed durable-worker acknowledgement without expiring the
 	// shared context before the test can run its later assertions.
