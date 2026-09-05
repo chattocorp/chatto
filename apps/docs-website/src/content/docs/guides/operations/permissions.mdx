@@ -40,6 +40,10 @@ The interface updates effective permissions immediately. At expiry, the server
 reconnects the live projection so elevated controls turn off without a page
 reload.
 
+The Moderation link and page are available only when you have active
+server-wide `room.ban-member` permission. If you disable privileged mode while
+the page is open, the page shows an access-denied screen.
+
 The mode activates permissions, not role names. It therefore also covers
 custom roles and direct user grants. It does not add authority: a role removal
 or deny still takes effect while the mode is active.

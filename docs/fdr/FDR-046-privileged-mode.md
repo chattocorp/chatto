@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -37,6 +37,9 @@ server session when they need them.
   privileged mode.
 - The admin entry point remains visible to entitled users while the mode is
   inactive. Protected capabilities and actions remain unavailable.
+- The Moderation link and page require effective server-wide
+  `room.ban-member`. Deactivation or permission loss hides the link and removes
+  an open Moderation page. Direct access shows an access-denied screen.
 - A user can edit or delete their own message without privileged mode. Editing
   or deleting another user's message requires active `message.manage`.
 

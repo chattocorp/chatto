@@ -5,6 +5,8 @@ export type ChromePermissions = {
   canManage: boolean;
   canManageNeighbors: boolean;
   canManageRooms: boolean;
+  /** Effective server-wide permission to list and manage room bans. */
+  canModerate: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;
   canManageUserAccounts: boolean;

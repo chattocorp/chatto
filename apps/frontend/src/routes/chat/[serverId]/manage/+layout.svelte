@@ -73,9 +73,9 @@
       return () => true;
     }
 
-    // Moderation pages: the resolver enforces server-scope room.ban-member.
+    // The ban list requires effective server-scope room.ban-member.
     if (pathname.startsWith(moderationBase)) {
-      return () => chromePermissions?.canViewAdmin ?? false;
+      return () => chromePermissions?.canModerate ?? false;
     }
 
     // Permissions pages call the server/group role permission matrix APIs,
