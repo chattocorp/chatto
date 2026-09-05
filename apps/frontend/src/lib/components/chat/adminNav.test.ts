@@ -11,6 +11,7 @@ function chrome(overrides: Partial<AdminNavChromePermissions> = {}): AdminNavChr
     canManage: false,
     canManageNeighbors: false,
     canManageRooms: false,
+    canModerate: false,
     canManageRoles: false,
     canAssignRoles: false,
     canManageUserAccounts: false,
@@ -41,6 +42,28 @@ describe('getAdminNavItems', () => {
 
     expect(items.find((item) => item.label === 'Bots')?.href).toBe(
       '/chat/local/manage/server/bots'
+    );
+  });
+
+  it('hides Moderation for admin entitlement and unrelated effective permissions', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canViewAdmin: true, canManage: true }),
+      server: server({ canAdminViewUsers: true })
+    });
+
+    expect(items.some((item) => item.label === 'Moderation')).toBe(false);
+  });
+
+  it('shows Moderation for effective server-wide ban permission', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome({ canModerate: true }),
+      server: server()
+    });
+
+    expect(items.find((item) => item.label === 'Moderation')?.href).toBe(
+      '/chat/local/manage/server/moderation'
     );
   });
 

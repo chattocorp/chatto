@@ -6,6 +6,8 @@ export type AdminNavChromePermissions = {
   canManage: boolean;
   canManageNeighbors: boolean;
   canManageRooms: boolean;
+  /** Effective server-wide permission to list and manage room bans. */
+  canModerate: boolean;
   canManageRoles: boolean;
   canAssignRoles: boolean;
   canManageUserAccounts: boolean;
@@ -89,7 +91,7 @@ export function getAdminNavItems({
     });
   }
 
-  if (chrome.canViewAdmin) {
+  if (chrome.canModerate) {
     items.push({
       href: resolve('/chat/[serverId]/manage/server/moderation', { serverId: serverSegment }),
       label: m('admin.nav.moderation'),
