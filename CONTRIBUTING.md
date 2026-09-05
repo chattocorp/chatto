@@ -123,12 +123,24 @@ Use `alice` when you need server administration access.
 
 ## Continuous Integration
 
-Pull requests run checks for the affected products. Unknown paths and shared
-Go dependency changes select all affected consumers. Authling-only changes
-retain the Chatto–Authling login integration test. The existing four E2E shard
-names remain present when test steps are skipped, so required checks can finish.
-Protobuf, license, and workflow checks still run on every pull request. The
-protobuf job also rejects a failed job-selection step.
+Pull requests select complete product checks from these source roots:
+
+| Product | Source roots |
+| --- | --- |
+| Chatto | `cli/`, `pkg/`, `apps/frontend/`, `packages/`, `proto/`, `docker/` |
+| Authling | `authling/`, `pkg/` |
+| Docs website | `apps/docs-website/` |
+| Chatto Desktop | `apps/desktop/`, `apps/frontend/`, `packages/`, `proto/`, `tools/test-desktop-*` |
+
+Shared framework tests run when Chatto or Authling is selected. Chatto checks
+include frontend checks and all Chatto E2E and performance tests. Desktop
+checks also include workspace checks. Root Markdown files, `docs/`, and agent
+instruction directories do not select product checks. Other paths, including
+repository tooling, select all products.
+
+Protobuf, license, and workflow checks always run. The protobuf job also fails
+if product selection fails. All four required E2E shard names remain present
+when their test steps are skipped.
 
 Pushes to `main` and release branches run the full validation suite. Image
 publication and tag-triggered releases keep their existing workflow. Label

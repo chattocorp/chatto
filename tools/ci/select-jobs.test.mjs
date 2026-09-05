@@ -2,70 +2,45 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { selectJobs } from "./select-jobs.mjs";
 
-test("documentation does not select runtime checks", () => {
-  const result = selectJobs([
-    "docs/README.md",
-    "authling/AGENTS.md",
-    ".agents/skills/new/SKILL.md",
-  ]);
-  assert.equal(result.e2e, "none");
-  assert.equal(result.desktop, false);
-  assert.equal(result.performance, false);
-});
-test("Authling changes retain cross-product login coverage", () => {
-  const result = selectJobs(["authling/internal/core/account.go"]);
-  assert.equal(result.authling, true);
-  assert.equal(result.e2e, "integration");
-  assert.equal(result.desktop, false);
-  assert.equal(result.performance, false);
-});
-test("shared modules select both products", () => {
-  const result = selectJobs(["pkg/events/event.go"]);
-  for (const group of ["chatto", "authling", "shared", "performance"])
-    assert.equal(result[group], true);
-});
-test("frontend and public protocols also select desktop consumers", () => {
-  for (const file of [
-    "apps/frontend/src/app.css",
-    "proto/chatto/api/v1/room.proto",
-    "packages/lingua/src/index.ts",
-  ]) {
-    const result = selectJobs([file]);
-    for (const group of ["chatto", "workspace", "desktop", "performance"])
-      assert.equal(result[group], true);
+test("source roots select complete products", () => {
+  const cases = [
+    ["cli/go.mod", ["chatto"]],
+    ["authling/internal/account.go", ["authling"]],
+    ["authling/docs/README.md", ["authling"]],
+    ["pkg/events/event.go", ["chatto", "authling"]],
+    ["apps/frontend/src/app.css", ["chatto", "desktop"]],
+    ["packages/lingua/src/index.ts", ["chatto", "desktop"]],
+    ["proto/chatto/api/v1/room.proto", ["chatto", "desktop"]],
+    ["docker/Dockerfile", ["chatto"]],
+    ["apps/desktop/main.mjs", ["desktop"]],
+    ["tools/test-desktop-macos-capture.sh", ["desktop"]],
+    ["apps/docs-website/src/content/docs/start.md", ["docs"]],
+    ["docs/README.md", []],
+    ["AGENTS.md", []],
+    [".agents/skills/new/SKILL.md", []],
+  ];
+  for (const [file, expected] of cases) {
+    const actual = Object.entries(selectJobs([file]))
+      .filter(([, enabled]) => enabled)
+      .map(([name]) => name);
+    assert.deepEqual(actual.sort(), expected.sort(), file);
   }
 });
-test("unknown paths and root dependencies fail open to full coverage", () => {
+
+test("repository tooling and unknown paths select every product", () => {
   for (const file of [
-    "future-product/main.go",
-    "pnpm-lock.yaml",
     "mise.toml",
+    "go.work",
+    "pnpm-lock.yaml",
     ".github/workflows/ci.yml",
+    "future-product/main.go",
   ]) {
-    assert.equal(selectJobs([file]).shared, true);
-    assert.equal(selectJobs([file]).docs, true);
-  }
-});
-test("full validation selects all consumers", () => {
-  for (const value of Object.values(selectJobs([], true)))
-    assert.ok(value === true || value === "full");
-});
-test("docs website Markdown selects a production docs build", () => {
-  const result = selectJobs(["apps/docs-website/src/content/docs/start.md"]);
-  assert.equal(result.docs, true);
-  assert.equal(result.e2e, "none");
-});
-test("Markdown within application source is not assumed to be documentation", () => {
-  assert.equal(selectJobs(["apps/frontend/src/help.md"]).chatto, true);
-});
-test("packaging changes do not select a performance benchmark", () => {
-  for (const file of [
-    "apps/desktop/scripts/build.mjs",
-    "tools/test-desktop-macos-capture.sh",
-  ]) {
-    const result = selectJobs([file]);
-    assert.equal(result.desktop, true);
-    assert.equal(result.performance, false);
+    assert.deepEqual(selectJobs([file]), {
+      chatto: true,
+      authling: true,
+      docs: true,
+      desktop: true,
+    });
   }
 });
 
@@ -120,18 +95,6 @@ test("Git selection includes both sides of a move across products", async () => 
   }
 });
 
-test("either product dependency graph can affect the whole Go workspace", () => {
-  for (const file of [
-    "cli/go.mod",
-    "cli/go.sum",
-    "authling/go.mod",
-    "authling/go.sum",
-  ]) {
-    const result = selectJobs([file]);
-    for (const group of ["chatto", "authling", "shared", "performance"])
-      assert.equal(result[group], true);
-  }
-});
 test("main and release pushes run every group without consulting a file diff", async () => {
   const { execFileSync } = await import("node:child_process");
   const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
@@ -156,8 +119,8 @@ test("main and release pushes run every group without consulting a file diff", a
         },
       );
       const values = readFileSync(output, "utf8").trim().split("\n");
-      assert.equal(values.length, 8);
-      for (const value of values) assert.match(value, /=(true|full)$/);
+      assert.equal(values.length, 4);
+      for (const value of values) assert.match(value, /=true$/);
     }
   } finally {
     rmSync(cwd, { recursive: true, force: true });

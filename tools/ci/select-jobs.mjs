@@ -2,65 +2,38 @@ import { execFileSync } from "node:child_process";
 import { appendFileSync, readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 
-const groups = [
-  "chatto",
-  "workspace",
-  "desktop",
-  "authling",
-  "shared",
-  "performance",
-  "docs",
-];
+// Explicit product boundaries. Repository-wide and unknown paths select all.
+const products = {
+  chatto: ["cli/", "pkg/", "apps/frontend/", "packages/", "proto/", "docker/"],
+  authling: ["authling/", "pkg/"],
+  docs: ["apps/docs-website/"],
+  desktop: [
+    "apps/desktop/",
+    "apps/frontend/",
+    "packages/",
+    "proto/",
+    "tools/test-desktop-",
+  ],
+};
 
-/** Select consumers of changed files. Unknown paths run all checks. */
+/** Select complete product checks from their source roots. */
 export function selectJobs(files, full = false) {
-  const selected = Object.fromEntries(groups.map((group) => [group, full]));
-  const enable = (...names) =>
-    names.forEach((name) => {
-      selected[name] = true;
-    });
+  const selected = Object.fromEntries(
+    Object.keys(products).map((name) => [name, full]),
+  );
   for (const file of files) {
-    if (file.startsWith("apps/docs-website/")) {
-      enable("docs");
-      continue;
-    }
-    // Prose and agent instructions do not change either product's runtime.
-    if (
-      /^(docs|authling\/docs|\.agents|\.claude|\.conductor)\//.test(file) ||
-      /(^|\/)(AGENTS|CLAUDE|README)\.md$/.test(file) ||
-      /^[^/]+\.md$/.test(file)
-    )
-      continue;
-    // Go workspace dependency selection can affect both products.
-    if (/^(cli|authling)\/go\.(mod|sum)$/.test(file))
-      enable("shared", "chatto", "authling", "performance");
-    else if (/^tools\/.*desktop/.test(file)) enable("desktop");
-    else if (file.startsWith("apps/desktop/")) enable("desktop");
-    else if (file.startsWith("authling/")) {
-      enable("authling");
-    } else if (file.startsWith("pkg/"))
-      enable("shared", "chatto", "authling", "performance");
-    else if (file.startsWith("cli/")) enable("chatto", "performance");
-    else if (
-      /^(apps\/frontend|packages\/api-types|packages\/lingua)\//.test(file)
+    const matches = Object.entries(products).filter(([, roots]) =>
+      roots.some((root) => file.startsWith(root)),
+    );
+    if (matches.length) {
+      for (const [name] of matches) selected[name] = true;
+    } else if (
+      !/^(docs\/|\.agents\/|\.claude\/|\.conductor\/|[^/]+\.md$)/.test(file)
     ) {
-      enable("workspace", "chatto", "desktop", "performance");
-    } else if (file.startsWith("proto/")) {
-      enable("chatto", "workspace", "desktop", "performance");
-    } else if (file.startsWith("docker/")) enable("chatto");
-    else if (/^(LICENSES\/|LICENSE$|NOTICE$)/.test(file))
-      enable("chatto", "desktop", "docs");
-    else if (/^(REUSE.toml$|\.release-please|release-please)/.test(file))
-      continue;
-    else
-      groups.forEach((group) => {
-        selected[group] = true;
-      });
+      for (const name of Object.keys(products)) selected[name] = true;
+    }
   }
-  return {
-    ...selected,
-    e2e: selected.chatto ? "full" : selected.authling ? "integration" : "none",
-  };
+  return selected;
 }
 
 function main() {

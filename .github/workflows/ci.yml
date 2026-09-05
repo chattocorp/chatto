@@ -29,13 +29,9 @@ jobs:
     timeout-minutes: 5
     outputs:
       chatto: ${{ steps.select.outputs.chatto }}
-      workspace: ${{ steps.select.outputs.workspace }}
       desktop: ${{ steps.select.outputs.desktop }}
       authling: ${{ steps.select.outputs.authling }}
-      shared: ${{ steps.select.outputs.shared }}
-      performance: ${{ steps.select.outputs.performance }}
       docs: ${{ steps.select.outputs.docs }}
-      e2e: ${{ steps.select.outputs.e2e }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -307,7 +303,7 @@ jobs:
 
   check-workspace:
     needs: changes
-    if: ${{ needs.changes.outputs.workspace == 'true' || needs.changes.outputs.desktop == 'true' }}
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -331,7 +327,7 @@ jobs:
 
   test-workspace:
     needs: changes
-    if: ${{ needs.changes.outputs.workspace == 'true' }}
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     # Keep this job name stable because it can be a required branch check.
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -356,7 +352,7 @@ jobs:
 
   test-cli:
     needs: changes
-    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' || needs.changes.outputs.shared == 'true' }}
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -376,19 +372,15 @@ jobs:
         run: mise test
 
       - name: Run application configuration tests
-        if: needs.changes.outputs.shared == 'true'
         run: mise test-appconfig
 
       - name: Run data cryptography tests
-        if: needs.changes.outputs.shared == 'true'
         run: mise test-datacrypto
 
       - name: Run event framework tests
-        if: needs.changes.outputs.shared == 'true'
         run: mise test-events
 
       - name: Run embedded NATS runtime tests
-        if: needs.changes.outputs.shared == 'true'
         run: mise test-natsruntime
 
       - name: Build frontend
@@ -452,35 +444,27 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
-        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
+        if: needs.changes.outputs.chatto == 'true'
         uses: actions/checkout@v6
 
       - name: Setup environment
-        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
+        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup
 
       - name: Setup Playwright
-        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
+        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E server
-        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
+        if: needs.changes.outputs.chatto == 'true'
         run: mise build-e2e-server
 
       - name: Run E2E tests
-        if: needs.changes.outputs.e2e == 'full' || (needs.changes.outputs.e2e == 'integration' && matrix.shard == 1)
+        if: needs.changes.outputs.chatto == 'true'
         env:
-          E2E_SCOPE: ${{ needs.changes.outputs.e2e }}
           E2E_SHARD: ${{ matrix.shard }}
-        run: |
-          if [[ "$E2E_SCOPE" == integration ]]; then
-            cd apps/frontend
-            pnpm exec playwright test authling-integration.test.ts
-          else
-            cd apps/frontend
-            pnpm exec playwright test --grep-invert @ffmpeg --shard="$E2E_SHARD/4"
-          fi
+        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard="$E2E_SHARD/4"
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
@@ -526,7 +510,7 @@ jobs:
 
   test-e2e-performance:
     needs: changes
-    if: ${{ needs.changes.outputs.performance == 'true' }}
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
