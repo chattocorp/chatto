@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import { observeCanvas } from '$lib/attachments/observeCanvas';
   import { m } from '$lib/i18n/messages';
   import {
     ballisticDisplacement,
@@ -147,7 +148,7 @@
   let canvasWidth = 0;
   let canvasHeight = 0;
   let animationFrame: number | undefined;
-  let canvasInViewport = true;
+  let canvasLifecycle: ReturnType<typeof observeCanvas> | undefined;
   let lastDrawnAt = Number.NEGATIVE_INFINITY;
   let lastSortedRotateX = Number.NaN;
   let lastSortedRotateY = Number.NaN;
@@ -185,8 +186,6 @@
     canvasContext = canvas.getContext('2d');
     constructionStartedAt = performance.now();
     hudNow = constructionStartedAt;
-    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    reducedMotion = motionQuery.matches;
 
     function resizeCanvas() {
       const bounds = canvas.getBoundingClientRect();
@@ -203,7 +202,7 @@
     }
 
     function handleMotionPreference() {
-      reducedMotion = motionQuery.matches;
+      reducedMotion = lifecycle.reducedMotion;
       if (reducedMotion) {
         currentRotateX = targetRotateX;
         currentRotateY = targetRotateY;
@@ -211,37 +210,27 @@
       requestDraw();
     }
 
-    function handleVisibilityChange() {
-      if (document.hidden) {
-        if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
-        animationFrame = undefined;
-        return;
-      }
-      requestDraw();
-    }
-
-    const resizeObserver = new ResizeObserver(resizeCanvas);
-    const intersectionObserver = new IntersectionObserver(([entry]) => {
-      canvasInViewport = entry?.isIntersecting ?? true;
-      if (canvasInViewport) {
-        lastDrawnAt = Number.NEGATIVE_INFINITY;
-        requestDraw();
-      } else if (animationFrame !== undefined) {
-        cancelAnimationFrame(animationFrame);
-        animationFrame = undefined;
-      }
+    const lifecycle = observeCanvas(canvas, {
+      onResize: resizeCanvas,
+      onMotionChange: handleMotionPreference,
+      onVisibilityChange: () => {
+        if (canvasLifecycle?.visible) {
+          lastDrawnAt = Number.NEGATIVE_INFINITY;
+          requestDraw();
+        } else if (animationFrame !== undefined) {
+          cancelAnimationFrame(animationFrame);
+          animationFrame = undefined;
+        }
+      },
+      visibilityTarget: canvas.parentElement ?? canvas
     });
-    resizeObserver.observe(canvas);
-    intersectionObserver.observe(canvas.parentElement ?? canvas);
-    motionQuery.addEventListener('change', handleMotionPreference);
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    canvasLifecycle = lifecycle;
+    reducedMotion = lifecycle.reducedMotion;
     resizeCanvas();
 
     return () => {
-      resizeObserver.disconnect();
-      intersectionObserver.disconnect();
-      motionQuery.removeEventListener('change', handleMotionPreference);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      canvasLifecycle?.destroy();
+      canvasLifecycle = undefined;
       if (animationFrame !== undefined) cancelAnimationFrame(animationFrame);
       animationFrame = undefined;
       canvasContext = null;
@@ -251,7 +240,7 @@
   }
 
   function requestDraw() {
-    if (animationFrame === undefined && !document.hidden && canvasInViewport) {
+    if (animationFrame === undefined && canvasLifecycle?.visible) {
       animationFrame = requestAnimationFrame(draw);
     }
   }
