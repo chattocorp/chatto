@@ -189,8 +189,8 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-    getLiveBio: () => null,
-    getLiveTimezone: () => null,
+  getLiveBio: () => null,
+  getLiveTimezone: () => null,
   getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
@@ -437,6 +437,26 @@ describe('RoomSidebar', () => {
     callStore.permissions.canStartDMs = false;
   });
 
+  it('shows search availability and recovers through the sidebar retry action', async () => {
+    const getStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ state: MessageSearchState.UNAVAILABLE, retryAfterMs: null })
+      .mockResolvedValueOnce({ state: MessageSearchState.READY, retryAfterMs: null });
+    const searchStore = new MessageSearchStore({ getStatus, searchMessages: vi.fn() });
+    await searchStore.ensureStatus();
+    const rendered = render(RoomSidebarTestHarness, {
+      props: { activePanel: 'search', roomData: roomData([member(1)], 1, false), searchStore }
+    });
+
+    await expect
+      .element(rendered.getByText('Search is unavailable', { exact: true }))
+      .toBeVisible();
+    await userEvent.click(rendered.getByRole('button', { name: 'Try Again' }));
+    await expect.element(rendered.getByRole('textbox')).toBeVisible();
+    await expect.element(rendered.getByRole('textbox')).toHaveFocus();
+    expect(getStatus).toHaveBeenCalledTimes(2);
+  });
+
   it('automatically searches only the current room and clamps long matching messages', async () => {
     const searchMessages = vi.fn().mockResolvedValue({
       results: [
@@ -521,6 +541,11 @@ describe('RoomSidebar', () => {
     expect(longResult.querySelector('.max-h-40')?.classList).toContain('overflow-hidden');
 
     await userEvent.click(shortResult);
+    expect(onOpenSearchResult).toHaveBeenCalledWith('message-1', 'thread-root');
+    onOpenSearchResult.mockClear();
+    (shortResult as HTMLElement).focus();
+    await userEvent.keyboard('{Enter}');
+    expect(onOpenSearchResult).toHaveBeenCalledOnce();
     expect(onOpenSearchResult).toHaveBeenCalledWith('message-1', 'thread-root');
 
     await userEvent.fill(input, 'roadmap ');
