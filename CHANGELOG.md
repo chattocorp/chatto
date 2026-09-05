@@ -3,6 +3,13 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.8](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.7...v0.5.0-alpha.8) (2026-09-05)
+
+
+### Bug Fixes
+
+* **tooling:** configure pnpm 11 and use Node LTS ([#2310](https://github.com/chattocorp/chatto/issues/2310)) ([fd127dd](https://github.com/chattocorp/chatto/commit/fd127ddf99aeec70c4c17890a36253a48551f1d7))
+
 ## [0.5.0-alpha.7](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.6...v0.5.0-alpha.7) (2026-09-05)
 
 
