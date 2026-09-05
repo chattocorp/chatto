@@ -21,7 +21,7 @@ message BotWebhookDeliveryCompletedEvent {
   string bot_user_id = 2;
   string webhook_id = 3;
   string source_event_id = 4;
-  // delivered, failed, or skipped.
+  // Always failed. Successful and skipped deliveries have no EVT fact.
   string status = 5;
   // Fixed safe category; never a transport error string or response body.
   string reason = 6;

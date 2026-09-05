@@ -101,7 +101,7 @@ type BotWebhookDeliveryCompletedEvent struct {
 	BotUserId     string                 `protobuf:"bytes,2,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
 	WebhookId     string                 `protobuf:"bytes,3,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	SourceEventId string                 `protobuf:"bytes,4,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	// delivered, failed, or skipped.
+	// Always failed. Successful and skipped deliveries have no EVT fact.
 	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
 	// Fixed safe category; never a transport error string or response body.
 	Reason        string `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`

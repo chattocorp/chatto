@@ -16,9 +16,9 @@ before acknowledging the source message. Jobs contain message references,
 endpoint generation, attempt limit, retry delay, and source-time expiry.
 They contain no plaintext message body or destination credentials.
 
-Use the stable delivery ID as the publish message ID. JetStream deduplicates
-publications within a two-minute window. Source retries outside that window
-can produce duplicates. Receivers must tolerate repeated delivery IDs.
+Scope the stable delivery ID by job type for publish deduplication. JetStream
+deduplicates publications for two minutes, or the queue retention age if
+shorter. Source retries outside that window can produce duplicates. Receivers must tolerate repeated delivery IDs.
 
 Let the durable queue consumer own pending jobs and delivery counts. Calculate
 exponential backoff from its delivery count and use delayed negative
