@@ -5,8 +5,8 @@ Channel pinned messages rendered through the room timeline's canonical
 message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
+  import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import type { Attachment } from 'svelte/attachments';
   import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
   import MessageView from '$lib/components/messages/MessageView.svelte';
   import { m } from '$lib/i18n/messages';
@@ -83,13 +83,12 @@ message presentation. Each message row itself opens the original message.
     openPin(message);
   }
 
-  const loadMoreWhenVisible: Attachment = (element) => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting && !store.loadMoreError) void store.loadMore();
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  };
+  const loadMoreWhenVisible = useLoadMoreWhenVisible({
+    getCursor: () => store.hasMore ? store.items.length : null,
+    loadMore: () => store.loadMore(),
+    hasError: () => store.loadMoreError
+  });
+
 </script>
 
 <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
