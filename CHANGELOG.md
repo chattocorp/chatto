@@ -3,6 +3,16 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.4.23](https://github.com/chattocorp/chatto/compare/v0.4.22...v0.4.23) (2026-09-03)
+
+
+### Bug Fixes
+
+* **accounts:** backport username cooldown bypass to 0.4 ([#2272](https://github.com/chattocorp/chatto/issues/2272)) ([60057a1](https://github.com/chattocorp/chatto/commit/60057a131c9a97bc6b81a5b1c0091fe613177d21))
+* **email:** backport SMTPUTF8 handling to 0.4 ([#2274](https://github.com/chattocorp/chatto/issues/2274)) ([5565d4e](https://github.com/chattocorp/chatto/commit/5565d4e7ea4f2b3eb475f51e773ccd1cedc1c305))
+* **frontend:** backport preview scroll fades to 0.4 ([#2263](https://github.com/chattocorp/chatto/issues/2263)) ([987569c](https://github.com/chattocorp/chatto/commit/987569cc2e9bfd08f02487a20e9f08ca429af4ce))
+* **frontend:** synchronize PWA chrome with display theme ([#2288](https://github.com/chattocorp/chatto/issues/2288)) ([cb3d926](https://github.com/chattocorp/chatto/commit/cb3d92693da054c48894b43b0191ebbe9ba10733))
+
 ## [0.4.22](https://github.com/chattocorp/chatto/compare/v0.4.21...v0.4.22) (2026-08-30)
 
 
