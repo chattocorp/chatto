@@ -42,7 +42,10 @@ func setupWebSocketTestServerWithTTLs(t testing.TB, accessTokenTTL, cookieSessio
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
-	_, nc := testutil.StartSharedNATS(t)
+	// Use a separate store for each fixture. JetStream stream deletion includes
+	// background file cleanup, so tests must not reuse the previous store while
+	// that cleanup is still active.
+	_, nc := testutil.StartNATS(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	t.Cleanup(cancel)

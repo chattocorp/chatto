@@ -1,5 +1,8 @@
 # Instructions for Agents Working in `proto/chatto/discovery/v1/`
 
+Follow [the shared protocol rules](../../../AGENTS.md) for API shape, comments,
+compatibility, and code generation.
+
 This directory contains the public unauthenticated `chatto.discovery.v1`
 ConnectRPC API.
 
@@ -19,9 +22,6 @@ ConnectRPC API.
 
 - Each service and RPC comment must say if the method is public or needs a
   capability token.
-- Describe behavior visible to the caller and important absence or error cases.
-- Do not put implementation workflow text in comments that appear in public
-  documentation.
 
 ## Reused Shapes
 
@@ -31,22 +31,11 @@ ConnectRPC API.
 - Own messages in `chatto.discovery.v1` when their natural lifecycle is a
   discovery/capability-token request or response.
 
-## Compatibility
+## Client Compatibility
 
-- Follow the public API compatibility rules in `proto/AGENTS.md`.
-- The project is pre-1.0. Package, service, and method-path changes still need
-  an explicit plan and a PR compatibility note.
 - Do not expose implementation-level feature or method support as public
   discovery capabilities. The bundled client keeps explicit minimum server
   versions for features it gates.
 - Do not make the server declare minimum client versions. Clients own their
   minimum supported server release and compare it with the discovered server
   software version. Third-party clients should pin and test supported releases.
-
-## Code Generation
-
-- Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
-- Commit generated Go/TypeScript bindings and generated docs output.
-- New services need generated docs grouping in
-  `tools/split-connectrpc-docs.mjs` and sidebar entries in
-  `apps/docs-website/astro.config.mjs`.

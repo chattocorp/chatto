@@ -1,5 +1,8 @@
 # Instructions for Agents Working in `proto/chatto/auth/v1/`
 
+Follow [the shared protocol rules](../../../AGENTS.md) for API shape, comments,
+compatibility, and code generation.
+
 This directory contains public ConnectRPC authentication and authorization
 flows. These flows are not ordinary authenticated account API calls.
 
@@ -18,9 +21,6 @@ flows. These flows are not ordinary authenticated account API calls.
 
 - Each service and RPC comment must say if the method is public, needs a
   capability token, or needs an authenticated user.
-- Describe behavior visible to the caller and important absence or error cases.
-- Do not put implementation workflow text in comments that appear in public
-  documentation.
 
 ## Reused Shapes
 
@@ -28,17 +28,3 @@ flows. These flows are not ordinary authenticated account API calls.
   shared shape already has the right public visibility.
 - Own messages in `chatto.auth.v1` when their natural lifecycle is an auth flow
   request or response.
-
-## Compatibility
-
-- Follow the public API compatibility rules in `proto/AGENTS.md`.
-- The project is pre-1.0. Package, service, and method-path changes still need
-  an explicit plan and a PR compatibility note.
-
-## Code Generation
-
-- Public `.proto` or ConnectRPC service changes require `mise codegen-proto`.
-- Commit generated Go/TypeScript bindings and generated docs output.
-- New services need generated docs grouping in
-  `tools/split-connectrpc-docs.mjs` and sidebar entries in
-  `apps/docs-website/astro.config.mjs`.
