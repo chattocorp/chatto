@@ -3,6 +3,37 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.7](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.6...v0.5.0-alpha.7) (2026-09-05)
+
+
+### ⚠ BREAKING CHANGES
+
+* **authz:** require privileged mode for elevated permissions ([#2291](https://github.com/chattocorp/chatto/issues/2291))
+* **realtime:** add semantic events with exact snapshots and bounded resume ([#2260](https://github.com/chattocorp/chatto/issues/2260))
+
+### Features
+
+* add direct-message RBAC scope and threads ([#2294](https://github.com/chattocorp/chatto/issues/2294)) ([9bc1fea](https://github.com/chattocorp/chatto/commit/9bc1fea167a1ad86eafccb72b996c2dacee2b77b))
+* **authz:** require privileged mode for elevated permissions ([#2291](https://github.com/chattocorp/chatto/issues/2291)) ([9455fd6](https://github.com/chattocorp/chatto/commit/9455fd6b00a960ccd0b76b38637e791fcc3b2116))
+* **config:** configure embedded NATS sync interval ([#2293](https://github.com/chattocorp/chatto/issues/2293)) ([1a6d507](https://github.com/chattocorp/chatto/commit/1a6d507e5c092448ab20b315bf1fd3c50bcdf99b))
+* **docker:** add Compose backup and restore workflow ([#2292](https://github.com/chattocorp/chatto/issues/2292)) ([62b4fbc](https://github.com/chattocorp/chatto/commit/62b4fbc32031c0313c2daf515273ddb4fe6dbcdc))
+* **pwa:** close handled push notifications in running clients ([#2302](https://github.com/chattocorp/chatto/issues/2302)) ([f2dc7ee](https://github.com/chattocorp/chatto/commit/f2dc7ee32ebf24550cc084e0167253f83b12f0c6))
+* **realtime:** add semantic events with exact snapshots and bounded resume ([#2260](https://github.com/chattocorp/chatto/issues/2260)) ([34ad973](https://github.com/chattocorp/chatto/commit/34ad973bedf1990d6a9560f6e26c558d784e6c9b))
+
+
+### Bug Fixes
+
+* **frontend:** adapt dialog width to footer actions ([#2289](https://github.com/chattocorp/chatto/issues/2289)) ([25daf57](https://github.com/chattocorp/chatto/commit/25daf578ae9c374349b447d01cc697f8abfd7ba8))
+* **frontend:** give bot avatars a friendly adaptive robot badge ([#2308](https://github.com/chattocorp/chatto/issues/2308)) ([a75f7f0](https://github.com/chattocorp/chatto/commit/a75f7f0833bfc6e1e4bf78b0bf4e1db4a9d82cf1))
+* **frontend:** hide bot badges on tiny avatars ([#2309](https://github.com/chattocorp/chatto/issues/2309)) ([fd9bd4d](https://github.com/chattocorp/chatto/commit/fd9bd4d5f7973bb0e31365c48c83c76e3a7b79de))
+* **frontend:** synchronize PWA chrome with display theme ([#2286](https://github.com/chattocorp/chatto/issues/2286)) ([475adc3](https://github.com/chattocorp/chatto/commit/475adc337a61db9d6800e64dee492b5cbc411898))
+* **frontend:** unify sidebar drop target frames ([#2290](https://github.com/chattocorp/chatto/issues/2290)) ([92aa8df](https://github.com/chattocorp/chatto/commit/92aa8df01d0b3d54d15276e71fea86a1c08e6672))
+
+
+### Performance Improvements
+
+* **ci:** select checks by product boundary ([#2299](https://github.com/chattocorp/chatto/issues/2299)) ([ca154ed](https://github.com/chattocorp/chatto/commit/ca154ed63ddd802dec96b69646f266a28d0e9565))
+
 ## [0.5.0-alpha.6](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.5...v0.5.0-alpha.6) (2026-09-02)
 
 
