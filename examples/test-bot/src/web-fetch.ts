@@ -2,6 +2,8 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "@earendil-works/pi-ai";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
+import type { LookupFunction } from "node:net";
+import { Agent } from "undici";
 
 const MAX_RESPONSE_BYTES = 100_000;
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -22,6 +24,7 @@ for (const [network, prefix] of [
   ["198.51.100.0", 24],
   ["203.0.113.0", 24],
   ["224.0.0.0", 4],
+  ["240.0.0.0", 4],
 ] as const) {
   blockedIpv4.addSubnet(network, prefix, "ipv4");
 }
@@ -42,12 +45,31 @@ const parameters = Type.Object({
 });
 
 interface WebFetchDependencies {
-  fetch(input: URL, init: RequestInit): Promise<Response>;
+  fetch(
+    input: URL,
+    init: RequestInit,
+    addresses: readonly string[],
+  ): Promise<Response>;
   resolveAddresses(hostname: string): Promise<readonly string[]>;
 }
 
 const defaultDependencies: WebFetchDependencies = {
-  fetch: (input, init) => globalThis.fetch(input, init),
+  async fetch(input, init, addresses) {
+    const dispatcher = new Agent({
+      connect: { lookup: pinnedPublicLookup(addresses) },
+    });
+    try {
+      const options: RequestInit & { dispatcher: Agent } = {
+        ...init,
+        dispatcher,
+      };
+      return await globalThis.fetch(input, options);
+    } finally {
+      // Graceful close waits for the response body to finish or be canceled.
+      // The request signal bounds that lifetime even if the body read fails.
+      void dispatcher.close().catch(() => undefined);
+    }
+  },
   async resolveAddresses(hostname) {
     if (isIP(hostname) !== 0) return [hostname];
     return (await lookup(hostname, { all: true, verbatim: true })).map(
@@ -55,6 +77,38 @@ const defaultDependencies: WebFetchDependencies = {
     );
   },
 };
+
+/** Use only approved addresses for a socket lookup, without a second DNS read. */
+export function pinnedPublicLookup(
+  addresses: readonly string[],
+): LookupFunction {
+  if (
+    addresses.length === 0 ||
+    addresses.some((address) => !isPublicIpAddress(address))
+  ) {
+    throw new Error("web_fetch requires public destination addresses");
+  }
+  const records = addresses.map((address) => ({
+    address,
+    family: isIP(address),
+  }));
+  return (_hostname, options, callback) => {
+    const candidates = options.family
+      ? records.filter((record) => record.family === options.family)
+      : records;
+    if (candidates.length === 0) {
+      callback(
+        new Error("web_fetch has no approved address for this family"),
+        "",
+        0,
+      );
+    } else if (options.all) {
+      callback(null, candidates);
+    } else {
+      callback(null, candidates[0]!.address, candidates[0]!.family);
+    }
+  };
+}
 
 /** Create TestBot's size-limited, public-network-only Pi web extension. */
 export function createWebFetchExtension(
@@ -148,16 +202,24 @@ async function fetchPublicUrl(
   let url = initialUrl;
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
-    await assertPublicDestination(url, dependencies.resolveAddresses);
-    const response = await dependencies.fetch(url, {
-      headers: {
-        accept:
-          "text/plain, text/html, text/markdown, application/json, application/xml;q=0.9, text/xml;q=0.9",
-        "user-agent": "chatto-test-bot-web-fetch/1.0",
+    const addresses = await assertPublicDestination(
+      url,
+      dependencies.resolveAddresses,
+    );
+    signal.throwIfAborted();
+    const response = await dependencies.fetch(
+      url,
+      {
+        headers: {
+          accept:
+            "text/plain, text/html, text/markdown, application/json, application/xml;q=0.9, text/xml;q=0.9",
+          "user-agent": "chatto-test-bot-web-fetch/1.0",
+        },
+        redirect: "manual",
+        signal,
       },
-      redirect: "manual",
-      signal,
-    });
+      addresses,
+    );
 
     if (!isRedirect(response.status)) return response;
 
@@ -182,7 +244,7 @@ function isRedirect(status: number): boolean {
 async function assertPublicDestination(
   url: URL,
   resolveAddresses: WebFetchDependencies["resolveAddresses"],
-): Promise<void> {
+): Promise<readonly string[]> {
   const hostname = url.hostname.replace(/^\[|\]$/g, "");
   const addresses = await resolveAddresses(hostname);
   if (addresses.length === 0) {
@@ -193,10 +255,9 @@ async function assertPublicDestination(
     (address) => !isPublicIpAddress(address),
   );
   if (blockedAddress !== undefined) {
-    throw new Error(
-      `web_fetch blocked non-public destination ${url.hostname} (${blockedAddress})`,
-    );
+    throw new Error("web_fetch blocked non-public destination");
   }
+  return addresses;
 }
 
 function isPublicIpAddress(address: string): boolean {

@@ -23,7 +23,8 @@
     "@earendil-works/pi-agent-core": "0.85.0",
     "@earendil-works/pi-ai": "0.85.0",
     "@earendil-works/pi-coding-agent": "0.85.0",
-    "@earendil-works/pi-server": "0.85.0"
+    "@earendil-works/pi-server": "0.85.0",
+    "undici": "7.29.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

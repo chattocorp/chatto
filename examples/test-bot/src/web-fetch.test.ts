@@ -4,10 +4,14 @@ import type {
 } from "@earendil-works/pi-coding-agent";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createWebFetchExtension } from "./web-fetch.js";
+import { createWebFetchExtension, pinnedPublicLookup } from "./web-fetch.js";
 
 function loadWebFetchTool(
-  fetch: (input: URL, init: RequestInit) => Promise<Response>,
+  fetch: (
+    input: URL,
+    init: RequestInit,
+    addresses: readonly string[],
+  ) => Promise<Response>,
   resolveAddresses: (
     hostname: string,
   ) => Promise<readonly string[]> = async () => ["93.184.216.34"],
@@ -62,6 +66,63 @@ test("fetches textual public content with response metadata", async () => {
     status: 200,
     contentType: "text/plain; charset=utf-8",
     truncated: false,
+  });
+});
+
+test("pins each redirect to its validated addresses without a second DNS read", async () => {
+  const resolved: string[] = [];
+  const fetched: string[] = [];
+  const tool = loadWebFetchTool(
+    async (url, _init, addresses) => {
+      const expected = fetched.length === 0 ? "93.184.216.34" : "1.1.1.1";
+      assert.deepEqual(addresses, [expected]);
+      const lookup = pinnedPublicLookup(addresses);
+      // A hostname that resolves to loopback cannot alter the pinned answer.
+      lookup("localhost", {}, (error, address, family) => {
+        assert.equal(error, null);
+        assert.equal(address, expected);
+        assert.equal(family, 4);
+      });
+      lookup("localhost", { all: true }, (error, records) => {
+        assert.equal(error, null);
+        assert.deepEqual(records, [{ address: expected, family: 4 }]);
+      });
+      fetched.push(url.hostname);
+      return fetched.length === 1
+        ? new Response(null, {
+            status: 302,
+            headers: { location: "https://next.example/" },
+          })
+        : new Response("done", { headers: { "content-type": "text/plain" } });
+    },
+    async (hostname) => {
+      resolved.push(hostname);
+      // Any repeated DNS read returns private data and must not be used.
+      if (resolved.filter((value) => value === hostname).length > 1)
+        return ["127.0.0.1"];
+      return [hostname === "first.example" ? "93.184.216.34" : "1.1.1.1"];
+    },
+  );
+  await executeWebFetch(tool, "https://first.example/");
+  assert.deepEqual(resolved, ["first.example", "next.example"]);
+  assert.deepEqual(fetched, resolved);
+});
+
+test("pinned lookup rejects unsafe inputs and unsupported address families", () => {
+  for (const addresses of [
+    [],
+    ["127.0.0.1"],
+    ["240.0.0.1"],
+    ["93.184.216.34", "::1"],
+  ]) {
+    assert.throws(
+      () => pinnedPublicLookup(addresses),
+      /public destination addresses/,
+    );
+  }
+  const lookup = pinnedPublicLookup(["93.184.216.34"]);
+  lookup("example.com", { family: 6 }, (error) => {
+    assert.match(error?.message ?? "", /no approved address/);
   });
 });
 
