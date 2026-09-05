@@ -5,6 +5,7 @@ import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import { NotificationOccurrencesChangedEvent } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
 const { mocks } = vi.hoisted(() => {
   const createBus = () => ({
@@ -16,8 +17,9 @@ const { mocks } = vi.hoisted(() => {
   };
   const createStore = () => ({
     isAuthenticated: true,
+    waitForRealtimeResourceRefresh: vi.fn(async () => true),
     notifications: {
-      occurrences: [] as Array<{ unread: boolean }>,
+      occurrences: [] as Array<{ id?: string; unread: boolean }>,
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
@@ -38,6 +40,7 @@ const { mocks } = vi.hoisted(() => {
       stores,
       badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
+      presencePreference: { effectiveStatus: 0 },
       updateAppBadge: vi.fn(async () => {}),
       soundPreferences: {
         origin: {
@@ -91,6 +94,10 @@ vi.mock('$lib/audio/notificationSounds', () => ({
   playNotificationSound: mocks.playNotificationSound
 }));
 
+vi.mock('$lib/state/presencePreference.svelte', () => ({
+  presencePreference: mocks.presencePreference
+}));
+
 vi.mock('$lib/notifications/appBadge', () => ({
   listenForAppBadgeRefresh: vi.fn((handler: () => void) => {
     mocks.badgeRefreshHandlers.add(handler);
@@ -102,7 +109,8 @@ vi.mock('$lib/notifications/appBadge', () => ({
 function dispatch(
   playNotificationSound = false,
   eventId = 'event-id',
-  serverId: 'origin' | 'remote' = 'origin'
+  serverId: 'origin' | 'remote' = 'origin',
+  notificationId = 'notification-id'
 ) {
   const event = new RealtimeProjectionUpdate({
     event: new RealtimeEvent({
@@ -110,7 +118,7 @@ function dispatch(
       event: {
         case: 'notificationOccurrencesChanged',
         value: new NotificationOccurrencesChangedEvent({
-          soundCandidateNotificationId: playNotificationSound ? 'notification-id' : undefined
+          createdNotificationId: playNotificationSound ? notificationId : undefined
         })
       }
     })
@@ -122,7 +130,7 @@ function dispatch(
 }
 
 async function renderAndWaitForSubscription() {
-  render(NotificationSync);
+  const result = render(NotificationSync);
   const authenticatedServerCount = mocks.servers.filter(
     ({ id }) => mocks.stores[id as keyof typeof mocks.stores].isAuthenticated
   ).length;
@@ -132,6 +140,7 @@ async function renderAndWaitForSubscription() {
     ).toBe(authenticatedServerCount)
   );
   await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
+  return result;
 }
 
 describe('NotificationSync', () => {
@@ -139,11 +148,13 @@ describe('NotificationSync', () => {
     for (const bus of Object.values(mocks.buses)) bus.projectionHandlers.clear();
     mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
+    mocks.presencePreference.effectiveStatus = PresenceStatus.ONLINE;
 
     mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
     for (const store of Object.values(mocks.stores)) {
       store.isAuthenticated = true;
-      store.notifications.occurrences = [];
+      store.notifications.occurrences = [{ id: 'notification-id', unread: true }];
+      store.waitForRealtimeResourceRefresh.mockReset().mockResolvedValue(true);
       store.notifications.count = 0;
       store.notifications.unreadNotificationCount = 0;
       store.notifications.hasLoaded = true;
@@ -158,7 +169,7 @@ describe('NotificationSync', () => {
 
     dispatch(true);
 
-    expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
   });
 
   it('uses the sound preference for the server that produced the event', async () => {
@@ -167,6 +178,8 @@ describe('NotificationSync', () => {
 
     dispatch(true, 'origin-event', 'origin');
     dispatch(true, 'remote-event', 'remote');
+
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledTimes(2));
 
     expect(mocks.playNotificationSound).toHaveBeenNthCalledWith(
       1,
@@ -180,13 +193,95 @@ describe('NotificationSync', () => {
     );
   });
 
-  it('plays a repeated projection event only once', async () => {
+  it('plays a repeated creation only once, even with different event IDs', async () => {
     await renderAndWaitForSubscription();
 
     dispatch(true, 'duplicate-sound-event');
-    dispatch(true, 'duplicate-sound-event');
+    dispatch(true, 'another-envelope-for-the-same-notification');
 
-    expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+  });
+
+  it('waits for the resource read before it checks unread state', async () => {
+    const read = Promise.withResolvers<boolean>();
+    mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
+    mocks.stores.origin.notifications.occurrences = [];
+    await renderAndWaitForSubscription();
+    dispatch(true);
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+    mocks.stores.origin.notifications.occurrences = [{ id: 'notification-id', unread: true }];
+    read.resolve(true);
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+  });
+
+  it.each(['read', 'missing', 'failed', 'dnd', 'signed-out'])(
+    'does not sound when the resource read completes with %s state',
+    async (state) => {
+      const read = Promise.withResolvers<boolean>();
+      mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
+      await renderAndWaitForSubscription();
+      dispatch(true);
+      if (state === 'read') mocks.stores.origin.notifications.occurrences[0].unread = false;
+      if (state === 'missing') mocks.stores.origin.notifications.occurrences = [];
+      if (state === 'dnd') mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+      if (state === 'signed-out') mocks.stores.origin.isAuthenticated = false;
+      if (state === 'failed') read.reject(new Error('Read failed'));
+      else read.resolve(true);
+      await read.promise.catch(() => {});
+      await Promise.resolve();
+      expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+    }
+  );
+
+  it('does not play suppressed creations when DND ends', async () => {
+    await renderAndWaitForSubscription();
+    mocks.presencePreference.effectiveStatus = PresenceStatus.DO_NOT_DISTURB;
+    dispatch(true);
+    mocks.presencePreference.effectiveStatus = PresenceStatus.ONLINE;
+    dispatch(true, 'duplicate-after-dnd');
+    await Promise.resolve();
+    expect(mocks.stores.origin.waitForRealtimeResourceRefresh).not.toHaveBeenCalled();
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it('plays once for several creations in the same reconciliation batch', async () => {
+    const read = Promise.withResolvers<boolean>();
+    mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
+    mocks.stores.origin.notifications.occurrences.push({ id: 'second-notification', unread: true });
+    await renderAndWaitForSubscription();
+    dispatch(true);
+    dispatch(true, 'second-event', 'origin', 'second-notification');
+    read.resolve(true);
+    await vi.waitFor(() => expect(mocks.playNotificationSound).toHaveBeenCalledOnce());
+    expect(mocks.stores.origin.waitForRealtimeResourceRefresh).toHaveBeenCalledOnce();
+  });
+
+  it('stays silent when a queued resource read failed', async () => {
+    mocks.stores.origin.waitForRealtimeResourceRefresh.mockResolvedValue(false);
+    await renderAndWaitForSubscription();
+    dispatch(true);
+    await Promise.resolve();
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it('does not sound after the component is removed', async () => {
+    const read = Promise.withResolvers<boolean>();
+    mocks.stores.origin.waitForRealtimeResourceRefresh.mockReturnValue(read.promise);
+    const component = await renderAndWaitForSubscription();
+    dispatch(true);
+    await component.unmount();
+    read.resolve(true);
+    await read.promise;
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
+  });
+
+  it('does not borrow notification state from another server', async () => {
+    mocks.servers.push({ id: 'remote' });
+    mocks.stores.remote.notifications.occurrences = [];
+    await renderAndWaitForSubscription();
+    dispatch(true, 'remote-event', 'remote');
+    await Promise.resolve();
+    expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
   it('periodically reconciles notification state after missed live hints', async () => {

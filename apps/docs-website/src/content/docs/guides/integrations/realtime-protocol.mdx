@@ -112,11 +112,24 @@ Some related durable facts become one resource-change event. Profile facts use
 event cursor. Internal moderation audit facts do not appear in the public
 catalogue. Room-group and layout facts use one `RoomLayoutChangedEvent`.
 Read `RoomDirectoryService.ListRoomGroups` for the authorized layout. Asset
-processing completion provides IDs; read the message for its attachment data.
+processing and deletion events provide `room_id` and `message_event_id` as well
+as `asset_id`. Read the affected message for its attachment data. Refresh only
+the affected room's retained files and pins. Deletion of a processed derivative
+identifies the message that owns the original asset.
 
 `MessagePostedEvent.room_kind` identifies a channel or DM without a separate
 room lookup. `thread_root_event_id` identifies a reply’s thread root. Structured
 `mentions` distinguish direct mentions from role, here, and all mentions.
+Each direct user, role, here, or all target occurs once. A direct target stores
+its user ID in `direct.user_id`; role and broadcast targets do not list
+their recipients. `includes_viewer` states whether the target included the
+authenticated caller when the message was posted. This value keeps its original
+meaning during replay. Do not infer it from current room membership, roles, or
+presence. Targets with no resolved recipients are omitted.
+
+A bot that responds only to direct mentions checks for a `direct` cause with
+`includes_viewer = true`. A role or broadcast mention must not count as a direct
+mention. The bundled test bot uses this rule in channels; DMs need no mention.
 Edit and retraction events use `message_event_id` for their target.
 
 `MessagePostedEvent.body_plaintext` lets a client show a new message without
@@ -140,6 +153,20 @@ can still be posted twice; a local event-ID set alone cannot prevent that.
 New event variants are additive. You can ignore a variant that you do not use
 and still save the common cursor. If a complete top-level frame cannot be
 decoded, close the socket and keep the preceding cursor.
+
+## Notification creation hints
+
+`notification_occurrences_changed.created_notification_id` identifies a newly
+created notification. It is present even during Do Not Disturb or when the
+notification starts as read. Updates and removals omit it. Read current state
+through `NotificationService.ListNotificationOccurrences`; the hint is not a
+sound instruction. Clients choose whether to alert from current state and
+their preferences. The bundled frontend groups creations during one refresh
+into one sound and stays silent for missing or read rows and failed reads.
+
+These events are best-effort live hints. Resume does not replay missed
+notification creation hints. Reconcile the notification list after reconnect;
+do not treat this event as a durable bot trigger.
 
 ## Apply the exact snapshot at `E`
 

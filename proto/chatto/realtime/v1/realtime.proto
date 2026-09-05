@@ -5,7 +5,6 @@ package chatto.realtime.v1;
 import "chatto/api/v1/member_directory.proto";
 import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/server.proto";
-import "chatto/api/v1/user_service.proto";
 import "chatto/api/v1/voice_calls.proto";
 import "chatto/realtime/v1/events.proto";
 import "google/protobuf/duration.proto";

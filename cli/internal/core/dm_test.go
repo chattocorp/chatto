@@ -892,7 +892,7 @@ func TestDMNotifications(t *testing.T) {
 		}
 	})
 
-	t.Run("DM message creates silent notification for do not disturb participants", func(t *testing.T) {
+	t.Run("DM message reports notification creation for do not disturb participants", func(t *testing.T) {
 		if err := core.SetPresence(ctx, user2.Id, PresenceStatusDoNotDisturb); err != nil {
 			t.Fatalf("SetPresence DND: %v", err)
 		}
@@ -924,8 +924,8 @@ func TestDMNotifications(t *testing.T) {
 		if event == nil {
 			t.Fatalf("expected NotificationOccurrencesChangedEvent, got %T", pubsub.Event)
 		}
-		if event.GetSoundCandidateNotificationId() != "" {
-			t.Fatal("NotificationOccurrencesChangedEvent has a sound candidate during DND")
+		if event.GetCreatedNotificationId() == "" {
+			t.Fatal("NotificationOccurrencesChangedEvent must report creation during DND")
 		}
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {

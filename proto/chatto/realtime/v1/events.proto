@@ -100,6 +100,7 @@ message MessagePostedEvent {
   reserved "mentioned_user_ids";
   string echo_of_event_id = 5;
   string echo_from_thread_root_event_id = 6;
+  // Distinct mention targets, without expanded role or broadcast recipients.
   repeated MessageMention mentions = 7;
   // Plaintext message text. The field is absent after key shredding.
   optional string body_plaintext = 8;
@@ -108,7 +109,9 @@ message MessagePostedEvent {
 }
 
 // DirectUserMention identifies a direct user mention.
-message DirectUserMention {}
+message DirectUserMention {
+  string user_id = 1;
+}
 
 // RoleMessageMention identifies the role that caused a mention.
 message RoleMessageMention {
@@ -121,15 +124,21 @@ message HereMessageMention {}
 // AllMessageMention identifies a room-wide mention.
 message AllMessageMention {}
 
-// MessageMention identifies one resolved mention recipient and cause.
+// MessageMention identifies one distinct mention target. Role, here, and all
+// targets occur once, regardless of the number of recipients. Targets with no
+// resolved recipients are omitted. Recipient decisions are from message creation,
+// including during replay; clients must not infer them from current membership.
 message MessageMention {
-  string user_id = 1;
+  reserved 1;
+  reserved "user_id";
   oneof cause {
     DirectUserMention direct = 2;
     RoleMessageMention role = 3;
     HereMessageMention here = 4;
     AllMessageMention all = 5;
   }
+  // True if this target included the authenticated caller when the message was posted.
+  bool includes_viewer = 6;
 }
 
 // MessageEditedEvent reports changed message content or metadata.
@@ -166,6 +175,8 @@ message ThreadCreatedEvent {
 message AssetProcessingStartedEvent {
   string asset_id = 1;
   string message_event_id = 2;
+  // Room containing the affected message.
+  string room_id = 3;
 }
 
 // AssetProcessingSucceededEvent reports successful message-asset processing.
@@ -175,6 +186,8 @@ message AssetProcessingSucceededEvent {
   reserved 2;
   reserved "video";
   string message_event_id = 3;
+  // Room containing the affected message.
+  string room_id = 4;
 }
 
 // AssetProcessingFailureCode identifies a stable processing failure class.
@@ -192,11 +205,17 @@ message AssetProcessingFailedEvent {
   string asset_id = 1;
   AssetProcessingFailureCode failure_code = 2;
   string message_event_id = 3;
+  // Room containing the affected message.
+  string room_id = 4;
 }
 
 // AssetDeletedEvent reports a deleted asset.
 message AssetDeletedEvent {
   string asset_id = 1;
+  // Room containing the affected message.
+  string room_id = 2;
+  // Message that owns the asset, including a deleted derivative asset.
+  string message_event_id = 3;
 }
 
 // ServerMotdChangedEvent reports the current message of the day.
@@ -271,8 +290,11 @@ message PresenceChangedEvent {
 // NotificationOccurrencesChangedEvent reports that the caller's current
 // notification occurrences changed and requests an authoritative resource read.
 message NotificationOccurrencesChangedEvent {
-  // Notification that can cause a sound after reconciliation.
-  optional string sound_candidate_notification_id = 1;
+  // ID of a newly created notification, including read notifications and
+  // creations during Do Not Disturb. Absent for updates and removals.
+  // This is a best-effort live hint, not a sound instruction or durable delivery.
+  // Clients decide whether to alert after they read current notification state.
+  optional string created_notification_id = 1;
 }
 
 // NotificationUnreadStateChangedEvent reports that the caller's notification

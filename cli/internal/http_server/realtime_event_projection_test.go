@@ -2,6 +2,7 @@ package http_server
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"google.golang.org/protobuf/encoding/protowire"
@@ -15,6 +16,51 @@ import (
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
+
+func TestRealtimeMentionsCompactTargetsAndPreserveViewerResolution(t *testing.T) {
+	values := []*evtv1.MessageMention{
+		nil, {}, {UserId: "unknown-cause"},
+		{UserId: "viewer", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}},
+		{UserId: "other", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}},
+		{UserId: "viewer", Cause: &evtv1.MessageMention_Direct{Direct: &evtv1.DirectUserMention{}}},
+		{UserId: "other", Cause: &evtv1.MessageMention_Here{Here: &evtv1.HereMessageMention{}}},
+	}
+	for i := 0; i < 1000; i++ {
+		userID := fmt.Sprintf("recipient-%d", i)
+		if i == 999 {
+			userID = "viewer"
+		}
+		values = append(values,
+			&evtv1.MessageMention{UserId: userID, Cause: &evtv1.MessageMention_All{All: &evtv1.AllMessageMention{}}},
+			&evtv1.MessageMention{UserId: userID, Cause: &evtv1.MessageMention_Role{Role: &evtv1.RoleMessageMention{RoleName: "helpers"}}},
+		)
+	}
+	source := &evtv1.Event{Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{Mentions: values}}}
+	before := proto.Clone(source)
+	result := projectRealtimeEvent("viewer", source).GetMessagePosted()
+	mentions := result.GetMentions()
+	if len(mentions) != 5 {
+		t.Fatalf("got %d targets, want 5", len(mentions))
+	}
+	if mentions[0].GetDirect().GetUserId() != "viewer" || !mentions[0].GetIncludesViewer() ||
+		mentions[1].GetDirect().GetUserId() != "other" || mentions[1].GetIncludesViewer() ||
+		mentions[2].GetHere() == nil || mentions[2].GetIncludesViewer() ||
+		mentions[3].GetAll() == nil || !mentions[3].GetIncludesViewer() ||
+		mentions[4].GetRole().GetRoleName() != "helpers" || !mentions[4].GetIncludesViewer() {
+		t.Fatalf("unexpected mention targets: %v", mentions)
+	}
+	if size := proto.Size(result); size > 100 {
+		t.Fatalf("expanded public mention payload: %d bytes", size)
+	}
+	other := projectRealtimeEvent("other", source).GetMessagePosted().GetMentions()
+	if other[0].GetIncludesViewer() || !other[1].GetIncludesViewer() || !other[2].GetIncludesViewer() || other[3].GetIncludesViewer() {
+		t.Fatalf("viewer resolution leaked across deliveries: %v", other)
+	}
+	mentions[4].GetRole().RoleName = "mutated public value"
+	if !proto.Equal(source, before) {
+		t.Fatal("public mapping changed stored EVT mentions")
+	}
+}
 
 func TestProjectRealtimeEventUsesDedicatedPublicShape(t *testing.T) {
 	source := &evtv1.Event{
@@ -35,7 +81,7 @@ func TestProjectRealtimeEventUsesDedicatedPublicShape(t *testing.T) {
 	unknown = protowire.AppendString(unknown, "untrusted-source-plaintext")
 	source.GetUserLoginChanged().ProtoReflect().SetUnknown(unknown)
 
-	projected := projectRealtimeEvent(source)
+	projected := projectRealtimeEvent("viewer", source)
 	if projected == nil {
 		t.Fatal("projectRealtimeEvent() = nil, want a public event")
 	}
@@ -91,7 +137,7 @@ func TestPublicRealtimeMessageCarriesPlaintextAndRoomKindWithoutChangingEVT(t *t
 }
 
 func TestProjectRealtimeEventCollapsesMixedRoomGroupOrder(t *testing.T) {
-	projected := projectRealtimeEvent(&evtv1.Event{
+	projected := projectRealtimeEvent("viewer", &evtv1.Event{
 		Id: "reorder-event-id",
 		Event: &evtv1.Event_SidebarGroupEntriesReordered{
 			SidebarGroupEntriesReordered: &evtv1.SidebarGroupEntriesReorderedEvent{
@@ -119,7 +165,7 @@ func TestProjectRealtimeEventCollapsesMixedRoomGroupOrder(t *testing.T) {
 }
 
 func TestProjectRealtimeEventDoesNotExposeLegacyAvatarStoragePointer(t *testing.T) {
-	projected := projectRealtimeEvent(&evtv1.Event{
+	projected := projectRealtimeEvent("viewer", &evtv1.Event{
 		Id: "avatar-event-id",
 		Event: &evtv1.Event_UserAvatarSet{UserAvatarSet: &evtv1.UserAvatarSetEvent{
 			UserId: "user-id",
@@ -158,7 +204,7 @@ func TestProjectRealtimeEventCollapsesDurableProfileFacts(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			projected := projectRealtimeEvent(test.event)
+			projected := projectRealtimeEvent("viewer", test.event)
 			if got := projected.GetUserProfileChanged().GetUserId(); got != "U1" {
 				t.Fatalf("user_profile_changed.user_id = %q, want U1", got)
 			}
@@ -173,7 +219,7 @@ func TestProjectRealtimeEventOmitsModerationAuditFacts(t *testing.T) {
 		"remove": {Event: &evtv1.Event_RoomMemberRemoved{RoomMemberRemoved: &evtv1.RoomMemberRemovedEvent{RoomId: "R1", UserId: "U1"}}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if projected := projectRealtimeEvent(event); projected != nil {
+			if projected := projectRealtimeEvent("viewer", event); projected != nil {
 				t.Fatalf("projectRealtimeEvent() = %+v, want private audit omission", projected)
 			}
 		})
@@ -271,7 +317,7 @@ func TestProjectRealtimeEventOmitsInternalEvent(t *testing.T) {
 		}},
 	}
 
-	projected := projectRealtimeEvent(event)
+	projected := projectRealtimeEvent("viewer", event)
 	if projected != nil {
 		t.Fatalf("projectRealtimeEvent() = %+v, want internal event omission", projected)
 	}
@@ -378,7 +424,7 @@ func TestRealtimeEventCatalogueIsDedicatedAndExhaustivelyMapped(t *testing.T) {
 			if publicField.Name() == "viewer_preferences_changed" {
 				projected = &realtimev1.RealtimeEvent{Event: &realtimev1.RealtimeEvent_ViewerPreferencesChanged{ViewerPreferencesChanged: &realtimev1.ViewerPreferencesChangedEvent{}}}
 			} else {
-				projected = projectRealtimeEvent(&event)
+				projected = projectRealtimeEvent("viewer", &event)
 			}
 		} else {
 			pubsubName, ok := pubsubSourceNames[string(publicField.Name())]

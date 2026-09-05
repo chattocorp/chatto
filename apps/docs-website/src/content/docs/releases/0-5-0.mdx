@@ -165,8 +165,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   human clients. Direct messages, direct mentions, replies, and followed-thread
   activity arrive as exact notification occurrences. A direct mention in a root
   or reply follows that thread for later activity when notification policy
-  permits it. Each bot can also have up to 20 named API keys. Managers can
-  replace one integration key without stopping the others.
+  permits it. Live notification hints report created IDs even during Do Not
+  Disturb; clients decide whether to play a sound from current unread state and
+  local preferences. These hints are not durable bot delivery. Each bot can also
+  have up to 20 named API keys. Managers can replace one integration key without
+  stopping the others.
 </ReleaseFeatureCard>
 
 <ReleaseFeatureCard title="Visible cleanup health" size="small">
@@ -302,8 +305,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   15-minute bounded cursor resume with encrypted, viewer-bound tokens.
   Outbound events and heartbeats use `cursor`; subscribe uses `resume_cursor`.
   `caught_up.recovery` explicitly reports resume, snapshot, or live-only startup.
-  Posted messages include room kind and thread-root context. Layout changes use
-  one refresh hint; processed asset detail stays in message resources.
+  Posted messages include room kind, thread-root context, and compact mention
+  targets with the caller's original recipient decision. Layout changes use
+  one refresh hint. Asset processing and deletion events identify the affected
+  room and message; processed asset detail stays in message resources.
   Minimum-cursor RPCs wait for the requested content boundary, with a 10-second
   server limit, rather than waiting for unrelated projections.
   The client sends one `RealtimeSubscribe`

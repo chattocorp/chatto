@@ -281,8 +281,7 @@ test.describe('protobuf realtime stream', () => {
       try {
         const reaction = await resumed.waitForEvent(
           (event) =>
-            event.event.case === 'reactionAdded' &&
-            event.event.value.messageEventId === messageId
+            event.event.case === 'reactionAdded' && event.event.value.messageEventId === messageId
         );
         expect(reaction.event.case).toBe('reactionAdded');
         expect(reaction.cursor).toBeTruthy();
@@ -297,8 +296,7 @@ test.describe('protobuf realtime stream', () => {
         });
         const edited = await resumed.waitForEvent(
           (event) =>
-            event.event.case === 'messageEdited' &&
-            event.event.value.messageEventId === messageId
+            event.event.case === 'messageEdited' && event.event.value.messageEventId === messageId
         );
         expect(edited.cursor).toBeTruthy();
       } finally {
@@ -329,6 +327,15 @@ test.describe('protobuf realtime stream', () => {
       });
 
       await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
+      const mentionHint = await realtime.waitForEvent(
+        (event) =>
+          event.event.case === 'notificationOccurrencesChanged' &&
+          !!event.event.value.createdNotificationId
+      );
+      const mentionNotificationId =
+        mentionHint.event.case === 'notificationOccurrencesChanged'
+          ? mentionHint.event.value.createdNotificationId
+          : undefined;
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(
@@ -344,6 +351,7 @@ test.describe('protobuf realtime stream', () => {
               ? occurrence.signal.kind.value.message
               : undefined;
           return {
+            id: occurrence?.id,
             actorId: occurrence?.actor?.id,
             actorDisplayName: occurrence?.actor?.displayName,
             roomId: message?.room?.id,
@@ -351,6 +359,7 @@ test.describe('protobuf realtime stream', () => {
           };
         })
         .toMatchObject({
+          id: mentionNotificationId,
           actorId: expect.any(String),
           actorDisplayName: mentionActorDisplayName,
           roomId: expect.any(String),
@@ -358,6 +367,10 @@ test.describe('protobuf realtime stream', () => {
         });
 
       let dmSenderDisplayName = '';
+      await connectPost(page, 'chatto.api.v1.MyAccountService/UpdatePresence', {
+        status: 'PRESENCE_STATUS_DO_NOT_DISTURB',
+        userSelected: true
+      });
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
         dmSenderDisplayName = user.displayName;
         const dmPage = new DMPage(senderPage);
@@ -366,6 +379,16 @@ test.describe('protobuf realtime stream', () => {
       });
 
       await realtime.waitForEvent((event) => event.event.case === 'messagePosted');
+      const dmHint = await realtime.waitForEvent(
+        (event) =>
+          event.event.case === 'notificationOccurrencesChanged' &&
+          !!event.event.value.createdNotificationId &&
+          event.event.value.createdNotificationId !== mentionNotificationId
+      );
+      const dmNotificationId =
+        dmHint.event.case === 'notificationOccurrencesChanged'
+          ? dmHint.event.value.createdNotificationId
+          : undefined;
       await expect
         .poll(async () => {
           const json = await connectPost<Record<string, unknown>>(
@@ -381,12 +404,14 @@ test.describe('protobuf realtime stream', () => {
               ? occurrence.signal.kind.value.message
               : undefined;
           return {
+            id: occurrence?.id,
             actorId: occurrence?.actor?.id,
             actorDisplayName: occurrence?.actor?.displayName,
             roomId: message?.room?.id
           };
         })
         .toMatchObject({
+          id: dmNotificationId,
           actorId: expect.any(String),
           actorDisplayName: dmSenderDisplayName,
           roomId: expect.any(String)

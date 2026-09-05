@@ -823,10 +823,11 @@ type MessagePostedEvent struct {
 	RoomId    string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	InReplyTo string                 `protobuf:"bytes,2,opt,name=in_reply_to,json=inReplyTo,proto3" json:"in_reply_to,omitempty"`
 	// Root message ID for a thread reply. Empty for a room-level message.
-	ThreadRootEventId         string            `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	EchoOfEventId             string            `protobuf:"bytes,5,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
-	EchoFromThreadRootEventId string            `protobuf:"bytes,6,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
-	Mentions                  []*MessageMention `protobuf:"bytes,7,rep,name=mentions,proto3" json:"mentions,omitempty"`
+	ThreadRootEventId         string `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	EchoOfEventId             string `protobuf:"bytes,5,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`
+	EchoFromThreadRootEventId string `protobuf:"bytes,6,opt,name=echo_from_thread_root_event_id,json=echoFromThreadRootEventId,proto3" json:"echo_from_thread_root_event_id,omitempty"`
+	// Distinct mention targets, without expanded role or broadcast recipients.
+	Mentions []*MessageMention `protobuf:"bytes,7,rep,name=mentions,proto3" json:"mentions,omitempty"`
 	// Plaintext message text. The field is absent after key shredding.
 	BodyPlaintext *string `protobuf:"bytes,8,opt,name=body_plaintext,json=bodyPlaintext,proto3,oneof" json:"body_plaintext,omitempty"`
 	// Immutable room kind. Direct messages do not require a mention to address a bot.
@@ -924,6 +925,7 @@ func (x *MessagePostedEvent) GetRoomKind() v1.RoomKind {
 // DirectUserMention identifies a direct user mention.
 type DirectUserMention struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -956,6 +958,13 @@ func (x *DirectUserMention) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DirectUserMention.ProtoReflect.Descriptor instead.
 func (*DirectUserMention) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *DirectUserMention) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
 }
 
 // RoleMessageMention identifies the role that caused a mention.
@@ -1077,19 +1086,23 @@ func (*AllMessageMention) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{18}
 }
 
-// MessageMention identifies one resolved mention recipient and cause.
+// MessageMention identifies one distinct mention target. Role, here, and all
+// targets occur once, regardless of the number of recipients. Targets with no
+// resolved recipients are omitted. Recipient decisions are from message creation,
+// including during replay; clients must not infer them from current membership.
 type MessageMention struct {
-	state  protoimpl.MessageState `protogen:"open.v1"`
-	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Cause:
 	//
 	//	*MessageMention_Direct
 	//	*MessageMention_Role
 	//	*MessageMention_Here
 	//	*MessageMention_All
-	Cause         isMessageMention_Cause `protobuf_oneof:"cause"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Cause isMessageMention_Cause `protobuf_oneof:"cause"`
+	// True if this target included the authenticated caller when the message was posted.
+	IncludesViewer bool `protobuf:"varint,6,opt,name=includes_viewer,json=includesViewer,proto3" json:"includes_viewer,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *MessageMention) Reset() {
@@ -1120,13 +1133,6 @@ func (x *MessageMention) ProtoReflect() protoreflect.Message {
 // Deprecated: Use MessageMention.ProtoReflect.Descriptor instead.
 func (*MessageMention) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{19}
-}
-
-func (x *MessageMention) GetUserId() string {
-	if x != nil {
-		return x.UserId
-	}
-	return ""
 }
 
 func (x *MessageMention) GetCause() isMessageMention_Cause {
@@ -1170,6 +1176,13 @@ func (x *MessageMention) GetAll() *AllMessageMention {
 		}
 	}
 	return nil
+}
+
+func (x *MessageMention) GetIncludesViewer() bool {
+	if x != nil {
+		return x.IncludesViewer
+	}
+	return false
 }
 
 type isMessageMention_Cause interface {
@@ -1470,8 +1483,10 @@ type AssetProcessingStartedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	MessageEventId string                 `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Room containing the affected message.
+	RoomId        string `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetProcessingStartedEvent) Reset() {
@@ -1518,14 +1533,23 @@ func (x *AssetProcessingStartedEvent) GetMessageEventId() string {
 	return ""
 }
 
+func (x *AssetProcessingStartedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
 // AssetProcessingSucceededEvent reports successful message-asset processing.
 // Read the message resource for current attachments and processed video data.
 type AssetProcessingSucceededEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	AssetId        string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	MessageEventId string                 `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Room containing the affected message.
+	RoomId        string `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetProcessingSucceededEvent) Reset() {
@@ -1572,14 +1596,23 @@ func (x *AssetProcessingSucceededEvent) GetMessageEventId() string {
 	return ""
 }
 
+func (x *AssetProcessingSucceededEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
 // AssetProcessingFailedEvent reports failed message-asset processing.
 type AssetProcessingFailedEvent struct {
 	state          protoimpl.MessageState     `protogen:"open.v1"`
 	AssetId        string                     `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	FailureCode    AssetProcessingFailureCode `protobuf:"varint,2,opt,name=failure_code,json=failureCode,proto3,enum=chatto.realtime.v1.AssetProcessingFailureCode" json:"failure_code,omitempty"`
 	MessageEventId string                     `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Room containing the affected message.
+	RoomId        string `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AssetProcessingFailedEvent) Reset() {
@@ -1633,12 +1666,23 @@ func (x *AssetProcessingFailedEvent) GetMessageEventId() string {
 	return ""
 }
 
+func (x *AssetProcessingFailedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
 // AssetDeletedEvent reports a deleted asset.
 type AssetDeletedEvent struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	AssetId       string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	AssetId string                 `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Room containing the affected message.
+	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Message that owns the asset, including a deleted derivative asset.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AssetDeletedEvent) Reset() {
@@ -1674,6 +1718,20 @@ func (*AssetDeletedEvent) Descriptor() ([]byte, []int) {
 func (x *AssetDeletedEvent) GetAssetId() string {
 	if x != nil {
 		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetDeletedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AssetDeletedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
 	}
 	return ""
 }
@@ -2269,10 +2327,13 @@ func (x *PresenceChangedEvent) GetStatus() v1.PresenceStatus {
 // notification occurrences changed and requests an authoritative resource read.
 type NotificationOccurrencesChangedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Notification that can cause a sound after reconciliation.
-	SoundCandidateNotificationId *string `protobuf:"bytes,1,opt,name=sound_candidate_notification_id,json=soundCandidateNotificationId,proto3,oneof" json:"sound_candidate_notification_id,omitempty"`
-	unknownFields                protoimpl.UnknownFields
-	sizeCache                    protoimpl.SizeCache
+	// ID of a newly created notification, including read notifications and
+	// creations during Do Not Disturb. Absent for updates and removals.
+	// This is a best-effort live hint, not a sound instruction or durable delivery.
+	// Clients decide whether to alert after they read current notification state.
+	CreatedNotificationId *string `protobuf:"bytes,1,opt,name=created_notification_id,json=createdNotificationId,proto3,oneof" json:"created_notification_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrencesChangedEvent) Reset() {
@@ -2305,9 +2366,9 @@ func (*NotificationOccurrencesChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{41}
 }
 
-func (x *NotificationOccurrencesChangedEvent) GetSoundCandidateNotificationId() string {
-	if x != nil && x.SoundCandidateNotificationId != nil {
-		return *x.SoundCandidateNotificationId
+func (x *NotificationOccurrencesChangedEvent) GetCreatedNotificationId() string {
+	if x != nil && x.CreatedNotificationId != nil {
+		return *x.CreatedNotificationId
 	}
 	return ""
 }
@@ -2468,19 +2529,20 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\bmentions\x18\a \x03(\v2\".chatto.realtime.v1.MessageMentionR\bmentions\x12*\n" +
 	"\x0ebody_plaintext\x18\b \x01(\tH\x00R\rbodyPlaintext\x88\x01\x01\x124\n" +
 	"\troom_kind\x18\t \x01(\x0e2\x17.chatto.api.v1.RoomKindR\broomKindB\x11\n" +
-	"\x0f_body_plaintextJ\x04\b\x04\x10\x05R\x12mentioned_user_ids\"\x13\n" +
-	"\x11DirectUserMention\"1\n" +
+	"\x0f_body_plaintextJ\x04\b\x04\x10\x05R\x12mentioned_user_ids\",\n" +
+	"\x11DirectUserMention\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\"1\n" +
 	"\x12RoleMessageMention\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\"\x14\n" +
 	"\x12HereMessageMention\"\x13\n" +
-	"\x11AllMessageMention\"\xaa\x02\n" +
-	"\x0eMessageMention\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12?\n" +
+	"\x11AllMessageMention\"\xc9\x02\n" +
+	"\x0eMessageMention\x12?\n" +
 	"\x06direct\x18\x02 \x01(\v2%.chatto.realtime.v1.DirectUserMentionH\x00R\x06direct\x12<\n" +
 	"\x04role\x18\x03 \x01(\v2&.chatto.realtime.v1.RoleMessageMentionH\x00R\x04role\x12<\n" +
 	"\x04here\x18\x04 \x01(\v2&.chatto.realtime.v1.HereMessageMentionH\x00R\x04here\x129\n" +
-	"\x03all\x18\x05 \x01(\v2%.chatto.realtime.v1.AllMessageMentionH\x00R\x03allB\a\n" +
-	"\x05cause\"W\n" +
+	"\x03all\x18\x05 \x01(\v2%.chatto.realtime.v1.AllMessageMentionH\x00R\x03all\x12'\n" +
+	"\x0fincludes_viewer\x18\x06 \x01(\bR\x0eincludesViewerB\a\n" +
+	"\x05causeJ\x04\b\x01\x10\x02R\auser_id\"W\n" +
 	"\x12MessageEditedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"Z\n" +
@@ -2495,19 +2557,24 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"^\n" +
 	"\x12ThreadCreatedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"b\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"{\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"q\n" +
+	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12\x17\n" +
+	"\aroom_id\x18\x03 \x01(\tR\x06roomId\"\x8a\x01\n" +
 	"\x1dAssetProcessingSucceededEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventIdJ\x04\b\x02\x10\x03R\x05video\"\xb4\x01\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x17\n" +
+	"\aroom_id\x18\x04 \x01(\tR\x06roomIdJ\x04\b\x02\x10\x03R\x05video\"\xcd\x01\n" +
 	"\x1aAssetProcessingFailedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12Q\n" +
 	"\ffailure_code\x18\x02 \x01(\x0e2..chatto.realtime.v1.AssetProcessingFailureCodeR\vfailureCode\x12(\n" +
-	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\".\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x17\n" +
+	"\aroom_id\x18\x04 \x01(\tR\x06roomId\"q\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\",\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\",\n" +
 	"\x16ServerMotdChangedEvent\x12\x12\n" +
 	"\x04motd\x18\x01 \x01(\tR\x04motd\"I\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
@@ -2537,10 +2604,10 @@ const file_chatto_realtime_v1_events_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_id\"M\n" +
 	"\x14PresenceChangedEvent\x125\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\"\x95\x01\n" +
-	"#NotificationOccurrencesChangedEvent\x12J\n" +
-	"\x1fsound_candidate_notification_id\x18\x01 \x01(\tH\x00R\x1csoundCandidateNotificationId\x88\x01\x01B\"\n" +
-	" _sound_candidate_notification_id\"o\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status\"~\n" +
+	"#NotificationOccurrencesChangedEvent\x12;\n" +
+	"\x17created_notification_id\x18\x01 \x01(\tH\x00R\x15createdNotificationId\x88\x01\x01B\x1a\n" +
+	"\x18_created_notification_id\"o\n" +
 	"#NotificationUnreadStateChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"4\n" +

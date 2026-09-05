@@ -109,7 +109,9 @@ source messages in a combined burst wait for the final reply. The bot does not
 save a cursor past an unfinished reply.
 
 Posted-message events provide the room kind, thread root, and structured
-mentions. The bot does not load the room directory to classify messages. User
+mention targets. In channels, the bot requires a direct target with
+`includesViewer` and its own user ID. Role and broadcast targets do not activate
+it. The bot does not load the room directory to classify messages. User
 lookups, thread reads, typing, and reply posts caused by an event send
 `Chatto-Realtime-Minimum-Cursor` with that event’s cursor and a 10-second
 request deadline. A replica that is behind waits for its content view to reach

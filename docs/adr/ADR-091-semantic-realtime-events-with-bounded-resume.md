@@ -157,10 +157,12 @@ delivery. Resume is not arbitrary historical playback and is not a public
 audit log.
 
 The cursor is an authenticated, encrypted token bound to the viewer and
-subscription scope. It contains the EVT incarnation, sequence, version, issue
-time, and expiry. The existing public-cursor sealing helper protects those
-values. Clients must not parse the token. Direct decryption replaces the
-unpublished JWT position-search scheme. Token validation is independent from
+subscription scope. A compact binary record contains a digest of the EVT
+incarnation, the sequence, the version, and the issue time. The version fixes
+the 15-minute lifetime. This avoids repeated JSON keys and text-encoded
+identities in every event cursor. The existing public-cursor sealing helper
+protects these values. Clients must not parse the token. Token validation is
+independent from
 the replay work budget, so a valid minimum-boundary RPC token remains usable
 when replay would exceed the scan limit.
 

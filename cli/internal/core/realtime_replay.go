@@ -2,7 +2,8 @@ package core
 
 import (
 	"context"
-	"encoding/json"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -17,11 +18,14 @@ import (
 )
 
 const (
-	realtimeCursorVersion         = 4
-	realtimeCursorPurpose         = "chatto-realtime-resume-v4"
-	realtimeCursorScope           = "all-events"
-	realtimeCursorLifetime        = 15 * time.Minute
-	realtimeCursorFutureSkew      = 5 * time.Minute
+	realtimeCursorVersion    = 4
+	realtimeCursorPurpose    = "chatto-realtime-resume-v4"
+	realtimeCursorScope      = "all-events"
+	realtimeCursorLifetime   = 15 * time.Minute
+	realtimeCursorFutureSkew = 5 * time.Minute
+	// The sealed payload is version (1), sequence (8), issue time (8), and
+	// stream identity digest (16). The version fixes the 15-minute lifetime.
+	realtimeCursorPayloadSize     = 33
 	realtimeCursorWaitTimeout     = 10 * time.Second
 	realtimeReplayMaxSequenceSpan = uint64(10_000)
 	realtimeReplayMaxEvents       = 2_000
@@ -37,11 +41,17 @@ var (
 )
 
 type realtimeCursorClaims struct {
-	Sequence       uint64 `json:"s"`
-	StreamIdentity string `json:"i"`
-	Version        int    `json:"v"`
-	IssuedAt       int64  `json:"iat"`
-	ExpiresAt      int64  `json:"exp"`
+	Sequence       uint64
+	StreamIdentity [16]byte
+	Version        int
+	IssuedAt       int64
+}
+
+// realtimeStreamIdentity binds a cursor to the opaque EVT incarnation without
+// copying its text prefix and hex encoding into every event delivery.
+func realtimeStreamIdentity(identity string) [16]byte {
+	digest := sha256.Sum256([]byte(identity))
+	return [16]byte(digest[:16])
 }
 
 // RealtimeReplayPlan is a bounded, authorized durable replay ending at one
@@ -94,7 +104,7 @@ func (c *ChattoCore) RealtimeCursorAtCurrentBoundary(ctx context.Context, userID
 		// recovery path. PlanRealtimeReplay turns them into a safe fallback.
 		return false, nil
 	}
-	return claims.StreamIdentity == identity && claims.Sequence == info.State.LastSeq, nil
+	return claims.StreamIdentity == realtimeStreamIdentity(identity) && claims.Sequence == info.State.LastSeq, nil
 }
 
 // WaitForRealtimeCursor validates one viewer-bound public cursor and waits
@@ -412,20 +422,15 @@ func (c *ChattoCore) encodeRealtimeCursor(userID, streamIdentity string, sequenc
 }
 
 func (c *ChattoCore) encodeRealtimeCursorAt(userID, streamIdentity string, sequence uint64, now time.Time) (string, error) {
-	if userID == "" || !evtstream.ValidIdentity(streamIdentity) {
+	if userID == "" || !evtstream.ValidIdentity(streamIdentity) || now.Unix() < 0 {
 		return "", ErrRealtimeCursorInvalid
 	}
-	claims := realtimeCursorClaims{
-		Sequence:       sequence,
-		StreamIdentity: streamIdentity,
-		Version:        realtimeCursorVersion,
-		IssuedAt:       now.Unix(),
-		ExpiresAt:      now.Add(realtimeCursorLifetime).Unix(),
-	}
-	payload, err := json.Marshal(claims)
-	if err != nil {
-		return "", fmt.Errorf("encode realtime cursor: %w", err)
-	}
+	payload := make([]byte, realtimeCursorPayloadSize)
+	payload[0] = realtimeCursorVersion
+	binary.BigEndian.PutUint64(payload[1:9], sequence)
+	binary.BigEndian.PutUint64(payload[9:17], uint64(now.Unix()))
+	identity := realtimeStreamIdentity(streamIdentity)
+	copy(payload[17:], identity[:])
 	return publiccursor.Seal(c.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00"+userID, payload)
 }
 
@@ -437,14 +442,19 @@ func (c *ChattoCore) parseRealtimeCursorAt(userID, cursor string, now time.Time)
 	if err != nil {
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	var claims realtimeCursorClaims
-	if err := json.Unmarshal(payload, &claims); err != nil || claims.Version != realtimeCursorVersion || !evtstream.ValidIdentity(claims.StreamIdentity) {
+	if len(payload) != realtimeCursorPayloadSize || payload[0] != realtimeCursorVersion {
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	if claims.IssuedAt > now.Add(realtimeCursorFutureSkew).Unix() || claims.ExpiresAt-claims.IssuedAt != int64(realtimeCursorLifetime/time.Second) {
+	claims := realtimeCursorClaims{
+		Version:        int(payload[0]),
+		Sequence:       binary.BigEndian.Uint64(payload[1:9]),
+		IssuedAt:       int64(binary.BigEndian.Uint64(payload[9:17])),
+		StreamIdentity: [16]byte(payload[17:]),
+	}
+	if claims.IssuedAt < 0 || claims.IssuedAt > now.Add(realtimeCursorFutureSkew).Unix() {
 		return realtimeCursorClaims{}, ErrRealtimeCursorInvalid
 	}
-	if claims.ExpiresAt <= now.Unix() {
+	if now.Unix()-claims.IssuedAt >= int64(realtimeCursorLifetime/time.Second) {
 		return realtimeCursorClaims{}, ErrRealtimeCursorExpired
 	}
 	return claims, nil
@@ -462,7 +472,7 @@ func (c *ChattoCore) resolveRealtimeCursorAt(
 	if err != nil {
 		return 0, err
 	}
-	if claims.StreamIdentity != streamIdentity || claims.Sequence > lastSequence {
+	if claims.StreamIdentity != realtimeStreamIdentity(streamIdentity) || claims.Sequence > lastSequence {
 		return 0, ErrRealtimeCursorInvalid
 	}
 	if firstSequence > 0 && claims.Sequence < firstSequence-1 {

@@ -178,7 +178,7 @@ export class ServerStateStore {
   #realtimeSnapshotPending = false;
   /** Deletions stay authoritative until the next exact snapshot resets this projection. */
   readonly #deletedRealtimeUserIds = new SvelteSet<string>();
-  readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<void>>();
+  readonly #resourceRefreshes = new SvelteMap<RealtimeResourceFamily, Promise<boolean>>();
   readonly #pendingResourceRefreshes = new SvelteMap<
     RealtimeResourceFamily,
     { minimumCursor?: string; generation: number }
@@ -329,6 +329,21 @@ export class ServerStateStore {
       this.#reconciliationError = null;
       throw error;
     }
+  }
+
+  /** Wait for this family's queued reads without consuming cursor-owner errors.
+   * Returns false if a read failed. Does not start another resource request.
+   */
+  async waitForRealtimeResourceRefresh(family: RealtimeResourceFamily): Promise<boolean> {
+    const generation = this.#realtimeProjectionGeneration;
+    let succeeded = true;
+    let refresh: Promise<boolean> | undefined;
+    while ((refresh = this.#resourceRefreshes.get(family))) {
+      const result = await refresh;
+      this.requireCurrentRealtimeProjection(generation);
+      succeeded = succeeded && result;
+    }
+    return succeeded;
   }
 
   /** Stable room timeline owner used by routes as a rendering selector. */
@@ -646,11 +661,13 @@ export class ServerStateStore {
         if (family === 'rooms') {
           await this.hydrateProjectedDMUsers(minimumCursor, generation);
         }
+        return true;
       })
       .catch((error) => {
-        if (generation !== this.#realtimeProjectionGeneration) return;
+        if (generation !== this.#realtimeProjectionGeneration) return false;
         this.#reconciliationError ??= error;
         console.error(`[server:${this.serverId}] resource refresh failed`, family, error);
+        return false;
       })
       .finally(() => {
         this.#resourceRefreshes.delete(family);
@@ -822,8 +839,8 @@ export class ServerStateStore {
       case 'assetProcessingStarted':
       case 'assetProcessingSucceeded':
       case 'assetProcessingFailed':
-        this.refreshLoadedMessageWindows('', rawValue?.messageEventId ?? null);
-        this.refreshLoadedTimelineResources('', { files: true, pins: true });
+        this.refreshLoadedMessageWindows(roomId, rawValue?.messageEventId ?? null);
+        this.refreshLoadedTimelineResources(roomId, { files: true, pins: true });
         return;
       case 'voiceCallParticipantJoined':
         this.playCallTransitionSound(

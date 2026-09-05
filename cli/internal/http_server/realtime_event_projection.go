@@ -15,7 +15,7 @@ import (
 
 // projectRealtimeEvent explicitly maps one durable EVT event to the independent
 // public catalogue. EVT field numbers and public field numbers need not match.
-func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
+func projectRealtimeEvent(viewerID string, source *evtv1.Event) *realtimev1.RealtimeEvent {
 	if source == nil || source.GetEvent() == nil {
 		return nil
 	}
@@ -75,7 +75,7 @@ func projectRealtimeEvent(source *evtv1.Event) *realtimev1.RealtimeEvent {
 		target.Event = &realtimev1.RealtimeEvent_VoiceCallEnded{VoiceCallEnded: &realtimev1.VoiceCallEndedEvent{RoomId: v.GetRoomId(), CallId: v.GetCallId()}}
 	case *evtv1.Event_MessagePosted:
 		v := e.MessagePosted
-		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), ThreadRootEventId: v.GetInThread(), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(v.GetMentions())}}
+		target.Event = &realtimev1.RealtimeEvent_MessagePosted{MessagePosted: &realtimev1.MessagePostedEvent{RoomId: v.GetRoomId(), InReplyTo: v.GetInReplyTo(), ThreadRootEventId: v.GetInThread(), EchoOfEventId: v.GetEchoOfEventId(), EchoFromThreadRootEventId: v.GetEchoFromThreadRootEventId(), Mentions: realtimeMentions(viewerID, v.GetMentions())}}
 	case *evtv1.Event_MessageEdited:
 		v := e.MessageEdited
 		target.Event = &realtimev1.RealtimeEvent_MessageEdited{MessageEdited: &realtimev1.MessageEditedEvent{RoomId: v.GetRoomId(), MessageEventId: v.GetEventId()}}
@@ -212,24 +212,44 @@ func realtimeAssetProcessingFailureCode(value evtv1.AssetProcessingFailureCode) 
 	}
 }
 
-func realtimeMentions(values []*evtv1.MessageMention) []*realtimev1.MessageMention {
-	result := make([]*realtimev1.MessageMention, 0, len(values))
+// realtimeMentions keeps each target once and retains the viewer's original
+// recipient decision. It never expands recipients from current room state.
+func realtimeMentions(viewerID string, values []*evtv1.MessageMention) []*realtimev1.MessageMention {
+	var result []*realtimev1.MessageMention
+	type targetKey struct{ kind, id string }
+	targets := make(map[targetKey]*realtimev1.MessageMention)
 	for _, v := range values {
-		if v == nil {
+		if v.GetUserId() == "" {
 			continue
 		}
-		m := &realtimev1.MessageMention{UserId: v.GetUserId()}
+		var key targetKey
+		m := &realtimev1.MessageMention{}
 		switch c := v.GetCause().(type) {
 		case *evtv1.MessageMention_Direct:
-			m.Cause = &realtimev1.MessageMention_Direct{Direct: &realtimev1.DirectUserMention{}}
+			key = targetKey{"direct", v.GetUserId()}
+			m.Cause = &realtimev1.MessageMention_Direct{Direct: &realtimev1.DirectUserMention{UserId: v.GetUserId()}}
 		case *evtv1.MessageMention_Role:
+			if c.Role.GetRoleName() == "" {
+				continue
+			}
+			key = targetKey{"role", c.Role.GetRoleName()}
 			m.Cause = &realtimev1.MessageMention_Role{Role: &realtimev1.RoleMessageMention{RoleName: c.Role.GetRoleName()}}
 		case *evtv1.MessageMention_Here:
+			key = targetKey{kind: "here"}
 			m.Cause = &realtimev1.MessageMention_Here{Here: &realtimev1.HereMessageMention{}}
 		case *evtv1.MessageMention_All:
+			key = targetKey{kind: "all"}
 			m.Cause = &realtimev1.MessageMention_All{All: &realtimev1.AllMessageMention{}}
+		default:
+			continue
 		}
-		result = append(result, m)
+		if existing := targets[key]; existing != nil {
+			m = existing
+		} else {
+			targets[key] = m
+			result = append(result, m)
+		}
+		m.IncludesViewer = m.GetIncludesViewer() || v.GetUserId() == viewerID
 	}
 	return result
 }

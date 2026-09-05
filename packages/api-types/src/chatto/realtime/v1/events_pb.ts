@@ -707,6 +707,8 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
   echoFromThreadRootEventId = "";
 
   /**
+   * Distinct mention targets, without expanded role or broadcast recipients.
+   *
    * @generated from field: repeated chatto.realtime.v1.MessageMention mentions = 7;
    */
   mentions: MessageMention[] = [];
@@ -766,6 +768,11 @@ export class MessagePostedEvent extends Message<MessagePostedEvent> {
  * @generated from message chatto.realtime.v1.DirectUserMention
  */
 export class DirectUserMention extends Message<DirectUserMention> {
+  /**
+   * @generated from field: string user_id = 1;
+   */
+  userId = "";
+
   constructor(data?: PartialMessage<DirectUserMention>) {
     super();
     proto3.util.initPartial(data, this);
@@ -774,6 +781,7 @@ export class DirectUserMention extends Message<DirectUserMention> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.DirectUserMention";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DirectUserMention {
@@ -899,16 +907,14 @@ export class AllMessageMention extends Message<AllMessageMention> {
 }
 
 /**
- * MessageMention identifies one resolved mention recipient and cause.
+ * MessageMention identifies one distinct mention target. Role, here, and all
+ * targets occur once, regardless of the number of recipients. Targets with no
+ * resolved recipients are omitted. Recipient decisions are from message creation,
+ * including during replay; clients must not infer them from current membership.
  *
  * @generated from message chatto.realtime.v1.MessageMention
  */
 export class MessageMention extends Message<MessageMention> {
-  /**
-   * @generated from field: string user_id = 1;
-   */
-  userId = "";
-
   /**
    * @generated from oneof chatto.realtime.v1.MessageMention.cause
    */
@@ -938,6 +944,13 @@ export class MessageMention extends Message<MessageMention> {
     case: "all";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
+  /**
+   * True if this target included the authenticated caller when the message was posted.
+   *
+   * @generated from field: bool includes_viewer = 6;
+   */
+  includesViewer = false;
+
   constructor(data?: PartialMessage<MessageMention>) {
     super();
     proto3.util.initPartial(data, this);
@@ -946,11 +959,11 @@ export class MessageMention extends Message<MessageMention> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.MessageMention";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "direct", kind: "message", T: DirectUserMention, oneof: "cause" },
     { no: 3, name: "role", kind: "message", T: RoleMessageMention, oneof: "cause" },
     { no: 4, name: "here", kind: "message", T: HereMessageMention, oneof: "cause" },
     { no: 5, name: "all", kind: "message", T: AllMessageMention, oneof: "cause" },
+    { no: 6, name: "includes_viewer", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageMention {
@@ -1211,6 +1224,13 @@ export class AssetProcessingStartedEvent extends Message<AssetProcessingStartedE
    */
   messageEventId = "";
 
+  /**
+   * Room containing the affected message.
+   *
+   * @generated from field: string room_id = 3;
+   */
+  roomId = "";
+
   constructor(data?: PartialMessage<AssetProcessingStartedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1221,6 +1241,7 @@ export class AssetProcessingStartedEvent extends Message<AssetProcessingStartedE
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetProcessingStartedEvent {
@@ -1257,6 +1278,13 @@ export class AssetProcessingSucceededEvent extends Message<AssetProcessingSuccee
    */
   messageEventId = "";
 
+  /**
+   * Room containing the affected message.
+   *
+   * @generated from field: string room_id = 4;
+   */
+  roomId = "";
+
   constructor(data?: PartialMessage<AssetProcessingSucceededEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1267,6 +1295,7 @@ export class AssetProcessingSucceededEvent extends Message<AssetProcessingSuccee
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetProcessingSucceededEvent {
@@ -1307,6 +1336,13 @@ export class AssetProcessingFailedEvent extends Message<AssetProcessingFailedEve
    */
   messageEventId = "";
 
+  /**
+   * Room containing the affected message.
+   *
+   * @generated from field: string room_id = 4;
+   */
+  roomId = "";
+
   constructor(data?: PartialMessage<AssetProcessingFailedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1318,6 +1354,7 @@ export class AssetProcessingFailedEvent extends Message<AssetProcessingFailedEve
     { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "failure_code", kind: "enum", T: proto3.getEnumType(AssetProcessingFailureCode) },
     { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetProcessingFailedEvent {
@@ -1348,6 +1385,20 @@ export class AssetDeletedEvent extends Message<AssetDeletedEvent> {
    */
   assetId = "";
 
+  /**
+   * Room containing the affected message.
+   *
+   * @generated from field: string room_id = 2;
+   */
+  roomId = "";
+
+  /**
+   * Message that owns the asset, including a deleted derivative asset.
+   *
+   * @generated from field: string message_event_id = 3;
+   */
+  messageEventId = "";
+
   constructor(data?: PartialMessage<AssetDeletedEvent>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1357,6 +1408,8 @@ export class AssetDeletedEvent extends Message<AssetDeletedEvent> {
   static readonly typeName = "chatto.realtime.v1.AssetDeletedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AssetDeletedEvent {
@@ -1889,11 +1942,14 @@ export class PresenceChangedEvent extends Message<PresenceChangedEvent> {
  */
 export class NotificationOccurrencesChangedEvent extends Message<NotificationOccurrencesChangedEvent> {
   /**
-   * Notification that can cause a sound after reconciliation.
+   * ID of a newly created notification, including read notifications and
+   * creations during Do Not Disturb. Absent for updates and removals.
+   * This is a best-effort live hint, not a sound instruction or durable delivery.
+   * Clients decide whether to alert after they read current notification state.
    *
-   * @generated from field: optional string sound_candidate_notification_id = 1;
+   * @generated from field: optional string created_notification_id = 1;
    */
-  soundCandidateNotificationId?: string;
+  createdNotificationId?: string;
 
   constructor(data?: PartialMessage<NotificationOccurrencesChangedEvent>) {
     super();
@@ -1903,7 +1959,7 @@ export class NotificationOccurrencesChangedEvent extends Message<NotificationOcc
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.NotificationOccurrencesChangedEvent";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "sound_candidate_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 1, name: "created_notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrencesChangedEvent {

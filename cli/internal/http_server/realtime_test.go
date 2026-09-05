@@ -1,11 +1,11 @@
 package http_server
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
-	"encoding/json"
+	"encoding/binary"
 	"errors"
-	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -329,6 +329,147 @@ func TestRealtimeRBACEventRequestsAuthorizedResourceReconnect(t *testing.T) {
 	closeFrame := frame.GetClose()
 	if closeFrame == nil || closeFrame.GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED || !closeFrame.GetReconnect() {
 		t.Fatalf("realtimeServerFrameForEvent() = %+v, want authorization reconnect", frame)
+	}
+}
+
+func TestRealtimeWebSocketCompactMentionsAndAssetRoutingSurviveReplay(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	ctx := env.ctx
+	author, err := env.core.CreateUser(ctx, core.SystemActorID, "compact-author", "Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	viewer, err := env.core.CreateUser(ctx, core.SystemActorID, "compact-viewer", "Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(ctx, author.Id, core.KindChannel, "", "compact-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{author.Id, viewer.Id} {
+		if _, err := env.core.JoinRoom(ctx, id, core.KindChannel, id, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	original, err := env.core.UploadAttachment(ctx, author.Id, room.Id, "original.bin", "application/octet-stream", bytes.NewReader([]byte("original")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	failedAsset, err := env.core.UploadAttachment(ctx, author.Id, room.Id, "failed.bin", "application/octet-stream", bytes.NewReader([]byte("failed")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	thumbnail, err := env.core.UploadDerivativeAttachment(ctx, original.Id, evtv1.AssetDerivativeRole_ASSET_DERIVATIVE_ROLE_THUMBNAIL, room.Id, "thumbnail.bin", "application/octet-stream", bytes.NewReader([]byte("thumbnail")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := env.core.CreateAuthToken(ctx, viewer.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn := env.dialRealtime(t)
+	subscribeRealtime(t, conn, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, "")
+	boundary := readRealtimeCaughtUp(t, conn).GetCursor()
+	if len(boundary) != 99 {
+		t.Fatalf("cursor size = %d", len(boundary))
+	}
+	message, err := env.core.PostMessage(ctx, core.KindChannel, room.Id, author.Id, "@compact-viewer @all hello", []string{original.Id, failedAsset.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var posted *realtimev1.RealtimeEvent
+	for posted == nil {
+		event := readPublicRealtimeEvent(t, conn)
+		if event.GetMessagePosted() != nil {
+			posted = event
+		}
+	}
+	mentions := posted.GetMessagePosted().GetMentions()
+	if len(mentions) != 2 {
+		t.Fatalf("mentions = %v, want direct target and one broadcast", mentions)
+	}
+	for _, mention := range mentions {
+		if !mention.GetIncludesViewer() {
+			t.Fatal("viewer lost original mention resolution")
+		}
+		if direct := mention.GetDirect(); direct != nil && direct.GetUserId() != viewer.Id {
+			t.Fatal("wrong direct target")
+		}
+	}
+	// Each event is read from the receiver's socket after a real EVT append.
+	live := map[string]*realtimev1.RealtimeEvent{posted.Id: posted}
+	steps := []struct {
+		name    string
+		publish func() error
+		target  func(*realtimev1.RealtimeEvent) (string, string, string)
+	}{
+		{"started", func() error {
+			return env.core.RecordAssetProcessingStarted(ctx, core.SystemActorID, room.Id, message.Id, original.Id)
+		}, func(e *realtimev1.RealtimeEvent) (string, string, string) {
+			p := e.GetAssetProcessingStarted()
+			return p.GetAssetId(), p.GetRoomId(), p.GetMessageEventId()
+		}},
+		{"failed", func() error {
+			return env.core.RecordAssetProcessingFailed(ctx, core.SystemActorID, room.Id, message.Id, failedAsset.Id, evtv1.AssetProcessingFailureCode_ASSET_PROCESSING_FAILURE_CODE_PROCESSING_FAILED)
+		}, func(e *realtimev1.RealtimeEvent) (string, string, string) {
+			p := e.GetAssetProcessingFailed()
+			return p.GetAssetId(), p.GetRoomId(), p.GetMessageEventId()
+		}},
+		{"succeeded", func() error {
+			return env.core.RecordAssetProcessedWithHLS(ctx, core.SystemActorID, room.Id, message.Id, original.Id, 1000, 640, 360, thumbnail, nil, nil)
+		}, func(e *realtimev1.RealtimeEvent) (string, string, string) {
+			p := e.GetAssetProcessingSucceeded()
+			return p.GetAssetId(), p.GetRoomId(), p.GetMessageEventId()
+		}},
+		{"deleted derivative", func() error { return env.core.RecordAssetDeleted(ctx, core.SystemActorID, room.Id, thumbnail.Id) }, func(e *realtimev1.RealtimeEvent) (string, string, string) {
+			p := e.GetAssetDeleted()
+			return p.GetAssetId(), p.GetRoomId(), p.GetMessageEventId()
+		}},
+	}
+	for _, step := range steps {
+		if err := step.publish(); err != nil {
+			t.Fatalf("%s: %v", step.name, err)
+		}
+		for {
+			event := readPublicRealtimeEvent(t, conn)
+			assetID, roomID, messageID := step.target(event)
+			if assetID == "" {
+				continue
+			}
+			if roomID != room.Id || messageID != message.Id {
+				t.Fatalf("%s: wrong asset target", step.name)
+			}
+			live[event.Id] = event
+			break
+		}
+	}
+	_ = conn.Close()
+	resumed := env.dialRealtime(t)
+	subscribeRealtime(t, resumed, token, realtimev1.RealtimeInitialState_REALTIME_INITIAL_STATE_LIVE_ONLY, boundary)
+	for {
+		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		if !ok {
+			t.Fatal("replay timed out")
+		}
+		if caughtUp := frame.GetCaughtUp(); caughtUp != nil {
+			if caughtUp.GetRecovery() != realtimev1.RealtimeRecovery_REALTIME_RECOVERY_RESUMED {
+				t.Fatal("replay used fallback")
+			}
+			break
+		}
+		event := frame.GetEvent()
+		if previous := live[event.GetId()]; previous != nil {
+			// Tokens contain fresh nonces; event payloads must remain equal.
+			previous.Cursor, event.Cursor = nil, nil
+			if !proto.Equal(previous, event) {
+				t.Fatalf("replay changed public payload: %v", event)
+			}
+			delete(live, event.Id)
+		}
+	}
+	if len(live) != 0 {
+		t.Fatalf("replay omitted %d expected events", len(live))
 	}
 }
 
@@ -906,17 +1047,13 @@ func TestRealtimeWebSocketExpiredCursorUsesSnapshotFallback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var claims map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &claims); err != nil {
-		t.Fatal(err)
+	if len(payload) != 33 {
+		t.Fatalf("unexpected cursor payload size: %d", len(payload))
 	}
 	issuedAt := time.Now().Add(-16 * time.Minute)
-	claims["iat"] = json.RawMessage(fmt.Sprint(issuedAt.Unix()))
-	claims["exp"] = json.RawMessage(fmt.Sprint(issuedAt.Add(15 * time.Minute).Unix()))
-	payload, err = json.Marshal(claims)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// The compact record stores its issue time at bytes 9..16. Lifetime is
+	// fixed by the payload version, so there is no separate expiry field.
+	binary.BigEndian.PutUint64(payload[9:17], uint64(issuedAt.Unix()))
 	expired, err := publiccursor.Seal("test-core-secret", "chatto-realtime-resume-v4", "all-events\x00"+viewer.GetId(), payload)
 	if err != nil {
 		t.Fatal(err)

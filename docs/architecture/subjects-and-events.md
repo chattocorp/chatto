@@ -413,7 +413,7 @@ for raw EVT committed facts. `myEvents` consumes both roots server-side:
 
 | Subject                                                  | Description                  |
 | -------------------------------------------------------- | ---------------------------- |
-| `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; triggers an authoritative occurrence/count replacement and can carry a best-effort local-sound candidate |
+| `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or delivery eligibility changed; requests a current occurrence/count read and includes the notification ID on creation, independent of sound policy |
 | `live.sync.user.{userId}.notification_unread`            | Badge attention changed; triggers authoritative room viewer-state replacement. A thread marker contributes to its parent room state |
 | `live.sync.user.{userId}.thread_viewer_state`            | Current thread follow or read state changed outside the durable follow command |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |

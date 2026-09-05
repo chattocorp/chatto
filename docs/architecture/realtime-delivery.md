@@ -81,6 +81,18 @@ Event authorization must make every delivered field safe for that viewer. A
 future field with narrower visibility needs an explicit viewer-aware mapping
 rule or a separate authorized shape.
 
+Message mentions contain one entry per direct user, role, here, or all target.
+The mapper folds stored recipient rows into these targets and sets
+`includes_viewer` from the stored decision. It does not resolve recipients
+from current membership or presence during replay. EVT mention rows stay
+unchanged.
+
+Public asset processing and deletion events include the owning room and
+message IDs. The mapper uses the same retained ownership lookup as event
+authorization, including deleted derivatives. Events without a message target
+are omitted. The frontend uses these IDs to refresh message windows, files,
+and pins only in the affected room.
+
 An authorized message-post event carries `body_plaintext` for immediate
 display. EVT does not store this field. The frontend inserts a temporary
 timeline row from the event ID, actor, time, reply references, and plaintext
@@ -164,8 +176,12 @@ cannot change the newer projection.
 ## Bounded resume
 
 The cursor uses the shared `publiccursor` authenticated-encryption helper.
-Its encrypted payload contains the stream incarnation, EVT sequence, version,
-issue time, and expiry. The purpose and viewer/scope form the authenticated
+Its encrypted payload is a 33-byte binary record: a version byte, an 8-byte EVT
+sequence, an 8-byte issue time, and a 16-byte SHA-256 prefix of the opaque
+stream incarnation. Integers use big-endian order. The version fixes the
+15-minute lifetime, so no separate expiry field is needed. The sealed token
+is 99 base64url characters. Its encoding is not a public contract.
+The purpose and viewer/scope form the authenticated
 context. The token expires after 15 minutes. No claim or broker coordinate is
 public. Opening the token recovers its sequence directly, without a search.
 The 10,000-sequence replay cap does not limit a valid RPC minimum cursor.
@@ -284,6 +300,16 @@ viewer also needs broad `message.read`, or
 The hub and public event mapper both check this boundary.
 
 ## Bundled frontend
+
+Notification creation hints carry `created_notification_id`, including during
+Do Not Disturb and for initially read occurrences. Updates and removals omit it.
+The frontend waits for the coalesced notification resource reads, then checks
+the retained unread row, local Do Not Disturb status, and per-server sound
+preferences. This wait adds no RPC and does not consume cursor-owner failures.
+It groups concurrent creations into one sound and remembers 256 IDs per server
+subscription. Failed reads, missing rows, reset state, and disposed subscriptions
+do not play a sound. Periodic reconciliation is silent. Web Push keeps its
+server-side policy checks.
 
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
 it receives a snapshot and applies all resource families from that one frame.

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/internal/publiccursor"
 )
 
 func TestWaitForRealtimeCursorBringsAnotherReplicaToTheResourceBoundary(t *testing.T) {
@@ -72,11 +74,14 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("encodeRealtimeCursor: %v", err)
 	}
+	if len(cursor) != 99 {
+		t.Fatalf("cursor length = %d, want 99 bytes", len(cursor))
+	}
 	decoded, err := chatto.parseRealtimeCursorAt(userID, cursor, now)
 	if err != nil {
 		t.Fatalf("decodeRealtimeCursor: %v", err)
 	}
-	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != identity || decoded.Sequence != 42 || decoded.IssuedAt != now.Unix() {
+	if decoded.Version != realtimeCursorVersion || decoded.StreamIdentity != realtimeStreamIdentity(identity) || decoded.Sequence != 42 || decoded.IssuedAt != now.Unix() {
 		t.Fatalf("decoded cursor = %+v", decoded)
 	}
 	sequence, err := chatto.resolveRealtimeCursorAt(userID, cursor, identity, 0, 100, now)
@@ -109,6 +114,52 @@ func TestRealtimeCursorRoundTrip(t *testing.T) {
 	tampered := base64.RawURLEncoding.EncodeToString(raw)
 	if _, err := chatto.parseRealtimeCursorAt(userID, tampered, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
 		t.Fatalf("tampered cursor error = %v, want ErrRealtimeCursorInvalid", err)
+	}
+}
+
+func TestRealtimeCursorRejectsMalformedSealedPayload(t *testing.T) {
+	chatto := &ChattoCore{config: config.CoreConfig{SecretKey: "cursor-test-secret"}}
+	now := time.Unix(1_788_610_000, 0)
+	payload := make([]byte, realtimeCursorPayloadSize)
+	payload[0] = realtimeCursorVersion
+	binary.BigEndian.PutUint64(payload[9:17], uint64(now.Unix()))
+	for _, test := range []struct {
+		name   string
+		change func([]byte) []byte
+	}{
+		{"empty", func(p []byte) []byte { return nil }},
+		{"truncated", func(p []byte) []byte { return p[:len(p)-1] }},
+		{"trailing bytes", func(p []byte) []byte { return append(p, 0) }},
+		{"wrong version", func(p []byte) []byte { p[0]++; return p }},
+		{"negative time", func(p []byte) []byte { binary.BigEndian.PutUint64(p[9:17], ^uint64(0)); return p }},
+		{"overflow time", func(p []byte) []byte { binary.BigEndian.PutUint64(p[9:17], uint64(1)<<63-1); return p }},
+		{"old JSON", func(p []byte) []byte { return []byte(`{"s":42,"v":4}`) }},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			malformed := test.change(bytes.Clone(payload))
+			cursor, err := publiccursor.Seal(chatto.config.SecretKey, realtimeCursorPurpose, realtimeCursorScope+"\x00viewer", malformed)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := chatto.parseRealtimeCursorAt("viewer", cursor, now); !errors.Is(err, ErrRealtimeCursorInvalid) {
+				t.Fatalf("parse error = %v, want invalid cursor", err)
+			}
+		})
+	}
+}
+
+func TestRealtimeCursorPreservesFullSequenceRange(t *testing.T) {
+	chatto := &ChattoCore{config: config.CoreConfig{SecretKey: "cursor-test-secret"}}
+	now := time.Now()
+	for _, sequence := range []uint64{0, 1, 1<<53 + 1, ^uint64(0)} {
+		cursor, err := chatto.encodeRealtimeCursorAt("viewer", "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", sequence, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		claims, err := chatto.parseRealtimeCursorAt("viewer", cursor, now)
+		if err != nil || claims.Sequence != sequence || len(cursor) != 99 {
+			t.Fatalf("sequence %d: round trip = %d, error %v, size %d", sequence, claims.Sequence, err, len(cursor))
+		}
 	}
 }
 

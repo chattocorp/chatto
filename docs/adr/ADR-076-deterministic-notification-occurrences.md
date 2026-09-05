@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-30
+**Updated:** 2026-09-05
 
 ## Context
 
@@ -213,16 +213,15 @@ makes older Badge attention inactive and uses the same repair handshake as an
 explicit room read.
 
 Realtime `NotificationOccurrencesChanged` messages are transient hints.
-They can carry one opaque sound-candidate notification ID but never expose
-JetStream coordinates. The receiving replica fences the notification
-projection, revalidates any candidate, and sends an authoritative finite
-replacement plus a positive `play_notification_sound` instruction. The legacy
-alert-candidate field remains for older replicas and is set only for a
-push-eligible occurrence. Missing or reordered invalidations cannot play a
-sound across the current policy, DND, visibility, read, or removal boundary.
-Clients deduplicate the one-shot sound by projection-event ID and quietly
-reconcile the authoritative first page once per minute. This reconciliation
-bounds stale counts when a best-effort invalidation is lost.
+Each creation hint contains its notification ID, including creations during
+Do Not Disturb or with an initial Read state. Updates and removals omit the ID.
+The public payload does not expose JetStream coordinates or direct sound playback.
+The client reads current notification state and decides whether to play a sound.
+The bundled frontend checks its local Do Not Disturb setting and the retained
+unread occurrence. It remembers 256 creation IDs per server subscription and
+plays at most once per completed read batch. Failed reads and missing rows stay
+silent. Quiet reconciliation once per minute bounds stale counts after a lost
+hint; it does not play old sounds. Web Push retains its server-side delivery checks.
 
 ### Retention and automatic expiry
 

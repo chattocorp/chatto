@@ -4,6 +4,8 @@ import {
   MessageMention,
   MessagePostedEvent,
   RoleMessageMention,
+  AllMessageMention,
+  HereMessageMention,
 } from "@chatto/api-types/realtime/v1/events_pb";
 import { RoomKind } from "@chatto/api-types/api/v1/rooms_pb";
 import assert from "node:assert/strict";
@@ -45,15 +47,15 @@ function messageEvent(options?: {
   if (options?.direct) {
     mentions.push(
       new MessageMention({
-        userId: BOT_ID,
-        cause: { case: "direct", value: new DirectUserMention() },
+        includesViewer: true,
+        cause: { case: "direct", value: new DirectUserMention({ userId: BOT_ID }) },
       }),
     );
   }
   if (options?.role) {
     mentions.push(
       new MessageMention({
-        userId: BOT_ID,
+        includesViewer: true,
         cause: {
           case: "role",
           value: new RoleMessageMention({ roleName: "helpers" }),
@@ -94,6 +96,19 @@ test("targets the existing thread for a direct mention in a reply", () => {
       trigger: "direct_mention",
     },
   );
+});
+
+test("does not treat broadcast inclusion or another direct target as a direct mention", () => {
+  for (const mention of [
+    new MessageMention({ includesViewer: true, cause: { case: "all", value: new AllMessageMention() } }),
+    new MessageMention({ includesViewer: true, cause: { case: "here", value: new HereMessageMention() } }),
+    new MessageMention({ includesViewer: false, cause: { case: "direct", value: new DirectUserMention({ userId: "other-user" }) } }),
+  ]) {
+    const event = messageEvent();
+    if (event.event.case !== "messagePosted") throw new Error("invalid fixture");
+    event.event.value.mentions = [mention];
+    assert.equal(messageReplyTarget(event, BOT_ID), undefined);
+  }
 });
 
 test("causal RPCs carry the source cursor without loading the room directory", async (t) => {

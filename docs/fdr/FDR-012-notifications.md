@@ -298,7 +298,12 @@ follows the thread explicitly.
 
 **Decision:** The client stores notification sound and sound-filter choices for
 each registered server. For a live notification, the client uses the choices
-for the server that produced the notification. During an upgrade, the client
+for the server that produced the notification. The server reports creations,
+not sound instructions, including during Do Not Disturb. The client checks its
+local Do Not Disturb setting and current unread state before playback. It groups
+creations received during one refresh into one sound. Duplicate hints, failed
+reads, missing rows, and quiet reconciliation do not cause another sound.
+During an upgrade, the client
 copies the old global sound choice when it first creates the slot for a server.
 
 **Why:** The client plays the sound, but all notification behavior is a User
@@ -308,8 +313,10 @@ existing sound choice.
 
 **Tradeoff:** Sound choices do not sync to another browser or device. The
 client keeps a small local-storage entry for each server. Both Notification and
-Push notification can request the configured local sound. Do Not Disturb and
-current notification policy can suppress that request.
+Push notification can cause the configured local sound. The client can miss a
+sound if its bounded resource page does not contain the created occurrence.
+These hints are not durable delivery. Web Push retains server-side policy and
+Do Not Disturb checks.
 
 ### 10. Notification occurrences are one bot event family
 

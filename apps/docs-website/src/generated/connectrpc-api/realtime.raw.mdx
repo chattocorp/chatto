@@ -34,6 +34,8 @@ AssetDeletedEvent reports a deleted asset.
 | Field | Type | Description |
 | --- | --- | --- |
 | `asset_id` | `string` | No field description provided. |
+| `room_id` | `string` | Room containing the affected message. |
+| `message_event_id` | `string` | Message that owns the asset, including a deleted derivative asset. |
 
 
 
@@ -48,6 +50,7 @@ AssetProcessingFailedEvent reports failed message-asset processing.
 | `asset_id` | `string` | No field description provided. |
 | `failure_code` | [`AssetProcessingFailureCode`](#chatto-realtime-v1-AssetProcessingFailureCode) | No field description provided. |
 | `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | Room containing the affected message. |
 
 
 
@@ -61,6 +64,7 @@ AssetProcessingStartedEvent reports that message-asset processing started.
 | --- | --- | --- |
 | `asset_id` | `string` | No field description provided. |
 | `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | Room containing the affected message. |
 
 
 
@@ -75,6 +79,7 @@ Read the message resource for current attachments and processed video data.
 | --- | --- | --- |
 | `asset_id` | `string` | No field description provided. |
 | `message_event_id` | `string` | No field description provided. |
+| `room_id` | `string` | Room containing the affected message. |
 
 
 
@@ -83,6 +88,10 @@ Read the message resource for current attachments and processed video data.
 ### DirectUserMention
 
 DirectUserMention identifies a direct user mention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | No field description provided. |
 
 
 
@@ -111,15 +120,18 @@ MessageEditedEvent reports changed message content or metadata.
 
 ### MessageMention
 
-MessageMention identifies one resolved mention recipient and cause.
+MessageMention identifies one distinct mention target. Role, here, and all
+targets occur once, regardless of the number of recipients. Targets with no
+resolved recipients are omitted. Recipient decisions are from message creation,
+including during replay; clients must not infer them from current membership.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `user_id` | `string` | No field description provided. |
 | `cause.direct` | [`DirectUserMention`](#chatto-realtime-v1-DirectUserMention) | No field description provided. |
 | `cause.role` | [`RoleMessageMention`](#chatto-realtime-v1-RoleMessageMention) | No field description provided. |
 | `cause.here` | [`HereMessageMention`](#chatto-realtime-v1-HereMessageMention) | No field description provided. |
 | `cause.all` | [`AllMessageMention`](#chatto-realtime-v1-AllMessageMention) | No field description provided. |
+| `includes_viewer` | `bool` | True if this target included the authenticated caller when the message was posted. |
 
 
 
@@ -149,7 +161,7 @@ MessagePostedEvent reports a new room message.
 | `thread_root_event_id` | `string` | Root message ID for a thread reply. Empty for a room-level message. |
 | `echo_of_event_id` | `string` | No field description provided. |
 | `echo_from_thread_root_event_id` | `string` | No field description provided. |
-| `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | No field description provided. |
+| `mentions` | repeated [`MessageMention`](#chatto-realtime-v1-MessageMention) | Distinct mention targets, without expanded role or broadcast recipients. |
 | `body_plaintext` | `optional string` | Plaintext message text. The field is absent after key shredding. |
 | `room_kind` | `chatto.api.v1.RoomKind` | Immutable room kind. Direct messages do not require a mention to address a bot. |
 
@@ -190,7 +202,7 @@ notification occurrences changed and requests an authoritative resource read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `sound_candidate_notification_id` | `optional string` | Notification that can cause a sound after reconciliation. |
+| `created_notification_id` | `optional string` | ID of a newly created notification, including read notifications and creations during Do Not Disturb. Absent for updates and removals. This is a best-effort live hint, not a sound instruction or durable delivery. Clients decide whether to alert after they read current notification state. |
 
 
 

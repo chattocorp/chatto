@@ -377,7 +377,9 @@ function messageConversationInput(
   if (roomKind === RoomKind.CHANNEL) {
     activates = message.mentions.some(
       (mention) =>
-        mention.userId === viewerId && mention.cause.case === "direct",
+        mention.includesViewer &&
+        mention.cause.case === "direct" &&
+        mention.cause.value.userId === viewerId,
     );
   }
   const base = {

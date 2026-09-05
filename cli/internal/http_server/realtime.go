@@ -815,6 +815,30 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 	if projected == nil {
 		return nil, errRealtimeEventOmitted
 	}
+	// Use the same retained ownership lookup as asset-event authorization.
+	// Unattached or unresolved assets must not cause a global client refresh.
+	switch durable.GetEvent().(type) {
+	case *evtv1.Event_AssetProcessingStarted, *evtv1.Event_AssetProcessingSucceeded,
+		*evtv1.Event_AssetProcessingFailed, *evtv1.Event_AssetDeleted:
+		roomID, messageID, ok := s.core.AssetEventTimelineTarget(durable)
+		if !ok {
+			return nil, errRealtimeEventOmitted
+		}
+		switch value := projected.GetEvent().(type) {
+		case *realtimev1.RealtimeEvent_AssetProcessingStarted:
+			value.AssetProcessingStarted.RoomId = roomID
+			value.AssetProcessingStarted.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetProcessingSucceeded:
+			value.AssetProcessingSucceeded.RoomId = roomID
+			value.AssetProcessingSucceeded.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetProcessingFailed:
+			value.AssetProcessingFailed.RoomId = roomID
+			value.AssetProcessingFailed.MessageEventId = messageID
+		case *realtimev1.RealtimeEvent_AssetDeleted:
+			value.AssetDeleted.RoomId = roomID
+			value.AssetDeleted.MessageEventId = messageID
+		}
+	}
 	if durable != nil && durable.GetMessagePosted() != nil {
 		body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
 		if err != nil {
@@ -933,13 +957,13 @@ func (s *HTTPServer) projectViewerRealtimeEvent(ctx context.Context, viewerID st
 		if viewerID != payload.ThreadFollowed.GetUserId() {
 			return nil, nil
 		}
-		return projectRealtimeEvent(event), nil
+		return projectRealtimeEvent(viewerID, event), nil
 	case *evtv1.Event_ThreadUnfollowed:
 		if viewerID != payload.ThreadUnfollowed.GetUserId() {
 			return nil, nil
 		}
-		return projectRealtimeEvent(event), nil
+		return projectRealtimeEvent(viewerID, event), nil
 	default:
-		return projectRealtimeEvent(event), nil
+		return projectRealtimeEvent(viewerID, event), nil
 	}
 }

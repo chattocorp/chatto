@@ -164,9 +164,14 @@ reply references, actor, and plaintext. It leaves resource-only values empty,
 then replaces the row after `GetMessage` returns attachments, previews,
 reactions, pin state, thread details, and the timeline cursor.
 Room-layout changes use one refresh hint without hidden room references.
-Asset processing completion refers clients to the message resource. A posted
+Asset processing and deletion events identify the affected room and message,
+including when a processed derivative is deleted. Clients can refresh that
+room without reading unrelated rooms. A posted
 message states its room kind, thread root, and structured mentions so a bot
 can choose whether to react without reading the room directory.
+Role and broadcast mentions occur once per target, not once per recipient.
+Each target states whether it included the caller when the message was posted.
+Replay preserves this decision without using current membership or presence.
 **Why:** Events should not become unbounded resource dumps. Complete public
 resource APIs also let simple bots avoid maintaining the complete frontend
 projection.

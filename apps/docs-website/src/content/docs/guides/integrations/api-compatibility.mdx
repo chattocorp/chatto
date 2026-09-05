@@ -52,6 +52,11 @@ together. Protocol 4 uses one
 `RealtimeSubscribe` client message and does not use hello or subscribed frames.
 The server sends only snapshot, event, caught-up, heartbeat, and close frames.
 
+Notification change events use `created_notification_id`, not a sound-candidate
+field. A creation ID does not mean that the client should play a sound. Clients
+check current notification state and their own alert preferences. This changes
+the unshipped protocol 4 API only; stored EVT and notification facts are unchanged.
+
 Public payload field numbers are independent from stored EVT payloads. The
 optional cursor uses a separate field. Integrations must regenerate their
 clients for the dedicated realtime payload messages.
@@ -221,13 +226,18 @@ subscribe still uses `resume_cursor`. `caught_up.recovery` reports `RESUMED`,
 `SNAPSHOT`, or `LIVE_ONLY`. `RESYNC_REQUIRED` replaces the earlier projection
 reset close name. Posted messages use `thread_root_event_id`, `room_kind`, and
 structured `mentions`; the redundant `mentioned_user_ids` field is removed.
+Mention entries now describe distinct targets instead of expanded recipients.
+Read direct user IDs from `direct.user_id` and the caller's original
+recipient decision from `includes_viewer`. Role and broadcast targets occur
+once, regardless of recipient count. Regenerate clients that used the earlier
+`MessageMention.user_id` field.
 Edit and retraction targets use `message_event_id`. Room-group and sidebar
 variants become `RoomLayoutChangedEvent`. Asset processing completion no longer
-contains a duplicate video resource tree.
+contains a duplicate video resource tree. Asset processing and deletion events
+include `room_id` and `message_event_id` for targeted resource reads.
 
-The sealed cursor replaces an unpublished JWT format. Old development cursors
-use the requested WebSocket fallback. Discard them before minimum-boundary
-RPCs. Stored EVT schemas and data do not change.
+Treat sealed cursors as opaque strings. Their compact internal encoding is not
+a client contract. Stored EVT schemas and data do not change.
 
 An unreleased 0.5 development version of server discovery exposed
 `compatibility.protocolCapabilities`. The final 0.5 contract removes that

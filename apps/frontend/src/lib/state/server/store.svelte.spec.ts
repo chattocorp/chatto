@@ -21,6 +21,10 @@ import {
 } from '$lib/api-client/realtimeResources';
 import { ListUsersResponse } from '@chatto/api-types/api/v1/user_service_pb';
 import {
+  AssetProcessingStartedEvent,
+  AssetProcessingSucceededEvent,
+  AssetProcessingFailedEvent,
+  AssetDeletedEvent,
   VoiceCallParticipantJoinedEvent,
   RoomThreadingModeChangedEvent,
   UserJoinedRoomEvent,
@@ -31,6 +35,7 @@ import {
   UserAccountDeletedEvent,
   UserProfileChangedEvent,
   NotificationUnreadStateChangedEvent,
+  NotificationOccurrencesChangedEvent,
   ThreadViewerStateChangedEvent
 } from '@chatto/api-types/realtime/v1/events_pb';
 import { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -972,6 +977,42 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(hydrate).not.toHaveBeenCalled();
   });
 
+  it('lets sound observers wait for queued notification reads without consuming cursor errors', async () => {
+    const store = makeStore(new FakeServerConnection([]));
+    await flushPromises();
+    const first = deferred<RealtimeResourceUpdate[]>();
+    const second = deferred<RealtimeResourceUpdate[]>();
+    apiMocks.readRealtimeResource
+      .mockReturnValueOnce(first.promise)
+      .mockReturnValueOnce(second.promise);
+    const changed = () =>
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            event: {
+              case: 'notificationOccurrencesChanged',
+              value: new NotificationOccurrencesChangedEvent({ createdNotificationId: 'N1' })
+            }
+          })
+        })
+      );
+    changed();
+    const observed = store.waitForRealtimeResourceRefresh('notifications');
+    let completed = false;
+    void observed.then(() => {
+      completed = true;
+    });
+    changed();
+    first.resolve([]);
+    await flushPromises();
+    expect(completed).toBe(false);
+    const failure = new Error('notification read failed');
+    second.reject(failure);
+    await expect(observed).resolves.toBe(false);
+    await expect(store.waitForRealtimeReconciliation()).rejects.toBe(failure);
+    expect(apiMocks.readRealtimeResource).toHaveBeenCalledTimes(2);
+  });
+
   it('does not complete a durable cursor when message hydration fails', async () => {
     const messageRead = deferred<boolean>();
     const store = makeStore(new FakeServerConnection([]));
@@ -1158,6 +1199,72 @@ describe('ServerStateStore unified realtime resources', () => {
     store.realtimeProjectionHandler(userLeftRoom('R1', 'U1'));
 
     expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      case: 'assetProcessingStarted',
+      value: new AssetProcessingStartedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+    },
+    {
+      case: 'assetProcessingSucceeded',
+      value: new AssetProcessingSucceededEvent({
+        assetId: 'A1',
+        roomId: 'R1',
+        messageEventId: 'M1'
+      })
+    },
+    {
+      case: 'assetProcessingFailed',
+      value: new AssetProcessingFailedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+    },
+    {
+      case: 'assetDeleted',
+      value: new AssetDeletedEvent({ assetId: 'A1', roomId: 'R1', messageEventId: 'M1' })
+    }
+  ] as const)('scopes $case reads to the affected room and message', async (event) => {
+    const store = makeStore(new FakeServerConnection([]));
+    const rooms = ['R1', 'R2'].map((id) => ({
+      room: store.messagesForRoom(id),
+      thread: store.messagesForThread(id, 'ROOT'),
+      files: store.filesForRoom(id),
+      pins: store.pinsForRoom(id)
+    }));
+    await flushPromises(20);
+    const refreshes = rooms.map(({ room, thread, files, pins }) => ({
+      room: vi.spyOn(room, 'refreshCurrentWindow').mockResolvedValue({
+        hasOlder: false,
+        hasNewer: false,
+        refreshed: true,
+        changed: true
+      }),
+      thread: vi.spyOn(thread, 'refreshCurrentWindow').mockResolvedValue({
+        hasOlder: false,
+        hasNewer: false,
+        refreshed: true,
+        changed: true
+      }),
+      files: vi.spyOn(files, 'refreshRetained').mockImplementation(() => {}),
+      pins: vi.spyOn(pins, 'retry').mockImplementation(() => {})
+    }));
+    store.realtimeProjectionHandler(
+      new RealtimeProjectionUpdate({
+        cursor: 'asset-cursor',
+        event: new RealtimeEvent({ id: 'asset-event', event })
+      })
+    );
+    await store.waitForRealtimeReconciliation();
+    for (const read of [refreshes[0].room, refreshes[0].thread]) {
+      expect(read).toHaveBeenCalledExactlyOnceWith(
+        'M1',
+        false,
+        'asset-cursor',
+        expect.any(Function)
+      );
+    }
+    expect(refreshes[0].files).toHaveBeenCalledOnce();
+    expect(refreshes[0].pins).toHaveBeenCalledOnce();
+    for (const read of Object.values(refreshes[1])) expect(read).not.toHaveBeenCalled();
   });
 
   it('refreshes a mounted room timeline for canonical membership rows', async () => {
