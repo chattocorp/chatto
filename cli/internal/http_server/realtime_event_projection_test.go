@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/types/dynamicpb"
 
 	"hmans.de/chatto/internal/core"
+	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	pubsubv1 "hmans.de/chatto/internal/pb/chatto/core/pubsub/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
@@ -58,17 +59,34 @@ func TestProjectRealtimeEventUsesDedicatedPublicShape(t *testing.T) {
 	}
 }
 
-func TestProjectRealtimeEventCarriesMessagePlaintext(t *testing.T) {
-	bodyPlaintext := "public message"
-	projected := projectRealtimeEvent(&evtv1.Event{
-		Id: "message-id",
-		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
-			RoomId: "room-id",
-		}},
-	})
-	applyRealtimePlaintext(projected, &core.EventPlaintext{MessageBody: &bodyPlaintext})
-	if projected.GetMessagePosted().GetBodyPlaintext() != bodyPlaintext {
-		t.Fatalf("body_plaintext = %q, want %q", projected.GetMessagePosted().GetBodyPlaintext(), bodyPlaintext)
+func TestPublicRealtimeMessageCarriesPlaintextAndRoomKindWithoutChangingEVT(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "plaintext-viewer", "Plaintext Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.GetId(), core.KindChannel, "", "plaintext-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.GetId(), core.KindChannel, user.GetId(), room.GetId()); err != nil {
+		t.Fatal(err)
+	}
+	event, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), user.GetId(), "public message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := proto.Clone(event)
+	projected, err := env.httpServer.publicRealtimeEvent(env.ctx, user.GetId(), core.NewEVTEventEnvelopeWithDeliverySeq(event, 42))
+	if err != nil {
+		t.Fatal(err)
+	}
+	posted := projected.GetMessagePosted()
+	if posted.GetBodyPlaintext() != "public message" || posted.GetRoomKind() != apiv1.RoomKind_ROOM_KIND_CHANNEL {
+		t.Fatalf("public post = %v, want plaintext and channel kind", posted)
+	}
+	if !proto.Equal(before, event) {
+		t.Fatal("public projection mutated the source EVT event")
 	}
 }
 

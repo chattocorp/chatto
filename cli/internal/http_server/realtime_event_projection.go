@@ -233,13 +233,3 @@ func realtimeMentions(values []*evtv1.MessageMention) []*realtimev1.MessageMenti
 	}
 	return result
 }
-
-func applyRealtimePlaintext(target *realtimev1.RealtimeEvent, plaintext *core.EventPlaintext) {
-	if target == nil || plaintext == nil {
-		return
-	}
-	switch p := target.GetEvent().(type) {
-	case *realtimev1.RealtimeEvent_MessagePosted:
-		p.MessagePosted.BodyPlaintext = plaintext.MessageBody
-	}
-}

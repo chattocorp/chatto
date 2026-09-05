@@ -61,18 +61,6 @@ func TestChattoCore_PostMessage(t *testing.T) {
 		t.Errorf("Message body = %s, want %s", fetchedBody, messageBody)
 	}
 
-	// Authorized delivery resolves plaintext without changing the persisted
-	// bodyless MessagePostedEvent.
-	delivery := &evtv1.Event{
-		Id: roomEvent.Id,
-		Event: &evtv1.Event_MessagePosted{MessagePosted: &evtv1.MessagePostedEvent{
-			RoomId: room.Id,
-		}},
-	}
-	plaintext, err := core.ResolveEventPlaintext(ctx, delivery)
-	require.NoError(t, err)
-	require.NotNil(t, plaintext.MessageBody)
-	require.Equal(t, messageBody, *plaintext.MessageBody)
 }
 
 func TestMessageModelPostMessageCreatesEmptyThreadAndFollowsAuthor(t *testing.T) {

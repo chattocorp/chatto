@@ -28,22 +28,12 @@ func requiredUserSummary(ctx context.Context, api *API, user *evtv1.User) (*apiv
 }
 
 func userSummaryWithPresence(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions, presence string) (*apiv1.User, error) {
-	return userSummaryWithPresenceStatus(ctx, api, user, avatar, corePresenceStatusToAPI(presence))
-}
-
-// userSummaryWithoutPresence maps content-backed user fields without reading
-// or guessing the separate runtime presence value.
-func userSummaryWithoutPresence(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions) (*apiv1.User, error) {
-	return userSummaryWithPresenceStatus(ctx, api, user, avatar, apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED)
-}
-
-func userSummaryWithPresenceStatus(ctx context.Context, api *API, user *evtv1.User, avatar *apiv1.ImageTransformOptions, presence apiv1.PresenceStatus) (*apiv1.User, error) {
 	summary := &apiv1.User{
 		Id:             user.GetId(),
 		Login:          user.GetLogin(),
 		DisplayName:    user.GetDisplayName(),
 		Deleted:        user.GetDeleted(),
-		PresenceStatus: presence,
+		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
 		IsBot:          user.GetIsBot(),
 	}

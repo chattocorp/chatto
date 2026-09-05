@@ -816,7 +816,7 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 		return nil, errRealtimeEventOmitted
 	}
 	if durable != nil && durable.GetMessagePosted() != nil {
-		plaintext, err := s.core.ResolveEventPlaintext(ctx, durable)
+		body, err := s.core.GetFullMessageBody(ctx, durable.GetId())
 		if err != nil {
 			return nil, fmt.Errorf("resolve realtime event plaintext: %w", err)
 		}
@@ -825,7 +825,9 @@ func (s *HTTPServer) publicRealtimeEvent(ctx context.Context, viewerID string, e
 			return nil, fmt.Errorf("resolve realtime room kind: %w", err)
 		}
 		projected.GetMessagePosted().RoomKind = realtimeRoomKind(core.ProtoKindForRoomKind(kind))
-		applyRealtimePlaintext(projected, plaintext)
+		if body != nil {
+			projected.GetMessagePosted().BodyPlaintext = proto.String(body.Body)
+		}
 	}
 	if sequence := event.DeliverySeq(); sequence > 0 {
 		cursor, err := s.core.RealtimeCursorForSequence(viewerID, sequence)

@@ -223,11 +223,6 @@ func TestUserPIIEvents_AreEncryptedAndProjectable(t *testing.T) {
 	require.Len(t, loginEvents, 1)
 	login := loginEvents[0].GetUserLoginChanged()
 	require.NotNil(t, login.GetEncryptedLogin())
-	plaintext, err := core.ResolveEventPlaintext(ctx, loginEvents[0])
-	require.NoError(t, err)
-	require.NotNil(t, plaintext.Login)
-	require.Equal(t, "piiuser2", *plaintext.Login)
-	require.NotNil(t, loginEvents[0].GetUserLoginChanged().GetEncryptedLogin())
 
 	found, err := core.GetUserByLogin(ctx, "piiuser2")
 	require.NoError(t, err)
