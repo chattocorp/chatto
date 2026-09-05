@@ -23,9 +23,9 @@ type RoomDirectoryReadModel struct {
 type RoomDirectoryListOptions struct {
 	IncludeChannels bool
 	IncludeDMs      bool
-	// IncludeEmptyDMs is for exhaustive projection/authorization reads. Public
-	// directory lists keep the conversation-list policy of hiding DMs until
-	// they contain a message.
+	// IncludeEmptyDMs includes accessible DMs before their first message.
+	// Public directory and snapshot reads set this; clients choose whether
+	// to hide empty conversations from navigation.
 	IncludeEmptyDMs bool
 }
 
