@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"time"
 )
 
 // GetConnectionInfo returns information about the NATS connection.
@@ -60,6 +61,10 @@ type JetStreamStats struct {
 
 // StreamStats contains basic JetStream stream state.
 type StreamStats struct {
+	// OldestMessageAgeSeconds is absent for an empty stream; age is sampled with diagnostics.
+	OldestMessageAgeSeconds *float64
+	// MaxAgeSeconds is the live stream retention setting; zero means no age limit.
+	MaxAgeSeconds float64
 	Name          string
 	Description   string
 	Subjects      []string
@@ -122,6 +127,7 @@ func (c *ChattoCore) GetJetStreamStats(ctx context.Context) (*JetStreamStats, er
 			continue
 		}
 		stream := StreamStats{
+			MaxAgeSeconds: info.Config.MaxAge.Seconds(),
 			Name:          info.Config.Name,
 			Description:   info.Config.Description,
 			Subjects:      append([]string(nil), info.Config.Subjects...),
@@ -132,6 +138,10 @@ func (c *ChattoCore) GetJetStreamStats(ctx context.Context) (*JetStreamStats, er
 			LastSeq:       info.State.LastSeq,
 			ConsumerCount: info.State.Consumers,
 			Replicas:      info.Config.Replicas,
+		}
+		if info.State.Msgs > 0 && !info.State.FirstTime.IsZero() {
+			age := max(0, time.Since(info.State.FirstTime).Seconds())
+			stream.OldestMessageAgeSeconds = &age
 		}
 		if info.Cluster != nil {
 			stream.ClusterLeader = info.Cluster.Leader

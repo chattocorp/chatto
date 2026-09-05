@@ -410,7 +410,15 @@
       "asset_cleanup_events_waiting": "Nuovi eventi in attesa",
       "asset_cleanup_never": "Mai",
       "asset_cleanup_none": "Nessuno",
-      "asset_cleanup_in_progress": "In corso"
+      "asset_cleanup_in_progress": "In corso",
+      "jobs": {
+        "title": "Attività in background",
+        "outstanding": "Attività in sospeso",
+        "oldest": "Età dell’attività più vecchia",
+        "storage": "Spazio utilizzato",
+        "retention": "Conservazione",
+        "description": "Include le attività in coda, in esecuzione e in attesa di un nuovo tentativo."
+      }
     },
     "event_log": {
       "title": "Registro eventi",

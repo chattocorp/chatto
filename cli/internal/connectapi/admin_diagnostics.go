@@ -179,17 +179,19 @@ func adminNatsStats(stats *core.JetStreamStats) *adminv1.AdminNatsStats {
 	streams := make([]*adminv1.AdminNatsStreamInfo, 0, len(stats.Streams))
 	for _, stream := range stats.Streams {
 		streams = append(streams, &adminv1.AdminNatsStreamInfo{
-			Name:          stream.Name,
-			Description:   stream.Description,
-			Subjects:      append([]string(nil), stream.Subjects...),
-			Storage:       stream.Storage,
-			Messages:      int64(stream.Messages),
-			Bytes:         int64(stream.Bytes),
-			FirstSequence: strconv.FormatUint(stream.FirstSeq, 10),
-			LastSequence:  strconv.FormatUint(stream.LastSeq, 10),
-			ConsumerCount: int32(stream.ConsumerCount),
-			Replicas:      int32(stream.Replicas),
-			ClusterLeader: stream.ClusterLeader,
+			Name:                    stream.Name,
+			Description:             stream.Description,
+			Subjects:                append([]string(nil), stream.Subjects...),
+			Storage:                 stream.Storage,
+			Messages:                int64(stream.Messages),
+			Bytes:                   int64(stream.Bytes),
+			FirstSequence:           strconv.FormatUint(stream.FirstSeq, 10),
+			LastSequence:            strconv.FormatUint(stream.LastSeq, 10),
+			ConsumerCount:           int32(stream.ConsumerCount),
+			Replicas:                int32(stream.Replicas),
+			ClusterLeader:           stream.ClusterLeader,
+			OldestMessageAgeSeconds: stream.OldestMessageAgeSeconds,
+			MaxAgeSeconds:           proto.Float64(stream.MaxAgeSeconds),
 		})
 	}
 

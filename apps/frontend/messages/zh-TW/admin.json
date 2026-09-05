@@ -410,7 +410,15 @@
       "asset_cleanup_events_waiting": "有新事件待處理",
       "asset_cleanup_never": "從未",
       "asset_cleanup_none": "無",
-      "asset_cleanup_in_progress": "進行中"
+      "asset_cleanup_in_progress": "進行中",
+      "jobs": {
+        "title": "背景工作",
+        "outstanding": "未完成工作",
+        "oldest": "最早工作的已等待時間",
+        "storage": "已用儲存空間",
+        "retention": "保留期限",
+        "description": "包含佇列中、執行中及等待重試的工作。"
+      }
     },
     "event_log": {
       "title": "事件記錄",

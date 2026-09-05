@@ -2286,6 +2286,8 @@ JetStream stream state.
 | `consumer_count` | `int32` | Number of stream consumers. |
 | `replicas` | `int32` | Configured stream replica count. |
 | `cluster_leader` | `string` | Current cluster leader, when reported by NATS. |
+| `oldest_message_age_seconds` | `optional double` | Age in seconds of the oldest retained message at sampling time. Absent when empty. |
+| `max_age_seconds` | `optional double` | Configured retention in seconds. Zero means unlimited; absent on older servers. |
 
 
 

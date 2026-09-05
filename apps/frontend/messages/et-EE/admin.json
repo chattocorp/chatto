@@ -410,7 +410,15 @@
       "asset_cleanup_events_waiting": "Uued sündmused ootavad",
       "asset_cleanup_never": "Mitte kunagi",
       "asset_cleanup_none": "Mitte ühtegi",
-      "asset_cleanup_in_progress": "Pooleli"
+      "asset_cleanup_in_progress": "Pooleli",
+      "jobs": {
+        "title": "Taustatööd",
+        "outstanding": "Lõpetamata tööd",
+        "oldest": "Vanima töö vanus",
+        "storage": "Kasutatud salvestusruum",
+        "retention": "Säilitusaeg",
+        "description": "Hõlmab järjekorras olevaid, käimasolevaid ja uut katset ootavaid töid."
+      }
     },
     "event_log": {
       "title": "Sündmuste logi",

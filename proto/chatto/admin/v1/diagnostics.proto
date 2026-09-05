@@ -193,6 +193,10 @@ message AdminNatsStreamInfo {
   int32 replicas = 10;
   // Current cluster leader, when reported by NATS.
   string cluster_leader = 11;
+  // Age in seconds of the oldest retained message at sampling time. Absent when empty.
+  optional double oldest_message_age_seconds = 12;
+  // Configured retention in seconds. Zero means unlimited; absent on older servers.
+  optional double max_age_seconds = 13;
 }
 
 // JetStream consumer state.

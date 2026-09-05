@@ -11,6 +11,7 @@
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { m } from '$lib/i18n/messages';
+  import JobQueuePanel from './JobQueuePanel.svelte';
   import AssetCleanupPanel from './AssetCleanupPanel.svelte';
   import DurableWorkersPanel from './DurableWorkersPanel.svelte';
 
@@ -22,7 +23,8 @@
       const activeConnection = serverScope.connection;
       return {
         queryKey: adminQueryKeys.systemInfo(serverId, activeConnection),
-        queryFn: ({ signal }) => getAdminSystemInfo(activeConnection.apiConfig, { signal })
+        queryFn: ({ signal }) => getAdminSystemInfo(activeConnection.apiConfig, { signal }),
+        refetchInterval: 10_000
       };
     },
     () => queryClient
@@ -542,6 +544,11 @@
           <Hint>{m('admin.system.asset_cleanup_unavailable')}</Hint>
         {/if}
 
+        <JobQueuePanel
+          queue={systemInfo.natsAvailable
+            ? streams.find((stream) => stream.name === 'JOBS')
+            : undefined}
+        />
         <DurableWorkersPanel workers={systemInfo.durableWorkers} />
         <AssetCleanupPanel status={systemInfo.assetCleanup} />
       {/if}

@@ -627,3 +627,8 @@ Restart the server after a change. This stream setting applies to existing and
 new queued jobs. Age starts when the job enters the queue. Individual features
 can stop retrying earlier, such as the default 24-hour webhook expiry measured
 from the source message. Queue age expiry does not produce a failure event.
+
+In **Server Admin → System**, **Background jobs** shows outstanding jobs, the
+oldest job age, storage use, and retention. The page refreshes every ten seconds
+while visible. Outstanding jobs include queued, running, and retrying work.
+An empty queue has no oldest age; unavailable statistics are shown separately.

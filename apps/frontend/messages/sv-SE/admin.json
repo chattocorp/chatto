@@ -410,7 +410,15 @@
       "asset_cleanup_events_waiting": "Nya händelser väntar",
       "asset_cleanup_never": "Aldrig",
       "asset_cleanup_none": "Inga",
-      "asset_cleanup_in_progress": "Pågår"
+      "asset_cleanup_in_progress": "Pågår",
+      "jobs": {
+        "title": "Bakgrundsjobb",
+        "outstanding": "Utestående jobb",
+        "oldest": "Äldsta jobbets ålder",
+        "storage": "Använt lagringsutrymme",
+        "retention": "Lagringstid",
+        "description": "Omfattar köade jobb, pågående jobb och jobb som väntar på ett nytt försök."
+      }
     },
     "event_log": {
       "title": "Händelselogg",

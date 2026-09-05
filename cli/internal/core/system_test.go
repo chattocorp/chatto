@@ -1,7 +1,10 @@
 package core
 
 import (
+	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"testing"
+	"time"
 )
 
 func TestChattoCore_GetConnectionInfo(t *testing.T) {
@@ -178,4 +181,40 @@ func TestAccountInfo_Fields(t *testing.T) {
 			t.Errorf("expected ConsumersUsed 250, got %d", info.ConsumersUsed)
 		}
 	})
+}
+
+// Queue diagnostics count retained work even after a worker picks it up.
+func TestJobQueueDiagnostics(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	read := func() StreamStats {
+		t.Helper()
+		stats, err := c.GetJetStreamStats(ctx)
+		require.NoError(t, err)
+		for _, stream := range stats.Streams {
+			if stream.Name == "JOBS" {
+				return stream
+			}
+		}
+		t.Fatal("missing shared queue diagnostics")
+		return StreamStats{}
+	}
+	empty := read()
+	require.Zero(t, empty.Messages)
+	require.Nil(t, empty.OldestMessageAgeSeconds)
+	require.Equal(t, (7 * 24 * time.Hour).Seconds(), empty.MaxAgeSeconds)
+	require.NoError(t, c.storage.jobs.Enqueue(ctx, "diagnostic_test", "one", []byte("opaque job")))
+	consumer, err := c.storage.jobs.Stream().CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{Durable: "diagnostic-test", FilterSubject: "jobs.diagnostic_test", AckPolicy: jetstream.AckExplicitPolicy})
+	require.NoError(t, err)
+	msg, err := consumer.Next(jetstream.FetchContext(ctx))
+	require.NoError(t, err)
+	active := read()
+	require.Equal(t, uint64(1), active.Messages)
+	require.Positive(t, active.Bytes)
+	require.NotNil(t, active.OldestMessageAgeSeconds)
+	require.GreaterOrEqual(t, *active.OldestMessageAgeSeconds, 0.0)
+	require.NoError(t, msg.DoubleAck(ctx))
+	completed := read()
+	require.Zero(t, completed.Messages)
+	require.Nil(t, completed.OldestMessageAgeSeconds)
 }

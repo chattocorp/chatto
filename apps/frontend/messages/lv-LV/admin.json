@@ -410,7 +410,15 @@
       "asset_cleanup_events_waiting": "Gaidāmi jauni notikumi",
       "asset_cleanup_never": "Nekad",
       "asset_cleanup_none": "Nav",
-      "asset_cleanup_in_progress": "Notiek"
+      "asset_cleanup_in_progress": "Notiek",
+      "jobs": {
+        "title": "Fona uzdevumi",
+        "outstanding": "Nepabeigtie uzdevumi",
+        "oldest": "Vecākā uzdevuma vecums",
+        "storage": "Izmantotā krātuve",
+        "retention": "Glabāšanas laiks",
+        "description": "Ietver rindā esošos, aktīvos un atkārtotu mēģinājumu gaidošos uzdevumus."
+      }
     },
     "event_log": {
       "title": "Notikumu žurnāls",

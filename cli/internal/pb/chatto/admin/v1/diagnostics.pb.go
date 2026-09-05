@@ -980,6 +980,10 @@ type AdminNatsStreamInfo struct {
 	Replicas int32 `protobuf:"varint,10,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	// Current cluster leader, when reported by NATS.
 	ClusterLeader string `protobuf:"bytes,11,opt,name=cluster_leader,json=clusterLeader,proto3" json:"cluster_leader,omitempty"`
+	// Age in seconds of the oldest retained message at sampling time. Absent when empty.
+	OldestMessageAgeSeconds *float64 `protobuf:"fixed64,12,opt,name=oldest_message_age_seconds,json=oldestMessageAgeSeconds,proto3,oneof" json:"oldest_message_age_seconds,omitempty"`
+	// Configured retention in seconds. Zero means unlimited; absent on older servers.
+	MaxAgeSeconds *float64 `protobuf:"fixed64,13,opt,name=max_age_seconds,json=maxAgeSeconds,proto3,oneof" json:"max_age_seconds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1089,6 +1093,20 @@ func (x *AdminNatsStreamInfo) GetClusterLeader() string {
 		return x.ClusterLeader
 	}
 	return ""
+}
+
+func (x *AdminNatsStreamInfo) GetOldestMessageAgeSeconds() float64 {
+	if x != nil && x.OldestMessageAgeSeconds != nil {
+		return *x.OldestMessageAgeSeconds
+	}
+	return 0
+}
+
+func (x *AdminNatsStreamInfo) GetMaxAgeSeconds() float64 {
+	if x != nil && x.MaxAgeSeconds != nil {
+		return *x.MaxAgeSeconds
+	}
+	return 0
 }
 
 // JetStream consumer state.
@@ -1592,7 +1610,7 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\x16total_consumer_pending\x18\x03 \x01(\x03R\x14totalConsumerPending\x12*\n" +
 	"\x11total_ack_pending\x18\x04 \x01(\x05R\x0ftotalAckPending\x12>\n" +
 	"\astreams\x18\x05 \x03(\v2$.chatto.admin.v1.AdminNatsStreamInfoR\astreams\x12D\n" +
-	"\tconsumers\x18\x06 \x03(\v2&.chatto.admin.v1.AdminNatsConsumerInfoR\tconsumers\"\xe9\x02\n" +
+	"\tconsumers\x18\x06 \x03(\v2&.chatto.admin.v1.AdminNatsConsumerInfoR\tconsumers\"\x8b\x04\n" +
 	"\x13AdminNatsStreamInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
@@ -1605,7 +1623,11 @@ const file_chatto_admin_v1_diagnostics_proto_rawDesc = "" +
 	"\x0econsumer_count\x18\t \x01(\x05R\rconsumerCount\x12\x1a\n" +
 	"\breplicas\x18\n" +
 	" \x01(\x05R\breplicas\x12%\n" +
-	"\x0ecluster_leader\x18\v \x01(\tR\rclusterLeader\"\xf7\x04\n" +
+	"\x0ecluster_leader\x18\v \x01(\tR\rclusterLeader\x12@\n" +
+	"\x1aoldest_message_age_seconds\x18\f \x01(\x01H\x00R\x17oldestMessageAgeSeconds\x88\x01\x01\x12+\n" +
+	"\x0fmax_age_seconds\x18\r \x01(\x01H\x01R\rmaxAgeSeconds\x88\x01\x01B\x1d\n" +
+	"\x1b_oldest_message_age_secondsB\x12\n" +
+	"\x10_max_age_seconds\"\xf7\x04\n" +
 	"\x15AdminNatsConsumerInfo\x12\x16\n" +
 	"\x06stream\x18\x01 \x01(\tR\x06stream\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x18\n" +
@@ -1737,6 +1759,7 @@ func file_chatto_admin_v1_diagnostics_proto_init() {
 		return
 	}
 	file_chatto_admin_v1_diagnostics_proto_msgTypes[1].OneofWrappers = []any{}
+	file_chatto_admin_v1_diagnostics_proto_msgTypes[9].OneofWrappers = []any{}
 	file_chatto_admin_v1_diagnostics_proto_msgTypes[11].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
