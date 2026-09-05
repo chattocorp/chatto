@@ -31,11 +31,11 @@ concurrency:
 permissions:
   contents: read
 
-# Partial manual suites use distinct check names. A skipped manual check must
-# not replace a failed required check from a PR run on the same commit.
+# Non-PR runs use distinct check names. Their selection can differ from a PR
+# on the same commit, so their skipped checks must not replace required results.
 jobs:
   changes:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}changes
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -57,7 +57,7 @@ jobs:
         run: node tools/ci/select-jobs.mjs
 
   build-main-image-contexts:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}build-main-image-contexts
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}build-main-image-contexts
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -132,7 +132,7 @@ jobs:
           retention-days: 1
 
   license-check:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}license-check
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}license-check
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -149,7 +149,7 @@ jobs:
         run: mise license-check
 
   workflow-lint:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}workflow-lint
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}workflow-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -170,7 +170,7 @@ jobs:
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}desktop (${{ matrix.platform }})
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}desktop (${{ matrix.platform }})
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -229,7 +229,7 @@ jobs:
           retention-days: 7
 
   desktop-macos-capture:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}desktop-macos-capture
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}desktop-macos-capture
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
     runs-on: macos-15
@@ -242,7 +242,7 @@ jobs:
         run: tools/test-desktop-macos-capture.sh
 
   codegen-proto-drift:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}codegen-proto-drift
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}codegen-proto-drift
     permissions:
       contents: read
       pull-requests: read
@@ -345,7 +345,7 @@ jobs:
           fi
 
   check-workspace:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}check-workspace
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}check-workspace
     needs: changes
     if: ${{ needs.changes.outputs.workspace == 'true' || needs.changes.outputs.desktop == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -370,7 +370,7 @@ jobs:
         run: pnpm run build:storybook
 
   test-workspace:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-workspace
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-workspace
     needs: changes
     if: ${{ needs.changes.outputs.workspace == 'true' }}
     # Keep this job name stable because it can be a required branch check.
@@ -396,7 +396,7 @@ jobs:
         run: pnpm test
 
   test-cli:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-cli
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-cli
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' || needs.changes.outputs.shared == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -444,7 +444,7 @@ jobs:
         run: mise test-cli
 
   test-authling-e2e:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-authling-e2e
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-authling-e2e
     needs: changes
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
@@ -490,7 +490,7 @@ jobs:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-e2e (${{ matrix.shard }}/4)
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e (${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
       matrix:
@@ -535,7 +535,7 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-e2e-media
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e-media
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -570,7 +570,7 @@ jobs:
           retention-days: 14
 
   test-e2e-performance:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}test-e2e-performance
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e-performance
     needs: changes
     if: ${{ needs.changes.outputs.performance == 'true' }}
     runs-on: ubuntu-latest
@@ -687,7 +687,7 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}publish-main-image
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}publish-main-image
     if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
     needs:
       - changes
@@ -778,7 +778,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   check-docs:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}check-docs
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}check-docs
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
@@ -791,7 +791,7 @@ jobs:
       - run: pnpm run build:docs
 
   benchmark-go:
-    name: ${{ github.event_name == 'workflow_dispatch' && inputs.suite != 'full' && 'manual / ' || '' }}benchmark-go
+    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}benchmark-go
     if: github.event_name == 'workflow_dispatch' && inputs.suite == 'benchmark-go'
     runs-on: ubuntu-latest
     timeout-minutes: 30

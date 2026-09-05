@@ -36,8 +36,9 @@ prerequisite prevents publication.
 
 A daily run at 04:23 UTC executes the full suite. Use **Run workflow** on `ci`
 with `suite=full` to run all checks, or `suite=performance` to run the performance
-comparison. Partial manual runs use a `manual / ` check-name prefix so they
-cannot replace required PR check results on the same commit. Scheduled and
+comparison. Non-PR runs prefix check names with the event name, such as
+`workflow_dispatch / `. This prevents a run with a different selection from
+replacing required PR check results on the same commit. Scheduled and
 manual performance runs compare against the previous
 commit. Pull requests compare against their base revision. Both revisions run
 on the same runner.
