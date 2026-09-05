@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Ayrıcalıklı modu etkinleştir",
+      "disable": "Ayrıcalıklı modu devre dışı bırak",
+      "confirmation": "Bu işlem, bu sunucuda sana atanmış ek izinleri 15 dakika boyunca etkinleştirir."
+    },
     "notifications": {
       "title": "Bildirimler",
       "subtitle": "İşte yenilikler",

@@ -122,15 +122,20 @@ async function revokeRoleViaConnect(page: Page, userId: string, roleName: string
   expect(data.member?.roles ?? []).not.toContain(roleName);
 }
 
+/** Activate the current test session's elevation-required permissions. */
+export async function activatePrivilegedMode(page: Page): Promise<void> {
+  await connectPost(page, 'chatto.api.v1.ViewerService/ActivatePrivilegedMode');
+}
+
 /**
- * Logs in as the bootstrap admin user.
- * The admin user is created during server startup via the [bootstrap]
- * section in fixtures/chatto.toml, which assigns the owner role.
- *
- * Note: You must also verify the admin email to get config-based admin access
- * (for admin panel). Use verifyAdminEmail() after calling this if needed.
+ * Logs in as the bootstrap admin user and activates privileged mode by
+ * default. The bootstrap configuration assigns the owner role. Call
+ * verifyAdminEmail() separately when a test needs configuration-based access.
  */
-export async function loginAsAdmin(page: Page): Promise<TestUser> {
+export async function loginAsAdmin(
+  page: Page,
+  options: { activatePrivilegedMode?: boolean } = {}
+): Promise<TestUser> {
   const adminUser: TestUser = {
     login: 'e2eadmin',
     displayName: 'Admin User',
@@ -151,6 +156,9 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
   const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
   adminUser.id = viewer.user?.profile?.id;
   expect(adminUser.id).toBeTruthy();
+  if (options.activatePrivilegedMode ?? true) {
+    await activatePrivilegedMode(page);
+  }
 
   return adminUser;
 }
@@ -168,15 +176,16 @@ export async function logoutCurrentUser(page: Page): Promise<void> {
 }
 
 /**
- * Logs in as the bootstrap admin user (idempotent re-auth on the same page)
- * and returns the deployment's primary server — the bootstrap "E2E Test Server"
- * created by fixtures/chatto.toml. Admin-style tests use this to run room,
- * layout, and role operations with sufficient permissions.
+ * Logs in as the bootstrap admin user (idempotent re-auth on the same page),
+ * activates privileged mode by default, and returns the deployment's primary
+ * server. Admin-style tests use this to run room, layout, and role operations
+ * with sufficient effective permissions.
  */
 export async function loginAsAdminAndUsePrimaryServer(
-  page: Page
+  page: Page,
+  options: { activatePrivilegedMode?: boolean } = {}
 ): Promise<{ id: string; name: string }> {
-  await loginAsAdmin(page);
+  await loginAsAdmin(page, options);
   const data = await connectPost<ServerDiscoveryResponse>(
     page,
     'chatto.discovery.v1.ServerDiscoveryService/GetServer'

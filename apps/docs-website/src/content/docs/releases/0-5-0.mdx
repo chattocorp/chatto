@@ -157,6 +157,15 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   read access includes the narrower interaction permission.
 </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Privileged permissions stay off until you need them">
+    Chatto now keeps administrative and moderation permissions inactive during ordinary
+    use. A human must enable privileged mode for the current server session before these
+    permissions become effective. The activation lasts for 15 minutes and can be ended
+    immediately. Permission controls update without a page reload, and the event log
+    records activation and explicit deactivation. Bot API keys keep their direct
+    permission behavior.
+  </ReleaseFeatureCard>
+
 <ReleaseFeatureCard
   title="Bots activate through normal notifications"
   size="large"
@@ -349,6 +358,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   direct-user allows. Same-scope or narrower allows can now override that baseline; upgrade
   all replicas together so authorization decisions stay consistent during rollout. Existing
   announcement rooms are not given the new admin posting grant automatically.
+- Upgrade the bundled client and all server replicas together before you depend on privileged
+  mode. Old clients cannot enable elevation-required permissions on a 0.5 server. During a
+  mixed server rollout, an older replica can still accept an elevated operation without an
+  active privileged-mode session.
 - Custom delegated room managers that previously relied on `role.manage` need an effective
   `room.manage` grant for the resources they should administer. Non-owner role assignment is
   also limited to permissions the acting manager possesses.

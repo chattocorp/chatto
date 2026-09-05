@@ -749,6 +749,18 @@ Linked provider identity metadata for the authenticated user's settings UI.
 | `provider_label` | `string` | Current or fallback provider label. |
 | `subject_hash` | `string` | Stable one-way subject hash, useful only as a UI/list key. |
 
+<a id="chatto-api-v1-PrivilegedModeState"></a>
+
+### PrivilegedModeState
+
+State of explicit privileged-mode activation for this authenticated session.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `available` | `bool` | Whether the user has an elevation-required permission entitlement. This includes owner entitlement and explicit allows at any supported scope. |
+| `active` | `bool` | Whether elevated permissions are effective for this session now. |
+| `expires_at` | `google.protobuf.Timestamp` | Absolute activation deadline. Present only while privileged mode is active. |
+
 <a id="chatto-api-v1-ServerViewerPermissions"></a>
 
 ### ServerViewerPermissions

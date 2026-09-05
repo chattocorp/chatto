@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"connectrpc.com/connect"
 
+	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
@@ -16,6 +18,136 @@ import (
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+func TestViewerServicePrivilegedModeLifecycle(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "privileged-viewer", "Privileged Viewer", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, owner.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	credentials, err := env.core.CreateBearerSessionWithSource(env.ctx, owner.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	requestContext := func() context.Context {
+		validated, err := env.core.ValidatePublicBearerCredential(env.ctx, credentials.AccessToken)
+		if err != nil {
+			t.Fatalf("ValidatePublicBearerCredential: %v", err)
+		}
+		ctx := withCaller(env.ctx, owner)
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+			Kind:                    authctx.RuntimeCredentialKindBearerToken,
+			UserID:                  owner.Id,
+			Handle:                  credentials.AccessToken,
+			ExpiresAt:               validated.ExpiresAt,
+			PrivilegedModeExpiresAt: validated.PrivilegedModeExpiresAt,
+		})
+	}
+
+	unarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer unarmed: %v", err)
+	}
+	if state := unarmed.Msg.GetPrivilegedMode(); !state.GetAvailable() || state.GetActive() {
+		t.Fatalf("unarmed privileged mode = %+v, want available and inactive", state)
+	}
+	if apiCapabilityGranted(unarmed.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("unarmed owner has effective system capability")
+	}
+
+	activated, err := env.viewerService.ActivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{}))
+	if err != nil {
+		t.Fatalf("ActivatePrivilegedMode: %v", err)
+	}
+	if !activated.Msg.GetPrivilegedMode().GetActive() || activated.Msg.GetPrivilegedMode().GetExpiresAt() == nil {
+		t.Fatalf("activated privileged mode = %+v, want active deadline", activated.Msg.GetPrivilegedMode())
+	}
+	if !apiCapabilityGranted(activated.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("activation response lacks newly effective system capability")
+	}
+	if _, err := env.viewerService.ActivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); err != nil {
+		t.Fatalf("idempotent ActivatePrivilegedMode: %v", err)
+	}
+	armed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer armed: %v", err)
+	}
+	if !apiCapabilityGranted(armed.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("armed owner lacks effective system capability")
+	}
+	activationLog, err := env.core.ListEventLog(requestContext(), owner.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeActivatedEvent", ActorID: owner.Id},
+	})
+	if err != nil {
+		t.Fatalf("ListEventLog activation: %v", err)
+	}
+	if len(activationLog.Entries) != 1 {
+		t.Fatalf("privileged-mode activation audit entries = %d, want 1", len(activationLog.Entries))
+	}
+
+	armedContext := requestContext()
+	deactivated, err := env.viewerService.DeactivatePrivilegedMode(armedContext, connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{}))
+	if err != nil {
+		t.Fatalf("DeactivatePrivilegedMode: %v", err)
+	}
+	if apiCapabilityGranted(deactivated.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminViewSystem) {
+		t.Fatal("deactivation response retains system capability")
+	}
+	if _, err := env.viewerService.DeactivatePrivilegedMode(requestContext(), connect.NewRequest(&apiv1.DeactivatePrivilegedModeRequest{})); err != nil {
+		t.Fatalf("idempotent DeactivatePrivilegedMode: %v", err)
+	}
+	deactivationLog, err := env.core.ListEventLog(armedContext, owner.Id, core.EventLogQuery{
+		Filter: core.EventLogFilter{EventType: "PrivilegedModeDeactivatedEvent", ActorID: owner.Id},
+	})
+	if err != nil {
+		t.Fatalf("ListEventLog deactivation: %v", err)
+	}
+	if len(deactivationLog.Entries) != 1 {
+		t.Fatalf("privileged-mode deactivation audit entries = %d, want 1", len(deactivationLog.Entries))
+	}
+	disarmed, err := env.viewerService.GetViewer(requestContext(), connect.NewRequest(&apiv1.GetViewerRequest{}))
+	if err != nil {
+		t.Fatalf("GetViewer disarmed: %v", err)
+	}
+	if disarmed.Msg.GetPrivilegedMode().GetActive() {
+		t.Fatal("deactivated privileged mode remains active")
+	}
+}
+
+func TestViewerServicePrivilegedModeRejectsIneligibleCallers(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	credentials, err := env.core.CreateBearerSessionWithSource(env.ctx, env.viewer.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	humanContext := withBearerCredential(env.ctx, env.viewer, credentials.AccessToken)
+	if _, err := env.viewerService.ActivatePrivilegedMode(humanContext, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("unentitled activation code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	validated, err := env.core.ValidatePublicBearerCredential(env.ctx, credentials.AccessToken)
+	if err != nil {
+		t.Fatalf("ValidatePublicBearerCredential: %v", err)
+	}
+	if !validated.PrivilegedModeExpiresAt.IsZero() {
+		t.Fatalf("unentitled activation wrote deadline %v", validated.PrivilegedModeExpiresAt)
+	}
+
+	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "privileged_mode_bot", "Privileged Mode Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	botContext := authctx.WithCredential(withCaller(env.ctx, bot.User), authctx.RuntimeCredential{
+		Kind:   authctx.RuntimeCredentialKindBotAPIKey,
+		UserID: bot.User.Id,
+		Handle: bot.APIKey,
+	})
+	if _, err := env.viewerService.ActivatePrivilegedMode(botContext, connect.NewRequest(&apiv1.ActivatePrivilegedModeRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("bot activation code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+}
 
 func TestViewerServiceGetViewerReturnsSelfScopedState(t *testing.T) {
 	env := newConnectAPITestEnv(t)
@@ -512,7 +644,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAuthTokenWithSource account manager: %v", err)
 	}
-	accountManagerResp, err := env.adminUsers.UpdateUserPassword(withBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	accountManagerResp, err := env.adminUsers.UpdateUserPassword(withArmedBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	}))
@@ -537,7 +669,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAuthTokenWithSource admin: %v", err)
 	}
-	adminCtx := withBearerCredential(env.ctx, admin, adminToken)
+	adminCtx := withArmedBearerCredential(env.ctx, admin, adminToken)
 
 	if _, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
 		UserId: target.Id,
@@ -636,7 +768,7 @@ func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
 	}
 
 	deleteResp, err := env.adminUsers.DeleteUser(
-		withBearerCredential(env.ctx, env.viewer, staleToken),
+		withArmedBearerCredential(env.ctx, env.viewer, staleToken),
 		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: target.Id}),
 	)
 	if err != nil {

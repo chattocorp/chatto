@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Zapnout privilegovaný režim",
+      "disable": "Vypnout privilegovaný režim",
+      "confirmation": "Tímto na 15 minut zapnete další oprávnění, která vám byla na tomto serveru přidělena."
+    },
     "notifications": {
       "title": "Oznámení",
       "subtitle": "Zde je novinka",

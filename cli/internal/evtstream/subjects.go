@@ -223,6 +223,8 @@ const (
 	EventAuthCodeExchangeFailed             = "auth_code_exchange_failed"
 	EventBearerTokenIssued                  = "bearer_token_issued"
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
+	EventPrivilegedModeActivated            = "privileged_mode_activated"
+	EventPrivilegedModeDeactivated          = "privileged_mode_deactivated"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
 	EventOAuthClientAuthorizationRecorded   = "authorization_recorded"
@@ -500,6 +502,10 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventBearerTokenIssued
 	case *evtv1.Event_BearerTokenRevoked:
 		return EventBearerTokenRevoked
+	case *evtv1.Event_PrivilegedModeActivated:
+		return EventPrivilegedModeActivated
+	case *evtv1.Event_PrivilegedModeDeactivated:
+		return EventPrivilegedModeDeactivated
 	case *evtv1.Event_OauthConsentGranted:
 		return EventOAuthConsentGranted
 	case *evtv1.Event_OauthConsentDenied:

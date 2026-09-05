@@ -1116,3 +1116,30 @@ func TestShouldCompressRealtimeFrame(t *testing.T) {
 		t.Fatal("large frame did not select compression")
 	}
 }
+
+func TestPrivilegedModeExpiryCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var written *realtimev1.RealtimeServerFrame
+	closed := false
+
+	terminateRealtimeForPrivilegedModeExpiry(
+		cancel,
+		func(frame *realtimev1.RealtimeServerFrame) error {
+			written = frame
+			return nil
+		},
+		func() { closed = true },
+	)
+
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("authorized context remained active at the privileged-mode deadline")
+	}
+	if !closed {
+		t.Fatal("connection remained open at the privileged-mode deadline")
+	}
+	if written.GetClose().GetCode() != realtimev1.RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED || !written.GetClose().GetReconnect() {
+		t.Fatalf("expiry frame = %+v, want reconnecting privileged_mode_expired", written)
+	}
+}

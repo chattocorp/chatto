@@ -42,7 +42,11 @@ import type { RoomMember } from '$lib/state/room';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
-import { viewerResponseToState } from '$lib/api-client/viewer';
+import {
+  createPrivilegedModeAPI,
+  viewerResponseToState,
+  type PrivilegedModeAPI
+} from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
 import {
   clearUserSummaryCache,
@@ -52,6 +56,7 @@ import { avatarUserFromDirectoryMember } from './rooms.svelte';
 import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import { PrivilegedModeState } from '@chatto/api-types/api/v1/viewer_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
 import { MentionRolesStore } from './mentionRoles.svelte';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
@@ -173,6 +178,7 @@ export class ServerStateStore {
   readonly #disposeEffects: () => void;
   readonly #playedCallSoundEventIds: string[] = [];
   readonly #messageSearchAPI: MessageSearchAPI;
+  readonly #privilegedModeAPI: PrivilegedModeAPI;
   readonly #realtimeResources: RealtimeResourceAPI;
   #realtimeProjectionGeneration = 0;
   #realtimeSnapshotPending = false;
@@ -221,6 +227,7 @@ export class ServerStateStore {
     this.#realtimeResources = serverConnection.getAPI(createRealtimeResourceAPI);
     const memberDirectoryAPI = serverConnection.getAPI(createMemberDirectoryAPI);
     const roleAPI = serverConnection.getAPI(createRoleAPI);
+    this.#privilegedModeAPI = serverConnection.getAPI(createPrivilegedModeAPI);
     this.currentUser = new CurrentUserState(
       cookieAuth,
       connectAPIConfig,
@@ -256,6 +263,59 @@ export class ServerStateStore {
         };
       });
     });
+  }
+
+  /** Change privilege activation and reconcile effective viewer permissions in place. */
+  async setPrivilegedMode(active: boolean): Promise<void> {
+    const update = active
+      ? await this.#privilegedModeAPI.activate()
+      : await this.#privilegedModeAPI.deactivate();
+    const viewer = this.projection.viewer?.clone();
+    if (!viewer) throw new Error('privileged-mode update has no viewer projection');
+    viewer.privilegedMode = update.privilegedMode;
+    viewer.capabilities = update.capabilities;
+    viewer.viewerPermissions = update.viewerPermissions;
+    this.applyViewerSnapshot(viewer);
+    const authorizationRefreshGeneration = this.realtimeSync.invalidateAuthorization();
+    const projectionRefreshed = this.realtimeSync.waitForAuthorizationRefresh(
+      authorizationRefreshGeneration
+    );
+    this.#serverConnection.forceReconnect('privileged mode changed');
+    await projectionRefreshed;
+  }
+
+  /** Reflect local expiry immediately; the reconnect obtains authoritative
+   * effective permissions and catches role changes made during activation. */
+  async expirePrivilegedMode(): Promise<void> {
+    this.applyPrivilegedModeState(
+      new PrivilegedModeState({
+        available: this.projection.viewer?.privilegedMode?.available ?? false,
+        active: false
+      })
+    );
+    try {
+      this.applyViewerSnapshot(await this.#privilegedModeAPI.refresh());
+    } catch (error) {
+      console.warn('[privileged-mode] failed to refresh effective permissions after expiry', error);
+    } finally {
+      this.realtimeSync.invalidateAuthorization();
+      this.#serverConnection.forceReconnect('privileged mode expired');
+    }
+  }
+
+  private applyPrivilegedModeState(state: PrivilegedModeState): void {
+    const viewer = this.projection.viewer?.clone();
+    if (!viewer) return;
+    viewer.privilegedMode = state;
+    this.projection.viewer = viewer;
+  }
+
+  private applyViewerSnapshot(response: GetViewerResponse): void {
+    this.projection.viewer = response;
+    const viewer = viewerResponseToState(response);
+    this.currentUser.user = viewer.user;
+    this.currentUser.loading = false;
+    this.setPermissions(viewer);
   }
 
   /** Reject work whose resource boundary was superseded by a newer reset. */

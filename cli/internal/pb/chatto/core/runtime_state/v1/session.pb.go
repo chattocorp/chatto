@@ -37,8 +37,10 @@ type CookieSession struct {
 	FreshAuthAt     *timestamppb.Timestamp   `protobuf:"bytes,7,opt,name=fresh_auth_at,json=freshAuthAt,proto3" json:"fresh_auth_at,omitempty"`
 	FreshAuthMethod string                   `protobuf:"bytes,8,opt,name=fresh_auth_method,json=freshAuthMethod,proto3" json:"fresh_auth_method,omitempty"`
 	FreshAuthSource string                   `protobuf:"bytes,9,opt,name=fresh_auth_source,json=freshAuthSource,proto3" json:"fresh_auth_source,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Absolute end of the current explicit privileged-mode activation.
+	PrivilegedModeExpiresAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=privileged_mode_expires_at,json=privilegedModeExpiresAt,proto3" json:"privileged_mode_expires_at,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CookieSession) Reset() {
@@ -134,11 +136,18 @@ func (x *CookieSession) GetFreshAuthSource() string {
 	return ""
 }
 
+func (x *CookieSession) GetPrivilegedModeExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PrivilegedModeExpiresAt
+	}
+	return nil
+}
+
 var File_chatto_core_runtime_state_v1_session_proto protoreflect.FileDescriptor
 
 const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\n" +
-	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xbb\x03\n" +
+	"*chatto/core/runtime_state/v1/session.proto\x12\x1cchatto.core.runtime_state.v1\x1a\x1fchatto/core/evt/v1/models.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x04\n" +
 	"\rCookieSession\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x129\n" +
 	"\n" +
@@ -150,7 +159,9 @@ const file_chatto_core_runtime_state_v1_session_proto_rawDesc = "" +
 	"\x0fauth_generation\x18\x06 \x01(\x04R\x0eauthGeneration\x12>\n" +
 	"\rfresh_auth_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vfreshAuthAt\x12*\n" +
 	"\x11fresh_auth_method\x18\b \x01(\tR\x0ffreshAuthMethod\x12*\n" +
-	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSourceB\x88\x02\n" +
+	"\x11fresh_auth_source\x18\t \x01(\tR\x0ffreshAuthSource\x12W\n" +
+	"\x1aprivileged_mode_expires_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\x17privilegedModeExpiresAtB\x88\x02\n" +
 	" com.chatto.core.runtime_state.v1B\fSessionProtoP\x01ZGhmans.de/chatto/internal/pb/chatto/core/runtime_state/v1;runtimestatev1\xa2\x02\x03CCR\xaa\x02\x1bChatto.Core.RuntimeState.V1\xca\x02\x1bChatto\\Core\\RuntimeState\\V1\xe2\x02'Chatto\\Core\\RuntimeState\\V1\\GPBMetadata\xea\x02\x1eChatto::Core::RuntimeState::V1b\x06proto3"
 
 var (
@@ -176,11 +187,12 @@ var file_chatto_core_runtime_state_v1_session_proto_depIdxs = []int32{
 	1, // 1: chatto.core.runtime_state.v1.CookieSession.expires_at:type_name -> google.protobuf.Timestamp
 	2, // 2: chatto.core.runtime_state.v1.CookieSession.request:type_name -> chatto.core.evt.v1.AuditRequestMetadata
 	1, // 3: chatto.core.runtime_state.v1.CookieSession.fresh_auth_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	1, // 4: chatto.core.runtime_state.v1.CookieSession.privileged_mode_expires_at:type_name -> google.protobuf.Timestamp
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_runtime_state_v1_session_proto_init() }

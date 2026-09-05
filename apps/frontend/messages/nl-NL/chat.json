@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Bevoorrechte modus inschakelen",
+      "disable": "Bevoorrechte modus uitschakelen",
+      "confirmation": "Hiermee schakel je gedurende 15 minuten de extra machtigingen in die je op deze server hebt gekregen."
+    },
     "notifications": {
       "title": "Meldingen",
       "subtitle": "Dit is wat er nieuw is",

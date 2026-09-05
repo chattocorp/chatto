@@ -2659,6 +2659,24 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			},
 			want: EventBearerTokenRevoked,
 		},
+		{
+			name: "PrivilegedModeActivated",
+			event: &evtv1.Event{
+				Event: &evtv1.Event_PrivilegedModeActivated{
+					PrivilegedModeActivated: &evtv1.PrivilegedModeActivatedEvent{UserId: "U1"},
+				},
+			},
+			want: EventPrivilegedModeActivated,
+		},
+		{
+			name: "PrivilegedModeDeactivated",
+			event: &evtv1.Event{
+				Event: &evtv1.Event_PrivilegedModeDeactivated{
+					PrivilegedModeDeactivated: &evtv1.PrivilegedModeDeactivatedEvent{UserId: "U1"},
+				},
+			},
+			want: EventPrivilegedModeDeactivated,
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2682,7 +2700,9 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 				c.want == EventAuthCodeExchangeSucceeded ||
 				c.want == EventAuthCodeExchangeFailed ||
 				c.want == EventBearerTokenIssued ||
-				c.want == EventBearerTokenRevoked {
+				c.want == EventBearerTokenRevoked ||
+				c.want == EventPrivilegedModeActivated ||
+				c.want == EventPrivilegedModeDeactivated {
 				agg = UserAggregate("U1")
 			}
 			if c.want == EventLoginFailed {

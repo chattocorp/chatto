@@ -4,6 +4,7 @@ import { AdminPage, ChatPage } from './pages';
 import * as routes from './routes';
 import { TIMEOUTS } from './constants';
 import {
+  activatePrivilegedMode,
   createAndLoginTestUser,
   generateRoleName,
   loginAsAdmin,
@@ -243,7 +244,6 @@ test.describe('Admin Users Page', () => {
     // Should see the total count
     await adminPage.expectUserCountVisible();
   });
-
 });
 
 test.describe('Admin System Page', () => {
@@ -344,15 +344,20 @@ test.describe('Admin Granular Permissions', () => {
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'admin.view-users');
 
-    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
-      await regularAdminPage.gotoUsers();
+    await withRegularAdminPage(
+      browser,
+      serverURL,
+      async ({ page: regularPage, adminPage: regularAdminPage }) => {
+        await activatePrivilegedMode(regularPage);
+        await regularAdminPage.gotoUsers();
 
-      // Should see the permitted section (not access denied) and the dedicated
-      // admin sidebar should only expose their allowed links.
-      await regularAdminPage.expectUsersPageVisible();
-      await regularAdminPage.expectSidebarLinkVisible('Users');
-      await regularAdminPage.expectSidebarLinkActive('Users');
-    });
+        // Should see the permitted section (not access denied) and the dedicated
+        // admin sidebar should only expose their allowed links.
+        await regularAdminPage.expectUsersPageVisible();
+        await regularAdminPage.expectSidebarLinkVisible('Users');
+        await regularAdminPage.expectSidebarLinkActive('Users');
+      }
+    );
 
     // Clean up: revoke the permission
     await revokePermission(page, 'everyone', 'admin.view-users');
@@ -368,6 +373,7 @@ test.describe('Admin Granular Permissions', () => {
     await grantPermission(page, 'everyone', 'room.manage');
 
     await withRegularAdminPage(browser, serverURL, async ({ page: regularPage, adminPage }) => {
+      await activatePrivilegedMode(regularPage);
       await regularPage.goto(routes.serverAdminRooms);
 
       // Should see their concrete admin section in nav
@@ -390,15 +396,20 @@ test.describe('Admin Granular Permissions', () => {
     await createAndLoginAdminUser(page);
     await grantPermission(page, 'everyone', 'admin.view-users');
 
-    await withRegularAdminPage(browser, serverURL, async ({ adminPage: regularAdminPage }) => {
-      await regularAdminPage.gotoUsers();
+    await withRegularAdminPage(
+      browser,
+      serverURL,
+      async ({ page: regularPage, adminPage: regularAdminPage }) => {
+        await activatePrivilegedMode(regularPage);
+        await regularAdminPage.gotoUsers();
 
-      // Should see the users page with data
-      await regularAdminPage.expectUsersPageVisible();
-      await regularAdminPage.expectUsersTableHeadersVisible();
-      // Should see at least one user in the list (the user count)
-      await regularAdminPage.expectUserCountVisible();
-    });
+        // Should see the users page with data
+        await regularAdminPage.expectUsersPageVisible();
+        await regularAdminPage.expectUsersTableHeadersVisible();
+        // Should see at least one user in the list (the user count)
+        await regularAdminPage.expectUserCountVisible();
+      }
+    );
 
     // Clean up
     await revokePermission(page, 'everyone', 'admin.view-users');
@@ -464,6 +475,7 @@ test.describe('Admin Granular Permissions', () => {
     await grantPermission(page, 'everyone', 'room.manage');
 
     await withRegularAdminPage(browser, serverURL, async ({ page: regularPage, adminPage }) => {
+      await activatePrivilegedMode(regularPage);
       await regularPage.goto(routes.serverAdminRooms);
 
       // Initially should only see the room management section
@@ -526,6 +538,7 @@ test.describe('User Permission Management', () => {
         await createRoleViaAPI(page, roleName, 'Grant Admin');
         await grantPermission(page, roleName, 'admin.view-users');
         await assignRoleViaAPI(page, regularUser.id!, roleName);
+        await activatePrivilegedMode(regularPage);
 
         // Regular user should now have admin access
         await regularPage.reload();

@@ -323,6 +323,64 @@ export class ServerViewerState extends Message<ServerViewerState> {
 }
 
 /**
+ * State of explicit privileged-mode activation for this authenticated session.
+ *
+ * @generated from message chatto.api.v1.PrivilegedModeState
+ */
+export class PrivilegedModeState extends Message<PrivilegedModeState> {
+  /**
+   * Whether the user has an elevation-required permission entitlement. This
+   * includes owner entitlement and explicit allows at any supported scope.
+   *
+   * @generated from field: bool available = 1;
+   */
+  available = false;
+
+  /**
+   * Whether elevated permissions are effective for this session now.
+   *
+   * @generated from field: bool active = 2;
+   */
+  active = false;
+
+  /**
+   * Absolute activation deadline. Present only while privileged mode is active.
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 3;
+   */
+  expiresAt?: Timestamp;
+
+  constructor(data?: PartialMessage<PrivilegedModeState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.PrivilegedModeState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "available", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "active", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 3, name: "expires_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PrivilegedModeState {
+    return new PrivilegedModeState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): PrivilegedModeState {
+    return new PrivilegedModeState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): PrivilegedModeState {
+    return new PrivilegedModeState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: PrivilegedModeState | PlainMessage<PrivilegedModeState> | undefined, b: PrivilegedModeState | PlainMessage<PrivilegedModeState> | undefined): boolean {
+    return proto3.util.equals(PrivilegedModeState, a, b);
+  }
+}
+
+/**
  * Request for the authenticated viewer snapshot.
  *
  * @generated from message chatto.api.v1.GetViewerRequest
@@ -389,6 +447,13 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
    */
   viewerState?: ServerViewerState;
 
+  /**
+   * Explicit privilege activation state for this authenticated session.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 7;
+   */
+  privilegedMode?: PrivilegedModeState;
+
   constructor(data?: PartialMessage<GetViewerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -401,6 +466,7 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
     { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
     { no: 5, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
     { no: 6, name: "viewer_state", kind: "message", T: ServerViewerState },
+    { no: 7, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetViewerResponse {
@@ -417,5 +483,185 @@ export class GetViewerResponse extends Message<GetViewerResponse> {
 
   static equals(a: GetViewerResponse | PlainMessage<GetViewerResponse> | undefined, b: GetViewerResponse | PlainMessage<GetViewerResponse> | undefined): boolean {
     return proto3.util.equals(GetViewerResponse, a, b);
+  }
+}
+
+/**
+ * Request to activate all currently entitled elevation-required permissions.
+ *
+ * @generated from message chatto.api.v1.ActivatePrivilegedModeRequest
+ */
+export class ActivatePrivilegedModeRequest extends Message<ActivatePrivilegedModeRequest> {
+  constructor(data?: PartialMessage<ActivatePrivilegedModeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ActivatePrivilegedModeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivatePrivilegedModeRequest {
+    return new ActivatePrivilegedModeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivatePrivilegedModeRequest {
+    return new ActivatePrivilegedModeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivatePrivilegedModeRequest {
+    return new ActivatePrivilegedModeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivatePrivilegedModeRequest | PlainMessage<ActivatePrivilegedModeRequest> | undefined, b: ActivatePrivilegedModeRequest | PlainMessage<ActivatePrivilegedModeRequest> | undefined): boolean {
+    return proto3.util.equals(ActivatePrivilegedModeRequest, a, b);
+  }
+}
+
+/**
+ * Result of activating privileged mode for the current session.
+ *
+ * @generated from message chatto.api.v1.ActivatePrivilegedModeResponse
+ */
+export class ActivatePrivilegedModeResponse extends Message<ActivatePrivilegedModeResponse> {
+  /**
+   * Current privileged-mode state after activation.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 1;
+   */
+  privilegedMode?: PrivilegedModeState;
+
+  /**
+   * Permission-derived capabilities that are effective after activation.
+   *
+   * @generated from field: chatto.api.v1.ViewerCapabilities capabilities = 2;
+   */
+  capabilities?: ViewerCapabilities;
+
+  /**
+   * Effective server permission decisions after activation.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 3;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  constructor(data?: PartialMessage<ActivatePrivilegedModeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ActivatePrivilegedModeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
+    { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
+    { no: 3, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ActivatePrivilegedModeResponse {
+    return new ActivatePrivilegedModeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ActivatePrivilegedModeResponse {
+    return new ActivatePrivilegedModeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ActivatePrivilegedModeResponse {
+    return new ActivatePrivilegedModeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ActivatePrivilegedModeResponse | PlainMessage<ActivatePrivilegedModeResponse> | undefined, b: ActivatePrivilegedModeResponse | PlainMessage<ActivatePrivilegedModeResponse> | undefined): boolean {
+    return proto3.util.equals(ActivatePrivilegedModeResponse, a, b);
+  }
+}
+
+/**
+ * Request to deactivate all elevation-required permissions for this session.
+ *
+ * @generated from message chatto.api.v1.DeactivatePrivilegedModeRequest
+ */
+export class DeactivatePrivilegedModeRequest extends Message<DeactivatePrivilegedModeRequest> {
+  constructor(data?: PartialMessage<DeactivatePrivilegedModeRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeactivatePrivilegedModeRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeactivatePrivilegedModeRequest {
+    return new DeactivatePrivilegedModeRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeactivatePrivilegedModeRequest {
+    return new DeactivatePrivilegedModeRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeactivatePrivilegedModeRequest {
+    return new DeactivatePrivilegedModeRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeactivatePrivilegedModeRequest | PlainMessage<DeactivatePrivilegedModeRequest> | undefined, b: DeactivatePrivilegedModeRequest | PlainMessage<DeactivatePrivilegedModeRequest> | undefined): boolean {
+    return proto3.util.equals(DeactivatePrivilegedModeRequest, a, b);
+  }
+}
+
+/**
+ * Result of deactivating privileged mode for the current session.
+ *
+ * @generated from message chatto.api.v1.DeactivatePrivilegedModeResponse
+ */
+export class DeactivatePrivilegedModeResponse extends Message<DeactivatePrivilegedModeResponse> {
+  /**
+   * Current privileged-mode state after deactivation.
+   *
+   * @generated from field: chatto.api.v1.PrivilegedModeState privileged_mode = 1;
+   */
+  privilegedMode?: PrivilegedModeState;
+
+  /**
+   * Permission-derived capabilities that are effective after deactivation.
+   *
+   * @generated from field: chatto.api.v1.ViewerCapabilities capabilities = 2;
+   */
+  capabilities?: ViewerCapabilities;
+
+  /**
+   * Effective server permission decisions after deactivation.
+   *
+   * @generated from field: chatto.api.v1.ServerViewerPermissions viewer_permissions = 3;
+   */
+  viewerPermissions?: ServerViewerPermissions;
+
+  constructor(data?: PartialMessage<DeactivatePrivilegedModeResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeactivatePrivilegedModeResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "privileged_mode", kind: "message", T: PrivilegedModeState },
+    { no: 2, name: "capabilities", kind: "message", T: ViewerCapabilities },
+    { no: 3, name: "viewer_permissions", kind: "message", T: ServerViewerPermissions },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeactivatePrivilegedModeResponse {
+    return new DeactivatePrivilegedModeResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeactivatePrivilegedModeResponse {
+    return new DeactivatePrivilegedModeResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeactivatePrivilegedModeResponse {
+    return new DeactivatePrivilegedModeResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeactivatePrivilegedModeResponse | PlainMessage<DeactivatePrivilegedModeResponse> | undefined, b: DeactivatePrivilegedModeResponse | PlainMessage<DeactivatePrivilegedModeResponse> | undefined): boolean {
+    return proto3.util.equals(DeactivatePrivilegedModeResponse, a, b);
   }
 }

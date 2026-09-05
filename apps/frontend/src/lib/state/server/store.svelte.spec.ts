@@ -16,6 +16,14 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import {
+  GetViewerResponse,
+  PrivilegedModeState,
+  ServerViewerPermissions,
+  ViewerCapabilities,
+  ViewerUser
+} from '@chatto/api-types/api/v1/viewer_pb';
+import { CapabilityGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import {
   RealtimeResourceUpdate,
   type RealtimeResourceFamily
 } from '$lib/api-client/realtimeResources';
@@ -81,6 +89,21 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
     joinCall: vi.fn(() => Promise.resolve(true)),
     getCallToken: vi.fn(() => Promise.resolve(null)),
     leaveCall: vi.fn(() => Promise.resolve(true)),
+    activatePrivilegedMode: vi.fn(() =>
+      Promise.resolve({
+        privilegedMode: new PrivilegedModeState({ available: true, active: true }),
+        capabilities: new ViewerCapabilities(),
+        viewerPermissions: new ServerViewerPermissions()
+      })
+    ),
+    deactivatePrivilegedMode: vi.fn(() =>
+      Promise.resolve({
+        privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+        capabilities: new ViewerCapabilities(),
+        viewerPermissions: new ServerViewerPermissions()
+      })
+    ),
+    refreshPrivilegedMode: vi.fn(() => Promise.resolve(new GetViewerResponse())),
     getAuthenticatedServerState: vi.fn<() => Promise<AuthenticatedServerState>>(() =>
       Promise.resolve({
         name: 'Store Event Test',
@@ -278,11 +301,19 @@ vi.mock('$lib/api-client/serverState', () => ({
   getAuthenticatedServerState: apiMocks.getAuthenticatedServerState
 }));
 
-vi.mock('$lib/api-client/viewer', () => ({
-  getViewerStateViaConnect: apiMocks.getViewerStateViaConnect,
-  getCurrentUserViaConnect: apiMocks.getCurrentUserViaConnect,
-  viewerResponseToState: (viewer: unknown) => viewer
-}));
+vi.mock('$lib/api-client/viewer', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/viewer')>();
+  return {
+    ...actual,
+    createPrivilegedModeAPI: vi.fn(() => ({
+      activate: apiMocks.activatePrivilegedMode,
+      deactivate: apiMocks.deactivatePrivilegedMode,
+      refresh: apiMocks.refreshPrivilegedMode
+    })),
+    getViewerStateViaConnect: apiMocks.getViewerStateViaConnect,
+    getCurrentUserViaConnect: apiMocks.getCurrentUserViaConnect
+  };
+});
 
 vi.mock('$lib/api-client/attachments', async (importActual) => {
   const actual = await importActual<typeof import('$lib/api-client/attachments')>();
@@ -314,6 +345,7 @@ class FakeServerConnection {
   setRealtimeConnectionStatus = vi.fn();
   registerRealtimeReconnect = vi.fn(() => () => {});
   handleAuthenticationRequired = vi.fn();
+  forceReconnect = vi.fn();
   query = vi.fn();
   results: unknown[];
 
@@ -482,6 +514,20 @@ beforeEach(() => {
   apiMocks.joinCall.mockResolvedValue(true);
   apiMocks.getCallToken.mockResolvedValue(null);
   apiMocks.leaveCall.mockResolvedValue(true);
+  apiMocks.activatePrivilegedMode.mockReset();
+  apiMocks.activatePrivilegedMode.mockResolvedValue({
+    privilegedMode: new PrivilegedModeState({ available: true, active: true }),
+    capabilities: new ViewerCapabilities(),
+    viewerPermissions: new ServerViewerPermissions()
+  });
+  apiMocks.deactivatePrivilegedMode.mockReset();
+  apiMocks.deactivatePrivilegedMode.mockResolvedValue({
+    privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+    capabilities: new ViewerCapabilities(),
+    viewerPermissions: new ServerViewerPermissions()
+  });
+  apiMocks.refreshPrivilegedMode.mockReset();
+  apiMocks.refreshPrivilegedMode.mockResolvedValue(new GetViewerResponse());
   apiMocks.getAuthenticatedServerState.mockResolvedValue({
     name: 'Store Event Test',
     version: 'test',
@@ -576,6 +622,101 @@ afterEach(() => {
   setRealtimeSocketFactoryForTests(null);
   soundMocks.playCallSound.mockClear();
   vi.restoreAllMocks();
+});
+
+describe('ServerStateStore privileged mode', () => {
+  it('applies the activation result and refreshes realtime projections', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    });
+    store.setPermissions({ canAdminViewSystem: false } as never);
+    store.realtimeSync.markCaughtUp('cursor-before');
+    apiMocks.activatePrivilegedMode.mockResolvedValueOnce({
+      privilegedMode: new PrivilegedModeState({ available: true, active: true }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
+      viewerPermissions: new ServerViewerPermissions()
+    });
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+
+    await store.setPrivilegedMode(true);
+
+    expect(apiMocks.activatePrivilegedMode).toHaveBeenCalledOnce();
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(true);
+    expect(store.permissions.canAdminViewSystem).toBe(true);
+    expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+  });
+
+  it('applies deactivation permissions before completing the projection refresh', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: true })]
+      }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    });
+    store.setPermissions({ canAdminViewSystem: true } as never);
+    store.realtimeSync.markCaughtUp('cursor-before');
+    apiMocks.deactivatePrivilegedMode.mockResolvedValueOnce({
+      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: false })]
+      }),
+      viewerPermissions: new ServerViewerPermissions()
+    });
+    fake.forceReconnect.mockImplementationOnce(() =>
+      store.realtimeSync.markCaughtUp(
+        'cursor-after',
+        store.realtimeSync.pendingAuthorizationRefreshGeneration
+      )
+    );
+
+    await store.setPrivilegedMode(false);
+
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
+    expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+  });
+
+  it('clears expired activation and refreshes effective permissions', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: true })
+    });
+    store.setPermissions({ canAdminViewSystem: true } as never);
+    apiMocks.refreshPrivilegedMode.mockResolvedValueOnce({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: false }),
+      capabilities: new ViewerCapabilities({
+        grants: [new CapabilityGrant({ capability: 'admin.view-system', granted: false })]
+      })
+    } as GetViewerResponse);
+
+    await store.expirePrivilegedMode();
+
+    expect(store.projection.viewer?.privilegedMode?.available).toBe(true);
+    expect(store.projection.viewer?.privilegedMode?.active).toBe(false);
+    expect(store.permissions.canAdminViewSystem).toBe(false);
+    expect(apiMocks.refreshPrivilegedMode).toHaveBeenCalledOnce();
+    expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode expired');
+  });
 });
 
 describe('ServerStateStore authentication state', () => {

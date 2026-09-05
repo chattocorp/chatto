@@ -187,6 +187,8 @@ enum RealtimeCloseCode {
   REALTIME_CLOSE_CODE_RESYNC_REQUIRED = 6;
   // The user's session ended and the client must return to sign-in.
   REALTIME_CLOSE_CODE_SESSION_TERMINATED = 7;
+  // Privileged mode expired. Reconnect and refresh effective viewer and room permissions.
+  REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED = 8;
 }
 
 // Close instruction sent before the socket closes when possible.

@@ -154,6 +154,8 @@ const (
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_RESYNC_REQUIRED RealtimeCloseCode = 6
 	// The user's session ended and the client must return to sign-in.
 	RealtimeCloseCode_REALTIME_CLOSE_CODE_SESSION_TERMINATED RealtimeCloseCode = 7
+	// Privileged mode expired. Reconnect and refresh effective viewer and room permissions.
+	RealtimeCloseCode_REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED RealtimeCloseCode = 8
 )
 
 // Enum value maps for RealtimeCloseCode.
@@ -167,6 +169,7 @@ var (
 		5: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED",
 		6: "REALTIME_CLOSE_CODE_RESYNC_REQUIRED",
 		7: "REALTIME_CLOSE_CODE_SESSION_TERMINATED",
+		8: "REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED",
 	}
 	RealtimeCloseCode_value = map[string]int32{
 		"REALTIME_CLOSE_CODE_UNSPECIFIED":              0,
@@ -177,6 +180,7 @@ var (
 		"REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED": 5,
 		"REALTIME_CLOSE_CODE_RESYNC_REQUIRED":          6,
 		"REALTIME_CLOSE_CODE_SESSION_TERMINATED":       7,
+		"REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED":  8,
 	}
 )
 
@@ -1504,7 +1508,7 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x1dREALTIME_RECOVERY_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19REALTIME_RECOVERY_RESUMED\x10\x01\x12\x1e\n" +
 	"\x1aREALTIME_RECOVERY_SNAPSHOT\x10\x02\x12\x1f\n" +
-	"\x1bREALTIME_RECOVERY_LIVE_ONLY\x10\x03*\xf8\x02\n" +
+	"\x1bREALTIME_RECOVERY_LIVE_ONLY\x10\x03*\xa9\x03\n" +
 	"\x11RealtimeCloseCode\x12#\n" +
 	"\x1fREALTIME_CLOSE_CODE_UNSPECIFIED\x10\x00\x12'\n" +
 	"#REALTIME_CLOSE_CODE_INVALID_REQUEST\x10\x01\x12,\n" +
@@ -1513,7 +1517,8 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"+REALTIME_CLOSE_CODE_AUTHENTICATION_REQUIRED\x10\x04\x120\n" +
 	",REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED\x10\x05\x12'\n" +
 	"#REALTIME_CLOSE_CODE_RESYNC_REQUIRED\x10\x06\x12*\n" +
-	"&REALTIME_CLOSE_CODE_SESSION_TERMINATED\x10\aB\xcc\x01\n" +
+	"&REALTIME_CLOSE_CODE_SESSION_TERMINATED\x10\a\x12/\n" +
+	"+REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED\x10\bB\xcc\x01\n" +
 	"\x16com.chatto.realtime.v1B\rRealtimeProtoP\x01Z9hmans.de/chatto/internal/pb/chatto/realtime/v1;realtimev1\xa2\x02\x03CRX\xaa\x02\x12Chatto.Realtime.V1\xca\x02\x12Chatto\\Realtime\\V1\xe2\x02\x1eChatto\\Realtime\\V1\\GPBMetadata\xea\x02\x14Chatto::Realtime::V1b\x06proto3"
 
 var (

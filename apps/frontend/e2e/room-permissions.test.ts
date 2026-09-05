@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
 import {
+  activatePrivilegedMode,
   createAndLoginTestUser,
   logoutCurrentUser,
   loginAsAdminAndUsePrimaryServer,
@@ -519,6 +520,7 @@ test.describe('Room-Level Permission Overrides', () => {
       const member = await createSecondTestUser(page);
       await logoutUser(page);
       await loginUser(page, member.login, member.password);
+      await activatePrivilegedMode(page);
       await joinRoomViaAPI(page, roomId);
 
       await page.goto(routes.room(roomId));

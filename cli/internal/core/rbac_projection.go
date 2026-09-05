@@ -550,6 +550,37 @@ func (p *RBACProjection) DecisionsForRoleServer(roleName string) (grants []Permi
 	return p.DecisionsFor(ScopeServer, "", roleName)
 }
 
+// HasAnyPrivilegedModeAllow reports whether the user, everyone, or one of the
+// user's assigned roles has an explicit allow for an elevation-required
+// permission at any scope. Effective authorization still resolves denies and
+// scope precedence when the user performs an action.
+func (p *RBACProjection) HasAnyPrivilegedModeAllow(userID string) bool {
+	p.RLock()
+	defer p.RUnlock()
+	roles := p.assignments[userID]
+	for key, decision := range p.decisions {
+		if decision != DecisionAllow {
+			continue
+		}
+		metadata, known := GetPermissionMetadata(key.permission)
+		if !known || !metadata.RequiresPrivilegedMode {
+			continue
+		}
+		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER && key.subject == userID {
+			return true
+		}
+		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE && (key.subject == RoleEveryone) {
+			return true
+		}
+		if key.subjectKind == evtv1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_ROLE {
+			if _, assigned := roles[key.subject]; assigned {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (p *RBACProjection) NextAvailablePosition() int32 {
 	p.RLock()
 	defer p.RUnlock()

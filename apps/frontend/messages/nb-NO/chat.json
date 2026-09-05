@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Aktiver privilegert modus",
+      "disable": "Deaktiver privilegert modus",
+      "confirmation": "I 15 minutter aktiverer dette tilleggstillatelsene du har fått på denne serveren."
+    },
     "notifications": {
       "title": "Varsler",
       "subtitle": "Her er hva som er nytt",

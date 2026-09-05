@@ -50,6 +50,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodePermissionDenied, err)
 	}
 	if errors.Is(err, core.ErrHumanAccountRequired) ||
+		errors.Is(err, core.ErrPrivilegedModeUnavailable) ||
 		errors.Is(err, core.ErrBotOwnerPermissionCeiling) ||
 		errors.Is(err, core.ErrNeighborMatchesServerOrigin) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)

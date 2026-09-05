@@ -66,7 +66,8 @@ Each `chatto_auth_<slot>` browser authentication cookie has these options:
 
 The cookie contains only a random SCS handle. It does not contain identity or
 authorization data. The user ID, source, auth generation, fresh-auth metadata,
-and explicit expiry live in the server-side `session.{hmac}` record. Chatto
+privileged-mode deadline, and explicit expiry live in the server-side
+`session.{hmac}` record. Chatto
 uses a new cookie slot for each successful sign-in or renewal. If an old HTTP
 response arrives late, it cannot overwrite a newer session cookie. Chatto
 ignores revoked slots and removes obsolete slots during the next authentication
@@ -128,6 +129,10 @@ consent, and bearer-token flow as hosted frontends.
 Chatto enforces access control at the **API boundary**: ConnectRPC services require authentication by default unless they are explicitly public, and public operation models check permissions before touching domain state.
 
 Chatto uses a role-based permission system with four built-in roles (everyone / moderator / admin / owner), custom roles, room-specific overrides, and per-user grants and denies. The full model is covered on its own page:
+
+Administrative and moderation permissions also require explicit privileged
+mode on the current human session. The fixed activation lasts for 15 minutes.
+It does not change roles or grants. Bot API keys do not use this mode.
 
 <LinkCard
   title="Permissions & Roles"

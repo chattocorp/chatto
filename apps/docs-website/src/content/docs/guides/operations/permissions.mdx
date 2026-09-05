@@ -11,7 +11,7 @@ Every signed-in user belongs to the `everyone` role. You can also give them buil
 
 The main rules are:
 
-- **Owners can always do everything.** A user is an owner when they have the `owner` role or a verified email listed in `owners.emails`.
+- **Owners are entitled to every permission.** A user is an owner when they have the `owner` role or a verified email listed in `owners.emails`. They must activate privileged mode before elevation-required permissions become effective.
 - **A deny on a user or one of their assigned roles wins.** For example, a deny from a `suspended` role overrides an allow from `admin`.
 - **More specific settings replace broader ones for the same user or role.** A channel uses Room, Room group, then Server. A DM uses Direct messages, then Server.
 - **`everyone` provides the default.** A user or role can override an `everyone` deny, but its allow must be at least as specific as the deny.
@@ -29,11 +29,36 @@ Every Chatto server starts with four system roles. You cannot delete them.
 
 The order of roles in the admin UI does not affect which permissions win.
 
+## Privileged mode
+
+Chatto keeps administrative and moderation permissions inactive during normal
+chat use. When you need these permissions, select the shield in your current-
+user area and confirm **Enable privileged mode**. The activation applies only
+to the selected server session. It lasts for 15 minutes and does not extend
+when you use a permission. Select the active shield to disable it sooner.
+The interface updates effective permissions immediately. At expiry, the server
+reconnects the live projection so elevated controls turn off without a page
+reload.
+
+The mode activates permissions, not role names. It therefore also covers
+custom roles and direct user grants. It does not add authority: a role removal
+or deny still takes effect while the mode is active.
+
+The initial elevation-required set includes message moderation, room creation
+and management, role and user administration, server management, invite and
+bot administration, audit access, and owner-only system diagnostics. Normal
+message use and editing or deleting your own messages do not require the mode.
+Bot API keys do not use privileged mode.
+
+The event log records each successful activation and explicit deactivation.
+An activation entry includes its deadline, which also records when automatic
+expiry will occur.
+
 ## How a permission check works
 
 When a user tries to do something, Chatto checks permissions in this order:
 
-1. Owners are allowed. DM membership rules still apply, so owners cannot read DMs they are not part of.
+1. Owners are entitled to every permission. Elevation-required permissions also need active privileged mode. DM membership rules still apply, so owners cannot read DMs they are not part of.
 2. For the user and each assigned role, Chatto selects the nearest setting in the channel or DM scope chain.
 3. If any of those settings is **Deny**, the action is denied. Otherwise, Chatto keeps any **Allow** it found.
 4. Chatto compares that result with the most specific setting for `everyone`. An allow for the user or an assigned role can override an `everyone` deny only if it is at the same or a more specific scope.
@@ -194,7 +219,7 @@ Custom roles are reusable sets of permissions. They can override `everyone`, but
 
 Owners and admins are deliberately different:
 
-- **Owners** always have every permission. You cannot lock them out by changing roles or permission settings. Their permission rows appear as read-only green checks in the UI.
+- **Owners** are always entitled to every permission. You cannot lock them out by changing roles or permission settings. Their permission rows appear as read-only green checks in the UI. They must activate privileged mode to use elevation-required permissions.
 - **Admins** receive broad default permissions, but you can still restrict them. A deny set directly on the admin or on one of their roles wins. An `everyone` deny also applies unless the admin has an allow at the same or a more specific scope.
 
 Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user must verify the listed email before becoming an owner.

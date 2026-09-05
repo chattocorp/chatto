@@ -284,6 +284,67 @@ describe('eventBusManager realtime transport', () => {
     expect(subscribe.resumeCursor).toBe('cursor-boundary');
   });
 
+  it('completes privileged-mode refresh only after resource reconciliation without resetting state', async () => {
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('retained-cursor');
+    const requested = sync.invalidateAuthorization();
+    const refreshed = sync.waitForAuthorizationRefresh(requested);
+    let finish!: () => void;
+    const reconcile = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(
+      TEST_SERVER,
+      fake as unknown as ServerConnection,
+      true,
+      sync,
+      reconcile
+    );
+    const socket = sockets[0];
+    socket.open();
+    const updates = vi.fn();
+    eventBusManager.getBus(TEST_SERVER)!.projectionHandlers.add(updates);
+    expect(RealtimeSubscribe.fromBinary(socket.sent[0]).resumeCursor).toBe('retained-cursor');
+    await socket.receive(
+      serverFrame({ case: 'caughtUp', value: new RealtimeCaughtUp({ cursor: 'current-cursor' }) })
+    );
+    expect(sync.phase).toBe('stale');
+    expect(sync.authorizationRefreshRequired).toBe(true);
+    finish();
+    await expect(refreshed).resolves.toBe(true);
+    expect(reconcile).toHaveBeenCalledWith('current-cursor');
+    expect(sync.authorizationRefreshRequired).toBe(false);
+    expect(updates).not.toHaveBeenCalled();
+  });
+
+  it('invalidates privileged authority when the server deadline closes the socket', async () => {
+    vi.useFakeTimers();
+    const sync = new RealtimeProjectionSyncState();
+    sync.markCaughtUp('retained-cursor');
+    const fake = new FakeServerConnection();
+    eventBusManager.startBus(TEST_SERVER, fake as unknown as ServerConnection, true, sync);
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED,
+          reconnect: true
+        })
+      })
+    );
+    expect(sync.authorizationRefreshRequired).toBe(true);
+    expect(sync.hasUsableProjection).toBe(true);
+    expect(sync.resumeCursor).toBe('retained-cursor');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sockets).toHaveLength(2);
+  });
+
   it('replaces retained state when a resume cursor falls back to a snapshot', async () => {
     const sync = new RealtimeProjectionSyncState();
     sync.markCaughtUp('cursor-expired');

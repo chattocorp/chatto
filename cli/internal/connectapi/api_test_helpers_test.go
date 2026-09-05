@@ -44,6 +44,16 @@ func withBearerCredential(ctx context.Context, user *evtv1.User, token string) c
 	})
 }
 
+func withArmedBearerCredential(ctx context.Context, user *evtv1.User, token string) context.Context {
+	ctx = withCaller(ctx, user)
+	return authctx.WithCredential(ctx, authctx.RuntimeCredential{
+		Kind:                    authctx.RuntimeCredentialKindBearerToken,
+		UserID:                  user.Id,
+		Handle:                  token,
+		PrivilegedModeExpiresAt: time.Now().Add(time.Minute),
+	})
+}
+
 func boolPtr(value bool) *bool {
 	return &value
 }

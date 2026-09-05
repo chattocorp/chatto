@@ -52,7 +52,7 @@ export function removeAdminQueries(serverId: string): void {
   });
 }
 
-/** Refresh active admin snapshots in place while a replacement projection hydrates. */
+/** Refresh active admin snapshots after effective privilege state changes. */
 export function refreshAdminQueries(serverId: string): void {
   void queryClient.invalidateQueries({
     predicate: (query) => {

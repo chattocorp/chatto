@@ -1,5 +1,7 @@
 import { expect, request, type APIRequestContext } from '@playwright/test';
+import { connectPost } from './connectHelpers';
 
+/** Create an isolated, authenticated, and armed bootstrap-owner API context. */
 export async function createBootstrapAdminRequest(baseURL: string): Promise<APIRequestContext> {
   const adminRequest = await request.newContext({ baseURL });
   const loginResponse = await adminRequest.post('/auth/browser/login', {
@@ -11,6 +13,7 @@ export async function createBootstrapAdminRequest(baseURL: string): Promise<APIR
     data: { login: 'e2eadmin', password: 'adminpassword123' }
   });
   expect(loginResponse.ok()).toBeTruthy();
+  await connectPost(adminRequest, 'chatto.api.v1.ViewerService/ActivatePrivilegedMode');
   return adminRequest;
 }
 

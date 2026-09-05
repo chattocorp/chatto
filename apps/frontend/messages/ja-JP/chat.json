@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "特権モードを有効にする",
+      "disable": "特権モードを無効にする",
+      "confirmation": "15分間、このサーバーで割り当てられている追加の権限を有効にします。"
+    },
     "notifications": {
       "title": "通知",
       "subtitle": "新機能はこちら",

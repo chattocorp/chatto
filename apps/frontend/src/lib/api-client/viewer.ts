@@ -1,7 +1,13 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import {
+  TimeFormat,
+  type GetViewerResponse,
+  type PrivilegedModeState,
+  type ServerViewerPermissions,
+  type ViewerCapabilities as APIViewerCapabilities
+} from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
@@ -56,7 +62,58 @@ export type ViewerState = ViewerCapabilities & {
   user: CurrentUser;
   viewerPermissions: Record<string, boolean>;
   viewerHasUnreadRooms: boolean;
+  privilegedMode: {
+    available: boolean;
+    active: boolean;
+    expiresAt: string | null;
+  };
 };
+
+export type PrivilegedModeAPI = {
+  activate(): Promise<PrivilegedModeUpdate>;
+  deactivate(): Promise<PrivilegedModeUpdate>;
+  refresh(): Promise<GetViewerResponse>;
+};
+
+export type PrivilegedModeUpdate = {
+  privilegedMode: PrivilegedModeState;
+  capabilities: APIViewerCapabilities;
+  viewerPermissions: ServerViewerPermissions;
+};
+
+export function createPrivilegedModeAPI(config: ViewerAPIConfig): PrivilegedModeAPI {
+  const client = createChattoClient(ViewerService, config);
+  const options = () => ({ headers: authHeaders(config) });
+  return {
+    async activate() {
+      const response = await client.activatePrivilegedMode({}, options());
+      if (!response.privilegedMode)
+        throw new Error('privileged-mode response did not include state');
+      if (!response.capabilities || !response.viewerPermissions)
+        throw new Error('privileged-mode response did not include effective permissions');
+      return {
+        privilegedMode: response.privilegedMode,
+        capabilities: response.capabilities,
+        viewerPermissions: response.viewerPermissions
+      };
+    },
+    async deactivate() {
+      const response = await client.deactivatePrivilegedMode({}, options());
+      if (!response.privilegedMode)
+        throw new Error('privileged-mode response did not include state');
+      if (!response.capabilities || !response.viewerPermissions)
+        throw new Error('privileged-mode response did not include effective permissions');
+      return {
+        privilegedMode: response.privilegedMode,
+        capabilities: response.capabilities,
+        viewerPermissions: response.viewerPermissions
+      };
+    },
+    refresh() {
+      return client.getViewer({}, options());
+    }
+  };
+}
 
 const capabilityKeys = {
   adminView: 'admin.view',
@@ -138,7 +195,12 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
     canManageUserPermissions: can(capabilityKeys.manageUserPermissions),
     canManageInvites: can(capabilityKeys.manageInvites),
     viewerPermissions,
-    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false
+    viewerHasUnreadRooms: response.viewerState?.hasUnreadRooms ?? false,
+    privilegedMode: {
+      available: response.privilegedMode?.available ?? false,
+      active: response.privilegedMode?.active ?? false,
+      expiresAt: response.privilegedMode?.expiresAt?.toDate().toISOString() ?? null
+    }
   };
 }
 

@@ -40,7 +40,9 @@ const {
   voiceCallState,
   roomsState,
   inputCapabilities,
-  customStatusEditorModuleLoaded
+  customStatusEditorModuleLoaded,
+  projectionState,
+  privilegedModeActions
 } = vi.hoisted(() => ({
   currentUserState: {
     user: null as {
@@ -90,7 +92,20 @@ const {
     prefersTouchActions: false,
     supportsHoverActions: true
   },
-  customStatusEditorModuleLoaded: vi.fn()
+  customStatusEditorModuleLoaded: vi.fn(),
+  projectionState: {
+    viewer: null as null | {
+      privilegedMode?: {
+        available: boolean;
+        active: boolean;
+        expiresAt?: { toDate(): Date };
+      };
+    }
+  },
+  privilegedModeActions: {
+    set: vi.fn(),
+    expire: vi.fn()
+  }
 }));
 const navigation = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -107,7 +122,10 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {
       currentUser: currentUserState,
       voiceCall: voiceCallState,
-      navigation: roomsState
+      navigation: roomsState,
+      projection: projectionState,
+      setPrivilegedMode: privilegedModeActions.set,
+      expirePrivilegedMode: privilegedModeActions.expire
     },
     connection: {
       connectBaseUrl: 'https://chat.example.test',
@@ -189,7 +207,56 @@ describe('CurrentUserBar', () => {
     inputCapabilities.prefersTouchActions = false;
     inputCapabilities.supportsHoverActions = true;
     customStatusEditorModuleLoaded.mockClear();
+    projectionState.viewer = null;
+    privilegedModeActions.set.mockReset();
+    privilegedModeActions.set.mockResolvedValue(undefined);
+    privilegedModeActions.expire.mockReset();
     delete window.chattoDesktop;
+  });
+
+  it('asks before enabling privileged mode for this server', async () => {
+    projectionState.viewer = {
+      privilegedMode: { available: true, active: false }
+    };
+    const { getByRole } = render(CurrentUserBarTestHarness);
+
+    await userEvent.click(getByRole('button', { name: 'Enable privileged mode' }));
+    await expect
+      .element(getByRole('heading', { name: 'Enable privileged mode' }))
+      .toBeInTheDocument();
+    expect(privilegedModeActions.set).not.toHaveBeenCalled();
+
+    await userEvent.click(getByRole('button', { name: 'Enable privileged mode' }).last());
+    expect(privilegedModeActions.set).toHaveBeenCalledWith(true);
+  });
+
+  it('disables active privileged mode without another confirmation', async () => {
+    projectionState.viewer = {
+      privilegedMode: {
+        available: true,
+        active: true,
+        expiresAt: { toDate: () => new Date(Date.now() + 60_000) }
+      }
+    };
+    const { getByRole } = render(CurrentUserBarTestHarness);
+
+    await userEvent.click(getByRole('button', { name: 'Disable privileged mode' }));
+
+    expect(privilegedModeActions.set).toHaveBeenCalledWith(false);
+  });
+
+  it('expires privileged mode when its server deadline is reached', async () => {
+    projectionState.viewer = {
+      privilegedMode: {
+        available: true,
+        active: true,
+        expiresAt: { toDate: () => new Date(Date.now() - 1) }
+      }
+    };
+
+    render(CurrentUserBarTestHarness);
+
+    await expect.poll(() => privilegedModeActions.expire.mock.calls.length).toBe(1);
   });
 
   it('uses the seeded presence cache instead of the first-login offline fallback', () => {

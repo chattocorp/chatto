@@ -224,6 +224,13 @@ timed-out, and rejected catch-ups.
 
 ## Authorization and projection readiness
 
+Privileged-mode changes keep the mounted client state and resume cursor. The
+client reconnects and reads current viewer and room resources before it marks
+catch-up complete. The server cancels authorized work at the session's privilege
+deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. The client
+then reads effective permissions with privileged mode inactive. See
+[ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md).
+
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, waits until `ServerContentView` reaches that cutoff
 before it reads membership, applicable message-read permissions, interaction

@@ -299,14 +299,19 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		log.Warn("Failed to load user from cookie runtime credential", "userId", userID, "error", err)
 		return presentedRuntimeCredential{}, false, nil
 	}
+	privilegedModeExpiresAt := time.Time{}
+	if deadline := record.GetPrivilegedModeExpiresAt(); deadline != nil {
+		privilegedModeExpiresAt = deadline.AsTime()
+	}
 
 	return presentedRuntimeCredential{
 		user: user,
 		auth: authctx.RuntimeCredential{
-			Kind:      authctx.RuntimeCredentialKindCookieSession,
-			UserID:    userID,
-			Handle:    selected.token,
-			ExpiresAt: record.GetExpiresAt().AsTime(),
+			Kind:                    authctx.RuntimeCredentialKindCookieSession,
+			UserID:                  userID,
+			Handle:                  selected.token,
+			ExpiresAt:               record.GetExpiresAt().AsTime(),
+			PrivilegedModeExpiresAt: privilegedModeExpiresAt,
 		},
 		cookieRecord:      record,
 		presentedSessions: presentedSessions,

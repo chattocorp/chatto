@@ -148,6 +148,13 @@ export enum RealtimeCloseCode {
    * @generated from enum value: REALTIME_CLOSE_CODE_SESSION_TERMINATED = 7;
    */
   SESSION_TERMINATED = 7,
+
+  /**
+   * Privileged mode expired. Reconnect and refresh effective viewer and room permissions.
+   *
+   * @generated from enum value: REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED = 8;
+   */
+  PRIVILEGED_MODE_EXPIRED = 8,
 }
 // Retrieve enum metadata with: proto3.getEnumType(RealtimeCloseCode)
 proto3.util.setEnumType(RealtimeCloseCode, "chatto.realtime.v1.RealtimeCloseCode", [
@@ -159,6 +166,7 @@ proto3.util.setEnumType(RealtimeCloseCode, "chatto.realtime.v1.RealtimeCloseCode
   { no: 5, name: "REALTIME_CLOSE_CODE_SESSION_RENEWAL_REQUIRED" },
   { no: 6, name: "REALTIME_CLOSE_CODE_RESYNC_REQUIRED" },
   { no: 7, name: "REALTIME_CLOSE_CODE_SESSION_TERMINATED" },
+  { no: 8, name: "REALTIME_CLOSE_CODE_PRIVILEGED_MODE_EXPIRED" },
 ]);
 
 /**

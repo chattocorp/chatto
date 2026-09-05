@@ -20,7 +20,7 @@ func (c *ChattoCore) GetAdminDiagnostics(ctx context.Context, actorID string) (*
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	isOwner, err := c.IsServerOwner(ctx, actorID)
+	isOwner, err := c.CanAdminSystemView(ctx, actorID)
 	if err != nil {
 		return nil, fmt.Errorf("check owner role: %w", err)
 	}

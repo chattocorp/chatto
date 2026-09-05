@@ -110,3 +110,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-093](ADR-093-use-a-public-realtime-event-union.md) | Use a Public Realtime Event Union with Dedicated Payloads | Accepted | 2026-09-03 |
 | [ADR-094](ADR-094-separate-durable-and-pubsub-event-envelopes.md) | Separate Durable and Pubsub Event Envelopes | Accepted | 2026-09-03 |
 | [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md) | Direct-Message Permission Scope and Threads | Accepted | 2026-09-04 |
+| [ADR-096](ADR-096-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |

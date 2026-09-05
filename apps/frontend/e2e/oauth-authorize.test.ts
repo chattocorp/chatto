@@ -228,6 +228,11 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			await expect(adminPage).toHaveURL(/\/chat(\/|$)/, {
 				timeout: TIMEOUTS.REALTIME_EVENT
 			});
+			await adminPage.getByRole('button', { name: 'Enable privileged mode' }).click();
+			await adminPage
+				.getByRole('dialog', { name: 'Enable privileged mode' })
+				.getByRole('button', { name: 'Enable privileged mode' })
+				.click();
 			await adminPage.goto(`${baseURL}/chat/-/manage/server/security`);
 
 			const clientID = `${new URL(serverURL).origin}/oauth/frontend-client-metadata.json`;

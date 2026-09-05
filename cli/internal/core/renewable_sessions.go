@@ -75,6 +75,7 @@ type RenewableSession struct {
 	FreshAuthAt                time.Time `json:"fresh_auth_at,omitempty"`
 	FreshAuthMethod            string    `json:"fresh_auth_method,omitempty"`
 	FreshAuthSource            string    `json:"fresh_auth_source,omitempty"`
+	PrivilegedModeExpiresAt    time.Time `json:"privileged_mode_expires_at,omitempty"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {

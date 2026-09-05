@@ -87,6 +87,21 @@ message BearerTokenRevokedEvent {
   AuditRequestMetadata request = 3;
 }
 
+// PrivilegedModeActivatedEvent records one successful transition into
+// privileged mode. The deadline identifies when the runtime activation ends.
+message PrivilegedModeActivatedEvent {
+  string user_id = 1;
+  google.protobuf.Timestamp expires_at = 2;
+  AuditRequestMetadata request = 3;
+}
+
+// PrivilegedModeDeactivatedEvent records one explicit transition out of
+// privileged mode before its deadline.
+message PrivilegedModeDeactivatedEvent {
+  string user_id = 1;
+  AuditRequestMetadata request = 2;
+}
+
 message OAuthConsentGrantedEvent {
   string user_id = 1;
   string redirect_origin = 2;

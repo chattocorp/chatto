@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Lülita privilegeeritud režiim sisse",
+      "disable": "Lülita privilegeeritud režiim välja",
+      "confirmation": "See aktiveerib 15 minutiks sulle selles serveris määratud lisaõigused."
+    },
     "notifications": {
       "title": "Märguanded",
       "subtitle": "Siin on, mis on uut",

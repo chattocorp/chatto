@@ -348,6 +348,7 @@ class EventBusManager {
       });
 
       const nextSocket = realtimeSocketFactory(serverConnection.realtimeUrl);
+      const authorizationRefreshGeneration = sync.pendingAuthorizationRefreshGeneration;
       let frameProcessing = Promise.resolve();
       let cursorReconciliation = Promise.resolve();
       let reconciliationFailed = false;
@@ -474,7 +475,7 @@ class EventBusManager {
                 }
                 if (stopped || socket !== nextSocket) return;
                 catchUpComplete = true;
-                sync.markCaughtUp(frame.frame.value.cursor);
+                sync.markCaughtUp(frame.frame.value.cursor, authorizationRefreshGeneration);
                 resolvePoll(true);
                 if (mode === 'polling') {
                   mode = 'dormant';
@@ -489,6 +490,9 @@ class EventBusManager {
                 return;
               }
               case 'close':
+                if (frame.frame.value.code === RealtimeCloseCode.PRIVILEGED_MODE_EXPIRED) {
+                  sync.invalidateAuthorization();
+                }
                 if (frame.frame.value.code === RealtimeCloseCode.SESSION_TERMINATED) {
                   for (const handler of sessionTerminatedHandlers) {
                     try {

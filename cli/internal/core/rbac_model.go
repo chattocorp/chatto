@@ -60,6 +60,10 @@ func (m *RBACModel) decisionsForRoleServer(roleName string) (grants, denials []P
 	return m.rbac.Projection().DecisionsForRoleServer(roleName)
 }
 
+func (m *RBACModel) hasAnyPrivilegedModeAllow(userID string) bool {
+	return m.rbac.Projection().HasAnyPrivilegedModeAllow(userID)
+}
+
 func (m *RBACModel) nextAvailablePosition() int32 {
 	return m.rbac.Projection().NextAvailablePosition()
 }

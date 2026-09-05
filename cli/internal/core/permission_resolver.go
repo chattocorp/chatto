@@ -3,6 +3,9 @@ package core
 import (
 	"context"
 	"fmt"
+	"time"
+
+	"hmans.de/chatto/internal/authctx"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -107,6 +110,37 @@ func (r *PermissionResolver) resolveInContentView(ctx context.Context, resolve f
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+	decision, err := r.resolveEntitlementWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+	if err != nil || decision != DecisionAllow {
+		return decision, err
+	}
+	metadata, known := GetPermissionMetadata(perm)
+	if !known || !metadata.RequiresPrivilegedMode {
+		return decision, nil
+	}
+	if !privilegedModeAllows(ctx, userID, time.Now()) {
+		return DecisionDeny, nil
+	}
+	return decision, nil
+}
+
+// privilegedModeAllows keeps internal and bot-derived authorization behavior
+// unchanged while requiring explicit activation for the authenticated human.
+func privilegedModeAllows(ctx context.Context, userID string, now time.Time) bool {
+	credential, authenticated := authctx.CredentialForContext(ctx)
+	if !authenticated || credential.Kind == authctx.RuntimeCredentialKindBotAPIKey {
+		return true
+	}
+	if credential.UserID != userID {
+		return false
+	}
+	return now.Before(credential.PrivilegedModeExpiresAt)
+}
+
+// resolveEntitlementWithGroup resolves durable RBAC entitlement without the
+// human-session privileged-mode gate. Use it only for permission discovery,
+// delegation ceilings, and other checks that must describe assigned authority.
+func (r *PermissionResolver) resolveEntitlementWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	isBot, ownerUserID, accountExists := r.core.userModel.isBotAndOwner(userID)
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)

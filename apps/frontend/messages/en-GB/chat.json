@@ -1,5 +1,10 @@
 {
   "chat": {
+    "privileged_mode": {
+      "enable": "Enable privileged mode",
+      "disable": "Disable privileged mode",
+      "confirmation": "For 15 minutes, this enables the additional permissions assigned to you on this server."
+    },
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",

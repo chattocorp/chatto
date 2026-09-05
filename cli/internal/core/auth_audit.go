@@ -278,3 +278,30 @@ func (c *ChattoCore) recordBearerTokenRevoked(ctx context.Context, userID, reaso
 	}
 	return nil
 }
+
+func (c *ChattoCore) recordPrivilegedModeActivated(ctx context.Context, userID string, expiresAt time.Time) error {
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_PrivilegedModeActivated{
+		PrivilegedModeActivated: &evtv1.PrivilegedModeActivatedEvent{
+			UserId:    userID,
+			ExpiresAt: timestamppb.New(expiresAt),
+			Request:   auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append privileged-mode activation audit event: %w", err)
+	}
+	return nil
+}
+
+func (c *ChattoCore) recordPrivilegedModeDeactivated(ctx context.Context, userID string) error {
+	event := newEvent(userID, &evtv1.Event{Event: &evtv1.Event_PrivilegedModeDeactivated{
+		PrivilegedModeDeactivated: &evtv1.PrivilegedModeDeactivatedEvent{
+			UserId:  userID,
+			Request: auditRequestMetadata(ctx),
+		},
+	}})
+	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
+		return fmt.Errorf("append privileged-mode deactivation audit event: %w", err)
+	}
+	return nil
+}

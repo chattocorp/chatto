@@ -391,8 +391,8 @@ export async function getRoomOnRemote(
 }
 
 /**
- * Logs in as the bootstrap admin user (`e2eadmin`) on a remote server and
- * returns a bearer token. Mirrors `loginAsAdmin()` for the origin server.
+ * Logs in and arms the bootstrap admin user (`e2eadmin`) on a remote server,
+ * then returns a bearer token. Mirrors `loginAsAdmin()` for the origin server.
  */
 export async function loginAdminOnRemote(
   remoteBaseURL: string
@@ -420,6 +420,10 @@ export async function loginAdminOnRemote(
       `No userId returned from remote viewer RPC: ${JSON.stringify(viewer.toJson())}`
     );
   }
+  await viewerClient(remoteBaseURL).activatePrivilegedMode(
+    {},
+    { headers: authHeaders(loginData.token) }
+  );
   return { token: loginData.token, userId };
 }
 
