@@ -1,63 +1,143 @@
+import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useLoadMoreWhenVisible } from './useLoadMoreWhenVisible.svelte';
 
 let intersectionCallback: IntersectionObserverCallback;
-const disconnectObserver = vi.fn();
+const observe = vi.fn();
+const unobserve = vi.fn();
+const disconnect = vi.fn();
+const intersect = (visible = true) =>
+  intersectionCallback(
+    [{ isIntersecting: visible } as IntersectionObserverEntry],
+    {} as IntersectionObserver
+  );
 
 beforeEach(() => {
-  disconnectObserver.mockReset();
+  vi.clearAllMocks();
   vi.stubGlobal(
     'IntersectionObserver',
     class {
       constructor(callback: IntersectionObserverCallback) {
         intersectionCallback = callback;
       }
-      observe = vi.fn();
-      disconnect = disconnectObserver;
+      observe = observe;
+      unobserve = unobserve;
+      disconnect = disconnect;
     }
   );
 });
+afterEach(() => vi.unstubAllGlobals());
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  document.body.replaceChildren();
-});
+function mount(options: Parameters<typeof useLoadMoreWhenVisible>[0]) {
+  const node = document.createElement('div');
+  return useLoadMoreWhenVisible(options)(node);
+}
+
+const settle = async () => {
+  await tick();
+  await tick();
+};
 
 describe('useLoadMoreWhenVisible', () => {
-  it('loads successive pages while the sentinel remains near the viewport', async () => {
-    let cursor: string | null = 'first';
+  it('requests a new visibility measurement after progress, including offset zero', async () => {
+    let cursor: number | null = 0;
     const loadMore = vi.fn(async () => {
-      cursor = cursor === 'first' ? 'second' : null;
+      cursor = cursor === 0 ? 1 : null;
     });
-    const attachment = useLoadMoreWhenVisible({
-      getCursor: () => cursor,
-      loadMore,
-      hasError: () => false
-    });
-    const sentinel = document.createElement('div');
-    document.body.append(sentinel);
-    const cleanup = attachment(sentinel);
-
-    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as never);
-
-    await vi.waitFor(() => expect(loadMore).toHaveBeenCalledTimes(2));
-    if (typeof cleanup === 'function') cleanup();
-    expect(disconnectObserver).toHaveBeenCalledOnce();
+    mount({ getCursor: () => cursor, loadMore });
+    intersect();
+    await vi.waitFor(() => expect(observe).toHaveBeenCalledTimes(2));
+    expect(unobserve).toHaveBeenCalledOnce();
+    expect(loadMore).toHaveBeenCalledOnce();
+    // Only the browser's next positive intersection starts another page.
+    intersect(false);
+    expect(loadMore).toHaveBeenCalledOnce();
+    intersect();
+    await settle();
+    expect(loadMore).toHaveBeenCalledTimes(2);
+    expect(observe).toHaveBeenCalledTimes(2);
   });
 
-  it('stops when loading does not advance the cursor', async () => {
+  it('does not loop when loading leaves the cursor unchanged', async () => {
     const loadMore = vi.fn(async () => {});
-    const attachment = useLoadMoreWhenVisible({
-      getCursor: () => 'unchanged',
-      loadMore,
-      hasError: () => false
+    mount({ getCursor: () => 'same', loadMore });
+    intersect();
+    await settle();
+    expect(loadMore).toHaveBeenCalledOnce();
+    expect(unobserve).not.toHaveBeenCalled();
+  });
+
+  it('ignores repeated intersections while a request is pending', async () => {
+    let finish!: () => void;
+    const loadMore = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    mount({ getCursor: () => 'first', loadMore });
+    intersect();
+    intersect();
+    intersect();
+    expect(loadMore).toHaveBeenCalledOnce();
+    finish();
+    await settle();
+  });
+
+  it('stops on an error and allows loading after recovery and a new intersection', async () => {
+    let cursor = 1;
+    let error = false;
+    const loadMore = vi.fn(async () => {
+      cursor++;
+      error = true;
     });
-    const sentinel = document.createElement('div');
-    document.body.append(sentinel);
-    attachment(sentinel);
+    mount({ getCursor: () => cursor, loadMore, hasError: () => error });
+    intersect();
+    await settle();
+    expect(observe).toHaveBeenCalledOnce();
+    intersect();
+    expect(loadMore).toHaveBeenCalledOnce();
+    error = false;
+    intersect();
+    await settle();
+    expect(loadMore).toHaveBeenCalledTimes(2);
+  });
 
-    intersectionCallback([{ isIntersecting: true } as IntersectionObserverEntry], {} as never);
+  it('does not load exhausted pages', () => {
+    const loadMore = vi.fn(async () => {});
+    mount({ getCursor: () => null, loadMore });
+    intersect();
+    expect(loadMore).not.toHaveBeenCalled();
+  });
 
-    await vi.waitFor(() => expect(loadMore).toHaveBeenCalledOnce());
+  it('handles rejected loads without an automatic retry', async () => {
+    const loadMore = vi.fn(async () => {
+      throw new Error('request failed');
+    });
+    mount({ getCursor: () => 'first', loadMore });
+    intersect();
+    await settle();
+    expect(loadMore).toHaveBeenCalledOnce();
+    expect(unobserve).not.toHaveBeenCalled();
+  });
+
+  it('discards queued callbacks and late completion after detach', async () => {
+    let finish!: () => void;
+    let cursor = 1;
+    const loadMore = vi.fn(async () => {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      cursor++;
+    });
+    const cleanup = mount({ getCursor: () => cursor, loadMore });
+    intersect();
+    if (cleanup) cleanup();
+    intersect();
+    finish();
+    await settle();
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(loadMore).toHaveBeenCalledOnce();
+    expect(observe).toHaveBeenCalledOnce();
   });
 });

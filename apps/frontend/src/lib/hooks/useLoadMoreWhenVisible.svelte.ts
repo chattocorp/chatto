@@ -2,35 +2,42 @@ import { tick } from 'svelte';
 import type { Attachment } from 'svelte/attachments';
 
 type LoadMoreWhenVisibleOptions = {
-  getCursor: () => string | null;
+  /** Cursor or offset; null means there are no more pages. */
+  getCursor: () => string | number | null;
+  /** The owner reports errors and provides manual retry controls. */
   loadMore: () => Promise<void>;
-  hasError: () => boolean;
+  hasError?: () => boolean;
 };
 
-/** Load successive pages while a trailing sentinel remains near the viewport. */
+/**
+ * Load successive pages while a sentinel intersects the viewport and its scroll
+ * ancestors. Re-observe after each advancing page so the browser checks the new
+ * layout. Detach stops continuation; the owner controls in-flight requests.
+ */
 export function useLoadMoreWhenVisible({
   getCursor,
   loadMore,
-  hasError
+  hasError = () => false
 }: LoadMoreWhenVisibleOptions): Attachment<HTMLElement> {
   return (node) => {
     if (typeof IntersectionObserver === 'undefined') return;
-    let loadingVisiblePages = false;
+    let active = true;
+    let loading = false;
 
     const loadVisiblePages = async (): Promise<void> => {
-      if (loadingVisiblePages) return;
-      loadingVisiblePages = true;
+      const cursor = getCursor();
+      if (!active || loading || cursor === null || hasError()) return;
+      loading = true;
       try {
-        do {
-          const cursor = getCursor();
-          await loadMore();
-          await tick();
-          if (hasError() || getCursor() === cursor) break;
-          const bounds = node.getBoundingClientRect();
-          if (bounds.top > window.innerHeight + 160 || bounds.bottom < -160) break;
-        } while (getCursor() && node.isConnected);
+        await loadMore();
+        await tick();
+        if (!active || hasError() || getCursor() === null || getCursor() === cursor) return;
+        observer.unobserve(node);
+        observer.observe(node);
+      } catch {
+        // A rejected load must not start an automatic retry loop.
       } finally {
-        loadingVisiblePages = false;
+        loading = false;
       }
     };
 
@@ -41,6 +48,9 @@ export function useLoadMoreWhenVisible({
       { rootMargin: '160px 0px' }
     );
     observer.observe(node);
-    return () => observer.disconnect();
+    return () => {
+      active = false;
+      observer.disconnect();
+    };
   };
 }
