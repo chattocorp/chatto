@@ -4,7 +4,9 @@
 Reusable scroll viewport. It owns the relative outer wrapper, native vertical
 and optional horizontal scrolling, and exposes its inner element for consumers
 such as virtualizers and infinite-scroll observers. `ScrollFader` composes this
-primitive when a scroll viewport also needs edge fades.
+primitive when a scroll viewport also needs edge fades. A stable inner flex
+column sizes to its content and fills short viewports, including bottom-aligned
+timelines. Attach content size observers to that wrapper.
 -->
 <script lang="ts">
   import type { Snippet } from 'svelte';
@@ -24,8 +26,8 @@ primitive when a scroll viewport also needs edge fades.
     scrollClass?: string;
     /** Bound to the inner scroll container for imperative integrations. */
     scrollEl?: HTMLDivElement;
-    /** Optional lifecycle attachment for the inner scroll container. */
-    scrollAttachment?: Attachment<HTMLDivElement>;
+    /** Optional lifecycle attachment for the stable content wrapper. */
+    contentAttachment?: Attachment<HTMLDivElement>;
     /** Keep the scroll viewport in the tab order for keyboard scrolling. */
     keyboardFocusable?: boolean;
     [key: string]: unknown;
@@ -39,7 +41,7 @@ primitive when a scroll viewport also needs edge fades.
     class: className = '',
     scrollClass = '',
     scrollEl = $bindable(),
-    scrollAttachment,
+    contentAttachment,
     keyboardFocusable = true,
     ...rest
   }: Props = $props();
@@ -52,17 +54,18 @@ primitive when a scroll viewport also needs edge fades.
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
   <div
     bind:this={scrollEl}
-    {@attach scrollAttachment}
     role={keyboardFocusable ? 'region' : undefined}
     tabindex={keyboardFocusable ? 0 : undefined}
     class={[
-      'flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto',
+      'min-h-0 min-w-0 flex-1 overflow-y-auto',
       scrollX ? 'overflow-x-auto' : 'overflow-x-hidden',
       scrollClass
     ]}
     {...rest}
   >
-    {@render children()}
+    <div class="flex min-h-full flex-col" {@attach contentAttachment}>
+      {@render children()}
+    </div>
   </div>
   {@render overlay?.()}
 </div>

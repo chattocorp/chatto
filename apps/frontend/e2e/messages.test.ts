@@ -766,9 +766,16 @@ test('image lightbox supports keyboard navigation with multiple images', async (
 
   const gallery = page.getByTestId('message-image-gallery');
   await expect(gallery).toBeVisible();
-  await expect.poll(() => gallery.evaluate((el) => getComputedStyle(el).columnGap)).toBe('12px');
   const galleryImages = gallery.locator('button[aria-label^="View"]');
   await expect(galleryImages).toHaveCount(5);
+  await expect
+    .poll(() =>
+      galleryImages.evaluateAll(
+        ([first, second]) =>
+          second.getBoundingClientRect().left - first.getBoundingClientRect().right
+      )
+    )
+    .toBe(12);
   await expect.poll(() => gallery.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
   await gallery.evaluate((el) => {
     el.scrollLeft = 0;

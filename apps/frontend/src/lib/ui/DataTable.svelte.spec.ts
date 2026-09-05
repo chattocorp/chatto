@@ -157,20 +157,19 @@ describe('DataTable.hoverable', () => {
       }
     });
     const table = container.querySelector('table') as HTMLTableElement;
-    const viewport = table.parentElement?.parentElement as HTMLElement;
+    const viewport = table.closest('.data-table-viewport') as HTMLElement;
     const header = container.querySelector('thead') as HTMLElement;
 
     expect(viewport.className).toContain('data-table-viewport');
     expect(viewport.className).toContain('max-h-[70dvh]');
-    expect((table.parentElement as HTMLElement).className).toContain('overflow-y-auto');
-    expect((table.parentElement as HTMLElement).className).toContain('overflow-x-auto');
+    expect((table.parentElement?.parentElement as HTMLElement).className).toContain('overflow-y-auto');
+    expect((table.parentElement?.parentElement as HTMLElement).className).toContain('overflow-x-auto');
     expect(header.className).toContain('sticky');
   });
 
   it('fills a flex parent instead of using the sticky-header viewport cap when requested', () => {
     const { container } = renderTable({ stickyHeader: true, fillHeight: true });
-    const viewport = (container.querySelector('table') as HTMLTableElement).parentElement
-      ?.parentElement as HTMLElement;
+    const viewport = container.querySelector<HTMLElement>('.data-table-viewport')!;
 
     expect(viewport.className).toContain('flex-1');
     expect(viewport.className).not.toContain('max-h-[70dvh]');
