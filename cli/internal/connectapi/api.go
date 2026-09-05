@@ -169,9 +169,5 @@ func uploadRequestMaxBytes(maxUploadSize int64) int {
 
 func assetUploadRequestMaxBytes() int {
 	const protobufOverhead = 64 * 1024
-	return defaultAssetUploadChunkSizeForConnect() + protobufOverhead
-}
-
-func defaultAssetUploadChunkSizeForConnect() int {
-	return 512 * 1024
+	return core.DefaultAssetUploadChunkSize + protobufOverhead
 }
