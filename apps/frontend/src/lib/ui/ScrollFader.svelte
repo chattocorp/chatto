@@ -17,7 +17,7 @@ scroll container; children render inside the scroll container.
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import ScrollArea from './ScrollArea.svelte';
-  import { readScrollEdges, trackScrollEdges } from './scrollEdges';
+  import { readScrollEdges, trackScrollEdges, type ScrollEdges } from './scrollEdges';
 
   type Props = {
     children: Snippet;
@@ -62,21 +62,16 @@ scroll container; children render inside the scroll container.
     ...rest
   }: Props = $props();
 
-  let scrolledFromTop = $state(false);
-  let scrolledFromBottom = $state(false);
-
-  function setScrollEdges(edges: { start: boolean; end: boolean }) {
-    scrolledFromTop = edges.start;
-    scrolledFromBottom = edges.end;
-  }
-
-  const observeScrollEdges = trackScrollEdges('y', setScrollEdges);
+  let edges = $state<ScrollEdges>({ start: false, end: false });
+  const observeScrollEdges = trackScrollEdges('y', (value) => {
+    edges = value;
+  });
 
   export function refresh() {
     if (!scrollEl) return;
 
     requestAnimationFrame(() => {
-      if (scrollEl) setScrollEdges(readScrollEdges(scrollEl, 'y'));
+      if (scrollEl) edges = readScrollEdges(scrollEl, 'y');
     });
   }
 </script>
@@ -90,7 +85,7 @@ scroll container; children render inside the scroll container.
         fadeColorClass,
         topFadeOffset,
         fadeHeight,
-        !scrolledFromTop && 'opacity-0'
+        !edges.start && 'opacity-0'
       ]}
     ></div>
   {/if}
@@ -101,7 +96,7 @@ scroll container; children render inside the scroll container.
         'pointer-events-none absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t to-transparent transition-opacity',
         fadeColorClass,
         fadeHeight,
-        !scrolledFromBottom && 'opacity-0'
+        !edges.end && 'opacity-0'
       ]}
     ></div>
   {/if}
@@ -114,7 +109,7 @@ scroll container; children render inside the scroll container.
   {scrollClass}
   bind:scrollEl
   {keyboardFocusable}
-  scrollAttachment={observeScrollEdges}
+  contentAttachment={observeScrollEdges}
   overlay={fades}
   {...rest}
 >

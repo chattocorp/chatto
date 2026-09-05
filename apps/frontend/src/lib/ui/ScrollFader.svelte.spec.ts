@@ -1,6 +1,6 @@
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import ScrollFaderTestHarness from './ScrollFaderTestHarness.svelte';
 
 async function nextFrame() {
@@ -83,6 +83,9 @@ describe('ScrollFader', () => {
     await Promise.resolve();
     flushSync();
 
-    expect(getBottomFade(container).classList.contains('opacity-0')).toBe(true);
+    await vi.waitFor(() => {
+      flushSync();
+      expect(getBottomFade(container).classList.contains('opacity-0')).toBe(true);
+    });
   });
 });

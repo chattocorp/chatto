@@ -9,19 +9,22 @@ afterEach(() => {
 function viewport() {
   const element = document.createElement('div');
   element.style.cssText = 'width: 100px; height: 100px; overflow: auto; position: fixed;';
+  const content = document.createElement('div');
+  content.style.cssText = 'display: flow-root; width: max-content; min-width: 100%;';
   const child = document.createElement('div');
   child.style.cssText = 'width: 300px; height: 300px;';
-  element.append(child);
+  content.append(child);
+  element.append(content);
   document.body.append(element);
   cleanups.push(() => element.remove());
-  return { element, child };
+  return { element, content, child };
 }
 
 describe('scroll edge attachment', () => {
   it.each(['x', 'y'] as const)('tracks both edges on the %s axis', async (axis) => {
-    const { element } = viewport();
+    const { element, content } = viewport();
     const changed = vi.fn();
-    const cleanup = trackScrollEdges(axis, changed)(element);
+    const cleanup = trackScrollEdges(axis, changed)(content);
     if (cleanup) cleanups.push(cleanup);
     expect(changed).toHaveBeenLastCalledWith({ start: false, end: true });
 
@@ -32,27 +35,27 @@ describe('scroll edge attachment', () => {
   });
 
   it('tracks replacement children and their later size changes', async () => {
-    const { element } = viewport();
+    const { content } = viewport();
     const changed = vi.fn();
-    const cleanup = trackScrollEdges('y', changed)(element);
+    const cleanup = trackScrollEdges('y', changed)(content);
     if (cleanup) cleanups.push(cleanup);
     const replacement = document.createElement('div');
     replacement.style.height = '50px';
-    element.replaceChildren(replacement);
+    content.replaceChildren(replacement);
     await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: false, end: false }));
     replacement.style.height = '300px';
     await vi.waitFor(() => expect(changed).toHaveBeenLastCalledWith({ start: false, end: true }));
   });
 
   it('stops reporting scroll and layout changes after detach', async () => {
-    const { element, child } = viewport();
+    const { element, content, child } = viewport();
     const changed = vi.fn();
-    const cleanup = trackScrollEdges('y', changed)(element);
+    const cleanup = trackScrollEdges('y', changed)(content);
     if (cleanup) cleanup();
     changed.mockClear();
     element.dispatchEvent(new Event('scroll'));
     child.style.height = '50px';
-    element.replaceChildren(document.createElement('div'));
+    content.replaceChildren(document.createElement('div'));
     // Let native mutation and resize deliveries run before checking cleanup.
     await new Promise<void>((resolve) =>
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
@@ -60,7 +63,7 @@ describe('scroll edge attachment', () => {
     expect(changed).not.toHaveBeenCalled();
   });
 
-  it('clamps overscroll and ignores one-pixel rounding differences', () => {
+  it('handles overscroll and ignores one-pixel rounding differences', () => {
     const { element } = viewport();
     Object.defineProperties(element, {
       scrollTop: { value: -20, configurable: true },

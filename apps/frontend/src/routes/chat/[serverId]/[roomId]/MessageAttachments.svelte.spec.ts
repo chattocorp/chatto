@@ -1,3 +1,4 @@
+import '../../../../app.css';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { tick } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -448,6 +449,23 @@ describe('MessageAttachments', () => {
     });
   });
 
+  it('updates gallery fades as its viewport scrolls and resizes', async () => {
+    const { container } = renderAttachments([
+      imageAttachment({ id: 'first', width: 1600, height: 900 }),
+      imageAttachment({ id: 'second', width: 1600, height: 900 })
+    ]);
+    const gallery = container.querySelector<HTMLElement>('[data-testid="message-image-gallery"]')!;
+    const fades = () => ['left', 'right'].map((edge) =>
+      !container.querySelector(`[data-testid="message-image-gallery-${edge}-fade"]`)!.classList.contains('opacity-0')
+    );
+    gallery.style.width = '200px';
+    await vi.waitFor(() => expect(fades()).toEqual([false, true]));
+    gallery.scrollLeft = gallery.scrollWidth;
+    await vi.waitFor(() => expect(fades()).toEqual([true, false]));
+    gallery.style.width = '1000px';
+    await vi.waitFor(() => expect(fades()).toEqual([false, false]));
+  });
+
   it('renders multiple images inside a horizontal gallery with equal-height frames', () => {
     const { container } = renderAttachments([
       imageAttachment({
@@ -468,8 +486,8 @@ describe('MessageAttachments', () => {
     expect(gallery).not.toBeNull();
     expect(gallery!.className).toContain('overflow-x-auto');
     expect(gallery!.className).toContain('overscroll-x-contain');
-    expect(gallery!.className).toContain('gap-3');
-    expect(gallery!.className).toContain('p-1');
+    expect(gallery!.firstElementChild!.className).toContain('gap-3');
+    expect(gallery!.firstElementChild!.className).toContain('p-1');
     expect(gallery!.parentElement?.className).toContain('w-full');
     expect(gallery!.parentElement?.getAttribute('style')).toBeNull();
     expect(

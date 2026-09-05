@@ -52,7 +52,8 @@ access to native attributes / events.
 ### Edge detection
 
 The fade visibility is driven by a Svelte attachment that listens to
-the scroll container's \`scroll\` event plus a \`ResizeObserver\`. The
+the scroll container's \`scroll\` event. A \`ResizeObserver\` watches the viewport
+and a stable inner content wrapper. Content changes need no mutation observer. The
 fades use \`transition-opacity\` so the show/hide is animated.
 `.trim();
 
@@ -66,6 +67,10 @@ fades use \`transition-opacity\` so the show/hide is animated.
       }
     }
   });
+</script>
+
+<script lang="ts">
+  let expanded = $state(false);
 </script>
 
 <Story
@@ -232,5 +237,23 @@ fades use \`transition-opacity\` so the show/hide is animated.
         {/each}
       </div>
     </ScrollFader>
+  </div>
+</Story>
+
+
+<Story name="Growing content" asChild>
+  <div class="flex w-64 flex-col gap-3">
+    <button class="btn btn-secondary cursor-pointer" onclick={() => { expanded = !expanded; }}>
+      {expanded ? 'Show short content' : 'Show long content'}
+    </button>
+    <div class="flex h-52 flex-col border border-border bg-background">
+      <ScrollFader top bottom>
+        <div class="mt-auto flex flex-col gap-2 p-3">
+          {#each Array(expanded ? 20 : 2) as _, i (i)}
+            <div class="rounded-md bg-surface px-3 py-2">Item {i + 1}</div>
+          {/each}
+        </div>
+      </ScrollFader>
+    </div>
   </div>
 </Story>
