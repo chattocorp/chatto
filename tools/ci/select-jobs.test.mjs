@@ -21,7 +21,7 @@ test("Authling changes retain cross-product login coverage", () => {
 });
 test("shared modules select both products", () => {
   const result = selectJobs(["pkg/events/event.go"]);
-  for (const group of ["chatto", "authling", "shared", "proto", "performance"])
+  for (const group of ["chatto", "authling", "shared", "performance"])
     assert.equal(result[group], true);
 });
 test("frontend and public protocols also select desktop consumers", () => {
@@ -46,7 +46,7 @@ test("unknown paths and root dependencies fail open to full coverage", () => {
     assert.equal(selectJobs([file]).docs, true);
   }
 });
-test("scheduled and manual runs cover everything even without a diff", () => {
+test("full validation selects all consumers", () => {
   for (const value of Object.values(selectJobs([], true)))
     assert.ok(value === true || value === "full");
 });
@@ -95,13 +95,18 @@ test("Git selection includes both sides of a move across products", async () => 
     const output = join(cwd, "output");
     writeFileSync(
       event,
-      JSON.stringify({ before, after: git("rev-parse", "HEAD") }),
+      JSON.stringify({
+        pull_request: {
+          base: { sha: before },
+          head: { sha: git("rev-parse", "HEAD") },
+        },
+      }),
     );
     execFileSync(process.execPath, [script.pathname], {
       cwd,
       env: {
         ...process.env,
-        GITHUB_EVENT_NAME: "push",
+        GITHUB_EVENT_NAME: "pull_request",
         GITHUB_EVENT_PATH: event,
         GITHUB_OUTPUT: output,
         GITHUB_STEP_SUMMARY: join(cwd, "summary"),
@@ -123,16 +128,38 @@ test("either product dependency graph can affect the whole Go workspace", () => 
     "authling/go.sum",
   ]) {
     const result = selectJobs([file]);
-    for (const group of [
-      "chatto",
-      "authling",
-      "shared",
-      "proto",
-      "performance",
-    ])
+    for (const group of ["chatto", "authling", "shared", "performance"])
       assert.equal(result[group], true);
   }
 });
-test("hand edits to Authling generated bindings still run the drift check", () => {
-  assert.equal(selectJobs(["authling/internal/proto/event.pb.go"]).proto, true);
+test("main and release pushes run every group without consulting a file diff", async () => {
+  const { execFileSync } = await import("node:child_process");
+  const { mkdtempSync, readFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const cwd = mkdtempSync(join(tmpdir(), "ci-push-"));
+  try {
+    for (const ref of ["refs/heads/main", "refs/heads/release-0.4"]) {
+      const output = join(cwd, ref.split("/").at(-1));
+      execFileSync(
+        process.execPath,
+        [new URL("./select-jobs.mjs", import.meta.url).pathname],
+        {
+          cwd,
+          env: {
+            ...process.env,
+            GITHUB_EVENT_NAME: "push",
+            GITHUB_REF: ref,
+            GITHUB_EVENT_PATH: join(cwd, "deliberately-missing-event.json"),
+            GITHUB_OUTPUT: output,
+          },
+        },
+      );
+      const values = readFileSync(output, "utf8").trim().split("\n");
+      assert.equal(values.length, 8);
+      for (const value of values) assert.match(value, /=(true|full)$/);
+    }
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });

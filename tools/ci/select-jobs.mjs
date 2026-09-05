@@ -8,7 +8,6 @@ const groups = [
   "desktop",
   "authling",
   "shared",
-  "proto",
   "performance",
   "docs",
 ];
@@ -39,12 +38,6 @@ export function selectJobs(files, full = false) {
     else if (file.startsWith("apps/desktop/")) enable("desktop");
     else if (file.startsWith("authling/")) {
       enable("authling");
-      if (
-        file.endsWith(".proto") ||
-        file.endsWith(".pb.go") ||
-        /\/buf\./.test(file)
-      )
-        enable("proto");
     } else if (file.startsWith("pkg/"))
       enable("shared", "chatto", "authling", "performance");
     else if (file.startsWith("cli/")) enable("chatto", "performance");
@@ -53,7 +46,7 @@ export function selectJobs(files, full = false) {
     ) {
       enable("workspace", "chatto", "desktop", "performance");
     } else if (file.startsWith("proto/")) {
-      enable("proto", "chatto", "workspace", "desktop", "performance");
+      enable("chatto", "workspace", "desktop", "performance");
     } else if (file.startsWith("docker/")) enable("chatto");
     else if (/^(LICENSES\/|LICENSE$|NOTICE$)/.test(file))
       enable("chatto", "desktop", "docs");
@@ -64,8 +57,6 @@ export function selectJobs(files, full = false) {
         selected[group] = true;
       });
   }
-  // Schema contracts depend on Go types as well as .proto files.
-  if (selected.chatto || selected.shared) selected.proto = true;
   return {
     ...selected,
     e2e: selected.chatto ? "full" : selected.authling ? "integration" : "none",
@@ -73,49 +64,30 @@ export function selectJobs(files, full = false) {
 }
 
 function main() {
-  const event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
-  const full = ["schedule", "workflow_dispatch"].includes(
-    process.env.GITHUB_EVENT_NAME,
-  );
-  let files = [];
-  if (!full) {
-    const pr = event.pull_request;
-    const base = pr?.base.sha ?? event.before;
-    const head = pr?.head.sha ?? event.after;
-    if (!base || /^0+$/.test(base)) {
-      files = ["unknown-base"];
-    } else {
-      // A complete checkout permits merge-base comparison for stacked PRs.
-      files = execFileSync(
-        "git",
-        [
-          "diff",
-          "--name-only",
-          "--no-renames",
-          "-z",
-          pr ? `${base}...${head}` : `${base}..${head}`,
-        ],
-        { encoding: "utf8" },
-      )
-        .split("\0")
-        .filter(Boolean);
-    }
+  // Selection is a PR optimization only. Pushes, including release branches,
+  // must run the complete suite before the existing publication workflows.
+  let selected = selectJobs([], true);
+  if (process.env.GITHUB_EVENT_NAME === "pull_request") {
+    const { pull_request: pr } = JSON.parse(
+      readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"),
+    );
+    const files = execFileSync(
+      "git",
+      [
+        "diff",
+        "--name-only",
+        "--no-renames",
+        "-z",
+        `${pr.base.sha}...${pr.head.sha}`,
+      ],
+      { encoding: "utf8" },
+    )
+      .split("\0")
+      .filter(Boolean);
+    selected = selectJobs(files);
   }
-  const mode = event.inputs?.suite ?? "full";
-  if (!["full", "performance", "benchmark-go"].includes(mode))
-    throw new Error("Unknown CI suite");
-  const selected =
-    process.env.GITHUB_EVENT_NAME === "workflow_dispatch" && mode !== "full"
-      ? { ...selectJobs([]), performance: mode === "performance" }
-      : selectJobs(files, full);
   for (const [key, value] of Object.entries(selected))
     appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`);
-  appendFileSync(
-    process.env.GITHUB_STEP_SUMMARY,
-    `## CI selection\n\n${Object.entries(selected)
-      .map(([key, value]) => `- ${key}: ${value}`)
-      .join("\n")}\n`,
-  );
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)

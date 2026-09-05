@@ -123,5 +123,14 @@ Use `alice` when you need server administration access.
 
 ## Continuous Integration
 
-See [Continuous integration](docs/CI.md) for check selection, E2E shard
-assignment, performance comparisons, and the Go concurrency benchmark.
+Pull requests run checks for the affected products. Unknown paths and shared
+Go dependency changes select all affected consumers. Authling-only changes
+retain the Chatto–Authling login integration test. The existing four E2E shard
+names remain present when test steps are skipped, so required checks can finish.
+Protobuf, license, and workflow checks still run on every pull request. The
+protobuf job also rejects a failed job-selection step.
+
+Pushes to `main` and release branches run the full validation suite. Image
+publication and tag-triggered releases keep their existing workflow. Label
+changes keep the existing CI trigger behavior. E2E tests use Playwright's
+standard four-way sharding, and Go tests keep `-p 1`.

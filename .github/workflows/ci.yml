@@ -10,17 +10,9 @@ on:
       - opened
       - reopened
       - synchronize
+      - labeled
+      - unlabeled
       - ready_for_review
-
-  schedule:
-    - cron: '23 4 * * *'
-  workflow_dispatch:
-    inputs:
-      suite:
-        description: Checks to run
-        type: choice
-        default: full
-        options: [full, performance, benchmark-go]
 
 concurrency:
   # PRs share a group so superseded revisions are cancelled. Pushes use their
@@ -31,11 +23,8 @@ concurrency:
 permissions:
   contents: read
 
-# Non-PR runs use distinct check names. Their selection can differ from a PR
-# on the same commit, so their skipped checks must not replace required results.
 jobs:
   changes:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -44,7 +33,6 @@ jobs:
       desktop: ${{ steps.select.outputs.desktop }}
       authling: ${{ steps.select.outputs.authling }}
       shared: ${{ steps.select.outputs.shared }}
-      proto: ${{ steps.select.outputs.proto }}
       performance: ${{ steps.select.outputs.performance }}
       docs: ${{ steps.select.outputs.docs }}
       e2e: ${{ steps.select.outputs.e2e }}
@@ -57,7 +45,6 @@ jobs:
         run: node tools/ci/select-jobs.mjs
 
   build-main-image-contexts:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}build-main-image-contexts
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -132,7 +119,6 @@ jobs:
           retention-days: 1
 
   license-check:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}license-check
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -149,7 +135,6 @@ jobs:
         run: mise license-check
 
   workflow-lint:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}workflow-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -164,13 +149,13 @@ jobs:
       - name: Check workflows and shell scripts
         run: mise lint-actions
 
-      - name: Test CI selection and shard assignment
-        run: node --test tools/ci/*.test.mjs
+      - name: Test CI selection
+        run: node --test tools/ci/select-jobs.test.mjs
 
   desktop:
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}desktop (${{ matrix.platform }})
+    name: desktop (${{ matrix.platform }})
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -229,7 +214,6 @@ jobs:
           retention-days: 7
 
   desktop-macos-capture:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}desktop-macos-capture
     needs: changes
     if: ${{ needs.changes.outputs.desktop == 'true' }}
     runs-on: macos-15
@@ -242,10 +226,6 @@ jobs:
         run: tools/test-desktop-macos-capture.sh
 
   codegen-proto-drift:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}codegen-proto-drift
-    permissions:
-      contents: read
-      pull-requests: read
     needs: changes
     if: ${{ !cancelled() }}
     # runs-on: ubicloud-standard-4
@@ -256,45 +236,30 @@ jobs:
         env:
           SELECTION_RESULT: ${{ needs.changes.result }}
         run: test "$SELECTION_RESULT" = success
+
       - name: Checkout code
-        if: needs.changes.outputs.proto == 'true'
         uses: actions/checkout@v6
 
       - name: Setup environment
-        if: needs.changes.outputs.proto == 'true'
         uses: ./.github/actions/setup
 
-      - name: Read current public API waiver
-        if: needs.changes.outputs.proto == 'true' && github.event_name == 'pull_request'
-        id: waiver
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          waiver=$(gh api "repos/$GH_REPO/pulls/$PR_NUMBER" --jq '[.labels[].name] | index("api-breaking-change") != null')
-          echo "allowed=$waiver" >> "$GITHUB_OUTPUT"
-
       - name: Fetch protobuf breaking base
-        if: needs.changes.outputs.proto == 'true'
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
       - name: Check storage, internal, and Operator protobuf breaking changes
-        if: needs.changes.outputs.proto == 'true'
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           mise x -- node tools/check-storage-proto-breaking.mjs \
             "../.git#branch=origin/${base_ref},subdir=proto"
 
       - name: Check projection snapshot schema contracts
-        if: needs.changes.outputs.proto == 'true'
         working-directory: cli
         run: mise x -- go test ./internal/core -run TestProjectionSnapshotContractsIncludeCurrentSchema -count=1
 
       - name: Check public API protobuf breaking changes
-        if: ${{ needs.changes.outputs.proto == 'true' && (github.event_name != 'pull_request' || steps.waiver.outputs.allowed != 'true') }}
+        if: ${{ github.event_name != 'pull_request' || !contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           cd proto
@@ -307,7 +272,6 @@ jobs:
             --path chatto/core/live/v1/live_events.proto
 
       - name: Check Authling persisted protobuf breaking changes
-        if: needs.changes.outputs.proto == 'true'
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           if git cat-file -e "origin/${base_ref}:authling/buf.yaml" 2>/dev/null; then
@@ -320,24 +284,21 @@ jobs:
           fi
 
       - name: Acknowledge intentional public API protobuf breaking changes
-        if: ${{ needs.changes.outputs.proto == 'true' && (github.event_name == 'pull_request' && steps.waiver.outputs.allowed == 'true') }}
+        if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
           echo "::notice::Skipping public and transient-wire Buf breaking checks because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
       - name: Lint Authling protobufs
-        if: needs.changes.outputs.proto == 'true'
         working-directory: authling
         run: mise x -- buf lint
 
       - name: Regenerate protobuf bindings
-        if: needs.changes.outputs.proto == 'true'
         run: |
           mise codegen-proto
           cd authling
           mise codegen-proto
 
       - name: Check generated protobuf bindings are current
-        if: needs.changes.outputs.proto == 'true'
         run: |
           if ! git diff --exit-code; then
             git status --short
@@ -345,7 +306,6 @@ jobs:
           fi
 
   check-workspace:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}check-workspace
     needs: changes
     if: ${{ needs.changes.outputs.workspace == 'true' || needs.changes.outputs.desktop == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -370,7 +330,6 @@ jobs:
         run: pnpm run build:storybook
 
   test-workspace:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-workspace
     needs: changes
     if: ${{ needs.changes.outputs.workspace == 'true' }}
     # Keep this job name stable because it can be a required branch check.
@@ -396,7 +355,6 @@ jobs:
         run: pnpm test
 
   test-cli:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-cli
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' || needs.changes.outputs.shared == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -439,12 +397,9 @@ jobs:
 
       - name: Run Go tests
         if: needs.changes.outputs.chatto == 'true'
-        env:
-          CHATTO_GO_TEST_P: "1"
-        run: mise test-cli
+        run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-authling-e2e:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-authling-e2e
     needs: changes
     if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
@@ -490,7 +445,7 @@ jobs:
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e (${{ matrix.shard }}/4)
+    name: test-e2e (${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
       matrix:
@@ -523,7 +478,8 @@ jobs:
             cd apps/frontend
             pnpm exec playwright test authling-integration.test.ts
           else
-            node tools/ci/e2e-shards.mjs "$E2E_SHARD/4"
+            cd apps/frontend
+            pnpm exec playwright test --grep-invert @ffmpeg --shard="$E2E_SHARD/4"
           fi
 
       - name: Upload Playwright report
@@ -535,7 +491,6 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e-media
     needs: changes
     if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
@@ -570,7 +525,6 @@ jobs:
           retention-days: 14
 
   test-e2e-performance:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}test-e2e-performance
     needs: changes
     if: ${{ needs.changes.outputs.performance == 'true' }}
     runs-on: ubuntu-latest
@@ -592,7 +546,7 @@ jobs:
         id: performance-baseline
         shell: bash
         env:
-          PERFORMANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD^' }}
+          PERFORMANCE_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
           set -euo pipefail
           baseline_dir="$RUNNER_TEMP/chatto-performance-base"
@@ -687,10 +641,8 @@ jobs:
           retention-days: 30
 
   publish-main-image:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}publish-main-image
-    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
-      - changes
       - build-main-image-contexts
       - license-check
       - workflow-lint
@@ -778,7 +730,6 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
   check-docs:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}check-docs
     needs: changes
     if: needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
@@ -789,21 +740,3 @@ jobs:
         with:
           install-cli-deps: "false"
       - run: pnpm run build:docs
-
-  benchmark-go:
-    name: ${{ github.event_name != 'pull_request' && format('{0} / ', github.event_name) || '' }}benchmark-go
-    if: github.event_name == 'workflow_dispatch' && inputs.suite == 'benchmark-go'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./.github/actions/setup
-      - run: mise build-frontend
-      - name: Compare Go package parallelism on the same runner
-        run: node tools/ci/benchmark-go.mjs
-      - uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: go-parallelism-benchmark
-          path: .context/ci/go-benchmark*
-          retention-days: 7
