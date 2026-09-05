@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -357,4 +358,71 @@ func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, requests, 1)
 	require.Equal(t, []string{"mention"}, requests[0].GetBotWebhookDeliveryRequested().GetTriggers())
+}
+
+func TestBotOutboundWebhookConcurrentReplacementReturnsOwnSecret(t *testing.T) {
+	c, _ := setupTestCore(t)
+	owner, bot, _ := webhookTestBot(t, c)
+	ctx := testContext(t)
+	type response struct {
+		webhook *BotOutboundWebhook
+		secret  string
+		err     error
+	}
+	responses := make(chan response, 8)
+	for i := 0; i < 8; i++ {
+		go func() {
+			w, s, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, "https://example.com/hook", "", false)
+			responses <- response{w, s, err}
+		}()
+	}
+	var succeeded []response
+	for i := 0; i < 8; i++ {
+		r := <-responses
+		if errors.Is(r.err, events.ErrConflict) {
+			continue
+		}
+		require.NoError(t, r.err)
+		succeeded = append(succeeded, r)
+	}
+	require.GreaterOrEqual(t, len(succeeded), 2)
+	records, _, err := c.EventPublisher.SubjectEvents(ctx, "evt.user."+bot+".bot_outbound_webhook_configured")
+	require.NoError(t, err)
+	secrets := map[string]string{}
+	for _, record := range records {
+		creds, err := c.botWebhooks.credentials(ctx, record)
+		require.NoError(t, err)
+		secrets[record.GetBotOutboundWebhookConfigured().GetWebhookId()] = creds.SigningSecret
+	}
+	for _, r := range succeeded {
+		if secrets[r.webhook.ID] != r.secret {
+			t.Fatal("replacement paired another configuration with its signing secret")
+		}
+	}
+}
+
+func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
+	c, _ := newTestCore(t)
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(200 * time.Millisecond), AllowPrivateNetworks: true}
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
+	defer server.Close()
+	c.botWebhooks.client = newBotWebhookModel(c, c.botWebhooks.projection).client
+	startCoreServices(t, c)
+	owner, bot, _ := webhookTestBot(t, c)
+	ctx := testContext(t)
+	room, err := c.CreateRoom(ctx, owner, KindChannel, "", "membership-test", "")
+	require.NoError(t, err)
+	_, err = c.AddMember(ctx, owner, KindChannel, room.GetId(), bot)
+	require.NoError(t, err)
+	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow))
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	require.NoError(t, err)
+	_, err = c.PostMessage(ctx, KindChannel, room.GetId(), owner, "Hello @outbound_bot", nil, "", "", nil, false)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return calls.Load() == 1 }, time.Second*3, time.Millisecond*10)
+	require.NoError(t, c.LeaveRoom(ctx, bot, KindChannel, bot, room.GetId()))
+	result := waitWebhookOutcome(t, c, owner, bot, "skipped").GetBotWebhookDeliveryCompleted()
+	require.Equal(t, "access_lost", result.GetReason())
+	require.Equal(t, int32(1), calls.Load())
 }

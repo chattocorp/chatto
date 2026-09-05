@@ -172,7 +172,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 	return nil
 }
 func webhookAccessLost(err error) bool {
-	return errors.Is(err, ErrPermissionDenied) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrMessageNotFound) || errors.Is(err, ErrBotOwnerPermissionCeiling)
+	return errors.Is(err, ErrNotRoomMember) || errors.Is(err, ErrPermissionDenied) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrMessageNotFound) || errors.Is(err, ErrBotOwnerPermissionCeiling)
 }
 
 // botWebhookPayload is the fixed v1 JSON contract for both activation causes.

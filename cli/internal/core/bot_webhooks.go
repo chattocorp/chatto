@@ -62,16 +62,19 @@ func (c *ChattoCore) ReplaceBotOutboundWebhook(ctx context.Context, actorID, bot
 		return nil, "", err
 	}
 	creds := botWebhookCredentials{URL: rawURL, Authorization: authorization, SigningSecret: base64.RawURLEncoding.EncodeToString(secret)}
-	if err := c.botWebhooks.configure(ctx, actorID, botID, &creds, enabled); err != nil {
+	result, err := c.botWebhooks.configure(ctx, actorID, botID, &creds, enabled)
+	if err != nil {
 		return nil, "", err
 	}
-	result, err := c.GetBotOutboundWebhook(ctx, actorID, botID)
-	return result, creds.SigningSecret, err
+	// Return this mutation's generation, even if another manager has already
+	// replaced it. A later read must not pair another generation with our secret.
+	return result, creds.SigningSecret, nil
 }
 
 // DeleteBotOutboundWebhook removes configuration and cancels outstanding work.
 func (c *ChattoCore) DeleteBotOutboundWebhook(ctx context.Context, actorID, botID string) error {
-	return c.botWebhooks.configure(ctx, actorID, botID, nil, false)
+	_, err := c.botWebhooks.configure(ctx, actorID, botID, nil, false)
+	return err
 }
 
 func validateBotWebhookURL(raw string, private bool) error {
@@ -82,9 +85,9 @@ func validateBotWebhookURL(raw string, private bool) error {
 	return nil
 }
 
-func (m *botWebhookModel) configure(ctx context.Context, actorID, botID string, creds *botWebhookCredentials, enabled bool) error {
+func (m *botWebhookModel) configure(ctx context.Context, actorID, botID string, creds *botWebhookCredentials, enabled bool) (*BotOutboundWebhook, error) {
 	if _, err := m.core.requireBotManager(ctx, actorID, botID); err != nil {
-		return err
+		return nil, err
 	}
 	// Key creation is its own durable user fact and precedes the configuration OCC boundary.
 	var dek *userDEK
@@ -92,31 +95,40 @@ func (m *botWebhookModel) configure(ctx context.Context, actorID, botID string, 
 	if creds != nil {
 		dek, err = m.core.ensureActiveUserPIIDEK(ctx, botID)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 	for attempt := 0; attempt < 5; attempt++ {
 		filter := evtstream.UserAggregate(botID).AllEventsFilter()
 		seq, err := m.core.EventPublisher.LastSubjectSeq(ctx, filter)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err = m.core.userModel.waitForUsers(ctx, events.SubjectPosition(filter, seq)); err != nil {
-			return err
+			return nil, err
 		}
 		if err = m.core.authorizeAtStableInputs(ctx, func() error { _, err := m.core.requireBotManager(ctx, actorID, botID); return err }); err != nil {
-			return err
+			return nil, err
+		}
+		if creds == nil {
+			if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
+				return nil, err
+			}
+			current, _, _ := m.projection.Projection().get(botID)
+			if current == nil {
+				return nil, nil
+			}
 		}
 		x := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: botID, WebhookId: NewBotIncomingWebhookID(), Enabled: enabled}
 		e := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: x}})
 		if creds != nil {
 			data, err := json.Marshal(creds)
 			if err != nil {
-				return err
+				return nil, err
 			}
 			x.Credentials, err = encryptUserPIIStringWithDEK(dek, e.GetId(), botID, "bot_outbound_webhook_configured", "credentials", string(data))
 			if err != nil {
-				return err
+				return nil, err
 			}
 		}
 		subject := evtstream.UserAggregate(botID).SubjectFor(e)
@@ -125,11 +137,17 @@ func (m *botWebhookModel) configure(ctx context.Context, actorID, botID string, 
 			continue
 		}
 		if err != nil {
-			return err
+			return nil, err
 		}
-		return m.projection.Projector().WaitFor(ctx, events.SubjectPosition(subject, seqs[0]))
+		if err := m.projection.Projector().WaitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
+			return nil, err
+		}
+		if creds == nil {
+			return nil, nil
+		}
+		return &BotOutboundWebhook{ID: x.GetWebhookId(), Enabled: enabled, HasAuthorization: creds.Authorization != ""}, nil
 	}
-	return events.ErrConflict
+	return nil, events.ErrConflict
 }
 func (m *botWebhookModel) credentials(ctx context.Context, e *evtv1.Event) (botWebhookCredentials, error) {
 	var result botWebhookCredentials
