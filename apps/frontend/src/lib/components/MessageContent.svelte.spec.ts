@@ -491,7 +491,7 @@ describe('MessageContent component', () => {
 
   it('updates the relative timestamp detail while the popover is open', async () => {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date('2025-04-27T14:29:59Z'));
+    vi.setSystemTime(new Date('2025-04-27T14:28:59Z'));
     const { container } = render(MessageContent, {
       props: {
         body: 'Call at <t:1745764200:F>',
@@ -501,6 +501,8 @@ describe('MessageContent component', () => {
     });
 
     await expect.poll(() => q(container, 'button.message-timestamp')).toBeTruthy();
+    // Opening the details must use the current time, even after an idle minute.
+    await vi.advanceTimersByTimeAsync(60_000);
     (q(container, 'button.message-timestamp') as HTMLButtonElement).click();
 
     await expect
