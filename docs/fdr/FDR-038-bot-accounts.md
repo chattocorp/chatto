@@ -348,8 +348,8 @@ endpoint stops delivery. Configuration cannot be managed by the bot itself.
 
 Chatto retries failed requests within an operator-configured lifetime and
 attempt limit. Requests have a stable delivery ID. A receiver must tolerate
-duplicates. The bot page shows the latest success, failure, or skip for the
-current configuration. Access is checked before sending. The message body is
+duplicates. The bot page shows the latest recorded failure for the current
+configuration. Later success does not clear that failure. Access is checked before sending. The message body is
 the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
 

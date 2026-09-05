@@ -93,7 +93,7 @@ describe('outbound webhook settings', () => {
       }
     });
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
-    await vi.waitFor(() => expect(container.textContent).toContain('Latest delivery failed.'));
+    await vi.waitFor(() => expect(container.textContent).toContain('Latest recorded delivery failure.'));
     expect(container.textContent).toContain('Attempts: 5');
     expect(container.textContent).toContain('HTTP status: 503');
     button(container, 'Remove endpoint').click();

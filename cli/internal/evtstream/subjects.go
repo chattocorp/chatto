@@ -251,8 +251,6 @@ func EventTypeOf(e *evtv1.Event) string {
 	switch e.GetEvent().(type) {
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		return "bot_outbound_webhook_configured"
-	case *evtv1.Event_BotWebhookDeliveryRequested:
-		return "bot_webhook_delivery_requested"
 	case *evtv1.Event_BotWebhookDeliveryCompleted:
 		return "bot_webhook_delivery_completed"
 	case *evtv1.Event_RoomCreated:

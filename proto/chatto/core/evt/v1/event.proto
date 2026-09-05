@@ -260,7 +260,6 @@ message Event {
     InvitationRevokedEvent invitation_revoked = 932;
 
     BotOutboundWebhookConfiguredEvent bot_outbound_webhook_configured = 940;
-    BotWebhookDeliveryRequestedEvent bot_webhook_delivery_requested = 941;
     BotWebhookDeliveryCompletedEvent bot_webhook_delivery_completed = 942;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----

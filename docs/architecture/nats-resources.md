@@ -91,12 +91,16 @@ support more than one application-owned event log without mixing coordinates.
 
 ## Outbound bot webhook consumers
 
-Both consumers use EVT, file-backed durable state, explicit acknowledgement,
-and DeliverAll. `chatto-bot-webhook-source-v1` consumes
-`evt.room.*.message_posted`. It acknowledges after all selected delivery requests
-commit. Configuration sequence and source-time expiry prevent old messages from
-activating new endpoints. `chatto-bot-webhook-delivery-v1` consumes
-`evt.bot_webhook_delivery.*.bot_webhook_delivery_requested`. It acknowledges
-after a terminal outcome commits and attempt state is removed. Each consumer
-allows eight pending deliveries. Both consumer states use the existing EVT
-backup. See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).
+`chatto-bot-webhook-source-v1` consumes `evt.room.*.message_posted` from EVT.
+It acknowledges after publishing each selected destination job. Configuration
+sequence prevents old messages from activating new endpoints.
+
+`BOT_WEBHOOKS` is a file-backed WorkQueue stream on `bot_webhook.>`. Jobs use
+`chatto.core.webhook.v1.BotWebhookDelivery`. The stream uses the configured
+replica count, a two-minute publish deduplication window, and no age limit.
+Acknowledged jobs are removed. `chatto-bot-webhook-delivery-v1` consumes this
+queue with DeliverAll and explicit acknowledgement. Its delivery count owns
+retry progress; delayed NAK schedules exponential retries. Both durable
+consumers allow eight pending messages. Backup includes both streams and their
+consumers, with EVT captured before the queue. See
+[ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

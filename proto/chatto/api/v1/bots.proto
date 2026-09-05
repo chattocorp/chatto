@@ -237,7 +237,8 @@ message BotOutboundWebhook {
   bool enabled = 2;
   // Whether an Authorization header is configured.
   bool has_authorization = 3;
-  // Latest terminal delivery for this configuration, when available.
+  // Latest recorded failure for this configuration, when available.
+  // Later successes and intentional skips do not clear this failure.
   BotWebhookDelivery latest_delivery = 4;
 }
 
@@ -261,7 +262,8 @@ message BotWebhookDelivery {
   BotWebhookDeliveryStatus status = 2;
   // Safe failure or skip category. Empty for successful delivery.
   string reason = 3;
-  // Reserved attempts, including requests with an uncertain crash outcome.
+  // Queue deliveries consumed, up to the attempt limit. A delivery can fail
+  // before HTTP starts, so this is not an exact HTTP request count.
   uint32 attempts = 4;
   // Zero if no HTTP response was received.
   uint32 http_status = 5;

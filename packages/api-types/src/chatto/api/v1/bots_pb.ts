@@ -1287,7 +1287,8 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
   hasAuthorization = false;
 
   /**
-   * Latest terminal delivery for this configuration, when available.
+   * Latest recorded failure for this configuration, when available.
+   * Later successes and intentional skips do not clear this failure.
    *
    * @generated from field: chatto.api.v1.BotWebhookDelivery latest_delivery = 4;
    */
@@ -1352,7 +1353,8 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
   reason = "";
 
   /**
-   * Reserved attempts, including requests with an uncertain crash outcome.
+   * Queue deliveries consumed, up to the attempt limit. A delivery can fail
+   * before HTTP starts, so this is not an exact HTTP request count.
    *
    * @generated from field: uint32 attempts = 4;
    */

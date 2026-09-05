@@ -251,6 +251,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
 		{"NOTIFICATIONS", false, false, ""},
+		{"BOT_WEBHOOKS", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
 		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
 		{"OBJ_SERVER_ASSETS", false, false, ""},
@@ -285,6 +286,7 @@ func TestSkipReason(t *testing.T) {
 
 func TestOrderBackupStreamsPreservesNotificationCausality(t *testing.T) {
 	names := []string{
+		"BOT_WEBHOOKS",
 		"NOTIFICATIONS",
 		"KV_INSTANCE",
 		"KV_RUNTIME_STATE",
@@ -301,6 +303,9 @@ func TestOrderBackupStreamsPreservesNotificationCausality(t *testing.T) {
 	if !(positions["EVT"] < positions["KV_RUNTIME_STATE"] &&
 		positions["KV_RUNTIME_STATE"] < positions["NOTIFICATIONS"]) {
 		t.Fatalf("notification backup order = %v, want EVT before runtime state before notifications", names)
+	}
+	if positions["EVT"] > positions["BOT_WEBHOOKS"] {
+		t.Fatalf("webhook queue must be backed up after its EVT source consumer: %v", names)
 	}
 	if positions["KV_INSTANCE"] > positions["OBJ_SERVER_ASSETS"] {
 		t.Fatalf("unconstrained stream order changed: %v", names)

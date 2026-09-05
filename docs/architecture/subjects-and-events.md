@@ -487,12 +487,15 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 
 ## Outbound bot webhooks
 
-Bot configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` and
-user-aggregate OCC. It carries encrypted endpoint credentials and a generation
-ID. Delivery requests and outcomes use
-`evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_requested` and
+Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
+user-aggregate OCC and encrypted credentials. Queue jobs use
+`bot_webhook.{deliveryId}` on `BOT_WEBHOOKS`, encoded as
+[`BotWebhookDelivery`](../../proto/chatto/core/webhook/v1/delivery.proto).
+The delivery ID hashes the bot, configuration, and source event IDs.
+
+Only terminal failures append
 `evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_completed`.
-The delivery ID hashes the bot, configuration, and source event IDs. Each
-aggregate permits one request and one terminal outcome. Payloads are defined in
+The status is `failed`; OCC permits one such fact per delivery. No request,
+success, or skip fact enters EVT. Failure payloads are defined in
 [`bot_webhook_events.proto`](../../proto/chatto/core/evt/v1/bot_webhook_events.proto).
 These facts are internal and do not enter the public realtime catalogue.

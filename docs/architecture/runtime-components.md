@@ -124,7 +124,8 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 ## Outbound bot webhooks
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
-selection, per-destination requests, attempts, and HTTP delivery. Core creates
+selection, queue publication, and HTTP delivery. JetStream owns pending jobs
+and retry counts. Core creates
 its two durable consumers before startup and runs them after boot. The
 [`management operations`](../../cli/internal/core/bot_webhooks.go) own bot-manager
 authorization, encrypted configuration, and read-your-writes.

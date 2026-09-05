@@ -895,7 +895,7 @@ Credentials are write-only. Replace the configuration to change them.
 | `id` | `string` | Configuration generation, used to cancel earlier pending work. |
 | `enabled` | `bool` | Whether this configuration accepts new messages. |
 | `has_authorization` | `bool` | Whether an Authorization header is configured. |
-| `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest terminal delivery for this configuration, when available. |
+| `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
 
 <a id="chatto-api-v1-BotWebhookDelivery"></a>
 
@@ -908,7 +908,7 @@ Safe summary of one terminal webhook delivery.
 | `id` | `string` | Stable delivery identifier shared by all retry attempts. |
 | `status` | [`BotWebhookDeliveryStatus`](#chatto-api-v1-BotWebhookDeliveryStatus) | Final result of this delivery. |
 | `reason` | `string` | Safe failure or skip category. Empty for successful delivery. |
-| `attempts` | `uint32` | Reserved attempts, including requests with an uncertain crash outcome. |
+| `attempts` | `uint32` | Queue deliveries consumed, up to the attempt limit. A delivery can fail before HTTP starts, so this is not an exact HTTP request count. |
 | `http_status` | `uint32` | Zero if no HTTP response was received. |
 | `completed_at` | `google.protobuf.Timestamp` | Time the terminal outcome was recorded. |
 

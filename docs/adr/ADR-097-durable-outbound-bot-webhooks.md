@@ -4,52 +4,58 @@
 
 ## Context
 
-Bots can read semantic realtime events. Realtime recovery has a time limit.
-An HTTP integration needs independent retries and a durable delivery result.
-Notification preferences must not control bot activation.
+Bots need HTTP integrations with independent retries. Notification preferences
+must not control bot activation. Successful delivery does not need permanent
+event history, and JetStream already tracks pending work.
 
 ## Decision
 
-Use two named durable consumers on EVT. The source consumer selects direct
-mentions and DM messages. It commits one delivery request per bot endpoint.
-The request records the source reference, endpoint generation, attempt limit,
-retry delay, and expiry. The delivery consumer sends the HTTP request.
-No new stream is required.
+Consume direct mentions and DM messages from EVT. Publish one protobuf job per
+bot endpoint to the file-backed `BOT_WEBHOOKS` work queue. Confirm every publish
+before acknowledging the source message. Jobs contain message references,
+endpoint generation, attempt limit, retry delay, and source-time expiry.
+They contain no plaintext message body or destination credentials.
 
-Use a deterministic delivery ID and a separate aggregate per delivery. OCC
-prevents duplicate requests and permits one terminal outcome. Store success,
-terminal failure, and intentional skip outcomes in EVT. Store attempt
-reservations in RUNTIME_STATE with revision-based updates. Delete this runtime
-state after the terminal outcome commits. Do not store individual HTTP errors
-or response bodies in EVT.
+Use the stable delivery ID as the publish message ID. JetStream deduplicates
+publications within a two-minute window. Source retries outside that window
+can produce duplicates. Receivers must tolerate repeated delivery IDs.
+
+Let the durable queue consumer own pending jobs and delivery counts. Calculate
+exponential backoff from its delivery count and use delayed negative
+acknowledgement. Double-acknowledge success and intentional skips. Do not use
+KV attempt reservations, success records, or application-owned pending state.
+
+Append only terminal failures to EVT. Aggregate OCC permits one failure fact
+per delivery ID. Acknowledge the job after that failure commits. Keep failures
+for expired work too: the queue has no age limit that could silently discard
+jobs during an outage. No EVT request, success, or skip facts are written.
 
 Keep one encrypted endpoint configuration per bot. Use the bot's PII key for
-its URL, optional Authorization value, and signing secret. Configuration
-replacement creates a new generation and cancels older pending deliveries.
-New configurations do not receive messages that precede their EVT position.
+its URL, optional Authorization value, and signing secret. Replacement creates
+a new generation and stops older pending deliveries. New configurations do not
+receive messages that precede their EVT position.
 
-Use current authorization and current message content before each send. A
-message edit can change the body on a retry. Retraction, deletion, and access
-loss stop delivery. Notification state has no effect on these checks.
+Use current authorization and message content before sending. Retraction,
+deletion, and access loss stop delivery. Notification state has no effect.
 
 ## Consequences
 
-Partial source fan-out is recoverable. Successful destinations do not repeat
-because another destination fails. The endpoint must deduplicate the stable
-delivery ID: an HTTP success followed by a process failure can cause a repeat.
-A reserved attempt counts toward the limit after a crash because Chatto cannot
-know whether the endpoint accepted it.
+A failed destination retries independently of successful destinations. The
+receiver can still see duplicates, for example after an HTTP response is lost.
+Double acknowledgement confirms queue progress; it does not make the HTTP
+operation atomic. No ordering guarantee applies across deliveries.
 
-Delivery expiry uses the original message time. A restore cannot extend an
-existing request's deadline or attempt limit. Runtime attempts and consumer
-state use the existing backup surfaces. Terminal outcomes remain in EVT.
-There is no ordering guarantee across deliveries.
+Delivery counts include work that stops before HTTP starts. Restart preserves
+consumer counts and pending jobs. Backup includes the queue and its consumers,
+after the EVT snapshot. Restoring a backup can repeat previously completed work.
+Existing job deadlines and policy do not change. Operators must preserve the
+named consumers during normal operation; recreating them can replay work.
 
-An endpoint that is slow can occupy worker capacity. Concurrency, request
-timeouts, exponential retry delay, and expiry bound this work. Operators set
-retry and expiry policy in TOML or ENV. Private-network access and HTTP require
-an explicit operator option. Redirects are never followed.
+Operators set retry and expiry policy in TOML or ENV. Private-network access
+and HTTP require an explicit option. Redirects are never followed. Request
+timeouts and worker concurrency bound active HTTP work.
 
-The bot management UI reads the latest outcome for the current configuration.
-The projection retains encrypted settings and this bounded result only.
-Detailed history remains available through the existing owner event log.
+The bot page shows the latest recorded failure for the current configuration.
+Later success does not clear that failure. The projection retains encrypted
+settings and one failure per bot. Detailed failures remain in the owner event
+log. Payload text remains the currently readable message text on each attempt.

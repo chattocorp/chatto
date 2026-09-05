@@ -317,15 +317,16 @@ Each request has a ten-second timeout and cannot run beyond delivery expiry.
 
 Delivery is at least once within these limits. A lost response can cause a
 repeat, even if your tool processed the request. Use the delivery ID to avoid
-repeating work. After a crash, a reserved attempt counts toward the limit
-because Chatto cannot know whether the tool received it. Deliveries can arrive
+repeating work. Attempts count deliveries to a worker, including deliveries that stop before
+HTTP starts. JetStream keeps pending jobs and retry progress across restart. Deliveries can arrive
 out of order.
 
 Chatto checks the bot's current access before sending. It skips delivery when
 access is lost, the message is unavailable, or the endpoint is replaced. The
 body contains the currently readable message text. An edit can therefore
-change the body between attempts. The bot page shows the latest success,
-terminal failure, or skip for the current endpoint.
+change the body between attempts. The bot page shows the latest recorded failure for the current endpoint.
+Successful deliveries and intentional skips are not recorded. Later success
+does not clear a previous failure.
 
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).

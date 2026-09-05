@@ -1456,7 +1456,8 @@ type BotOutboundWebhook struct {
 	Enabled bool `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// Whether an Authorization header is configured.
 	HasAuthorization bool `protobuf:"varint,3,opt,name=has_authorization,json=hasAuthorization,proto3" json:"has_authorization,omitempty"`
-	// Latest terminal delivery for this configuration, when available.
+	// Latest recorded failure for this configuration, when available.
+	// Later successes and intentional skips do not clear this failure.
 	LatestDelivery *BotWebhookDelivery `protobuf:"bytes,4,opt,name=latest_delivery,json=latestDelivery,proto3" json:"latest_delivery,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -1529,7 +1530,8 @@ type BotWebhookDelivery struct {
 	Status BotWebhookDeliveryStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chatto.api.v1.BotWebhookDeliveryStatus" json:"status,omitempty"`
 	// Safe failure or skip category. Empty for successful delivery.
 	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	// Reserved attempts, including requests with an uncertain crash outcome.
+	// Queue deliveries consumed, up to the attempt limit. A delivery can fail
+	// before HTTP starts, so this is not an exact HTTP request count.
 	Attempts uint32 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Zero if no HTTP response was received.
 	HttpStatus uint32 `protobuf:"varint,5,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`

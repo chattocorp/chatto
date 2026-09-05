@@ -286,6 +286,7 @@ snapshot or live-only fallback. See
 
 **Bot outbound webhook** — One HTTP destination configured by a bot manager for direct mentions
 and direct messages. Chatto retries delivery within operator limits and records
-a terminal outcome. The receiver uses the stable delivery ID to detect repeats.
+terminal failures. JetStream tracks pending deliveries. The receiver uses the
+stable delivery ID to detect repeats.
 See [FDR-038](fdr/FDR-038-bot-accounts.md) and
 [ADR-097](adr/ADR-097-durable-outbound-bot-webhooks.md).

@@ -8,8 +8,8 @@ import (
 )
 
 // botWebhookProjection retains encrypted settings and one latest terminal
-// outcome per configured bot. Completed delivery deduplication reads EVT by
-// delivery aggregate instead of keeping an unbounded in-memory outcome index.
+// failure per configured bot. Successful and skipped jobs are acknowledged
+// without an EVT fact; later successes do not clear the latest failure.
 type botWebhookProjection struct {
 	events.MemoryProjection
 	configurations map[string]*evtv1.Event
