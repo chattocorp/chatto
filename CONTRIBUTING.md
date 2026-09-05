@@ -120,34 +120,3 @@ Local development instances are bootstrapped from `cli/chatto.toml` when the ser
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
-
-## Continuous Integration
-
-The path filters in `.github/workflows/ci.yml` select complete product checks
-for pull requests from these source roots:
-
-| Product | Source roots |
-| --- | --- |
-| Chatto | `authling/`, `cli/`, `pkg/`, `apps/frontend/`, `packages/`, `proto/`, `docker/` |
-| Authling | `authling/`, `pkg/`, `cli/go.mod`, `cli/go.sum` |
-| Docs website | `apps/docs-website/` |
-| Chatto Desktop | `apps/desktop/`, `apps/frontend/`, `packages/`, `proto/`, `tools/test-desktop-*` |
-
-Authling changes also select Chatto to verify login and profile transfer.
-Changes to either product's `go.mod` or `go.sum` select both products because
-Go workspace dependency selection can affect both.
-
-Shared framework tests run when Chatto or Authling is selected. Chatto checks
-include frontend checks and all Chatto E2E and performance tests. Desktop
-checks also include workspace checks. Root Markdown files, `docs/`, and agent
-instruction directories do not select product checks. Other paths, including
-repository tooling, select all products.
-
-Protobuf, license, and workflow checks always run. The protobuf job also fails
-if product selection fails. All four required E2E shard names remain present
-when their test steps are skipped.
-
-Pushes to `main` and release branches run the full validation suite. Image
-publication and tag-triggered releases keep their existing workflow. Label
-changes keep the existing CI trigger behavior. E2E tests use Playwright's
-standard four-way sharding, and Go tests keep `-p 1`.
