@@ -26,10 +26,15 @@ const (
 	assetUploadTempObjectPrefix      = "asset-upload."
 	defaultAssetUploadSessionTTL     = 15 * time.Minute
 	defaultPendingAttachmentAssetTTL = 24 * time.Hour
-	defaultAssetUploadChunkSize      = 512 * 1024
 	assetUploadCleanupInterval       = 5 * time.Minute
 	assetUploadOrphanChunkMaxAge     = defaultAssetUploadSessionTTL + time.Hour
 )
+
+// DefaultAssetUploadChunkSize is the maximum chunk size in bytes for new
+// upload sessions. Larger chunks reduce acknowledgement waits on high-latency
+// connections. Transports must allow this payload plus request metadata.
+// Existing sessions retain the limit stored when they were created.
+const DefaultAssetUploadChunkSize = 10 * 1024 * 1024
 
 type AssetUploadStatus string
 
@@ -122,7 +127,7 @@ func (m *AssetUploadModel) CreateUpload(ctx context.Context, input AssetUploadCr
 		Size:         input.Size,
 		SHA256:       strings.ToLower(input.SHA256),
 		Status:       AssetUploadStatusOpen,
-		MaxChunkSize: defaultAssetUploadChunkSize,
+		MaxChunkSize: DefaultAssetUploadChunkSize,
 		ExpiresAt:    now.Add(defaultAssetUploadSessionTTL),
 	}
 	value, err := json.Marshal(session)
