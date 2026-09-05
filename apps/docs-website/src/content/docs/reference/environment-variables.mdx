@@ -582,3 +582,28 @@ Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disabl
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
   Maximum number of verified accounts on this server. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>
+
+## Outbound bot webhooks
+
+```toml
+[bot_webhooks]
+max_attempts = 5
+retry_delay = "30s"
+expiry = "24h"
+allow_private_networks = false
+```
+
+| Environment variable | TOML key | Default | Meaning |
+| --- | --- | --- | --- |
+| `CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS` | `bot_webhooks.max_attempts` | `5` | Maximum attempts, including the first request. Range: 1–100. |
+| `CHATTO_BOT_WEBHOOKS_RETRY_DELAY` | `bot_webhooks.retry_delay` | `30s` | Initial delay. Range: 1 second–30 minutes. Doubles after each failed attempt, up to 30 minutes. |
+| `CHATTO_BOT_WEBHOOKS_EXPIRY` | `bot_webhooks.expiry` | `24h` | Lifetime from the source message time. Range: 1 second–30 days. |
+| `CHATTO_BOT_WEBHOOKS_ALLOW_PRIVATE_NETWORKS` | `bot_webhooks.allow_private_networks` | `false` | Permit private destinations and HTTP. Enable only when bot managers may contact internal services. |
+
+Restart the server after a change. Each delivery request keeps the attempt
+limit, retry delay, and expiry that applied when it was created. A restart or
+backup restore does not renew these values. An attempt reserved before a crash
+counts toward the limit. The network policy is checked on each attempt.
+
+See [outbound bot webhooks](/guides/integrations/bot-accounts/#outbound-webhooks)
+for the request body, signature scheme, and receiver requirements.

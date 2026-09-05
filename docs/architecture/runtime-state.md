@@ -256,3 +256,13 @@ durable message-body references.
 S3 public delivery probes only `instance/{assetId}`. This route never probes
 private current or historical attachment prefixes. Disallowed classes return
 404.
+
+## Outbound webhook attempts
+
+`RUNTIME_STATE` key `bot_webhook_attempt.{deliveryId}` contains a protobuf
+`BotWebhookAttempt`. It records the reserved attempt count and next allowed
+attempt time. Revision-based updates coordinate replicas. A reservation includes
+a request-timeout grace so ordinary redelivery cannot overlap an active send.
+The worker removes the key only after a terminal EVT outcome exists. The key
+has no independent TTL and contains no URL, credential, or message content.
+It is included in the existing runtime-state backup.

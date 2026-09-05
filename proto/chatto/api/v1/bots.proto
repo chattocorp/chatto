@@ -228,9 +228,96 @@ message ReassignBotOwnerResponse {
   Bot bot = 1;
 }
 
+// Endpoint settings visible only to the bot owner or a caller with bot.manage.
+// Credentials are write-only. Replace the configuration to change them.
+message BotOutboundWebhook {
+  // Configuration generation, used to cancel earlier pending work.
+  string id = 1;
+  // Whether this configuration accepts new messages.
+  bool enabled = 2;
+  // Whether an Authorization header is configured.
+  bool has_authorization = 3;
+  // Latest terminal delivery for this configuration, when available.
+  BotWebhookDelivery latest_delivery = 4;
+}
+
+// Terminal state of one outbound webhook delivery.
+enum BotWebhookDeliveryStatus {
+  // No recognised terminal state was supplied.
+  BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED = 0;
+  // The endpoint accepted the request with an HTTP 2xx response.
+  BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED = 1;
+  // Attempts or delivery lifetime were exhausted.
+  BOT_WEBHOOK_DELIVERY_STATUS_FAILED = 2;
+  // Access, message availability, or endpoint settings prevented delivery.
+  BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED = 3;
+}
+
+// Safe summary of one terminal webhook delivery.
+message BotWebhookDelivery {
+  // Stable delivery identifier shared by all retry attempts.
+  string id = 1;
+  // Final result of this delivery.
+  BotWebhookDeliveryStatus status = 2;
+  // Safe failure or skip category. Empty for successful delivery.
+  string reason = 3;
+  // Reserved attempts, including requests with an uncertain crash outcome.
+  uint32 attempts = 4;
+  // Zero if no HTTP response was received.
+  uint32 http_status = 5;
+  // Time the terminal outcome was recorded.
+  google.protobuf.Timestamp completed_at = 6;
+}
+
+// Read the current endpoint metadata for one managed bot.
+message GetBotOutboundWebhookRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+// Current endpoint metadata without URL or credentials.
+message GetBotOutboundWebhookResponse {
+  // Absent when the bot has no configuration.
+  BotOutboundWebhook webhook = 1;
+}
+// Replace all endpoint settings. Each replacement cancels earlier pending work.
+message ReplaceBotOutboundWebhookRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Absolute HTTPS destination. Treat secret URL components as credentials.
+  string url = 2 [(buf.validate.field).string = {min_len: 1, max_len: 4096}];
+  // Optional complete Authorization header value. Empty removes the header.
+  string authorization = 3 [(buf.validate.field).string.max_len = 4096];
+  // Accept new eligible messages for delivery. False stores a disabled endpoint.
+  bool enabled = 4;
+}
+// Saved endpoint metadata and its show-once signing secret.
+message ReplaceBotOutboundWebhookResponse {
+  // Saved configuration metadata.
+  BotOutboundWebhook webhook = 1;
+  // Show-once secret for HMAC-SHA256 request verification.
+  string signing_secret = 2;
+}
+// Remove the endpoint for one managed bot.
+message DeleteBotOutboundWebhookRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+// The endpoint was removed, or was already absent.
+message DeleteBotOutboundWebhookResponse {}
+
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service.
 service BotService {
+  // Gets endpoint metadata. Requires bot ownership or bot.manage.
+  rpc GetBotOutboundWebhook(GetBotOutboundWebhookRequest) returns (GetBotOutboundWebhookResponse);
+  // Replaces endpoint settings and returns a new signing secret once.
+  // Requires bot ownership or bot.manage.
+  rpc ReplaceBotOutboundWebhook(ReplaceBotOutboundWebhookRequest) returns (ReplaceBotOutboundWebhookResponse);
+  // Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
+  rpc DeleteBotOutboundWebhook(DeleteBotOutboundWebhookRequest) returns (DeleteBotOutboundWebhookResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
   // Lists bots visible to the authenticated caller.
   rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
   // Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns

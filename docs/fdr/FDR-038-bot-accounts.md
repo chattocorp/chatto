@@ -299,8 +299,8 @@ alternate clients, and a future reliable delivery transport.
 
 **Tradeoff:** Realtime provides bounded reconnect recovery, not indefinite
 delivery. Bots must deduplicate stable event IDs. An integration that must
-process every event after a long outage needs a future acknowledged webhook or
-paged activity feature.
+process every event after a long outage can use outbound webhooks for direct mentions and DM messages. Other event
+types need a future acknowledged transport or paged activity feature.
 
 ### 11. Incoming webhooks use a separate action credential
 
@@ -324,6 +324,34 @@ a lost response can create a duplicate message. Last-use telemetry is
 best-effort and can be delayed, unavailable, or missing after a process or
 storage failure. Rich Slack payloads and replies to existing threads are
 deferred.
+
+### 12. One outbound endpoint per bot
+
+**Decision:** A bot manager can configure one outbound URL with an optional
+Authorization value. The endpoint receives new direct mentions and messages in
+DMs that include the bot, including replies. A DM mention produces one
+request with both trigger values. The bot's own messages do not activate it.
+Channel messages without a direct mention, edits, reactions, and notification
+preferences do not activate an outbound webhook.
+
+**Why:** A fixed JSON structure and explicit event type let the receiving tool
+route requests without a separate event selection UI. See ADR-097.
+
+**Tradeoff:** Generic tools must accept the Chatto JSON body. Signing headers
+are available, but signature verification is the receiver's responsibility.
+The bot uses the normal API to reply. Webhook response bodies have no action.
+
+The manager enters the full URL and optional Authorization value. Both are
+write-only. Saving replaces the configuration, returns a new signing secret
+once, and cancels pending work for the old configuration. Removing the
+endpoint stops delivery. Configuration cannot be managed by the bot itself.
+
+Chatto retries failed requests within an operator-configured lifetime and
+attempt limit. Requests have a stable delivery ID. A receiver must tolerate
+duplicates. The bot page shows the latest success, failure, or skip for the
+current configuration. Access is checked before sending. The message body is
+the currently readable version, so it can change between attempts after an
+edit. Retracted or inaccessible messages are not sent.
 
 ## Permissions
 
@@ -405,7 +433,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-097 (durable outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052
@@ -425,5 +453,4 @@ service, and send the target user ID.
 ## Open Questions
 
 - API-key expiry is deferred.
-- Define durable outgoing-webhook registration, signing, retry, and delivery
-  status for semantic public events that need reliable automation delivery.
+- Additional outbound event types and multiple destinations are deferred.

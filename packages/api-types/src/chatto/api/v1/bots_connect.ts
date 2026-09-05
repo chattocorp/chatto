@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotOutboundWebhookRequest, DeleteBotOutboundWebhookResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, ReplaceBotOutboundWebhookRequest, ReplaceBotOutboundWebhookResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,6 +15,41 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
+    /**
+     * Gets endpoint metadata. Requires bot ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.GetBotOutboundWebhook
+     */
+    getBotOutboundWebhook: {
+      name: "GetBotOutboundWebhook",
+      I: GetBotOutboundWebhookRequest,
+      O: GetBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Replaces endpoint settings and returns a new signing secret once.
+     * Requires bot ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ReplaceBotOutboundWebhook
+     */
+    replaceBotOutboundWebhook: {
+      name: "ReplaceBotOutboundWebhook",
+      I: ReplaceBotOutboundWebhookRequest,
+      O: ReplaceBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.DeleteBotOutboundWebhook
+     */
+    deleteBotOutboundWebhook: {
+      name: "DeleteBotOutboundWebhook",
+      I: DeleteBotOutboundWebhookRequest,
+      O: DeleteBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
     /**
      * Lists bots visible to the authenticated caller.
      *

@@ -496,7 +496,36 @@
       "webhook_last_used": "Zuletzt verwendet",
       "webhook_no_use_recorded": "Keine Nutzung erfasst",
       "webhook_last_used_unavailable": "Vorübergehend nicht verfügbar",
-      "webhook_limit_reached": "Du hast die Höchstzahl von 20 eingehenden Webhooks erreicht."
+      "webhook_limit_reached": "Du hast die Höchstzahl von 20 eingehenden Webhooks erreicht.",
+      "outbound": {
+        "title": "Ausgehender Webhook",
+        "description": "Sende direkte Erwähnungen und Direktnachrichten an dein Tool. Der Serverbetreiber legt Wiederholungen und Ablaufzeit fest.",
+        "url": "Ziel-URL",
+        "authorization": "Authorization-Header (optional)",
+        "enabled": "Zustellung aktivieren",
+        "save": "Endpunkt speichern",
+        "replace": "Endpunkt ersetzen",
+        "remove": "Endpunkt entfernen",
+        "empty": "Es ist kein ausgehender Webhook eingerichtet.",
+        "active": "Die Zustellung ist aktiviert.",
+        "disabled": "Die Zustellung ist deaktiviert.",
+        "replace_help": "URL und Zugangsdaten können nicht abgerufen werden. Gib alle Einstellungen ein, um den Endpunkt zu ersetzen. Ausstehende Zustellungen werden abgebrochen.",
+        "error": "Der ausgehende Webhook konnte nicht geändert werden.",
+        "load_error": "Der ausgehende Webhook konnte nicht geladen werden.",
+        "pending": "Noch keine abgeschlossene Zustellung erfasst.",
+        "delivered": "Die letzte Zustellung war erfolgreich.",
+        "failed": "Die letzte Zustellung ist fehlgeschlagen.",
+        "skipped": "Die letzte Zustellung wurde übersprungen.",
+        "attempts": "Versuche: {attempts}",
+        "http_status": "HTTP-Status: {status}",
+        "reason": "Grund: {reason}",
+        "secret_title": "Signaturschlüssel für den Webhook",
+        "secret_warning": "Kopiere diesen Schlüssel jetzt, wenn dein Tool Chatto-Signaturen prüft. Er kann nicht erneut angezeigt werden.",
+        "secret_copied": "Signaturschlüssel kopiert",
+        "refresh": "Zustellstatus aktualisieren",
+        "remove_title": "Ausgehenden Webhook entfernen?",
+        "remove_description": "Damit stoppst du neue Zustellungen und brichst ausstehende Zustellungen ab."
+      }
     }
   }
 }

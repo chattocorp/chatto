@@ -18,6 +18,7 @@ import (
 // projections. Its registration slice is the single source used by runtime
 // lifecycle, readiness, and operator diagnostics.
 type coreProjections struct {
+	botWebhooks   events.ProjectionHandle[*botWebhookProjection]
 	registrations []projectionRegistration
 	snapshotJobs  []projectionSnapshotJob
 	contentView   *ServerContentView
@@ -307,6 +308,11 @@ func initializeCoreProjections(
 		return nil, err
 	}
 
+	webhooks := newBotWebhookProjection()
+	projections.botWebhooks, err = registerProjection(registrar, webhooks, "bot_webhooks", "Bot Webhooks", webhooks.estimate, coldReplayOnly)
+	if err != nil {
+		return nil, err
+	}
 	projections.registrations = registrar.registrations
 	if err := configureProjectionSnapshots(infra, projections); err != nil {
 		return nil, err

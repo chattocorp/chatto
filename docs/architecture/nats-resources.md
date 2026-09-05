@@ -88,3 +88,15 @@ versioned identity with the `notifications-incarnation-v1:` format. The
 from `EVT`. Notification projection snapshots bind to this identity and the
 notification stream sequence, allowing the shared snapshot framework to
 support more than one application-owned event log without mixing coordinates.
+
+## Outbound bot webhook consumers
+
+Both consumers use EVT, file-backed durable state, explicit acknowledgement,
+and DeliverAll. `chatto-bot-webhook-source-v1` consumes
+`evt.room.*.message_posted`. It acknowledges after all selected delivery requests
+commit. Configuration sequence and source-time expiry prevent old messages from
+activating new endpoints. `chatto-bot-webhook-delivery-v1` consumes
+`evt.bot_webhook_delivery.*.bot_webhook_delivery_requested`. It acknowledges
+after a terminal outcome commits and attempt state is removed. Each consumer
+allows eight pending deliveries. Both consumer states use the existing EVT
+backup. See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).
