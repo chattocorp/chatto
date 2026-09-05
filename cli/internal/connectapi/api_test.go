@@ -5505,12 +5505,23 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("asset-upload-flow")
 	ctx := withCaller(env.ctx, env.viewer)
-	content := []byte("first chunk and second chunk")
-	first := content[:11]
-	second := content[11:]
+	// Exercise the production request limit as well as the stored session limit.
+	mux := http.NewServeMux()
+	for _, handler := range env.api.Handlers() {
+		mux.Handle(handler.ServicePath, handler.Handler)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r.WithContext(withCaller(r.Context(), env.viewer)))
+	}))
+	t.Cleanup(server.Close)
+	client := apiv1connect.NewAssetUploadServiceClient(server.Client(), server.URL)
+	const chunkSize = 10 * 1024 * 1024
+	content := append(bytes.Repeat([]byte("a"), chunkSize), []byte("second chunk")...)
+	first := content[:chunkSize]
+	second := content[chunkSize:]
 	sum := sha256.Sum256(content)
 
-	created, err := env.assetUploads.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
+	created, err := client.CreateUpload(ctx, connect.NewRequest(&apiv1.CreateUploadRequest{
 		RoomId:      room.Id,
 		Filename:    "note.txt",
 		ContentType: "text/plain",
@@ -5521,12 +5532,21 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 		t.Fatalf("CreateUpload: %v", err)
 	}
 	uploadID := created.Msg.GetUpload().GetUploadId()
-	if uploadID == "" || created.Msg.GetUpload().GetMaxChunkSize() <= 0 {
+	if uploadID == "" || created.Msg.GetUpload().GetMaxChunkSize() != chunkSize {
 		t.Fatalf("created upload = %+v, want id and limits", created.Msg.GetUpload())
+	}
+	oversized := content[:chunkSize+1]
+	oversizedSum := sha256.Sum256(oversized)
+	if _, err := client.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+		UploadId:    uploadID,
+		Content:     oversized,
+		ChunkSha256: hex.EncodeToString(oversizedSum[:]),
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("oversized chunk code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	firstSum := sha256.Sum256(first)
-	chunkResp, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+	chunkResp, err := client.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
 		UploadId:    uploadID,
 		Content:     first,
 		ChunkSha256: hex.EncodeToString(firstSum[:]),
@@ -5537,7 +5557,7 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	if got := chunkResp.Msg.GetUpload().GetCommittedOffset(); got != int64(len(first)) {
 		t.Fatalf("committed offset after first chunk = %d, want %d", got, len(first))
 	}
-	resume, err := env.assetUploads.GetUpload(ctx, connect.NewRequest(&apiv1.GetUploadRequest{UploadId: uploadID}))
+	resume, err := client.GetUpload(ctx, connect.NewRequest(&apiv1.GetUploadRequest{UploadId: uploadID}))
 	if err != nil {
 		t.Fatalf("GetUpload: %v", err)
 	}
@@ -5546,7 +5566,7 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	}
 
 	secondSum := sha256.Sum256(second)
-	if _, err := env.assetUploads.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
+	if _, err := client.UploadChunk(ctx, connect.NewRequest(&apiv1.UploadChunkRequest{
 		UploadId:    uploadID,
 		Offset:      int64(len(first)),
 		Content:     second,
@@ -5554,7 +5574,7 @@ func TestAssetUploadServiceChunkResumeCompleteAndCancel(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("UploadChunk second: %v", err)
 	}
-	completed, err := env.assetUploads.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{UploadId: uploadID}))
+	completed, err := client.CompleteUpload(ctx, connect.NewRequest(&apiv1.CompleteUploadRequest{UploadId: uploadID}))
 	if err != nil {
 		t.Fatalf("CompleteUpload: %v", err)
 	}
