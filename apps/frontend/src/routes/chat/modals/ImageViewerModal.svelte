@@ -11,6 +11,7 @@
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import ImageModal from '$lib/ui/ImageModal.svelte';
+  import Interval from '$lib/lifecycle/Interval.svelte';
 
   let {
     modal,
@@ -90,16 +91,14 @@
     });
   }
 
-  $effect(() => {
-    const interval = window.setInterval(() => {
-      refreshUrls().catch((error: unknown) => {
-        console.warn('Failed to refresh image viewer URLs', error);
-      });
-    }, URL_REFRESH_MS);
-
-    return () => window.clearInterval(interval);
-  });
+  function refreshImageUrls(): void {
+    void refreshUrls().catch((error: unknown) => {
+      console.warn('Failed to refresh image viewer URLs', error);
+    });
+  }
 </script>
+
+<Interval milliseconds={URL_REFRESH_MS} ontick={refreshImageUrls} />
 
 {#if modal.imageItems.length > 0}
   <ImageModal items={modal.imageItems} bind:index={currentIndex} {onclose} />
