@@ -410,7 +410,7 @@
 
       {#if canOperateBot}
         {#key targetKey}
-          {#if serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
+          {#if !deleteLoading && serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
             <BotOutboundWebhookSection {botId} />
           {/if}
           {#if supportsMultipleAPIKeys}
