@@ -57,6 +57,8 @@ interface PushPayload {
   badge?: string;
   tag?: string;
   notificationId?: string;
+  serverOrigin?: string;
+  recipientId?: string;
   url?: string;
   app_badge?: string | number;
 }
@@ -77,6 +79,8 @@ interface DeclarativeNotificationPayload {
   navigate?: string;
   data?: {
     notificationId?: string;
+    serverOrigin?: string;
+    recipientId?: string;
     url?: string;
   };
 }
@@ -111,6 +115,8 @@ function normalizePushNotification(payload: DeclarativePushPayload): NormalizedP
       tag: payload.tag ?? notification?.tag,
       data: {
         notificationId,
+        serverOrigin: payload.serverOrigin ?? notification?.data?.serverOrigin,
+        recipientId: payload.recipientId ?? notification?.data?.recipientId,
         url
       }
     }
@@ -136,6 +142,8 @@ function notificationData(data: unknown): DeclarativeNotificationPayload['data']
   if (typeof data !== 'object' || data === null) return undefined;
   return {
     notificationId: stringProperty(data, 'notificationId'),
+    serverOrigin: stringProperty(data, 'serverOrigin'),
+    recipientId: stringProperty(data, 'recipientId'),
     url: stringProperty(data, 'url')
   };
 }

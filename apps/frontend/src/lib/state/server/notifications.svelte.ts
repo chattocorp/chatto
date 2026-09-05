@@ -93,6 +93,9 @@ export class NotificationStore {
   #mutationIdleWaiters = new SvelteSet<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
+  #handledPushIds = new SvelteSet<string>();
+  /** Changes when native notification cleanup must recheck server state. */
+  pushRevision = $state(0);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   /** Raw server rows consumed by the retained occurrence page. */
   consumedCount = $state(0);
@@ -137,6 +140,7 @@ export class NotificationStore {
 
   /** Replace notification state from the realtime projection. */
   replaceOccurrenceProjection(page: NotificationOccurrencePage): void {
+    this.pushRevision++;
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
@@ -178,6 +182,8 @@ export class NotificationStore {
 
   /** Invalidate projection-owned state while a compacted reset hydrates. */
   resetProjectionState(): void {
+    this.pushRevision++;
+    this.#handledPushIds.clear();
     this.notificationPolicies.reset();
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
@@ -509,6 +515,7 @@ export class NotificationStore {
     let mutationError: unknown;
     try {
       await this.#api.batchDeleteNotificationOccurrences(uniqueIds);
+      this.#rememberHandledPushIds(uniqueIds);
       // Keep the deletion marker in place until older reads settle. A failed
       // read must never restore an occurrence after its delete committed.
       if (overlappingReadRequests.length > 0) {
@@ -661,6 +668,7 @@ export class NotificationStore {
       let mutationError: unknown;
       try {
         await this.#api.markNotificationRead(notificationId);
+        this.#rememberHandledPushIds([notificationId]);
       } catch (error) {
         mutationFailed = true;
         mutationError = error;
@@ -704,6 +712,7 @@ export class NotificationStore {
       request = this.#api.markNotificationRead(notificationId);
       this.#pendingReadRequestById.set(notificationId, request);
       await request;
+      this.#rememberHandledPushIds([notificationId]);
       return true;
     } catch (e) {
       console.error('Failed to mark notification read:', e);
@@ -725,11 +734,13 @@ export class NotificationStore {
   }
 
   #beginMutation(): void {
+    this.pushRevision++;
     this.#pendingMutationCount++;
     this.#authoritativeGeneration++;
   }
 
   #endMutation(): void {
+    this.pushRevision++;
     this.#pendingMutationCount = Math.max(0, this.#pendingMutationCount - 1);
     if (this.#pendingMutationCount !== 0) return;
     for (const resolve of this.#mutationIdleWaiters) resolve();
@@ -739,6 +750,42 @@ export class NotificationStore {
   async #waitForPendingMutations(): Promise<void> {
     if (this.#pendingMutationCount === 0) return;
     await new Promise<void>((resolve) => this.#mutationIdleWaiters.add(resolve));
+  }
+
+  /**
+   * Check IDs captured from the OS before this read. Never use optimistic rows
+   * or infer deletion from a partial page. Unknown older IDs remain displayed.
+   * The caller must discard the result if pushRevision or account identity changes.
+   */
+  async handledPushNotificationIds(ids: readonly string[]): Promise<Set<string>> {
+    if (this.#pendingMutationCount > 0) return new SvelteSet();
+    const generation = this.#authoritativeGeneration;
+    const handled = new SvelteSet(ids.filter((id) => this.#handledPushIds.has(id)));
+    if (handled.size === ids.length) return handled;
+    let page: NotificationOccurrencePage;
+    try {
+      page = await this.#api.listNotificationOccurrences(50);
+    } catch {
+      // A failed read must not block an already-confirmed local action.
+      return handled;
+    }
+    if (generation !== this.#authoritativeGeneration || this.#pendingMutationCount > 0) {
+      return new SvelteSet();
+    }
+    const rows = new SvelteMap(page.occurrences.map((row) => [row.id, row]));
+    for (const id of ids) {
+      const row = rows.get(id);
+      if (row ? !row.unread : !page.hasMore || page.unreadCount === 0) handled.add(id);
+    }
+    return handled;
+  }
+
+  #rememberHandledPushIds(ids: readonly string[]): void {
+    for (const id of ids) this.#handledPushIds.add(id);
+    // This is only a local fast path. Fresh server reads recover after reload.
+    while (this.#handledPushIds.size > 1024) {
+      this.#handledPushIds.delete(this.#handledPushIds.values().next().value!);
+    }
   }
 
   #adjustRoomCounts(

@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -30,6 +30,8 @@ tab is not open. Push is opt-in for each device, requires operator configuration
 - Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
 - While Chatto is visible, its notification stores are authoritative for the aggregate app-icon badge. Declarative Web Push supplies the sending server's exact unread-occurrence count while the app is closed or suspended.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
+- While Chatto is running, it asks the browser to close matching OS notifications after confirmed read or delete actions. It checks again after notification state updates, app focus, network recovery, and a regular push received by a visible app. Each check matches the sending server and recipient account.
+- Cleanup preserves unread notifications. It also preserves uncertain results after failed requests or partial notification pages. Older payloads without account metadata remain visible until the user closes them. Closing an OS notification is best-effort and depends on browser support.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions. Cleanup is tied to
   the durable account-deletion fact, retries across crashes and partial
@@ -71,13 +73,16 @@ validation can still suppress it.
 
 ### 5. Native notification state is presentation-only
 
-**Decision:** Clicking or dismissing an OS notification does not mutate the
-Chatto notification list, and in-app actions do not claim that every push service can retract
-an already delivered OS notification.
-**Why:** The persistent occurrence is authoritative and must not depend on
-browser-specific dismissal callbacks or unordered control pushes.
-**Tradeoff:** A delivered native notification can remain visible on another
-device after the occurrence is triaged until the person dismisses it there.
+**Decision:** Clicking or dismissing an OS notification does not change the
+Chatto notification list. The running app can close matching OS notifications
+after a confirmed read or delete action, or after a fresh server read proves
+that the occurrence is handled. It does not send silent dismissal pushes.
+**Why:** The persistent occurrence is authoritative. Browser notification state
+must not depend on optimistic changes, partial lists, or unordered control pushes.
+**Tradeoff:** A closed or suspended app cannot guarantee immediate cleanup on
+another device. An older notification outside a partial server page remains
+visible unless this client has confirmed its handling. Payloads without the
+server and account metadata are not eligible for automatic cleanup.
 
 ### 6. Startup subscription reconciliation
 
@@ -125,8 +130,9 @@ pushes; read and delete actions synchronize through normal app state when the cl
 connected or next opens.
 **Tradeoff:** Prompt delivery uses more battery than batched delivery.
 Restricting push to occurrences with the Push notification mode keeps that cost
-aligned with explicit user attention policy. An OS notification that is already
-visible can remain until the user dismisses it.
+aligned with explicit user attention policy. An OS notification can remain
+visible until the app can confirm its state and the browser accepts the close
+request, or until the user dismisses it.
 
 ### 12. Restricted outbound push delivery
 
