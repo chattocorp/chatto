@@ -43,6 +43,8 @@ jobs:
           predicate-quantifier: some-with-excludes
           filters: |
             chatto:
+              # Authling changes must also verify login and profile transfer into Chatto.
+              - 'authling/**'
               - 'cli/**'
               - 'pkg/**'
               - 'apps/frontend/**'
@@ -50,6 +52,8 @@ jobs:
               - 'proto/**'
               - 'docker/**'
             authling:
+              # Go workspace dependency selection can change across product modules.
+              - 'cli/go.{mod,sum}'
               - 'authling/**'
               - 'pkg/**'
             docs:

@@ -128,10 +128,14 @@ for pull requests from these source roots:
 
 | Product | Source roots |
 | --- | --- |
-| Chatto | `cli/`, `pkg/`, `apps/frontend/`, `packages/`, `proto/`, `docker/` |
-| Authling | `authling/`, `pkg/` |
+| Chatto | `authling/`, `cli/`, `pkg/`, `apps/frontend/`, `packages/`, `proto/`, `docker/` |
+| Authling | `authling/`, `pkg/`, `cli/go.mod`, `cli/go.sum` |
 | Docs website | `apps/docs-website/` |
 | Chatto Desktop | `apps/desktop/`, `apps/frontend/`, `packages/`, `proto/`, `tools/test-desktop-*` |
+
+Authling changes also select Chatto to verify login and profile transfer.
+Changes to either product's `go.mod` or `go.sum` select both products because
+Go workspace dependency selection can affect both.
 
 Shared framework tests run when Chatto or Authling is selected. Chatto checks
 include frontend checks and all Chatto E2E and performance tests. Desktop
