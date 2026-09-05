@@ -81,14 +81,24 @@ describe('UserAvatar', () => {
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
   });
 
-  it('marks bot accounts with a robot badge', () => {
-    const { container } = render(UserAvatarTestHarness, {
-      size: 'md',
-      isBot: true
-    });
+  it('keeps extra-small bot avatars free of robot badges', () => {
+    const { container } = render(UserAvatarTestHarness, { size: 'xs', isBot: true });
 
-    expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+    expect(q(container, '[aria-label="alice"]')).toBeTruthy();
+    expect(q(container, '[data-testid="bot-badge"]')).toBeFalsy();
   });
+
+  it.each(['sm', 'md', 'message', 'lg', 'xl'] as const)(
+    'marks %s bot avatars with a robot badge',
+    (size) => {
+      const { container } = render(UserAvatarTestHarness, {
+        size,
+        isBot: true
+      });
+
+      expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+    }
+  );
 
   it('renders static directory identities without app-level live caches', () => {
     const { container } = render(UserAvatar, {

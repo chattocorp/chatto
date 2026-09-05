@@ -121,7 +121,7 @@
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
-  const showBotBadge = $derived(!!user && !user.deleted && user.isBot === true);
+  const showBotBadge = $derived(!!user && !user.deleted && user.isBot === true && size !== 'xs');
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || showBotBadge);
   const wrapperClass = $derived(
     [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]
@@ -166,10 +166,7 @@
     {/if}
     {#if showBotBadge}
       <span
-        class={[
-          size === 'xs' ? 'h-3.5 w-3.5' : 'h-5 w-5',
-          'pointer-events-none absolute top-0 left-0 grid -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full'
-        ]}
+        class="pointer-events-none absolute top-0 left-0 grid h-5 w-5 -translate-x-1/4 -translate-y-1/4 place-items-center rounded-full"
         data-testid="bot-badge"
         role="img"
         aria-label={m('settings.bots.singular')}

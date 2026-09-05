@@ -89,11 +89,12 @@ describe('MentionAutocomplete', () => {
       expect(container.querySelector('bdi:not([dir])')?.textContent).toBe('Alice Wonderland');
     });
 
-    it('marks bot mention targets with the shared avatar badge', () => {
+    it('shows bot mention targets without a badge on tiny avatars', () => {
       const bot = { ...member('helper_bot', 'Helper Bot'), isBot: true };
       const { container } = renderAutocomplete({ query: 'helper', members: [bot] });
 
-      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+      expect(visibleLogins(container)).toEqual(['helper_bot']);
+      expect(container.querySelector('[data-testid="bot-badge"]')).toBeNull();
     });
 
     it('does not render deleted members as mention targets', () => {

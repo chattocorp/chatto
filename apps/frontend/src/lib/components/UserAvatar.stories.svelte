@@ -13,7 +13,8 @@
     parameters: {
       docs: {
         description: {
-          component: 'Circular user avatars with optional presence dots and coloured bot icons.'
+          component:
+            'Circular user avatars with optional presence dots. Bot icons appear on all sizes except xs.'
         }
       }
     }

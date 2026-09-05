@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-04
+**Last reviewed:** 2026-09-05
 
 ## Overview
 
@@ -258,7 +258,9 @@ their keys.
 ### 8. Bot identity is visible on canonical user surfaces
 
 **Decision:** Public user representations identify bot accounts, and clients
-render an accessible bot marker anywhere user identity is presented.
+render an accessible bot marker on user identity surfaces. The bundled client
+omits this marker from extra-small avatars to keep them clear. Larger avatars
+keep the marker.
 **Why:** People should know when messages or other actions come from automation.
 Using the canonical user representation keeps the distinction consistent
 across existing and future surfaces.
