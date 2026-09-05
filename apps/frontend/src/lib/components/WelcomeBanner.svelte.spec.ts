@@ -4,14 +4,17 @@ import { render } from 'vitest-browser-svelte';
 
 const mocks = vi.hoisted(() => ({
   page: {
-    url: new URL('https://chatto.test/chat'),
+    url: new URL('https://chatto.test/community/chat'),
     state: {} as App.PageState
   },
   replaceState: vi.fn()
 }));
 
 vi.mock('$app/state', () => ({ page: mocks.page }));
-vi.mock('$app/paths', () => ({ base: '', resolve: (path: string) => path }));
+vi.mock('$app/paths', () => ({
+  base: '/community',
+  resolve: (path: string) => '/community' + path
+}));
 vi.mock('$app/navigation', () => ({ replaceState: mocks.replaceState }));
 vi.mock('$lib/ui', async () => ({ Hint: (await import('$lib/ui/Hint.svelte')).default }));
 vi.mock('$lib/i18n/messages', () => ({ m: (key: string) => key }));
@@ -21,7 +24,7 @@ import WelcomeBanner from './WelcomeBanner.svelte';
 describe('WelcomeBanner', () => {
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date', 'setTimeout', 'clearTimeout'] });
-    mocks.page.url = new URL('https://chatto.test/chat');
+    mocks.page.url = new URL('https://chatto.test/community/chat');
     mocks.page.state = {};
     mocks.replaceState.mockReset();
   });
@@ -34,7 +37,7 @@ describe('WelcomeBanner', () => {
     'consumes the %s flag and preserves other navigation values',
     async (source) => {
       mocks.page.url = new URL(
-        `https://chatto.test/chat?filter=unread${source !== 'state' ? '&welcome=true' : ''}#latest`
+        `https://chatto.test/community/chat?filter=unread${source !== 'state' ? '&welcome=true' : ''}#latest`
       );
       mocks.page.state = {
         threadFilter: 'unread',
@@ -45,12 +48,24 @@ describe('WelcomeBanner', () => {
       await tick();
       await vi.advanceTimersByTimeAsync(0);
       await expect.element(screen.getByText('welcome.verified')).toBeVisible();
-      expect(mocks.replaceState).toHaveBeenCalledExactlyOnceWith(
-        '/chat?filter=unread#latest',
-        { threadFilter: 'unread' }
-      );
+      expect(mocks.replaceState).toHaveBeenCalledExactlyOnceWith('/community/chat?filter=unread#latest', {
+        threadFilter: 'unread'
+      });
     }
   );
+
+  it('preserves a nonempty base path without duplicating it', async () => {
+    mocks.page.url = new URL(
+      'https://chatto.test/community/chat?welcome=true&filter=unread#latest'
+    );
+    render(WelcomeBanner);
+    await tick();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mocks.replaceState).toHaveBeenCalledExactlyOnceWith(
+      '/community/chat?filter=unread#latest',
+      {}
+    );
+  });
 
   it('does not show or replace navigation state without a true welcome flag', async () => {
     mocks.page.url.searchParams.set('welcome', 'false');

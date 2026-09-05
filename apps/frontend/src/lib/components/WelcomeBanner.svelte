@@ -34,13 +34,16 @@ Consumes both flags and preserves other URL and page state values.
 			url.searchParams.delete('welcome');
 			const state = { ...page.state };
 			delete state.welcome;
-			replaceState(resolve((url.pathname.slice(base.length) + url.search + url.hash) as '/'), state);
+			// This is the current route; the assertion permits its dynamic pathname.
+			replaceState(
+				resolve((url.pathname.slice(base.length) + url.search + url.hash) as '/'),
+				state
+			);
 		});
 		return () => {
 			mounted = false;
 		};
 	});
-
 </script>
 
 {#if showWelcome}
