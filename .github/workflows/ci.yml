@@ -24,6 +24,55 @@ permissions:
   contents: read
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+    outputs:
+      chatto: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.chatto == 'true' }}
+      desktop: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.desktop == 'true' }}
+      authling: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.authling == 'true' }}
+      docs: ${{ github.event_name != 'pull_request' || steps.select.outputs.common == 'true' || steps.select.outputs.docs == 'true' }}
+    steps:
+      - name: Select affected products
+        if: github.event_name == 'pull_request'
+        id: select
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          predicate-quantifier: some-with-excludes
+          filters: |
+            chatto:
+              # Authling changes must also verify login and profile transfer into Chatto.
+              - 'authling/**'
+              - 'cli/**'
+              - 'pkg/**'
+              - 'apps/frontend/**'
+              - 'packages/**'
+              - 'proto/**'
+              - 'docker/**'
+            authling:
+              # Go workspace dependency selection can change across product modules.
+              - 'cli/go.{mod,sum}'
+              - 'authling/**'
+              - 'pkg/**'
+            docs:
+              - 'apps/docs-website/**'
+            desktop:
+              - 'apps/desktop/**'
+              - 'apps/frontend/**'
+              - 'packages/**'
+              - 'proto/**'
+              - 'tools/test-desktop-*'
+            # Files outside product roots and repository documentation run all products.
+            common:
+              - '**'
+              - '!{cli,pkg,authling,packages,proto,docker}/**'
+              - '!apps/{frontend,desktop,docs-website}/**'
+              - '!tools/test-desktop-*'
+              - '!{docs,.agents,.claude,.conductor}/**'
+              - '!*.md'
+
   build-main-image-contexts:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -130,6 +179,8 @@ jobs:
         run: mise lint-actions
 
   desktop:
+    needs: changes
+    if: ${{ needs.changes.outputs.desktop == 'true' }}
     name: desktop (${{ matrix.platform }})
     timeout-minutes: 45
     strategy:
@@ -189,6 +240,8 @@ jobs:
           retention-days: 7
 
   desktop-macos-capture:
+    needs: changes
+    if: ${{ needs.changes.outputs.desktop == 'true' }}
     runs-on: macos-15
     timeout-minutes: 15
     steps:
@@ -199,10 +252,17 @@ jobs:
         run: tools/test-desktop-macos-capture.sh
 
   codegen-proto-drift:
+    needs: changes
+    if: ${{ !cancelled() }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
+      - name: Verify job selection
+        env:
+          SELECTION_RESULT: ${{ needs.changes.result }}
+        run: test "$SELECTION_RESULT" = success
+
       - name: Checkout code
         uses: actions/checkout@v6
 
@@ -272,6 +332,8 @@ jobs:
           fi
 
   check-workspace:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.desktop == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -294,6 +356,8 @@ jobs:
         run: pnpm run build:storybook
 
   test-workspace:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     # Keep this job name stable because it can be a required branch check.
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
@@ -317,6 +381,8 @@ jobs:
         run: pnpm test
 
   test-cli:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' || needs.changes.outputs.authling == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -331,6 +397,7 @@ jobs:
           save-go-build-cache: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
       - name: Run Authling tests
+        if: needs.changes.outputs.authling == 'true'
         working-directory: authling
         run: mise test
 
@@ -347,12 +414,16 @@ jobs:
         run: mise test-natsruntime
 
       - name: Build frontend
+        if: needs.changes.outputs.chatto == 'true'
         run: mise build-frontend
 
       - name: Run Go tests
+        if: needs.changes.outputs.chatto == 'true'
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
 
   test-authling-e2e:
+    needs: changes
+    if: ${{ needs.changes.outputs.authling == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -389,6 +460,10 @@ jobs:
           retention-days: 14
 
   test-e2e:
+    needs: changes
+    # Expand the matrix even when no E2E work is needed. A skipped matrix job
+    # has no per-shard check names and would leave required checks pending.
+    if: ${{ !cancelled() }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -399,20 +474,27 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout code
+        if: needs.changes.outputs.chatto == 'true'
         uses: actions/checkout@v6
 
       - name: Setup environment
+        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup
 
       - name: Setup Playwright
+        if: needs.changes.outputs.chatto == 'true'
         uses: ./.github/actions/setup-playwright
         timeout-minutes: 15
 
       - name: Build E2E server
+        if: needs.changes.outputs.chatto == 'true'
         run: mise build-e2e-server
 
       - name: Run E2E tests
-        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard=${{ matrix.shard }}/4
+        if: needs.changes.outputs.chatto == 'true'
+        env:
+          E2E_SHARD: ${{ matrix.shard }}
+        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard="$E2E_SHARD/4"
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7
@@ -423,6 +505,8 @@ jobs:
           retention-days: 14
 
   test-e2e-media:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     # runs-on: ubicloud-standard-4
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -455,6 +539,8 @@ jobs:
           retention-days: 14
 
   test-e2e-performance:
+    needs: changes
+    if: ${{ needs.changes.outputs.chatto == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -656,3 +742,15 @@ jobs:
             echo
             echo "Version: \`${{ needs.build-main-image-contexts.outputs.image-version }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+  check-docs:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./.github/actions/setup
+        with:
+          install-cli-deps: "false"
+      - run: pnpm run build:docs
