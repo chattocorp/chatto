@@ -762,7 +762,13 @@ export class NotificationStore {
     const generation = this.#authoritativeGeneration;
     const handled = new SvelteSet(ids.filter((id) => this.#handledPushIds.has(id)));
     if (handled.size === ids.length) return handled;
-    const page = await this.#api.listNotificationOccurrences(50);
+    let page: NotificationOccurrencePage;
+    try {
+      page = await this.#api.listNotificationOccurrences(50);
+    } catch {
+      // A failed read must not block an already-confirmed local action.
+      return handled;
+    }
     if (generation !== this.#authoritativeGeneration || this.#pendingMutationCount > 0) {
       return new SvelteSet();
     }

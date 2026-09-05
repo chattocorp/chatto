@@ -1364,6 +1364,16 @@ describe('native push reconciliation', () => {
     expect(await store.handledPushNotificationIds(['older'])).toEqual(new Set(['older']));
   });
 
+  it('keeps confirmed handling usable when another notification cannot be queried', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    await store.markRead('confirmed');
+    api.listNotificationOccurrences.mockRejectedValue(new Error('offline'));
+    expect(await store.handledPushNotificationIds(['confirmed', 'unknown'])).toEqual(
+      new Set(['confirmed'])
+    );
+  });
+
   it('discards a stale server read after an authoritative replacement', async () => {
     const api = makeAPI();
     const read = deferred<NotificationOccurrencePage>();

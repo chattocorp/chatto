@@ -130,8 +130,9 @@ pushes; read and delete actions synchronize through normal app state when the cl
 connected or next opens.
 **Tradeoff:** Prompt delivery uses more battery than batched delivery.
 Restricting push to occurrences with the Push notification mode keeps that cost
-aligned with explicit user attention policy. An OS notification can remain visible until the app can confirm its state
-and the browser accepts the close request, or until the user dismisses it.
+aligned with explicit user attention policy. An OS notification can remain
+visible until the app can confirm its state and the browser accepts the close
+request, or until the user dismisses it.
 
 ### 12. Restricted outbound push delivery
 
