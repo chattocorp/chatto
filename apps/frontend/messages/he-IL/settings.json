@@ -496,7 +496,36 @@
       "webhook_last_used": "שימוש אחרון",
       "webhook_no_use_recorded": "לא תועד שימוש",
       "webhook_last_used_unavailable": "לא זמין זמנית",
-      "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים."
+      "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים.",
+      "outbound": {
+        "title": "Webhook יוצא",
+        "description": "שלח אזכורים ישירים והודעות ישירות לכלי שלך. מפעיל השרת קובע את הניסיונות החוזרים ואת זמן התפוגה.",
+        "url": "כתובת URL של היעד",
+        "authorization": "כותרת Authorization (אופציונלית)",
+        "enabled": "הפעל מסירה",
+        "save": "שמור נקודת קצה",
+        "replace": "החלף נקודת קצה",
+        "remove": "הסר נקודת קצה",
+        "empty": "לא הוגדר webhook יוצא.",
+        "active": "המסירה מופעלת.",
+        "disabled": "המסירה מושבתת.",
+        "replace_help": "לא ניתן לאחזר את הכתובת ואת פרטי הגישה. הזן את כל ההגדרות כדי להחליף את נקודת הקצה. פעולה זו מבטלת מסירות ממתינות.",
+        "error": "לא ניתן לעדכן את ה-webhook היוצא.",
+        "load_error": "לא ניתן לטעון את ה-webhook היוצא.",
+        "pending": "לא נרשמה מסירה שהושלמה.",
+        "delivered": "המסירה האחרונה הצליחה.",
+        "failed": "המסירה האחרונה נכשלה.",
+        "skipped": "המסירה האחרונה דולגה.",
+        "attempts": "ניסיונות: {attempts}",
+        "http_status": "מצב HTTP: {status}",
+        "reason": "סיבה: {reason}",
+        "secret_title": "מפתח חתימה סודי ל-webhook",
+        "secret_warning": "העתק את המפתח כעת אם הכלי שלך מאמת חתימות של Chatto. לא ניתן להציג אותו שוב.",
+        "secret_copied": "מפתח החתימה הועתק",
+        "refresh": "רענן מצב מסירה",
+        "remove_title": "להסיר את ה-webhook היוצא?",
+        "remove_description": "פעולה זו עוצרת מסירות חדשות ומבטלת מסירות ממתינות."
+      }
     }
   }
 }

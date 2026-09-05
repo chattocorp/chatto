@@ -496,7 +496,36 @@
       "webhook_last_used": "Laatst gebruikt",
       "webhook_no_use_recorded": "Geen gebruik geregistreerd",
       "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
-      "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt."
+      "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt.",
+      "outbound": {
+        "title": "Uitgaande webhook",
+        "description": "Stuur directe vermeldingen en privéberichten naar je tool. De serverbeheerder bepaalt herhaalpogingen en vervaltijd.",
+        "url": "Doel-URL",
+        "authorization": "Authorization-header (optioneel)",
+        "enabled": "Bezorging inschakelen",
+        "save": "Eindpunt opslaan",
+        "replace": "Eindpunt vervangen",
+        "remove": "Eindpunt verwijderen",
+        "empty": "Er is geen uitgaande webhook ingesteld.",
+        "active": "Bezorging is ingeschakeld.",
+        "disabled": "Bezorging is uitgeschakeld.",
+        "replace_help": "De URL en toegangsgegevens kunnen niet worden opgehaald. Voer alle instellingen in om het eindpunt te vervangen. Dit annuleert wachtende bezorgingen.",
+        "error": "De uitgaande webhook kon niet worden bijgewerkt.",
+        "load_error": "De uitgaande webhook kon niet worden geladen.",
+        "pending": "Nog geen voltooide bezorging geregistreerd.",
+        "delivered": "De laatste bezorging is geslaagd.",
+        "failed": "De laatste bezorging is mislukt.",
+        "skipped": "De laatste bezorging is overgeslagen.",
+        "attempts": "Pogingen: {attempts}",
+        "http_status": "HTTP-status: {status}",
+        "reason": "Reden: {reason}",
+        "secret_title": "Geheime ondertekeningssleutel voor webhook",
+        "secret_warning": "Kopieer deze sleutel nu als je tool Chatto-handtekeningen controleert. Hij kan niet opnieuw worden getoond.",
+        "secret_copied": "Ondertekeningssleutel gekopieerd",
+        "refresh": "Bezorgstatus vernieuwen",
+        "remove_title": "Uitgaande webhook verwijderen?",
+        "remove_description": "Dit stopt nieuwe bezorgingen en annuleert wachtende bezorgingen."
+      }
     }
   }
 }
