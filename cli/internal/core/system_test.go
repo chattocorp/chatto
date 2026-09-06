@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -105,6 +106,20 @@ func TestChattoCore_GetJetStreamStats(t *testing.T) {
 	}
 	if !foundEVT {
 		t.Error("expected EVT stream in stats")
+	}
+	for _, projection := range core.projections {
+		found := false
+		for _, consumer := range stats.Consumers {
+			if consumer.Stream == projection.streamName && strings.HasPrefix(consumer.Name, "projection-"+projection.key+"-") {
+				found = true
+				if consumer.Durable != "" {
+					t.Errorf("projection %s has a durable consumer", projection.key)
+				}
+			}
+		}
+		if !found {
+			t.Errorf("projection %s has no named consumer in diagnostics", projection.key)
+		}
 	}
 }
 

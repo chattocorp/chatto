@@ -30,6 +30,15 @@ inventories.
 | NATS Core    | `live.sync.>`       | None    | No     | Non-durable `pubsubv1.PubSubEvent` values                                    |
 | Republish    | `live.evt.>`        | None    | No     | Raw committed `EVT` facts republished by JetStream for server-side live delivery |
 
+## Projection consumers
+
+Each projector owns one ephemeral ordered consumer. Chatto uses the name
+`projection-<key>-<random>_<generation>` and stores the owner in consumer
+metadata. On exit, the projector stops consumption and attempts to delete only
+its current consumer. Five-minute inactivity expiry remains the fallback if
+cleanup fails or the process crashes. See the [projection inventory](projections.md)
+for the owners and lifecycle.
+
 ## Durable consumers
 
 | Stream | Consumer | Filter | Ack contract | Owner |
