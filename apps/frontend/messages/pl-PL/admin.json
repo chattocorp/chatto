@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Nowe wydarzenia czekają",
       "asset_cleanup_never": "Nigdy",
       "asset_cleanup_none": "Brak",
-      "asset_cleanup_in_progress": "W toku",
-      "jobs": {
-        "title": "Zadania w tle",
-        "outstanding": "Oczekujące zadania",
-        "oldest": "Wiek najstarszego zadania",
-        "storage": "Użyta pamięć",
-        "retention": "Okres przechowywania",
-        "description": "Obejmuje zadania w kolejce, uruchomione i oczekujące na ponowną próbę."
-      }
+      "asset_cleanup_in_progress": "W toku"
     },
     "event_log": {
       "title": "Dziennik zdarzeń",

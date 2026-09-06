@@ -908,7 +908,7 @@ Safe summary of one terminal webhook delivery.
 | `id` | `string` | Stable delivery identifier shared by all retry attempts. |
 | `status` | [`BotWebhookDeliveryStatus`](#chatto-api-v1-BotWebhookDeliveryStatus) | Final result of this delivery. |
 | `reason` | `string` | Safe failure or skip category. Empty for successful delivery. |
-| `attempts` | `uint32` | Queue deliveries consumed, up to the attempt limit. A delivery can fail before HTTP starts, so this is not an exact HTTP request count. |
+| `attempts` | `uint32` | Delivery attempts, up to the attempt limit. An attempt can fail before HTTP starts, so this is not an exact HTTP request count. |
 | `http_status` | `uint32` | Zero if no HTTP response was received. |
 | `completed_at` | `google.protobuf.Timestamp` | Time the terminal outcome was recorded. |
 
@@ -1335,8 +1335,6 @@ JetStream stream state.
 | `consumer_count` | `int32` | Number of stream consumers. |
 | `replicas` | `int32` | Configured stream replica count. |
 | `cluster_leader` | `string` | Current cluster leader, when reported by NATS. |
-| `oldest_message_age_seconds` | `optional double` | Age in seconds of the oldest retained message at sampling time. Absent when empty. |
-| `max_age_seconds` | `optional double` | Configured retention in seconds. Zero means unlimited; absent on older servers. |
 
 <a id="chatto-admin-v1-AdminProjectionMetric"></a>
 

@@ -80,15 +80,6 @@ even if its durable consumer remains retained.
 **Why:** Room and room-group permissions can be delegated without granting server-wide administration. A resource-oriented management area gives those managers a direct destination without creating a separate top-level settings section for every manageable resource.
 **Tradeoff:** The unified Settings shell cannot assume that each viewer has the same Server configuration navigation. It must get navigation and access from the selected resource and the viewer's effective capabilities. It must also keep App preferences and account settings available.
 
-### 9. Shared job queue summary
-
-The System tab shows outstanding jobs, oldest retained job age, storage use,
-and the live retention setting. Outstanding jobs include queued, running, and
-retrying work. An empty queue has no oldest age. Unavailable telemetry stays
-distinct from an empty queue. The page refreshes its diagnostics every ten
-seconds while visible. It uses the existing owner-only diagnostics read and
-does not read job payloads or keep historical counters.
-
 ## Permissions
 
 - `admin.view-users` — gates user-management views, admin-only affordances, and user-sensitive fields such as other users' verified email addresses and login cooldowns. The underlying `server.members` directory query remains authenticated-user visible; see FDR-025.

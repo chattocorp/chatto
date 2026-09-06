@@ -315,11 +315,13 @@ redirects. The default policy permits five attempts within 24 hours of the
 source message. The delay starts at 30 seconds and doubles up to 30 minutes.
 Each request has a ten-second timeout and cannot run beyond delivery expiry.
 
-Delivery is at least once within these limits. A lost response can cause a
-repeat, even if your tool processed the request. Use the delivery ID to avoid
-repeating work. Attempts count deliveries to a worker, including deliveries that stop before
-HTTP starts. JetStream keeps pending jobs and retry progress across restart. Deliveries can arrive
-out of order.
+Delivery is best effort. Pending requests and retry timers live in memory.
+Restart discards work already accepted by a process, without a failure record.
+A lost response or repeated source event can cause a repeat, even if your tool
+processed the request. Use the delivery ID to avoid repeating work. Attempts
+include failures before HTTP starts. Deliveries can arrive in a different
+order. Eight workers per process send and retry requests; failed endpoints
+can delay other deliveries while these workers wait.
 
 Chatto checks the bot's current access before sending. It skips delivery when
 access is lost, the message is unavailable, or the endpoint is replaced. The
@@ -330,10 +332,6 @@ does not clear a previous failure.
 
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
-The shared job queue discards any outstanding job after seven days by default,
-even if no worker picked it up. This hard retention limit is separate from
-webhook expiry and does not produce a failure record. Operators can change it
-with `jobs.max_age` or `CHATTO_JOBS_MAX_AGE`.
 
 The default network policy permits public HTTPS destinations. An operator can
 allow private networks and HTTP for trusted internal tools.

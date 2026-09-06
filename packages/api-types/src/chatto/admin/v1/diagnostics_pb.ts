@@ -911,20 +911,6 @@ export class AdminNatsStreamInfo extends Message<AdminNatsStreamInfo> {
    */
   clusterLeader = "";
 
-  /**
-   * Age in seconds of the oldest retained message at sampling time. Absent when empty.
-   *
-   * @generated from field: optional double oldest_message_age_seconds = 12;
-   */
-  oldestMessageAgeSeconds?: number;
-
-  /**
-   * Configured retention in seconds. Zero means unlimited; absent on older servers.
-   *
-   * @generated from field: optional double max_age_seconds = 13;
-   */
-  maxAgeSeconds?: number;
-
   constructor(data?: PartialMessage<AdminNatsStreamInfo>) {
     super();
     proto3.util.initPartial(data, this);
@@ -944,8 +930,6 @@ export class AdminNatsStreamInfo extends Message<AdminNatsStreamInfo> {
     { no: 9, name: "consumer_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 10, name: "replicas", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 11, name: "cluster_leader", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 12, name: "oldest_message_age_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
-    { no: 13, name: "max_age_seconds", kind: "scalar", T: 1 /* ScalarType.DOUBLE */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminNatsStreamInfo {

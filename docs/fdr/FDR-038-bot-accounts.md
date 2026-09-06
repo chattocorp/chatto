@@ -347,9 +347,10 @@ once, and cancels pending work for the old configuration. Removing the
 endpoint stops delivery. Configuration cannot be managed by the bot itself.
 
 Chatto retries failed requests within an operator-configured lifetime and
-attempt limit. The shared job queue also discards outstanding work after
-seven days by default, even if no worker recorded a failure. Requests have a
-stable delivery ID. A receiver must tolerate duplicates. The bot page shows the latest recorded failure for the current
+attempt limit. Delivery is best effort: pending work and retries live in memory
+and are lost on restart, without a failure record. Eight workers per process
+use a channel with 64 slots; a full channel blocks source handoff. Requests
+have a stable delivery ID. A receiver must tolerate duplicates. The bot page shows the latest recorded failure for the current
 configuration. Later success does not clear that failure. Access is checked before sending. The message body is
 the currently readable version, so it can change between attempts after an
 edit. Retracted or inaccessible messages are not sent.
@@ -434,7 +435,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-097 (durable outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052

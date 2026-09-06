@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "有新事件待处理",
       "asset_cleanup_never": "从未",
       "asset_cleanup_none": "无",
-      "asset_cleanup_in_progress": "进行中",
-      "jobs": {
-        "title": "后台任务",
-        "outstanding": "未完成任务",
-        "oldest": "最早任务的已等待时间",
-        "storage": "已用存储空间",
-        "retention": "保留期限",
-        "description": "包括排队中、运行中和等待重试的任务。"
-      }
+      "asset_cleanup_in_progress": "进行中"
     },
     "event_log": {
       "title": "事件日志",

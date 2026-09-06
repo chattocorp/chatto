@@ -121,18 +121,19 @@ through projected reads. Auth email delivery is also outside this inventory:
 registration, verification, and reset credentials live in `RUNTIME_STATE`, with
 durable EVT records serving as security audit facts rather than an email queue.
 
-## Outbound bot webhook delivery
+## Best-effort outbound bot webhook delivery
 
 The [webhook worker](../../cli/internal/core/bot_webhook_worker.go) consumes EVT
-independently of notifications. It publishes one stable-ID job per destination
-to `JOBS`. The delivery worker checks current configuration and access,
-sends signed JSON, and double-acknowledges success or an intentional skip.
+independently of notifications. The durable source consumer acknowledges after
+handoff to an in-memory pool. This acknowledgement does not confirm HTTP
+completion. Shutdown loses accepted work and retries, without a failure fact.
 
-HTTP failures retry through delayed NAK. The delay uses the consumer delivery
-count and doubles up to 30 minutes, bounded by remaining expiry. The worker
-records exhausted or expired jobs as deduplicated EVT failures before ack.
-The shared queue also discards outstanding jobs at its hard retention limit
-(seven days by default), even without a failure record.
-No application-owned KV attempt state or success ledger is used. JetStream
-tracks pending jobs. Receivers must tolerate duplicates and reordered jobs.
+Eight workers per process check current configuration and access, then send
+signed JSON. Each worker counts attempts and waits on a cancellable timer.
+The delay doubles up to 30 minutes, bounded by the remaining delivery lifetime.
+Exhausted or expired deliveries produce an EVT failure with aggregate OCC to
+prevent duplicate failure facts. Failure recording is best effort: if the
+append fails, the worker logs a safe category and stops. Success and intentional
+skips produce no facts. No KV state or separate delivery stream is used.
+Receivers must tolerate duplicates and delivery in a different order.
 See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

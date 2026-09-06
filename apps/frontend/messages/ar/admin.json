@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "أحداث جديدة في انتظارك",
       "asset_cleanup_never": "أبدًا",
       "asset_cleanup_none": "لا شيء",
-      "asset_cleanup_in_progress": "قيد التقدم",
-      "jobs": {
-        "title": "المهام الخلفية",
-        "outstanding": "المهام غير المكتملة",
-        "oldest": "عمر أقدم مهمة",
-        "storage": "مساحة التخزين المستخدمة",
-        "retention": "مدة الاحتفاظ",
-        "description": "تشمل المهام في قائمة الانتظار والمهام قيد التشغيل والمهام التي تنتظر إعادة المحاولة."
-      }
+      "asset_cleanup_in_progress": "قيد التقدم"
     },
     "event_log": {
       "title": "سجل الأحداث",

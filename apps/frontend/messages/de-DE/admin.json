@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Neue Events warten",
       "asset_cleanup_never": "Nie",
       "asset_cleanup_none": "Keine",
-      "asset_cleanup_in_progress": "Läuft",
-      "jobs": {
-        "title": "Hintergrundaufgaben",
-        "outstanding": "Offene Aufgaben",
-        "oldest": "Alter der ältesten Aufgabe",
-        "storage": "Belegter Speicher",
-        "retention": "Aufbewahrungsdauer",
-        "description": "Enthält wartende, laufende und zur Wiederholung vorgesehene Aufgaben."
-      }
+      "asset_cleanup_in_progress": "Läuft"
     },
     "event_log": {
       "title": "Event-Log",

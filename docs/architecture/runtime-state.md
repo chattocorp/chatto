@@ -259,8 +259,10 @@ private current or historical attachment prefixes. Disallowed classes return
 
 ## Outbound webhook delivery state
 
-Outbound webhooks use no KV keys. `JOBS` jobs and the durable delivery
-consumer hold pending work, delivery counts, and delayed retries. Acknowledged
-jobs are removed. Outstanding jobs also expire at the shared retention limit,
-seven days by default. No byte limit applies. See [NATS resources](nats-resources.md) and
-[durable effects](durable-effects.md).
+Outbound webhooks use no KV keys. A process-local channel holds up to 64
+accepted deliveries. Eight workers per process hold active deliveries and
+retry timers. Each item contains message and endpoint references, attempt
+policy, and source-time expiry. It contains no plaintext message body or
+credentials. Shutdown discards this state. The shared EVT source consumer
+retains progress only until handoff, not until HTTP completion. See
+[NATS resources](nats-resources.md) and [effects](durable-effects.md).

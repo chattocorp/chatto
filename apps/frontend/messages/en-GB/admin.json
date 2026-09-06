@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "New events waiting",
       "asset_cleanup_never": "Never",
       "asset_cleanup_none": "None",
-      "asset_cleanup_in_progress": "In progress",
-      "jobs": {
-        "title": "Background jobs",
-        "outstanding": "Outstanding jobs",
-        "oldest": "Oldest job age",
-        "storage": "Storage used",
-        "retention": "Retention",
-        "description": "Includes queued jobs, running jobs, and jobs waiting for retry."
-      }
+      "asset_cleanup_in_progress": "In progress"
     },
     "event_log": {
       "title": "Event Log",

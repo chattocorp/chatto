@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Novaj eventoj atendas",
       "asset_cleanup_never": "Neniam",
       "asset_cleanup_none": "Neniu",
-      "asset_cleanup_in_progress": "En progreso",
-      "jobs": {
-        "title": "Fonaj taskoj",
-        "outstanding": "Nefinitaj taskoj",
-        "oldest": "Aĝo de la plej malnova tasko",
-        "storage": "Uzata stokado",
-        "retention": "Konservodaŭro",
-        "description": "Inkluzivas envicigitajn taskojn, rulantajn taskojn kaj taskojn atendantajn reprovan plenumon."
-      }
+      "asset_cleanup_in_progress": "En progreso"
     },
     "event_log": {
       "title": "Protokolo de Eventoj",

@@ -8,13 +8,13 @@ import (
 // BotWebhooksConfig is operator policy for outbound bot delivery. Requests
 // capture attempt limits, delay, and source-time expiry when work is created.
 type BotWebhooksConfig struct {
-	MaxAttempts          int      `toml:"max_attempts,commented" env:"CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS" comment:"Maximum outbound webhook worker deliveries, including the first attempt. Default: 5."`
+	MaxAttempts          int      `toml:"max_attempts,commented" env:"CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS" comment:"Maximum outbound webhook delivery attempts, including the first attempt. Default: 5."`
 	RetryDelay           Duration `toml:"retry_delay,commented" env:"CHATTO_BOT_WEBHOOKS_RETRY_DELAY" comment:"Initial retry delay. Doubles after each attempt, up to 30m. Default: 30s."`
 	Expiry               Duration `toml:"expiry,commented" env:"CHATTO_BOT_WEBHOOKS_EXPIRY" comment:"Delivery lifetime from the source message time. Default: 24h."`
 	AllowPrivateNetworks bool     `toml:"allow_private_networks,commented" env:"CHATTO_BOT_WEBHOOKS_ALLOW_PRIVATE_NETWORKS" comment:"Allow private network destinations and HTTP. Enable only when bot managers may access internal services. Default: false."`
 }
 
-// MaxAttemptsOrDefault returns the maximum worker deliveries per webhook job.
+// MaxAttemptsOrDefault returns the maximum attempts per webhook delivery.
 func (c BotWebhooksConfig) MaxAttemptsOrDefault() int {
 	if c.MaxAttempts == 0 {
 		return 5

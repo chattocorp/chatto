@@ -124,17 +124,10 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 ## Outbound bot webhooks
 
 [`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
-selection, queue publication, and HTTP delivery. JetStream owns pending jobs
-and retry counts. Core creates
-its two durable consumers before startup and runs them after boot. Storage
-initializes the shared `jobqueue.Queue`; webhooks do not create a stream. The
-[`management operations`](../../cli/internal/core/bot_webhooks.go) own bot-manager
-authorization, encrypted configuration, and read-your-writes.
-
-## Shared job queue
-
-[`jobqueue.Queue`](../../cli/internal/jobqueue/queue.go) owns stream setup and
-confirmed publication of feature-owned job bytes. Core storage initializes it
-with operator retention and replica settings. Features own job types, payloads,
-consumer filters, handlers, and retry policy. The existing `DurableWorker`
-runs those handlers; there is no separate job scheduler or status database.
+selection and best-effort HTTP delivery. Core creates one shared durable EVT
+consumer before startup and runs it after boot. The source handler puts each
+destination into a process-local channel with 64 slots. Eight workers per
+process send requests and wait between retries. A full channel blocks source
+handoff. Shutdown cancels active requests and discards pending work.
+The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
+bot-manager authorization, encrypted configuration, and read-your-writes.

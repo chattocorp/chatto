@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "אירועים חדשים ממתינים",
       "asset_cleanup_never": "לעולם",
       "asset_cleanup_none": "אין",
-      "asset_cleanup_in_progress": "בתהליך",
-      "jobs": {
-        "title": "משימות רקע",
-        "outstanding": "משימות שלא הושלמו",
-        "oldest": "גיל המשימה הוותיקה ביותר",
-        "storage": "נפח אחסון בשימוש",
-        "retention": "תקופת שמירה",
-        "description": "כולל משימות בתור, משימות פעילות ומשימות שממתינות לניסיון חוזר."
-      }
+      "asset_cleanup_in_progress": "בתהליך"
     },
     "event_log": {
       "title": "יומן אירועים",

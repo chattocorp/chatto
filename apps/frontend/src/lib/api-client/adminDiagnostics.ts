@@ -97,8 +97,6 @@ export type AdminNatsStreamInfo = {
   consumerCount: number;
   replicas: number;
   clusterLeader: string;
-  oldestMessageAgeSeconds: number | null;
-  maxAgeSeconds: number | null;
 };
 
 export type AdminNatsConsumerInfo = {
@@ -244,9 +242,7 @@ export async function getAdminSystemInfo(
         lastSequence: stream.lastSequence,
         consumerCount: stream.consumerCount,
         replicas: stream.replicas,
-        clusterLeader: stream.clusterLeader,
-        oldestMessageAgeSeconds: stream.oldestMessageAgeSeconds ?? null,
-        maxAgeSeconds: stream.maxAgeSeconds ?? null
+        clusterLeader: stream.clusterLeader
       })),
       consumers: (systemInfo?.nats?.consumers ?? []).map((consumer) => ({
         stream: consumer.stream,

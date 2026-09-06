@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Novos eventos aguardando",
       "asset_cleanup_never": "Nunca",
       "asset_cleanup_none": "Nenhum",
-      "asset_cleanup_in_progress": "Em andamento",
-      "jobs": {
-        "title": "Tarefas em segundo plano",
-        "outstanding": "Tarefas pendentes",
-        "oldest": "Idade da tarefa mais antiga",
-        "storage": "Armazenamento usado",
-        "retention": "Retenção",
-        "description": "Inclui tarefas na fila, em execução e aguardando nova tentativa."
-      }
+      "asset_cleanup_in_progress": "Em andamento"
     },
     "event_log": {
       "title": "Registro de eventos",

@@ -1389,21 +1389,6 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if resp.Msg.GetSystemInfo().GetNats() == nil {
 		t.Fatal("Nats = nil")
 	}
-	queueFound := false
-	for _, stream := range resp.Msg.GetSystemInfo().GetNats().GetStreams() {
-		if stream.GetName() == "JOBS" {
-			queueFound = true
-			if stream.MaxAgeSeconds == nil || stream.GetMaxAgeSeconds() != (7*24*time.Hour).Seconds() {
-				t.Fatal("queue retention missing from owner diagnostics")
-			}
-			if stream.GetMessages() != 0 || stream.OldestMessageAgeSeconds != nil {
-				t.Fatal("empty queue must have zero jobs and no oldest age")
-			}
-		}
-	}
-	if !queueFound {
-		t.Fatal("queue missing from owner diagnostics")
-	}
 	if resp.Msg.GetSystemInfo().GetStats() == nil {
 		t.Fatal("Stats = nil")
 	}

@@ -262,7 +262,7 @@ message BotWebhookDelivery {
   BotWebhookDeliveryStatus status = 2;
   // Safe failure or skip category. Empty for successful delivery.
   string reason = 3;
-  // Queue deliveries consumed, up to the attempt limit. A delivery can fail
+  // Delivery attempts, up to the attempt limit. An attempt can fail
   // before HTTP starts, so this is not an exact HTTP request count.
   uint32 attempts = 4;
   // Zero if no HTTP response was received.

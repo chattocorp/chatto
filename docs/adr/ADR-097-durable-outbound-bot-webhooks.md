@@ -1,35 +1,33 @@
-# ADR-097: Deliver Outbound Bot Webhooks from EVT
+# ADR-097: Deliver Best-Effort Outbound Bot Webhooks from EVT
 
-**Date:** 2026-09-05
+**Date:** 2026-09-06
 
 ## Context
 
-Bots need HTTP integrations with independent retries. Notification preferences
-must not control bot activation. Successful delivery does not need permanent
-event history, and JetStream already tracks pending work.
+Bots need HTTP integrations with retries. Notification preferences must not
+control bot activation. A generic durable job queue adds a subsystem for one
+current use case. This version accepts loss of pending delivery on restart.
 
 ## Decision
 
-Consume direct mentions and DM messages from EVT. Publish one protobuf job per
-bot endpoint to the shared `JOBS` work queue from ADR-098. Confirm every publish
-before acknowledging the source message. Jobs contain message references,
-endpoint generation, attempt limit, retry delay, and source-time expiry.
-They contain no plaintext message body or destination credentials.
+Consume direct mentions and DM messages through one shared durable EVT
+consumer. Put one delivery per selected endpoint into a process-local channel
+with 64 slots. Acknowledge the source after all destinations enter the channel.
+Eight workers per process send HTTP requests and wait between retries. A full
+channel blocks source handoff. No separate stream, persisted job protobuf, or
+KV state is used.
 
-Scope the stable delivery ID by job type for publish deduplication. JetStream
-deduplicates publications for two minutes, or the queue retention age if
-shorter. Source retries outside that window can produce duplicates. Receivers must tolerate repeated delivery IDs.
-
-Let the durable queue consumer own pending jobs and delivery counts. Calculate
-exponential backoff from its delivery count and use delayed negative
-acknowledgement. Double-acknowledge success and intentional skips. Do not use
-KV attempt reservations, success records, or application-owned pending state.
+Each delivery holds message references, endpoint generation, attempt limit,
+retry delay, and source-time expiry. It holds no plaintext body or credentials.
+Workers count attempts and use cancellable timers for exponential backoff,
+with a 30-minute delay cap. Operators set retry and expiry policy in TOML or
+ENV. Shutdown cancels requests and timers and discards accepted work.
 
 Append only terminal failures to EVT. Aggregate OCC permits one failure fact
-per delivery ID. Acknowledge the job after that failure commits. Workers record
-job-expiry failures while jobs remain in the queue. The shared queue discards
-all outstanding jobs after seven days by default, including jobs with no
-recorded failure. No EVT request, success, or skip facts are written.
+per delivery ID. If failure recording fails, log a safe category and stop.
+Shutdown losses have no failure fact. Success and intentional skips have no
+facts. Delivery IDs remain stable across repeated source handoffs so receivers
+can detect duplicates.
 
 Keep one encrypted endpoint configuration per bot. Use the bot's PII key for
 its URL, optional Authorization value, and signing secret. Replacement creates
@@ -38,25 +36,23 @@ receive messages that precede their EVT position.
 
 Use current authorization and message content before sending. Retraction,
 deletion, and access loss stop delivery. Notification state has no effect.
+Private-network access and HTTP require an explicit option. Redirects are
+never followed. Each request has a ten-second timeout, bounded by expiry.
 
 ## Consequences
 
-A failed destination retries independently of successful destinations. The
-receiver can still see duplicates, for example after an HTTP response is lost.
-Double acknowledgement confirms queue progress; it does not make the HTTP
-operation atomic. No ordering guarantee applies across deliveries.
+Delivery is best effort. A restart can lose work after source acknowledgement.
+A lost response, partial source handoff, or lost source acknowledgement can
+repeat a request. No ordering guarantee applies. The durable source consumer
+prevents routine replay of accepted work but does not make HTTP delivery
+reliable across restart. Restoring or recreating the source consumer can
+repeat previously accepted work.
 
-Delivery counts include work that stops before HTTP starts. Restart preserves
-consumer counts and pending jobs. Backup includes the queue and its consumers,
-after the EVT snapshot. Restoring a backup can repeat previously completed work.
-Existing job deadlines and policy do not change. Operators must preserve the
-named consumers during normal operation; recreating them can replay work.
-
-Operators set retry and expiry policy in TOML or ENV. Private-network access
-and HTTP require an explicit option. Redirects are never followed. Request
-timeouts and worker concurrency bound active HTTP work.
+Concurrency and buffered work are bounded per process. Retries occupy worker
+slots while they wait, so failed endpoints can delay other deliveries. A
+future durable implementation can keep the public webhook contract.
 
 The bot page shows the latest recorded failure for the current configuration.
 Later success does not clear that failure. The projection retains encrypted
-settings and one failure per bot. Detailed failures remain in the owner event
-log. Payload text remains the currently readable message text on each attempt.
+settings and one failure per bot. Detailed failures remain in EVT. Payload text
+is the currently readable message text on each attempt.

@@ -488,9 +488,9 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
 ## Outbound bot webhooks
 
 Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
-user-aggregate OCC and encrypted credentials. Queue jobs use
-`jobs.bot_webhook.deliver` on `JOBS`, encoded as
-[`BotWebhookDeliveryJob`](../../proto/chatto/core/jobs/v1/bot_webhook.proto).
+user-aggregate OCC and encrypted credentials. Process-local delivery work uses
+a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
+it has no persisted protobuf or NATS subject.
 The delivery ID hashes the bot, configuration, and source event IDs.
 
 Only terminal failures append

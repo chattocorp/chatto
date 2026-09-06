@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Yeni etkinlikler bekleniyor",
       "asset_cleanup_never": "Asla",
       "asset_cleanup_none": "Yok",
-      "asset_cleanup_in_progress": "Devam ediyor",
-      "jobs": {
-        "title": "Arka plan işleri",
-        "outstanding": "Tamamlanmamış işler",
-        "oldest": "En eski işin yaşı",
-        "storage": "Kullanılan depolama",
-        "retention": "Saklama süresi",
-        "description": "Kuyruktaki, çalışan ve yeniden denemeyi bekleyen işleri içerir."
-      }
+      "asset_cleanup_in_progress": "Devam ediyor"
     },
     "event_log": {
       "title": "Olay Günlüğü",

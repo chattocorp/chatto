@@ -595,40 +595,16 @@ allow_private_networks = false
 
 | Environment variable | TOML key | Default | Meaning |
 | --- | --- | --- | --- |
-| `CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS` | `bot_webhooks.max_attempts` | `5` | Maximum worker deliveries, including the first attempt. Range: 1–100. |
+| `CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS` | `bot_webhooks.max_attempts` | `5` | Maximum delivery attempts, including the first attempt. Range: 1–100. |
 | `CHATTO_BOT_WEBHOOKS_RETRY_DELAY` | `bot_webhooks.retry_delay` | `30s` | Initial delay. Range: 1 second–30 minutes. Doubles after each failed attempt, up to 30 minutes. |
 | `CHATTO_BOT_WEBHOOKS_EXPIRY` | `bot_webhooks.expiry` | `24h` | Lifetime from the source message time. Range: 1 second–30 days. |
 | `CHATTO_BOT_WEBHOOKS_ALLOW_PRIVATE_NETWORKS` | `bot_webhooks.allow_private_networks` | `false` | Permit private destinations and HTTP. Enable only when bot managers may contact internal services. |
 
-Restart the server after a change. Each delivery request keeps the attempt
-limit, retry delay, and expiry that applied when it was created. A restart or
-backup restore does not renew these values. JetStream tracks pending jobs and
-delivery counts. A worker delivery counts even if no HTTP request is sent.
+Restart the server after a change. Delivery and retries are best effort.
+Restart discards pending work and retry timers. A source event accepted after
+restart uses the new attempt limit and retry delay; expiry is still measured
+from the original message time. Attempts include failures before HTTP starts.
 The network policy is checked on each attempt.
 
 See [outbound bot webhooks](/guides/integrations/bot-accounts/#outbound-webhooks)
 for the request body, signature scheme, and receiver requirements.
-
-## Background job queue
-
-```toml
-[jobs]
-max_age = "7d"
-```
-
-<EnvVar name="CHATTO_JOBS_MAX_AGE" toml="jobs.max_age" default="7d">
-  Hard retention limit for the shared background job queue. Completed jobs are
-  removed immediately. Outstanding jobs are discarded after this age, including
-  jobs that no worker picked up. The value must be positive; zero uses the
-  default. There is no byte or message-count limit.
-</EnvVar>
-
-Restart the server after a change. This stream setting applies to existing and
-new queued jobs. Age starts when the job enters the queue. Individual features
-can stop retrying earlier, such as the default 24-hour webhook expiry measured
-from the source message. Queue age expiry does not produce a failure event.
-
-In **Server Admin → System**, **Background jobs** shows outstanding jobs, the
-oldest job age, storage use, and retention. The page refreshes every ten seconds
-while visible. Outstanding jobs include queued, running, and retrying work.
-An empty queue has no oldest age; unavailable statistics are shown separately.

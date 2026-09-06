@@ -206,10 +206,3 @@ The URL and Authorization value are write-only. Replacement returns a new
 signing secret once. The read returns safe settings and the latest recorded
 failure for the current generation. Later successes do not clear that failure. The delivery worker sends JSON HTTP POST
 requests to the configured external destination; it does not mount a new route.
-
-## Background job diagnostics
-
-The owner-only `AdminDiagnosticsService.GetSystemInfo` stream summaries include
-optional oldest-message age and retention seconds. The System tab uses the
-`JOBS` summary for background job counts, age, storage, and retention. This
-read uses stream metadata and does not fetch job payloads.

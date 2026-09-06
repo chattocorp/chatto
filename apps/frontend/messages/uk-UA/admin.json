@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Чекають нові події",
       "asset_cleanup_never": "Ніколи",
       "asset_cleanup_none": "Жодного",
-      "asset_cleanup_in_progress": "Виконується",
-      "jobs": {
-        "title": "Фонові завдання",
-        "outstanding": "Незавершені завдання",
-        "oldest": "Вік найстарішого завдання",
-        "storage": "Використане сховище",
-        "retention": "Термін зберігання",
-        "description": "Включає завдання в черзі, запущені завдання та завдання, що очікують повторної спроби."
-      }
+      "asset_cleanup_in_progress": "Виконується"
     },
     "event_log": {
       "title": "Журнал подій",

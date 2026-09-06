@@ -1353,7 +1353,7 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
   reason = "";
 
   /**
-   * Queue deliveries consumed, up to the attempt limit. A delivery can fail
+   * Delivery attempts, up to the attempt limit. An attempt can fail
    * before HTTP starts, so this is not an exact HTTP request count.
    *
    * @generated from field: uint32 attempts = 4;

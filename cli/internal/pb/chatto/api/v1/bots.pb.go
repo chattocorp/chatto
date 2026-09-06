@@ -1530,7 +1530,7 @@ type BotWebhookDelivery struct {
 	Status BotWebhookDeliveryStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chatto.api.v1.BotWebhookDeliveryStatus" json:"status,omitempty"`
 	// Safe failure or skip category. Empty for successful delivery.
 	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
-	// Queue deliveries consumed, up to the attempt limit. A delivery can fail
+	// Delivery attempts, up to the attempt limit. An attempt can fail
 	// before HTTP starts, so this is not an exact HTTP request count.
 	Attempts uint32 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
 	// Zero if no HTTP response was received.

@@ -11,38 +11,50 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jobqueue"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
-	jobsv1 "hmans.de/chatto/internal/pb/chatto/core/jobs/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
 const (
-	botWebhookJobType          = "bot_webhook.deliver"
-	botWebhookSourceConsumer   = "chatto-bot-webhook-source-v1"
-	botWebhookDeliveryConsumer = "chatto-bot-webhook-delivery-v1"
-	botWebhookRequestTimeout   = 10 * time.Second
-	botWebhookConcurrency      = 8
+	botWebhookSourceConsumer = "chatto-bot-webhook-source-v1"
+	botWebhookRequestTimeout = 10 * time.Second
+	botWebhookConcurrency    = 8
+	botWebhookBuffer         = 64
 )
 
-var errBotWebhookRetry = errors.New("outbound webhook delivery pending")
+// botWebhookDelivery is process-local work. It contains references and policy,
+// never message plaintext or endpoint credentials. Restart abandons this work.
+type botWebhookDelivery struct {
+	DeliveryID, BotUserID, WebhookID, SourceEventID, RoomID string
+	Triggers                                                []string
+	OccurredAt, ExpiresAt                                   time.Time
+	MaxAttempts                                             uint32
+	RetryDelay                                              time.Duration
+}
+
+// botWebhookAttemptFailure contains only safe categories, never response bodies.
+type botWebhookAttemptFailure struct {
+	reason string
+	status int
+}
+
+func (e *botWebhookAttemptFailure) Error() string { return e.reason }
 
 type botWebhookModel struct {
-	core             *ChattoCore
-	projection       events.ProjectionHandle[*botWebhookProjection]
-	queue            jetstream.Stream
-	sourceConsumer   jetstream.Consumer
-	deliveryConsumer jetstream.Consumer
-	client           *http.Client
-	now              func() time.Time
+	core           *ChattoCore
+	projection     events.ProjectionHandle[*botWebhookProjection]
+	deliveries     chan *botWebhookDelivery
+	pending        atomic.Int64 // Accepted or blocked handoffs and active deliveries; process-local only.
+	sourceConsumer jetstream.Consumer
+	client         *http.Client
+	now            func() time.Time
 }
 
 func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProjection]) *botWebhookModel {
@@ -52,46 +64,92 @@ func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProj
 	}
 	// Never forward credentials or a message body through an endpoint redirect.
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now}
+	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now, deliveries: make(chan *botWebhookDelivery, botWebhookBuffer)}
 }
 func (m *botWebhookModel) initialize(ctx context.Context) error {
-	m.queue = m.core.storage.jobs.Stream()
-	jobSubject, err := jobqueue.Subject(botWebhookJobType)
-	if err != nil {
-		return err
-	}
-	for _, item := range []struct {
-		stream       jetstream.Stream
-		name, filter string
-		target       *jetstream.Consumer
-	}{
-		{m.core.storage.serverEvtStream, botWebhookSourceConsumer, evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted), &m.sourceConsumer},
-		{m.queue, botWebhookDeliveryConsumer, jobSubject, &m.deliveryConsumer},
-	} {
-		*item.target, err = evtstream.CreateEffectConsumer(ctx, item.stream, evtstream.EffectConsumerConfig{Name: item.name, Description: "Outbound bot webhook worker", FilterSubjects: []string{item.filter}, AckWait: time.Minute, MaxAckPending: botWebhookConcurrency, DeliverPolicy: jetstream.DeliverAllPolicy})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+	var err error
+	m.sourceConsumer, err = evtstream.CreateEffectConsumer(ctx, m.core.storage.serverEvtStream, evtstream.EffectConsumerConfig{
+		Name: botWebhookSourceConsumer, Description: "Best-effort outbound webhook handoff",
+		FilterSubjects: []string{evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted)},
+		AckWait:        time.Minute, MaxAckPending: botWebhookConcurrency, DeliverPolicy: jetstream.DeliverAllPolicy,
+	})
+	return err
 }
+
 func (m *botWebhookModel) run(ctx context.Context) error {
 	if err := m.core.WaitForBoot(ctx); err != nil {
 		return err
 	}
 	defer m.client.CloseIdleConnections()
+	worker, err := evtstream.NewEffectWorker(m.sourceConsumer, m.materialize, evtstream.EffectWorkerOptions{
+		MaxConcurrent: botWebhookConcurrency, RetryDelay: 5 * time.Second, AckTimeout: 5 * time.Second,
+		HeartbeatInterval: 15 * time.Second, Logger: m.core.logger.WithPrefix("BotWebhookSource"),
+	})
+	if err != nil {
+		return err
+	}
 	g, ctx := errgroup.WithContext(ctx)
-	for _, item := range []struct {
-		consumer jetstream.Consumer
-		handler  events.DurableDeliveryHandler
-	}{{m.sourceConsumer, m.materialize}, {m.deliveryConsumer, m.deliver}} {
-		worker, err := evtstream.NewEffectWorker(item.consumer, item.handler, evtstream.EffectWorkerOptions{MaxConcurrent: botWebhookConcurrency, RetryDelay: time.Second * 5, AckTimeout: time.Second * 5, HeartbeatInterval: time.Second * 15, Logger: m.core.logger.WithPrefix("BotWebhookWorker")})
-		if err != nil {
-			return err
-		}
-		g.Go(func() error { return worker.Run(ctx) })
+	g.Go(func() error { return worker.Run(ctx) })
+	for range botWebhookConcurrency {
+		g.Go(func() error {
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case delivery := <-m.deliveries:
+					m.runDelivery(ctx, delivery)
+					m.pending.Add(-1)
+				}
+			}
+		})
 	}
 	return g.Wait()
+}
+
+// enqueue applies backpressure without spawning goroutines. Once this handoff
+// succeeds, the EVT source may be acknowledged even though HTTP has not started.
+func (m *botWebhookModel) enqueue(ctx context.Context, delivery *botWebhookDelivery) error {
+	m.pending.Add(1)
+	select {
+	case <-ctx.Done():
+		m.pending.Add(-1)
+		return ctx.Err()
+	case m.deliveries <- delivery:
+		return nil
+	}
+}
+
+// runDelivery owns bounded retries and cancellable waits within one worker slot.
+// Shutdown discards unfinished work. Failure recording is also best effort.
+func (m *botWebhookModel) runDelivery(ctx context.Context, delivery *botWebhookDelivery) {
+	for attempt := uint64(1); ctx.Err() == nil; attempt++ {
+		err := m.deliver(ctx, delivery)
+		if err == nil || ctx.Err() != nil {
+			return
+		}
+		reason, status := "internal_error", 0
+		var failure *botWebhookAttemptFailure
+		if errors.As(err, &failure) {
+			reason, status = failure.reason, failure.status
+		}
+		expired := !m.now().Before(delivery.ExpiresAt)
+		if expired {
+			reason = "expired"
+		}
+		if expired || attempt >= uint64(delivery.MaxAttempts) || reason == "invalid_request" {
+			if err := m.fail(ctx, delivery, uint32(attempt), reason, status); err != nil && ctx.Err() == nil {
+				m.core.logger.Warn("Could not record outbound webhook failure", "delivery_id", delivery.DeliveryID)
+			}
+			return
+		}
+		timer := time.NewTimer(max(0, min(webhookRetryDelay(delivery, attempt), delivery.ExpiresAt.Sub(m.now()))))
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return
+		case <-timer.C:
+		}
+	}
 }
 func botWebhookAggregate(id string) evtstream.Aggregate {
 	return evtstream.Aggregate{Type: "bot_webhook_delivery", ID: id}
@@ -101,9 +159,9 @@ func botWebhookDeliveryID(botID, webhookID, eventID string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// materialize confirms all destination-specific requests before acknowledging
-// the message. Stable publish IDs deduplicate source retries within the
-// queue's duplicate window. HTTP receivers must still tolerate repeats.
+// materialize hands destinations to the bounded process-local pool before
+// acknowledging EVT. Partial handoff or lost source acknowledgement can repeat
+// requests; stable delivery IDs let receivers detect duplicates.
 func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDelivery) error {
 	e, err := decodeDurableCoreDelivery(d)
 	if err != nil {
@@ -169,12 +227,8 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 		}
 		webhookID := cfg.GetBotOutboundWebhookConfigured().GetWebhookId()
 		id := botWebhookDeliveryID(botID, webhookID, e.GetId())
-		request := &jobsv1.BotWebhookDeliveryJob{DeliveryId: id, BotUserId: botID, WebhookId: webhookID, SourceEventId: e.GetId(), RoomId: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt(), ExpiresAt: timestamppb.New(expiry), MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelayMs: m.core.config.BotWebhooks.RetryDelayOrDefault().Milliseconds()}
-		data, err := proto.Marshal(request)
-		if err != nil {
-			return err
-		}
-		if err = m.core.storage.jobs.Enqueue(ctx, botWebhookJobType, id, data); err != nil {
+		request := &botWebhookDelivery{DeliveryID: id, BotUserID: botID, WebhookID: webhookID, SourceEventID: e.GetId(), RoomID: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt().AsTime(), ExpiresAt: expiry, MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelay: m.core.config.BotWebhooks.RetryDelayOrDefault()}
+		if err = m.enqueue(ctx, request); err != nil {
 			return err
 		}
 	}
@@ -203,38 +257,25 @@ type botWebhookMessage struct {
 	Body     string `json:"body"`
 }
 
-func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery) error {
-	r := &jobsv1.BotWebhookDeliveryJob{}
-	if err := proto.Unmarshal(d.Data, r); err != nil || r.GetDeliveryId() == "" || r.GetExpiresAt() == nil || r.GetMaxAttempts() == 0 {
-		return events.TerminateDelivery("invalid outbound webhook request", nil)
-	}
-	// JetStream owns pending state and the delivery count. A worker delivery
-	// counts even if authorization or infrastructure prevents an HTTP attempt.
-	attempt := max(d.NumDelivered, 1)
-	failed := func(reason string, status int) error {
-		return m.fail(ctx, r, uint32(min(attempt, uint64(r.GetMaxAttempts()))), reason, status)
-	}
-	terminal, err := m.core.EventPublisher.LastSubjectSeq(ctx, botWebhookAggregate(r.GetDeliveryId()).Subject("bot_webhook_delivery_completed"))
+func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) error {
+	terminal, err := m.core.EventPublisher.LastSubjectSeq(ctx, botWebhookAggregate(r.DeliveryID).Subject("bot_webhook_delivery_completed"))
 	if err != nil {
 		return err
 	}
 	if terminal != 0 {
 		return nil
 	}
-	if !m.now().Before(r.GetExpiresAt().AsTime()) {
-		return failed("expired", 0)
-	}
-	if attempt > uint64(r.GetMaxAttempts()) {
-		return failed("attempt_limit", 0)
+	if !m.now().Before(r.ExpiresAt) {
+		return &botWebhookAttemptFailure{reason: "expired"}
 	}
 	if err = m.core.WaitForProjectionsCurrent(ctx); err != nil {
 		return err
 	}
-	cfg, _, _ := m.projection.Projection().get(r.GetBotUserId())
-	if cfg == nil || !cfg.GetBotOutboundWebhookConfigured().GetEnabled() || cfg.GetBotOutboundWebhookConfigured().GetWebhookId() != r.GetWebhookId() {
+	cfg, _, _ := m.projection.Projection().get(r.BotUserID)
+	if cfg == nil || !cfg.GetBotOutboundWebhookConfigured().GetEnabled() || cfg.GetBotOutboundWebhookConfigured().GetWebhookId() != r.WebhookID {
 		return nil
 	}
-	if _, err = m.core.GetUser(ctx, r.GetBotUserId()); err != nil {
+	if _, err = m.core.GetUser(ctx, r.BotUserID); err != nil {
 		if webhookAccessLost(err) {
 			return nil
 		}
@@ -251,7 +292,7 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 	var message *MessageReadResult
 	err = m.core.authorizeAtStableInputs(ctx, func() error {
 		var err error
-		message, err = m.core.roomTimelineReads.GetMessage(ctx, r.GetBotUserId(), r.GetRoomId(), r.GetSourceEventId())
+		message, err = m.core.roomTimelineReads.GetMessage(ctx, r.BotUserID, r.RoomID, r.SourceEventID)
 		return err
 	})
 	if err != nil {
@@ -260,7 +301,7 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 		}
 		return err
 	}
-	body, err := m.core.GetFullMessageBody(ctx, r.GetSourceEventId())
+	body, err := m.core.GetFullMessageBody(ctx, r.SourceEventID)
 	if err != nil {
 		return err
 	}
@@ -270,12 +311,12 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 	if err = m.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return err
 	}
-	current, _, _ := m.projection.Projection().get(r.GetBotUserId())
-	if current == nil || !current.GetBotOutboundWebhookConfigured().GetEnabled() || current.GetBotOutboundWebhookConfigured().GetWebhookId() != r.GetWebhookId() {
+	current, _, _ := m.projection.Projection().get(r.BotUserID)
+	if current == nil || !current.GetBotOutboundWebhookConfigured().GetEnabled() || current.GetBotOutboundWebhookConfigured().GetWebhookId() != r.WebhookID {
 		return nil
 	}
 	err = m.core.authorizeAtStableInputs(ctx, func() error {
-		_, _, err := m.core.requireMessageReader(ctx, r.GetBotUserId(), r.GetRoomId(), r.GetSourceEventId())
+		_, _, err := m.core.requireMessageReader(ctx, r.BotUserID, r.RoomID, r.SourceEventID)
 		return err
 	})
 	if err != nil {
@@ -288,17 +329,17 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 	if id := message.Event.GetMessagePosted().GetInThread(); id != "" {
 		thread = &id
 	}
-	payload := botWebhookPayload{Version: 1, ID: r.GetDeliveryId(), Type: "message.created", Triggers: r.GetTriggers(), OccurredAt: r.GetOccurredAt().AsTime(), BotID: r.GetBotUserId(), RoomID: r.GetRoomId(), ThreadRootID: thread, Message: botWebhookMessage{ID: r.GetSourceEventId(), AuthorID: message.Event.GetActorId(), Body: body.Body}}
+	payload := botWebhookPayload{Version: 1, ID: r.DeliveryID, Type: "message.created", Triggers: r.Triggers, OccurredAt: r.OccurredAt, BotID: r.BotUserID, RoomID: r.RoomID, ThreadRootID: thread, Message: botWebhookMessage{ID: r.SourceEventID, AuthorID: message.Event.GetActorId(), Body: body.Body}}
 	encoded, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 	// The deadline also bounds an in-flight HTTP request.
-	sendCtx, cancel := context.WithDeadline(ctx, minTime(m.now().Add(botWebhookRequestTimeout), r.GetExpiresAt().AsTime()))
+	sendCtx, cancel := context.WithDeadline(ctx, minTime(m.now().Add(botWebhookRequestTimeout), r.ExpiresAt))
 	defer cancel()
 	req, err := http.NewRequestWithContext(sendCtx, http.MethodPost, creds.URL, bytes.NewReader(encoded))
 	if err != nil {
-		return failed("invalid_request", 0)
+		return &botWebhookAttemptFailure{reason: "invalid_request"}
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "Chatto-Webhook/1")
@@ -309,7 +350,7 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 	mac := hmac.New(sha256.New, []byte(creds.SigningSecret))
 	mac.Write([]byte(timestamp + "."))
 	mac.Write(encoded)
-	req.Header.Set("Chatto-Webhook-Id", r.GetDeliveryId())
+	req.Header.Set("Chatto-Webhook-Id", r.DeliveryID)
 	req.Header.Set("Chatto-Webhook-Timestamp", timestamp)
 	req.Header.Set("Chatto-Webhook-Signature", "v1="+hex.EncodeToString(mac.Sum(nil)))
 	response, sendErr := m.client.Do(req)
@@ -329,16 +370,7 @@ func (m *botWebhookModel) deliver(ctx context.Context, d events.DurableDelivery)
 	if sendErr != nil {
 		reason = "transport_error"
 	}
-	if !m.now().Before(r.GetExpiresAt().AsTime()) {
-		return failed("expired", status)
-	}
-	if attempt >= uint64(r.GetMaxAttempts()) {
-		return failed(reason, status)
-	}
-	// A delayed NAK releases this worker. Wake by expiry even when the next
-	// exponential interval would otherwise outlast the delivery lifetime.
-	delay := min(webhookRetryDelay(r, attempt), r.GetExpiresAt().AsTime().Sub(m.now()))
-	return events.RetryDeliveryAfter(errBotWebhookRetry, delay)
+	return &botWebhookAttemptFailure{reason: reason, status: status}
 }
 func minTime(a, b time.Time) time.Time {
 	if a.Before(b) {
@@ -346,8 +378,8 @@ func minTime(a, b time.Time) time.Time {
 	}
 	return b
 }
-func webhookRetryDelay(r *jobsv1.BotWebhookDeliveryJob, attempt uint64) time.Duration {
-	delay := time.Duration(r.GetRetryDelayMs()) * time.Millisecond
+func webhookRetryDelay(r *botWebhookDelivery, attempt uint64) time.Duration {
+	delay := r.RetryDelay
 	for i := uint64(1); i < attempt && delay < 30*time.Minute; i++ {
 		delay *= 2
 	}
@@ -355,11 +387,11 @@ func webhookRetryDelay(r *jobsv1.BotWebhookDeliveryJob, attempt uint64) time.Dur
 }
 
 // fail records terminal failures only. OCC prevents duplicate failure facts
-// when publishing succeeded but acknowledging the work queue did not.
-func (m *botWebhookModel) fail(ctx context.Context, r *jobsv1.BotWebhookDeliveryJob, attempts uint32, reason string, httpStatus int) error {
-	x := &evtv1.BotWebhookDeliveryCompletedEvent{DeliveryId: r.GetDeliveryId(), BotUserId: r.GetBotUserId(), WebhookId: r.GetWebhookId(), SourceEventId: r.GetSourceEventId(), Status: "failed", Reason: reason, Attempts: attempts, HttpStatus: uint32(httpStatus)}
+// when the EVT source is redelivered after a partial or repeated handoff.
+func (m *botWebhookModel) fail(ctx context.Context, r *botWebhookDelivery, attempts uint32, reason string, httpStatus int) error {
+	x := &evtv1.BotWebhookDeliveryCompletedEvent{DeliveryId: r.DeliveryID, BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID, Status: "failed", Reason: reason, Attempts: attempts, HttpStatus: uint32(httpStatus)}
 	event := newEvent("", &evtv1.Event{Event: &evtv1.Event_BotWebhookDeliveryCompleted{BotWebhookDeliveryCompleted: x}})
-	agg := botWebhookAggregate(r.GetDeliveryId())
+	agg := botWebhookAggregate(r.DeliveryID)
 	subject := agg.SubjectFor(event)
 	seqs, err := m.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: event, HasOCC: true, ExpectedSeq: 0, FilterSubject: agg.AllEventsFilter()}})
 	if errors.Is(err, events.ErrConflict) {

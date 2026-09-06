@@ -135,7 +135,6 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	Jobs                        JobsConfig        `toml:"-" env:"-"` // Set from operator Jobs configuration before core construction.
 	BotWebhooks                 BotWebhooksConfig `toml:"-" env:"-"` // Set from operator BotWebhooks configuration before core construction.
 	SecretKey                   string            `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens, account-flow credentials, and invite links, and for sealing public cursors. NEVER SHARE THIS!\nIf it changes, existing bearer tokens, invite links, public cursors, and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
 	ProjectionSnapshots         bool              `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`

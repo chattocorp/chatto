@@ -8,8 +8,8 @@ import (
 )
 
 // botWebhookProjection retains encrypted settings and one latest terminal
-// failure per configured bot. Successful and skipped jobs are acknowledged
-// without an EVT fact; later successes do not clear the latest failure.
+// failure per configured bot. Success and intentional skips produce no EVT
+// fact; later successes do not clear the latest failure.
 type botWebhookProjection struct {
 	events.MemoryProjection
 	configurations map[string]*evtv1.Event

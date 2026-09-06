@@ -410,15 +410,7 @@
       "asset_cleanup_events_waiting": "Nouveaux événements en attente",
       "asset_cleanup_never": "Jamais",
       "asset_cleanup_none": "Aucun",
-      "asset_cleanup_in_progress": "En cours",
-      "jobs": {
-        "title": "Tâches en arrière-plan",
-        "outstanding": "Tâches en cours",
-        "oldest": "Âge de la tâche la plus ancienne",
-        "storage": "Stockage utilisé",
-        "retention": "Durée de conservation",
-        "description": "Inclut les tâches en attente, en cours et en attente de nouvelle tentative."
-      }
+      "asset_cleanup_in_progress": "En cours"
     },
     "event_log": {
       "title": "Journal des événements",

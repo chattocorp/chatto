@@ -11,7 +11,6 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jobqueue"
 	"hmans.de/chatto/internal/notificationstream"
 )
 
@@ -23,7 +22,6 @@ const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
 
 // storage encapsulates JetStream resources used by Chatto Core.
 type storage struct {
-	jobs           *jobqueue.Queue    // JOBS - shared pending work, aged out after operator retention.
 	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
@@ -199,14 +197,7 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	jobs, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (*jobqueue.Queue, error) {
-		return jobqueue.New(ctx, js, cfg.Jobs.MaxAgeOrDefault(), cfg.Replicas)
-	})
-	if err != nil {
-		return nil, fmt.Errorf("initialize job queue: %w", err)
-	}
 	return &storage{
-		jobs:               jobs,
 		encryptionKV:       encryptionKV,
 		runtimeStateKV:     runtimeStateKV,
 		serverAssets:       serverAssets,

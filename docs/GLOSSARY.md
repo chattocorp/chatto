@@ -286,12 +286,8 @@ snapshot or live-only fallback. See
 
 **Bot outbound webhook** — One HTTP destination configured by a bot manager for direct mentions
 and direct messages. Chatto retries delivery within operator limits and records
-terminal failures. JetStream tracks pending deliveries. The receiver uses the
+terminal failures when possible. Pending deliveries and retries live in memory
+and are lost on restart. The receiver uses the
 stable delivery ID to detect repeats.
 See [FDR-038](fdr/FDR-038-bot-accounts.md) and
 [ADR-097](adr/ADR-097-durable-outbound-bot-webhooks.md).
-
-**Job queue** — The shared `JOBS` JetStream stream for pending background work.
-Each feature owns its job payload and worker. Acknowledgement removes completed
-jobs; the stream removes outstanding jobs after seven days by default.
-See [ADR-098](adr/ADR-098-shared-background-job-queue.md).
