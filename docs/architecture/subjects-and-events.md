@@ -484,3 +484,18 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   pubsub activity remains live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
+
+## Outbound bot webhooks
+
+Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
+user-aggregate OCC and encrypted credentials. Process-local delivery work uses
+a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
+it has no persisted protobuf or NATS subject.
+The delivery ID hashes the bot, configuration, and source event IDs.
+
+Only terminal failures append
+`evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_completed`.
+The status is `failed`; OCC permits one such fact per delivery. No request,
+success, or skip fact enters EVT. Failure payloads are defined in
+[`bot_webhook_events.proto`](../../proto/chatto/core/evt/v1/bot_webhook_events.proto).
+These facts are internal and do not enter the public realtime catalogue.

@@ -88,3 +88,13 @@ versioned identity with the `notifications-incarnation-v1:` format. The
 from `EVT`. Notification projection snapshots bind to this identity and the
 notification stream sequence, allowing the shared snapshot framework to
 support more than one application-owned event log without mixing coordinates.
+
+## Outbound bot webhook consumer
+
+`chatto-bot-webhook-source-v1` consumes `evt.room.*.message_posted` from EVT.
+Replicas share this durable consumer, which permits eight unacknowledged
+messages. The handler acknowledges after each selected destination enters
+its process-local delivery pool. Configuration sequence prevents old messages
+from activating new endpoints. HTTP requests and retries have no stream or
+consumer of their own. See
+[ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

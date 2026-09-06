@@ -496,7 +496,36 @@
       "webhook_last_used": "Ultimo utilizzo",
       "webhook_no_use_recorded": "Nessun utilizzo registrato",
       "webhook_last_used_unavailable": "Temporaneamente non disponibile",
-      "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata."
+      "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata.",
+      "outbound": {
+        "title": "Webhook in uscita",
+        "description": "Invia menzioni dirette e messaggi diretti al tuo strumento. L’operatore del server imposta i tentativi e la scadenza.",
+        "url": "URL di destinazione",
+        "authorization": "Intestazione Authorization (facoltativa)",
+        "enabled": "Abilita consegna",
+        "save": "Salva endpoint",
+        "replace": "Sostituisci endpoint",
+        "remove": "Rimuovi endpoint",
+        "empty": "Nessun webhook in uscita configurato.",
+        "active": "La consegna è abilitata.",
+        "disabled": "La consegna è disabilitata.",
+        "replace_help": "L’URL e le credenziali non possono essere recuperati. Inserisci tutte le impostazioni per sostituire l’endpoint. Le consegne in attesa verranno annullate.",
+        "error": "Impossibile aggiornare il webhook in uscita.",
+        "load_error": "Impossibile caricare il webhook in uscita.",
+        "pending": "Nessun errore di consegna registrato.",
+        "delivered": "L’ultima consegna è riuscita.",
+        "failed": "Ultimo errore di consegna registrato.",
+        "skipped": "L’ultima consegna è stata saltata.",
+        "attempts": "Tentativi: {attempts}",
+        "http_status": "Stato HTTP: {status}",
+        "reason": "Motivo: {reason}",
+        "secret_title": "Chiave segreta di firma del webhook",
+        "secret_warning": "Copia questa chiave ora se il tuo strumento verifica le firme di Chatto. Non potrà essere mostrata di nuovo.",
+        "secret_copied": "Chiave di firma copiata",
+        "refresh": "Aggiorna stato della consegna",
+        "remove_title": "Rimuovere il webhook in uscita?",
+        "remove_description": "Questo interrompe le nuove consegne e annulla quelle in attesa."
+      }
     }
   }
 }

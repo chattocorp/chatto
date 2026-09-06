@@ -496,7 +496,36 @@
       "webhook_last_used": "Naposledy použito",
       "webhook_no_use_recorded": "Není zaznamenáno žádné použití",
       "webhook_last_used_unavailable": "Dočasně nedostupné",
-      "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků."
+      "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků.",
+      "outbound": {
+        "title": "Odchozí webhook",
+        "description": "Posílej přímé zmínky a přímé zprávy do svého nástroje. Opakování pokusů a dobu platnosti určuje provozovatel serveru.",
+        "url": "Cílová URL",
+        "authorization": "Hlavička Authorization (volitelná)",
+        "enabled": "Povolit doručování",
+        "save": "Uložit koncový bod",
+        "replace": "Nahradit koncový bod",
+        "remove": "Odstranit koncový bod",
+        "empty": "Není nastaven žádný odchozí webhook.",
+        "active": "Doručování je povoleno.",
+        "disabled": "Doručování je zakázáno.",
+        "replace_help": "URL a přihlašovací údaje nelze načíst. Pro nahrazení koncového bodu zadej všechna nastavení. Čekající doručení se zruší.",
+        "error": "Odchozí webhook se nepodařilo aktualizovat.",
+        "load_error": "Odchozí webhook se nepodařilo načíst.",
+        "pending": "Není zaznamenána chyba doručení.",
+        "delivered": "Poslední doručení bylo úspěšné.",
+        "failed": "Poslední zaznamenaná chyba doručení.",
+        "skipped": "Poslední doručení bylo přeskočeno.",
+        "attempts": "Pokusy: {attempts}",
+        "http_status": "Stav HTTP: {status}",
+        "reason": "Důvod: {reason}",
+        "secret_title": "Tajný podpisový klíč webhooku",
+        "secret_warning": "Pokud tvůj nástroj ověřuje podpisy Chatto, zkopíruj tento klíč nyní. Nelze ho znovu zobrazit.",
+        "secret_copied": "Podpisový klíč zkopírován",
+        "refresh": "Obnovit stav doručení",
+        "remove_title": "Odstranit odchozí webhook?",
+        "remove_description": "Tím se zastaví nová doručení a zruší čekající doručení."
+      }
     }
   }
 }

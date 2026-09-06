@@ -239,3 +239,99 @@ human accounts, with the bot's user ID as the target. See the
 [BotService reference](/reference/connectrpc-api/bots/),
 [UserService reference](/reference/connectrpc-api/users/), and
 [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).
+
+## Outbound webhooks
+
+Open a bot in **Server Admin → Bots**, then use **Outbound webhook**. Enter
+your tool's destination URL and, if required, its complete Authorization header
+value. Enable delivery and select **Save endpoint**. Copy the signing secret
+if your tool will verify Chatto signatures.
+
+Each bot has one endpoint. It receives new messages that directly mention the
+bot and new messages in DMs that include the bot. This includes thread replies.
+A DM that mentions the bot produces one delivery with both triggers. Messages
+from the bot itself, ordinary channel messages, edits, and reactions do not
+activate the webhook. Notification preferences do not affect it.
+
+Chatto does not return the saved URL or Authorization value. To change them,
+enter all settings and select **Replace endpoint**. Replacement creates a new
+signing secret and cancels pending work for the previous endpoint. Removing the
+endpoint also stops delivery.
+
+### Request body
+
+Every request has this structure:
+
+```json
+{
+  "version": 1,
+  "id": "stable-delivery-id",
+  "type": "message.created",
+  "triggers": ["direct_message", "mention"],
+  "occurred_at": "2026-09-05T12:00:00Z",
+  "bot_id": "bot-id",
+  "room_id": "room-id",
+  "thread_root_id": null,
+  "message": {
+    "id": "message-id",
+    "author_id": "author-id",
+    "body": "Hello @helper_bot"
+  }
+}
+```
+
+Use `triggers` to route mentions and DMs in your tool. `thread_root_id` is null
+for a root message. Attachments and other event types are not included in this
+version. Your tool must accept this JSON structure; Chatto does not translate
+it to a tool-specific payload.
+
+Return an HTTP 2xx response after you accept the request. Process longer tasks
+separately and use the bot API key to reply through the normal API. Chatto does
+not interpret the response body.
+
+### Signatures and authentication
+
+Chatto adds these headers:
+
+- `Chatto-Webhook-Id`: the delivery ID from the JSON body.
+- `Chatto-Webhook-Timestamp`: Unix time in seconds for this attempt.
+- `Chatto-Webhook-Signature`: `v1=` followed by a hexadecimal HMAC-SHA256 value.
+
+To verify the signature, use the signing secret **as its displayed UTF-8 text**
+without Base64 decoding. Compute HMAC-SHA256 over the timestamp, a full stop,
+and the exact request-body bytes. Compare signatures in constant time. Reject
+an old timestamp, for example after five minutes, and deduplicate the delivery
+ID. A retry has the same ID and a new timestamp.
+
+A generic tool can authenticate through its own secret URL or the configured
+Authorization header. It can ignore the signature headers if it does not
+support verification. Keep URL credentials, header values, and the signing
+secret private.
+
+### Retries, expiry, and access
+
+Chatto retries transport failures and all non-2xx responses. It never follows
+redirects. The default policy permits five attempts within 24 hours of the
+source message. The delay starts at 30 seconds and doubles up to 30 minutes.
+Each request has a ten-second timeout and cannot run beyond delivery expiry.
+
+Delivery is best effort. Pending requests and retry timers live in memory.
+Restart discards work already accepted by a process, without a failure record.
+A lost response or repeated source event can cause a repeat, even if your tool
+processed the request. Use the delivery ID to avoid repeating work. Attempts
+include failures before HTTP starts. Deliveries can arrive in a different
+order. Eight workers per process send and retry requests; failed endpoints
+can delay other deliveries while these workers wait.
+
+Chatto checks the bot's current access before sending. It skips delivery when
+access is lost, the message is unavailable, or the endpoint is replaced. The
+body contains the currently readable message text. An edit can therefore
+change the body between attempts. The bot page shows the latest recorded failure for the current endpoint.
+Successful deliveries and intentional skips are not recorded. Later success
+does not clear a previous failure.
+
+Operators can change retry and expiry policy through
+[environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
+
+The default network policy permits public HTTPS destinations. An operator can
+allow private networks and HTTP for trusted internal tools.

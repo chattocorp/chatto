@@ -496,7 +496,36 @@
       "webhook_last_used": "Viimati kasutatud",
       "webhook_no_use_recorded": "Kasutust pole registreeritud",
       "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
-      "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud."
+      "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud.",
+      "outbound": {
+        "title": "Väljuv veebihaak",
+        "description": "Saada otsesed mainimised ja otsesõnumid oma tööriista. Serveri haldaja määrab korduskatsed ja aegumisaja.",
+        "url": "Sihtkoha URL",
+        "authorization": "Authorization-päis (valikuline)",
+        "enabled": "Luba edastamine",
+        "save": "Salvesta lõpp-punkt",
+        "replace": "Asenda lõpp-punkt",
+        "remove": "Eemalda lõpp-punkt",
+        "empty": "Väljuvat veebihaaki pole seadistatud.",
+        "active": "Edastamine on lubatud.",
+        "disabled": "Edastamine on keelatud.",
+        "replace_help": "URL-i ja pääsuandmeid ei saa vaadata. Lõpp-punkti asendamiseks sisesta kõik sätted. Ootel edastused tühistatakse.",
+        "error": "Väljuvat veebihaaki ei saanud uuendada.",
+        "load_error": "Väljuvat veebihaaki ei saanud laadida.",
+        "pending": "Edastusvigu pole registreeritud.",
+        "delivered": "Viimane edastus õnnestus.",
+        "failed": "Viimane registreeritud edastusviga.",
+        "skipped": "Viimane edastus jäeti vahele.",
+        "attempts": "Katseid: {attempts}",
+        "http_status": "HTTP olek: {status}",
+        "reason": "Põhjus: {reason}",
+        "secret_title": "Veebihaagi salajane allkirjastamisvõti",
+        "secret_warning": "Kopeeri see võti kohe, kui sinu tööriist kontrollib Chatto allkirju. Seda ei saa uuesti kuvada.",
+        "secret_copied": "Allkirjastamisvõti kopeeritud",
+        "refresh": "Värskenda edastuse olekut",
+        "remove_title": "Kas eemaldada väljuv veebihaak?",
+        "remove_description": "See peatab uued edastused ja tühistab ootel edastused."
+      }
     }
   }
 }

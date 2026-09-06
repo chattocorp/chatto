@@ -496,7 +496,36 @@
       "webhook_last_used": "最終使用日時",
       "webhook_no_use_recorded": "使用記録なし",
       "webhook_last_used_unavailable": "一時的に利用できません",
-      "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。"
+      "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。",
+      "outbound": {
+        "title": "送信 Webhook",
+        "description": "直接のメンションとダイレクトメッセージをツールに送信します。再試行と有効期限はサーバー運用者が設定します。",
+        "url": "送信先 URL",
+        "authorization": "Authorization ヘッダー（任意）",
+        "enabled": "配信を有効にする",
+        "save": "エンドポイントを保存",
+        "replace": "エンドポイントを置換",
+        "remove": "エンドポイントを削除",
+        "empty": "送信 Webhook は設定されていません。",
+        "active": "配信は有効です。",
+        "disabled": "配信は無効です。",
+        "replace_help": "URL と認証情報は取得できません。エンドポイントを置き換えるには、すべての設定を入力してください。保留中の配信はキャンセルされます。",
+        "error": "送信 Webhook を更新できませんでした。",
+        "load_error": "送信 Webhook を読み込めませんでした。",
+        "pending": "配信エラーは記録されていません。",
+        "delivered": "最新の配信は成功しました。",
+        "failed": "最後に記録された配信エラー。",
+        "skipped": "最新の配信はスキップされました。",
+        "attempts": "試行回数: {attempts}",
+        "http_status": "HTTP ステータス: {status}",
+        "reason": "理由: {reason}",
+        "secret_title": "Webhook 署名シークレット",
+        "secret_warning": "ツールで Chatto の署名を検証する場合は、今すぐこのシークレットをコピーしてください。再表示はできません。",
+        "secret_copied": "署名シークレットをコピーしました",
+        "refresh": "配信状態を更新",
+        "remove_title": "送信 Webhook を削除しますか？",
+        "remove_description": "新しい配信を停止し、保留中の配信をキャンセルします。"
+      }
     }
   }
 }

@@ -1,0 +1,30 @@
+syntax = "proto3";
+package chatto.core.evt.v1;
+import "chatto/core/evt/v1/user_events.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
+// Tags 940 and 942 in Event own outbound bot webhook configuration and delivery.
+message BotOutboundWebhookConfiguredEvent {
+  string bot_user_id = 1;
+  // Configuration generation. Replacement cancels work for earlier generations.
+  string webhook_id = 2;
+  bool enabled = 3;
+  // JSON endpoint credentials encrypted with the bot's PII key.
+  EncryptedUserString credentials = 4;
+}
+
+// A terminal failure, deduplicated per delivery aggregate using OCC.
+// Successful and intentionally skipped deliveries do not produce EVT facts.
+message BotWebhookDeliveryCompletedEvent {
+  string delivery_id = 1;
+  string bot_user_id = 2;
+  string webhook_id = 3;
+  string source_event_id = 4;
+  // Always failed. Successful and skipped deliveries have no EVT fact.
+  string status = 5;
+  // Fixed safe category; never a transport error string or response body.
+  string reason = 6;
+  uint32 attempts = 7;
+  uint32 http_status = 8;
+}

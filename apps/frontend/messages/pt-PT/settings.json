@@ -496,7 +496,36 @@
       "webhook_last_used": "Última utilização",
       "webhook_no_use_recorded": "Nenhuma utilização registada",
       "webhook_last_used_unavailable": "Temporariamente indisponível",
-      "webhook_limit_reached": "Atingiste o limite de 20 webhooks de entrada."
+      "webhook_limit_reached": "Atingiste o limite de 20 webhooks de entrada.",
+      "outbound": {
+        "title": "Webhook de saída",
+        "description": "Envia menções diretas e mensagens diretas para a tua ferramenta. O operador do servidor define as novas tentativas e a expiração.",
+        "url": "URL de destino",
+        "authorization": "Cabeçalho Authorization (opcional)",
+        "enabled": "Ativar entrega",
+        "save": "Guardar destino",
+        "replace": "Substituir destino",
+        "remove": "Remover destino",
+        "empty": "Não está configurado nenhum webhook de saída.",
+        "active": "A entrega está ativada.",
+        "disabled": "A entrega está desativada.",
+        "replace_help": "O URL e as credenciais não podem ser recuperados. Introduz todas as definições para substituir o destino. Isto cancela as entregas pendentes.",
+        "error": "Não foi possível atualizar o webhook de saída.",
+        "load_error": "Não foi possível carregar o webhook de saída.",
+        "pending": "Nenhuma falha de entrega registada.",
+        "delivered": "A última entrega foi bem-sucedida.",
+        "failed": "Última falha de entrega registada.",
+        "skipped": "A última entrega foi ignorada.",
+        "attempts": "Tentativas: {attempts}",
+        "http_status": "Estado HTTP: {status}",
+        "reason": "Motivo: {reason}",
+        "secret_title": "Chave secreta de assinatura do webhook",
+        "secret_warning": "Copia esta chave agora se a tua ferramenta verifica assinaturas do Chatto. Não poderá ser apresentada novamente.",
+        "secret_copied": "Chave de assinatura copiada",
+        "refresh": "Atualizar estado da entrega",
+        "remove_title": "Remover webhook de saída?",
+        "remove_description": "Isto interrompe novas entregas e cancela as pendentes."
+      }
     }
   }
 }

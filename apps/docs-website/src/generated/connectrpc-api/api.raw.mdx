@@ -1940,6 +1940,103 @@ Response after cancelling an upload.
 Creates and manages bot accounts owned by human users. Bot API keys cannot
 call this service.
 
+<a id="chatto-api-v1-BotService-GetBotOutboundWebhook"></a>
+
+### GetBotOutboundWebhook
+
+Gets endpoint metadata. Requires bot ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-GetBotOutboundWebhookRequest"></a>
+
+#### Input: GetBotOutboundWebhookRequest
+
+Read the current endpoint metadata for one managed bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-GetBotOutboundWebhookResponse"></a>
+
+#### Result: GetBotOutboundWebhookResponse
+
+Current endpoint metadata without URL or credentials.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Absent when the bot has no configuration. |
+
+
+<a id="chatto-api-v1-BotService-ReplaceBotOutboundWebhook"></a>
+
+### ReplaceBotOutboundWebhook
+
+Replaces endpoint settings and returns a new signing secret once.
+Requires bot ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ReplaceBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-ReplaceBotOutboundWebhookRequest"></a>
+
+#### Input: ReplaceBotOutboundWebhookRequest
+
+Replace all endpoint settings. Each replacement cancels earlier pending work.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `url` | `string` | Absolute HTTPS destination. Treat secret URL components as credentials. |
+| `authorization` | `string` | Optional complete Authorization header value. Empty removes the header. |
+| `enabled` | `bool` | Accept new eligible messages for delivery. False stores a disabled endpoint. |
+
+
+<a id="chatto-api-v1-ReplaceBotOutboundWebhookResponse"></a>
+
+#### Result: ReplaceBotOutboundWebhookResponse
+
+Saved endpoint metadata and its show-once signing secret.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Saved configuration metadata. |
+| `signing_secret` | `string` | Show-once secret for HMAC-SHA256 request verification. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBotOutboundWebhook"></a>
+
+### DeleteBotOutboundWebhook
+
+Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-DeleteBotOutboundWebhookRequest"></a>
+
+#### Input: DeleteBotOutboundWebhookRequest
+
+Remove the endpoint for one managed bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DeleteBotOutboundWebhookResponse"></a>
+
+#### Result: DeleteBotOutboundWebhookResponse
+
+The endpoint was removed, or was already absent.
+
+
 <a id="chatto-api-v1-BotService-ListBots"></a>
 
 ### ListBots
@@ -5075,6 +5172,39 @@ returned only when the credential is created.
 
 
 
+<a id="chatto-api-v1-BotOutboundWebhook"></a>
+
+### BotOutboundWebhook
+
+Endpoint settings visible only to the bot owner or a caller with bot.manage.
+Credentials are write-only. Replace the configuration to change them.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Configuration generation, used to cancel earlier pending work. |
+| `enabled` | `bool` | Whether this configuration accepts new messages. |
+| `has_authorization` | `bool` | Whether an Authorization header is configured. |
+| `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
+
+
+
+<a id="chatto-api-v1-BotWebhookDelivery"></a>
+
+### BotWebhookDelivery
+
+Safe summary of one terminal webhook delivery.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable delivery identifier shared by all retry attempts. |
+| `status` | [`BotWebhookDeliveryStatus`](#chatto-api-v1-BotWebhookDeliveryStatus) | Final result of this delivery. |
+| `reason` | `string` | Safe failure or skip category. Empty for successful delivery. |
+| `attempts` | `uint32` | Delivery attempts, up to the attempt limit. An attempt can fail before HTTP starts, so this is not an exact HTTP request count. |
+| `http_status` | `uint32` | Zero if no HTTP response was received. |
+| `completed_at` | `google.protobuf.Timestamp` | Time the terminal outcome was recorded. |
+
+
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult
@@ -5550,6 +5680,20 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+
+<a id="chatto-api-v1-BotWebhookDeliveryStatus"></a>
+
+### BotWebhookDeliveryStatus
+
+Terminal state of one outbound webhook delivery.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED` | `0` | No recognised terminal state was supplied. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED` | `1` | The endpoint accepted the request with an HTTP 2xx response. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_FAILED` | `2` | Attempts or delivery lifetime were exhausted. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED` | `3` | Access, message availability, or endpoint settings prevented delivery. |
 
 
 <a id="chatto-api-v1-CredentialLastUsedState"></a>

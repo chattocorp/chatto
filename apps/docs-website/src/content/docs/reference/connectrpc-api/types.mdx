@@ -883,6 +883,35 @@ returned only when the credential is created.
 | `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
 | `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 
+<a id="chatto-api-v1-BotOutboundWebhook"></a>
+
+### BotOutboundWebhook
+
+Endpoint settings visible only to the bot owner or a caller with bot.manage.
+Credentials are write-only. Replace the configuration to change them.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Configuration generation, used to cancel earlier pending work. |
+| `enabled` | `bool` | Whether this configuration accepts new messages. |
+| `has_authorization` | `bool` | Whether an Authorization header is configured. |
+| `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
+
+<a id="chatto-api-v1-BotWebhookDelivery"></a>
+
+### BotWebhookDelivery
+
+Safe summary of one terminal webhook delivery.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable delivery identifier shared by all retry attempts. |
+| `status` | [`BotWebhookDeliveryStatus`](#chatto-api-v1-BotWebhookDeliveryStatus) | Final result of this delivery. |
+| `reason` | `string` | Safe failure or skip category. Empty for successful delivery. |
+| `attempts` | `uint32` | Delivery attempts, up to the attempt limit. An attempt can fail before HTTP starts, so this is not an exact HTTP request count. |
+| `http_status` | `uint32` | Zero if no HTTP response was received. |
+| `completed_at` | `google.protobuf.Timestamp` | Time the terminal outcome was recorded. |
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult
@@ -1822,6 +1851,19 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+<a id="chatto-api-v1-BotWebhookDeliveryStatus"></a>
+
+### BotWebhookDeliveryStatus
+
+Terminal state of one outbound webhook delivery.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED` | `0` | No recognised terminal state was supplied. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED` | `1` | The endpoint accepted the request with an HTTP 2xx response. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_FAILED` | `2` | Attempts or delivery lifetime were exhausted. |
+| `BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED` | `3` | Access, message availability, or endpoint settings prevented delivery. |
 
 <a id="chatto-api-v1-CredentialLastUsedState"></a>
 

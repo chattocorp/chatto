@@ -496,7 +496,36 @@
       "webhook_last_used": "Son kullanım",
       "webhook_no_use_recorded": "Kullanım kaydedilmedi",
       "webhook_last_used_unavailable": "Geçici olarak kullanılamıyor",
-      "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız."
+      "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız.",
+      "outbound": {
+        "title": "Giden webhook",
+        "description": "Doğrudan bahsetmeleri ve doğrudan mesajları aracına gönder. Yeniden denemeleri ve süre sınırını sunucu operatörü belirler.",
+        "url": "Hedef URL",
+        "authorization": "Authorization başlığı (isteğe bağlı)",
+        "enabled": "Teslimatı etkinleştir",
+        "save": "Uç noktayı kaydet",
+        "replace": "Uç noktayı değiştir",
+        "remove": "Uç noktayı kaldır",
+        "empty": "Giden webhook yapılandırılmadı.",
+        "active": "Teslimat etkin.",
+        "disabled": "Teslimat devre dışı.",
+        "replace_help": "URL ve kimlik bilgileri geri alınamaz. Uç noktayı değiştirmek için tüm ayarları gir. Bu işlem bekleyen teslimatları iptal eder.",
+        "error": "Giden webhook güncellenemedi.",
+        "load_error": "Giden webhook yüklenemedi.",
+        "pending": "Teslimat hatası kaydı yok.",
+        "delivered": "Son teslimat başarılı oldu.",
+        "failed": "Son kaydedilen teslimat hatası.",
+        "skipped": "Son teslimat atlandı.",
+        "attempts": "Denemeler: {attempts}",
+        "http_status": "HTTP durumu: {status}",
+        "reason": "Neden: {reason}",
+        "secret_title": "Webhook gizli imzalama anahtarı",
+        "secret_warning": "Aracın Chatto imzalarını doğruluyorsa bu anahtarı şimdi kopyala. Bir daha gösterilemez.",
+        "secret_copied": "İmzalama anahtarı kopyalandı",
+        "refresh": "Teslimat durumunu yenile",
+        "remove_title": "Giden webhook kaldırılsın mı?",
+        "remove_description": "Bu işlem yeni teslimatları durdurur ve bekleyenleri iptal eder."
+      }
     }
   }
 }

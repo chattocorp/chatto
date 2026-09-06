@@ -196,3 +196,13 @@ Processed videos can instead expose HLS. Six-second MPEG-TS segments make
 seeking and adaptive rendition switching independent of byte-range support.
 HLS child responses remain behind Chatto so membership loss revokes an already
 issued playlist ticket on its next playlist or segment request.
+
+## Outbound bot endpoint management
+
+`BotService.GetBotOutboundWebhook`, `ReplaceBotOutboundWebhook`, and
+`DeleteBotOutboundWebhook` require the bot owner or `bot.manage`. Account-manager
+visibility alone does not grant access. Settings are a singleton under the bot.
+The URL and Authorization value are write-only. Replacement returns a new
+signing secret once. The read returns safe settings and the latest recorded
+failure for the current generation. Later successes do not clear that failure. The delivery worker sends JSON HTTP POST
+requests to the configured external destination; it does not mount a new route.

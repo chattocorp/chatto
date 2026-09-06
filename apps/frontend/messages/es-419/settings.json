@@ -496,7 +496,36 @@
       "webhook_last_used": "Último uso",
       "webhook_no_use_recorded": "No se registró ningún uso",
       "webhook_last_used_unavailable": "No disponible temporalmente",
-      "webhook_limit_reached": "Alcanzaste el límite de 20 webhooks entrantes."
+      "webhook_limit_reached": "Alcanzaste el límite de 20 webhooks entrantes.",
+      "outbound": {
+        "title": "Webhook saliente",
+        "description": "Envía menciones directas y mensajes directos a tu herramienta. El operador del servidor establece los reintentos y la caducidad.",
+        "url": "URL de destino",
+        "authorization": "Encabezado Authorization (opcional)",
+        "enabled": "Activar entrega",
+        "save": "Guardar destino",
+        "replace": "Reemplazar destino",
+        "remove": "Eliminar destino",
+        "empty": "No hay ningún webhook saliente configurado.",
+        "active": "La entrega está activada.",
+        "disabled": "La entrega está desactivada.",
+        "replace_help": "La URL y las credenciales no se pueden recuperar. Ingresa todos los ajustes para reemplazar el destino. Esto cancela las entregas pendientes.",
+        "error": "No se pudo actualizar el webhook saliente.",
+        "load_error": "No se pudo cargar el webhook saliente.",
+        "pending": "No se ha registrado ningún fallo de entrega.",
+        "delivered": "La última entrega se completó correctamente.",
+        "failed": "Último fallo de entrega registrado.",
+        "skipped": "La última entrega se omitió.",
+        "attempts": "Intentos: {attempts}",
+        "http_status": "Estado HTTP: {status}",
+        "reason": "Motivo: {reason}",
+        "secret_title": "Clave secreta de firma del webhook",
+        "secret_warning": "Copia esta clave ahora si tu herramienta verifica las firmas de Chatto. No se podrá volver a mostrar.",
+        "secret_copied": "Clave de firma copiada",
+        "refresh": "Actualizar estado de entrega",
+        "remove_title": "¿Eliminar el webhook saliente?",
+        "remove_description": "Esto detiene las nuevas entregas y cancela las pendientes."
+      }
     }
   }
 }

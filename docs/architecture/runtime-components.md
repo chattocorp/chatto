@@ -120,3 +120,14 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `AssetUploadModel`               | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                    | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup           |
 | `projectionSnapshotWorker`       | [`projection_snapshot_worker.go`](../../cli/internal/core/projection_snapshot_worker.go) | Optional per-pass elected post-boot and daily publication of encrypted scalar generations and complete `ServerContentView` projection snapshot cohorts; a separate cluster-wide cooldown limits bounded S3 age expiry when Chatto owns lifecycle cleanup |
 | `video.Service`                  | [`service.go`](../../cli/internal/video/service.go), [`processor.go`](../../cli/internal/video/processor.go)                                                   | Synchronous video/animated-GIF processing attempts: web-compatible stereo audio normalization, HLS segment packaging and upload, animated-GIF MP4 upload, and terminal asset processing events; queue and concurrency remain owned by `video.Unit` |
+
+## Outbound bot webhooks
+
+[`botWebhookModel`](../../cli/internal/core/bot_webhook_worker.go) owns source
+selection and best-effort HTTP delivery. Core creates one shared durable EVT
+consumer before startup and runs it after boot. The source handler puts each
+destination into a process-local channel with 64 slots. Eight workers per
+process send requests and wait between retries. A full channel blocks source
+handoff. Shutdown cancels active requests and discards pending work.
+The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
+bot-manager authorization, encrypted configuration, and read-your-writes.

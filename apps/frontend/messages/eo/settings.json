@@ -496,7 +496,36 @@
       "webhook_last_used": "Laste uzita",
       "webhook_no_use_recorded": "Neniu uzo registrita",
       "webhook_last_used_unavailable": "Provizore nedisponebla",
-      "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita."
+      "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita.",
+      "outbound": {
+        "title": "Elira rethoko",
+        "description": "Sendu rektajn menciojn kaj rektajn mesaĝojn al via ilo. La servila funkciigisto difinas reprovojn kaj eksvalidiĝon.",
+        "url": "Cela URL",
+        "authorization": "Authorization-kapo (nedeviga)",
+        "enabled": "Ebligi liveradon",
+        "save": "Konservi finpunkton",
+        "replace": "Anstataŭigi finpunkton",
+        "remove": "Forigi finpunkton",
+        "empty": "Neniu elira rethoko estas agordita.",
+        "active": "Liverado estas ebligita.",
+        "disabled": "Liverado estas malebligita.",
+        "replace_help": "La URL kaj la akreditaĵoj ne estas retroveblaj. Enigu ĉiujn agordojn por anstataŭigi la finpunkton. Tio nuligas atendantajn liverojn.",
+        "error": "Ne eblis ĝisdatigi la eliran rethokon.",
+        "load_error": "Ne eblis ŝargi la eliran rethokon.",
+        "pending": "Neniu livera malsukceso estas registrita.",
+        "delivered": "La lasta livero sukcesis.",
+        "failed": "Laste registrita livera malsukceso.",
+        "skipped": "La lasta livero estis preterlasita.",
+        "attempts": "Provoj: {attempts}",
+        "http_status": "HTTP-stato: {status}",
+        "reason": "Kialo: {reason}",
+        "secret_title": "Sekreta subskriba ŝlosilo de la rethoko",
+        "secret_warning": "Kopiu ĉi tiun ŝlosilon nun se via ilo kontrolas subskribojn de Chatto. Ne eblos montri ĝin denove.",
+        "secret_copied": "Subskriba ŝlosilo kopiita",
+        "refresh": "Aktualigi liveran staton",
+        "remove_title": "Ĉu forigi la eliran rethokon?",
+        "remove_description": "Tio haltigas novajn liverojn kaj nuligas atendantajn liverojn."
+      }
     }
   }
 }

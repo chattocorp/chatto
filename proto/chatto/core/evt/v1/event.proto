@@ -17,6 +17,7 @@ import "chatto/core/evt/v1/thread_events.proto";
 import "chatto/core/evt/v1/user_events.proto";
 import "chatto/core/evt/v1/invitation_events.proto";
 import "chatto/core/evt/v1/oauth_client_events.proto";
+import "chatto/core/evt/v1/bot_webhook_events.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
@@ -257,6 +258,9 @@ message Event {
     InvitationCreatedEvent invitation_created = 930;
     InvitationRedeemedEvent invitation_redeemed = 931;
     InvitationRevokedEvent invitation_revoked = 932;
+
+    BotOutboundWebhookConfiguredEvent bot_outbound_webhook_configured = 940;
+    BotWebhookDeliveryCompletedEvent bot_webhook_delivery_completed = 942;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

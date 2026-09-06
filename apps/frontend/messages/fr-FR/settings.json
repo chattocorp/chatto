@@ -496,7 +496,36 @@
       "webhook_last_used": "Dernière utilisation",
       "webhook_no_use_recorded": "Aucune utilisation enregistrée",
       "webhook_last_used_unavailable": "Temporairement indisponible",
-      "webhook_limit_reached": "Vous avez atteint la limite de 20 webhooks entrants."
+      "webhook_limit_reached": "Vous avez atteint la limite de 20 webhooks entrants.",
+      "outbound": {
+        "title": "Webhook sortant",
+        "description": "Envoyez les mentions directes et les messages privés à votre outil. Les tentatives et le délai d’expiration sont définis par l’opérateur du serveur.",
+        "url": "URL de destination",
+        "authorization": "En-tête Authorization (facultatif)",
+        "enabled": "Activer l’envoi",
+        "save": "Enregistrer le point de terminaison",
+        "replace": "Remplacer le point de terminaison",
+        "remove": "Supprimer le point de terminaison",
+        "empty": "Aucun webhook sortant n’est configuré.",
+        "active": "L’envoi est activé.",
+        "disabled": "L’envoi est désactivé.",
+        "replace_help": "L’URL et les identifiants ne peuvent pas être récupérés. Saisissez tous les paramètres pour remplacer le point de terminaison. Les envois en attente seront annulés.",
+        "error": "Impossible de mettre à jour le webhook sortant.",
+        "load_error": "Impossible de charger le webhook sortant.",
+        "pending": "Aucun échec d’envoi enregistré.",
+        "delivered": "Le dernier envoi a réussi.",
+        "failed": "Dernier échec d’envoi enregistré.",
+        "skipped": "Le dernier envoi a été ignoré.",
+        "attempts": "Tentatives : {attempts}",
+        "http_status": "Statut HTTP : {status}",
+        "reason": "Motif : {reason}",
+        "secret_title": "Clé secrète de signature du webhook",
+        "secret_warning": "Copiez cette clé maintenant si votre outil vérifie les signatures Chatto. Elle ne pourra plus être affichée.",
+        "secret_copied": "Clé de signature copiée",
+        "refresh": "Actualiser le statut d’envoi",
+        "remove_title": "Supprimer le webhook sortant ?",
+        "remove_description": "Cela arrête les nouveaux envois et annule les envois en attente."
+      }
     }
   }
 }

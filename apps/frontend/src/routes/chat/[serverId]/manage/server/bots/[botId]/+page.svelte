@@ -12,6 +12,7 @@
   import BotCredentialSection, {
     type BotCredentialSectionItem
   } from '$lib/components/bots/BotCredentialSection.svelte';
+  import BotOutboundWebhookSection from '$lib/components/bots/BotOutboundWebhookSection.svelte';
   import AvatarEditor from '$lib/components/users/AvatarEditor.svelte';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserCombobox from '$lib/components/users/UserCombobox.svelte';
@@ -409,6 +410,9 @@
 
       {#if canOperateBot}
         {#key targetKey}
+          {#if !deleteLoading && serverScope.store.serverInfo.supportsFeature('botOutboundWebhooks')}
+            <BotOutboundWebhookSection {botId} />
+          {/if}
           {#if supportsMultipleAPIKeys}
             <BotCredentialSection
             idPrefix="bot-api-key"

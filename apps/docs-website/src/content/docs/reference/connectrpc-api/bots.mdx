@@ -21,6 +21,103 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 Creates and manages bot accounts owned by human users. Bot API keys cannot
 call this service.
 
+<a id="chatto-api-v1-BotService-GetBotOutboundWebhook"></a>
+
+### GetBotOutboundWebhook
+
+Gets endpoint metadata. Requires bot ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-GetBotOutboundWebhookRequest"></a>
+
+#### Input: GetBotOutboundWebhookRequest
+
+Read the current endpoint metadata for one managed bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-GetBotOutboundWebhookResponse"></a>
+
+#### Result: GetBotOutboundWebhookResponse
+
+Current endpoint metadata without URL or credentials.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](/reference/connectrpc-api/types/#chatto-api-v1-BotOutboundWebhook) | Absent when the bot has no configuration. |
+
+
+<a id="chatto-api-v1-BotService-ReplaceBotOutboundWebhook"></a>
+
+### ReplaceBotOutboundWebhook
+
+Replaces endpoint settings and returns a new signing secret once.
+Requires bot ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ReplaceBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-ReplaceBotOutboundWebhookRequest"></a>
+
+#### Input: ReplaceBotOutboundWebhookRequest
+
+Replace all endpoint settings. Each replacement cancels earlier pending work.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `url` | `string` | Absolute HTTPS destination. Treat secret URL components as credentials. |
+| `authorization` | `string` | Optional complete Authorization header value. Empty removes the header. |
+| `enabled` | `bool` | Accept new eligible messages for delivery. False stores a disabled endpoint. |
+
+
+<a id="chatto-api-v1-ReplaceBotOutboundWebhookResponse"></a>
+
+#### Result: ReplaceBotOutboundWebhookResponse
+
+Saved endpoint metadata and its show-once signing secret.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](/reference/connectrpc-api/types/#chatto-api-v1-BotOutboundWebhook) | Saved configuration metadata. |
+| `signing_secret` | `string` | Show-once secret for HMAC-SHA256 request verification. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBotOutboundWebhook"></a>
+
+### DeleteBotOutboundWebhook
+
+Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-DeleteBotOutboundWebhookRequest"></a>
+
+#### Input: DeleteBotOutboundWebhookRequest
+
+Remove the endpoint for one managed bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DeleteBotOutboundWebhookResponse"></a>
+
+#### Result: DeleteBotOutboundWebhookResponse
+
+The endpoint was removed, or was already absent.
+
+
 <a id="chatto-api-v1-BotService-ListBots"></a>
 
 ### ListBots
