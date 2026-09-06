@@ -2,7 +2,7 @@
   ".": "0.5.0-alpha.7",
   "apps/desktop": "0.1.0-alpha.2",
   "authling": "0.0.0",
-  "pkg/appconfig": "0.0.0",
+  "pkg/appconfig": "0.1.0-alpha.1",
   "pkg/datacrypto": "0.0.0",
   "pkg/events": "0.0.0",
   "pkg/natsruntime": "0.0.0"
