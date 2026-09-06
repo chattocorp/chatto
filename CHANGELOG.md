@@ -3,6 +3,16 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.8](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.7...v0.5.0-alpha.8) (2026-09-06)
+
+
+### Bug Fixes
+
+* **assets:** increase upload chunks to 10 MiB ([#2313](https://github.com/chattocorp/chatto/issues/2313)) ([76148aa](https://github.com/chattocorp/chatto/commit/76148aa7bdc69a5d0963a3b18ccd59c3db531196))
+* **events:** identify and clean up projection consumers ([#2317](https://github.com/chattocorp/chatto/issues/2317)) ([ab5c834](https://github.com/chattocorp/chatto/commit/ab5c83487cda63c492dcc6cee2e781c5b19fa972))
+* **frontend:** gate moderation on effective ban permission ([#2316](https://github.com/chattocorp/chatto/issues/2316)) ([9f33cbc](https://github.com/chattocorp/chatto/commit/9f33cbc964debf39d1a94f2dd5c3bdb3cd90105e))
+* **tooling:** configure pnpm 11 and use Node LTS ([#2310](https://github.com/chattocorp/chatto/issues/2310)) ([fd127dd](https://github.com/chattocorp/chatto/commit/fd127ddf99aeec70c4c17890a36253a48551f1d7))
+
 ## [0.5.0-alpha.7](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.6...v0.5.0-alpha.7) (2026-09-05)
 
 
