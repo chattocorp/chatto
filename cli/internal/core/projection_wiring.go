@@ -67,7 +67,10 @@ func registerProjectionHandle[P events.SubjectProjection](
 	identityResolver events.StreamIdentityResolver,
 	estimate func() (int64, int64, []ProjectionAdminMetric),
 	snapshotPolicy projectionSnapshotPolicy,
-) events.ProjectionHandle[P] {
+) (events.ProjectionHandle[P], error) {
+	if err := handle.Projector().ConfigureConsumerIdentity(key, name); err != nil {
+		return events.ProjectionHandle[P]{}, fmt.Errorf("configure %s consumer identity: %w", key, err)
+	}
 	r.registrations = append(r.registrations, projectionRegistration{
 		key:              key,
 		name:             name,
@@ -78,7 +81,7 @@ func registerProjectionHandle[P events.SubjectProjection](
 		identityResolver: identityResolver,
 		estimate:         estimate,
 	})
-	return handle
+	return handle, nil
 }
 
 func registerProjection[T any, P evtstream.ProjectionPointer[T]](
@@ -111,7 +114,7 @@ func registerProjection[T any, P evtstream.ProjectionPointer[T]](
 		evtstream.IdentityFromInfo,
 		estimate,
 		snapshotPolicy,
-	), nil
+	)
 }
 
 func registerPreparedProjection[T any, P evtstream.PreparedProjectionPointer[T]](
@@ -144,7 +147,7 @@ func registerPreparedProjection[T any, P evtstream.PreparedProjectionPointer[T]]
 		evtstream.IdentityFromInfo,
 		estimate,
 		snapshotPolicy,
-	), nil
+	)
 }
 
 func bindContentProjection[T any, P evtstream.ProjectionPointer[T]](
@@ -268,11 +271,14 @@ func initializeCoreProjections(
 		infra.js, notificationProjectionStream, notifications,
 		logger.WithPrefix("core.NotificationsProjector"),
 	)
-	projections.notifications = registerProjectionHandle(
+	projections.notifications, err = registerProjectionHandle(
 		registrar, notificationHandle, notifications, projectionsnapshot.ProjectionNotificationsKey,
 		"Notifications", notificationStreamName,
 		notificationstream.IdentityFromInfo, notifications.adminProjectionEstimate, sharedSnapshots,
 	)
+	if err != nil {
+		return nil, err
+	}
 
 	projections.userAuth, err = registerProjection(
 		registrar, userAuth, "user_auth", "User Auth", userAuth.adminProjectionEstimate, coldReplayOnly,

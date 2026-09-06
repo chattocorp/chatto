@@ -29,6 +29,24 @@ Owners and permissioned admins use the admin UI for daily operations. Depending 
 
 The system pages expose operational metadata, not conversation content; they do not provide a special endpoint for reading every message or file. The Server Admin System tab includes elected asset-cleanup health, pending retry count/age, and pass timing without exposing asset names, storage keys, or raw cleanup errors. This application boundary does not constrain an infrastructure operator who controls the running process, storage, and encryption keys. See [Encryption at Rest and Data Erasure](/guides/operations/privacy-erasure/) for the threat model.
 
+### NATS Projection Consumers
+
+Use names that start with `projection-` to identify the consumers that maintain
+local read models. Their names have the form
+`projection-<key>-<random>_<generation>`. Each server process needs its own
+projection consumers. The random suffix separates replicas; the generation
+changes when the NATS client replaces a consumer during recovery. NATS consumer
+metadata includes `projection_name` and `projection_description`.
+
+On shutdown, Chatto stops each projector and attempts to delete its consumer.
+If cleanup fails or the process crashes, NATS removes inactive projection
+consumers after five minutes. The timeout also protects active projections
+while slow work temporarily stops requests for more events.
+
+Named durable consumers such as `chatto-asset-cleanup-v1` keep unfinished
+background work across restarts. They remain after shutdown. KV watchers and
+temporary scans also create consumers and do not use the `projection-` prefix.
+
 ## Metrics
 
 Enable the per-process metrics listener when you want Prometheus scraping for one running Chatto process:

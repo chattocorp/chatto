@@ -90,6 +90,9 @@ one mutable state object.
 ```go
 projection := &MyProjection{}
 projector := events.NewDecodedProjector(js, stream, projection, decodeEvent, logger)
+if err := projector.ConfigureConsumerIdentity("my_projection", "Application read model"); err != nil {
+	return err
+}
 
 go projector.Run(ctx) // one Run call per Projector instance
 if err := projector.WaitForStartup(ctx); err != nil {
@@ -98,6 +101,14 @@ if err := projector.WaitForStartup(ctx); err != nil {
 ```
 
 `Run` is single-use. After cancellation or failure, construct a new projector.
+The optional consumer identity gives each consumer a readable name and
+description metadata. Use static labels without personal data or secrets.
+The framework adds a random suffix to separate replicas and the SDK adds a
+generation number for recovery. Labels do not change snapshot contracts.
+On exit, `Run` stops consumption and attempts to delete its current ephemeral
+consumer with an independent two-second request timeout. Deletion failure does
+not replace the run error. Five-minute inactivity expiry remains the fallback
+after a crash or a failed cleanup request. Durable workers keep their consumers.
 Use `WaitFor`, `WaitForCurrent`, or a subject-aware `StreamPosition` when a
 caller needs read-your-writes visibility.
 

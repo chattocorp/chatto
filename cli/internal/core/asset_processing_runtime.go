@@ -57,6 +57,9 @@ func NewAssetProcessingRuntime(
 	publisher := evtstream.NewPublisher(js, evt, logger)
 	projection := NewAssetProjection()
 	assets := evtstream.NewProjectionHandle(js, evt, projection, logger.WithPrefix("AssetsProjector"))
+	if err := assets.Projector().ConfigureConsumerIdentity("asset_processing", "Asset processing worker state"); err != nil {
+		return nil, fmt.Errorf("configure asset processing consumer identity: %w", err)
+	}
 
 	workerCore := &ChattoCore{
 		nc:             nc,

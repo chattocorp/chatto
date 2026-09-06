@@ -69,6 +69,9 @@ func (u Unit) Run(ctx context.Context, env runtimeunit.Env) error {
 
 	projectionHandle := evtstream.NewProjectionHandle(env.JS, evt, projection, env.Logger)
 	projector := projectionHandle.Projector()
+	if err := projector.ConfigureConsumerIdentity("message_search", "Message search index"); err != nil {
+		return err
+	}
 	if err := projector.ConfigureCheckpoint("message_search", evtstream.IdentityFromInfo); err != nil {
 		return err
 	}

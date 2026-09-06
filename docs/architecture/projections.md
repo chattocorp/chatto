@@ -85,8 +85,16 @@ healthy-looking after an incomplete startup.
 Projection consumers use a five-minute inactivity cleanup threshold. Because
 event application is synchronous and disk-backed commits can temporarily stop
 the pull loop, a shorter broker threshold could delete a live consumer while
-its projection is still applying a batch. Projector shutdown still stops the
-pull subscription; NATS later removes its ephemeral consumer.
+its projection is still applying a batch. On shutdown or failure, the projector
+stops the pull subscription and attempts to delete its current ephemeral
+consumer. The deletion request has an independent two-second timeout. If the
+request fails or the process crashes, inactivity expiry remains the fallback.
+
+Chatto configures names as `projection-<key>-<random>_<generation>` for core,
+asset-processing, and search projectors. Each projector has a unique random
+suffix; the SDK increments the generation when it replaces a consumer.
+Consumer metadata fields `projection_name` and `projection_description` identify
+the owner. These labels do not change snapshot keys or durable worker names.
 
 The projector framework owns JetStream message handling and passes stable
 stream sequence numbers into `Projection.Apply`. Projection implementations do

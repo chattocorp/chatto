@@ -2,6 +2,7 @@ package events
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"reflect"
@@ -42,6 +43,7 @@ const (
 	// projection Apply is running. Keep their cleanup window comfortably above
 	// slow disk-backed commits so NATS cannot delete a live projector consumer.
 	projectionConsumerInactiveThreshold = 5 * time.Minute
+	projectionConsumerCleanupTimeout    = 2 * time.Second
 )
 
 // MemoryProjection is an embeddable base for projections whose state lives
@@ -335,6 +337,11 @@ type Projector struct {
 	subjects        []string
 	replaySubjects  []string
 	subjectMatchers []compiledSubjectFilter
+
+	// Consumer identity is application-owned diagnostic text, guarded by mu
+	// and frozen by Run.
+	consumerName        string
+	consumerDescription string
 
 	mu        sync.Mutex
 	lastSeq   uint64
@@ -1219,9 +1226,39 @@ func (p *Projector) fail(seq uint64, err error) {
 	p.waiters = nil
 }
 
+// ConfigureConsumerIdentity sets diagnostic labels for this projector's
+// ephemeral consumer. Call it before Run. The name must contain 1 to 64 ASCII
+// letters, digits, hyphens, or underscores. Neither value may contain personal
+// data or secrets. The description is stored in consumer metadata because the
+// ordered-consumer API has no description field.
+//
+// Run adds a random suffix to the name so replicas never share a consumer.
+// These labels do not change snapshot identities or create a durable consumer.
+func (p *Projector) ConfigureConsumerIdentity(name, description string) error {
+	if len(name) == 0 || len(name) > 64 {
+		return fmt.Errorf("projection consumer name must contain 1 to 64 ASCII letters, digits, hyphens, or underscores")
+	}
+	for _, c := range name {
+		if !(c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9' || c == '-' || c == '_') {
+			return fmt.Errorf("projection consumer name must contain only ASCII letters, digits, hyphens, or underscores")
+		}
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.started {
+		return ErrProjectorAlreadyStarted
+	}
+	p.consumerName = name
+	p.consumerDescription = description
+	return nil
+}
+
 // Run starts the consumer + apply loop once. Blocks until ctx is cancelled.
 // Returns ErrProjectorAlreadyStarted for a repeated or concurrent call, and
-// the context's error on shutdown.
+// the context's error on shutdown. On exit it stops consumption and attempts
+// to delete only its own ephemeral consumer. Cleanup failure does not replace
+// the run error; inactivity expiry remains the fallback after a crash or loss
+// of the NATS connection.
 func (p *Projector) Run(ctx context.Context) (runErr error) {
 	defer func() {
 		if runErr != nil && !errors.Is(runErr, ErrProjectorAlreadyStarted) && !errors.Is(runErr, context.Canceled) && !errors.Is(runErr, context.DeadlineExceeded) {
@@ -1235,6 +1272,7 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		return ErrProjectorAlreadyStarted
 	}
 	p.started = true
+	consumerName, consumerDescription := p.consumerName, p.consumerDescription
 	if p.startupStartedAt.IsZero() {
 		p.startupStartedAt = startedAt
 	}
@@ -1257,6 +1295,13 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 		DeliverPolicy:     jetstream.DeliverAllPolicy,
 		InactiveThreshold: projectionConsumerInactiveThreshold,
 	}
+	if consumerName != "" {
+		consumerConfig.NamePrefix = "projection-" + consumerName + "-" + rand.Text()
+		consumerConfig.Metadata = map[string]string{
+			"projection_name":        consumerName,
+			"projection_description": consumerDescription,
+		}
+	}
 	p.mu.Lock()
 	restoredSeq := p.restoredSeq
 	p.mu.Unlock()
@@ -1268,6 +1313,9 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 	if err != nil {
 		return fmt.Errorf("create ordered consumer: %w", err)
 	}
+	// Registered before Stop so cleanup runs after consumption stops, including
+	// when Consume fails after the physical consumer was created.
+	defer p.deleteProjectionConsumer(cons)
 
 	// Use Consume(handler) — NOT Messages() iterator. The iterator path
 	// has an idle-cost behaviour in the SDK that adds ~5s per process to
@@ -1295,6 +1343,21 @@ func (p *Projector) Run(ctx context.Context) (runErr error) {
 			return err
 		}
 		return ErrProjectionFailed
+	}
+}
+
+// deleteProjectionConsumer reads the current name after Stop: the SDK can
+// replace an ordered consumer during recovery. Never delete by a shared prefix
+// or by the initial name, which may refer to an earlier SDK generation.
+func (p *Projector) deleteProjectionConsumer(consumer jetstream.Consumer) {
+	info := consumer.CachedInfo()
+	if info == nil {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), projectionConsumerCleanupTimeout)
+	defer cancel()
+	if err := p.stream.DeleteConsumer(ctx, info.Name); err != nil && !errors.Is(err, jetstream.ErrConsumerNotFound) && !errors.Is(err, jetstream.ErrStreamNotFound) {
+		p.logger.Warn("Could not delete projection consumer; inactivity expiry remains enabled", "consumer", info.Name, "error", err)
 	}
 }
 
