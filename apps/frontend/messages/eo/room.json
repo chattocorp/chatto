@@ -142,6 +142,14 @@
       },
       "show_less": "montri malpli"
     },
+    "typing": {
+      "one": "{name} skribas",
+      "two": "{first} kaj {second} skribas",
+      "many_count": {
+        "one": "{names} kaj {count} alia skribas",
+        "other": "{names} kaj {count} aliaj skribas"
+      }
+    },
     "attachment": {
       "delete_title": "Forigi Aldonaĵon",
       "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun aldonaĵon? Ĉi tio ne povas esti malfarita.",

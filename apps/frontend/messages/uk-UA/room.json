@@ -148,6 +148,15 @@
       },
       "show_less": "показувати менше"
     },
+    "typing": {
+      "one": "{name} пише",
+      "two": "{first} і {second} пишуть",
+      "many_count": {
+        "other": "{names} і ще {count} осіб пишуть",
+        "one": "{names} і ще {count} особа пишуть",
+        "few": "{names} і ще {count} особи пишуть"
+      }
+    },
     "attachment": {
       "delete_title": "Видалити вкладений файл",
       "delete_prompt": "Ви впевнені, що хочете видалити цей вкладений файл? Це неможливо скасувати.",
