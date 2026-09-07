@@ -509,7 +509,7 @@
         "empty": "Es ist kein ausgehender Webhook eingerichtet.",
         "active": "Die Zustellung ist aktiviert.",
         "disabled": "Die Zustellung ist deaktiviert.",
-        "replace_help": "URL und Zugangsdaten können nicht abgerufen werden. Gib alle Einstellungen ein, um den Endpunkt zu ersetzen. Ausstehende Zustellungen werden abgebrochen.",
+        "replace_help": "Die gespeicherte URL wird unten angezeigt. Gib beim Ersetzen den Authorization-Wert erneut ein, falls erforderlich. Speichern erzeugt einen neuen Signaturschlüssel und beendet ausstehende Zustellungen.",
         "error": "Der ausgehende Webhook konnte nicht geändert werden.",
         "load_error": "Der ausgehende Webhook konnte nicht geladen werden.",
         "pending": "Kein Zustellfehler erfasst.",
@@ -524,7 +524,10 @@
         "secret_copied": "Signaturschlüssel kopiert",
         "refresh": "Zustellstatus aktualisieren",
         "remove_title": "Ausgehenden Webhook entfernen?",
-        "remove_description": "Damit stoppst du neue Zustellungen und brichst ausstehende Zustellungen ab."
+        "remove_description": "Damit stoppst du neue Zustellungen und brichst ausstehende Zustellungen ab.",
+        "saved": "Endpunkt gespeichert.",
+        "show_secret": "Signaturschlüssel anzeigen",
+        "signing_help": "Die Signaturprüfung ist für deine Integration optional. Dieser Schlüssel prüft Anfragen von Chatto; er ist kein Bot-API-Schlüssel."
       }
     }
   }

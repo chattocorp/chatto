@@ -229,7 +229,7 @@ message ReassignBotOwnerResponse {
 }
 
 // Endpoint settings visible only to the bot owner or a caller with bot.manage.
-// Credentials are write-only. Replace the configuration to change them.
+// Authorization and signing credentials are write-only. The saved URL is visible.
 message BotOutboundWebhook {
   // Configuration generation, used to cancel earlier pending work.
   string id = 1;
@@ -240,6 +240,8 @@ message BotOutboundWebhook {
   // Latest recorded failure for this configuration, when available.
   // Later successes and intentional skips do not clear this failure.
   BotWebhookDelivery latest_delivery = 4;
+  // Saved destination. May contain tool credentials; visible only to bot managers.
+  string url = 5;
 }
 
 // Terminal state of one outbound webhook delivery.
@@ -276,7 +278,7 @@ message GetBotOutboundWebhookRequest {
   // Required bot user ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
 }
-// Current endpoint metadata without URL or credentials.
+// Current endpoint settings without Authorization or signing credentials.
 message GetBotOutboundWebhookResponse {
   // Absent when the bot has no configuration.
   BotOutboundWebhook webhook = 1;
@@ -285,7 +287,8 @@ message GetBotOutboundWebhookResponse {
 message ReplaceBotOutboundWebhookRequest {
   // Required bot user ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Absolute HTTPS destination. Treat secret URL components as credentials.
+  // Absolute HTTPS destination; HTTP is also allowed for localhost names.
+  // Treat secret URL components as credentials.
   string url = 2 [(buf.validate.field).string = {min_len: 1, max_len: 4096}];
   // Optional complete Authorization header value. Empty removes the header.
   string authorization = 3 [(buf.validate.field).string.max_len = 4096];

@@ -9,15 +9,17 @@ import (
 	"net/url"
 	"strings"
 
+	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
-// BotOutboundWebhook exposes safe endpoint metadata to bot managers. URLs and
-// credentials are write-only because generic tools can use secret URL paths.
+// BotOutboundWebhook exposes the saved destination only to bot managers.
+// Authorization credentials and signing secrets remain write-only.
 type BotOutboundWebhook struct {
 	ID               string
+	URL              string // Saved destination; can include tool credentials and must not be logged.
 	Enabled          bool
 	HasAuthorization bool
 	Latest           *evtv1.Event
@@ -45,13 +47,13 @@ func (c *ChattoCore) GetBotOutboundWebhook(ctx context.Context, actorID, botID s
 		return nil, err
 	}
 	x := e.GetBotOutboundWebhookConfigured()
-	return &BotOutboundWebhook{ID: x.GetWebhookId(), Enabled: x.GetEnabled(), HasAuthorization: creds.Authorization != "", Latest: latest}, nil
+	return &BotOutboundWebhook{ID: x.GetWebhookId(), URL: creds.URL, Enabled: x.GetEnabled(), HasAuthorization: creds.Authorization != "", Latest: latest}, nil
 }
 
 // ReplaceBotOutboundWebhook replaces the full endpoint configuration. Pending
 // work never moves to a new URL. The returned signing secret is shown once.
 func (c *ChattoCore) ReplaceBotOutboundWebhook(ctx context.Context, actorID, botID, rawURL, authorization string, enabled bool) (*BotOutboundWebhook, string, error) {
-	if err := validateBotWebhookURL(rawURL, c.config.BotWebhooks.AllowPrivateNetworks); err != nil {
+	if err := validateBotWebhookURL(rawURL); err != nil {
 		return nil, "", err
 	}
 	if len(authorization) > 4096 || strings.ContainsAny(authorization, "\r\n\x00") {
@@ -77,10 +79,10 @@ func (c *ChattoCore) DeleteBotOutboundWebhook(ctx context.Context, actorID, botI
 	return err
 }
 
-func validateBotWebhookURL(raw string, private bool) error {
+func validateBotWebhookURL(raw string) error {
 	u, err := url.Parse(raw)
-	if err != nil || len(raw) > 4096 || u == nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !(private && u.Scheme == "http")) {
-		return invalidArgument("outbound webhook requires an absolute HTTPS URL without user information or fragment")
+	if err != nil || len(raw) > 4096 || u == nil || u.Hostname() == "" || u.User != nil || u.Fragment != "" || (u.Scheme != "https" && !(linkpreview.IsLocalhostHostname(u.Hostname()) && u.Scheme == "http")) {
+		return invalidArgument("outbound webhook requires HTTPS (HTTP is allowed for localhost names), without user information or fragment")
 	}
 	return nil
 }
@@ -145,7 +147,7 @@ func (m *botWebhookModel) configure(ctx context.Context, actorID, botID string, 
 		if creds == nil {
 			return nil, nil
 		}
-		return &BotOutboundWebhook{ID: x.GetWebhookId(), Enabled: enabled, HasAuthorization: creds.Authorization != ""}, nil
+		return &BotOutboundWebhook{ID: x.GetWebhookId(), URL: creds.URL, Enabled: enabled, HasAuthorization: creds.Authorization != ""}, nil
 	}
 	return nil, events.ErrConflict
 }

@@ -85,8 +85,9 @@ Frontend, Examples, and Documentation Components:
 - markdown-it (https://github.com/markdown-it/markdown-it) - MIT License
 - node-semver (https://github.com/npm/node-semver) - ISC License
 - Parcel watcher (https://github.com/parcel-bundler/watcher) - MIT License
-- Pi coding agent, agent core, AI SDK, and server support (https://github.com/earendil-works/pi) - MIT License
-- Undici, used by TestBot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
+- Undici, used by the Runling bot for address-pinned web requests (https://github.com/nodejs/undici) - MIT License
+- Runling workflow runner (https://github.com/chattocorp/runling) - MIT License
+- Pi coding agent, AI SDK, and terminal UI, used by Runling (https://github.com/earendil-works/pi) - MIT License
 - Playwright (https://playwright.dev/) - Apache License 2.0
 - Prettier and plugins (https://prettier.io/) - MIT License
 - Sharp image toolkit (https://sharp.pixelplumbing.com/) - Apache License 2.0

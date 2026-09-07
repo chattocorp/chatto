@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -81,7 +82,7 @@ func requireNoWebhookOutcomes(t *testing.T, c *ChattoCore) {
 }
 func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(50 * time.Millisecond), AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(50 * time.Millisecond)}
 	type receivedRequest struct {
 		body    []byte
 		headers http.Header
@@ -103,7 +104,7 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	metadata, secret, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "Bearer receiver-secret", true)
+	metadata, secret, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "Bearer receiver-secret", true)
 	require.NoError(t, err)
 	source, err := c.PostMessage(ctx, KindDM, room, owner, "Hello @outbound_bot", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -141,7 +142,7 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	stored, _, _ := c.botWebhooks.projection.Projection().get(bot)
 	encoded, err := proto.Marshal(stored)
 	require.NoError(t, err)
-	require.NotContains(t, string(encoded), server.URL)
+	require.NotContains(t, string(encoded), strings.Replace(server.URL, "127.0.0.1", "localhost", 1))
 	require.NotContains(t, string(encoded), secret)
 }
 func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
@@ -151,7 +152,7 @@ func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
 	}{{"exhaustion", false}, {"revoked", true}} {
 		t.Run(test.name, func(t *testing.T) {
 			c, _ := newTestCore(t)
-			c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(100 * time.Millisecond), AllowPrivateNetworks: true}
+			c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(100 * time.Millisecond)}
 			var calls atomic.Int32
 			first := make(chan struct{}, 1)
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -167,7 +168,7 @@ func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
 			startCoreServices(t, c)
 			owner, bot, room := webhookTestBot(t, c)
 			ctx := testContext(t)
-			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 			require.NoError(t, err)
 			_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 			require.NoError(t, err)
@@ -199,7 +200,7 @@ func TestBotOutboundWebhookManagerBoundary(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = c.ReplaceBotOutboundWebhook(ctx, stranger.GetId(), bot, "https://example.com/hook", "", true)
 	require.Error(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "http://localhost/hook", "", true)
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "http://example.com/hook", "", true)
 	require.ErrorIs(t, err, ErrInvalidArgument)
 	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "https://example.com/hook", "Bearer x\r\nX-Evil: y", true)
 	require.ErrorIs(t, err, ErrInvalidArgument)
@@ -209,6 +210,9 @@ func TestBotOutboundWebhookManagerBoundary(t *testing.T) {
 	require.Error(t, err)
 	_, err = c.GetBotOutboundWebhook(ctx, bot, bot)
 	require.Error(t, err)
+	saved, err := c.GetBotOutboundWebhook(ctx, owner, bot)
+	require.NoError(t, err)
+	require.Equal(t, "https://example.com/hook", saved.URL)
 	require.NoError(t, c.DeleteBotOutboundWebhook(ctx, owner, bot))
 	w, err := c.GetBotOutboundWebhook(ctx, owner, bot)
 	require.NoError(t, err)
@@ -220,7 +224,7 @@ func TestBotOutboundWebhookExpiryAndReplacement(t *testing.T) {
 	for _, mode := range []string{"expiry", "replacement"} {
 		t.Run(mode, func(t *testing.T) {
 			c, _ := newTestCore(t)
-			c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 5, RetryDelay: config.Duration(time.Second), Expiry: config.Duration(200 * time.Millisecond), AllowPrivateNetworks: true}
+			c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 5, RetryDelay: config.Duration(time.Second), Expiry: config.Duration(200 * time.Millisecond)}
 			if mode == "replacement" {
 				c.config.BotWebhooks.Expiry = config.Duration(time.Hour)
 				c.config.BotWebhooks.RetryDelay = config.Duration(200 * time.Millisecond)
@@ -232,13 +236,13 @@ func TestBotOutboundWebhookExpiryAndReplacement(t *testing.T) {
 			startCoreServices(t, c)
 			owner, bot, room := webhookTestBot(t, c)
 			ctx := testContext(t)
-			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 			require.NoError(t, err)
 			_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 			require.NoError(t, err)
 			require.Eventually(t, func() bool { return calls.Load() == 1 }, 3*time.Second, 10*time.Millisecond)
 			if mode == "replacement" {
-				_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL+"/replacement", "", true)
+				_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/replacement", "", true)
 				require.NoError(t, err)
 			}
 			waitWebhookDeliveriesDrained(t, c)
@@ -257,7 +261,7 @@ func TestBotOutboundWebhookExpiryAndReplacement(t *testing.T) {
 
 func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	c, nc := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(time.Second), AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(time.Second)}
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
 	defer server.Close()
@@ -269,7 +273,7 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	require.NoError(t, c.WaitForBoot(testContext(t)))
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -302,7 +306,7 @@ func TestBotOutboundWebhookBackoff(t *testing.T) {
 
 func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 1, AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 1}
 	var forwarded atomic.Int32
 	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { forwarded.Add(1) }))
 	defer target.Close()
@@ -314,7 +318,7 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, redirect.URL, "Bearer secret", true)
+	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(redirect.URL, "127.0.0.1", "localhost", 1), "Bearer secret", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -325,7 +329,7 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 
 func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	c, nc := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(10 * time.Millisecond), AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(10 * time.Millisecond)}
 	var good, bad atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/good" {
@@ -349,9 +353,9 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, second.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
 	room, _, err := c.FindOrCreateDM(ctx, owner, []string{first, second.User.GetId()})
 	require.NoError(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, first, server.URL+"/good", "", true)
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, first, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/good", "", true)
 	require.NoError(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, second.User.GetId(), server.URL+"/bad", "", true)
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, second.User.GetId(), strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/bad", "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room.GetId(), owner, "Activate both bots", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -363,7 +367,7 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 
 func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1) }))
 	defer server.Close()
@@ -372,7 +376,7 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Expired before materialization", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -384,7 +388,7 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 
 func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(204) }))
 	defer server.Close()
@@ -397,7 +401,7 @@ func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	_, err = c.AddMember(ctx, owner, KindChannel, room.GetId(), bot)
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow))
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	for _, body := range []string{"Ordinary channel message", "@all broadcast", "Hello @outbound_bot"} {
 		_, err = c.PostMessage(ctx, KindChannel, room.GetId(), owner, body, nil, "", "", nil, false)
@@ -459,7 +463,7 @@ func TestBotOutboundWebhookConcurrentReplacementReturnsOwnSecret(t *testing.T) {
 
 func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(200 * time.Millisecond), AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 2, RetryDelay: config.Duration(200 * time.Millisecond)}
 	var calls atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
 	defer server.Close()
@@ -472,7 +476,7 @@ func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
 	_, err = c.AddMember(ctx, owner, KindChannel, room.GetId(), bot)
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow))
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindChannel, room.GetId(), owner, "Hello @outbound_bot", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -518,7 +522,7 @@ func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
 
 func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 	c, _ := newTestCore(t)
-	c.config.BotWebhooks = config.BotWebhooksConfig{AllowPrivateNetworks: true}
+	c.config.BotWebhooks = config.BotWebhooksConfig{}
 	var calls atomic.Int32
 	release := make(chan struct{})
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -539,7 +543,7 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 	go func() { done <- c.Run(runCtx) }()
 	require.NoError(t, c.WaitForBoot(ctx))
 	owner, bot, room := webhookTestBot(t, c)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, server.URL, "", true)
+	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	for range botWebhookConcurrency + 1 {
 		_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
@@ -559,4 +563,13 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 	}
 	require.Equal(t, int32(botWebhookConcurrency), calls.Load())
 	requireNoWebhookOutcomes(t, c)
+}
+
+func TestBotWebhookURLPolicy(t *testing.T) {
+	for _, raw := range []string{"http://localhost/hook", "http://runling.localhost:55030/hook", "http://RUNLING.LOCALHOST./hook", "https://example.com/hook", "https://localhost/hook"} {
+		require.NoError(t, validateBotWebhookURL(raw), raw)
+	}
+	for _, raw := range []string{"http://127.0.0.1/hook", "http://[::1]/hook", "http://192.168.1.10/hook", "http://localhost.example.com/hook", "http://notlocalhost/hook", "http://.localhost/hook", "http://example.com/hook", "http://user:secret@localhost/hook", "http://localhost/hook#fragment"} {
+		require.ErrorIs(t, validateBotWebhookURL(raw), ErrInvalidArgument, raw)
+	}
 }

@@ -509,7 +509,7 @@
         "empty": "Nessun webhook in uscita configurato.",
         "active": "La consegna è abilitata.",
         "disabled": "La consegna è disabilitata.",
-        "replace_help": "L’URL e le credenziali non possono essere recuperati. Inserisci tutte le impostazioni per sostituire l’endpoint. Le consegne in attesa verranno annullate.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Impossibile aggiornare il webhook in uscita.",
         "load_error": "Impossibile caricare il webhook in uscita.",
         "pending": "Nessun errore di consegna registrato.",
@@ -524,7 +524,10 @@
         "secret_copied": "Chiave di firma copiata",
         "refresh": "Aggiorna stato della consegna",
         "remove_title": "Rimuovere il webhook in uscita?",
-        "remove_description": "Questo interrompe le nuove consegne e annulla quelle in attesa."
+        "remove_description": "Questo interrompe le nuove consegne e annulla quelle in attesa.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

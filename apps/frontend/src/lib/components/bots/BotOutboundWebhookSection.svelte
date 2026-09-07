@@ -24,29 +24,31 @@
   );
   const webhook = $derived(query.data);
   const latest = $derived(webhook?.latestDelivery);
-  let url = $state('');
+  let url = $derived(webhook?.url ?? '');
   let authorization = $state('');
-  let enabled = $state(true);
+  let enabled = $derived(webhook?.enabled ?? true);
   let pending = $state(false);
   let error = $state(false);
   let secret = $state('');
   let secretVisible = $state(false);
   let removeVisible = $state(false);
+  let saved = $state(false);
 
   async function save(event: SubmitEvent) {
     event.preventDefault();
     if (pending) return;
     pending = true;
     error = false;
+    saved = false;
     try {
       const result = await scope.connection
         .getAPI(createBotAPI)
         .replaceOutboundWebhook({ botUserId: botId, url, authorization, enabled });
       secret = result.signingSecret;
-      secretVisible = true;
-      url = '';
+      secretVisible = false;
       authorization = '';
       await query.refetch();
+      saved = true;
     } catch {
       error = true;
     } finally {
@@ -57,9 +59,11 @@
   async function remove() {
     pending = true;
     error = false;
+    saved = false;
     try {
       await scope.connection.getAPI(createBotAPI).deleteOutboundWebhook(botId);
       removeVisible = false;
+      secret = '';
       await query.refetch();
     } catch {
       error = true;
@@ -112,6 +116,15 @@
       <p class="text-text-dim">{m('settings.bots.outbound.replace_help')}</p>
     {:else if !query.isPending}
       <p>{m('settings.bots.outbound.empty')}</p>
+    {/if}
+    {#if saved}<Hint>{m('settings.bots.outbound.saved')}</Hint>{/if}
+    {#if secret}
+      <div class="flex flex-col gap-2">
+        <p class="text-text-dim">{m('settings.bots.outbound.signing_help')}</p>
+        <Button variant="secondary" onclick={() => (secretVisible = true)}
+          >{m('settings.bots.outbound.show_secret')}</Button
+        >
+      </div>
     {/if}
     {#if error}<Hint tone="warning">{m('settings.bots.outbound.error')}</Hint>{/if}
     <form onsubmit={save} class="flex flex-col gap-4">

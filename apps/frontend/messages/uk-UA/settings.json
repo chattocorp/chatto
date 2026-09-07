@@ -509,7 +509,7 @@
         "empty": "Вихідний вебхук не налаштовано.",
         "active": "Доставку ввімкнено.",
         "disabled": "Доставку вимкнено.",
-        "replace_help": "URL та облікові дані неможливо отримати. Введіть усі налаштування, щоб замінити кінцеву точку. Це скасує доставки в очікуванні.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Не вдалося оновити вихідний вебхук.",
         "load_error": "Не вдалося завантажити вихідний вебхук.",
         "pending": "Помилок доставки не зафіксовано.",
@@ -524,7 +524,10 @@
         "secret_copied": "Ключ підпису скопійовано",
         "refresh": "Оновити статус доставки",
         "remove_title": "Видалити вихідний вебхук?",
-        "remove_description": "Це зупинить нові доставки та скасує доставки в очікуванні."
+        "remove_description": "Це зупинить нові доставки та скасує доставки в очікуванні.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

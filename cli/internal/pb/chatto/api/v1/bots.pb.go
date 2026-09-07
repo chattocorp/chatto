@@ -1447,7 +1447,7 @@ func (x *ReassignBotOwnerResponse) GetBot() *Bot {
 }
 
 // Endpoint settings visible only to the bot owner or a caller with bot.manage.
-// Credentials are write-only. Replace the configuration to change them.
+// Authorization and signing credentials are write-only. The saved URL is visible.
 type BotOutboundWebhook struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Configuration generation, used to cancel earlier pending work.
@@ -1459,8 +1459,10 @@ type BotOutboundWebhook struct {
 	// Latest recorded failure for this configuration, when available.
 	// Later successes and intentional skips do not clear this failure.
 	LatestDelivery *BotWebhookDelivery `protobuf:"bytes,4,opt,name=latest_delivery,json=latestDelivery,proto3" json:"latest_delivery,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Saved destination. May contain tool credentials; visible only to bot managers.
+	Url           string `protobuf:"bytes,5,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BotOutboundWebhook) Reset() {
@@ -1519,6 +1521,13 @@ func (x *BotOutboundWebhook) GetLatestDelivery() *BotWebhookDelivery {
 		return x.LatestDelivery
 	}
 	return nil
+}
+
+func (x *BotOutboundWebhook) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
 }
 
 // Safe summary of one terminal webhook delivery.
@@ -1659,7 +1668,7 @@ func (x *GetBotOutboundWebhookRequest) GetBotUserId() string {
 	return ""
 }
 
-// Current endpoint metadata without URL or credentials.
+// Current endpoint settings without Authorization or signing credentials.
 type GetBotOutboundWebhookResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Absent when the bot has no configuration.
@@ -1710,7 +1719,8 @@ type ReplaceBotOutboundWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required bot user ID.
 	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	// Absolute HTTPS destination. Treat secret URL components as credentials.
+	// Absolute HTTPS destination; HTTP is also allowed for localhost names.
+	// Treat secret URL components as credentials.
 	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
 	// Optional complete Authorization header value. Empty removes the header.
 	Authorization string `protobuf:"bytes,3,opt,name=authorization,proto3" json:"authorization,omitempty"`
@@ -2007,12 +2017,13 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12+\n" +
 	"\rowner_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vownerUserId\"@\n" +
 	"\x18ReassignBotOwnerResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"\xb7\x01\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"\xc9\x01\n" +
 	"\x12BotOutboundWebhook\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aenabled\x18\x02 \x01(\bR\aenabled\x12+\n" +
 	"\x11has_authorization\x18\x03 \x01(\bR\x10hasAuthorization\x12J\n" +
-	"\x0flatest_delivery\x18\x04 \x01(\v2!.chatto.api.v1.BotWebhookDeliveryR\x0elatestDelivery\"\xf9\x01\n" +
+	"\x0flatest_delivery\x18\x04 \x01(\v2!.chatto.api.v1.BotWebhookDeliveryR\x0elatestDelivery\x12\x10\n" +
+	"\x03url\x18\x05 \x01(\tR\x03url\"\xf9\x01\n" +
 	"\x12BotWebhookDelivery\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12?\n" +
 	"\x06status\x18\x02 \x01(\x0e2'.chatto.api.v1.BotWebhookDeliveryStatusR\x06status\x12\x16\n" +

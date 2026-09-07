@@ -1965,7 +1965,7 @@ Read the current endpoint metadata for one managed bot.
 
 #### Result: GetBotOutboundWebhookResponse
 
-Current endpoint metadata without URL or credentials.
+Current endpoint settings without Authorization or signing credentials.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1992,7 +1992,7 @@ Replace all endpoint settings. Each replacement cancels earlier pending work.
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
-| `url` | `string` | Absolute HTTPS destination. Treat secret URL components as credentials. |
+| `url` | `string` | Absolute HTTPS destination; HTTP is also allowed for localhost names. Treat secret URL components as credentials. |
 | `authorization` | `string` | Optional complete Authorization header value. Empty removes the header. |
 | `enabled` | `bool` | Accept new eligible messages for delivery. False stores a disabled endpoint. |
 
@@ -5177,7 +5177,7 @@ returned only when the credential is created.
 ### BotOutboundWebhook
 
 Endpoint settings visible only to the bot owner or a caller with bot.manage.
-Credentials are write-only. Replace the configuration to change them.
+Authorization and signing credentials are write-only. The saved URL is visible.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -5185,6 +5185,7 @@ Credentials are write-only. Replace the configuration to change them.
 | `enabled` | `bool` | Whether this configuration accepts new messages. |
 | `has_authorization` | `bool` | Whether an Authorization header is configured. |
 | `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
+| `url` | `string` | Saved destination. May contain tool credentials; visible only to bot managers. |
 
 
 

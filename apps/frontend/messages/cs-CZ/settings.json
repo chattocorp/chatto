@@ -509,7 +509,7 @@
         "empty": "Není nastaven žádný odchozí webhook.",
         "active": "Doručování je povoleno.",
         "disabled": "Doručování je zakázáno.",
-        "replace_help": "URL a přihlašovací údaje nelze načíst. Pro nahrazení koncového bodu zadej všechna nastavení. Čekající doručení se zruší.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Odchozí webhook se nepodařilo aktualizovat.",
         "load_error": "Odchozí webhook se nepodařilo načíst.",
         "pending": "Není zaznamenána chyba doručení.",
@@ -524,7 +524,10 @@
         "secret_copied": "Podpisový klíč zkopírován",
         "refresh": "Obnovit stav doručení",
         "remove_title": "Odstranit odchozí webhook?",
-        "remove_description": "Tím se zastaví nová doručení a zruší čekající doručení."
+        "remove_description": "Tím se zastaví nová doručení a zruší čekající doručení.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

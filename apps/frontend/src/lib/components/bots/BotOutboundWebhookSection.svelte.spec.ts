@@ -44,7 +44,7 @@ describe('outbound webhook settings', () => {
   });
   afterEach(() => queryClient.clear());
 
-  it('protects a pending signing secret and clears submitted credentials', async () => {
+  it('keeps the saved URL and only shows the signing secret on request', async () => {
     let resolve!: (result: { signingSecret: string }) => void;
     mocks.api.replaceOutboundWebhook.mockReturnValue(new Promise((done) => (resolve = done)));
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
@@ -72,9 +72,18 @@ describe('outbound webhook settings', () => {
     const cancel = vi.fn();
     guard({ cancel });
     expect(cancel).toHaveBeenCalledOnce();
+    mocks.api.getOutboundWebhook.mockResolvedValue({
+      id: 'endpoint',
+      url: 'https://example.com/secret',
+      enabled: true
+    });
     resolve({ signingSecret: 'show-once-signing-secret' });
+    await vi.waitFor(() => expect(container.textContent).toContain('Endpoint saved.'));
+    expect(document.querySelector('dialog[open]')).toBeNull();
+    button(container, 'Show signing secret').click();
+    flushSync();
     await vi.waitFor(() => expect(container.textContent).toContain('show-once-signing-secret'));
-    expect(url.value).toBe('');
+    expect(url.value).toBe('https://example.com/secret');
     expect(auth.value).toBe('');
     button(container, 'Got it').click();
     flushSync();
@@ -93,7 +102,9 @@ describe('outbound webhook settings', () => {
       }
     });
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
-    await vi.waitFor(() => expect(container.textContent).toContain('Latest recorded delivery failure.'));
+    await vi.waitFor(() =>
+      expect(container.textContent).toContain('Latest recorded delivery failure.')
+    );
     expect(container.textContent).toContain('Attempts: 5');
     expect(container.textContent).toContain('HTTP status: 503');
     button(container, 'Remove endpoint').click();
@@ -102,5 +113,24 @@ describe('outbound webhook settings', () => {
     mocks.api.getOutboundWebhook.mockResolvedValue(null);
     button(container, 'Confirm').click();
     await vi.waitFor(() => expect(mocks.api.deleteOutboundWebhook).toHaveBeenCalledWith('bot'));
+  });
+  it('loads the saved URL and enabled state without erasing edits on refresh', async () => {
+    mocks.api.getOutboundWebhook.mockResolvedValue({
+      id: 'endpoint',
+      url: 'http://localhost:55030/api/runs/start/chatto',
+      enabled: false
+    });
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    const url = container.querySelector('input[type="url"]') as HTMLInputElement;
+    await vi.waitFor(() => expect(url.value).toBe('http://localhost:55030/api/runs/start/chatto'));
+    expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
+      false
+    );
+    url.value = 'https://changed.example/hook';
+    url.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+    button(container, 'Refresh delivery status').click();
+    await vi.waitFor(() => expect(mocks.api.getOutboundWebhook).toHaveBeenCalledTimes(2));
+    expect(url.value).toBe('https://changed.example/hook');
   });
 });

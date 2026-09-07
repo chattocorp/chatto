@@ -1,10 +1,8 @@
-import type {
-  ExtensionAPI,
-  ToolDefinition,
-} from "@earendil-works/pi-coding-agent";
+import type { AgentExtensionAPI as ExtensionAPI } from "runling";
+type ToolDefinition = Parameters<ExtensionAPI["registerTool"]>[0];
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createWebFetchExtension, pinnedPublicLookup } from "./web-fetch.js";
+import { createWebFetchExtension, pinnedPublicLookup } from "./web-fetch.ts";
 
 function loadWebFetchTool(
   fetch: (

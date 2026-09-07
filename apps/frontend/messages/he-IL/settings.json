@@ -509,7 +509,7 @@
         "empty": "לא הוגדר webhook יוצא.",
         "active": "המסירה מופעלת.",
         "disabled": "המסירה מושבתת.",
-        "replace_help": "לא ניתן לאחזר את הכתובת ואת פרטי הגישה. הזן את כל ההגדרות כדי להחליף את נקודת הקצה. פעולה זו מבטלת מסירות ממתינות.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "לא ניתן לעדכן את ה-webhook היוצא.",
         "load_error": "לא ניתן לטעון את ה-webhook היוצא.",
         "pending": "לא נרשם כשל במסירה.",
@@ -524,7 +524,10 @@
         "secret_copied": "מפתח החתימה הועתק",
         "refresh": "רענן מצב מסירה",
         "remove_title": "להסיר את ה-webhook היוצא?",
-        "remove_description": "פעולה זו עוצרת מסירות חדשות ומבטלת מסירות ממתינות."
+        "remove_description": "פעולה זו עוצרת מסירות חדשות ומבטלת מסירות ממתינות.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

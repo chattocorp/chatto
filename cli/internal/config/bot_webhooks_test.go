@@ -9,12 +9,11 @@ import (
 
 func TestBotWebhooksOperatorPolicy(t *testing.T) {
 	var cfg ChattoConfig
-	require.NoError(t, toml.Unmarshal([]byte("[bot_webhooks]\nmax_attempts=7\nretry_delay='2m'\nexpiry='3d'\nallow_private_networks=true\n"), &cfg))
+	require.NoError(t, toml.Unmarshal([]byte("[bot_webhooks]\nmax_attempts=7\nretry_delay='2m'\nexpiry='3d'\n"), &cfg))
 	require.NoError(t, cfg.BotWebhooks.Validate())
 	require.Equal(t, 7, cfg.BotWebhooks.MaxAttemptsOrDefault())
 	require.Equal(t, 2*time.Minute, cfg.BotWebhooks.RetryDelayOrDefault())
 	require.Equal(t, 72*time.Hour, cfg.BotWebhooks.ExpiryOrDefault())
-	require.True(t, cfg.BotWebhooks.AllowPrivateNetworks)
 	require.Equal(t, 5, (BotWebhooksConfig{}).MaxAttemptsOrDefault())
 	for _, invalid := range []BotWebhooksConfig{{MaxAttempts: -1}, {MaxAttempts: 101}, {RetryDelay: Duration(-time.Second)}, {Expiry: Duration(-time.Second)}, {Expiry: Duration(31 * 24 * time.Hour)}} {
 		require.Error(t, invalid.Validate())

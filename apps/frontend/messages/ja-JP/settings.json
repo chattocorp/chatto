@@ -509,7 +509,7 @@
         "empty": "送信 Webhook は設定されていません。",
         "active": "配信は有効です。",
         "disabled": "配信は無効です。",
-        "replace_help": "URL と認証情報は取得できません。エンドポイントを置き換えるには、すべての設定を入力してください。保留中の配信はキャンセルされます。",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "送信 Webhook を更新できませんでした。",
         "load_error": "送信 Webhook を読み込めませんでした。",
         "pending": "配信エラーは記録されていません。",
@@ -524,7 +524,10 @@
         "secret_copied": "署名シークレットをコピーしました",
         "refresh": "配信状態を更新",
         "remove_title": "送信 Webhook を削除しますか？",
-        "remove_description": "新しい配信を停止し、保留中の配信をキャンセルします。"
+        "remove_description": "新しい配信を停止し、保留中の配信をキャンセルします。",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

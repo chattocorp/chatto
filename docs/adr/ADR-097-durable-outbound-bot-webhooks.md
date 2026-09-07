@@ -36,8 +36,10 @@ receive messages that precede their EVT position.
 
 Use current authorization and message content before sending. Retraction,
 deletion, and access loss stop delivery. Notification state has no effect.
-Private-network access and HTTP require an explicit option. Redirects are
-never followed. Each request has a ten-second timeout, bounded by expiry.
+Require public HTTPS destinations. Permit HTTP and HTTPS for `localhost` and
+`*.localhost` only when all resolved addresses are loopback. Validate addresses
+at connection time and dial them without another lookup. IP literals and
+other hosts have no private-address exception. Redirects are never followed. Each request has a ten-second timeout, bounded by expiry.
 
 ## Consequences
 

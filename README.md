@@ -48,6 +48,7 @@ services. In Conductor, replace `<workspace>` with the workspace name:
 - Authling: `https://authling.<workspace>.localhost:42444`
 - Mailpit: `https://mailpit.<workspace>.localhost:42444`
 - LiveKit: `https://livekit.<workspace>.localhost:42444`
+- Runling: `https://runling.<workspace>.localhost:42444`
 
 Outside Conductor, Portless uses the `local` route suffix. Services listen on
 loopback ports from base port `4000` (or `$CONDUCTOR_PORT` in Conductor).
@@ -56,6 +57,12 @@ Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on the Chatto login screen. Chatto asks for a username at first
 login. The stack also creates Chatto owner `alice` and member `bob`; both use
 the development-only password `foobar123`.
+
+The stack starts the [Runling bot example](examples/runling-bot/README.md)
+on loopback at the base port plus three (`http://localhost:4003` outside
+Conductor). It uses the bootstrap TestBot account and receives the backend URL
+and API key path automatically. Set TestBot’s webhook destination once as shown
+in the example README.
 
 Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling

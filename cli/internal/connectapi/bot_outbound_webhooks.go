@@ -11,7 +11,7 @@ func apiBotOutboundWebhook(w *core.BotOutboundWebhook) *apiv1.BotOutboundWebhook
 	if w == nil {
 		return nil
 	}
-	result := &apiv1.BotOutboundWebhook{Id: w.ID, Enabled: w.Enabled, HasAuthorization: w.HasAuthorization}
+	result := &apiv1.BotOutboundWebhook{Id: w.ID, Url: w.URL, Enabled: w.Enabled, HasAuthorization: w.HasAuthorization}
 	if e := w.Latest; e != nil {
 		x := e.GetBotWebhookDeliveryCompleted()
 		result.LatestDelivery = &apiv1.BotWebhookDelivery{Id: x.GetDeliveryId(), Status: apiBotWebhookStatus(x.GetStatus()), Reason: x.GetReason(), Attempts: x.GetAttempts(), HttpStatus: x.GetHttpStatus(), CompletedAt: e.GetCreatedAt()}

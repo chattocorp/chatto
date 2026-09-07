@@ -509,7 +509,7 @@
         "empty": "Ingen utgående webhook har konfigurerats.",
         "active": "Leverans är aktiverad.",
         "disabled": "Leverans är inaktiverad.",
-        "replace_help": "Adressen och autentiseringsuppgifterna kan inte hämtas. Ange alla inställningar för att ersätta slutpunkten. Väntande leveranser avbryts.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Det gick inte att uppdatera den utgående webhooken.",
         "load_error": "Det gick inte att läsa in den utgående webhooken.",
         "pending": "Inget leveransfel har registrerats.",
@@ -524,7 +524,10 @@
         "secret_copied": "Signeringsnyckeln har kopierats",
         "refresh": "Uppdatera leveransstatus",
         "remove_title": "Ta bort utgående webhook?",
-        "remove_description": "Detta stoppar nya leveranser och avbryter väntande leveranser."
+        "remove_description": "Detta stoppar nya leveranser och avbryter väntande leveranser.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

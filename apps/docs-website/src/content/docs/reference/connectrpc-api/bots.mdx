@@ -46,7 +46,7 @@ Read the current endpoint metadata for one managed bot.
 
 #### Result: GetBotOutboundWebhookResponse
 
-Current endpoint metadata without URL or credentials.
+Current endpoint settings without Authorization or signing credentials.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -73,7 +73,7 @@ Replace all endpoint settings. Each replacement cancels earlier pending work.
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required bot user ID. |
-| `url` | `string` | Absolute HTTPS destination. Treat secret URL components as credentials. |
+| `url` | `string` | Absolute HTTPS destination; HTTP is also allowed for localhost names. Treat secret URL components as credentials. |
 | `authorization` | `string` | Optional complete Authorization header value. Empty removes the header. |
 | `enabled` | `bool` | Accept new eligible messages for delivery. False stores a disabled endpoint. |
 

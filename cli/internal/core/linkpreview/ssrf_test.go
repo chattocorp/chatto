@@ -2,6 +2,7 @@ package linkpreview
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 	"time"
@@ -135,4 +136,40 @@ func TestSSRFSafeDialRejectsEmptyDNSResults(t *testing.T) {
 
 	_, err := dial(context.Background(), "tcp", "preview.example:443")
 	assert.ErrorContains(t, err, "resolved to no addresses")
+}
+
+func TestWebhookLocalhostDialPolicy(t *testing.T) {
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	require.NoError(t, err)
+	for _, tc := range []struct {
+		host    string
+		ips     []net.IP
+		allowed bool
+	}{
+		{"localhost", []net.IP{net.ParseIP("127.0.0.1")}, true},
+		{"Runling.Localhost.", []net.IP{net.ParseIP("::1"), net.ParseIP("127.0.0.1")}, true},
+		{"localhost", []net.IP{net.ParseIP("192.168.1.10")}, false},
+		{"runling.localhost", []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("8.8.8.8")}, false},
+		{"runling.localhost", []net.IP{net.ParseIP("8.8.8.8")}, false},
+		{"localhost.example.com", []net.IP{net.ParseIP("127.0.0.1")}, false},
+		{"notlocalhost", []net.IP{net.ParseIP("127.0.0.1")}, false},
+		{"127.0.0.1", []net.IP{net.ParseIP("127.0.0.1")}, false},
+		{"example.com", []net.IP{net.ParseIP("192.168.1.10")}, false},
+		{"localhost", nil, false},
+	} {
+		t.Run(tc.host+"/"+fmt.Sprint(tc.ips), func(t *testing.T) {
+			dial := ssrfSafeDialContextWithPolicy(time.Second, staticIPResolver{ips: tc.ips}, true)
+			conn, err := dial(context.Background(), "tcp", net.JoinHostPort(tc.host, port))
+			if tc.allowed {
+				require.NoError(t, err)
+				conn.Close()
+			} else {
+				require.Error(t, err)
+				require.Nil(t, conn)
+			}
+		})
+	}
 }

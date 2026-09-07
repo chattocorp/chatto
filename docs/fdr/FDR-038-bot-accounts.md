@@ -341,9 +341,10 @@ route requests without a separate event selection UI. See ADR-097.
 are available, but signature verification is the receiver's responsibility.
 The bot uses the normal API to reply. Webhook response bodies have no action.
 
-The manager enters the full URL and optional Authorization value. Both are
-write-only. Saving replaces the configuration, returns a new signing secret
-once, and cancels pending work for the old configuration. Removing the
+The manager enters the full URL and optional Authorization value. The saved
+URL remains visible to bot managers; Authorization remains write-only. Saving
+replaces the configuration and returns a new signing secret. The manager can
+choose to view this secret after saving; it is not a bot API key. Saving cancels pending work for the old configuration. Removing the
 endpoint stops delivery. Configuration cannot be managed by the bot itself.
 
 Chatto retries failed requests within an operator-configured lifetime and

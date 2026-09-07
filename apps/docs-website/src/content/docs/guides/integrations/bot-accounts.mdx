@@ -244,8 +244,11 @@ human accounts, with the bot's user ID as the target. See the
 
 Open a bot in **Server Admin → Bots**, then use **Outbound webhook**. Enter
 your tool's destination URL and, if required, its complete Authorization header
-value. Enable delivery and select **Save endpoint**. Copy the signing secret
-if your tool will verify Chatto signatures.
+value. Enable delivery and select **Save endpoint**. The saved URL stays
+visible. If your tool verifies signatures, select **Show signing secret** and
+copy it before leaving the page. This secret verifies requests from Chatto;
+it is not a bot API key. You can skip this step when your tool does not verify
+signatures.
 
 Each bot has one endpoint. It receives new messages that directly mention the
 bot and new messages in DMs that include the bot. This includes thread replies.
@@ -253,8 +256,9 @@ A DM that mentions the bot produces one delivery with both triggers. Messages
 from the bot itself, ordinary channel messages, edits, and reactions do not
 activate the webhook. Notification preferences do not affect it.
 
-Chatto does not return the saved URL or Authorization value. To change them,
-enter all settings and select **Replace endpoint**. Replacement creates a new
+Chatto returns the saved URL only to bot managers. It does not return the
+Authorization value. To change settings, edit the URL, enter the Authorization
+value again if required, and select **Replace endpoint**. Replacement creates a new
 signing secret and cancels pending work for the previous endpoint. Removing the
 endpoint also stops delivery.
 
@@ -333,5 +337,16 @@ does not clear a previous failure.
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
 
-The default network policy permits public HTTPS destinations. An operator can
-allow private networks and HTTP for trusted internal tools.
+Destinations require public HTTPS. The names `localhost` and `*.localhost`
+permit HTTP and HTTPS, but every resolved address must be loopback. Chatto
+checks these addresses when it connects and does not resolve them a second
+time. Use a localhost URL with your workspace’s Runling port (workspace port plus
+three, such as `http://localhost:55003`). The exception does
+not apply to IP literals such as `127.0.0.1` or other private-network hosts.
+
+### Local Runling example
+
+The [Runling example](https://github.com/chattocorp/chatto/tree/main/examples/runling-bot)
+receives this payload through Runling and posts a fixed thread reply through
+the Chatto API. It includes local setup instructions and tests. The example
+uses Runling’s asynchronous run endpoint so Chatto receives an immediate `202`.

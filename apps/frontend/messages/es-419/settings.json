@@ -509,7 +509,7 @@
         "empty": "No hay ningún webhook saliente configurado.",
         "active": "La entrega está activada.",
         "disabled": "La entrega está desactivada.",
-        "replace_help": "La URL y las credenciales no se pueden recuperar. Ingresa todos los ajustes para reemplazar el destino. Esto cancela las entregas pendientes.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "No se pudo actualizar el webhook saliente.",
         "load_error": "No se pudo cargar el webhook saliente.",
         "pending": "No se ha registrado ningún fallo de entrega.",
@@ -524,7 +524,10 @@
         "secret_copied": "Clave de firma copiada",
         "refresh": "Actualizar estado de entrega",
         "remove_title": "¿Eliminar el webhook saliente?",
-        "remove_description": "Esto detiene las nuevas entregas y cancela las pendientes."
+        "remove_description": "Esto detiene las nuevas entregas y cancela las pendientes.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

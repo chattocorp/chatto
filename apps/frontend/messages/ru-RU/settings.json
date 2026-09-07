@@ -509,7 +509,7 @@
         "empty": "Исходящий вебхук не настроен.",
         "active": "Доставка включена.",
         "disabled": "Доставка отключена.",
-        "replace_help": "URL и учётные данные нельзя получить. Введите все настройки, чтобы заменить конечную точку. Ожидающие доставки будут отменены.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Не удалось обновить исходящий вебхук.",
         "load_error": "Не удалось загрузить исходящий вебхук.",
         "pending": "Ошибок доставки не зарегистрировано.",
@@ -524,7 +524,10 @@
         "secret_copied": "Ключ подписи скопирован",
         "refresh": "Обновить статус доставки",
         "remove_title": "Удалить исходящий вебхук?",
-        "remove_description": "Это остановит новые доставки и отменит ожидающие."
+        "remove_description": "Это остановит новые доставки и отменит ожидающие.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

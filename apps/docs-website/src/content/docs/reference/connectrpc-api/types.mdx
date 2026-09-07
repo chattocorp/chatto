@@ -888,7 +888,7 @@ returned only when the credential is created.
 ### BotOutboundWebhook
 
 Endpoint settings visible only to the bot owner or a caller with bot.manage.
-Credentials are write-only. Replace the configuration to change them.
+Authorization and signing credentials are write-only. The saved URL is visible.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -896,6 +896,7 @@ Credentials are write-only. Replace the configuration to change them.
 | `enabled` | `bool` | Whether this configuration accepts new messages. |
 | `has_authorization` | `bool` | Whether an Authorization header is configured. |
 | `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
+| `url` | `string` | Saved destination. May contain tool credentials; visible only to bot managers. |
 
 <a id="chatto-api-v1-BotWebhookDelivery"></a>
 

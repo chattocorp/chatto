@@ -509,7 +509,7 @@
         "empty": "Ingen utgående webhook er konfigurert.",
         "active": "Levering er aktivert.",
         "disabled": "Levering er deaktivert.",
-        "replace_help": "Adressen og påloggingsopplysningene kan ikke hentes. Angi alle innstillingene for å erstatte endepunktet. Ventende leveringer avbrytes.",
+        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Kunne ikke oppdatere den utgående webhooken.",
         "load_error": "Kunne ikke laste den utgående webhooken.",
         "pending": "Ingen leveringsfeil er registrert.",
@@ -524,7 +524,10 @@
         "secret_copied": "Signeringsnøkkel kopiert",
         "refresh": "Oppdater leveringsstatus",
         "remove_title": "Fjerne utgående webhook?",
-        "remove_description": "Dette stopper nye leveringer og avbryter ventende leveringer."
+        "remove_description": "Dette stopper nye leveringer og avbryter ventende leveringer.",
+        "saved": "Endpoint saved.",
+        "show_secret": "Show signing secret",
+        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
       }
     }
   }

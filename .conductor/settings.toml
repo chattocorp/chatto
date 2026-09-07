@@ -17,6 +17,10 @@ name = "LiveKit"
 url = "https://livekit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
 [[preview_urls]]
+name = "Runling"
+url = "https://runling.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
+[[preview_urls]]
 name = "Storybook"
 url = "https://storybook.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 

@@ -131,3 +131,32 @@ process send requests and wait between retries. A full channel blocks source
 handoff. Shutdown cancels active requests and discards pending work.
 The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
 bot-manager authorization, encrypted configuration, and read-your-writes.
+
+## Development integration bot
+
+[`mise dev`](../../mise.toml) starts the
+[Runling workflow](../../examples/runling-bot/reply.ts) as a supervised Node
+process on loopback at the workspace port plus three. Portless exposes its
+console at `https://runling.<workspace>.localhost:42444`. The task supplies the
+Chatto backend URL and bootstrap TestBot key path, including a custom
+`CHATTO_DEV_DATA_ROOT`. The bot owner configures its webhook destination once.
+Runling receives outbound webhooks, composes answers with
+`openrouter/google/gemini-2.5-flash-lite`, and posts thread replies through the public
+API. Each delivery owns a disposable agent session with read-only tools for
+the active thread and public web pages. The web tool pins validated public DNS
+addresses, checks redirect destinations, and bounds response size and time.
+The prompt directs Chatto questions to `https://docs.chatto.run/` and requires
+source citations. Channel mentions and DMs preload all thread pages into the agent
+prompt on each delivery. A separate workflow
+step starts the live typing indicator, which refreshes during context loading
+and composition. The agent sends chat text through `send_reply`, which calls the public API
+with a fixed destination. The example’s `sender.ts` owns the confirmed message ID and one attempt per
+run, shared by the agent and error fallback. `typing.ts` owns refresh and stop
+behavior. A
+successful send determines delivery success even if the subsequent Runling
+outcome report is missing. Outcome reporting is enabled after the send attempt. If context loading or
+composition fails before any reply POST, a separate workflow step sends a
+fixed error notification in the same thread. The run remains failed; an
+ambiguous send attempt never triggers a second POST.
+`OPENROUTER_API_KEY` supplies model credentials. It has no realtime connection. Its local run history is stored under
+`examples/runling-bot/.runling`. This process is not part of server releases.

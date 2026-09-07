@@ -58,10 +58,7 @@ type botWebhookModel struct {
 }
 
 func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProjection]) *botWebhookModel {
-	client := linkpreview.NewSSRFSafeClient(botWebhookRequestTimeout)
-	if c.config.BotWebhooks.AllowPrivateNetworks {
-		client = &http.Client{Timeout: botWebhookRequestTimeout, Transport: &http.Transport{Proxy: nil, MaxIdleConns: 8, IdleConnTimeout: 30 * time.Second, TLSHandshakeTimeout: botWebhookRequestTimeout}}
-	}
+	client := linkpreview.NewSSRFSafeClientWithLocalhost(botWebhookRequestTimeout)
 	// Never forward credentials or a message body through an endpoint redirect.
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
 	return &botWebhookModel{core: c, projection: p, client: client, now: time.Now, deliveries: make(chan *botWebhookDelivery, botWebhookBuffer)}
@@ -285,7 +282,7 @@ func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) er
 	if err != nil {
 		return err
 	}
-	if err = validateBotWebhookURL(creds.URL, m.core.config.BotWebhooks.AllowPrivateNetworks); err != nil {
+	if err = validateBotWebhookURL(creds.URL); err != nil {
 		return nil
 	}
 	// Stable-input authorization includes current owner authority and membership.

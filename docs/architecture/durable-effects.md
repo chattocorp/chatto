@@ -129,7 +129,10 @@ handoff to an in-memory pool. This acknowledgement does not confirm HTTP
 completion. Shutdown loses accepted work and retries, without a failure fact.
 
 Eight workers per process check current configuration and access, then send
-signed JSON. Each worker counts attempts and waits on a cancellable timer.
+signed JSON. Public destinations require HTTPS. The names `localhost` and
+`*.localhost` also permit HTTP, with loopback-only DNS answers checked and
+dialed directly at connection time. Other private destinations remain blocked.
+Each worker counts attempts and waits on a cancellable timer.
 The delay doubles up to 30 minutes, bounded by the remaining delivery lifetime.
 Exhausted or expired deliveries produce an EVT failure with aggregate OCC to
 prevent duplicate failure facts. Failure recording is best effort: if the

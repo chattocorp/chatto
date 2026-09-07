@@ -1260,7 +1260,7 @@ export class ReassignBotOwnerResponse extends Message<ReassignBotOwnerResponse> 
 
 /**
  * Endpoint settings visible only to the bot owner or a caller with bot.manage.
- * Credentials are write-only. Replace the configuration to change them.
+ * Authorization and signing credentials are write-only. The saved URL is visible.
  *
  * @generated from message chatto.api.v1.BotOutboundWebhook
  */
@@ -1294,6 +1294,13 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
    */
   latestDelivery?: BotWebhookDelivery;
 
+  /**
+   * Saved destination. May contain tool credentials; visible only to bot managers.
+   *
+   * @generated from field: string url = 5;
+   */
+  url = "";
+
   constructor(data?: PartialMessage<BotOutboundWebhook>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1306,6 +1313,7 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
     { no: 2, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "has_authorization", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "latest_delivery", kind: "message", T: BotWebhookDelivery },
+    { no: 5, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotOutboundWebhook {
@@ -1449,7 +1457,7 @@ export class GetBotOutboundWebhookRequest extends Message<GetBotOutboundWebhookR
 }
 
 /**
- * Current endpoint metadata without URL or credentials.
+ * Current endpoint settings without Authorization or signing credentials.
  *
  * @generated from message chatto.api.v1.GetBotOutboundWebhookResponse
  */
@@ -1503,7 +1511,8 @@ export class ReplaceBotOutboundWebhookRequest extends Message<ReplaceBotOutbound
   botUserId = "";
 
   /**
-   * Absolute HTTPS destination. Treat secret URL components as credentials.
+   * Absolute HTTPS destination; HTTP is also allowed for localhost names.
+   * Treat secret URL components as credentials.
    *
    * @generated from field: string url = 2;
    */
