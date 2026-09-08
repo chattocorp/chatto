@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Dočasně nedostupné",
       "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků.",
       "outbound": {
-        "title": "Odchozí webhook",
-        "description": "Posílej přímé zmínky a přímé zprávy do svého nástroje. Opakování pokusů a dobu platnosti určuje provozovatel serveru.",
+        "title": "Odchozí webhooky",
+        "description": "Posílej zmínky a soukromé zprávy do svého nástroje.",
         "url": "Cílová URL",
         "authorization": "Hlavička Authorization (volitelná)",
         "enabled": "Povolit doručování",
+        "enabled_help": "Nech vypnuté pro vytvoření pozastaveného webhooku. Později jej můžeš obnovit.",
         "error": "Odchozí webhook se nepodařilo aktualizovat.",
         "load_error": "Odchozí webhook se nepodařilo načíst.",
         "failed": "Poslední zaznamenaná chyba doručení.",
@@ -512,7 +513,23 @@
         "secret_title": "Tajný podpisový klíč webhooku",
         "secret_warning": "Pokud tvůj nástroj ověřuje podpisy Chatto, zkopíruj tento klíč nyní. Nelze ho znovu zobrazit.",
         "secret_copied": "Podpisový klíč zkopírován",
-        "show_secret": "Show signing secret"
+        "show_secret": "Zobrazit podpisový klíč",
+        "add": "Vytvořit webhook",
+        "empty": "Nebyly vytvořeny žádné odchozí webhooky.",
+        "active": "Zapnuto",
+        "disabled": "Pozastaveno",
+        "name": "Název",
+        "unnamed": "Webhook",
+        "created": "Webhook vytvořen.",
+        "paused": "Webhook pozastaven.",
+        "resumed": "Webhook obnoven.",
+        "pause": "Pozastavit",
+        "resume": "Obnovit",
+        "revoke": "Zrušit webhook",
+        "revoked": "Webhook zrušen.",
+        "revoke_title": "Zrušit odchozí webhook?",
+        "revoke_description": "Tím se webhook trvale zruší a jeho čekající opakované pokusy se zruší.",
+        "limit": "Dosáhl jsi limitu 20 odchozích webhooků."
       }
     }
   }

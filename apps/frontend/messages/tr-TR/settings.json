@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Geçici olarak kullanılamıyor",
       "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız.",
       "outbound": {
-        "title": "Giden webhook",
-        "description": "Doğrudan bahsetmeleri ve doğrudan mesajları aracına gönder. Yeniden denemeleri ve süre sınırını sunucu operatörü belirler.",
+        "title": "Giden webhook’lar",
+        "description": "Bahsetmeleri ve doğrudan mesajları aracına gönder.",
         "url": "Hedef URL",
         "authorization": "Authorization başlığı (isteğe bağlı)",
         "enabled": "Teslimatı etkinleştir",
+        "enabled_help": "Duraklatılmış bir webhook oluşturmak için devre dışı bırak. Daha sonra devam ettirebilirsin.",
         "error": "Giden webhook güncellenemedi.",
         "load_error": "Giden webhook yüklenemedi.",
         "failed": "Son kaydedilen teslimat hatası.",
@@ -512,7 +513,23 @@
         "secret_title": "Webhook gizli imzalama anahtarı",
         "secret_warning": "Aracın Chatto imzalarını doğruluyorsa bu anahtarı şimdi kopyala. Bir daha gösterilemez.",
         "secret_copied": "İmzalama anahtarı kopyalandı",
-        "show_secret": "Show signing secret"
+        "show_secret": "İmzalama sırrını göster",
+        "add": "Webhook oluştur",
+        "empty": "Henüz giden webhook oluşturulmadı.",
+        "active": "Etkin",
+        "disabled": "Duraklatıldı",
+        "name": "Ad",
+        "unnamed": "Webhook",
+        "created": "Webhook oluşturuldu.",
+        "paused": "Webhook duraklatıldı.",
+        "resumed": "Webhook devam ettirildi.",
+        "pause": "Duraklat",
+        "resume": "Devam ettir",
+        "revoke": "Webhook’u iptal et",
+        "revoked": "Webhook iptal edildi.",
+        "revoke_title": "Giden webhook iptal edilsin mi?",
+        "revoke_description": "Bu işlem webhook’u kalıcı olarak iptal eder ve bekleyen yeniden denemeleri durdurur.",
+        "limit": "20 giden webhook sınırına ulaştın."
       }
     }
   }

@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "一時的に利用できません",
       "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。",
       "outbound": {
-        "title": "送信 Webhook",
-        "description": "直接のメンションとダイレクトメッセージをツールに送信します。再試行と有効期限はサーバー運用者が設定します。",
+        "title": "送信Webhook",
+        "description": "メンションとダイレクトメッセージをツールに送信します。",
         "url": "送信先 URL",
         "authorization": "Authorization ヘッダー（任意）",
         "enabled": "配信を有効にする",
+        "enabled_help": "無効のまま作成すると一時停止状態になります。後で再開できます。",
         "error": "送信 Webhook を更新できませんでした。",
         "load_error": "送信 Webhook を読み込めませんでした。",
         "failed": "最後に記録された配信エラー。",
@@ -512,7 +513,23 @@
         "secret_title": "Webhook 署名シークレット",
         "secret_warning": "ツールで Chatto の署名を検証する場合は、今すぐこのシークレットをコピーしてください。再表示はできません。",
         "secret_copied": "署名シークレットをコピーしました",
-        "show_secret": "Show signing secret"
+        "show_secret": "署名シークレットを表示",
+        "add": "Webhookを作成",
+        "empty": "送信Webhookはまだ作成されていません。",
+        "active": "有効",
+        "disabled": "一時停止中",
+        "name": "名前",
+        "unnamed": "Webhook",
+        "created": "Webhookを作成しました。",
+        "paused": "Webhookを一時停止しました。",
+        "resumed": "Webhookを再開しました。",
+        "pause": "一時停止",
+        "resume": "再開",
+        "revoke": "Webhookを失効",
+        "revoked": "Webhookを失効しました。",
+        "revoke_title": "送信Webhookを失効しますか？",
+        "revoke_description": "このWebhookを完全に失効し、保留中の再試行をキャンセルします。",
+        "limit": "送信Webhookの上限20件に達しました。"
       }
     }
   }

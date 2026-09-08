@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
       "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud.",
       "outbound": {
-        "title": "Väljuv veebihaak",
-        "description": "Saada otsesed mainimised ja otsesõnumid oma tööriista. Serveri haldaja määrab korduskatsed ja aegumisaja.",
+        "title": "Väljaminevad veebihaagid",
+        "description": "Saada mainimised ja otsesõnumid oma tööriista.",
         "url": "Sihtkoha URL",
         "authorization": "Authorization-päis (valikuline)",
         "enabled": "Luba edastamine",
+        "enabled_help": "Jäta välja lülitatuks, et luua peatatud veebihaak. Saad selle hiljem käivitada.",
         "error": "Väljuvat veebihaaki ei saanud uuendada.",
         "load_error": "Väljuvat veebihaaki ei saanud laadida.",
         "failed": "Viimane registreeritud edastusviga.",
@@ -512,7 +513,23 @@
         "secret_title": "Veebihaagi salajane allkirjastamisvõti",
         "secret_warning": "Kopeeri see võti kohe, kui sinu tööriist kontrollib Chatto allkirju. Seda ei saa uuesti kuvada.",
         "secret_copied": "Allkirjastamisvõti kopeeritud",
-        "show_secret": "Show signing secret"
+        "show_secret": "Näita allkirjastamise saladust",
+        "add": "Loo veebihaak",
+        "empty": "Väljaminevaid veebihaake pole loodud.",
+        "active": "Lubatud",
+        "disabled": "Peatatud",
+        "name": "Nimi",
+        "unnamed": "Veebihaak",
+        "created": "Veebihaak loodud.",
+        "paused": "Veebihaak peatatud.",
+        "resumed": "Veebihaak taaskäivitatud.",
+        "pause": "Peata",
+        "resume": "Jätka",
+        "revoke": "Tühista veebihaak",
+        "revoked": "Veebihaak tühistatud.",
+        "revoke_title": "Tühistada väljaminev veebihaak?",
+        "revoke_description": "See tühistab veebihaagi jäädavalt ja katkestab ootel korduskatsed.",
+        "limit": "Oled jõudnud 20 väljamineva veebihaagi piirini."
       }
     }
   }

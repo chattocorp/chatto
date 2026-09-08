@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Temporairement indisponible",
       "webhook_limit_reached": "Vous avez atteint la limite de 20 webhooks entrants.",
       "outbound": {
-        "title": "Webhook sortant",
-        "description": "Envoyez les mentions directes et les messages privés à votre outil. Les tentatives et le délai d’expiration sont définis par l’opérateur du serveur.",
+        "title": "Webhooks sortants",
+        "description": "Envoie les mentions et les messages privés à ton outil.",
         "url": "URL de destination",
         "authorization": "En-tête Authorization (facultatif)",
         "enabled": "Activer l’envoi",
+        "enabled_help": "Laisse cette option désactivée pour créer un webhook en pause. Tu pourras le reprendre plus tard.",
         "error": "Impossible de mettre à jour le webhook sortant.",
         "load_error": "Impossible de charger le webhook sortant.",
         "failed": "Dernier échec d’envoi enregistré.",
@@ -512,7 +513,23 @@
         "secret_title": "Clé secrète de signature du webhook",
         "secret_warning": "Copiez cette clé maintenant si votre outil vérifie les signatures Chatto. Elle ne pourra plus être affichée.",
         "secret_copied": "Clé de signature copiée",
-        "show_secret": "Show signing secret"
+        "show_secret": "Afficher le secret de signature",
+        "add": "Créer un webhook",
+        "empty": "Aucun webhook sortant créé.",
+        "active": "Activé",
+        "disabled": "En pause",
+        "name": "Nom",
+        "unnamed": "Webhook",
+        "created": "Webhook créé.",
+        "paused": "Webhook en pause.",
+        "resumed": "Webhook repris.",
+        "pause": "Mettre en pause",
+        "resume": "Reprendre",
+        "revoke": "Révoquer le webhook",
+        "revoked": "Webhook révoqué.",
+        "revoke_title": "Révoquer le webhook sortant ?",
+        "revoke_description": "Cette action révoque définitivement ce webhook et annule ses tentatives en attente.",
+        "limit": "Tu as atteint la limite de 20 webhooks sortants."
       }
     }
   }

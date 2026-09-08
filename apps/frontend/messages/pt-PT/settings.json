@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Temporariamente indisponível",
       "webhook_limit_reached": "Atingiste o limite de 20 webhooks de entrada.",
       "outbound": {
-        "title": "Webhook de saída",
-        "description": "Envia menções diretas e mensagens diretas para a tua ferramenta. O operador do servidor define as novas tentativas e a expiração.",
+        "title": "Webhooks de saída",
+        "description": "Envia menções e mensagens diretas para a tua ferramenta.",
         "url": "URL de destino",
         "authorization": "Cabeçalho Authorization (opcional)",
         "enabled": "Ativar entrega",
+        "enabled_help": "Deixa esta opção desativada para criar um webhook em pausa. Podes retomá-lo mais tarde.",
         "error": "Não foi possível atualizar o webhook de saída.",
         "load_error": "Não foi possível carregar o webhook de saída.",
         "failed": "Última falha de entrega registada.",
@@ -512,7 +513,23 @@
         "secret_title": "Chave secreta de assinatura do webhook",
         "secret_warning": "Copia esta chave agora se a tua ferramenta verifica assinaturas do Chatto. Não poderá ser apresentada novamente.",
         "secret_copied": "Chave de assinatura copiada",
-        "show_secret": "Show signing secret"
+        "show_secret": "Mostrar segredo de assinatura",
+        "add": "Criar webhook",
+        "empty": "Não foram criados webhooks de saída.",
+        "active": "Ativado",
+        "disabled": "Em pausa",
+        "name": "Nome",
+        "unnamed": "Webhook",
+        "created": "Webhook criado.",
+        "paused": "Webhook em pausa.",
+        "resumed": "Webhook retomado.",
+        "pause": "Pausar",
+        "resume": "Retomar",
+        "revoke": "Revogar webhook",
+        "revoked": "Webhook revogado.",
+        "revoke_title": "Revogar o webhook de saída?",
+        "revoke_description": "Isto revoga permanentemente este webhook e cancela as tentativas pendentes.",
+        "limit": "Atingiste o limite de 20 webhooks de saída."
       }
     }
   }

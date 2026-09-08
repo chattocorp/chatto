@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Īslaicīgi nav pieejams",
       "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums.",
       "outbound": {
-        "title": "Izejošais tīmekļa aizķēres pieprasījums",
-        "description": "Sūti tiešas pieminēšanas un tiešās ziņas savam rīkam. Servera operators nosaka atkārtotos mēģinājumus un derīguma termiņu.",
+        "title": "Izejošās tīmekļa aizķeres",
+        "description": "Sūti pieminējumus un privātos ziņojumus savam rīkam.",
         "url": "Galamērķa URL",
         "authorization": "Authorization galvene (neobligāta)",
         "enabled": "Iespējot piegādi",
+        "enabled_help": "Atstāj izslēgtu, lai izveidotu apturētu tīmekļa aizķeri. To varēsi atsākt vēlāk.",
         "error": "Neizdevās atjaunināt izejošo tīmekļa aizķēri.",
         "load_error": "Neizdevās ielādēt izejošo tīmekļa aizķēri.",
         "failed": "Pēdējā reģistrētā piegādes kļūme.",
@@ -512,7 +513,23 @@
         "secret_title": "Tīmekļa aizķēres slepenā parakstīšanas atslēga",
         "secret_warning": "Nokopē šo atslēgu tagad, ja tavs rīks pārbauda Chatto parakstus. To nevarēs parādīt vēlreiz.",
         "secret_copied": "Parakstīšanas atslēga nokopēta",
-        "show_secret": "Show signing secret"
+        "show_secret": "Rādīt parakstīšanas noslēpumu",
+        "add": "Izveidot tīmekļa aizķeri",
+        "empty": "Nav izveidota neviena izejošā tīmekļa aizķere.",
+        "active": "Ieslēgta",
+        "disabled": "Apturēta",
+        "name": "Nosaukums",
+        "unnamed": "Tīmekļa aizķere",
+        "created": "Tīmekļa aizķere izveidota.",
+        "paused": "Tīmekļa aizķere apturēta.",
+        "resumed": "Tīmekļa aizķere atsākta.",
+        "pause": "Apturēt",
+        "resume": "Atsākt",
+        "revoke": "Atsaukt tīmekļa aizķeri",
+        "revoked": "Tīmekļa aizķere atsaukta.",
+        "revoke_title": "Atsaukt izejošo tīmekļa aizķeri?",
+        "revoke_description": "Tas neatgriezeniski atsauks šo tīmekļa aizķeri un atcels gaidošos atkārtotos mēģinājumus.",
+        "limit": "Ir sasniegts 20 izejošo tīmekļa aizķeru ierobežojums."
       }
     }
   }

@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "No disponible temporalmente",
       "webhook_limit_reached": "Has alcanzado el límite de 20 webhooks entrantes.",
       "outbound": {
-        "title": "Webhook saliente",
-        "description": "Envía menciones directas y mensajes directos a tu herramienta. El operador del servidor establece los reintentos y la caducidad.",
+        "title": "Webhooks salientes",
+        "description": "Envía menciones y mensajes directos a tu herramienta.",
         "url": "URL de destino",
         "authorization": "Cabecera Authorization (opcional)",
         "enabled": "Activar entrega",
+        "enabled_help": "Deja esta opción desactivada para crear un webhook en pausa. Puedes reanudarlo más tarde.",
         "error": "No se pudo actualizar el webhook saliente.",
         "load_error": "No se pudo cargar el webhook saliente.",
         "failed": "Último fallo de entrega registrado.",
@@ -512,7 +513,23 @@
         "secret_title": "Clave secreta de firma del webhook",
         "secret_warning": "Copia esta clave ahora si tu herramienta verifica las firmas de Chatto. No se podrá volver a mostrar.",
         "secret_copied": "Clave de firma copiada",
-        "show_secret": "Show signing secret"
+        "show_secret": "Mostrar secreto de firma",
+        "add": "Crear webhook",
+        "empty": "No se han creado webhooks salientes.",
+        "active": "Activado",
+        "disabled": "En pausa",
+        "name": "Nombre",
+        "unnamed": "Webhook",
+        "created": "Webhook creado.",
+        "paused": "Webhook en pausa.",
+        "resumed": "Webhook reanudado.",
+        "pause": "Pausar",
+        "resume": "Reanudar",
+        "revoke": "Revocar webhook",
+        "revoked": "Webhook revocado.",
+        "revoke_title": "¿Revocar el webhook saliente?",
+        "revoke_description": "Esto revoca permanentemente este webhook y cancela sus reintentos pendientes.",
+        "limit": "Has alcanzado el límite de 20 webhooks salientes."
       }
     }
   }

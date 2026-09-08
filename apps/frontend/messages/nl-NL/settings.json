@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
       "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt.",
       "outbound": {
-        "title": "Uitgaande webhook",
-        "description": "Stuur directe vermeldingen en privéberichten naar je tool. De serverbeheerder bepaalt herhaalpogingen en vervaltijd.",
+        "title": "Uitgaande webhooks",
+        "description": "Stuur vermeldingen en privéberichten naar je tool.",
         "url": "Doel-URL",
         "authorization": "Authorization-header (optioneel)",
         "enabled": "Bezorging inschakelen",
+        "enabled_help": "Laat dit uitgeschakeld om een gepauzeerde webhook te maken. Je kunt deze later hervatten.",
         "error": "De uitgaande webhook kon niet worden bijgewerkt.",
         "load_error": "De uitgaande webhook kon niet worden geladen.",
         "failed": "Laatst geregistreerde bezorgfout.",
@@ -512,7 +513,23 @@
         "secret_title": "Geheime ondertekeningssleutel voor webhook",
         "secret_warning": "Kopieer deze sleutel nu als je tool Chatto-handtekeningen controleert. Hij kan niet opnieuw worden getoond.",
         "secret_copied": "Ondertekeningssleutel gekopieerd",
-        "show_secret": "Show signing secret"
+        "show_secret": "Ondertekeningssleutel tonen",
+        "add": "Webhook maken",
+        "empty": "Er zijn nog geen uitgaande webhooks gemaakt.",
+        "active": "Ingeschakeld",
+        "disabled": "Gepauzeerd",
+        "name": "Naam",
+        "unnamed": "Webhook",
+        "created": "Webhook gemaakt.",
+        "paused": "Webhook gepauzeerd.",
+        "resumed": "Webhook hervat.",
+        "pause": "Pauzeren",
+        "resume": "Hervatten",
+        "revoke": "Webhook intrekken",
+        "revoked": "Webhook ingetrokken.",
+        "revoke_title": "Uitgaande webhook intrekken?",
+        "revoke_description": "Dit trekt deze webhook definitief in en annuleert de resterende herhaalpogingen.",
+        "limit": "Je hebt de limiet van 20 uitgaande webhooks bereikt."
       }
     }
   }

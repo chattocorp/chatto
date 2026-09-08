@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Provizore nedisponebla",
       "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita.",
       "outbound": {
-        "title": "Elira rethoko",
-        "description": "Sendu rektajn menciojn kaj rektajn mesaĝojn al via ilo. La servila funkciigisto difinas reprovojn kaj eksvalidiĝon.",
+        "title": "Eliraj rethokoj",
+        "description": "Sendu menciojn kaj rektajn mesaĝojn al via ilo.",
         "url": "Cela URL",
         "authorization": "Authorization-kapo (nedeviga)",
         "enabled": "Ebligi liveradon",
+        "enabled_help": "Lasu malŝaltita por krei paŭzigitan rethokon. Vi povas rekomenci ĝin poste.",
         "error": "Ne eblis ĝisdatigi la eliran rethokon.",
         "load_error": "Ne eblis ŝargi la eliran rethokon.",
         "failed": "Laste registrita livera malsukceso.",
@@ -512,7 +513,23 @@
         "secret_title": "Sekreta subskriba ŝlosilo de la rethoko",
         "secret_warning": "Kopiu ĉi tiun ŝlosilon nun se via ilo kontrolas subskribojn de Chatto. Ne eblos montri ĝin denove.",
         "secret_copied": "Subskriba ŝlosilo kopiita",
-        "show_secret": "Show signing secret"
+        "show_secret": "Montri subskriban sekreton",
+        "add": "Krei rethokon",
+        "empty": "Neniuj eliraj rethokoj estas kreitaj.",
+        "active": "Ŝaltita",
+        "disabled": "Paŭzigita",
+        "name": "Nomo",
+        "unnamed": "Rethoko",
+        "created": "Rethoko kreita.",
+        "paused": "Rethoko paŭzigita.",
+        "resumed": "Rethoko rekomencita.",
+        "pause": "Paŭzigi",
+        "resume": "Rekomenci",
+        "revoke": "Revoki rethokon",
+        "revoked": "Rethoko revokita.",
+        "revoke_title": "Revoki eliran rethokon?",
+        "revoke_description": "Tio definitive revokas ĉi tiun rethokon kaj nuligas ĝiajn atendajn reprovojn.",
+        "limit": "Vi atingis la limon de 20 eliraj rethokoj."
       }
     }
   }

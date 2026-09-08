@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Midlertidig utilgjengelig",
       "webhook_limit_reached": "Grensen på 20 innkommende webhooks er nådd.",
       "outbound": {
-        "title": "Utgående webhook",
-        "description": "Send direkte omtaler og direktemeldinger til verktøyet ditt. Serveroperatøren angir nye forsøk og utløpstid.",
+        "title": "Utgående webhooks",
+        "description": "Send omtaler og direktemeldinger til verktøyet ditt.",
         "url": "Måladresse",
         "authorization": "Authorization-header (valgfri)",
         "enabled": "Aktiver levering",
+        "enabled_help": "La dette være deaktivert for å opprette en webhook på pause. Du kan gjenoppta den senere.",
         "error": "Kunne ikke oppdatere den utgående webhooken.",
         "load_error": "Kunne ikke laste den utgående webhooken.",
         "failed": "Sist registrerte leveringsfeil.",
@@ -512,7 +513,23 @@
         "secret_title": "Hemmelig signeringsnøkkel for webhook",
         "secret_warning": "Kopier nøkkelen nå hvis verktøyet ditt bekrefter Chatto-signaturer. Den kan ikke vises igjen.",
         "secret_copied": "Signeringsnøkkel kopiert",
-        "show_secret": "Show signing secret"
+        "show_secret": "Vis signeringshemmelighet",
+        "add": "Opprett webhook",
+        "empty": "Ingen utgående webhooks er opprettet.",
+        "active": "Aktivert",
+        "disabled": "På pause",
+        "name": "Navn",
+        "unnamed": "Webhook",
+        "created": "Webhook opprettet.",
+        "paused": "Webhook satt på pause.",
+        "resumed": "Webhook gjenopptatt.",
+        "pause": "Sett på pause",
+        "resume": "Gjenoppta",
+        "revoke": "Tilbakekall webhook",
+        "revoked": "Webhook tilbakekalt.",
+        "revoke_title": "Tilbakekalle utgående webhook?",
+        "revoke_description": "Dette tilbakekaller webhooken permanent og avbryter ventende nye forsøk.",
+        "limit": "Du har nådd grensen på 20 utgående webhooks."
       }
     }
   }

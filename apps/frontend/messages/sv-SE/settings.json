@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "Tillfälligt otillgänglig",
       "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts.",
       "outbound": {
-        "title": "Utgående webhook",
-        "description": "Skicka direkta omnämnanden och direktmeddelanden till ditt verktyg. Serveroperatören anger återförsök och giltighetstid.",
+        "title": "Utgående webhooks",
+        "description": "Skicka omnämnanden och direktmeddelanden till ditt verktyg.",
         "url": "Måladress",
         "authorization": "Authorization-header (valfri)",
         "enabled": "Aktivera leverans",
+        "enabled_help": "Låt detta vara avstängt för att skapa en pausad webhook. Du kan återuppta den senare.",
         "error": "Det gick inte att uppdatera den utgående webhooken.",
         "load_error": "Det gick inte att läsa in den utgående webhooken.",
         "failed": "Senast registrerade leveransfel.",
@@ -512,7 +513,23 @@
         "secret_title": "Hemlig signeringsnyckel för webhook",
         "secret_warning": "Kopiera nyckeln nu om ditt verktyg verifierar Chatto-signaturer. Den kan inte visas igen.",
         "secret_copied": "Signeringsnyckeln har kopierats",
-        "show_secret": "Show signing secret"
+        "show_secret": "Visa signeringshemlighet",
+        "add": "Skapa webhook",
+        "empty": "Inga utgående webhooks har skapats.",
+        "active": "Aktiverad",
+        "disabled": "Pausad",
+        "name": "Namn",
+        "unnamed": "Webhook",
+        "created": "Webhook skapad.",
+        "paused": "Webhook pausad.",
+        "resumed": "Webhook återupptagen.",
+        "pause": "Pausa",
+        "resume": "Återuppta",
+        "revoke": "Återkalla webhook",
+        "revoked": "Webhook återkallad.",
+        "revoke_title": "Återkalla utgående webhook?",
+        "revoke_description": "Detta återkallar webhooken permanent och avbryter väntande återförsök.",
+        "limit": "Du har nått gränsen på 20 utgående webhooks."
       }
     }
   }

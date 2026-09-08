@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "暂时不可用",
       "webhook_limit_reached": "已达到 20 个传入 Webhook 的上限。",
       "outbound": {
-        "title": "传出 Webhook",
-        "description": "将直接提及和私信发送到你的工具。服务器运营者会设置重试和过期时间。",
+        "title": "出站 Webhook",
+        "description": "将提及和私信发送到你的工具。",
         "url": "目标 URL",
         "authorization": "Authorization 标头（可选）",
         "enabled": "启用投递",
+        "enabled_help": "保持禁用可创建已暂停的 Webhook，之后可以恢复。",
         "error": "无法更新传出 Webhook。",
         "load_error": "无法加载传出 Webhook。",
         "failed": "最近记录的投递失败。",
@@ -512,7 +513,23 @@
         "secret_title": "Webhook 签名密钥",
         "secret_warning": "如果你的工具会验证 Chatto 签名，请立即复制此密钥。之后将无法再次显示。",
         "secret_copied": "签名密钥已复制",
-        "show_secret": "Show signing secret"
+        "show_secret": "显示签名密钥",
+        "add": "创建 Webhook",
+        "empty": "尚未创建出站 Webhook。",
+        "active": "已启用",
+        "disabled": "已暂停",
+        "name": "名称",
+        "unnamed": "Webhook",
+        "created": "Webhook 已创建。",
+        "paused": "Webhook 已暂停。",
+        "resumed": "Webhook 已恢复。",
+        "pause": "暂停",
+        "resume": "恢复",
+        "revoke": "撤销 Webhook",
+        "revoked": "Webhook 已撤销。",
+        "revoke_title": "撤销出站 Webhook？",
+        "revoke_description": "这将永久撤销此 Webhook 并取消其待处理的重试。",
+        "limit": "已达到 20 个出站 Webhook 的上限。"
       }
     }
   }

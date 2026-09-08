@@ -499,10 +499,11 @@
       "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。",
       "outbound": {
         "title": "傳出 Webhook",
-        "description": "將直接提及和私人訊息傳送至你的工具。伺服器營運者會設定重試和到期時間。",
+        "description": "將提及和私人訊息傳送到你的工具。",
         "url": "目的地 URL",
         "authorization": "Authorization 標頭（選填）",
         "enabled": "啟用傳遞",
+        "enabled_help": "保持停用可建立已暫停的 Webhook，之後可以恢復。",
         "error": "無法更新傳出 Webhook。",
         "load_error": "無法載入傳出 Webhook。",
         "failed": "最近記錄的傳遞失敗。",
@@ -512,7 +513,23 @@
         "secret_title": "Webhook 簽章密鑰",
         "secret_warning": "如果你的工具會驗證 Chatto 簽章，請立即複製此密鑰。之後將無法再次顯示。",
         "secret_copied": "已複製簽章密鑰",
-        "show_secret": "Show signing secret"
+        "show_secret": "顯示簽章密鑰",
+        "add": "建立 Webhook",
+        "empty": "尚未建立傳出 Webhook。",
+        "active": "已啟用",
+        "disabled": "已暫停",
+        "name": "名稱",
+        "unnamed": "Webhook",
+        "created": "Webhook 已建立。",
+        "paused": "Webhook 已暫停。",
+        "resumed": "Webhook 已恢復。",
+        "pause": "暫停",
+        "resume": "恢復",
+        "revoke": "撤銷 Webhook",
+        "revoked": "Webhook 已撤銷。",
+        "revoke_title": "撤銷傳出 Webhook？",
+        "revoke_description": "這將永久撤銷此 Webhook 並取消其待處理的重試。",
+        "limit": "已達到 20 個傳出 Webhook 的上限。"
       }
     }
   }

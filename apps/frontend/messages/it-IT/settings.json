@@ -499,10 +499,11 @@
       "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata.",
       "outbound": {
         "title": "Webhook in uscita",
-        "description": "Invia menzioni dirette e messaggi diretti al tuo strumento. L’operatore del server imposta i tentativi e la scadenza.",
+        "description": "Invia menzioni e messaggi diretti al tuo strumento.",
         "url": "URL di destinazione",
         "authorization": "Intestazione Authorization (facoltativa)",
         "enabled": "Abilita consegna",
+        "enabled_help": "Lascia disattivato per creare un webhook in pausa. Potrai riprenderlo in seguito.",
         "error": "Impossibile aggiornare il webhook in uscita.",
         "load_error": "Impossibile caricare il webhook in uscita.",
         "failed": "Ultimo errore di consegna registrato.",
@@ -512,7 +513,23 @@
         "secret_title": "Chiave segreta di firma del webhook",
         "secret_warning": "Copia questa chiave ora se il tuo strumento verifica le firme di Chatto. Non potrà essere mostrata di nuovo.",
         "secret_copied": "Chiave di firma copiata",
-        "show_secret": "Show signing secret"
+        "show_secret": "Mostra segreto di firma",
+        "add": "Crea webhook",
+        "empty": "Non sono stati creati webhook in uscita.",
+        "active": "Attivato",
+        "disabled": "In pausa",
+        "name": "Nome",
+        "unnamed": "Webhook",
+        "created": "Webhook creato.",
+        "paused": "Webhook in pausa.",
+        "resumed": "Webhook ripreso.",
+        "pause": "Metti in pausa",
+        "resume": "Riprendi",
+        "revoke": "Revoca webhook",
+        "revoked": "Webhook revocato.",
+        "revoke_title": "Revocare il webhook in uscita?",
+        "revoke_description": "Questa azione revoca definitivamente il webhook e annulla i tentativi in attesa.",
+        "limit": "Hai raggiunto il limite di 20 webhook in uscita."
       }
     }
   }

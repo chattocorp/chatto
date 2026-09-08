@@ -498,11 +498,12 @@
       "webhook_last_used_unavailable": "לא זמין זמנית",
       "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים.",
       "outbound": {
-        "title": "Webhook יוצא",
-        "description": "שלח אזכורים ישירים והודעות ישירות לכלי שלך. מפעיל השרת קובע את הניסיונות החוזרים ואת זמן התפוגה.",
+        "title": "Webhooks יוצאים",
+        "description": "שלח אזכורים והודעות ישירות לכלי שלך.",
         "url": "כתובת URL של היעד",
         "authorization": "כותרת Authorization (אופציונלית)",
         "enabled": "הפעל מסירה",
+        "enabled_help": "השאר כבוי כדי ליצור webhook מושהה. אפשר להמשיך אותו מאוחר יותר.",
         "error": "לא ניתן לעדכן את ה-webhook היוצא.",
         "load_error": "לא ניתן לטעון את ה-webhook היוצא.",
         "failed": "כשל המסירה האחרון שנרשם.",
@@ -512,7 +513,23 @@
         "secret_title": "מפתח חתימה סודי ל-webhook",
         "secret_warning": "העתק את המפתח כעת אם הכלי שלך מאמת חתימות של Chatto. לא ניתן להציג אותו שוב.",
         "secret_copied": "מפתח החתימה הועתק",
-        "show_secret": "Show signing secret"
+        "show_secret": "הצגת סוד החתימה",
+        "add": "יצירת webhook",
+        "empty": "לא נוצרו webhooks יוצאים.",
+        "active": "פעיל",
+        "disabled": "מושהה",
+        "name": "שם",
+        "unnamed": "Webhook",
+        "created": "Webhook נוצר.",
+        "paused": "Webhook הושהה.",
+        "resumed": "Webhook הופעל מחדש.",
+        "pause": "השהיה",
+        "resume": "המשך",
+        "revoke": "ביטול webhook",
+        "revoked": "Webhook בוטל.",
+        "revoke_title": "לבטל webhook יוצא?",
+        "revoke_description": "פעולה זו מבטלת את ה-webhook לצמיתות ואת הניסיונות החוזרים הממתינים שלו.",
+        "limit": "הגעת למגבלה של 20 webhooks יוצאים."
       }
     }
   }
