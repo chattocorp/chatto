@@ -491,7 +491,7 @@ Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
 user-aggregate OCC and encrypted credentials. Process-local delivery work uses
 a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
 it has no persisted protobuf or NATS subject.
-The delivery ID hashes the bot, configuration, and source event IDs.
+The delivery ID hashes the bot, endpoint, and source event IDs.
 
 Terminal failures append
 `log.bot_webhook.<bot-id>.<webhook-id>.delivery_failed.<delivery-id>`.
@@ -505,7 +505,8 @@ remain decodable but are no longer written or projected.
 ### Outbound webhook lifecycle
 
 `evt.user.<bot-id>.bot_outbound_webhook_configured` stores encrypted endpoint
-creation. New records set `independent`; older records retain the legacy
+creation and destination edits. Edits reuse the endpoint ID and preserve the
+first creation time. New records set `independent`; older records retain the legacy
 single-endpoint replacement semantics. The encrypted payload contains the
 name, URL, Authorization value, and signing secret.
 `evt.user.<bot-id>.bot_outbound_webhook_state_changed` pauses, resumes, or
