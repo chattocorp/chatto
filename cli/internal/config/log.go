@@ -7,7 +7,7 @@ import (
 
 // LogConfig sets the retention policy for operational records in LOG.
 type LogConfig struct {
-	Retention Duration `toml:"retention,commented" env:"CHATTO_LOG_RETENTION" comment:"Operational log retention. Default: 7d. Expired records cannot be recovered."`
+	Retention Duration `toml:"retention,commented" env:"CHATTO_CORE_LOG_RETENTION" comment:"Operational log retention. Default: 7d. Expired records cannot be recovered."`
 }
 
 // RetentionOrDefault returns the storage lifetime of operational records.
@@ -21,7 +21,7 @@ func (c LogConfig) RetentionOrDefault() time.Duration {
 // Validate rejects lifetimes below one second; zero selects the default.
 func (c LogConfig) Validate() error {
 	if c.RetentionOrDefault() < time.Second {
-		return fmt.Errorf("log.retention must be at least 1s")
+		return fmt.Errorf("core.log.retention must be at least 1s")
 	}
 	return nil
 }

@@ -343,7 +343,7 @@ status when available, and a safe failure category. History is ordered oldest
 first; use **Load more** for the next page.
 
 Failures expire after seven days by default. Operators can set
-`log.retention` or `CHATTO_LOG_RETENTION`. Successful deliveries and intentional
+`core.log.retention` or `CHATTO_CORE_LOG_RETENTION`. Successful deliveries and intentional
 skips are not recorded. An empty history does not prove successful delivery.
 A later success does not clear a retained failure. Historical failures from
 older versions are not copied into this history. Backups exclude this history.

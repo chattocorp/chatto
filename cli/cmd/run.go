@@ -173,8 +173,6 @@ func runServer(configPath string) {
 	cfg.Core.EmailOTP = cfg.Auth.EmailOTP
 	cfg.Core.Replicas = cfg.NATS.ReplicasOrDefault()
 	cfg.Core.Limits = cfg.Limits
-	cfg.Core.BotWebhooks = cfg.BotWebhooks
-	cfg.Core.Log = cfg.Log
 	cfg.Core.Owners = cfg.Owners
 	cfg.Core.Version = Version
 	cfg.Core.ServerOrigins = cfg.Webserver.ServerOrigins()

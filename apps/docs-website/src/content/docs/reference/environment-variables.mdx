@@ -586,7 +586,7 @@ Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disabl
 ## Outbound bot webhooks
 
 ```toml
-[bot_webhooks]
+[core.bot_webhooks]
 max_attempts = 5
 retry_delay = "30s"
 expiry = "24h"
@@ -594,9 +594,9 @@ expiry = "24h"
 
 | Environment variable | TOML key | Default | Meaning |
 | --- | --- | --- | --- |
-| `CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS` | `bot_webhooks.max_attempts` | `5` | Maximum delivery attempts, including the first attempt. Range: 1–100. |
-| `CHATTO_BOT_WEBHOOKS_RETRY_DELAY` | `bot_webhooks.retry_delay` | `30s` | Initial delay. Range: 1 second–30 minutes. Doubles after each failed attempt, up to 30 minutes. |
-| `CHATTO_BOT_WEBHOOKS_EXPIRY` | `bot_webhooks.expiry` | `24h` | Lifetime from the source message time. Range: 1 second–30 days. |
+| `CHATTO_CORE_BOT_WEBHOOKS_MAX_ATTEMPTS` | `core.bot_webhooks.max_attempts` | `5` | Maximum delivery attempts, including the first attempt. Range: 1–100. |
+| `CHATTO_CORE_BOT_WEBHOOKS_RETRY_DELAY` | `core.bot_webhooks.retry_delay` | `30s` | Initial delay. Range: 1 second–30 minutes. Doubles after each failed attempt, up to 30 minutes. |
+| `CHATTO_CORE_BOT_WEBHOOKS_EXPIRY` | `core.bot_webhooks.expiry` | `24h` | Lifetime from the source message time. Range: 1 second–30 days. |
 
 Restart the server after a change. Delivery and retries are best effort.
 Restart discards pending work and retry timers. A source event accepted after
@@ -613,13 +613,13 @@ for the request body, signature scheme, and receiver requirements.
 ## Operational log
 
 ```toml
-[log]
+[core.log]
 retention = "7d"
 ```
 
 | Environment variable | TOML key | Default | Description |
 | --- | --- | --- | --- |
-| `CHATTO_LOG_RETENTION` | `log.retention` | `7d` | Retention of operational diagnostics. Minimum: 1 second. Zero selects the default. |
+| `CHATTO_CORE_LOG_RETENTION` | `core.log.retention` | `7d` | Retention of operational diagnostics. Minimum: 1 second. Zero selects the default. |
 
 LOG retains terminal outbound webhook failures across server replicas.
 Expired records are removed and cannot be recovered. LOG is excluded from

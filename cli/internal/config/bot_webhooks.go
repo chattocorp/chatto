@@ -8,9 +8,9 @@ import (
 // BotWebhooksConfig is operator policy for outbound bot delivery. Requests
 // capture attempt limits, delay, and source-time expiry when work is created.
 type BotWebhooksConfig struct {
-	MaxAttempts int      `toml:"max_attempts,commented" env:"CHATTO_BOT_WEBHOOKS_MAX_ATTEMPTS" comment:"Maximum outbound webhook delivery attempts, including the first attempt. Default: 5."`
-	RetryDelay  Duration `toml:"retry_delay,commented" env:"CHATTO_BOT_WEBHOOKS_RETRY_DELAY" comment:"Initial retry delay. Doubles after each attempt, up to 30m. Default: 30s."`
-	Expiry      Duration `toml:"expiry,commented" env:"CHATTO_BOT_WEBHOOKS_EXPIRY" comment:"Delivery lifetime from the source message time. Default: 24h."`
+	MaxAttempts int      `toml:"max_attempts,commented" env:"CHATTO_CORE_BOT_WEBHOOKS_MAX_ATTEMPTS" comment:"Maximum outbound webhook delivery attempts, including the first attempt. Default: 5."`
+	RetryDelay  Duration `toml:"retry_delay,commented" env:"CHATTO_CORE_BOT_WEBHOOKS_RETRY_DELAY" comment:"Initial retry delay. Doubles after each attempt, up to 30m. Default: 30s."`
+	Expiry      Duration `toml:"expiry,commented" env:"CHATTO_CORE_BOT_WEBHOOKS_EXPIRY" comment:"Delivery lifetime from the source message time. Default: 24h."`
 }
 
 // MaxAttemptsOrDefault returns the maximum attempts per webhook delivery.
@@ -40,13 +40,13 @@ func (c BotWebhooksConfig) ExpiryOrDefault() time.Duration {
 // Validate rejects policies that cannot bound delivery work safely.
 func (c BotWebhooksConfig) Validate() error {
 	if c.MaxAttemptsOrDefault() < 1 || c.MaxAttemptsOrDefault() > 100 {
-		return fmt.Errorf("bot_webhooks.max_attempts must be between 1 and 100")
+		return fmt.Errorf("core.bot_webhooks.max_attempts must be between 1 and 100")
 	}
 	if c.RetryDelayOrDefault() < time.Second || c.RetryDelayOrDefault() > 30*time.Minute {
-		return fmt.Errorf("bot_webhooks.retry_delay must be between 1s and 30m")
+		return fmt.Errorf("core.bot_webhooks.retry_delay must be between 1s and 30m")
 	}
 	if c.ExpiryOrDefault() < time.Second || c.ExpiryOrDefault() > 30*24*time.Hour {
-		return fmt.Errorf("bot_webhooks.expiry must be between 1s and 30d")
+		return fmt.Errorf("core.bot_webhooks.expiry must be between 1s and 30d")
 	}
 	return nil
 }

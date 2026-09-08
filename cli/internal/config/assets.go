@@ -135,8 +135,8 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
-	Log                         LogConfig         `toml:"-" env:"-"` // Operator LOG policy supplied before core construction.
-	BotWebhooks                 BotWebhooksConfig `toml:"-" env:"-"` // Set from operator BotWebhooks configuration before core construction.
+	Log                         LogConfig         `toml:"log,commented" comment:"Retained operational log."`
+	BotWebhooks                 BotWebhooksConfig `toml:"bot_webhooks,commented" comment:"Outbound bot webhook delivery policy."`
 	SecretKey                   string            `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens, account-flow credentials, and invite links, and for sealing public cursors. NEVER SHARE THIS!\nIf it changes, existing bearer tokens, invite links, public cursors, and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`
 	ProjectionSnapshots         bool              `toml:"projection_snapshots,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOTS" comment:"Persist encrypted projection snapshots and replay only the later EVT delta at startup. Missing or incompatible snapshots safely fall back to EVT replay. Default: false."`
 	ProjectionSnapshotRetention Duration          `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`

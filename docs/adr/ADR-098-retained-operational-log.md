@@ -13,7 +13,7 @@ these records. A process-local history cannot serve requests across replicas.
 
 Store operational records in the file-backed JetStream `LOG` stream on `log.>`.
 Use `LimitsPolicy` with seven-day `MaxAge` by default. Operators can set
-`log.retention` or `CHATTO_LOG_RETENTION`. Do not set count or byte limits.
+`core.log.retention` or `CHATTO_CORE_LOG_RETENTION`. Do not set count or byte limits.
 Age retention does not impose a fixed storage ceiling during a burst.
 
 Put the internal protobuf envelope and typed payloads in `chatto.core.log.v1`.
