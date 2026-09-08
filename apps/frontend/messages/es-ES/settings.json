@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Has alcanzado el límite de 20 webhooks entrantes.",
       "outbound": {
         "edit": "Editar webhook",
+        "auth_unchanged": "Déjalo en blanco para conservar la cabecera actual.",
+        "auth_removed": "Se eliminará la cabecera.",
         "auth_keep": "Mantener la cabecera actual",
         "auth_remove": "Eliminar cabecera",
         "title": "Webhooks salientes",

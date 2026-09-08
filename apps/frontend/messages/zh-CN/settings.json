@@ -499,6 +499,8 @@
       "webhook_limit_reached": "已达到 20 个传入 Webhook 的上限。",
       "outbound": {
         "edit": "编辑 Webhook",
+        "auth_unchanged": "留空以保留当前请求头。",
+        "auth_removed": "请求头将被移除。",
         "auth_keep": "保留当前请求头",
         "auth_remove": "移除请求头",
         "title": "出站 Webhook",

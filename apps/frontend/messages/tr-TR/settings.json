@@ -499,6 +499,8 @@
       "webhook_limit_reached": "20 gelen webhook sınırına ulaştınız.",
       "outbound": {
         "edit": "Webhook düzenle",
+        "auth_unchanged": "Mevcut başlığı korumak için boş bırakın.",
+        "auth_removed": "Başlık kaldırılacak.",
         "auth_keep": "Geçerli başlığı koru",
         "auth_remove": "Başlığı kaldır",
         "title": "Giden webhook’lar",

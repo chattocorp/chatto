@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata.",
       "outbound": {
         "edit": "Modifica webhook",
+        "auth_unchanged": "Lascia vuoto per mantenere l’intestazione attuale.",
+        "auth_removed": "L’intestazione verrà rimossa.",
         "auth_keep": "Mantieni intestazione attuale",
         "auth_remove": "Rimuovi intestazione",
         "title": "Webhook in uscita",

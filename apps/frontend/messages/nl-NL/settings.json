@@ -499,6 +499,8 @@
       "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt.",
       "outbound": {
         "edit": "Webhook bewerken",
+        "auth_unchanged": "Laat leeg om de huidige header te behouden.",
+        "auth_removed": "De header wordt verwijderd.",
         "auth_keep": "Huidige header behouden",
         "auth_remove": "Header verwijderen",
         "title": "Uitgaande webhooks",

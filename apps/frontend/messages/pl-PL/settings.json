@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków.",
       "outbound": {
         "edit": "Edytuj webhook",
+        "auth_unchanged": "Pozostaw puste, aby zachować bieżący nagłówek.",
+        "auth_removed": "Nagłówek zostanie usunięty.",
         "auth_keep": "Zachowaj bieżący nagłówek",
         "auth_remove": "Usuń nagłówek",
         "title": "Wychodzące webhooki",

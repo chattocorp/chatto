@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků.",
       "outbound": {
         "edit": "Upravit webhook",
+        "auth_unchanged": "Ponechte prázdné pro zachování aktuální hlavičky.",
+        "auth_removed": "Hlavička bude odstraněna.",
         "auth_keep": "Ponechat současnou hlavičku",
         "auth_remove": "Odstranit hlavičku",
         "title": "Odchozí webhooky",

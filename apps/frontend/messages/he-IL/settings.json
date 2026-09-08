@@ -499,6 +499,8 @@
       "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים.",
       "outbound": {
         "edit": "עריכת וובהוק",
+        "auth_unchanged": "יש להשאיר ריק כדי לשמור את הכותרת הנוכחית.",
+        "auth_removed": "הכותרת תוסר.",
         "auth_keep": "שמירת הכותרת הנוכחית",
         "auth_remove": "הסרת הכותרת",
         "title": "Webhooks יוצאים",

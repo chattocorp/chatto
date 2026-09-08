@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums.",
       "outbound": {
         "edit": "Rediģēt tīmekļa aizķeri",
+        "auth_unchanged": "Atstājiet tukšu, lai saglabātu pašreizējo galveni.",
+        "auth_removed": "Galvene tiks noņemta.",
         "auth_keep": "Paturēt pašreizējo galveni",
         "auth_remove": "Noņemt galveni",
         "title": "Izejošās tīmekļa aizķeres",

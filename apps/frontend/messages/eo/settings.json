@@ -499,6 +499,8 @@
       "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita.",
       "outbound": {
         "edit": "Redakti rethokon",
+        "auth_unchanged": "Lasu malplena por konservi la nunan kapon.",
+        "auth_removed": "La kapo estos forigita.",
         "auth_keep": "Konservi la nunan kapon",
         "auth_remove": "Forigi kapon",
         "title": "Eliraj rethokoj",

@@ -499,6 +499,8 @@
       "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts.",
       "outbound": {
         "edit": "Redigera webhook",
+        "auth_unchanged": "Lämna tomt för att behålla nuvarande header.",
+        "auth_removed": "Headern kommer att tas bort.",
         "auth_keep": "Behåll nuvarande header",
         "auth_remove": "Ta bort header",
         "title": "Utgående webhooks",
