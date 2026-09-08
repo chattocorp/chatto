@@ -498,6 +498,11 @@
       "webhook_last_used_unavailable": "Temporarily unavailable",
       "webhook_limit_reached": "You have reached the limit of 20 incoming webhooks.",
       "outbound": {
+        "edit": "Edit webhook",
+        "auth_unchanged": "Leave blank to keep the current header.",
+        "auth_removed": "The header will be removed.",
+        "auth_keep": "Keep current header",
+        "auth_remove": "Remove header",
         "title": "Outbound webhooks",
         "description": "Send mentions and direct messages to your tool.",
         "url": "Destination URL",

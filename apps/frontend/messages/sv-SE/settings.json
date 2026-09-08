@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Tillfälligt otillgänglig",
       "webhook_limit_reached": "Gränsen på 20 inkommande webhooks har nåtts.",
       "outbound": {
+        "edit": "Redigera webhook",
+        "auth_keep": "Behåll nuvarande header",
+        "auth_remove": "Ta bort header",
         "title": "Utgående webhooks",
         "description": "Skicka omnämnanden och direktmeddelanden till ditt verktyg.",
         "url": "Måladress",

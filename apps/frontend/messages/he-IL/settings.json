@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "לא זמין זמנית",
       "webhook_limit_reached": "הגעת למגבלה של 20 Webהוקים נכנסים.",
       "outbound": {
+        "edit": "עריכת וובהוק",
+        "auth_keep": "שמירת הכותרת הנוכחית",
+        "auth_remove": "הסרת הכותרת",
         "title": "Webhooks יוצאים",
         "description": "שלח אזכורים והודעות ישירות לכלי שלך.",
         "url": "כתובת URL של היעד",

@@ -260,9 +260,11 @@ from the bot itself, ordinary channel messages, edits, and reactions do not
 activate the webhook. Notification preferences do not affect it.
 
 Chatto shows the saved names and URLs only to bot managers. Authorization values
-and signing secrets are not returned by later reads. Names, destinations and
-credentials are fixed after creation. To replace an endpoint, create a new one
-and revoke the old one.
+and signing secrets are not returned by later reads. Select **Edit webhook**
+(the pencil icon) to change the destination URL. You can keep, replace, or
+remove the Authorization header. Edits preserve the signing secret and creation
+time, and cancel queued retries for the previous settings. To change the name
+or signing secret, create a new endpoint and revoke the old one.
 
 Select **Pause** to stop new deliveries and cancel queued retries. **Resume**
 accepts new messages; it does not send messages from the paused period or revive

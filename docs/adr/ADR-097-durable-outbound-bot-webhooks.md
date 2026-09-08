@@ -34,7 +34,11 @@ produce no records. Delivery IDs remain stable across source handoffs.
 
 Keep up to 20 independent encrypted endpoints per bot, including paused ones.
 Use the bot's PII key for each name, URL, optional Authorization value, and
-signing secret. Credentials and names are fixed after creation. Pause and
+signing secret. Names and signing secrets are fixed after creation. Managers
+can change the URL and replace or remove the Authorization header. Edits record
+a new encrypted configuration with the same endpoint ID and preserve the original
+creation time. Omitted fields keep their current values on each OCC retry.
+Edits cancel queued work for the previous configuration. Pause and
 resume record state changes without encrypting new credentials. Each enabled
 period has an EVT sequence cutoff. Old work stays cancelled after resume.
 Revocation permanently removes one endpoint. User-aggregate OCC enforces the

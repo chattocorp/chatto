@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Tymczasowo niedostępne",
       "webhook_limit_reached": "Osiągnięto limit 20 przychodzących webhooków.",
       "outbound": {
+        "edit": "Edytuj webhook",
+        "auth_keep": "Zachowaj bieżący nagłówek",
+        "auth_remove": "Usuń nagłówek",
         "title": "Wychodzące webhooki",
         "description": "Wysyłaj wzmianki i wiadomości prywatne do swojego narzędzia.",
         "url": "Docelowy adres URL",

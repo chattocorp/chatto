@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "一時的に利用できません",
       "webhook_limit_reached": "受信 Webhook の上限 20 件に達しました。",
       "outbound": {
+        "edit": "Webhookを編集",
+        "auth_keep": "現在のヘッダーを保持",
+        "auth_remove": "ヘッダーを削除",
         "title": "送信Webhook",
         "description": "メンションとダイレクトメッセージをツールに送信します。",
         "url": "送信先 URL",

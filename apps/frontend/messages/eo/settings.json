@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Provizore nedisponebla",
       "webhook_limit_reached": "La limo de 20 envenaj rethokoj estas atingita.",
       "outbound": {
+        "edit": "Redakti rethokon",
+        "auth_keep": "Konservi la nunan kapon",
+        "auth_remove": "Forigi kapon",
         "title": "Eliraj rethokoj",
         "description": "Sendu menciojn kaj rektajn mesaĝojn al via ilo.",
         "url": "Cela URL",

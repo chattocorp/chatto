@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Temporairement indisponible",
       "webhook_limit_reached": "Vous avez atteint la limite de 20 webhooks entrants.",
       "outbound": {
+        "edit": "Modifier le webhook",
+        "auth_keep": "Conserver l’en-tête actuel",
+        "auth_remove": "Supprimer l’en-tête",
         "title": "Webhooks sortants",
         "description": "Envoie les mentions et les messages privés à ton outil.",
         "url": "URL de destination",

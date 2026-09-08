@@ -28,6 +28,7 @@ vi.mock('$app/navigation', async (original) => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'webhook-test',
+    store: { currentUser: { user: undefined } },
     connection: { queryScope: 'session', getAPI: () => mocks.api }
   })
 }));
@@ -35,7 +36,7 @@ import BotOutboundWebhookSection from './BotOutboundWebhookSection.svelte';
 
 function button(container: ParentNode, text: string) {
   const element = [...container.querySelectorAll('button')].find(
-    (item) => item.textContent?.trim() === text
+    (item) => (item.getAttribute('aria-label') || item.textContent?.trim()) === text
   );
   if (!element) throw new Error(`Missing button: ${text}`);
   return element;
@@ -46,7 +47,13 @@ function fill(container: ParentNode, selector: string, value: string) {
   input.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
 }
-const first = { id: 'first', name: 'Runling', url: 'https://example.com/first', enabled: true };
+const first = {
+  id: 'first',
+  name: 'Runling',
+  url: 'https://example.com/first',
+  enabled: true,
+  hasAuthorization: true
+};
 const second = {
   id: 'second',
   name: 'Other tool',
@@ -102,6 +109,58 @@ describe('outbound webhook settings', () => {
     expect(container.querySelector('dialog[open]')).toBeNull();
   });
 
+  it.each(['keep', 'replace', 'remove'])('edits the URL with auth action %s', async (action) => {
+    mocks.api.listOutboundWebhooks.mockResolvedValue([first]);
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    await vi.waitFor(() => expect(button(container, 'Edit webhook').disabled).toBe(false));
+    const edit = button(container, 'Edit webhook');
+    expect(edit.title).toBe('Edit webhook');
+    expect(edit.textContent?.trim()).toBe('');
+    edit.click();
+    flushSync();
+    const dialog = container.querySelector('dialog[open]')!;
+    expect((dialog.querySelector('input[type="url"]') as HTMLInputElement).value).toBe(first.url);
+    expect((dialog.querySelector('input[type="password"]') as HTMLInputElement).value).toBe('');
+    expect(dialog.querySelector('select')).toBeNull();
+    fill(dialog, 'input[type="url"]', 'https://example.com/edited');
+    if (action === 'remove') button(dialog, 'Remove header').click();
+    flushSync();
+    if (action === 'replace') fill(dialog, 'input[type="password"]', 'Bearer replacement');
+    button(dialog, 'Save').click();
+    await vi.waitFor(() =>
+      expect(mocks.api.updateOutboundWebhook).toHaveBeenCalledWith('bot', 'first', {
+        url: 'https://example.com/edited',
+        ...(action === 'replace'
+          ? { authorization: 'Bearer replacement' }
+          : action === 'remove'
+            ? { authorization: '' }
+            : {})
+      })
+    );
+    await vi.waitFor(() => expect(container.querySelector('dialog[open]')).toBeNull());
+    expect(mocks.successToast).toHaveBeenCalled();
+    expect(mocks.api.createOutboundWebhook).not.toHaveBeenCalled();
+  });
+
+  it('can undo clearing the saved header before saving', async () => {
+    mocks.api.listOutboundWebhooks.mockResolvedValue([first]);
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    await vi.waitFor(() => expect(button(container, 'Edit webhook').disabled).toBe(false));
+    button(container, 'Edit webhook').click();
+    flushSync();
+    const dialog = container.querySelector('dialog[open]')!;
+    button(dialog, 'Remove header').click();
+    flushSync();
+    expect(dialog.textContent).toContain('The header will be removed.');
+    button(dialog, 'Keep current header').click();
+    flushSync();
+    expect(dialog.textContent).toContain('Leave blank to keep the current header.');
+    button(dialog, 'Save').click();
+    await vi.waitFor(() =>
+      expect(mocks.api.updateOutboundWebhook).toHaveBeenCalledWith('bot', 'first', {})
+    );
+  });
+
   it('pauses one endpoint without creating credentials or changing another endpoint', async () => {
     mocks.api.listOutboundWebhooks.mockResolvedValue([first, second]);
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
@@ -109,7 +168,9 @@ describe('outbound webhook settings', () => {
     mocks.api.listOutboundWebhooks.mockResolvedValue([{ ...first, enabled: false }, second]);
     button(container, 'Pause').click();
     await vi.waitFor(() => expect(mocks.successToast).toHaveBeenCalledWith('Webhook paused.'));
-    expect(mocks.api.updateOutboundWebhook).toHaveBeenCalledWith('bot', 'first', false);
+    expect(mocks.api.updateOutboundWebhook).toHaveBeenCalledWith('bot', 'first', {
+      enabled: false
+    });
     expect(mocks.api.createOutboundWebhook).not.toHaveBeenCalled();
     expect(mocks.api.revokeOutboundWebhook).not.toHaveBeenCalled();
     expect(container.textContent).toContain(second.url);

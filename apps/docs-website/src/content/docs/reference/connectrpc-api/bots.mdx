@@ -139,7 +139,7 @@ POST /api/connect/chatto.api.v1.BotService/CreateBotOutboundWebhook
 
 #### Input: CreateBotOutboundWebhookRequest
 
-Create an independent endpoint with fixed destination and credentials.
+Create an independent endpoint with its own signing secret.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -166,7 +166,7 @@ New endpoint and its show-once request verification secret.
 
 ### UpdateBotOutboundWebhook
 
-Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/UpdateBotOutboundWebhook
@@ -176,13 +176,15 @@ POST /api/connect/chatto.api.v1.BotService/UpdateBotOutboundWebhook
 
 #### Input: UpdateBotOutboundWebhookRequest
 
-Pause or resume one endpoint. Credentials and name cannot be edited.
+Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required managed bot ID. |
 | `webhook_id` | `string` | Required endpoint ID within this bot. |
 | `enabled` | `optional bool` | If omitted, the state is unchanged. Resume accepts only new messages. |
+| `url` | `optional string` | New destination. Omit to keep it. Changing settings cancels queued retries. |
+| `authorization` | `optional string` | New Authorization header. Omit to keep it; empty removes it. Never returned. |
 
 
 <a id="chatto-api-v1-UpdateBotOutboundWebhookResponse"></a>

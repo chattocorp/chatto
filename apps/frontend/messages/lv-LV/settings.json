@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Īslaicīgi nav pieejams",
       "webhook_limit_reached": "Ir sasniegts 20 ienākošo tīmekļa aizķeres punktu ierobežojums.",
       "outbound": {
+        "edit": "Rediģēt tīmekļa aizķeri",
+        "auth_keep": "Paturēt pašreizējo galveni",
+        "auth_remove": "Noņemt galveni",
         "title": "Izejošās tīmekļa aizķeres",
         "description": "Sūti pieminējumus un privātos ziņojumus savam rīkam.",
         "url": "Galamērķa URL",

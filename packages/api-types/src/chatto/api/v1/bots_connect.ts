@@ -63,7 +63,7 @@ export const BotService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+     * Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
      *
      * @generated from rpc chatto.api.v1.BotService.UpdateBotOutboundWebhook
      */

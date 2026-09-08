@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "暫時無法使用",
       "webhook_limit_reached": "已達到 20 個傳入 Webhook 的上限。",
       "outbound": {
+        "edit": "編輯 Webhook",
+        "auth_keep": "保留目前的標頭",
+        "auth_remove": "移除標頭",
         "title": "傳出 Webhook",
         "description": "將提及和私人訊息傳送到你的工具。",
         "url": "目的地 URL",

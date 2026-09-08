@@ -81,7 +81,7 @@ func (c *ChattoCore) GetBotOutboundWebhook(ctx context.Context, actorID, botID, 
 	return item, err
 }
 
-// CreateBotOutboundWebhook creates an independent, immutable credential and
+// CreateBotOutboundWebhook creates an independent endpoint and
 // returns its signing secret once. Paused endpoints count toward the limit.
 func (c *ChattoCore) CreateBotOutboundWebhook(ctx context.Context, actorID, botID, name, rawURL, authorization string, enabled bool) (*BotOutboundWebhook, string, error) {
 	name = strings.TrimSpace(name)
@@ -99,23 +99,39 @@ func (c *ChattoCore) CreateBotOutboundWebhook(ctx context.Context, actorID, botI
 		return nil, "", err
 	}
 	creds := &botWebhookCredentials{Name: name, URL: rawURL, Authorization: authorization, SigningSecret: base64.RawURLEncoding.EncodeToString(secret)}
-	result, err := c.botWebhooks.mutate(ctx, actorID, botID, NewBotOutboundWebhookID(), creds, &enabled, false)
+	result, err := c.botWebhooks.mutate(ctx, actorID, botID, NewBotOutboundWebhookID(), creds, &enabled, false, nil)
 	if err != nil {
 		return nil, "", err
 	}
 	return result, creds.SigningSecret, nil
 }
 
-// UpdateBotOutboundWebhook changes only enabled state. A state transition cancels
-// previous work even if the endpoint is resumed before its next retry.
-func (c *ChattoCore) UpdateBotOutboundWebhook(ctx context.Context, actorID, botID, webhookID string, enabled *bool) (*BotOutboundWebhook, error) {
-	return c.botWebhooks.mutate(ctx, actorID, botID, webhookID, nil, enabled, false)
+// BotOutboundWebhookPatch preserves omitted fields. Empty Authorization removes it.
+// Name and signing secret cannot be changed through a patch.
+type BotOutboundWebhookPatch struct {
+	Enabled       *bool
+	URL           *string
+	Authorization *string
+}
+
+// UpdateBotOutboundWebhook changes the supplied settings without rotating the secret.
+// Changes cancel queued work; an HTTP request already in flight can still finish.
+func (c *ChattoCore) UpdateBotOutboundWebhook(ctx context.Context, actorID, botID, webhookID string, patch BotOutboundWebhookPatch) (*BotOutboundWebhook, error) {
+	if patch.URL != nil {
+		if err := validateBotWebhookURL(*patch.URL); err != nil {
+			return nil, err
+		}
+	}
+	if patch.Authorization != nil && (len(*patch.Authorization) > 4096 || strings.ContainsAny(*patch.Authorization, "\r\n\x00")) {
+		return nil, invalidArgument("invalid outbound webhook authorization header")
+	}
+	return c.botWebhooks.mutate(ctx, actorID, botID, webhookID, nil, patch.Enabled, false, &patch)
 }
 
 // RevokeBotOutboundWebhook permanently removes one credential. Already absent
 // endpoints are successful no-ops; an in-flight HTTP request may still finish.
 func (c *ChattoCore) RevokeBotOutboundWebhook(ctx context.Context, actorID, botID, webhookID string) error {
-	_, err := c.botWebhooks.mutate(ctx, actorID, botID, webhookID, nil, nil, true)
+	_, err := c.botWebhooks.mutate(ctx, actorID, botID, webhookID, nil, nil, true, nil)
 	return err
 }
 
@@ -124,7 +140,7 @@ func (m *botWebhookModel) metadata(ctx context.Context, endpoint *botWebhookEndp
 	if err != nil {
 		return nil, err
 	}
-	return &BotOutboundWebhook{ID: endpoint.Configuration.GetBotOutboundWebhookConfigured().GetWebhookId(), Name: creds.Name, URL: creds.URL, CreatedAt: endpoint.Configuration.GetCreatedAt().AsTime(), Enabled: endpoint.Enabled, HasAuthorization: creds.Authorization != ""}, nil
+	return &BotOutboundWebhook{ID: endpoint.Configuration.GetBotOutboundWebhookConfigured().GetWebhookId(), Name: creds.Name, URL: creds.URL, CreatedAt: endpoint.CreatedAt, Enabled: endpoint.Enabled, HasAuthorization: creds.Authorization != ""}, nil
 }
 
 func validateBotWebhookURL(raw string) error {
@@ -135,25 +151,35 @@ func validateBotWebhookURL(raw string) error {
 	return nil
 }
 
+// configurationEvent encrypts all endpoint settings with the new event identity.
+func (m *botWebhookModel) configurationEvent(ctx context.Context, actorID, botID, webhookID string, creds *botWebhookCredentials, enabled bool) (*evtv1.Event, error) {
+	dek, err := m.core.ensureActiveUserPIIDEK(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	cfg := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: botID, WebhookId: webhookID, Enabled: enabled, Independent: true}
+	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: cfg}})
+	data, err := json.Marshal(creds)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Credentials, err = encryptUserPIIStringWithDEK(dek, event.GetId(), botID, "bot_outbound_webhook_configured", "credentials", string(data))
+	if err != nil {
+		return nil, err
+	}
+	return event, nil
+}
+
 // mutate serializes collection limits and endpoint lifecycle through the bot's
 // user aggregate. Authorization and projection state are checked on every retry.
-func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID string, creds *botWebhookCredentials, enabled *bool, revoke bool) (*BotOutboundWebhook, error) {
+func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID string, creds *botWebhookCredentials, enabled *bool, revoke bool, patch *BotOutboundWebhookPatch) (*BotOutboundWebhook, error) {
 	if _, err := m.core.requireBotManager(ctx, actorID, botID); err != nil {
 		return nil, err
 	}
 	var creation *evtv1.Event
 	if creds != nil {
-		dek, err := m.core.ensureActiveUserPIIDEK(ctx, botID)
-		if err != nil {
-			return nil, err
-		}
-		cfg := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: botID, WebhookId: webhookID, Enabled: *enabled, Independent: true}
-		creation = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: cfg}})
-		data, err := json.Marshal(creds)
-		if err != nil {
-			return nil, err
-		}
-		cfg.Credentials, err = encryptUserPIIStringWithDEK(dek, creation.GetId(), botID, "bot_outbound_webhook_configured", "credentials", string(data))
+		var err error
+		creation, err = m.configurationEvent(ctx, actorID, botID, webhookID, creds, *enabled)
 		if err != nil {
 			return nil, err
 		}
@@ -186,14 +212,42 @@ func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID 
 				}
 				return nil, ErrNotFound
 			}
-			if !revoke && (enabled == nil || *enabled == current.Enabled) {
+			nextEnabled := current.Enabled
+			if enabled != nil {
+				nextEnabled = *enabled
+			}
+			var changedCredentials *botWebhookCredentials
+			if patch != nil && (patch.URL != nil || patch.Authorization != nil) {
+				fresh, err := m.credentials(ctx, current.Configuration)
+				if err != nil {
+					return nil, err
+				}
+				previous := fresh
+				if patch.URL != nil {
+					fresh.URL = *patch.URL
+				}
+				if patch.Authorization != nil {
+					fresh.Authorization = *patch.Authorization
+				}
+				if fresh != previous {
+					changedCredentials = &fresh
+				}
+			}
+			if !revoke && nextEnabled == current.Enabled && changedCredentials == nil {
 				return m.metadata(ctx, current)
 			}
-			state := &evtv1.BotOutboundWebhookStateChangedEvent{BotUserId: botID, WebhookId: webhookID, Revoked: revoke}
-			if enabled != nil {
-				state.Enabled = *enabled
+			if changedCredentials != nil {
+				// Re-encrypt with this fact's AAD and current key; each OCC retry
+				// reapplies only the supplied fields to fresh projected settings.
+				event, err = m.configurationEvent(ctx, actorID, botID, webhookID, changedCredentials, nextEnabled)
+				if err != nil {
+					return nil, err
+				}
+			} else {
+				state := &evtv1.BotOutboundWebhookStateChangedEvent{BotUserId: botID, WebhookId: webhookID, Revoked: revoke, Enabled: nextEnabled}
+				event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookStateChanged{BotOutboundWebhookStateChanged: state}})
 			}
-			event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookStateChanged{BotOutboundWebhookStateChanged: state}})
+
 		}
 		subject := evtstream.UserAggregate(botID).SubjectFor(event)
 		seqs, err := m.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: event, HasOCC: true, ExpectedSeq: seq, FilterSubject: filter}})
@@ -211,9 +265,14 @@ func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID 
 		}
 		// Return the result of this mutation, even if another replica changed it.
 		if creation != nil {
-			current = &botWebhookEndpoint{Configuration: creation, Enabled: *enabled}
+			current = &botWebhookEndpoint{Configuration: creation, CreatedAt: creation.GetCreatedAt().AsTime(), Enabled: *enabled}
 		} else {
-			current.Enabled = *enabled
+			if cfg := event.GetBotOutboundWebhookConfigured(); cfg != nil {
+				current.Configuration = event
+				current.Enabled = cfg.GetEnabled()
+			} else if enabled != nil {
+				current.Enabled = *enabled
+			}
 		}
 		return m.metadata(ctx, current)
 	}

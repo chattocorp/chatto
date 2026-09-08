@@ -18,6 +18,7 @@ func TestApplyBootstrapEnvironment(t *testing.T) {
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE", "./data/bootstrap/test_bot.key")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS", "room.join, message.read")
 	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_ROOMS", "general")
+	t.Setenv("CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL", "http://localhost:4003/api/runs/start/chatto")
 	t.Setenv("CHATTO_BOOTSTRAP_SERVER_NAME", "Compose Server")
 	t.Setenv("CHATTO_BOOTSTRAP_SERVER_ROOMS", "announcements, general")
 
@@ -34,6 +35,9 @@ func TestApplyBootstrapEnvironment(t *testing.T) {
 	bot := cfg.Bootstrap.Bots[0]
 	if bot.Login != "test_bot" || bot.DisplayName != "TestBot" || bot.OwnerLogin != "owner" || bot.APIKeyName != "Local development" || bot.CredentialFile != "./data/bootstrap/test_bot.key" {
 		t.Fatalf("bootstrap bot = %#v", bot)
+	}
+	if bot.OutboundWebhookURL != "http://localhost:4003/api/runs/start/chatto" {
+		t.Fatal("bootstrap webhook destination was not loaded")
 	}
 	if len(bot.Permissions) != 2 || bot.Permissions[0] != "room.join" || bot.Permissions[1] != "message.read" || len(bot.Rooms) != 1 || bot.Rooms[0] != "general" {
 		t.Fatalf("bootstrap bot lists = %#v", bot)

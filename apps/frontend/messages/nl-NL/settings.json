@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Tijdelijk niet beschikbaar",
       "webhook_limit_reached": "De limiet van 20 inkomende webhooks is bereikt.",
       "outbound": {
+        "edit": "Webhook bewerken",
+        "auth_keep": "Huidige header behouden",
+        "auth_remove": "Header verwijderen",
         "title": "Uitgaande webhooks",
         "description": "Stuur vermeldingen en privéberichten naar je tool.",
         "url": "Doel-URL",

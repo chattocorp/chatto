@@ -647,13 +647,13 @@ func TestBotOutboundWebhookMultipleEndpointsPreserveCredentials(t *testing.T) {
 	paths := []string{<-requests, <-requests}
 	require.ElementsMatch(t, []string{"/first", "/second"}, paths)
 	paused := false
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, &paused)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, BotOutboundWebhookPatch{Enabled: &paused})
 	require.NoError(t, err)
 	post()
 	require.Len(t, requests, 1)
 	require.Equal(t, "/second", <-requests)
 	resumed := true
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, &resumed)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, BotOutboundWebhookPatch{Enabled: &resumed})
 	require.NoError(t, err)
 	restored := c.botWebhooks.projection.Projection().get(bot, first.ID)
 	creds, err := c.botWebhooks.credentials(ctx, restored.Configuration)
@@ -662,7 +662,7 @@ func TestBotOutboundWebhookMultipleEndpointsPreserveCredentials(t *testing.T) {
 	require.Equal(t, "Bearer first", creds.Authorization)
 	require.Equal(t, first.URL, creds.URL)
 	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, bot, second.ID))
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, second.ID, &resumed)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, second.ID, BotOutboundWebhookPatch{Enabled: &resumed})
 	require.ErrorIs(t, err, ErrNotFound)
 	post()
 	require.Len(t, requests, 1)
@@ -684,10 +684,10 @@ func TestBotOutboundWebhookPauseResumeCancelsOldRetry(t *testing.T) {
 	require.NoError(t, err)
 	require.Eventually(t, func() bool { return calls.Load() == 1 }, 3*time.Second, 5*time.Millisecond)
 	enabled := false
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, &enabled)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, BotOutboundWebhookPatch{Enabled: &enabled})
 	require.NoError(t, err)
 	enabled = true
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, &enabled)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, BotOutboundWebhookPatch{Enabled: &enabled})
 	require.NoError(t, err)
 	waitWebhookDeliveriesDrained(t, c)
 	require.Equal(t, int32(1), calls.Load())
@@ -740,13 +740,13 @@ func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
 	for _, actor := range []string{stranger.GetId(), bot} {
 		_, err = c.GetBotOutboundWebhook(ctx, actor, bot, endpoint.ID)
 		require.Error(t, err)
-		_, err = c.UpdateBotOutboundWebhook(ctx, actor, bot, endpoint.ID, &enabled)
+		_, err = c.UpdateBotOutboundWebhook(ctx, actor, bot, endpoint.ID, BotOutboundWebhookPatch{Enabled: &enabled})
 		require.Error(t, err)
 		require.Error(t, c.RevokeBotOutboundWebhook(ctx, actor, bot, endpoint.ID))
 	}
 	otherBot, err := c.CreateBot(ctx, owner, "other_bot", "Other bot")
 	require.NoError(t, err)
-	_, err = c.UpdateBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID, &enabled)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID, BotOutboundWebhookPatch{Enabled: &enabled})
 	require.ErrorIs(t, err, ErrNotFound)
 	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID))
 	current, err := c.GetBotOutboundWebhook(ctx, owner, bot, endpoint.ID)
@@ -775,4 +775,124 @@ func TestBotOutboundWebhookProjectionLegacyReplay(t *testing.T) {
 	require.NotNil(t, p.get("bot", "new"))
 	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "bot"}}}, 5))
 	require.Empty(t, p.list("bot"))
+}
+
+func TestBotOutboundWebhookEditPreservesIdentityAndOmittedFields(t *testing.T) {
+	c, _ := setupTestCore(t)
+	owner, bot, _ := webhookTestBot(t, c)
+	ctx := testContext(t)
+	original, secret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/old", "Bearer original", false)
+	require.NoError(t, err)
+	before := c.botWebhooks.projection.Projection().get(bot, original.ID)
+	newURL := "https://example.com/new"
+	updated, err := c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{URL: &newURL})
+	require.NoError(t, err)
+	require.Equal(t, original.ID, updated.ID)
+	require.Equal(t, original.Name, updated.Name)
+	require.Equal(t, original.CreatedAt, updated.CreatedAt)
+	require.False(t, updated.Enabled)
+	require.Equal(t, newURL, updated.URL)
+	after := c.botWebhooks.projection.Projection().get(bot, original.ID)
+	require.Greater(t, after.Sequence, before.Sequence)
+	// Cold replay must keep the original date while applying the new destination.
+	replayed := newBotWebhookProjection()
+	require.NoError(t, replayed.Apply(before.Configuration, before.Sequence))
+	require.NoError(t, replayed.Apply(after.Configuration, after.Sequence))
+	require.Equal(t, before.CreatedAt, replayed.get(bot, original.ID).CreatedAt)
+	creds, err := c.botWebhooks.credentials(ctx, after.Configuration)
+	require.NoError(t, err)
+	require.Equal(t, secret, creds.SigningSecret)
+	require.Equal(t, "Bearer original", creds.Authorization)
+
+	// Repeating the same patch must not cancel work through a new sequence.
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{URL: &newURL})
+	require.NoError(t, err)
+	require.Equal(t, after.Sequence, c.botWebhooks.projection.Projection().get(bot, original.ID).Sequence)
+	for _, authorization := range []string{"Bearer replacement", ""} {
+		updated, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{Authorization: &authorization})
+		require.NoError(t, err)
+		require.Equal(t, newURL, updated.URL)
+		require.Equal(t, original.CreatedAt, updated.CreatedAt)
+		require.Equal(t, authorization != "", updated.HasAuthorization)
+		creds, err = c.botWebhooks.credentials(ctx, c.botWebhooks.projection.Projection().get(bot, original.ID).Configuration)
+		require.NoError(t, err)
+		require.Equal(t, authorization, creds.Authorization)
+		require.Equal(t, secret, creds.SigningSecret)
+	}
+	invalidURL, invalidHeader := "http://example.com", "Bearer invalid\r\nInjected: value"
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{URL: &invalidURL})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{Authorization: &invalidHeader})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, bot, original.ID))
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, original.ID, BotOutboundWebhookPatch{URL: &newURL})
+	require.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestBotOutboundWebhookEditCancelsOldRetry(t *testing.T) {
+	c, _ := newTestCore(t)
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(500 * time.Millisecond)}
+	var oldCalls, newCalls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/old" {
+			oldCalls.Add(1)
+			w.WriteHeader(503)
+			return
+		}
+		newCalls.Add(1)
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+	startCoreServices(t, c)
+	owner, bot, room := webhookTestBot(t, c)
+	ctx := testContext(t)
+	baseURL := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", baseURL+"/old", "", true)
+	require.NoError(t, err)
+	_, err = c.PostMessage(ctx, KindDM, room, owner, "Before edit", nil, "", "", nil, false)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return oldCalls.Load() == 1 }, 3*time.Second, 5*time.Millisecond)
+	newURL := baseURL + "/new"
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, BotOutboundWebhookPatch{URL: &newURL})
+	require.NoError(t, err)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(1), oldCalls.Load())
+	require.Zero(t, newCalls.Load())
+	requireNoWebhookOutcomes(t, c)
+	_, err = c.PostMessage(ctx, KindDM, room, owner, "After edit", nil, "", "", nil, false)
+	require.NoError(t, err)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(1), newCalls.Load())
+}
+
+func TestBotOutboundWebhookConcurrentEditsMergeAcrossReplicas(t *testing.T) {
+	c, nc := setupTestCore(t)
+	ctx := testContext(t)
+	replica, err := NewChattoCore(ctx, nc, c.config)
+	require.NoError(t, err)
+	startCoreServices(t, replica)
+	owner, bot, _ := webhookTestBot(t, c)
+	endpoint, secret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/old", "", false)
+	require.NoError(t, err)
+	url, authorization := "https://example.com/new", "Bearer new"
+	results := make(chan error, 2)
+	go func() {
+		_, err := c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, BotOutboundWebhookPatch{URL: &url})
+		results <- err
+	}()
+	go func() {
+		_, err := replica.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, BotOutboundWebhookPatch{Authorization: &authorization})
+		results <- err
+	}()
+	require.NoError(t, <-results)
+	require.NoError(t, <-results)
+	updated, err := replica.GetBotOutboundWebhook(ctx, owner, bot, endpoint.ID)
+	require.NoError(t, err)
+	require.Equal(t, url, updated.URL)
+	require.True(t, updated.HasAuthorization)
+	require.Equal(t, endpoint.CreatedAt, updated.CreatedAt)
+	creds, err := replica.botWebhooks.credentials(ctx, replica.botWebhooks.projection.Projection().get(bot, endpoint.ID).Configuration)
+	require.NoError(t, err)
+	require.Equal(t, authorization, creds.Authorization)
+	require.Equal(t, secret, creds.SigningSecret)
 }

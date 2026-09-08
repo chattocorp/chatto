@@ -61,8 +61,8 @@ the development-only password `foobar123`.
 The stack starts the [Runling bot example](examples/runling-bot/README.md)
 on loopback at the base port plus three (`http://localhost:4003` outside
 Conductor). It uses the bootstrap TestBot account and receives the backend URL
-and API key path automatically. Set TestBot’s webhook destination once as shown
-in the example README.
+and API key path automatically. On an empty server, bootstrap also creates
+TestBot’s outbound webhook. Existing servers keep their saved configuration.
 
 Chatto uses Authling as its development OIDC provider. Chatto stores embedded
 NATS data in `cli/data/nats/` and search data in `cli/data/search/`. Authling

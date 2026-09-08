@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "No disponible temporalmente",
       "webhook_limit_reached": "Has alcanzado el límite de 20 webhooks entrantes.",
       "outbound": {
+        "edit": "Editar webhook",
+        "auth_keep": "Mantener la cabecera actual",
+        "auth_remove": "Eliminar cabecera",
         "title": "Webhooks salientes",
         "description": "Envía menciones y mensajes directos a tu herramienta.",
         "url": "URL de destino",

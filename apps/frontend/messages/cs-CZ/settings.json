@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Dočasně nedostupné",
       "webhook_limit_reached": "Byl dosažen limit 20 příchozích webhooků.",
       "outbound": {
+        "edit": "Upravit webhook",
+        "auth_keep": "Ponechat současnou hlavičku",
+        "auth_remove": "Odstranit hlavičku",
         "title": "Odchozí webhooky",
         "description": "Posílej zmínky a soukromé zprávy do svého nástroje.",
         "url": "Cílová URL",

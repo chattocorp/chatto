@@ -301,7 +301,7 @@ message GetBotOutboundWebhookResponse {
   // Endpoint metadata without Authorization or signing credentials.
   BotOutboundWebhook webhook = 1;
 }
-// Create an independent endpoint with fixed destination and credentials.
+// Create an independent endpoint with its own signing secret.
 message CreateBotOutboundWebhookRequest {
   // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -321,7 +321,7 @@ message CreateBotOutboundWebhookResponse {
   // Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests.
   string signing_secret = 2;
 }
-// Pause or resume one endpoint. Credentials and name cannot be edited.
+// Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
 message UpdateBotOutboundWebhookRequest {
   // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -329,6 +329,10 @@ message UpdateBotOutboundWebhookRequest {
   string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
   // If omitted, the state is unchanged. Resume accepts only new messages.
   optional bool enabled = 3;
+  // New destination. Omit to keep it. Changing settings cancels queued retries.
+  optional string url = 4 [(buf.validate.field).string = {min_len: 1, max_len: 4096}];
+  // New Authorization header. Omit to keep it; empty removes it. Never returned.
+  optional string authorization = 5 [(buf.validate.field).string.max_len = 4096];
 }
 // Endpoint state after the update.
 message UpdateBotOutboundWebhookResponse {
@@ -360,7 +364,7 @@ service BotService {
   rpc GetBotOutboundWebhook(GetBotOutboundWebhookRequest) returns (GetBotOutboundWebhookResponse);
   // Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
   rpc CreateBotOutboundWebhook(CreateBotOutboundWebhookRequest) returns (CreateBotOutboundWebhookResponse);
-  // Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+  // Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
   rpc UpdateBotOutboundWebhook(UpdateBotOutboundWebhookRequest) returns (UpdateBotOutboundWebhookResponse);
   // Permanently revokes an endpoint. Requires ownership or bot.manage.
   rpc RevokeBotOutboundWebhook(RevokeBotOutboundWebhookRequest) returns (RevokeBotOutboundWebhookResponse) {

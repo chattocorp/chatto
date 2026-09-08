@@ -371,6 +371,8 @@ snapshot fields, or retrievable resources.
 uses cold EVT replay. It retains encrypted endpoint configuration and activation
 sequences. It consumes configuration, state changes, and account deletion.
 Pause/resume advances the cutoff without changing the credential encryption
-context. Legacy configurations keep their single-endpoint replacement behavior.
+context. A configuration edit replaces the encrypted settings for the same
+endpoint ID and advances the cutoff, but preserves the first creation time.
+Legacy configurations keep their single-endpoint replacement behavior.
 Failure history and latest-failure summaries are read directly from LOG; they
 are not projection values and disappear when their records expire.

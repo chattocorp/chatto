@@ -160,13 +160,14 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 			Login: "alice", DisplayName: "Alice", Password: "devpassword", ServerRole: "owner",
 		}},
 		Bots: []config.BootstrapBot{{
-			Login:          "test_bot",
-			DisplayName:    "TestBot",
-			OwnerLogin:     "alice",
-			APIKeyName:     "Local development",
-			CredentialFile: credentialFile,
-			Permissions:    []string{"room.join", "message.read", "message.post-in-thread"},
-			Rooms:          []string{"general"},
+			Login:              "test_bot",
+			DisplayName:        "TestBot",
+			OwnerLogin:         "alice",
+			APIKeyName:         "Local development",
+			CredentialFile:     credentialFile,
+			OutboundWebhookURL: "http://localhost:4003/api/runs/start/chatto",
+			Permissions:        []string{"room.join", "message.read", "message.post-in-thread"},
+			Rooms:              []string{"general"},
 		}},
 		Server: &config.BootstrapServer{Name: "Engineering"},
 	})
@@ -210,6 +211,29 @@ func TestApplyBootstrap_CreatesConfiguredBotAndCredential(t *testing.T) {
 	}
 	if authenticated.GetId() != bot.GetId() {
 		t.Fatalf("authenticated user = %q, want %q", authenticated.GetId(), bot.GetId())
+	}
+
+	webhooks, err := c.ListBotOutboundWebhooks(ctx, owner.GetId(), bot.GetId())
+	if err != nil {
+		t.Fatalf("list bootstrap webhooks: %v", err)
+	}
+	if len(webhooks) != 1 || !webhooks[0].Enabled || webhooks[0].URL != "http://localhost:4003/api/runs/start/chatto" {
+		t.Fatal("expected one enabled bootstrap webhook at the configured destination")
+	}
+
+	// Later starts preserve the existing credential and endpoint, even if the
+	// bootstrap destination changes. Bootstrap is not a reconciliation loop.
+	applyBootstrap(ctx, c, config.BootstrapConfig{Bots: []config.BootstrapBot{{
+		Login: "test_bot", OwnerLogin: "alice", CredentialFile: credentialFile,
+		OutboundWebhookURL: "http://localhost:5003/api/runs/start/chatto",
+	}}})
+	after, err := c.ListBotOutboundWebhooks(ctx, owner.GetId(), bot.GetId())
+	if err != nil || len(after) != 1 || after[0].ID != webhooks[0].ID || after[0].URL != webhooks[0].URL {
+		t.Fatal("later bootstrap changed the existing endpoint")
+	}
+	keyAfter, err := os.ReadFile(credentialFile)
+	if err != nil || string(keyAfter) != string(credentialBytes) {
+		t.Fatal("later bootstrap changed the API key file")
 	}
 
 	rooms, err := c.ListRooms(ctx, core.KindChannel)

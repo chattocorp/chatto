@@ -205,8 +205,10 @@ issued playlist ticket on its next playlist or segment request.
 Account-manager visibility alone does not grant access. Lists return the full
 bounded collection of at most 20 endpoints. Reads expose names, saved URLs,
 enabled state, creation time, and the latest recorded failure per endpoint.
-Credentials and names are fixed; creation returns a signing secret once.
-Update changes only enabled state. Revocation removes one endpoint permanently.
+Names and signing secrets are fixed; creation returns a signing secret once.
+Update accepts optional enabled, URL, and Authorization fields. Omitted fields
+keep their current values; an empty Authorization value removes the header.
+Destination edits preserve creation time and cancel queued deliveries. Revocation removes one endpoint permanently.
 Later successes do not clear a recorded failure. The delivery worker sends
 JSON HTTP POST requests to external destinations; it mounts no new route.
 

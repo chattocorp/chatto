@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Temporaneamente non disponibile",
       "webhook_limit_reached": "Hai raggiunto il limite di 20 webhook in entrata.",
       "outbound": {
+        "edit": "Modifica webhook",
+        "auth_keep": "Mantieni intestazione attuale",
+        "auth_remove": "Rimuovi intestazione",
         "title": "Webhook in uscita",
         "description": "Invia menzioni e messaggi diretti al tuo strumento.",
         "url": "URL di destinazione",

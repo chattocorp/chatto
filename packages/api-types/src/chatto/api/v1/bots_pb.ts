@@ -1612,7 +1612,7 @@ export class GetBotOutboundWebhookResponse extends Message<GetBotOutboundWebhook
 }
 
 /**
- * Create an independent endpoint with fixed destination and credentials.
+ * Create an independent endpoint with its own signing secret.
  *
  * @generated from message chatto.api.v1.CreateBotOutboundWebhookRequest
  */
@@ -1734,7 +1734,7 @@ export class CreateBotOutboundWebhookResponse extends Message<CreateBotOutboundW
 }
 
 /**
- * Pause or resume one endpoint. Credentials and name cannot be edited.
+ * Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
  *
  * @generated from message chatto.api.v1.UpdateBotOutboundWebhookRequest
  */
@@ -1760,6 +1760,20 @@ export class UpdateBotOutboundWebhookRequest extends Message<UpdateBotOutboundWe
    */
   enabled?: boolean;
 
+  /**
+   * New destination. Omit to keep it. Changing settings cancels queued retries.
+   *
+   * @generated from field: optional string url = 4;
+   */
+  url?: string;
+
+  /**
+   * New Authorization header. Omit to keep it; empty removes it. Never returned.
+   *
+   * @generated from field: optional string authorization = 5;
+   */
+  authorization?: string;
+
   constructor(data?: PartialMessage<UpdateBotOutboundWebhookRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1771,6 +1785,8 @@ export class UpdateBotOutboundWebhookRequest extends Message<UpdateBotOutboundWe
     { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "webhook_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "authorization", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBotOutboundWebhookRequest {

@@ -1842,7 +1842,7 @@ func (x *GetBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
 	return nil
 }
 
-// Create an independent endpoint with fixed destination and credentials.
+// Create an independent endpoint with its own signing secret.
 type CreateBotOutboundWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required managed bot ID.
@@ -1979,7 +1979,7 @@ func (x *CreateBotOutboundWebhookResponse) GetSigningSecret() string {
 	return ""
 }
 
-// Pause or resume one endpoint. Credentials and name cannot be edited.
+// Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
 type UpdateBotOutboundWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required managed bot ID.
@@ -1987,7 +1987,11 @@ type UpdateBotOutboundWebhookRequest struct {
 	// Required endpoint ID within this bot.
 	WebhookId string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	// If omitted, the state is unchanged. Resume accepts only new messages.
-	Enabled       *bool `protobuf:"varint,3,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	Enabled *bool `protobuf:"varint,3,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// New destination. Omit to keep it. Changing settings cancels queued retries.
+	Url *string `protobuf:"bytes,4,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	// New Authorization header. Omit to keep it; empty removes it. Never returned.
+	Authorization *string `protobuf:"bytes,5,opt,name=authorization,proto3,oneof" json:"authorization,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2041,6 +2045,20 @@ func (x *UpdateBotOutboundWebhookRequest) GetEnabled() bool {
 		return *x.Enabled
 	}
 	return false
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetUrl() string {
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetAuthorization() string {
+	if x != nil && x.Authorization != nil {
+		return *x.Authorization
+	}
+	return ""
 }
 
 // Endpoint state after the update.
@@ -2435,14 +2453,19 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x04name\x18\x05 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\"\x86\x01\n" +
 	" CreateBotOutboundWebhookResponse\x12;\n" +
 	"\awebhook\x18\x01 \x01(\v2!.chatto.api.v1.BotOutboundWebhookR\awebhook\x12%\n" +
-	"\x0esigning_secret\x18\x02 \x01(\tR\rsigningSecret\"\x9d\x01\n" +
+	"\x0esigning_secret\x18\x02 \x01(\tR\rsigningSecret\"\x8f\x02\n" +
 	"\x1fUpdateBotOutboundWebhookRequest\x12'\n" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\x12\x1d\n" +
-	"\aenabled\x18\x03 \x01(\bH\x00R\aenabled\x88\x01\x01B\n" +
+	"\aenabled\x18\x03 \x01(\bH\x00R\aenabled\x88\x01\x01\x12!\n" +
+	"\x03url\x18\x04 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 H\x01R\x03url\x88\x01\x01\x123\n" +
+	"\rauthorization\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80 H\x02R\rauthorization\x88\x01\x01B\n" +
 	"\n" +
-	"\b_enabled\"_\n" +
+	"\b_enabledB\x06\n" +
+	"\x04_urlB\x10\n" +
+	"\x0e_authorization\"_\n" +
 	" UpdateBotOutboundWebhookResponse\x12;\n" +
 	"\awebhook\x18\x01 \x01(\v2!.chatto.api.v1.BotOutboundWebhookR\awebhook\"r\n" +
 	"\x1fRevokeBotOutboundWebhookRequest\x12'\n" +

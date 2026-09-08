@@ -461,6 +461,7 @@ env = {
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
   CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
+  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}/api/runs/start/chatto",
   CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "./data/bootstrap/test_bot.key",
   CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
   CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",

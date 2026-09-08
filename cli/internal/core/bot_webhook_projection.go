@@ -2,6 +2,7 @@ package core
 
 import (
 	"sort"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/evtstream"
@@ -9,11 +10,13 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-// botWebhookEndpoint keeps the immutable creation event separate from mutable
-// delivery state. Sequence is the activation cutoff: resume never replays work
-// from before the latest state change. Credentials retain their original AAD.
+// botWebhookEndpoint retains the current encrypted configuration and original
+// creation time separately from delivery state. Sequence is the activation cutoff:
+// edits and resume never replay work from before the latest change. Each encrypted
+// configuration retains its event identity for authenticated decryption.
 type botWebhookEndpoint struct {
 	Configuration *evtv1.Event
+	CreatedAt     time.Time // First creation, preserved when destination credentials change.
 	Sequence      uint64
 	Enabled       bool
 }
@@ -43,7 +46,11 @@ func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 			delete(p.legacy, cfg.GetBotUserId())
 		}
 		if cfg.GetCredentials() != nil {
-			p.endpoints[cfg.GetWebhookId()] = &botWebhookEndpoint{Configuration: cloneWebhookEvent(event), Sequence: seq, Enabled: cfg.GetEnabled()}
+			createdAt := event.GetCreatedAt().AsTime()
+			if existing := p.endpoints[cfg.GetWebhookId()]; existing != nil {
+				createdAt = existing.CreatedAt
+			}
+			p.endpoints[cfg.GetWebhookId()] = &botWebhookEndpoint{Configuration: cloneWebhookEvent(event), CreatedAt: createdAt, Sequence: seq, Enabled: cfg.GetEnabled()}
 			if !cfg.GetIndependent() {
 				p.legacy[cfg.GetBotUserId()] = cfg.GetWebhookId()
 			}
@@ -84,7 +91,7 @@ func cloneWebhookEndpoint(e *botWebhookEndpoint) *botWebhookEndpoint {
 	if e == nil {
 		return nil
 	}
-	return &botWebhookEndpoint{Configuration: cloneWebhookEvent(e.Configuration), Sequence: e.Sequence, Enabled: e.Enabled}
+	return &botWebhookEndpoint{Configuration: cloneWebhookEvent(e.Configuration), CreatedAt: e.CreatedAt, Sequence: e.Sequence, Enabled: e.Enabled}
 }
 func (p *botWebhookProjection) get(botID, webhookID string) *botWebhookEndpoint {
 	p.RLock()

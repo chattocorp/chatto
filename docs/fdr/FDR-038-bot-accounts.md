@@ -344,8 +344,13 @@ The bot uses the normal API to reply. Webhook response bodies have no action.
 The saved name and URL remain visible to bot managers; Authorization remains
 write-only. Creation opens the signing-secret dialog immediately. Closing the
 dialog clears the secret. New endpoints start enabled in the UI.
-Names and credentials are fixed. Replacement means creating a new endpoint and
-revoking the old one. Pause and resume preserve credentials. Resume accepts
+Names and signing secrets are fixed. The edit dialog changes the URL and lets
+managers type a replacement Authorization header directly. A blank field keeps
+the saved header; a clear action removes it and can be undone before saving.
+The saved value is never loaded into the field. Edits preserve the
+creation time and signing secret, and cancel retries for the previous settings.
+Row actions use icons with accessible labels and hover hints.
+Pause and resume preserve credentials. Resume accepts
 only new messages and does not revive cancelled retries. Revocation stops one
 endpoint permanently; an HTTP request already in flight can still finish.
 Paused endpoints count toward the limit. Bot accounts cannot manage endpoints.

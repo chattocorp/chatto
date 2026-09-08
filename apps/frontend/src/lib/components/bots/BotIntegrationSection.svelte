@@ -30,8 +30,8 @@
   {#if items.length > 0}
     <div class="selectable-list" data-testid={testId}>
       {#each items as item (item.id)}
-        <div class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:items-center">
-          <div class="min-w-0 flex-1">{@render details(item)}</div>
+        <div class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:flex-wrap sm:items-center">
+          <div class="min-w-0 flex-1 sm:basis-80">{@render details(item)}</div>
           <div class="flex shrink-0 flex-wrap justify-end gap-2">{@render itemActions(item)}</div>
         </div>
       {/each}

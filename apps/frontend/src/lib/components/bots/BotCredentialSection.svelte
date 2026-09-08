@@ -27,6 +27,7 @@
   import ShowOnceCredentialDialog from './ShowOnceCredentialDialog.svelte';
   import { ConfirmDialog, FormDialog } from '$lib/ui';
   import BotIntegrationSection from './BotIntegrationSection.svelte';
+  import BotIntegrationDetails from './BotIntegrationDetails.svelte';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {
@@ -113,8 +114,7 @@
     </Button>
   {/snippet}
   {#snippet details(item)}
-    <div class="font-medium text-text-top"><bdi>{item.name}</bdi></div>
-    <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+    <BotIntegrationDetails name={item.name}>
       <div>
         <dt class="text-muted">{labels.createdAt}</dt>
         <dd>{item.createdAt}</dd>
@@ -123,12 +123,17 @@
         <dt class="text-muted">{labels.lastUsed}</dt>
         <dd>{item.lastUsed}</dd>
       </div>
-    </dl>
+    </BotIntegrationDetails>
   {/snippet}
   {#snippet itemActions(item)}
-    <Button size="sm" variant="danger-secondary" onclick={() => openRevoke(item.id)}>
+    <Button
+      size="sm"
+      variant="danger-secondary"
+      label={labels.revoke}
+      title={labels.revoke}
+      onclick={() => openRevoke(item.id)}
+    >
       <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
-      {labels.revoke}
     </Button>
   {/snippet}
   {#snippet footer()}

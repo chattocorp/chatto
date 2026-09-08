@@ -498,6 +498,9 @@
       "webhook_last_used_unavailable": "Ajutiselt pole saadaval",
       "webhook_limit_reached": "20 sissetuleva veebihaagi piirang on saavutatud.",
       "outbound": {
+        "edit": "Muuda veebihaaki",
+        "auth_keep": "Säilita praegune päis",
+        "auth_remove": "Eemalda päis",
         "title": "Väljaminevad veebihaagid",
         "description": "Saada mainimised ja otsesõnumid oma tööriista.",
         "url": "Sihtkoha URL",

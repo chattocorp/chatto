@@ -68,9 +68,13 @@ export function createBotAPI(config: BotAPIConfig) {
     }) {
       return client.createBotOutboundWebhook(input, { headers: headers() });
     },
-    async updateOutboundWebhook(botUserId: string, webhookId: string, enabled: boolean) {
+    async updateOutboundWebhook(
+      botUserId: string,
+      webhookId: string,
+      patch: { enabled?: boolean; url?: string; authorization?: string }
+    ) {
       return client.updateBotOutboundWebhook(
-        { botUserId, webhookId, enabled },
+        { botUserId, webhookId, ...patch },
         { headers: headers() }
       );
     },

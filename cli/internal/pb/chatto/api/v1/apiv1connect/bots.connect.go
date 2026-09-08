@@ -91,7 +91,7 @@ type BotServiceClient interface {
 	GetBotOutboundWebhook(context.Context, *connect.Request[v1.GetBotOutboundWebhookRequest]) (*connect.Response[v1.GetBotOutboundWebhookResponse], error)
 	// Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
 	CreateBotOutboundWebhook(context.Context, *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error)
-	// Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+	// Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
 	UpdateBotOutboundWebhook(context.Context, *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error)
 	// Permanently revokes an endpoint. Requires ownership or bot.manage.
 	RevokeBotOutboundWebhook(context.Context, *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error)
@@ -350,7 +350,7 @@ type BotServiceHandler interface {
 	GetBotOutboundWebhook(context.Context, *connect.Request[v1.GetBotOutboundWebhookRequest]) (*connect.Response[v1.GetBotOutboundWebhookResponse], error)
 	// Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
 	CreateBotOutboundWebhook(context.Context, *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error)
-	// Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+	// Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
 	UpdateBotOutboundWebhook(context.Context, *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error)
 	// Permanently revokes an endpoint. Requires ownership or bot.manage.
 	RevokeBotOutboundWebhook(context.Context, *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error)

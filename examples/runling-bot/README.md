@@ -23,20 +23,16 @@ Run the commands below from that root unless a command changes the directory.
    Chatto environment variables are required. `CHATTO_DEV_DATA_ROOT` selects the same
    data directory for the server and bot.
 
-2. In Chatto, open **Settings → Server → Bots → TestBot**. Enable privileged
-   mode if required. Set its outbound destination to the Runling port. For a
-   workspace with base port `55000`, use:
+2. On an empty server, the stack creates TestBot, writes its API key to
+   `cli/data/bootstrap/test_bot.key`, and creates an enabled **Local development**
+   outbound webhook at `http://localhost:<base-port-plus-three>/api/runs/start/chatto`.
+   `CHATTO_DEV_DATA_ROOT` changes the data directory for both services.
 
-   ```text
-   http://localhost:55003/api/runs/start/chatto
-   ```
-
-   Select **Create webhook**. The endpoint starts enabled and persists across
-   restarts. Close the signing-secret dialog; this local example does not use it.
-   Use the `localhost` hostname: Chatto permits HTTP for localhost names only.
-   The local example does not check the signing secret or an Authorization
-   header. Runling binds to loopback; its console and run endpoints have no
-   authentication.
+   Existing servers are not changed by bootstrap. If your server predates this
+   setup, create the endpoint in **Settings → Server → Bots → TestBot**. For base
+   port `55000`, use `http://localhost:55003/api/runs/start/chatto`.
+   The local example does not verify the signing secret or Authorization header.
+   Runling binds to loopback; its console and run endpoints have no authentication.
 
 3. Post `@test_bot Hello Runling` in `general`, or send TestBot a direct message.
    Open the resulting thread to see its reply. Open `http://localhost:55003`
