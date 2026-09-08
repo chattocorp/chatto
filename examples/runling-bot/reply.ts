@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
-import { Type, task } from "runling";
+import { Type } from "runling";
+import { task } from "./task.ts";
 import { generateReply } from "./agent.ts";
 import { createReplySender } from "./sender.ts";
 import { startTyping } from "./typing.ts";
