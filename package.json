@@ -23,6 +23,8 @@
     "test:frontend": "pnpm run build:api-types && pnpm run build:lingua && pnpm --filter chatto-frontend test:unit:run"
   },
   "devDependencies": {
-    "knip": "^6.22.0"
+    "knip": "^6.22.0",
+    "runling": "^0.6.0",
+    "undici": "7.29.0"
   }
 }

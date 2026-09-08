@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -70,6 +71,11 @@ func ssrfSafeDialContext(timeout time.Duration) func(ctx context.Context, networ
 }
 
 func ssrfSafeDialContextWithResolver(timeout time.Duration, resolver ipResolver) func(ctx context.Context, network, addr string) (net.Conn, error) {
+	return ssrfSafeDialContextWithPolicy(timeout, resolver, false)
+}
+
+// The localhost exception is host-scoped and never permits other private IPs.
+func ssrfSafeDialContextWithPolicy(timeout time.Duration, resolver ipResolver, localhost bool) func(context.Context, string, string) (net.Conn, error) {
 	return func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, port, err := net.SplitHostPort(addr)
 		if err != nil {
@@ -94,7 +100,15 @@ func ssrfSafeDialContextWithResolver(timeout time.Duration, resolver ipResolver)
 
 		// Check all resolved IPs against the blocklist
 		for _, ip := range ips {
-			if isPrivateIP(ip) {
+			blocked := isPrivateIP(ip)
+			if localhost {
+				if IsLocalhostHostname(host) {
+					blocked = !ip.IsLoopback()
+				} else {
+					blocked = blocked || ip.IsLoopback()
+				}
+			}
+			if blocked {
 				return nil, fmt.Errorf("ssrf: blocked request to %s (resolves to private IP %s)", host, ip)
 			}
 		}
@@ -125,10 +139,28 @@ func ssrfSafeDialContextWithResolver(timeout time.Duration, resolver ipResolver)
 // NewSSRFSafeClient creates an HTTP client with SSRF protection.
 // IP validation happens at connection time in DialContext, preventing DNS rebinding attacks.
 func NewSSRFSafeClient(timeout time.Duration) *http.Client {
+	return newSSRFSafeClient(timeout, ssrfSafeDialContext(10*time.Second))
+}
+
+// IsLocalhostHostname identifies localhost and its subdomains, including a final DNS dot.
+// IP literals and lookalike suffixes are not localhost hostnames.
+func IsLocalhostHostname(host string) bool {
+	host = strings.ToLower(strings.TrimSuffix(host, "."))
+	return host == "localhost" || (len(host) > len(".localhost") && strings.HasSuffix(host, ".localhost"))
+}
+
+// NewSSRFSafeClientWithLocalhost permits localhost names only when every resolved
+// address is loopback. All other hosts retain the private-address blocklist.
+// Addresses are validated and dialed without a second lookup. Proxies are disabled.
+func NewSSRFSafeClientWithLocalhost(timeout time.Duration) *http.Client {
+	return newSSRFSafeClient(timeout, ssrfSafeDialContextWithPolicy(10*time.Second, net.DefaultResolver, true))
+}
+
+func newSSRFSafeClient(timeout time.Duration, dial func(context.Context, string, string) (net.Conn, error)) *http.Client {
 	return &http.Client{
 		Timeout: timeout,
 		Transport: &http.Transport{
-			DialContext:           ssrfSafeDialContext(10 * time.Second),
+			DialContext:           dial,
 			TLSHandshakeTimeout:   10 * time.Second,
 			ResponseHeaderTimeout: 10 * time.Second,
 			MaxIdleConns:          10,

@@ -582,3 +582,59 @@ Server-wide resource limits. Use `-1` for unlimited (the default), `0` to disabl
 <EnvVar name="CHATTO_LIMITS_MAX_USERS" toml="limits.max_users" default="-1">
   Maximum number of verified accounts on this server. An account counts once it has at least one verified sign-in factor: a verified email or a linked SSO identity. Enforced when accounts are created and when the first verified factor is added. Note that the check is non-atomic, so a burst at the boundary can briefly overshoot by one or two.
 </EnvVar>
+
+## Outbound bot webhooks
+
+```toml
+[core.bot_webhooks]
+max_attempts = 5
+retry_delay = "30s"
+expiry = "24h"
+```
+
+| Environment variable | TOML key | Default | Meaning |
+| --- | --- | --- | --- |
+| `CHATTO_CORE_BOT_WEBHOOKS_MAX_ATTEMPTS` | `core.bot_webhooks.max_attempts` | `5` | Maximum delivery attempts, including the first attempt. Range: 1–100. |
+| `CHATTO_CORE_BOT_WEBHOOKS_RETRY_DELAY` | `core.bot_webhooks.retry_delay` | `30s` | Initial delay. Range: 1 second–30 minutes. Doubles after each failed attempt, up to 30 minutes. |
+| `CHATTO_CORE_BOT_WEBHOOKS_EXPIRY` | `core.bot_webhooks.expiry` | `24h` | Lifetime from the source message time. Range: 1 second–30 days. |
+
+Restart the server after a change. Delivery and retries are best effort.
+Restart discards pending work and retry timers. A source event accepted after
+restart uses the new attempt limit and retry delay; expiry is still measured
+from the original message time. Attempts include failures before HTTP starts.
+The network policy is checked on each attempt. Destinations require public
+HTTPS, except `localhost` and `*.localhost`, which permit HTTP and HTTPS only
+when every resolved address is loopback. IP literals do not receive this
+exception. Redirects are not followed.
+
+See [outbound bot webhooks](/guides/integrations/bot-accounts/#outbound-webhooks)
+for the request body, signature scheme, and receiver requirements.
+
+## Operational log
+
+```toml
+[core.log]
+retention = "7d"
+```
+
+| Environment variable | TOML key | Default | Description |
+| --- | --- | --- | --- |
+| `CHATTO_CORE_LOG_RETENTION` | `core.log.retention` | `7d` | Retention of operational diagnostics. Minimum: 1 second. Zero selects the default. |
+
+LOG retains terminal outbound webhook failures across server replicas.
+Expired records are removed and cannot be recovered. LOG is excluded from
+backups. Retention limits record age; it does not impose a fixed byte limit.
+Use the same configuration on all replicas.
+
+## Development bot bootstrap
+
+Builds with the `bootstrap` tag can create bots on an empty server. Release
+builds ignore bootstrap settings. Later starts do not change existing data.
+
+| Environment variable | TOML key within `[[bootstrap.bots]]` | Description |
+| --- | --- | --- |
+| `CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE` | `credential_file` | File for the initial API key, written with owner-only permissions. |
+| `CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL` | `outbound_webhook_url` | Optional destination for an enabled outbound webhook named **Local development**. The signing secret is not exported. |
+
+Use consecutive indices from zero for additional bots. The `mise dev` stack
+sets both values for TestBot and points its webhook at the local Runling port.

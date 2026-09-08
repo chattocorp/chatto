@@ -173,6 +173,11 @@ func NewBotIncomingWebhookID() string {
 	return newID("W")
 }
 
+// NewBotOutboundWebhookID generates a stable opaque outbound endpoint ID.
+func NewBotOutboundWebhookID() string {
+	return newID("W")
+}
+
 // NewBotIncomingWebhookCredentialForID creates a show-once action credential
 // that identifies one bot and one of its incoming webhooks.
 func NewBotIncomingWebhookCredentialForID(botUserID, webhookID string) (string, error) {

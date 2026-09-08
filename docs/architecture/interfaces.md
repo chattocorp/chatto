@@ -196,3 +196,26 @@ Processed videos can instead expose HLS. Six-second MPEG-TS segments make
 seeking and adaptive rendition switching independent of byte-range support.
 HLS child responses remain behind Chatto so membership loss revokes an already
 issued playlist ticket on its next playlist or segment request.
+
+## Outbound bot endpoint management
+
+`BotService.ListBotOutboundWebhooks`, `GetBotOutboundWebhook`,
+`CreateBotOutboundWebhook`, `UpdateBotOutboundWebhook`, and
+`RevokeBotOutboundWebhook`, and `ListBotWebhookFailures` require the bot owner or `bot.manage`.
+Account-manager visibility alone does not grant access. Lists return the full
+bounded collection of at most 20 endpoints. Reads expose names, saved URLs,
+enabled state, creation time, and the latest recorded failure per endpoint.
+`BotWebhookFailure` represents a recorded failure; `latest_failure` is absent
+when no failure is retained. Success and skip statuses are not exposed.
+Names and signing secrets are fixed; creation returns a signing secret once.
+Update accepts optional enabled, URL, and Authorization fields. Omitted fields
+keep their current values; an empty Authorization value removes the header.
+Destination edits preserve creation time and cancel queued deliveries. Revocation removes one endpoint permanently.
+Later successes do not clear a recorded failure. The delivery worker sends
+JSON HTTP POST requests to external destinations; it mounts no new route.
+
+`BotService.ListBotWebhookFailures` reads retained LOG records for one current
+endpoint. Pages contain complete records in recording order, oldest first.
+The cursor is encrypted and bound to the viewer, endpoint, and LOG incarnation.
+Page size defaults to 20 and is limited to 100. A captured tail excludes later
+appends from the current pagination session. Expired records are omitted.

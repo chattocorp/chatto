@@ -484,3 +484,29 @@ The `/api/realtime` WebSocket is backed by the single core stream `StreamMyEvent
   pubsub activity remains live-only.
 - The PresenceHub (single per-process KV watcher on `presence.>` fanning out per-user status changes to all subscribers).
 - An in-process heartbeat ticker (synthetic `Heartbeat` event every 15s for client-side liveness detection).
+
+## Outbound bot webhooks
+
+Configuration uses `evt.user.{botId}.bot_outbound_webhook_configured` with
+user-aggregate OCC and encrypted credentials. Process-local delivery work uses
+a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worker.go);
+it has no persisted protobuf or NATS subject.
+The delivery ID hashes the bot, endpoint, and source event IDs.
+
+Terminal failures append
+`log.bot_webhook.<bot-id>.<webhook-id>.delivery_failed.<delivery-id>`.
+The envelope and payload live in
+[`chatto.core.log.v1`](../../proto/chatto/core/log/v1/entry.proto).
+Subject OCC suppresses duplicates while the record is retained. These records
+do not enter EVT or the public realtime catalogue.
+
+### Outbound webhook lifecycle
+
+`evt.user.<bot-id>.bot_outbound_webhook_configured` stores encrypted endpoint
+creation and destination edits. Edits reuse the endpoint ID and preserve the
+first creation time. The encrypted payload contains the
+name, URL, Authorization value, and signing secret.
+`evt.user.<bot-id>.bot_outbound_webhook_updated` pauses or resumes one endpoint.
+`evt.user.<bot-id>.bot_outbound_webhook_revoked` permanently revokes one endpoint.
+All endpoint commands use the user aggregate OCC boundary.
+Failure recording uses LOG independently of these domain lifecycle events.

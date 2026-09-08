@@ -20,6 +20,7 @@ inventories.
 | Type         | Name                | Storage | Backup | Description                                                                 |
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `evtv1.Event` facts on `evt.>`              |
+| Stream       | `LOG` | File | No | Retained operational protobuf records from `chatto.core.log.v1`; seven-day default age, configurable with `core.log.retention`; no byte/count limit |
 | Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded `notificationv1.NotificationEvent` log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value records from `chatto.core.runtime_state.v1`, including credentials, telemetry, notification boundaries, wrapped app DEKs, and snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile shared records from `chatto.core.cache_state.v1`, plus non-protobuf worker leases, cooldowns, counters, and health heartbeats |
@@ -97,3 +98,13 @@ versioned identity with the `notifications-incarnation-v1:` format. The
 from `EVT`. Notification projection snapshots bind to this identity and the
 notification stream sequence, allowing the shared snapshot framework to
 support more than one application-owned event log without mixing coordinates.
+
+## Outbound bot webhook consumer
+
+`chatto-bot-webhook-source-v1` consumes `evt.room.*.message_posted` from EVT.
+Replicas share this durable consumer, which permits eight unacknowledged
+messages. The handler acknowledges after each selected destination enters
+its process-local delivery pool. Configuration sequence prevents old messages
+from activating new endpoints. HTTP requests and retries have no stream or
+consumer of their own. See
+[ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).

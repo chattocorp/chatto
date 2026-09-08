@@ -230,6 +230,8 @@ func TestSkipReason(t *testing.T) {
 	}{
 		// Should be skipped (default: includeKeys=false)
 		{"KV_MEMORY_CACHE", false, true, "ephemeral (memory storage)"},
+		{"LOG", false, true, "retained diagnostics (not recovery state)"},
+		{"LOG", true, true, "retained diagnostics (not recovery state)"},
 		{"KV_USER_PRESENCE", false, true, "ephemeral (memory storage)"},
 		{"KV_CALL_STATE", false, true, "ephemeral (memory storage)"},
 		{"KV_ENCRYPTION_KEYS", false, true, "security (keys excluded from backups; pass --include-keys to override)"},

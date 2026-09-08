@@ -1,0 +1,27 @@
+syntax = "proto3";
+package chatto.core.evt.v1;
+import "chatto/core/evt/v1/user_events.proto";
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
+
+// Stores the encrypted settings for one outbound bot webhook.
+message BotOutboundWebhookConfiguredEvent {
+  string bot_user_id = 1;
+  // Stable endpoint ID, shared by creation and later settings changes.
+  string webhook_id = 2;
+  bool enabled = 3;
+  // JSON endpoint credentials encrypted with the bot's PII key.
+  EncryptedUserString credentials = 4;
+}
+
+// Pauses or resumes one endpoint. Encrypted settings use ConfiguredEvent.
+message BotOutboundWebhookUpdatedEvent {
+  string bot_user_id = 1;
+  string webhook_id = 2;
+  bool enabled = 3;
+}
+
+// Permanently revokes one endpoint. It cannot be resumed.
+message BotOutboundWebhookRevokedEvent {
+  string bot_user_id = 1;
+  string webhook_id = 2;
+}

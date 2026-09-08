@@ -11,6 +11,7 @@ import { botDetailPageTestState, botDetailTestPage } from './BotDetailPageTestSt
 
 const mocks = vi.hoisted(() => ({
   getBot: vi.fn(),
+  listOutboundWebhooks: vi.fn(),
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
   createBotAPIKey: vi.fn(),
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   canManageBots: true,
   canManageAccounts: false,
   supportsMultipleAPIKeys: true,
+  supportsOutboundWebhooks: true,
   bot: {
     id: 'bot-user-id',
     login: 'helper_bot',
@@ -57,7 +59,9 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {
       serverInfo: {
         supportsFeature: (feature: string) =>
-          feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
+          feature === 'botOutboundWebhooks'
+            ? mocks.supportsOutboundWebhooks
+            : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
       },
       currentUser: { user: { settings: mocks.settings } },
       permissions: { canAdminManageAccounts: mocks.canManageAccounts },
@@ -74,6 +78,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       queryScope: 'session-1',
       getAPI: () => ({
         getBot: mocks.getBot,
+        listOutboundWebhooks: mocks.listOutboundWebhooks,
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
         createBotAPIKey: mocks.createBotAPIKey,
@@ -107,7 +112,7 @@ function setInput(input: HTMLInputElement | HTMLTextAreaElement, value: string):
 
 function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
   const button = [...root.querySelectorAll('button')].find(
-    (candidate) => candidate.textContent?.trim() === text
+    (candidate) => (candidate.getAttribute('aria-label') || candidate.textContent?.trim()) === text
   );
   if (!(button instanceof HTMLButtonElement)) throw new Error(`Button not found: ${text}`);
   return button;
@@ -127,6 +132,8 @@ describe('Bot detail page', () => {
     mocks.canManageBots = true;
     mocks.canManageAccounts = false;
     mocks.supportsMultipleAPIKeys = true;
+    mocks.supportsOutboundWebhooks = true;
+    mocks.listOutboundWebhooks.mockResolvedValue([]);
     mocks.getBot.mockResolvedValue(mocks.bot);
     mocks.batchGetUsers.mockResolvedValue([]);
     mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
@@ -171,6 +178,19 @@ describe('Bot detail page', () => {
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
   });
+
+  it.each([true, false])(
+    'gates outbound webhook settings on server support (%s)',
+    async (supported) => {
+      mocks.supportsOutboundWebhooks = supported;
+      const { container } = render(BotDetailPage);
+      await settle();
+      expect(container.querySelector('[data-testid="bot-outbound-webhooks"]') !== null).toBe(
+        supported
+      );
+      expect(mocks.listOutboundWebhooks).toHaveBeenCalledTimes(supported ? 1 : 0);
+    }
+  );
 
   it('creates a named incoming webhook and shows its URL once', async () => {
     const { container } = render(BotDetailPage);
@@ -396,7 +416,7 @@ describe('Bot detail page', () => {
     );
     expect(container.textContent).toContain(expected);
     expect(container.textContent).not.toContain('Create API key');
-    expect(container.textContent).not.toContain('Revoke key');
+    expect(container.querySelector('button[aria-label="Revoke key"]')).toBeNull();
     expect(container.textContent).not.toContain('Replace all keys');
   });
 

@@ -1,5 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { Type } from "@earendil-works/pi-ai";
+import { Type, type AgentExtensionAPI as ExtensionAPI } from "runling";
 import { lookup } from "node:dns/promises";
 import { BlockList, isIP } from "node:net";
 import type { LookupFunction } from "node:net";
@@ -110,7 +109,7 @@ export function pinnedPublicLookup(
   };
 }
 
-/** Create TestBot's size-limited, public-network-only Pi web extension. */
+/** Create the Runling bot's size-limited, public-network-only Pi web extension. */
 export function createWebFetchExtension(
   dependencies: WebFetchDependencies = defaultDependencies,
 ) {
@@ -213,7 +212,7 @@ async function fetchPublicUrl(
         headers: {
           accept:
             "text/plain, text/html, text/markdown, application/json, application/xml;q=0.9, text/xml;q=0.9",
-          "user-agent": "chatto-test-bot-web-fetch/1.0",
+          "user-agent": "chatto-runling-bot-web-fetch/1.0",
         },
         redirect: "manual",
         signal,

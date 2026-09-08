@@ -79,6 +79,8 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.5.0', 'neighbors')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botOwnerReassignment')).toBe(true);
     expect(supportsServerFeature('0.5.0', 'botIncomingWebhooks')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.8', 'botOutboundWebhooks')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.7', 'botOutboundWebhooks')).toBe(false);
     expect(supportsServerFeature('0.5.0', 'botMultipleApiKeys')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.4', 'botMultipleApiKeys')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.3', 'botMultipleApiKeys')).toBe(false);

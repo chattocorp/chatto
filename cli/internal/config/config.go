@@ -95,6 +95,12 @@ func embeddedNATSClientURL(cfg EmbeddedNATSConfig) string {
 // Validate checks the configuration for errors and returns a descriptive error if any are found.
 func (c *ChattoConfig) Validate() error {
 	var errs []string
+	if err := c.Core.Log.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
+	if err := c.Core.BotWebhooks.Validate(); err != nil {
+		errs = append(errs, err.Error())
+	}
 
 	// Required fields
 	if err := validateHexSecret("webserver.cookie_signing_secret", c.Webserver.CookieSigningSecret, true); err != nil {

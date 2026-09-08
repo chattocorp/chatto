@@ -26,7 +26,8 @@
 <script lang="ts">
   import ShowOnceCredentialDialog from './ShowOnceCredentialDialog.svelte';
   import { ConfirmDialog, FormDialog } from '$lib/ui';
-  import Panel from '$lib/ui/Panel.svelte';
+  import BotIntegrationSection from './BotIntegrationSection.svelte';
+  import BotIntegrationDetails from './BotIntegrationDetails.svelte';
   import { Button, TextInput } from '$lib/ui/form';
 
   let {
@@ -99,50 +100,48 @@
 </script>
 
 <!-- @component Manages one named bot-credential collection, including create, show-once, and revoke dialogs. -->
-<Panel title={labels.title} subtitle={labels.description} noPadding>
+<BotIntegrationSection
+  title={labels.title}
+  description={labels.description}
+  {testId}
+  {items}
+  empty={labels.empty}
+>
   {#snippet actions()}
     <Button size="sm" disabled={atLimit} onclick={openCreate}>
       <span class={createIcon} aria-hidden="true"></span>
       {labels.create}
     </Button>
   {/snippet}
-
-  {#if items.length > 0}
-    <div class="selectable-list" data-testid={testId}>
-      {#each items as item (item.id)}
-        <div
-          class="flex flex-col gap-4 selectable-list-item px-5 py-4 sm:flex-row sm:items-center"
-        >
-          <div class="min-w-0 flex-1">
-            <div class="font-medium text-text-top"><bdi>{item.name}</bdi></div>
-            <dl class="mt-2 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-              <div>
-                <dt class="text-muted">{labels.createdAt}</dt>
-                <dd>{item.createdAt}</dd>
-              </div>
-              <div>
-                <dt class="text-muted">{labels.lastUsed}</dt>
-                <dd>{item.lastUsed}</dd>
-              </div>
-            </dl>
-          </div>
-          <div class="flex shrink-0 justify-end gap-2">
-            <Button size="sm" variant="danger-secondary" onclick={() => openRevoke(item.id)}>
-              <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
-              {labels.revoke}
-            </Button>
-          </div>
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <div class="p-5 text-muted">{labels.empty}</div>
-  {/if}
-
-  {#if atLimit}
-    <div class="border-t border-border px-5 py-3 text-muted">{labels.limitReached}</div>
-  {/if}
-</Panel>
+  {#snippet details(item)}
+    <BotIntegrationDetails name={item.name}>
+      <div>
+        <dt class="text-muted">{labels.createdAt}</dt>
+        <dd>{item.createdAt}</dd>
+      </div>
+      <div>
+        <dt class="text-muted">{labels.lastUsed}</dt>
+        <dd>{item.lastUsed}</dd>
+      </div>
+    </BotIntegrationDetails>
+  {/snippet}
+  {#snippet itemActions(item)}
+    <Button
+      size="sm"
+      variant="danger-secondary"
+      label={labels.revoke}
+      title={labels.revoke}
+      onclick={() => openRevoke(item.id)}
+    >
+      <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
+    </Button>
+  {/snippet}
+  {#snippet footer()}
+    {#if atLimit}<div class="border-t border-border px-5 py-3 text-muted">
+        {labels.limitReached}
+      </div>{/if}
+  {/snippet}
+</BotIntegrationSection>
 
 <FormDialog
   bind:visible={createVisible}

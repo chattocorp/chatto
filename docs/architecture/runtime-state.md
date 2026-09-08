@@ -256,3 +256,18 @@ durable message-body references.
 S3 public delivery probes only `instance/{assetId}`. This route never probes
 private current or historical attachment prefixes. Disallowed classes return
 404.
+
+## Outbound webhook delivery state
+
+Outbound webhooks use no KV keys. A process-local channel holds up to 64
+accepted deliveries. Eight workers per process hold active deliveries and
+retry timers. Each item contains message and endpoint references, attempt
+policy, and source-time expiry. It contains no plaintext message body or
+credentials. Shutdown discards this state. The shared EVT source consumer
+retains progress only until handoff, not until HTTP completion. See
+[NATS resources](nats-resources.md) and [effects](durable-effects.md).
+
+## Operational diagnostic history
+
+LOG stores retained records, not latest-value runtime state. It has no KV or
+process-local index. See [ADR-098](../adr/ADR-098-retained-operational-log.md).

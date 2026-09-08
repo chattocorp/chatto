@@ -73,6 +73,8 @@ func bootstrapBotsFromEnv() ([]BootstrapBot, bool, error) {
 			bot.APIKeyName = value
 		case "CREDENTIAL_FILE":
 			bot.CredentialFile = value
+		case "OUTBOUND_WEBHOOK_URL":
+			bot.OutboundWebhookURL = value
 		case "PERMISSIONS":
 			bot.Permissions = splitCommaSeparatedEnv(value)
 		case "ROOMS":

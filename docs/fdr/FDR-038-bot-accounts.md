@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-08
 
 ## Overview
 
@@ -299,8 +299,8 @@ alternate clients, and a future reliable delivery transport.
 
 **Tradeoff:** Realtime provides bounded reconnect recovery, not indefinite
 delivery. Bots must deduplicate stable event IDs. An integration that must
-process every event after a long outage needs a future acknowledged webhook or
-paged activity feature.
+process every event after a long outage needs a future acknowledged transport
+or paged activity feature. Outbound webhooks are also best effort.
 
 ### 11. Incoming webhooks use a separate action credential
 
@@ -324,6 +324,49 @@ a lost response can create a duplicate message. Last-use telemetry is
 best-effort and can be delayed, unavailable, or missing after a process or
 storage failure. Rich Slack payloads and replies to existing threads are
 deferred.
+
+### 12. Independent outbound webhooks
+
+**Decision:** A bot manager can create up to 20 named outbound endpoints, each
+with its own URL, optional Authorization value, and signing secret. Each enabled endpoint receives new direct mentions and messages in
+DMs that include the bot, including replies. A DM mention produces one
+request with both trigger values. The bot's own messages do not activate it.
+Channel messages without a direct mention, edits, reactions, and notification
+preferences do not activate an outbound webhook.
+
+**Why:** A fixed JSON structure and explicit event type let the receiving tool
+route requests without a separate event selection UI. See ADR-097.
+
+**Tradeoff:** Generic tools must accept the Chatto JSON body. Signing headers
+are available, but signature verification is the receiver's responsibility.
+The bot uses the normal API to reply. Webhook response bodies have no action.
+
+The saved name and URL remain visible to bot managers; Authorization remains
+write-only. Creation opens the signing-secret dialog immediately. Closing the
+dialog clears the secret. New endpoints start enabled in the UI.
+Names and signing secrets are fixed. The edit dialog changes the URL and lets
+managers type a replacement Authorization header directly. A blank field keeps
+the saved header; a clear action removes it and can be undone before saving.
+The saved value is never loaded into the field. Edits preserve the
+creation time and signing secret, and cancel retries for the previous settings.
+Row actions use icons with accessible labels and hover hints.
+Pause and resume preserve credentials. Resume accepts
+only new messages and does not revive cancelled retries. Revocation stops one
+endpoint permanently; an HTTP request already in flight can still finish.
+Paused endpoints count toward the limit. Bot accounts cannot manage endpoints.
+The UI uses the same collection and dialog layout as API keys and incoming
+webhooks, with toast feedback for completed actions.
+
+Chatto retries failed requests within an operator-configured lifetime and
+attempt limit. Delivery is best effort: pending work and retries live in memory
+and are lost on restart, without a failure record. Eight workers per process
+use a channel with 64 slots; a full channel blocks source handoff. Requests
+have a stable delivery ID. A receiver must tolerate duplicates. The bot page shows recent failures for each endpoint. Failures expire after
+the operator-configured retention period, seven days by default. Later success
+does not clear an earlier failure. An empty history does not prove successful
+delivery. Access is checked before sending. The message body is
+the currently readable version, so it can change between attempts after an
+edit. Retracted or inaccessible messages are not sent.
 
 ## Permissions
 
@@ -405,7 +448,7 @@ service, and send the target user ID.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
+- **ADRs:** ADR-098 (retained operational log), ADR-097 (best-effort outbound bot webhooks), ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052
@@ -425,5 +468,4 @@ service, and send the target user ID.
 ## Open Questions
 
 - API-key expiry is deferred.
-- Define durable outgoing-webhook registration, signing, retry, and delivery
-  status for semantic public events that need reliable automation delivery.
+- Additional outbound event types are deferred.

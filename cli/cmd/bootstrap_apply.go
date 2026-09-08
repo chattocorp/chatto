@@ -101,7 +101,8 @@ func applyBootstrap(ctx context.Context, c *core.ChattoCore, cfg config.Bootstra
 
 // applyBootstrapBot creates one development bot, applies its owner-delegated
 // server permissions, joins configured rooms, and writes its show-once API
-// key. The key is never logged or stored in EVT.
+// key. An optional outbound endpoint uses the normal bot-management operation.
+// The API key and webhook signing secret are never logged.
 func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCore, spec config.BootstrapBot) bool {
 	if spec.Login == "" || spec.OwnerLogin == "" || spec.CredentialFile == "" {
 		logger.Error("Skipping [bootstrap] bot with missing login, owner_login, or credential_file")
@@ -166,6 +167,14 @@ func applyBootstrapBot(ctx context.Context, logger *log.Logger, c *core.ChattoCo
 	if err := writeBootstrapCredential(spec.CredentialFile, bot.APIKey); err != nil {
 		logger.Error("Failed to write [bootstrap] bot credential", "user_id", bot.User.GetId(), "error", err)
 		return false
+	}
+	// The local receiver does not verify signatures. Discard the show-once secret;
+	// endpoint credentials remain encrypted by the normal creation operation.
+	if configured && spec.OutboundWebhookURL != "" {
+		if _, _, err := c.CreateBotOutboundWebhook(ctx, owner.GetId(), bot.User.GetId(), "Local development", spec.OutboundWebhookURL, "", true); err != nil {
+			logger.Error("Failed to create [bootstrap] bot outbound webhook", "user_id", bot.User.GetId())
+			return false
+		}
 	}
 	if !configured {
 		logger.Warn("Created [bootstrap] bot with incomplete permissions or membership", "user_id", bot.User.GetId())

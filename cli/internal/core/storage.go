@@ -27,6 +27,7 @@ type storage struct {
 
 	serverAssets       jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
 	serverEvtStream    jetstream.Stream      // EVT - authoritative domain event log (ADR-033/034).
+	logStream          jetstream.Stream      // LOG - retained operational diagnostics; excluded from backups.
 	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
 	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
@@ -197,7 +198,20 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
+	logStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+			Name: "LOG", Description: "Retained operational diagnostics", Subjects: []string{"log.>"},
+			Storage: jetstream.FileStorage, Compression: jetstream.S2Compression, Replicas: cfg.Replicas,
+			Retention: jetstream.LimitsPolicy, MaxAge: cfg.Log.RetentionOrDefault(),
+			Duplicates: min(2*time.Minute, cfg.Log.RetentionOrDefault()),
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("create LOG stream: %w", err)
+	}
+
 	return &storage{
+		logStream:          logStream,
 		encryptionKV:       encryptionKV,
 		runtimeStateKV:     runtimeStateKV,
 		serverAssets:       serverAssets,

@@ -883,6 +883,38 @@ returned only when the credential is created.
 | `last_used_state` | [`CredentialLastUsedState`](#chatto-api-v1-CredentialLastUsedState) | Availability of best-effort last-use telemetry. |
 | `last_used_at` | `optional google.protobuf.Timestamp` | Most recent recorded successful authentication time. |
 
+<a id="chatto-api-v1-BotOutboundWebhook"></a>
+
+### BotOutboundWebhook
+
+Endpoint settings visible only to the bot owner or a caller with bot.manage.
+Authorization and signing credentials are write-only. The saved URL is visible.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable ID of this endpoint. |
+| `enabled` | `bool` | Whether this configuration accepts new messages. |
+| `has_authorization` | `bool` | Whether an Authorization header is configured. |
+| `latest_failure` | [`BotWebhookFailure`](#chatto-api-v1-BotWebhookFailure) | Latest retained failure for this endpoint. Absent when no failure is retained. Later successes do not clear it. Absence does not prove successful delivery. |
+| `url` | `string` | Saved destination. May contain tool credentials; visible only to bot managers. |
+| `name` | `string` | Human-readable name assigned at creation. |
+| `created_at` | `google.protobuf.Timestamp` | Time this endpoint was created. |
+
+<a id="chatto-api-v1-BotWebhookFailure"></a>
+
+### BotWebhookFailure
+
+Safe summary of one recorded outbound webhook failure.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable delivery identifier shared by all retry attempts. |
+| `reason` | `string` | Safe failure category. Never contains response bodies or credentials. |
+| `attempts` | `uint32` | Delivery attempts, up to the attempt limit. An attempt can fail before HTTP starts, so this is not an exact HTTP request count. |
+| `http_status` | `uint32` | Zero if no HTTP response was received. |
+| `completed_at` | `google.protobuf.Timestamp` | Time the retained failure was recorded. |
+| `source_event_id` | `string` | Source message ID associated with this delivery. |
+
 <a id="chatto-api-v1-MessageSearchResult"></a>
 
 ### MessageSearchResult

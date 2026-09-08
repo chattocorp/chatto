@@ -36,13 +36,14 @@ func (u BootstrapUser) RoleOrDefault() string {
 // bootstrap-tag builds. The bootstrap writes the show-once API key to
 // CredentialFile with owner-only access. Release builds ignore this data.
 type BootstrapBot struct {
-	Login          string   `toml:"login" comment:"Required. The bot's login name."`
-	DisplayName    string   `toml:"display_name,commented" comment:"Defaults to Login if empty."`
-	OwnerLogin     string   `toml:"owner_login" comment:"Required. Login name of a bootstrapped human owner."`
-	APIKeyName     string   `toml:"api_key_name,commented" comment:"Optional display name for the initial API key."`
-	CredentialFile string   `toml:"credential_file" comment:"Required. File that receives the show-once API key with mode 0600."`
-	Permissions    []string `toml:"permissions,commented" comment:"Optional server-scope permissions delegated by the owner."`
-	Rooms          []string `toml:"rooms,commented" comment:"Optional channel room names that the bot joins."`
+	Login              string   `toml:"login" comment:"Required. The bot's login name."`
+	DisplayName        string   `toml:"display_name,commented" comment:"Defaults to Login if empty."`
+	OwnerLogin         string   `toml:"owner_login" comment:"Required. Login name of a bootstrapped human owner."`
+	APIKeyName         string   `toml:"api_key_name,commented" comment:"Optional display name for the initial API key."`
+	CredentialFile     string   `toml:"credential_file" comment:"Required. File that receives the show-once API key with mode 0600."`
+	OutboundWebhookURL string   `toml:"outbound_webhook_url,commented" comment:"Optional destination for an enabled Local development outbound webhook. Created only on first boot."`
+	Permissions        []string `toml:"permissions,commented" comment:"Optional server-scope permissions delegated by the owner."`
+	Rooms              []string `toml:"rooms,commented" comment:"Optional channel room names that the bot joins."`
 }
 
 // ServerOrDefault returns the normalized bootstrap server, honoring the

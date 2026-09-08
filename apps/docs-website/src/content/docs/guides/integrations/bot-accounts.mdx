@@ -239,3 +239,131 @@ human accounts, with the bot's user ID as the target. See the
 [BotService reference](/reference/connectrpc-api/bots/),
 [UserService reference](/reference/connectrpc-api/users/), and
 [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).
+
+## Outbound webhooks
+
+Open a bot in **Server Admin → Bots**, then select **Create webhook** in
+**Outbound webhooks**. Enter a name, the destination URL and, if required, the
+complete Authorization header value. Select **Create webhook** to save it.
+New webhooks start enabled. Use **Pause** to stop deliveries and **Resume** to
+start them again.
+
+Each endpoint has its own signing secret, shown once after creation. If your
+tool verifies signatures, copy the secret before closing the dialog. You can
+skip this step if your receiver does not verify signatures.
+
+Each bot can have up to 20 endpoints, including paused endpoints. Each enabled
+endpoint receives new messages that directly mention the
+bot and new messages in DMs that include the bot. This includes thread replies.
+A DM that mentions the bot produces one delivery with both triggers. Messages
+from the bot itself, ordinary channel messages, edits, and reactions do not
+activate the webhook. Notification preferences do not affect it.
+
+Chatto shows the saved names and URLs only to bot managers. Authorization values
+and signing secrets are not returned by later reads. Select **Edit webhook**
+(the pencil icon) to change the destination URL. You can keep, replace, or
+remove the Authorization header. Edits preserve the signing secret and creation
+time, and cancel queued retries for the previous settings. To change the name
+or signing secret, create a new endpoint and revoke the old one.
+
+Select **Pause** to stop new deliveries and cancel queued retries. **Resume**
+accepts new messages; it does not send messages from the paused period or revive
+cancelled retries. Pausing preserves the credentials. **Revoke webhook** removes
+one endpoint permanently. An HTTP request already in flight can still finish.
+These actions do not affect other endpoints on the bot.
+
+### Request body
+
+Every request has this structure:
+
+```json
+{
+  "version": 1,
+  "id": "stable-delivery-id",
+  "type": "message.created",
+  "triggers": ["direct_message", "mention"],
+  "occurred_at": "2026-09-05T12:00:00Z",
+  "bot_id": "bot-id",
+  "room_id": "room-id",
+  "thread_root_id": null,
+  "message": {
+    "id": "message-id",
+    "author_id": "author-id",
+    "body": "Hello @helper_bot"
+  }
+}
+```
+
+Use `triggers` to route mentions and DMs in your tool. `thread_root_id` is null
+for a root message. Attachments and other event types are not included in this
+version. Your tool must accept this JSON structure; Chatto does not translate
+it to a tool-specific payload.
+
+Return an HTTP 2xx response after you accept the request. Process longer tasks
+separately and use the bot API key to reply through the normal API. Chatto does
+not interpret the response body.
+
+### Signatures and authentication
+
+Chatto adds these headers:
+
+- `Chatto-Webhook-Id`: the delivery ID from the JSON body.
+- `Chatto-Webhook-Timestamp`: Unix time in seconds for this attempt.
+- `Chatto-Webhook-Signature`: `v1=` followed by a hexadecimal HMAC-SHA256 value.
+
+To verify the signature, use the signing secret **as its displayed UTF-8 text**
+without Base64 decoding. Compute HMAC-SHA256 over the timestamp, a full stop,
+and the exact request-body bytes. Compare signatures in constant time. Reject
+an old timestamp, for example after five minutes, and deduplicate the delivery
+ID. A retry has the same ID and a new timestamp.
+
+A generic tool can authenticate through its own secret URL or the configured
+Authorization header. It can ignore the signature headers if it does not
+support verification. Keep URL credentials, header values, and the signing
+secret private.
+
+### Retries, expiry, and access
+
+Chatto retries transport failures and all non-2xx responses. It never follows
+redirects. The default policy permits five attempts within 24 hours of the
+source message. The delay starts at 30 seconds and doubles up to 30 minutes.
+Each request has a ten-second timeout and cannot run beyond delivery expiry.
+
+Delivery is best effort. Pending requests and retry timers live in memory.
+Restart discards work already accepted by a process, without a failure record.
+A lost response or repeated source event can cause a repeat, even if your tool
+processed the request. Use the delivery ID to avoid repeating work. Attempts
+include failures before HTTP starts. Deliveries can arrive in a different
+order. Eight workers per process send and retry requests; failed endpoints
+can delay other deliveries while these workers wait.
+
+Chatto checks the bot's current access before sending. It skips delivery when
+access is lost, the message is unavailable, or the endpoint is paused or revoked. The
+body contains the currently readable message text. An edit can therefore
+change the body between attempts. Select **Recent failures** on an endpoint to
+read its retained failure history. Records show the time, attempt count, HTTP
+status when available, and a safe failure category. History is ordered oldest
+first; use **Load more** for the next page.
+
+Failures expire after seven days by default. Operators can set
+`core.log.retention` or `CHATTO_CORE_LOG_RETENTION`. Successful deliveries and intentional
+skips are not recorded. An empty history does not prove successful delivery.
+A later success does not clear a retained failure. Backups exclude this history.
+
+Operators can change retry and expiry policy through
+[environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
+
+Destinations require public HTTPS. The names `localhost` and `*.localhost`
+permit HTTP and HTTPS, but every resolved address must be loopback. Chatto
+checks these addresses when it connects and does not resolve them a second
+time. Use a localhost URL with your workspace’s Runling port (workspace port plus
+three, such as `http://localhost:55003`). The exception does
+not apply to IP literals such as `127.0.0.1` or other private-network hosts.
+
+### Local Runling example
+
+The [Runling example](https://github.com/chattocorp/chatto/tree/main/examples/runling-bot)
+receives this payload through Runling, reads the complete thread, and uses an
+agent to reply through the Chatto API. The agent can fetch public pages and
+consult the Chatto docs. The example includes local setup instructions and tests. The example
+uses Runling’s asynchronous run endpoint so Chatto receives an immediate `202`.

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotOutboundWebhookRequest, CreateBotOutboundWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotOutboundWebhooksRequest, ListBotOutboundWebhooksResponse, ListBotsRequest, ListBotsResponse, ListBotWebhookFailuresRequest, ListBotWebhookFailuresResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RevokeBotOutboundWebhookRequest, RevokeBotOutboundWebhookResponse, UpdateBotOutboundWebhookRequest, UpdateBotOutboundWebhookResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,6 +15,76 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
+    /**
+     * List retained failures for an endpoint of a bot you can manage. Returns full
+     * records in recording order, oldest first. Expired records are omitted.
+     * This history is diagnostic; an empty result does not prove successful delivery.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ListBotWebhookFailures
+     */
+    listBotWebhookFailures: {
+      name: "ListBotWebhookFailures",
+      I: ListBotWebhookFailuresRequest,
+      O: ListBotWebhookFailuresResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
+     * Returns the complete bounded collection, so callers do not need batch hydration.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ListBotOutboundWebhooks
+     */
+    listBotOutboundWebhooks: {
+      name: "ListBotOutboundWebhooks",
+      I: ListBotOutboundWebhooksRequest,
+      O: ListBotOutboundWebhooksResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets one endpoint. Requires bot ownership or bot.manage. Missing endpoints return NOT_FOUND.
+     *
+     * @generated from rpc chatto.api.v1.BotService.GetBotOutboundWebhook
+     */
+    getBotOutboundWebhook: {
+      name: "GetBotOutboundWebhook",
+      I: GetBotOutboundWebhookRequest,
+      O: GetBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.CreateBotOutboundWebhook
+     */
+    createBotOutboundWebhook: {
+      name: "CreateBotOutboundWebhook",
+      I: CreateBotOutboundWebhookRequest,
+      O: CreateBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Edits delivery settings or pauses/resumes delivery. Requires ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.UpdateBotOutboundWebhook
+     */
+    updateBotOutboundWebhook: {
+      name: "UpdateBotOutboundWebhook",
+      I: UpdateBotOutboundWebhookRequest,
+      O: UpdateBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Permanently revokes an endpoint. Requires ownership or bot.manage.
+     *
+     * @generated from rpc chatto.api.v1.BotService.RevokeBotOutboundWebhook
+     */
+    revokeBotOutboundWebhook: {
+      name: "RevokeBotOutboundWebhook",
+      I: RevokeBotOutboundWebhookRequest,
+      O: RevokeBotOutboundWebhookResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
     /**
      * Lists bots visible to the authenticated caller.
      *

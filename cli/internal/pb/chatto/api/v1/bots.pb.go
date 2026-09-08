@@ -1389,6 +1389,875 @@ func (x *ReassignBotOwnerResponse) GetBot() *Bot {
 	return nil
 }
 
+// Endpoint settings visible only to the bot owner or a caller with bot.manage.
+// Authorization and signing credentials are write-only. The saved URL is visible.
+type BotOutboundWebhook struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable ID of this endpoint.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Whether this configuration accepts new messages.
+	Enabled bool `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Whether an Authorization header is configured.
+	HasAuthorization bool `protobuf:"varint,3,opt,name=has_authorization,json=hasAuthorization,proto3" json:"has_authorization,omitempty"`
+	// Latest retained failure for this endpoint. Absent when no failure is retained.
+	// Later successes do not clear it. Absence does not prove successful delivery.
+	LatestFailure *BotWebhookFailure `protobuf:"bytes,4,opt,name=latest_failure,json=latestFailure,proto3" json:"latest_failure,omitempty"`
+	// Saved destination. May contain tool credentials; visible only to bot managers.
+	Url string `protobuf:"bytes,5,opt,name=url,proto3" json:"url,omitempty"`
+	// Human-readable name assigned at creation.
+	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	// Time this endpoint was created.
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotOutboundWebhook) Reset() {
+	*x = BotOutboundWebhook{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotOutboundWebhook) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotOutboundWebhook) ProtoMessage() {}
+
+func (x *BotOutboundWebhook) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotOutboundWebhook.ProtoReflect.Descriptor instead.
+func (*BotOutboundWebhook) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *BotOutboundWebhook) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhook) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *BotOutboundWebhook) GetHasAuthorization() bool {
+	if x != nil {
+		return x.HasAuthorization
+	}
+	return false
+}
+
+func (x *BotOutboundWebhook) GetLatestFailure() *BotWebhookFailure {
+	if x != nil {
+		return x.LatestFailure
+	}
+	return nil
+}
+
+func (x *BotOutboundWebhook) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhook) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhook) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+// Safe summary of one recorded outbound webhook failure.
+type BotWebhookFailure struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable delivery identifier shared by all retry attempts.
+	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// Safe failure category. Never contains response bodies or credentials.
+	Reason string `protobuf:"bytes,3,opt,name=reason,proto3" json:"reason,omitempty"`
+	// Delivery attempts, up to the attempt limit. An attempt can fail
+	// before HTTP starts, so this is not an exact HTTP request count.
+	Attempts uint32 `protobuf:"varint,4,opt,name=attempts,proto3" json:"attempts,omitempty"`
+	// Zero if no HTTP response was received.
+	HttpStatus uint32 `protobuf:"varint,5,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	// Time the retained failure was recorded.
+	CompletedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=completed_at,json=completedAt,proto3" json:"completed_at,omitempty"`
+	// Source message ID associated with this delivery.
+	SourceEventId string `protobuf:"bytes,7,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotWebhookFailure) Reset() {
+	*x = BotWebhookFailure{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotWebhookFailure) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotWebhookFailure) ProtoMessage() {}
+
+func (x *BotWebhookFailure) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotWebhookFailure.ProtoReflect.Descriptor instead.
+func (*BotWebhookFailure) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *BotWebhookFailure) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BotWebhookFailure) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *BotWebhookFailure) GetAttempts() uint32 {
+	if x != nil {
+		return x.Attempts
+	}
+	return 0
+}
+
+func (x *BotWebhookFailure) GetHttpStatus() uint32 {
+	if x != nil {
+		return x.HttpStatus
+	}
+	return 0
+}
+
+func (x *BotWebhookFailure) GetCompletedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CompletedAt
+	}
+	return nil
+}
+
+func (x *BotWebhookFailure) GetSourceEventId() string {
+	if x != nil {
+		return x.SourceEventId
+	}
+	return ""
+}
+
+// Read all endpoints for one managed bot. At most 20 endpoints are returned.
+type ListBotOutboundWebhooksRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required managed bot ID.
+	BotUserId     string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotOutboundWebhooksRequest) Reset() {
+	*x = ListBotOutboundWebhooksRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotOutboundWebhooksRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotOutboundWebhooksRequest) ProtoMessage() {}
+
+func (x *ListBotOutboundWebhooksRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotOutboundWebhooksRequest.ProtoReflect.Descriptor instead.
+func (*ListBotOutboundWebhooksRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListBotOutboundWebhooksRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+// All current endpoints, including paused ones.
+type ListBotOutboundWebhooksResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Complete collection, ordered by creation time and ID. No pagination is needed.
+	Webhooks      []*BotOutboundWebhook `protobuf:"bytes,1,rep,name=webhooks,proto3" json:"webhooks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotOutboundWebhooksResponse) Reset() {
+	*x = ListBotOutboundWebhooksResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotOutboundWebhooksResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotOutboundWebhooksResponse) ProtoMessage() {}
+
+func (x *ListBotOutboundWebhooksResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotOutboundWebhooksResponse.ProtoReflect.Descriptor instead.
+func (*ListBotOutboundWebhooksResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ListBotOutboundWebhooksResponse) GetWebhooks() []*BotOutboundWebhook {
+	if x != nil {
+		return x.Webhooks
+	}
+	return nil
+}
+
+// Read one endpoint belonging to the given managed bot.
+type GetBotOutboundWebhookRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required managed bot ID.
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required endpoint ID within this bot.
+	WebhookId     string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotOutboundWebhookRequest) Reset() {
+	*x = GetBotOutboundWebhookRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotOutboundWebhookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotOutboundWebhookRequest) ProtoMessage() {}
+
+func (x *GetBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
+func (*GetBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *GetBotOutboundWebhookRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *GetBotOutboundWebhookRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+// Metadata for the requested endpoint.
+type GetBotOutboundWebhookResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Endpoint metadata without Authorization or signing credentials.
+	Webhook       *BotOutboundWebhook `protobuf:"bytes,1,opt,name=webhook,proto3" json:"webhook,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotOutboundWebhookResponse) Reset() {
+	*x = GetBotOutboundWebhookResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotOutboundWebhookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotOutboundWebhookResponse) ProtoMessage() {}
+
+func (x *GetBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
+func (*GetBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *GetBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
+	if x != nil {
+		return x.Webhook
+	}
+	return nil
+}
+
+// Create an independent endpoint with its own signing secret.
+type CreateBotOutboundWebhookRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required managed bot ID.
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Absolute HTTPS destination; HTTP is also allowed for localhost names.
+	Url string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	// Optional complete Authorization header value.
+	Authorization string `protobuf:"bytes,3,opt,name=authorization,proto3" json:"authorization,omitempty"`
+	// False creates a paused endpoint.
+	Enabled bool `protobuf:"varint,4,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Display name, fixed after creation.
+	Name          string `protobuf:"bytes,5,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBotOutboundWebhookRequest) Reset() {
+	*x = CreateBotOutboundWebhookRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBotOutboundWebhookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBotOutboundWebhookRequest) ProtoMessage() {}
+
+func (x *CreateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
+func (*CreateBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *CreateBotOutboundWebhookRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *CreateBotOutboundWebhookRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *CreateBotOutboundWebhookRequest) GetAuthorization() string {
+	if x != nil {
+		return x.Authorization
+	}
+	return ""
+}
+
+func (x *CreateBotOutboundWebhookRequest) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *CreateBotOutboundWebhookRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// New endpoint and its show-once request verification secret.
+type CreateBotOutboundWebhookResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Endpoint metadata without Authorization or signing credentials.
+	Webhook *BotOutboundWebhook `protobuf:"bytes,1,opt,name=webhook,proto3" json:"webhook,omitempty"`
+	// Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests.
+	SigningSecret string `protobuf:"bytes,2,opt,name=signing_secret,json=signingSecret,proto3" json:"signing_secret,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateBotOutboundWebhookResponse) Reset() {
+	*x = CreateBotOutboundWebhookResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateBotOutboundWebhookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateBotOutboundWebhookResponse) ProtoMessage() {}
+
+func (x *CreateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
+func (*CreateBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *CreateBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
+	if x != nil {
+		return x.Webhook
+	}
+	return nil
+}
+
+func (x *CreateBotOutboundWebhookResponse) GetSigningSecret() string {
+	if x != nil {
+		return x.SigningSecret
+	}
+	return ""
+}
+
+// Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
+type UpdateBotOutboundWebhookRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required managed bot ID.
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required endpoint ID within this bot.
+	WebhookId string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	// If omitted, the state is unchanged. Resume accepts only new messages.
+	Enabled *bool `protobuf:"varint,3,opt,name=enabled,proto3,oneof" json:"enabled,omitempty"`
+	// New destination. Omit to keep it. Changing settings cancels queued retries.
+	Url *string `protobuf:"bytes,4,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	// New Authorization header. Omit to keep it; empty removes it. Never returned.
+	Authorization *string `protobuf:"bytes,5,opt,name=authorization,proto3,oneof" json:"authorization,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBotOutboundWebhookRequest) Reset() {
+	*x = UpdateBotOutboundWebhookRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBotOutboundWebhookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBotOutboundWebhookRequest) ProtoMessage() {}
+
+func (x *UpdateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
+func (*UpdateBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{31}
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetEnabled() bool {
+	if x != nil && x.Enabled != nil {
+		return *x.Enabled
+	}
+	return false
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetUrl() string {
+	if x != nil && x.Url != nil {
+		return *x.Url
+	}
+	return ""
+}
+
+func (x *UpdateBotOutboundWebhookRequest) GetAuthorization() string {
+	if x != nil && x.Authorization != nil {
+		return *x.Authorization
+	}
+	return ""
+}
+
+// Endpoint state after the update.
+type UpdateBotOutboundWebhookResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Endpoint metadata without Authorization or signing credentials.
+	Webhook       *BotOutboundWebhook `protobuf:"bytes,1,opt,name=webhook,proto3" json:"webhook,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateBotOutboundWebhookResponse) Reset() {
+	*x = UpdateBotOutboundWebhookResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateBotOutboundWebhookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateBotOutboundWebhookResponse) ProtoMessage() {}
+
+func (x *UpdateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
+func (*UpdateBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *UpdateBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
+	if x != nil {
+		return x.Webhook
+	}
+	return nil
+}
+
+// Revoke one endpoint and cancel its queued retries. In-flight HTTP may finish.
+type RevokeBotOutboundWebhookRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required managed bot ID.
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Required endpoint ID within this bot.
+	WebhookId     string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeBotOutboundWebhookRequest) Reset() {
+	*x = RevokeBotOutboundWebhookRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeBotOutboundWebhookRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeBotOutboundWebhookRequest) ProtoMessage() {}
+
+func (x *RevokeBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
+func (*RevokeBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *RevokeBotOutboundWebhookRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *RevokeBotOutboundWebhookRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+// Revocation completed, or this endpoint was already absent.
+type RevokeBotOutboundWebhookResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevokeBotOutboundWebhookResponse) Reset() {
+	*x = RevokeBotOutboundWebhookResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevokeBotOutboundWebhookResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevokeBotOutboundWebhookResponse) ProtoMessage() {}
+
+func (x *RevokeBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevokeBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
+func (*RevokeBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{34}
+}
+
+// Read the retained failure history for a current endpoint.
+type ListBotWebhookFailuresRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	WebhookId string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	// Maximum records, from 1 to 100. Zero selects 20.
+	PageSize uint32 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	// Opaque continuation from the previous response. Bound to viewer and endpoint.
+	Cursor        string `protobuf:"bytes,4,opt,name=cursor,proto3" json:"cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotWebhookFailuresRequest) Reset() {
+	*x = ListBotWebhookFailuresRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotWebhookFailuresRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotWebhookFailuresRequest) ProtoMessage() {}
+
+func (x *ListBotWebhookFailuresRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotWebhookFailuresRequest.ProtoReflect.Descriptor instead.
+func (*ListBotWebhookFailuresRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ListBotWebhookFailuresRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *ListBotWebhookFailuresRequest) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+func (x *ListBotWebhookFailuresRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListBotWebhookFailuresRequest) GetCursor() string {
+	if x != nil {
+		return x.Cursor
+	}
+	return ""
+}
+
+// A bounded page of complete failure records. No per-record hydration is needed.
+type ListBotWebhookFailuresResponse struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Failures []*BotWebhookFailure   `protobuf:"bytes,1,rep,name=failures,proto3" json:"failures,omitempty"`
+	// Empty at the end. Refresh without a cursor to include newer records.
+	NextCursor    string `protobuf:"bytes,2,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotWebhookFailuresResponse) Reset() {
+	*x = ListBotWebhookFailuresResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotWebhookFailuresResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotWebhookFailuresResponse) ProtoMessage() {}
+
+func (x *ListBotWebhookFailuresResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotWebhookFailuresResponse.ProtoReflect.Descriptor instead.
+func (*ListBotWebhookFailuresResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ListBotWebhookFailuresResponse) GetFailures() []*BotWebhookFailure {
+	if x != nil {
+		return x.Failures
+	}
+	return nil
+}
+
+func (x *ListBotWebhookFailuresResponse) GetNextCursor() string {
+	if x != nil {
+		return x.NextCursor
+	}
+	return ""
+}
+
 var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
@@ -1480,14 +2349,86 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12+\n" +
 	"\rowner_user_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vownerUserId\"@\n" +
 	"\x18ReassignBotOwnerResponse\x12$\n" +
-	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot*\xca\x01\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.chatto.api.v1.BotR\x03bot\"\x95\x02\n" +
+	"\x12BotOutboundWebhook\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aenabled\x18\x02 \x01(\bR\aenabled\x12+\n" +
+	"\x11has_authorization\x18\x03 \x01(\bR\x10hasAuthorization\x12G\n" +
+	"\x0elatest_failure\x18\x04 \x01(\v2 .chatto.api.v1.BotWebhookFailureR\rlatestFailure\x12\x10\n" +
+	"\x03url\x18\x05 \x01(\tR\x03url\x12\x12\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\xdf\x01\n" +
+	"\x11BotWebhookFailure\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06reason\x18\x03 \x01(\tR\x06reason\x12\x1a\n" +
+	"\battempts\x18\x04 \x01(\rR\battempts\x12\x1f\n" +
+	"\vhttp_status\x18\x05 \x01(\rR\n" +
+	"httpStatus\x12=\n" +
+	"\fcompleted_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\x12&\n" +
+	"\x0fsource_event_id\x18\a \x01(\tR\rsourceEventId\"I\n" +
+	"\x1eListBotOutboundWebhooksRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\"`\n" +
+	"\x1fListBotOutboundWebhooksResponse\x12=\n" +
+	"\bwebhooks\x18\x01 \x03(\v2!.chatto.api.v1.BotOutboundWebhookR\bwebhooks\"o\n" +
+	"\x1cGetBotOutboundWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\"\\\n" +
+	"\x1dGetBotOutboundWebhookResponse\x12;\n" +
+	"\awebhook\x18\x01 \x01(\v2!.chatto.api.v1.BotOutboundWebhookR\awebhook\"\xd1\x01\n" +
+	"\x1fCreateBotOutboundWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12\x1c\n" +
+	"\x03url\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 R\x03url\x12.\n" +
+	"\rauthorization\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\rauthorization\x12\x18\n" +
+	"\aenabled\x18\x04 \x01(\bR\aenabled\x12\x1d\n" +
+	"\x04name\x18\x05 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\"\x86\x01\n" +
+	" CreateBotOutboundWebhookResponse\x12;\n" +
+	"\awebhook\x18\x01 \x01(\v2!.chatto.api.v1.BotOutboundWebhookR\awebhook\x12%\n" +
+	"\x0esigning_secret\x18\x02 \x01(\tR\rsigningSecret\"\x8f\x02\n" +
+	"\x1fUpdateBotOutboundWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\x12\x1d\n" +
+	"\aenabled\x18\x03 \x01(\bH\x00R\aenabled\x88\x01\x01\x12!\n" +
+	"\x03url\x18\x04 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 H\x01R\x03url\x88\x01\x01\x123\n" +
+	"\rauthorization\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80 H\x02R\rauthorization\x88\x01\x01B\n" +
+	"\n" +
+	"\b_enabledB\x06\n" +
+	"\x04_urlB\x10\n" +
+	"\x0e_authorization\"_\n" +
+	" UpdateBotOutboundWebhookResponse\x12;\n" +
+	"\awebhook\x18\x01 \x01(\v2!.chatto.api.v1.BotOutboundWebhookR\awebhook\"r\n" +
+	"\x1fRevokeBotOutboundWebhookRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\"\"\n" +
+	" RevokeBotOutboundWebhookResponse\"\xb8\x01\n" +
+	"\x1dListBotWebhookFailuresRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12&\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\twebhookId\x12$\n" +
+	"\tpage_size\x18\x03 \x01(\rB\a\xbaH\x04*\x02\x18dR\bpageSize\x12 \n" +
+	"\x06cursor\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80 R\x06cursor\"\x7f\n" +
+	"\x1eListBotWebhookFailuresResponse\x12<\n" +
+	"\bfailures\x18\x01 \x03(\v2 .chatto.api.v1.BotWebhookFailureR\bfailures\x12\x1f\n" +
+	"\vnext_cursor\x18\x02 \x01(\tR\n" +
+	"nextCursor*\xca\x01\n" +
 	"\x17CredentialLastUsedState\x12*\n" +
 	"&CREDENTIAL_LAST_USED_STATE_UNSPECIFIED\x10\x00\x12.\n" +
 	"*CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED\x10\x01\x12'\n" +
 	"#CREDENTIAL_LAST_USED_STATE_RECORDED\x10\x02\x12*\n" +
-	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\xd1\a\n" +
+	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\xb3\r\n" +
 	"\n" +
-	"BotService\x12K\n" +
+	"BotService\x12u\n" +
+	"\x16ListBotWebhookFailures\x12,.chatto.api.v1.ListBotWebhookFailuresRequest\x1a-.chatto.api.v1.ListBotWebhookFailuresResponse\x12x\n" +
+	"\x17ListBotOutboundWebhooks\x12-.chatto.api.v1.ListBotOutboundWebhooksRequest\x1a..chatto.api.v1.ListBotOutboundWebhooksResponse\x12r\n" +
+	"\x15GetBotOutboundWebhook\x12+.chatto.api.v1.GetBotOutboundWebhookRequest\x1a,.chatto.api.v1.GetBotOutboundWebhookResponse\x12{\n" +
+	"\x18CreateBotOutboundWebhook\x12..chatto.api.v1.CreateBotOutboundWebhookRequest\x1a/.chatto.api.v1.CreateBotOutboundWebhookResponse\x12{\n" +
+	"\x18UpdateBotOutboundWebhook\x12..chatto.api.v1.UpdateBotOutboundWebhookRequest\x1a/.chatto.api.v1.UpdateBotOutboundWebhookResponse\x12\x80\x01\n" +
+	"\x18RevokeBotOutboundWebhook\x12..chatto.api.v1.RevokeBotOutboundWebhookRequest\x1a/.chatto.api.v1.RevokeBotOutboundWebhookResponse\"\x03\x90\x02\x02\x12K\n" +
 	"\bListBots\x12\x1e.chatto.api.v1.ListBotsRequest\x1a\x1f.chatto.api.v1.ListBotsResponse\x12E\n" +
 	"\x06GetBot\x12\x1c.chatto.api.v1.GetBotRequest\x1a\x1d.chatto.api.v1.GetBotResponse\x12W\n" +
 	"\fBatchGetBots\x12\".chatto.api.v1.BatchGetBotsRequest\x1a#.chatto.api.v1.BatchGetBotsResponse\x12N\n" +
@@ -1513,7 +2454,7 @@ func file_chatto_api_v1_bots_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_bots_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_chatto_api_v1_bots_proto_goTypes = []any{
 	(CredentialLastUsedState)(0),             // 0: chatto.api.v1.CredentialLastUsedState
 	(*Bot)(nil),                              // 1: chatto.api.v1.Bot
@@ -1539,26 +2480,40 @@ var file_chatto_api_v1_bots_proto_goTypes = []any{
 	(*RevokeBotIncomingWebhookResponse)(nil), // 21: chatto.api.v1.RevokeBotIncomingWebhookResponse
 	(*ReassignBotOwnerRequest)(nil),          // 22: chatto.api.v1.ReassignBotOwnerRequest
 	(*ReassignBotOwnerResponse)(nil),         // 23: chatto.api.v1.ReassignBotOwnerResponse
-	(*User)(nil),                             // 24: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),            // 25: google.protobuf.Timestamp
-	(*PageRequest)(nil),                      // 26: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                         // 27: chatto.api.v1.PageInfo
+	(*BotOutboundWebhook)(nil),               // 24: chatto.api.v1.BotOutboundWebhook
+	(*BotWebhookFailure)(nil),                // 25: chatto.api.v1.BotWebhookFailure
+	(*ListBotOutboundWebhooksRequest)(nil),   // 26: chatto.api.v1.ListBotOutboundWebhooksRequest
+	(*ListBotOutboundWebhooksResponse)(nil),  // 27: chatto.api.v1.ListBotOutboundWebhooksResponse
+	(*GetBotOutboundWebhookRequest)(nil),     // 28: chatto.api.v1.GetBotOutboundWebhookRequest
+	(*GetBotOutboundWebhookResponse)(nil),    // 29: chatto.api.v1.GetBotOutboundWebhookResponse
+	(*CreateBotOutboundWebhookRequest)(nil),  // 30: chatto.api.v1.CreateBotOutboundWebhookRequest
+	(*CreateBotOutboundWebhookResponse)(nil), // 31: chatto.api.v1.CreateBotOutboundWebhookResponse
+	(*UpdateBotOutboundWebhookRequest)(nil),  // 32: chatto.api.v1.UpdateBotOutboundWebhookRequest
+	(*UpdateBotOutboundWebhookResponse)(nil), // 33: chatto.api.v1.UpdateBotOutboundWebhookResponse
+	(*RevokeBotOutboundWebhookRequest)(nil),  // 34: chatto.api.v1.RevokeBotOutboundWebhookRequest
+	(*RevokeBotOutboundWebhookResponse)(nil), // 35: chatto.api.v1.RevokeBotOutboundWebhookResponse
+	(*ListBotWebhookFailuresRequest)(nil),    // 36: chatto.api.v1.ListBotWebhookFailuresRequest
+	(*ListBotWebhookFailuresResponse)(nil),   // 37: chatto.api.v1.ListBotWebhookFailuresResponse
+	(*User)(nil),                             // 38: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),            // 39: google.protobuf.Timestamp
+	(*PageRequest)(nil),                      // 40: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                         // 41: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_bots_proto_depIdxs = []int32{
-	24, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
-	25, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
-	25, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
+	38, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
+	39, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	39, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
 	3,  // 3: chatto.api.v1.Bot.incoming_webhooks:type_name -> chatto.api.v1.BotIncomingWebhook
 	2,  // 4: chatto.api.v1.Bot.api_keys:type_name -> chatto.api.v1.BotApiKey
-	25, // 5: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
+	39, // 5: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 6: chatto.api.v1.BotApiKey.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	25, // 7: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	25, // 8: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
+	39, // 7: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	39, // 8: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
 	0,  // 9: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	25, // 10: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
-	26, // 11: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
+	39, // 10: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
+	40, // 11: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
 	1,  // 12: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	27, // 13: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
+	41, // 13: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
 	1,  // 14: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
 	1,  // 15: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
 	1,  // 16: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
@@ -1569,31 +2524,51 @@ var file_chatto_api_v1_bots_proto_depIdxs = []int32{
 	1,  // 21: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
 	1,  // 22: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
 	1,  // 23: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
-	4,  // 24: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	6,  // 25: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	8,  // 26: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	10, // 27: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	12, // 28: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	14, // 29: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
-	16, // 30: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
-	18, // 31: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
-	20, // 32: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
-	22, // 33: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
-	5,  // 34: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	7,  // 35: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	9,  // 36: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	11, // 37: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	13, // 38: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	15, // 39: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
-	17, // 40: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
-	19, // 41: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
-	21, // 42: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
-	23, // 43: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
-	34, // [34:44] is the sub-list for method output_type
-	24, // [24:34] is the sub-list for method input_type
-	24, // [24:24] is the sub-list for extension type_name
-	24, // [24:24] is the sub-list for extension extendee
-	0,  // [0:24] is the sub-list for field type_name
+	25, // 24: chatto.api.v1.BotOutboundWebhook.latest_failure:type_name -> chatto.api.v1.BotWebhookFailure
+	39, // 25: chatto.api.v1.BotOutboundWebhook.created_at:type_name -> google.protobuf.Timestamp
+	39, // 26: chatto.api.v1.BotWebhookFailure.completed_at:type_name -> google.protobuf.Timestamp
+	24, // 27: chatto.api.v1.ListBotOutboundWebhooksResponse.webhooks:type_name -> chatto.api.v1.BotOutboundWebhook
+	24, // 28: chatto.api.v1.GetBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	24, // 29: chatto.api.v1.CreateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	24, // 30: chatto.api.v1.UpdateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	25, // 31: chatto.api.v1.ListBotWebhookFailuresResponse.failures:type_name -> chatto.api.v1.BotWebhookFailure
+	36, // 32: chatto.api.v1.BotService.ListBotWebhookFailures:input_type -> chatto.api.v1.ListBotWebhookFailuresRequest
+	26, // 33: chatto.api.v1.BotService.ListBotOutboundWebhooks:input_type -> chatto.api.v1.ListBotOutboundWebhooksRequest
+	28, // 34: chatto.api.v1.BotService.GetBotOutboundWebhook:input_type -> chatto.api.v1.GetBotOutboundWebhookRequest
+	30, // 35: chatto.api.v1.BotService.CreateBotOutboundWebhook:input_type -> chatto.api.v1.CreateBotOutboundWebhookRequest
+	32, // 36: chatto.api.v1.BotService.UpdateBotOutboundWebhook:input_type -> chatto.api.v1.UpdateBotOutboundWebhookRequest
+	34, // 37: chatto.api.v1.BotService.RevokeBotOutboundWebhook:input_type -> chatto.api.v1.RevokeBotOutboundWebhookRequest
+	4,  // 38: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	6,  // 39: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	8,  // 40: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	10, // 41: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	12, // 42: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	14, // 43: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
+	16, // 44: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
+	18, // 45: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
+	20, // 46: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
+	22, // 47: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
+	37, // 48: chatto.api.v1.BotService.ListBotWebhookFailures:output_type -> chatto.api.v1.ListBotWebhookFailuresResponse
+	27, // 49: chatto.api.v1.BotService.ListBotOutboundWebhooks:output_type -> chatto.api.v1.ListBotOutboundWebhooksResponse
+	29, // 50: chatto.api.v1.BotService.GetBotOutboundWebhook:output_type -> chatto.api.v1.GetBotOutboundWebhookResponse
+	31, // 51: chatto.api.v1.BotService.CreateBotOutboundWebhook:output_type -> chatto.api.v1.CreateBotOutboundWebhookResponse
+	33, // 52: chatto.api.v1.BotService.UpdateBotOutboundWebhook:output_type -> chatto.api.v1.UpdateBotOutboundWebhookResponse
+	35, // 53: chatto.api.v1.BotService.RevokeBotOutboundWebhook:output_type -> chatto.api.v1.RevokeBotOutboundWebhookResponse
+	5,  // 54: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	7,  // 55: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	9,  // 56: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	11, // 57: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	13, // 58: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	15, // 59: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
+	17, // 60: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
+	19, // 61: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
+	21, // 62: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
+	23, // 63: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
+	48, // [48:64] is the sub-list for method output_type
+	32, // [32:48] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }
@@ -1606,13 +2581,14 @@ func file_chatto_api_v1_bots_proto_init() {
 	file_chatto_api_v1_bots_proto_msgTypes[1].OneofWrappers = []any{}
 	file_chatto_api_v1_bots_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_api_v1_bots_proto_msgTypes[9].OneofWrappers = []any{}
+	file_chatto_api_v1_bots_proto_msgTypes[31].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_bots_proto_rawDesc), len(file_chatto_api_v1_bots_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   23,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
