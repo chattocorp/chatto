@@ -40,6 +40,7 @@ runs:
     - name: Setup mise
       uses: jdx/mise-action@v4
       with:
+        version: 2026.9.2
         experimental: true
 
     # pnpm is not available as a mise plugin, so install via npm (comes with Node)
