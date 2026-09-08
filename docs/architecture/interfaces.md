@@ -205,6 +205,8 @@ issued playlist ticket on its next playlist or segment request.
 Account-manager visibility alone does not grant access. Lists return the full
 bounded collection of at most 20 endpoints. Reads expose names, saved URLs,
 enabled state, creation time, and the latest recorded failure per endpoint.
+`BotWebhookFailure` represents a recorded failure; `latest_failure` is absent
+when no failure is retained. Success and skip statuses are not exposed.
 Names and signing secrets are fixed; creation returns a signing secret once.
 Update accepts optional enabled, URL, and Authorization fields. Omitted fields
 keep their current values; an empty Authorization value removes the header.

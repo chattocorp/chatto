@@ -260,8 +260,8 @@ message Event {
     InvitationRevokedEvent invitation_revoked = 932;
 
     BotOutboundWebhookConfiguredEvent bot_outbound_webhook_configured = 940;
-    BotWebhookDeliveryCompletedEvent bot_webhook_delivery_completed = 942;
-    BotOutboundWebhookStateChangedEvent bot_outbound_webhook_state_changed = 943;
+    BotOutboundWebhookUpdatedEvent bot_outbound_webhook_updated = 943;
+    BotOutboundWebhookRevokedEvent bot_outbound_webhook_revoked = 944;
 
     // ----- Reactions (1050-1059) — durable legacy-tag exception -----
     // Reaction events are stored on EVT today. They kept the legacy

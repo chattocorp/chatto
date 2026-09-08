@@ -754,26 +754,31 @@ func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
 	require.True(t, current.Enabled)
 }
 
-func TestBotOutboundWebhookProjectionLegacyReplay(t *testing.T) {
+func TestBotOutboundWebhookProjectionKeepsIndependentEndpoints(t *testing.T) {
 	p := newBotWebhookProjection()
-	configure := func(id string, independent, exists bool) *evtv1.Event {
-		x := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: "bot", WebhookId: id, Enabled: true, Independent: independent}
-		if exists {
-			x.Credentials = &evtv1.EncryptedUserString{}
-		}
+	configure := func(id string) *evtv1.Event {
+		x := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: "bot", WebhookId: id, Enabled: true, Credentials: &evtv1.EncryptedUserString{}}
 		return &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: x}}
 	}
-	require.NoError(t, p.Apply(configure("legacy-old", false, true), 1))
-	require.NoError(t, p.Apply(configure("legacy-current", false, true), 2))
-	require.Nil(t, p.get("bot", "legacy-old"))
-	require.NotNil(t, p.get("bot", "legacy-current"))
-	require.NoError(t, p.Apply(configure("new", true, true), 3))
+	require.NoError(t, p.Apply(configure("first"), 1))
+	require.NoError(t, p.Apply(configure("second"), 2))
 	require.Len(t, p.list("bot"), 2)
-	// Legacy removal affects only the legacy slot, not independently created endpoints.
-	require.NoError(t, p.Apply(configure("legacy-removal", false, false), 4))
-	require.Nil(t, p.get("bot", "legacy-current"))
-	require.NotNil(t, p.get("bot", "new"))
-	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "bot"}}}, 5))
+	// Editing one endpoint must not replace the other endpoint.
+	require.NoError(t, p.Apply(configure("first"), 3))
+	require.Len(t, p.list("bot"), 2)
+	require.NotNil(t, p.get("bot", "second"))
+	// Revocation is endpoint-scoped and a later update cannot revive it.
+	revoked := &evtv1.BotOutboundWebhookRevokedEvent{BotUserId: "other-bot", WebhookId: "first"}
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookRevoked{BotOutboundWebhookRevoked: revoked}}, 4))
+	require.NotNil(t, p.get("bot", "first"))
+	revoked.BotUserId = "bot"
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookRevoked{BotOutboundWebhookRevoked: revoked}}, 5))
+	require.Nil(t, p.get("bot", "first"))
+	updated := &evtv1.BotOutboundWebhookUpdatedEvent{BotUserId: "bot", WebhookId: "first", Enabled: true}
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookUpdated{BotOutboundWebhookUpdated: updated}}, 6))
+	require.Nil(t, p.get("bot", "first"))
+	require.NotNil(t, p.get("bot", "second"))
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "bot"}}}, 7))
 	require.Empty(t, p.list("bot"))
 }
 

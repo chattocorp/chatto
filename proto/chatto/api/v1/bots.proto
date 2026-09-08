@@ -239,7 +239,7 @@ message BotOutboundWebhook {
   bool has_authorization = 3;
   // Latest retained failure for this endpoint. Absent when no failure is retained.
   // Later successes do not clear it. Absence does not prove successful delivery.
-  BotWebhookDelivery latest_delivery = 4;
+  BotWebhookFailure latest_failure = 4;
   // Saved destination. May contain tool credentials; visible only to bot managers.
   string url = 5;
   // Human-readable name assigned at creation.
@@ -248,25 +248,11 @@ message BotOutboundWebhook {
   google.protobuf.Timestamp created_at = 7;
 }
 
-// Terminal state of one outbound webhook delivery.
-enum BotWebhookDeliveryStatus {
-  // No recognised terminal state was supplied.
-  BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED = 0;
-  // The endpoint accepted the request with an HTTP 2xx response.
-  BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED = 1;
-  // Attempts or delivery lifetime were exhausted.
-  BOT_WEBHOOK_DELIVERY_STATUS_FAILED = 2;
-  // Access, message availability, or endpoint settings prevented delivery.
-  BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED = 3;
-}
-
-// Safe summary of one terminal webhook delivery.
-message BotWebhookDelivery {
+// Safe summary of one recorded outbound webhook failure.
+message BotWebhookFailure {
   // Stable delivery identifier shared by all retry attempts.
   string id = 1;
-  // Final result of this delivery.
-  BotWebhookDeliveryStatus status = 2;
-  // Safe failure or skip category. Empty for successful delivery.
+  // Safe failure category. Never contains response bodies or credentials.
   string reason = 3;
   // Delivery attempts, up to the attempt limit. An attempt can fail
   // before HTTP starts, so this is not an exact HTTP request count.
@@ -417,7 +403,7 @@ message ListBotWebhookFailuresRequest {
 }
 // A bounded page of complete failure records. No per-record hydration is needed.
 message ListBotWebhookFailuresResponse {
-  repeated BotWebhookDelivery failures = 1;
+  repeated BotWebhookFailure failures = 1;
   // Empty at the end. Refresh without a cursor to include newer records.
   string next_cursor = 2;
 }

@@ -1,7 +1,6 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import { BotWebhookDeliveryStatus } from '@chatto/api-types/api/v1/bots_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
@@ -179,8 +178,7 @@ describe('outbound webhook settings', () => {
   it('shows endpoint failures and revokes only the confirmed endpoint', async () => {
     const failed = {
       ...first,
-      latestDelivery: {
-        status: BotWebhookDeliveryStatus.FAILED,
+      latestFailure: {
         reason: 'http_error',
         attempts: 5,
         httpStatus: 503

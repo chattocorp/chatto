@@ -3,38 +3,25 @@ package chatto.core.evt.v1;
 import "chatto/core/evt/v1/user_events.proto";
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1";
 
-// Tags 940 and 942 in Event own outbound bot webhook configuration and delivery.
+// Stores the encrypted settings for one outbound bot webhook.
 message BotOutboundWebhookConfiguredEvent {
   string bot_user_id = 1;
-  // Stable endpoint ID. Legacy records used this as a replacement generation.
+  // Stable endpoint ID, shared by creation and later settings changes.
   string webhook_id = 2;
   bool enabled = 3;
   // JSON endpoint credentials encrypted with the bot's PII key.
   EncryptedUserString credentials = 4;
-  // New endpoints coexist. False preserves the legacy single-endpoint replacement semantics.
-  bool independent = 5;
 }
 
-// Historical terminal failure, retained for stored EVT compatibility.
-// New failures use chatto.core.log.v1 and do not enter EVT.
-message BotWebhookDeliveryCompletedEvent {
-  string delivery_id = 1;
-  string bot_user_id = 2;
-  string webhook_id = 3;
-  string source_event_id = 4;
-  // Always failed. Successful and skipped deliveries have no EVT fact.
-  string status = 5;
-  // Fixed safe category; never a transport error string or response body.
-  string reason = 6;
-  uint32 attempts = 7;
-  uint32 http_status = 8;
-}
-
-// Changes one existing endpoint without changing its credentials.
-message BotOutboundWebhookStateChangedEvent {
+// Pauses or resumes one endpoint. Encrypted settings use ConfiguredEvent.
+message BotOutboundWebhookUpdatedEvent {
   string bot_user_id = 1;
   string webhook_id = 2;
   bool enabled = 3;
-  // Revocation permanently removes the endpoint. It cannot be resumed.
-  bool revoked = 4;
+}
+
+// Permanently revokes one endpoint. It cannot be resumed.
+message BotOutboundWebhookRevokedEvent {
+  string bot_user_id = 1;
+  string webhook_id = 2;
 }

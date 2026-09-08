@@ -1,8 +1,5 @@
 <script lang="ts">
-  import {
-    BotWebhookDeliveryStatus,
-    type BotOutboundWebhook
-  } from '@chatto/api-types/api/v1/bots_pb';
+  import type { BotOutboundWebhook } from '@chatto/api-types/api/v1/bots_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
@@ -222,8 +219,8 @@
         <dd class="truncate" title={webhook.url}><bdi>{webhook.url}</bdi></dd>
       </div>
     </BotIntegrationDetails>
-    {#if webhook.latestDelivery?.status === BotWebhookDeliveryStatus.FAILED}
-      {@const latest = webhook.latestDelivery}
+    {#if webhook.latestFailure}
+      {@const latest = webhook.latestFailure}
       <div class="mt-3" role="status">
         <p class="text-warning">{m('settings.bots.outbound.failed')}</p>
         <BotWebhookFailureDetails failure={latest} />

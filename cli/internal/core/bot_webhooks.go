@@ -157,7 +157,7 @@ func (m *botWebhookModel) configurationEvent(ctx context.Context, actorID, botID
 	if err != nil {
 		return nil, err
 	}
-	cfg := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: botID, WebhookId: webhookID, Enabled: enabled, Independent: true}
+	cfg := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: botID, WebhookId: webhookID, Enabled: enabled}
 	event := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: cfg}})
 	data, err := json.Marshal(creds)
 	if err != nil {
@@ -243,9 +243,12 @@ func (m *botWebhookModel) mutate(ctx context.Context, actorID, botID, webhookID 
 				if err != nil {
 					return nil, err
 				}
+			} else if revoke {
+				revoked := &evtv1.BotOutboundWebhookRevokedEvent{BotUserId: botID, WebhookId: webhookID}
+				event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookRevoked{BotOutboundWebhookRevoked: revoked}})
 			} else {
-				state := &evtv1.BotOutboundWebhookStateChangedEvent{BotUserId: botID, WebhookId: webhookID, Revoked: revoke, Enabled: nextEnabled}
-				event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookStateChanged{BotOutboundWebhookStateChanged: state}})
+				state := &evtv1.BotOutboundWebhookUpdatedEvent{BotUserId: botID, WebhookId: webhookID, Enabled: nextEnabled}
+				event = newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookUpdated{BotOutboundWebhookUpdated: state}})
 			}
 
 		}

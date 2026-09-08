@@ -28,7 +28,7 @@ Workers count attempts and use cancellable timers for exponential backoff,
 with a 30-minute delay cap. Operators set retry and expiry policy in TOML or
 ENV. Shutdown cancels requests and timers and discards accepted work.
 
-Terminal failure storage is superseded by [ADR-098](ADR-098-retained-operational-log.md).
+Terminal failure storage is defined in [ADR-098](ADR-098-retained-operational-log.md).
 New terminal failures enter retained LOG history. Success and intentional skips
 produce no records. Delivery IDs remain stable across source handoffs.
 
@@ -42,9 +42,8 @@ Edits cancel queued work for the previous configuration. Pause and
 resume record state changes without encrypting new credentials. Each enabled
 period has an EVT sequence cutoff. Old work stays cancelled after resume.
 Revocation permanently removes one endpoint. User-aggregate OCC enforces the
-collection limit and lifecycle across replicas. Legacy single-endpoint facts
-keep their replacement semantics during replay; new independent endpoints
-coexist with the retained legacy endpoint.
+collection limit and lifecycle across replicas. Each endpoint has one stable ID
+from creation until revocation.
 
 Use current authorization and message content before sending. Retraction,
 deletion, and access loss stop delivery. Notification state has no effect.

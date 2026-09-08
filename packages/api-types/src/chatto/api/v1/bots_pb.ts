@@ -51,48 +51,6 @@ proto3.util.setEnumType(CredentialLastUsedState, "chatto.api.v1.CredentialLastUs
 ]);
 
 /**
- * Terminal state of one outbound webhook delivery.
- *
- * @generated from enum chatto.api.v1.BotWebhookDeliveryStatus
- */
-export enum BotWebhookDeliveryStatus {
-  /**
-   * No recognised terminal state was supplied.
-   *
-   * @generated from enum value: BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * The endpoint accepted the request with an HTTP 2xx response.
-   *
-   * @generated from enum value: BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED = 1;
-   */
-  DELIVERED = 1,
-
-  /**
-   * Attempts or delivery lifetime were exhausted.
-   *
-   * @generated from enum value: BOT_WEBHOOK_DELIVERY_STATUS_FAILED = 2;
-   */
-  FAILED = 2,
-
-  /**
-   * Access, message availability, or endpoint settings prevented delivery.
-   *
-   * @generated from enum value: BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED = 3;
-   */
-  SKIPPED = 3,
-}
-// Retrieve enum metadata with: proto3.getEnumType(BotWebhookDeliveryStatus)
-proto3.util.setEnumType(BotWebhookDeliveryStatus, "chatto.api.v1.BotWebhookDeliveryStatus", [
-  { no: 0, name: "BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED" },
-  { no: 1, name: "BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED" },
-  { no: 2, name: "BOT_WEBHOOK_DELIVERY_STATUS_FAILED" },
-  { no: 3, name: "BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED" },
-]);
-
-/**
  * A managed bot account. Raw API keys are returned only when Chatto issues
  * them.
  *
@@ -1290,9 +1248,9 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
    * Latest retained failure for this endpoint. Absent when no failure is retained.
    * Later successes do not clear it. Absence does not prove successful delivery.
    *
-   * @generated from field: chatto.api.v1.BotWebhookDelivery latest_delivery = 4;
+   * @generated from field: chatto.api.v1.BotWebhookFailure latest_failure = 4;
    */
-  latestDelivery?: BotWebhookDelivery;
+  latestFailure?: BotWebhookFailure;
 
   /**
    * Saved destination. May contain tool credentials; visible only to bot managers.
@@ -1326,7 +1284,7 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "has_authorization", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "latest_delivery", kind: "message", T: BotWebhookDelivery },
+    { no: 4, name: "latest_failure", kind: "message", T: BotWebhookFailure },
     { no: 5, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 6, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "created_at", kind: "message", T: Timestamp },
@@ -1350,11 +1308,11 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
 }
 
 /**
- * Safe summary of one terminal webhook delivery.
+ * Safe summary of one recorded outbound webhook failure.
  *
- * @generated from message chatto.api.v1.BotWebhookDelivery
+ * @generated from message chatto.api.v1.BotWebhookFailure
  */
-export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
+export class BotWebhookFailure extends Message<BotWebhookFailure> {
   /**
    * Stable delivery identifier shared by all retry attempts.
    *
@@ -1363,14 +1321,7 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
   id = "";
 
   /**
-   * Final result of this delivery.
-   *
-   * @generated from field: chatto.api.v1.BotWebhookDeliveryStatus status = 2;
-   */
-  status = BotWebhookDeliveryStatus.UNSPECIFIED;
-
-  /**
-   * Safe failure or skip category. Empty for successful delivery.
+   * Safe failure category. Never contains response bodies or credentials.
    *
    * @generated from field: string reason = 3;
    */
@@ -1405,16 +1356,15 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
    */
   sourceEventId = "";
 
-  constructor(data?: PartialMessage<BotWebhookDelivery>) {
+  constructor(data?: PartialMessage<BotWebhookFailure>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BotWebhookDelivery";
+  static readonly typeName = "chatto.api.v1.BotWebhookFailure";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "status", kind: "enum", T: proto3.getEnumType(BotWebhookDeliveryStatus) },
     { no: 3, name: "reason", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "attempts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "http_status", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
@@ -1422,20 +1372,20 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
     { no: 7, name: "source_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotWebhookDelivery {
-    return new BotWebhookDelivery().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotWebhookFailure {
+    return new BotWebhookFailure().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotWebhookDelivery {
-    return new BotWebhookDelivery().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotWebhookFailure {
+    return new BotWebhookFailure().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotWebhookDelivery {
-    return new BotWebhookDelivery().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotWebhookFailure {
+    return new BotWebhookFailure().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BotWebhookDelivery | PlainMessage<BotWebhookDelivery> | undefined, b: BotWebhookDelivery | PlainMessage<BotWebhookDelivery> | undefined): boolean {
-    return proto3.util.equals(BotWebhookDelivery, a, b);
+  static equals(a: BotWebhookFailure | PlainMessage<BotWebhookFailure> | undefined, b: BotWebhookFailure | PlainMessage<BotWebhookFailure> | undefined): boolean {
+    return proto3.util.equals(BotWebhookFailure, a, b);
   }
 }
 
@@ -1997,9 +1947,9 @@ export class ListBotWebhookFailuresRequest extends Message<ListBotWebhookFailure
  */
 export class ListBotWebhookFailuresResponse extends Message<ListBotWebhookFailuresResponse> {
   /**
-   * @generated from field: repeated chatto.api.v1.BotWebhookDelivery failures = 1;
+   * @generated from field: repeated chatto.api.v1.BotWebhookFailure failures = 1;
    */
-  failures: BotWebhookDelivery[] = [];
+  failures: BotWebhookFailure[] = [];
 
   /**
    * Empty at the end. Refresh without a cursor to include newer records.
@@ -2016,7 +1966,7 @@ export class ListBotWebhookFailuresResponse extends Message<ListBotWebhookFailur
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.ListBotWebhookFailuresResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "failures", kind: "message", T: BotWebhookDelivery, repeated: true },
+    { no: 1, name: "failures", kind: "message", T: BotWebhookFailure, repeated: true },
     { no: 2, name: "next_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 

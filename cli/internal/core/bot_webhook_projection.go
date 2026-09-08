@@ -22,18 +22,16 @@ type botWebhookEndpoint struct {
 }
 
 // botWebhookProjection retains encrypted endpoints.
-// Legacy single-endpoint events still replace only the legacy slot for that bot.
 type botWebhookProjection struct {
 	events.MemoryProjection
 	endpoints map[string]*botWebhookEndpoint
-	legacy    map[string]string
 }
 
 func newBotWebhookProjection() *botWebhookProjection {
-	return &botWebhookProjection{endpoints: map[string]*botWebhookEndpoint{}, legacy: map[string]string{}}
+	return &botWebhookProjection{endpoints: map[string]*botWebhookEndpoint{}}
 }
 func (p *botWebhookProjection) Subjects() []string {
-	return []string{evtstream.UserEventTypeFilter("bot_outbound_webhook_configured"), evtstream.UserEventTypeFilter("bot_outbound_webhook_state_changed"), evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted)}
+	return []string{evtstream.UserEventTypeFilter("bot_outbound_webhook_configured"), evtstream.UserEventTypeFilter("bot_outbound_webhook_updated"), evtstream.UserEventTypeFilter("bot_outbound_webhook_revoked"), evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted)}
 }
 func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 	p.Lock()
@@ -41,34 +39,28 @@ func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 	switch x := event.GetEvent().(type) {
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		cfg := x.BotOutboundWebhookConfigured
-		if !cfg.GetIndependent() {
-			delete(p.endpoints, p.legacy[cfg.GetBotUserId()])
-			delete(p.legacy, cfg.GetBotUserId())
-		}
 		if cfg.GetCredentials() != nil {
 			createdAt := event.GetCreatedAt().AsTime()
 			if existing := p.endpoints[cfg.GetWebhookId()]; existing != nil {
 				createdAt = existing.CreatedAt
 			}
 			p.endpoints[cfg.GetWebhookId()] = &botWebhookEndpoint{Configuration: cloneWebhookEvent(event), CreatedAt: createdAt, Sequence: seq, Enabled: cfg.GetEnabled()}
-			if !cfg.GetIndependent() {
-				p.legacy[cfg.GetBotUserId()] = cfg.GetWebhookId()
-			}
 		}
-	case *evtv1.Event_BotOutboundWebhookStateChanged:
-		state := x.BotOutboundWebhookStateChanged
+	case *evtv1.Event_BotOutboundWebhookUpdated:
+		state := x.BotOutboundWebhookUpdated
 		endpoint := p.endpoints[state.GetWebhookId()]
 		if endpoint == nil || endpoint.Configuration.GetBotOutboundWebhookConfigured().GetBotUserId() != state.GetBotUserId() {
 			return nil
 		}
-		if state.GetRevoked() {
-			delete(p.endpoints, state.GetWebhookId())
-			if p.legacy[state.GetBotUserId()] == state.GetWebhookId() {
-				delete(p.legacy, state.GetBotUserId())
-			}
-		} else if endpoint.Enabled != state.GetEnabled() {
+		if endpoint.Enabled != state.GetEnabled() {
 			endpoint.Enabled = state.GetEnabled()
 			endpoint.Sequence = seq
+		}
+	case *evtv1.Event_BotOutboundWebhookRevoked:
+		revoked := x.BotOutboundWebhookRevoked
+		endpoint := p.endpoints[revoked.GetWebhookId()]
+		if endpoint != nil && endpoint.Configuration.GetBotOutboundWebhookConfigured().GetBotUserId() == revoked.GetBotUserId() {
+			delete(p.endpoints, revoked.GetWebhookId())
 		}
 	case *evtv1.Event_UserAccountDeleted:
 		id := x.UserAccountDeleted.GetUserId()
@@ -77,7 +69,6 @@ func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 				delete(p.endpoints, webhookID)
 			}
 		}
-		delete(p.legacy, id)
 	}
 	return nil
 }

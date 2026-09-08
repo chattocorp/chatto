@@ -498,17 +498,15 @@ Terminal failures append
 The envelope and payload live in
 [`chatto.core.log.v1`](../../proto/chatto/core/log/v1/entry.proto).
 Subject OCC suppresses duplicates while the record is retained. These records
-do not enter EVT or the public realtime catalogue. Historical
-`evt.bot_webhook_delivery.<delivery-id>.bot_webhook_delivery_completed` records
-remain decodable but are no longer written or projected.
+do not enter EVT or the public realtime catalogue.
 
 ### Outbound webhook lifecycle
 
 `evt.user.<bot-id>.bot_outbound_webhook_configured` stores encrypted endpoint
 creation and destination edits. Edits reuse the endpoint ID and preserve the
-first creation time. New records set `independent`; older records retain the legacy
-single-endpoint replacement semantics. The encrypted payload contains the
+first creation time. The encrypted payload contains the
 name, URL, Authorization value, and signing secret.
-`evt.user.<bot-id>.bot_outbound_webhook_state_changed` pauses, resumes, or
-revokes one endpoint. Both commands use the user aggregate OCC boundary.
+`evt.user.<bot-id>.bot_outbound_webhook_updated` pauses or resumes one endpoint.
+`evt.user.<bot-id>.bot_outbound_webhook_revoked` permanently revokes one endpoint.
+All endpoint commands use the user aggregate OCC boundary.
 Failure recording uses LOG independently of these domain lifecycle events.

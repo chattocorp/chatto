@@ -1,9 +1,9 @@
 <!-- @component Safe metadata shared by the latest failure and retained history. -->
 <script lang="ts">
-  import type { BotWebhookDelivery } from '@chatto/api-types/api/v1/bots_pb';
+  import type { BotWebhookFailure } from '@chatto/api-types/api/v1/bots_pb';
   import { m } from '$lib/i18n/messages';
 
-  let { failure }: { failure: BotWebhookDelivery } = $props();
+  let { failure }: { failure: BotWebhookFailure } = $props();
 </script>
 
 <div class="flex flex-wrap gap-x-4 gap-y-1 text-muted">

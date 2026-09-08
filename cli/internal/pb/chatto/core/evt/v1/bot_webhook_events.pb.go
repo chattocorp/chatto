@@ -21,17 +21,15 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Tags 940 and 942 in Event own outbound bot webhook configuration and delivery.
+// Stores the encrypted settings for one outbound bot webhook.
 type BotOutboundWebhookConfiguredEvent struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	// Stable endpoint ID. Legacy records used this as a replacement generation.
+	// Stable endpoint ID, shared by creation and later settings changes.
 	WebhookId string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	Enabled   bool   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// JSON endpoint credentials encrypted with the bot's PII key.
-	Credentials *EncryptedUserString `protobuf:"bytes,4,opt,name=credentials,proto3" json:"credentials,omitempty"`
-	// New endpoints coexist. False preserves the legacy single-endpoint replacement semantics.
-	Independent   bool `protobuf:"varint,5,opt,name=independent,proto3" json:"independent,omitempty"`
+	Credentials   *EncryptedUserString `protobuf:"bytes,4,opt,name=credentials,proto3" json:"credentials,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -94,45 +92,30 @@ func (x *BotOutboundWebhookConfiguredEvent) GetCredentials() *EncryptedUserStrin
 	return nil
 }
 
-func (x *BotOutboundWebhookConfiguredEvent) GetIndependent() bool {
-	if x != nil {
-		return x.Independent
-	}
-	return false
-}
-
-// Historical terminal failure, retained for stored EVT compatibility.
-// New failures use chatto.core.log.v1 and do not enter EVT.
-type BotWebhookDeliveryCompletedEvent struct {
+// Pauses or resumes one endpoint. Encrypted settings use ConfiguredEvent.
+type BotOutboundWebhookUpdatedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	DeliveryId    string                 `protobuf:"bytes,1,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`
-	BotUserId     string                 `protobuf:"bytes,2,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	WebhookId     string                 `protobuf:"bytes,3,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
-	SourceEventId string                 `protobuf:"bytes,4,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	// Always failed. Successful and skipped deliveries have no EVT fact.
-	Status string `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
-	// Fixed safe category; never a transport error string or response body.
-	Reason        string `protobuf:"bytes,6,opt,name=reason,proto3" json:"reason,omitempty"`
-	Attempts      uint32 `protobuf:"varint,7,opt,name=attempts,proto3" json:"attempts,omitempty"`
-	HttpStatus    uint32 `protobuf:"varint,8,opt,name=http_status,json=httpStatus,proto3" json:"http_status,omitempty"`
+	BotUserId     string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	Enabled       bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *BotWebhookDeliveryCompletedEvent) Reset() {
-	*x = BotWebhookDeliveryCompletedEvent{}
+func (x *BotOutboundWebhookUpdatedEvent) Reset() {
+	*x = BotOutboundWebhookUpdatedEvent{}
 	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BotWebhookDeliveryCompletedEvent) String() string {
+func (x *BotOutboundWebhookUpdatedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BotWebhookDeliveryCompletedEvent) ProtoMessage() {}
+func (*BotOutboundWebhookUpdatedEvent) ProtoMessage() {}
 
-func (x *BotWebhookDeliveryCompletedEvent) ProtoReflect() protoreflect.Message {
+func (x *BotOutboundWebhookUpdatedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -144,167 +127,105 @@ func (x *BotWebhookDeliveryCompletedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BotWebhookDeliveryCompletedEvent.ProtoReflect.Descriptor instead.
-func (*BotWebhookDeliveryCompletedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use BotOutboundWebhookUpdatedEvent.ProtoReflect.Descriptor instead.
+func (*BotOutboundWebhookUpdatedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *BotWebhookDeliveryCompletedEvent) GetDeliveryId() string {
-	if x != nil {
-		return x.DeliveryId
-	}
-	return ""
-}
-
-func (x *BotWebhookDeliveryCompletedEvent) GetBotUserId() string {
+func (x *BotOutboundWebhookUpdatedEvent) GetBotUserId() string {
 	if x != nil {
 		return x.BotUserId
 	}
 	return ""
 }
 
-func (x *BotWebhookDeliveryCompletedEvent) GetWebhookId() string {
+func (x *BotOutboundWebhookUpdatedEvent) GetWebhookId() string {
 	if x != nil {
 		return x.WebhookId
 	}
 	return ""
 }
 
-func (x *BotWebhookDeliveryCompletedEvent) GetSourceEventId() string {
-	if x != nil {
-		return x.SourceEventId
-	}
-	return ""
-}
-
-func (x *BotWebhookDeliveryCompletedEvent) GetStatus() string {
-	if x != nil {
-		return x.Status
-	}
-	return ""
-}
-
-func (x *BotWebhookDeliveryCompletedEvent) GetReason() string {
-	if x != nil {
-		return x.Reason
-	}
-	return ""
-}
-
-func (x *BotWebhookDeliveryCompletedEvent) GetAttempts() uint32 {
-	if x != nil {
-		return x.Attempts
-	}
-	return 0
-}
-
-func (x *BotWebhookDeliveryCompletedEvent) GetHttpStatus() uint32 {
-	if x != nil {
-		return x.HttpStatus
-	}
-	return 0
-}
-
-// Changes one existing endpoint without changing its credentials.
-type BotOutboundWebhookStateChangedEvent struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	WebhookId string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
-	Enabled   bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	// Revocation permanently removes the endpoint. It cannot be resumed.
-	Revoked       bool `protobuf:"varint,4,opt,name=revoked,proto3" json:"revoked,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BotOutboundWebhookStateChangedEvent) Reset() {
-	*x = BotOutboundWebhookStateChangedEvent{}
-	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BotOutboundWebhookStateChangedEvent) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BotOutboundWebhookStateChangedEvent) ProtoMessage() {}
-
-func (x *BotOutboundWebhookStateChangedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BotOutboundWebhookStateChangedEvent.ProtoReflect.Descriptor instead.
-func (*BotOutboundWebhookStateChangedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *BotOutboundWebhookStateChangedEvent) GetBotUserId() string {
-	if x != nil {
-		return x.BotUserId
-	}
-	return ""
-}
-
-func (x *BotOutboundWebhookStateChangedEvent) GetWebhookId() string {
-	if x != nil {
-		return x.WebhookId
-	}
-	return ""
-}
-
-func (x *BotOutboundWebhookStateChangedEvent) GetEnabled() bool {
+func (x *BotOutboundWebhookUpdatedEvent) GetEnabled() bool {
 	if x != nil {
 		return x.Enabled
 	}
 	return false
 }
 
-func (x *BotOutboundWebhookStateChangedEvent) GetRevoked() bool {
+// Permanently revokes one endpoint. It cannot be resumed.
+type BotOutboundWebhookRevokedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BotUserId     string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	WebhookId     string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotOutboundWebhookRevokedEvent) Reset() {
+	*x = BotOutboundWebhookRevokedEvent{}
+	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotOutboundWebhookRevokedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotOutboundWebhookRevokedEvent) ProtoMessage() {}
+
+func (x *BotOutboundWebhookRevokedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
 	if x != nil {
-		return x.Revoked
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
 	}
-	return false
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotOutboundWebhookRevokedEvent.ProtoReflect.Descriptor instead.
+func (*BotOutboundWebhookRevokedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BotOutboundWebhookRevokedEvent) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhookRevokedEvent) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
 }
 
 var File_chatto_core_evt_v1_bot_webhook_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_bot_webhook_events_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/core/evt/v1/bot_webhook_events.proto\x12\x12chatto.core.evt.v1\x1a$chatto/core/evt/v1/user_events.proto\"\xe9\x01\n" +
+	"+chatto/core/evt/v1/bot_webhook_events.proto\x12\x12chatto.core.evt.v1\x1a$chatto/core/evt/v1/user_events.proto\"\xc7\x01\n" +
 	"!BotOutboundWebhookConfiguredEvent\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tR\twebhookId\x12\x18\n" +
 	"\aenabled\x18\x03 \x01(\bR\aenabled\x12I\n" +
-	"\vcredentials\x18\x04 \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\vcredentials\x12 \n" +
-	"\vindependent\x18\x05 \x01(\bR\vindependent\"\x97\x02\n" +
-	" BotWebhookDeliveryCompletedEvent\x12\x1f\n" +
-	"\vdelivery_id\x18\x01 \x01(\tR\n" +
-	"deliveryId\x12\x1e\n" +
-	"\vbot_user_id\x18\x02 \x01(\tR\tbotUserId\x12\x1d\n" +
-	"\n" +
-	"webhook_id\x18\x03 \x01(\tR\twebhookId\x12&\n" +
-	"\x0fsource_event_id\x18\x04 \x01(\tR\rsourceEventId\x12\x16\n" +
-	"\x06status\x18\x05 \x01(\tR\x06status\x12\x16\n" +
-	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\x1a\n" +
-	"\battempts\x18\a \x01(\rR\battempts\x12\x1f\n" +
-	"\vhttp_status\x18\b \x01(\rR\n" +
-	"httpStatus\"\x98\x01\n" +
-	"#BotOutboundWebhookStateChangedEvent\x12\x1e\n" +
+	"\vcredentials\x18\x04 \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\vcredentials\"y\n" +
+	"\x1eBotOutboundWebhookUpdatedEvent\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tR\twebhookId\x12\x18\n" +
-	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x18\n" +
-	"\arevoked\x18\x04 \x01(\bR\arevokedB\xd0\x01\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\"_\n" +
+	"\x1eBotOutboundWebhookRevokedEvent\x12\x1e\n" +
+	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tR\twebhookIdB\xd0\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x15BotWebhookEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
@@ -321,10 +242,10 @@ func file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP() []byte {
 
 var file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_core_evt_v1_bot_webhook_events_proto_goTypes = []any{
-	(*BotOutboundWebhookConfiguredEvent)(nil),   // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
-	(*BotWebhookDeliveryCompletedEvent)(nil),    // 1: chatto.core.evt.v1.BotWebhookDeliveryCompletedEvent
-	(*BotOutboundWebhookStateChangedEvent)(nil), // 2: chatto.core.evt.v1.BotOutboundWebhookStateChangedEvent
-	(*EncryptedUserString)(nil),                 // 3: chatto.core.evt.v1.EncryptedUserString
+	(*BotOutboundWebhookConfiguredEvent)(nil), // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
+	(*BotOutboundWebhookUpdatedEvent)(nil),    // 1: chatto.core.evt.v1.BotOutboundWebhookUpdatedEvent
+	(*BotOutboundWebhookRevokedEvent)(nil),    // 2: chatto.core.evt.v1.BotOutboundWebhookRevokedEvent
+	(*EncryptedUserString)(nil),               // 3: chatto.core.evt.v1.EncryptedUserString
 }
 var file_chatto_core_evt_v1_bot_webhook_events_proto_depIdxs = []int32{
 	3, // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent.credentials:type_name -> chatto.core.evt.v1.EncryptedUserString

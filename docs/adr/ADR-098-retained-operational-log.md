@@ -39,12 +39,8 @@ A failed log append produces a safe server log and ends the recording attempt;
 it never retries HTTP. Source-time expiry still prevents old messages from
 sending HTTP after log retention ends.
 
-New failures do not enter EVT. Keep the historical EVT protobuf variant and
-subject mapping readable, but do not copy old failures to LOG. This supersedes
-the failure-storage decision in ADR-097. Exclude LOG from backups because it is
-not recovery state. Restored servers start with empty diagnostic history.
-An upgrade can retry a still-live delivery whose terminal failure exists only
-in historical EVT. Receivers must continue to tolerate duplicate delivery IDs.
+Webhook delivery failures enter LOG only. Exclude LOG from backups because it
+is not recovery state. Restored servers start with empty diagnostic history.
 
 ## Consequences
 

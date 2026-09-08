@@ -14,7 +14,7 @@ func apiBotOutboundWebhook(w *core.BotOutboundWebhook) *apiv1.BotOutboundWebhook
 		return nil
 	}
 	result := &apiv1.BotOutboundWebhook{Id: w.ID, Name: w.Name, CreatedAt: timestamppb.New(w.CreatedAt), Url: w.URL, Enabled: w.Enabled, HasAuthorization: w.HasAuthorization}
-	result.LatestDelivery = apiBotWebhookFailure(w.Latest)
+	result.LatestFailure = apiBotWebhookFailure(w.Latest)
 	return result
 }
 func (s *botService) GetBotOutboundWebhook(ctx context.Context, req *connect.Request[apiv1.GetBotOutboundWebhookRequest]) (*connect.Response[apiv1.GetBotOutboundWebhookResponse], error) {
@@ -77,7 +77,7 @@ func (s *botService) UpdateBotOutboundWebhook(ctx context.Context, req *connect.
 	return connect.NewResponse(&apiv1.UpdateBotOutboundWebhookResponse{Webhook: apiBotOutboundWebhook(item)}), nil
 }
 
-func apiBotWebhookFailure(e *logv1.Entry) *apiv1.BotWebhookDelivery {
+func apiBotWebhookFailure(e *logv1.Entry) *apiv1.BotWebhookFailure {
 	if e == nil {
 		return nil
 	}
@@ -85,7 +85,7 @@ func apiBotWebhookFailure(e *logv1.Entry) *apiv1.BotWebhookDelivery {
 	if x == nil {
 		return nil
 	}
-	return &apiv1.BotWebhookDelivery{Id: e.GetId(), Status: apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_FAILED, Reason: x.GetReason(), Attempts: x.GetAttempts(), HttpStatus: x.GetHttpStatus(), CompletedAt: e.GetRecordedAt(), SourceEventId: x.GetSourceEventId()}
+	return &apiv1.BotWebhookFailure{Id: e.GetId(), Reason: x.GetReason(), Attempts: x.GetAttempts(), HttpStatus: x.GetHttpStatus(), CompletedAt: e.GetRecordedAt(), SourceEventId: x.GetSourceEventId()}
 }
 
 func (s *botService) ListBotWebhookFailures(ctx context.Context, req *connect.Request[apiv1.ListBotWebhookFailuresRequest]) (*connect.Response[apiv1.ListBotWebhookFailuresResponse], error) {

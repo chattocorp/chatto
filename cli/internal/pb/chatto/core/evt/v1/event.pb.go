@@ -190,8 +190,8 @@ type Event struct {
 	//	*Event_InvitationRedeemed
 	//	*Event_InvitationRevoked
 	//	*Event_BotOutboundWebhookConfigured
-	//	*Event_BotWebhookDeliveryCompleted
-	//	*Event_BotOutboundWebhookStateChanged
+	//	*Event_BotOutboundWebhookUpdated
+	//	*Event_BotOutboundWebhookRevoked
 	//	*Event_ReactionAdded
 	//	*Event_ReactionRemoved
 	Event         isEvent_Event `protobuf_oneof:"event"`
@@ -1469,19 +1469,19 @@ func (x *Event) GetBotOutboundWebhookConfigured() *BotOutboundWebhookConfiguredE
 	return nil
 }
 
-func (x *Event) GetBotWebhookDeliveryCompleted() *BotWebhookDeliveryCompletedEvent {
+func (x *Event) GetBotOutboundWebhookUpdated() *BotOutboundWebhookUpdatedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_BotWebhookDeliveryCompleted); ok {
-			return x.BotWebhookDeliveryCompleted
+		if x, ok := x.Event.(*Event_BotOutboundWebhookUpdated); ok {
+			return x.BotOutboundWebhookUpdated
 		}
 	}
 	return nil
 }
 
-func (x *Event) GetBotOutboundWebhookStateChanged() *BotOutboundWebhookStateChangedEvent {
+func (x *Event) GetBotOutboundWebhookRevoked() *BotOutboundWebhookRevokedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_BotOutboundWebhookStateChanged); ok {
-			return x.BotOutboundWebhookStateChanged
+		if x, ok := x.Event.(*Event_BotOutboundWebhookRevoked); ok {
+			return x.BotOutboundWebhookRevoked
 		}
 	}
 	return nil
@@ -2095,12 +2095,12 @@ type Event_BotOutboundWebhookConfigured struct {
 	BotOutboundWebhookConfigured *BotOutboundWebhookConfiguredEvent `protobuf:"bytes,940,opt,name=bot_outbound_webhook_configured,json=botOutboundWebhookConfigured,proto3,oneof"`
 }
 
-type Event_BotWebhookDeliveryCompleted struct {
-	BotWebhookDeliveryCompleted *BotWebhookDeliveryCompletedEvent `protobuf:"bytes,942,opt,name=bot_webhook_delivery_completed,json=botWebhookDeliveryCompleted,proto3,oneof"`
+type Event_BotOutboundWebhookUpdated struct {
+	BotOutboundWebhookUpdated *BotOutboundWebhookUpdatedEvent `protobuf:"bytes,943,opt,name=bot_outbound_webhook_updated,json=botOutboundWebhookUpdated,proto3,oneof"`
 }
 
-type Event_BotOutboundWebhookStateChanged struct {
-	BotOutboundWebhookStateChanged *BotOutboundWebhookStateChangedEvent `protobuf:"bytes,943,opt,name=bot_outbound_webhook_state_changed,json=botOutboundWebhookStateChanged,proto3,oneof"`
+type Event_BotOutboundWebhookRevoked struct {
+	BotOutboundWebhookRevoked *BotOutboundWebhookRevokedEvent `protobuf:"bytes,944,opt,name=bot_outbound_webhook_revoked,json=botOutboundWebhookRevoked,proto3,oneof"`
 }
 
 type Event_ReactionAdded struct {
@@ -2383,9 +2383,9 @@ func (*Event_InvitationRevoked) isEvent_Event() {}
 
 func (*Event_BotOutboundWebhookConfigured) isEvent_Event() {}
 
-func (*Event_BotWebhookDeliveryCompleted) isEvent_Event() {}
+func (*Event_BotOutboundWebhookUpdated) isEvent_Event() {}
 
-func (*Event_BotOutboundWebhookStateChanged) isEvent_Event() {}
+func (*Event_BotOutboundWebhookRevoked) isEvent_Event() {}
 
 func (*Event_ReactionAdded) isEvent_Event() {}
 
@@ -2395,7 +2395,7 @@ var File_chatto_core_evt_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a+chatto/core/evt/v1/bot_webhook_events.proto\"\xaew\n" +
+	"\x1echatto/core/evt/v1/event.proto\x12\x12chatto.core.evt.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a$chatto/core/evt/v1/auth_events.proto\x1a-chatto/core/evt/v1/authorization_events.proto\x1a%chatto/core/evt/v1/asset_events.proto\x1a'chatto/core/evt/v1/message_events.proto\x1a*chatto/core/evt/v1/moderation_events.proto\x1a$chatto/core/evt/v1/rbac_events.proto\x1a(chatto/core/evt/v1/reaction_events.proto\x1a$chatto/core/evt/v1/room_events.proto\x1a*chatto/core/evt/v1/room_group_events.proto\x1a&chatto/core/evt/v1/config_events.proto\x1a&chatto/core/evt/v1/thread_events.proto\x1a$chatto/core/evt/v1/user_events.proto\x1a*chatto/core/evt/v1/invitation_events.proto\x1a,chatto/core/evt/v1/oauth_client_events.proto\x1a+chatto/core/evt/v1/bot_webhook_events.proto\"\x97w\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2534,9 +2534,9 @@ const file_chatto_core_evt_v1_event_proto_rawDesc = "" +
 	"\x12invitation_created\x18\xa2\a \x01(\v2*.chatto.core.evt.v1.InvitationCreatedEventH\x00R\x11invitationCreated\x12_\n" +
 	"\x13invitation_redeemed\x18\xa3\a \x01(\v2+.chatto.core.evt.v1.InvitationRedeemedEventH\x00R\x12invitationRedeemed\x12\\\n" +
 	"\x12invitation_revoked\x18\xa4\a \x01(\v2*.chatto.core.evt.v1.InvitationRevokedEventH\x00R\x11invitationRevoked\x12\x7f\n" +
-	"\x1fbot_outbound_webhook_configured\x18\xac\a \x01(\v25.chatto.core.evt.v1.BotOutboundWebhookConfiguredEventH\x00R\x1cbotOutboundWebhookConfigured\x12|\n" +
-	"\x1ebot_webhook_delivery_completed\x18\xae\a \x01(\v24.chatto.core.evt.v1.BotWebhookDeliveryCompletedEventH\x00R\x1bbotWebhookDeliveryCompleted\x12\x86\x01\n" +
-	"\"bot_outbound_webhook_state_changed\x18\xaf\a \x01(\v27.chatto.core.evt.v1.BotOutboundWebhookStateChangedEventH\x00R\x1ebotOutboundWebhookStateChanged\x12P\n" +
+	"\x1fbot_outbound_webhook_configured\x18\xac\a \x01(\v25.chatto.core.evt.v1.BotOutboundWebhookConfiguredEventH\x00R\x1cbotOutboundWebhookConfigured\x12v\n" +
+	"\x1cbot_outbound_webhook_updated\x18\xaf\a \x01(\v22.chatto.core.evt.v1.BotOutboundWebhookUpdatedEventH\x00R\x19botOutboundWebhookUpdated\x12v\n" +
+	"\x1cbot_outbound_webhook_revoked\x18\xb0\a \x01(\v22.chatto.core.evt.v1.BotOutboundWebhookRevokedEventH\x00R\x19botOutboundWebhookRevoked\x12P\n" +
 	"\x0ereaction_added\x18\x9a\b \x01(\v2&.chatto.core.evt.v1.ReactionAddedEventH\x00R\rreactionAdded\x12V\n" +
 	"\x10reaction_removed\x18\x9b\b \x01(\v2(.chatto.core.evt.v1.ReactionRemovedEventH\x00R\x0freactionRemovedB\a\n" +
 	"\x05eventJ\x06\b\xf4\x03\x10\xf5\x03J\x06\b\xe8\a\x10\xe9\aJ\x06\b\xf2\a\x10\xf8\aJ\x06\b\x86\b\x10\x89\bJ\x06\b\x90\b\x10\x92\bJ\x06\b\xa4\b\x10\xa5\bJ\x06\b\xae\b\x10\xaf\bJ\x06\b\xb8\b\x10\xb9\bJ\x06\b\xc2\b\x10\xc4\bJ\x06\b\xcc\b\x10\xce\bJ\x06\b\xd6\b\x10\xd8\bJ\x06\b\xe1\b\x10\xe3\bJ\x06\b\xea\b\x10\xeb\bJ\x06\b\xf4\b\x10\xf5\bJ\x06\b\xb0\t\x10\xb1\tJ\x06\b\xa9F\x10\xaaFR\x15server_config_changedR\x0econfig_updatedR\fuser_createdR\fuser_deletedR\x14user_profile_updatedR\x1fserver_user_preferences_updatedR\x1anotification_level_changedR\x15thread_follow_changedR\x0eserver_createdR\x0eserver_updatedR\x0eserver_deletedR\x0fmessage_updatedR\x0fmessage_deletedR\vuser_typingR\x1avideo_processing_completedR\x10presence_changedR\x14mention_notificationR\x1fnew_direct_message_notificationR\x17call_participant_joinedR\x15call_participant_leftR\x14notification_createdR\x16notification_dismissedR\x13room_marked_as_readR\x16mention_status_clearedR\x13room_groups_updatedR\x12session_terminatedR\theartbeatR\vsequence_idB\xc5\x01\n" +
@@ -2693,8 +2693,8 @@ var file_chatto_core_evt_v1_event_proto_goTypes = []any{
 	(*InvitationRedeemedEvent)(nil),                     // 133: chatto.core.evt.v1.InvitationRedeemedEvent
 	(*InvitationRevokedEvent)(nil),                      // 134: chatto.core.evt.v1.InvitationRevokedEvent
 	(*BotOutboundWebhookConfiguredEvent)(nil),           // 135: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
-	(*BotWebhookDeliveryCompletedEvent)(nil),            // 136: chatto.core.evt.v1.BotWebhookDeliveryCompletedEvent
-	(*BotOutboundWebhookStateChangedEvent)(nil),         // 137: chatto.core.evt.v1.BotOutboundWebhookStateChangedEvent
+	(*BotOutboundWebhookUpdatedEvent)(nil),              // 136: chatto.core.evt.v1.BotOutboundWebhookUpdatedEvent
+	(*BotOutboundWebhookRevokedEvent)(nil),              // 137: chatto.core.evt.v1.BotOutboundWebhookRevokedEvent
 	(*ReactionAddedEvent)(nil),                          // 138: chatto.core.evt.v1.ReactionAddedEvent
 	(*ReactionRemovedEvent)(nil),                        // 139: chatto.core.evt.v1.ReactionRemovedEvent
 }
@@ -2834,8 +2834,8 @@ var file_chatto_core_evt_v1_event_proto_depIdxs = []int32{
 	133, // 132: chatto.core.evt.v1.Event.invitation_redeemed:type_name -> chatto.core.evt.v1.InvitationRedeemedEvent
 	134, // 133: chatto.core.evt.v1.Event.invitation_revoked:type_name -> chatto.core.evt.v1.InvitationRevokedEvent
 	135, // 134: chatto.core.evt.v1.Event.bot_outbound_webhook_configured:type_name -> chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
-	136, // 135: chatto.core.evt.v1.Event.bot_webhook_delivery_completed:type_name -> chatto.core.evt.v1.BotWebhookDeliveryCompletedEvent
-	137, // 136: chatto.core.evt.v1.Event.bot_outbound_webhook_state_changed:type_name -> chatto.core.evt.v1.BotOutboundWebhookStateChangedEvent
+	136, // 135: chatto.core.evt.v1.Event.bot_outbound_webhook_updated:type_name -> chatto.core.evt.v1.BotOutboundWebhookUpdatedEvent
+	137, // 136: chatto.core.evt.v1.Event.bot_outbound_webhook_revoked:type_name -> chatto.core.evt.v1.BotOutboundWebhookRevokedEvent
 	138, // 137: chatto.core.evt.v1.Event.reaction_added:type_name -> chatto.core.evt.v1.ReactionAddedEvent
 	139, // 138: chatto.core.evt.v1.Event.reaction_removed:type_name -> chatto.core.evt.v1.ReactionRemovedEvent
 	139, // [139:139] is the sub-list for method output_type
@@ -3000,8 +3000,8 @@ func file_chatto_core_evt_v1_event_proto_init() {
 		(*Event_InvitationRedeemed)(nil),
 		(*Event_InvitationRevoked)(nil),
 		(*Event_BotOutboundWebhookConfigured)(nil),
-		(*Event_BotWebhookDeliveryCompleted)(nil),
-		(*Event_BotOutboundWebhookStateChanged)(nil),
+		(*Event_BotOutboundWebhookUpdated)(nil),
+		(*Event_BotOutboundWebhookRevoked)(nil),
 		(*Event_ReactionAdded)(nil),
 		(*Event_ReactionRemoved)(nil),
 	}

@@ -348,8 +348,7 @@ first; use **Load more** for the next page.
 Failures expire after seven days by default. Operators can set
 `core.log.retention` or `CHATTO_CORE_LOG_RETENTION`. Successful deliveries and intentional
 skips are not recorded. An empty history does not prove successful delivery.
-A later success does not clear a retained failure. Historical failures from
-older versions are not copied into this history. Backups exclude this history.
+A later success does not clear a retained failure. Backups exclude this history.
 
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).
