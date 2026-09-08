@@ -983,11 +983,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
             {@render groupHeaderActions(section.group)}
           {/if}
         {/snippet}
-        {#snippet leadingOverlay()}
-          {#if !isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups}
-            {@render groupLeadingOverlay()}
-          {/if}
-        {/snippet}
         <RoomGroupSection
           label={section.label}
           items={section.items}
@@ -999,7 +994,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           containItemDrag
           isDndShadow={isDndShadow(section)}
           {headerActions}
-          {leadingOverlay}
+          leadingOverlay={!isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups
+            ? groupLeadingOverlay
+            : undefined}
           separated={i > 0}
         />
       {/each}

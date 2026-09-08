@@ -1,7 +1,9 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { userEvent } from 'vitest/browser';
 import { q } from '$lib/test-utils';
+import '../app.css';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
@@ -1148,6 +1150,60 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Delete Group'
     );
     await expect.element(deleteGroup ?? null).toBeDisabled();
+  });
+
+  it.each([
+    { name: 'without reorder permission', canReorderGroups: false, supportsMoves: true },
+    { name: 'without relative moves', canReorderGroups: true, supportsMoves: false },
+    { name: 'with reorder permission', canReorderGroups: true, supportsMoves: true }
+  ])('keeps a room group indicator visible $name', async ({ name, canReorderGroups, supportsMoves }) => {
+    mocks.store.serverInfo.supportsFeature.mockReturnValue(supportsMoves);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: `indicator-${name}`,
+        name: 'Projects',
+        viewerCanManageGroup: canReorderGroups,
+        viewerCanCreateRoom: canReorderGroups,
+        roomIds: ['channel-1']
+      }
+    ];
+
+    const { container, getByRole } = render(RoomList, { props: { canReorderGroups } });
+    const heading = getByRole('button', { name: 'Projects', exact: true });
+    const icon = q(container, '[data-testid="room-group-disclosure-icon"]')!;
+    const handle = q(container, '[data-testid="room-group-drag-handle"]');
+    const hasOverlay = canReorderGroups && supportsMoves;
+
+    expect(Boolean(handle)).toBe(hasOverlay);
+    await userEvent.unhover(heading);
+    await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
+    const mutedColour = getComputedStyle(heading.element()).color;
+
+    for (const expanded of [true, false]) {
+      await expect.element(heading).toHaveAttribute('aria-expanded', String(expanded));
+      await userEvent.hover(heading);
+      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
+      await userEvent.unhover(heading);
+      heading.element().focus();
+      await userEvent.tab();
+      await userEvent.tab({ shift: true });
+      await expect.element(heading).toHaveFocus();
+      await expect.poll(() => getComputedStyle(heading.element()).color).not.toBe(mutedColour);
+      await expect.poll(() => getComputedStyle(icon).opacity).toBe(hasOverlay ? '0' : '1');
+      if (handle) await expect.poll(() => getComputedStyle(handle).opacity).toBe('1');
+
+      await userEvent.keyboard(' ');
+      await expect.element(heading).toHaveAttribute('aria-expanded', String(!expanded));
+      heading.element().blur();
+    }
+
+    await userEvent.click(heading);
+    await userEvent.unhover(heading);
+    await expect.element(heading).toHaveFocus();
+    await expect.poll(() => getComputedStyle(heading.element()).color).toBe(mutedColour);
   });
 
   it('shows permission-gated drag and creation controls without room or group menu buttons', async () => {
