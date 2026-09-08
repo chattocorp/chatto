@@ -73,7 +73,8 @@
     onfullscreenchange={handleFullscreenChange}
   >
     <button
-      class="absolute top-4 right-4 z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+      type="button"
+      class="absolute top-[calc(env(safe-area-inset-top,0px)+1rem)] right-[calc(env(safe-area-inset-right,0px)+1rem)] z-10 flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
       onclick={close}
       aria-label={m['media.close_fullscreen_video']()}
     >
