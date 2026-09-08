@@ -364,6 +364,7 @@ not apply to IP literals such as `127.0.0.1` or other private-network hosts.
 ### Local Runling example
 
 The [Runling example](https://github.com/chattocorp/chatto/tree/main/examples/runling-bot)
-receives this payload through Runling and posts a fixed thread reply through
-the Chatto API. It includes local setup instructions and tests. The example
+receives this payload through Runling, reads the complete thread, and uses an
+agent to reply through the Chatto API. The agent can fetch public pages and
+consult the Chatto docs. The example includes local setup instructions and tests. The example
 uses Runling’s asynchronous run endpoint so Chatto receives an immediate `202`.
