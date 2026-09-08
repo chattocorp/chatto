@@ -21,6 +21,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -36,7 +37,7 @@ func webhookTestBot(t *testing.T, c *ChattoCore) (string, string, string) {
 	require.NoError(t, err)
 	return owner.GetId(), bot.User.GetId(), room.GetId()
 }
-func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) *evtv1.Event {
+func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) *logv1.Entry {
 	t.Helper()
 	var result *BotOutboundWebhook
 	require.Eventually(t, func() bool {
@@ -44,7 +45,7 @@ func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) 
 		defer cancel()
 		var err error
 		result, err = getOnlyWebhook(ctx, c, owner, bot)
-		return err == nil && result != nil && result.Latest != nil && result.Latest.GetBotWebhookDeliveryCompleted().GetStatus() == status
+		return err == nil && result != nil && result.Latest != nil && result.Latest.GetBotWebhookDeliveryFailed() != nil && status == "failed"
 	}, 5*time.Second, 10*time.Millisecond)
 	return result.Latest
 }
@@ -213,7 +214,7 @@ func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
 				requireNoWebhookOutcomes(t, c)
 				require.Equal(t, int32(1), calls.Load())
 			} else {
-				result := waitWebhookOutcome(t, c, owner, bot, "failed").GetBotWebhookDeliveryCompleted()
+				result := waitWebhookOutcome(t, c, owner, bot, "failed").GetBotWebhookDeliveryFailed()
 				require.Equal(t, uint32(2), result.GetAttempts())
 				require.Equal(t, uint32(503), result.GetHttpStatus())
 				waitWebhookDeliveriesDrained(t, c)
@@ -281,10 +282,10 @@ func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
 				requireNoWebhookOutcomes(t, c)
 				return
 			}
-			facts, _, err := c.EventPublisher.SubjectEvents(ctx, "evt.bot_webhook_delivery.>")
+			entry, err := c.latestOperationalLog(ctx, botWebhookLogFilter(bot, endpoint.ID))
 			require.NoError(t, err)
-			require.Len(t, facts, 1)
-			require.Equal(t, "expired", facts[0].GetBotWebhookDeliveryCompleted().GetReason())
+			require.NotNil(t, entry)
+			require.Equal(t, "expired", entry.GetBotWebhookDeliveryFailed().GetReason())
 		})
 	}
 }
@@ -353,7 +354,7 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
 	result := waitWebhookOutcome(t, c, owner, bot, "failed")
-	require.Equal(t, uint32(307), result.GetBotWebhookDeliveryCompleted().GetHttpStatus())
+	require.Equal(t, uint32(307), result.GetBotWebhookDeliveryFailed().GetHttpStatus())
 	require.Zero(t, forwarded.Load())
 }
 
@@ -410,7 +411,7 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Expired before materialization", nil, "", "", nil, false)
 	require.NoError(t, err)
-	result := waitWebhookOutcome(t, c, owner, bot, "failed").GetBotWebhookDeliveryCompleted()
+	result := waitWebhookOutcome(t, c, owner, bot, "failed").GetBotWebhookDeliveryFailed()
 	require.Equal(t, "expired", result.GetReason())
 	require.Equal(t, uint32(1), result.GetAttempts())
 	require.Zero(t, calls.Load())
@@ -545,9 +546,12 @@ func TestBotOutboundWebhookFailureIsIdempotent(t *testing.T) {
 	require.NoError(t, c.botWebhooks.fail(ctx, delivery, 2, "http_error", 503))
 	require.NoError(t, c.botWebhooks.fail(ctx, delivery, 2, "http_error", 503))
 	require.NoError(t, c.botWebhooks.deliver(ctx, delivery))
-	facts, _, err := c.EventPublisher.SubjectEvents(ctx, botWebhookAggregate(delivery.DeliveryID).AllEventsFilter())
+	info, err := c.storage.logStream.Info(ctx)
 	require.NoError(t, err)
-	require.Len(t, facts, 1)
+	require.Equal(t, uint64(1), info.State.Msgs)
+	facts, _, err := c.EventPublisher.SubjectEvents(ctx, "evt.bot_webhook_delivery.>")
+	require.NoError(t, err)
+	require.Empty(t, facts)
 }
 
 func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {

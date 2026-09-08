@@ -529,7 +529,10 @@
         "revoked": "Webhook 已撤銷。",
         "revoke_title": "撤銷傳出 Webhook？",
         "revoke_description": "這將永久撤銷此 Webhook 並取消其待處理的重試。",
-        "limit": "已達到 20 個傳出 Webhook 的上限。"
+        "limit": "已達到 20 個傳出 Webhook 的上限。",
+        "history": "最近的失敗",
+        "no_failures": "沒有保留的失敗記錄。",
+        "more_failures": "載入更多"
       }
     }
   }

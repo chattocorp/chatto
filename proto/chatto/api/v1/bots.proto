@@ -237,8 +237,8 @@ message BotOutboundWebhook {
   bool enabled = 2;
   // Whether an Authorization header is configured.
   bool has_authorization = 3;
-  // Latest recorded failure for this configuration, when available.
-  // Later successes and intentional skips do not clear this failure.
+  // Latest retained failure for this endpoint. Absent when no failure is retained.
+  // Later successes do not clear it. Absence does not prove successful delivery.
   BotWebhookDelivery latest_delivery = 4;
   // Saved destination. May contain tool credentials; visible only to bot managers.
   string url = 5;
@@ -273,8 +273,10 @@ message BotWebhookDelivery {
   uint32 attempts = 4;
   // Zero if no HTTP response was received.
   uint32 http_status = 5;
-  // Time the terminal outcome was recorded.
+  // Time the retained failure was recorded.
   google.protobuf.Timestamp completed_at = 6;
+ // Source message ID associated with this delivery.
+ string source_event_id = 7;
 }
 
 // Read all endpoints for one managed bot. At most 20 endpoints are returned.
@@ -346,6 +348,11 @@ message RevokeBotOutboundWebhookResponse {}
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service.
 service BotService {
+  // List retained failures for an endpoint of a bot you can manage. Returns full
+  // records in recording order, oldest first. Expired records are omitted.
+  // This history is diagnostic; an empty result does not prove successful delivery.
+  rpc ListBotWebhookFailures(ListBotWebhookFailuresRequest) returns (ListBotWebhookFailuresResponse);
+
   // Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
   // Returns the complete bounded collection, so callers do not need batch hydration.
   rpc ListBotOutboundWebhooks(ListBotOutboundWebhooksRequest) returns (ListBotOutboundWebhooksResponse);
@@ -393,4 +400,20 @@ service BotService {
   rpc ReassignBotOwner(ReassignBotOwnerRequest) returns (ReassignBotOwnerResponse) {
     option idempotency_level = IDEMPOTENT;
   }
+}
+
+// Read the retained failure history for a current endpoint.
+message ListBotWebhookFailuresRequest {
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Maximum records, from 1 to 100. Zero selects 20.
+  uint32 page_size = 3 [(buf.validate.field).uint32.lte = 100];
+  // Opaque continuation from the previous response. Bound to viewer and endpoint.
+  string cursor = 4 [(buf.validate.field).string.max_len = 4096];
+}
+// A bounded page of complete failure records. No per-record hydration is needed.
+message ListBotWebhookFailuresResponse {
+  repeated BotWebhookDelivery failures = 1;
+  // Empty at the end. Refresh without a cursor to include newer records.
+  string next_cursor = 2;
 }

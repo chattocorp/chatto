@@ -16,10 +16,9 @@ type botWebhookEndpoint struct {
 	Configuration *evtv1.Event
 	Sequence      uint64
 	Enabled       bool
-	Latest        *evtv1.Event
 }
 
-// botWebhookProjection retains encrypted endpoints and their latest failures.
+// botWebhookProjection retains encrypted endpoints.
 // Legacy single-endpoint events still replace only the legacy slot for that bot.
 type botWebhookProjection struct {
 	events.MemoryProjection
@@ -31,7 +30,7 @@ func newBotWebhookProjection() *botWebhookProjection {
 	return &botWebhookProjection{endpoints: map[string]*botWebhookEndpoint{}, legacy: map[string]string{}}
 }
 func (p *botWebhookProjection) Subjects() []string {
-	return []string{evtstream.UserEventTypeFilter("bot_outbound_webhook_configured"), evtstream.UserEventTypeFilter("bot_outbound_webhook_state_changed"), evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted), "evt.bot_webhook_delivery.*.bot_webhook_delivery_completed"}
+	return []string{evtstream.UserEventTypeFilter("bot_outbound_webhook_configured"), evtstream.UserEventTypeFilter("bot_outbound_webhook_state_changed"), evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted)}
 }
 func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 	p.Lock()
@@ -64,12 +63,6 @@ func (p *botWebhookProjection) Apply(event *evtv1.Event, seq uint64) error {
 			endpoint.Enabled = state.GetEnabled()
 			endpoint.Sequence = seq
 		}
-	case *evtv1.Event_BotWebhookDeliveryCompleted:
-		failure := x.BotWebhookDeliveryCompleted
-		endpoint := p.endpoints[failure.GetWebhookId()]
-		if endpoint != nil && endpoint.Configuration.GetBotOutboundWebhookConfigured().GetBotUserId() == failure.GetBotUserId() {
-			endpoint.Latest = cloneWebhookEvent(event)
-		}
 	case *evtv1.Event_UserAccountDeleted:
 		id := x.UserAccountDeleted.GetUserId()
 		for webhookID, endpoint := range p.endpoints {
@@ -91,7 +84,7 @@ func cloneWebhookEndpoint(e *botWebhookEndpoint) *botWebhookEndpoint {
 	if e == nil {
 		return nil
 	}
-	return &botWebhookEndpoint{Configuration: cloneWebhookEvent(e.Configuration), Sequence: e.Sequence, Enabled: e.Enabled, Latest: cloneWebhookEvent(e.Latest)}
+	return &botWebhookEndpoint{Configuration: cloneWebhookEvent(e.Configuration), Sequence: e.Sequence, Enabled: e.Enabled}
 }
 func (p *botWebhookProjection) get(botID, webhookID string) *botWebhookEndpoint {
 	p.RLock()
@@ -130,7 +123,7 @@ func (p *botWebhookProjection) estimate() (int64, int64, []ProjectionAdminMetric
 	defer p.RUnlock()
 	var size int64
 	for _, e := range p.endpoints {
-		size += int64(proto.Size(e.Configuration) + proto.Size(e.Latest))
+		size += int64(proto.Size(e.Configuration))
 	}
 	return int64(len(p.endpoints)), size, nil
 }

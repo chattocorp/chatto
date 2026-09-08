@@ -529,7 +529,10 @@
         "revoked": "Webhook ingetrokken.",
         "revoke_title": "Uitgaande webhook intrekken?",
         "revoke_description": "Dit trekt deze webhook definitief in en annuleert de resterende herhaalpogingen.",
-        "limit": "Je hebt de limiet van 20 uitgaande webhooks bereikt."
+        "limit": "Je hebt de limiet van 20 uitgaande webhooks bereikt.",
+        "history": "Recente fouten",
+        "no_failures": "Geen bewaarde fouten.",
+        "more_failures": "Meer laden"
       }
     }
   }

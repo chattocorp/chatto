@@ -529,7 +529,10 @@
         "revoked": "Webhook revoked.",
         "revoke_title": "Revoke outbound webhook?",
         "revoke_description": "This permanently revokes this webhook and cancels its pending retries.",
-        "limit": "You have reached the limit of 20 outbound webhooks."
+        "limit": "You have reached the limit of 20 outbound webhooks.",
+        "history": "Recent failures",
+        "no_failures": "No retained failures.",
+        "more_failures": "Load more"
       }
     }
   }

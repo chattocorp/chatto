@@ -28,11 +28,9 @@ Workers count attempts and use cancellable timers for exponential backoff,
 with a 30-minute delay cap. Operators set retry and expiry policy in TOML or
 ENV. Shutdown cancels requests and timers and discards accepted work.
 
-Append only terminal failures to EVT. Aggregate OCC permits one failure fact
-per delivery ID. If failure recording fails, log a safe category and stop.
-Shutdown losses have no failure fact. Success and intentional skips have no
-facts. Delivery IDs remain stable across repeated source handoffs so receivers
-can detect duplicates.
+Terminal failure storage is superseded by [ADR-098](ADR-098-retained-operational-log.md).
+New terminal failures enter retained LOG history. Success and intentional skips
+produce no records. Delivery IDs remain stable across source handoffs.
 
 Keep up to 20 independent encrypted endpoints per bot, including paused ones.
 Use the bot's PII key for each name, URL, optional Authorization value, and
@@ -64,7 +62,7 @@ Concurrency and buffered work are bounded per process. Retries occupy worker
 slots while they wait, so failed endpoints can delay other deliveries. A
 future durable implementation can keep the public webhook contract.
 
-The bot page shows the latest recorded failure for the current configuration.
-Later success does not clear that failure. The projection retains encrypted
-settings and one failure per endpoint. Detailed failures remain in EVT. Payload text
-is the currently readable message text on each attempt.
+The bot page shows the latest retained failure and a paginated history for each
+endpoint. Expiry removes these diagnostics. The projection retains only endpoint
+configuration and activation state. Payload text is the currently readable
+message text on each attempt.

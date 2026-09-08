@@ -266,3 +266,8 @@ policy, and source-time expiry. It contains no plaintext message body or
 credentials. Shutdown discards this state. The shared EVT source consumer
 retains progress only until handoff, not until HTTP completion. See
 [NATS resources](nats-resources.md) and [effects](durable-effects.md).
+
+## Operational diagnostic history
+
+LOG stores retained records, not latest-value runtime state. It has no KV or
+process-local index. See [ADR-098](../adr/ADR-098-retained-operational-log.md).

@@ -529,7 +529,10 @@
         "revoked": "Tīmekļa aizķere atsaukta.",
         "revoke_title": "Atsaukt izejošo tīmekļa aizķeri?",
         "revoke_description": "Tas neatgriezeniski atsauks šo tīmekļa aizķeri un atcels gaidošos atkārtotos mēģinājumus.",
-        "limit": "Ir sasniegts 20 izejošo tīmekļa aizķeru ierobežojums."
+        "limit": "Ir sasniegts 20 izejošo tīmekļa aizķeru ierobežojums.",
+        "history": "Nesenās kļūmes",
+        "no_failures": "Nav saglabātu kļūmju.",
+        "more_failures": "Ielādēt vairāk"
       }
     }
   }

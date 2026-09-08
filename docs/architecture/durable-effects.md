@@ -134,8 +134,8 @@ signed JSON. Public destinations require HTTPS. The names `localhost` and
 dialed directly at connection time. Other private destinations remain blocked.
 Each worker counts attempts and waits on a cancellable timer.
 The delay doubles up to 30 minutes, bounded by the remaining delivery lifetime.
-Exhausted or expired deliveries produce an EVT failure with aggregate OCC to
-prevent duplicate failure facts. Failure recording is best effort: if the
+Exhausted or expired deliveries produce a LOG failure. Subject OCC prevents
+duplicate records while the failure remains retained. Failure recording is best effort: if the
 append fails, the worker logs a safe category and stops. Success and intentional
 skips produce no facts. No KV state or separate delivery stream is used.
 Receivers must tolerate duplicates and delivery in a different order.
@@ -146,7 +146,7 @@ separate delivery ID per endpoint and source message. Workers verify the
 endpoint's current enabled state and activation sequence before HTTP. Pause,
 resume, and revocation cancel queued work from an earlier enabled period.
 Requests already in flight can finish. Credentials remain fixed across state
-changes. Failure recording remains per delivery in EVT.
+changes. Failure recording remains per delivery in LOG.
 
 Source handoff shares an endpoint projection check across a captured EVT
 prefix. The worker reads the EVT tail before it waits for the endpoint

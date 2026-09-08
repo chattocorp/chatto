@@ -11,15 +11,17 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -152,9 +154,6 @@ func (m *botWebhookModel) runDelivery(ctx context.Context, delivery *botWebhookD
 		}
 	}
 }
-func botWebhookAggregate(id string) evtstream.Aggregate {
-	return evtstream.Aggregate{Type: "bot_webhook_delivery", ID: id}
-}
 func botWebhookDeliveryID(botID, webhookID, eventID string) string {
 	sum := sha256.Sum256([]byte(botID + "\x00" + webhookID + "\x00" + eventID))
 	return hex.EncodeToString(sum[:])
@@ -283,11 +282,11 @@ type botWebhookMessage struct {
 }
 
 func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) error {
-	terminal, err := m.core.EventPublisher.LastSubjectSeq(ctx, botWebhookAggregate(r.DeliveryID).Subject("bot_webhook_delivery_completed"))
-	if err != nil {
-		return err
-	}
-	if terminal != 0 {
+	// A diagnostic read failure must not disable otherwise valid delivery.
+	logCtx, cancelLog := context.WithTimeout(ctx, 2*time.Second)
+	terminal, err := m.core.latestOperationalLog(logCtx, strings.TrimSuffix(botWebhookLogFilter(r.BotUserID, r.WebhookID), "*")+r.DeliveryID)
+	cancelLog()
+	if err == nil && terminal != nil {
 		return nil
 	}
 	if !m.now().Before(r.ExpiresAt) {
@@ -412,19 +411,16 @@ func webhookRetryDelay(r *botWebhookDelivery, attempt uint64) time.Duration {
 	return min(delay, 30*time.Minute)
 }
 
-// fail records terminal failures only. OCC prevents duplicate failure facts
-// when the EVT source is redelivered after a partial or repeated handoff.
+// fail records a diagnostic outcome with a bounded storage attempt. Failure to
+// record it must never cause another HTTP attempt or an unbounded retry loop.
 func (m *botWebhookModel) fail(ctx context.Context, r *botWebhookDelivery, attempts uint32, reason string, httpStatus int) error {
-	x := &evtv1.BotWebhookDeliveryCompletedEvent{DeliveryId: r.DeliveryID, BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID, Status: "failed", Reason: reason, Attempts: attempts, HttpStatus: uint32(httpStatus)}
-	event := newEvent("", &evtv1.Event{Event: &evtv1.Event_BotWebhookDeliveryCompleted{BotWebhookDeliveryCompleted: x}})
-	agg := botWebhookAggregate(r.DeliveryID)
-	subject := agg.SubjectFor(event)
-	seqs, err := m.core.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: subject, Event: event, HasOCC: true, ExpectedSeq: 0, FilterSubject: agg.AllEventsFilter()}})
-	if errors.Is(err, events.ErrConflict) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	return m.projection.Projector().WaitFor(ctx, events.SubjectPosition(subject, seqs[0]))
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	return m.core.appendOperationalLog(ctx, &logv1.Entry{
+		Id: r.DeliveryID, RecordedAt: timestamppb.New(m.now()), Severity: logv1.Severity_SEVERITY_ERROR,
+		Payload: &logv1.Entry_BotWebhookDeliveryFailed{BotWebhookDeliveryFailed: &logv1.BotWebhookDeliveryFailed{
+			BotUserId: r.BotUserID, WebhookId: r.WebhookID, SourceEventId: r.SourceEventID,
+			Attempts: attempts, HttpStatus: uint32(httpStatus), Reason: reason,
+		}},
+	})
 }

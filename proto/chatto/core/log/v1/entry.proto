@@ -1,0 +1,32 @@
+syntax = "proto3";
+package chatto.core.log.v1;
+import "google/protobuf/timestamp.proto";
+option go_package = "hmans.de/chatto/internal/pb/chatto/core/log/v1;logv1";
+
+// Retained operational record. These records are not domain or recovery state.
+message Entry {
+  // Stable producer-defined ID, also used for duplicate suppression.
+  string id = 1;
+  google.protobuf.Timestamp recorded_at = 2;
+  Severity severity = 3;
+  oneof payload {
+    BotWebhookDeliveryFailed bot_webhook_delivery_failed = 10;
+  }
+}
+// Operational importance, independent of the payload type.
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_INFO = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_ERROR = 3;
+}
+// Safe terminal failure metadata. Never include credentials or message bodies.
+message BotWebhookDeliveryFailed {
+  string bot_user_id = 1;
+  string webhook_id = 2;
+  string source_event_id = 3;
+  uint32 attempts = 4;
+  uint32 http_status = 5;
+  // Closed producer-controlled category, never a raw error or HTTP response.
+  string reason = 6;
+}

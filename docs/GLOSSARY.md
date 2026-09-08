@@ -291,3 +291,7 @@ and are lost on restart. The receiver uses the
 stable delivery ID to detect repeats.
 See [FDR-038](fdr/FDR-038-bot-accounts.md) and
 [ADR-097](adr/ADR-097-durable-outbound-bot-webhooks.md).
+
+**Operational Log (LOG)** — Retained diagnostic records shared by Chatto server
+replicas. LOG uses typed protobufs and an operator-configured age limit. It is
+not domain history or recovery state. See [ADR-098](adr/ADR-098-retained-operational-log.md).

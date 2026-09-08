@@ -529,7 +529,10 @@
         "revoked": "Webhook återkallad.",
         "revoke_title": "Återkalla utgående webhook?",
         "revoke_description": "Detta återkallar webhooken permanent och avbryter väntande återförsök.",
-        "limit": "Du har nått gränsen på 20 utgående webhooks."
+        "limit": "Du har nått gränsen på 20 utgående webhooks.",
+        "history": "Senaste fel",
+        "no_failures": "Inga sparade fel.",
+        "more_failures": "Läs in fler"
       }
     }
   }

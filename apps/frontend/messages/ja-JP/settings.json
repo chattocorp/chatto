@@ -529,7 +529,10 @@
         "revoked": "Webhookを失効しました。",
         "revoke_title": "送信Webhookを失効しますか？",
         "revoke_description": "このWebhookを完全に失効し、保留中の再試行をキャンセルします。",
-        "limit": "送信Webhookの上限20件に達しました。"
+        "limit": "送信Webhookの上限20件に達しました。",
+        "history": "最近の失敗",
+        "no_failures": "保存されている失敗はありません。",
+        "more_failures": "さらに読み込む"
       }
     }
   }

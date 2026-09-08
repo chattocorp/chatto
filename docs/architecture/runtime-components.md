@@ -135,6 +135,13 @@ User-aggregate OCC limits each bot to 20 endpoints. Each endpoint has fixed
 credentials and independent enabled state. Pause/resume advances its activation
 cutoff, so a resumed endpoint cannot send work from a previous enabled period.
 
+## Operational log
+
+[`operational_log.go`](../../cli/internal/core/operational_log.go) owns typed
+LOG publication, subject mapping, and scoped reads. Storage creates LOG before
+core services start. There is no log worker, projection, or KV index. Recording
+uses a bounded publish attempt; reads use the shared JetStream stream.
+
 ## Development integration bot
 
 [`mise dev`](../../mise.toml) starts the

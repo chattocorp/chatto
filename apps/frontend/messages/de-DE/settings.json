@@ -529,7 +529,10 @@
         "revoked": "Webhook widerrufen.",
         "revoke_title": "Ausgehenden Webhook widerrufen?",
         "revoke_description": "Dieser Webhook wird dauerhaft widerrufen. Ausstehende Wiederholungen werden abgebrochen.",
-        "limit": "Du hast das Limit von 20 ausgehenden Webhooks erreicht."
+        "limit": "Du hast das Limit von 20 ausgehenden Webhooks erreicht.",
+        "history": "Letzte Fehler",
+        "no_failures": "Keine gespeicherten Fehler.",
+        "more_failures": "Mehr laden"
       }
     }
   }

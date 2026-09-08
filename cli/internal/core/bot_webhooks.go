@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -27,7 +28,7 @@ type BotOutboundWebhook struct {
 	URL              string // Saved destination; can include tool credentials and must not be logged.
 	Enabled          bool   // Accepts new messages; resume does not recover earlier work.
 	HasAuthorization bool
-	Latest           *evtv1.Event // Latest recorded failure; a later success does not clear it.
+	Latest           *logv1.Entry // Latest retained failure; absence is not proof of delivery.
 }
 type botWebhookCredentials struct {
 	Name          string `json:"name,omitempty"`
@@ -51,6 +52,10 @@ func (c *ChattoCore) ListBotOutboundWebhooks(ctx context.Context, actorID, botID
 		if err != nil {
 			return nil, err
 		}
+		item.Latest, err = c.latestOperationalLog(ctx, botWebhookLogFilter(botID, item.ID))
+		if err != nil {
+			return nil, err
+		}
 		result = append(result, item)
 	}
 	sort.Slice(result, func(i, j int) bool {
@@ -64,16 +69,17 @@ func (c *ChattoCore) ListBotOutboundWebhooks(ctx context.Context, actorID, botID
 
 // GetBotOutboundWebhook reads one endpoint within a managed bot's collection.
 func (c *ChattoCore) GetBotOutboundWebhook(ctx context.Context, actorID, botID, webhookID string) (*BotOutboundWebhook, error) {
-	items, err := c.ListBotOutboundWebhooks(ctx, actorID, botID)
+	endpoint, err := c.readBotOutboundWebhook(ctx, actorID, botID, webhookID)
 	if err != nil {
 		return nil, err
 	}
-	for _, item := range items {
-		if item.ID == webhookID {
-			return item, nil
-		}
+	item, err := c.botWebhooks.metadata(ctx, endpoint)
+	if err != nil {
+		return nil, err
 	}
-	return nil, ErrNotFound
+	item.Latest, err = c.latestOperationalLog(ctx, botWebhookLogFilter(botID, webhookID))
+	return item, err
+
 }
 
 // CreateBotOutboundWebhook creates an independent, immutable credential and
@@ -119,7 +125,7 @@ func (m *botWebhookModel) metadata(ctx context.Context, endpoint *botWebhookEndp
 	if err != nil {
 		return nil, err
 	}
-	return &BotOutboundWebhook{ID: endpoint.Configuration.GetBotOutboundWebhookConfigured().GetWebhookId(), Name: creds.Name, URL: creds.URL, CreatedAt: endpoint.Configuration.GetCreatedAt().AsTime(), Enabled: endpoint.Enabled, HasAuthorization: creds.Authorization != "", Latest: endpoint.Latest}, nil
+	return &BotOutboundWebhook{ID: endpoint.Configuration.GetBotOutboundWebhookConfigured().GetWebhookId(), Name: creds.Name, URL: creds.URL, CreatedAt: endpoint.Configuration.GetCreatedAt().AsTime(), Enabled: endpoint.Enabled, HasAuthorization: creds.Authorization != ""}, nil
 }
 
 func validateBotWebhookURL(raw string) error {
@@ -240,4 +246,24 @@ func (m *botWebhookModel) credentials(ctx context.Context, e *evtv1.Event) (botW
 	}
 	err = json.Unmarshal([]byte(plain), &result)
 	return result, err
+}
+
+// readBotOutboundWebhook checks configuration access without requiring LOG.
+// Configuration commands and scoped log reads must not depend on a diagnostic
+// lookup for every other endpoint of this bot.
+func (c *ChattoCore) readBotOutboundWebhook(ctx context.Context, actorID, botID, webhookID string) (*botWebhookEndpoint, error) {
+	if !logToken(botID) || !logToken(webhookID) {
+		return nil, invalidArgument("invalid endpoint ID")
+	}
+	if err := c.authorizeAtStableInputs(ctx, func() error { _, err := c.requireBotManager(ctx, actorID, botID); return err }); err != nil {
+		return nil, err
+	}
+	if err := c.botWebhooks.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return nil, err
+	}
+	endpoint := c.botWebhooks.projection.Projection().get(botID, webhookID)
+	if endpoint == nil {
+		return nil, ErrNotFound
+	}
+	return endpoint, nil
 }

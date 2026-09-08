@@ -529,7 +529,10 @@
         "revoked": "Webhook בוטל.",
         "revoke_title": "לבטל webhook יוצא?",
         "revoke_description": "פעולה זו מבטלת את ה-webhook לצמיתות ואת הניסיונות החוזרים הממתינים שלו.",
-        "limit": "הגעת למגבלה של 20 webhooks יוצאים."
+        "limit": "הגעת למגבלה של 20 webhooks יוצאים.",
+        "history": "כשלים אחרונים",
+        "no_failures": "אין כשלים שמורים.",
+        "more_failures": "טעינת עוד"
       }
     }
   }

@@ -1287,8 +1287,8 @@ export class BotOutboundWebhook extends Message<BotOutboundWebhook> {
   hasAuthorization = false;
 
   /**
-   * Latest recorded failure for this configuration, when available.
-   * Later successes and intentional skips do not clear this failure.
+   * Latest retained failure for this endpoint. Absent when no failure is retained.
+   * Later successes do not clear it. Absence does not prove successful delivery.
    *
    * @generated from field: chatto.api.v1.BotWebhookDelivery latest_delivery = 4;
    */
@@ -1392,11 +1392,18 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
   httpStatus = 0;
 
   /**
-   * Time the terminal outcome was recorded.
+   * Time the retained failure was recorded.
    *
    * @generated from field: google.protobuf.Timestamp completed_at = 6;
    */
   completedAt?: Timestamp;
+
+  /**
+   * Source message ID associated with this delivery.
+   *
+   * @generated from field: string source_event_id = 7;
+   */
+  sourceEventId = "";
 
   constructor(data?: PartialMessage<BotWebhookDelivery>) {
     super();
@@ -1412,6 +1419,7 @@ export class BotWebhookDelivery extends Message<BotWebhookDelivery> {
     { no: 4, name: "attempts", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 5, name: "http_status", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
     { no: 6, name: "completed_at", kind: "message", T: Timestamp },
+    { no: 7, name: "source_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotWebhookDelivery {
@@ -1902,5 +1910,113 @@ export class RevokeBotOutboundWebhookResponse extends Message<RevokeBotOutboundW
 
   static equals(a: RevokeBotOutboundWebhookResponse | PlainMessage<RevokeBotOutboundWebhookResponse> | undefined, b: RevokeBotOutboundWebhookResponse | PlainMessage<RevokeBotOutboundWebhookResponse> | undefined): boolean {
     return proto3.util.equals(RevokeBotOutboundWebhookResponse, a, b);
+  }
+}
+
+/**
+ * Read the retained failure history for a current endpoint.
+ *
+ * @generated from message chatto.api.v1.ListBotWebhookFailuresRequest
+ */
+export class ListBotWebhookFailuresRequest extends Message<ListBotWebhookFailuresRequest> {
+  /**
+   * @generated from field: string bot_user_id = 1;
+   */
+  botUserId = "";
+
+  /**
+   * @generated from field: string webhook_id = 2;
+   */
+  webhookId = "";
+
+  /**
+   * Maximum records, from 1 to 100. Zero selects 20.
+   *
+   * @generated from field: uint32 page_size = 3;
+   */
+  pageSize = 0;
+
+  /**
+   * Opaque continuation from the previous response. Bound to viewer and endpoint.
+   *
+   * @generated from field: string cursor = 4;
+   */
+  cursor = "";
+
+  constructor(data?: PartialMessage<ListBotWebhookFailuresRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListBotWebhookFailuresRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "webhook_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "page_size", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 4, name: "cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBotWebhookFailuresRequest {
+    return new ListBotWebhookFailuresRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBotWebhookFailuresRequest {
+    return new ListBotWebhookFailuresRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBotWebhookFailuresRequest {
+    return new ListBotWebhookFailuresRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListBotWebhookFailuresRequest | PlainMessage<ListBotWebhookFailuresRequest> | undefined, b: ListBotWebhookFailuresRequest | PlainMessage<ListBotWebhookFailuresRequest> | undefined): boolean {
+    return proto3.util.equals(ListBotWebhookFailuresRequest, a, b);
+  }
+}
+
+/**
+ * A bounded page of complete failure records. No per-record hydration is needed.
+ *
+ * @generated from message chatto.api.v1.ListBotWebhookFailuresResponse
+ */
+export class ListBotWebhookFailuresResponse extends Message<ListBotWebhookFailuresResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.BotWebhookDelivery failures = 1;
+   */
+  failures: BotWebhookDelivery[] = [];
+
+  /**
+   * Empty at the end. Refresh without a cursor to include newer records.
+   *
+   * @generated from field: string next_cursor = 2;
+   */
+  nextCursor = "";
+
+  constructor(data?: PartialMessage<ListBotWebhookFailuresResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListBotWebhookFailuresResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "failures", kind: "message", T: BotWebhookDelivery, repeated: true },
+    { no: 2, name: "next_cursor", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListBotWebhookFailuresResponse {
+    return new ListBotWebhookFailuresResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListBotWebhookFailuresResponse {
+    return new ListBotWebhookFailuresResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListBotWebhookFailuresResponse {
+    return new ListBotWebhookFailuresResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListBotWebhookFailuresResponse | PlainMessage<ListBotWebhookFailuresResponse> | undefined, b: ListBotWebhookFailuresResponse | PlainMessage<ListBotWebhookFailuresResponse> | undefined): boolean {
+    return proto3.util.equals(ListBotWebhookFailuresResponse, a, b);
   }
 }

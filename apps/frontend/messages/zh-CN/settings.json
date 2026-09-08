@@ -529,7 +529,10 @@
         "revoked": "Webhook 已撤销。",
         "revoke_title": "撤销出站 Webhook？",
         "revoke_description": "这将永久撤销此 Webhook 并取消其待处理的重试。",
-        "limit": "已达到 20 个出站 Webhook 的上限。"
+        "limit": "已达到 20 个出站 Webhook 的上限。",
+        "history": "最近的失败",
+        "no_failures": "没有保留的失败记录。",
+        "more_failures": "加载更多"
       }
     }
   }

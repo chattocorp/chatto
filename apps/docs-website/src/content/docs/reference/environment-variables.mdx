@@ -609,3 +609,19 @@ exception. Redirects are not followed.
 
 See [outbound bot webhooks](/guides/integrations/bot-accounts/#outbound-webhooks)
 for the request body, signature scheme, and receiver requirements.
+
+## Operational log
+
+```toml
+[log]
+retention = "7d"
+```
+
+| Environment variable | TOML key | Default | Description |
+| --- | --- | --- | --- |
+| `CHATTO_LOG_RETENTION` | `log.retention` | `7d` | Retention of operational diagnostics. Minimum: 1 second. Zero selects the default. |
+
+LOG retains terminal outbound webhook failures across server replicas.
+Expired records are removed and cannot be recovered. LOG is excluded from
+backups. Retention limits record age; it does not impose a fixed byte limit.
+Use the same configuration on all replicas.

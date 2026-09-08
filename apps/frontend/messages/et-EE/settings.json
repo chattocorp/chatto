@@ -529,7 +529,10 @@
         "revoked": "Veebihaak tühistatud.",
         "revoke_title": "Tühistada väljaminev veebihaak?",
         "revoke_description": "See tühistab veebihaagi jäädavalt ja katkestab ootel korduskatsed.",
-        "limit": "Oled jõudnud 20 väljamineva veebihaagi piirini."
+        "limit": "Oled jõudnud 20 väljamineva veebihaagi piirini.",
+        "history": "Hiljutised tõrked",
+        "no_failures": "Säilitatud tõrkeid pole.",
+        "more_failures": "Laadi rohkem"
       }
     }
   }

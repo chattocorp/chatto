@@ -112,3 +112,4 @@ rollout decision whose implementation and cleanup are finished.
 | [ADR-095](ADR-095-direct-message-permission-scope-and-threads.md) | Direct-Message Permission Scope and Threads | Accepted | 2026-09-04 |
 | [ADR-096](ADR-096-session-scoped-privileged-mode.md) | Require Session-Scoped Privileged Mode | Accepted | 2026-09-03 |
 | [ADR-097](ADR-097-durable-outbound-bot-webhooks.md) | Deliver Best-Effort Outbound Bot Webhooks from EVT | Accepted | 2026-09-05 |
+| [ADR-098](ADR-098-retained-operational-log.md) | Retain Operational Diagnostics in LOG | Accepted | 2026-09-08 |

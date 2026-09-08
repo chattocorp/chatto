@@ -21,6 +21,44 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 Creates and manages bot accounts owned by human users. Bot API keys cannot
 call this service.
 
+<a id="chatto-api-v1-BotService-ListBotWebhookFailures"></a>
+
+### ListBotWebhookFailures
+
+List retained failures for an endpoint of a bot you can manage. Returns full
+records in recording order, oldest first. Expired records are omitted.
+This history is diagnostic; an empty result does not prove successful delivery.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBotWebhookFailures
+```
+
+<a id="chatto-api-v1-ListBotWebhookFailuresRequest"></a>
+
+#### Input: ListBotWebhookFailuresRequest
+
+Read the retained failure history for a current endpoint.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | No field description provided. |
+| `webhook_id` | `string` | No field description provided. |
+| `page_size` | `uint32` | Maximum records, from 1 to 100. Zero selects 20. |
+| `cursor` | `string` | Opaque continuation from the previous response. Bound to viewer and endpoint. |
+
+
+<a id="chatto-api-v1-ListBotWebhookFailuresResponse"></a>
+
+#### Result: ListBotWebhookFailuresResponse
+
+A bounded page of complete failure records. No per-record hydration is needed.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `failures` | repeated [`BotWebhookDelivery`](/reference/connectrpc-api/types/#chatto-api-v1-BotWebhookDelivery) | No field description provided. |
+| `next_cursor` | `string` | Empty at the end. Refresh without a cursor to include newer records. |
+
+
 <a id="chatto-api-v1-BotService-ListBotOutboundWebhooks"></a>
 
 ### ListBotOutboundWebhooks

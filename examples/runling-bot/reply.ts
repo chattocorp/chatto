@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { Type, workflow } from "runling";
+import { Type, task } from "runling";
 import { generateReply } from "./agent.ts";
 import { createReplySender } from "./sender.ts";
 import { startTyping } from "./typing.ts";
@@ -52,7 +52,7 @@ export function createReplyWorkflow(
   request: typeof fetch = globalThis.fetch,
   answer: typeof generateReply = generateReply,
 ) {
-  return workflow(
+  return task(
     {
       name: "Reply to Chatto",
       input: webhookInput,

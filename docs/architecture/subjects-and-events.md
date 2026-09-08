@@ -493,12 +493,14 @@ a Go structure in the [webhook worker](../../cli/internal/core/bot_webhook_worke
 it has no persisted protobuf or NATS subject.
 The delivery ID hashes the bot, configuration, and source event IDs.
 
-Only terminal failures append
-`evt.bot_webhook_delivery.{deliveryId}.bot_webhook_delivery_completed`.
-The status is `failed`; OCC permits one such fact per delivery. No request,
-success, or skip fact enters EVT. Failure payloads are defined in
-[`bot_webhook_events.proto`](../../proto/chatto/core/evt/v1/bot_webhook_events.proto).
-These facts are internal and do not enter the public realtime catalogue.
+Terminal failures append
+`log.bot_webhook.<bot-id>.<webhook-id>.delivery_failed.<delivery-id>`.
+The envelope and payload live in
+[`chatto.core.log.v1`](../../proto/chatto/core/log/v1/entry.proto).
+Subject OCC suppresses duplicates while the record is retained. These records
+do not enter EVT or the public realtime catalogue. Historical
+`evt.bot_webhook_delivery.<delivery-id>.bot_webhook_delivery_completed` records
+remain decodable but are no longer written or projected.
 
 ### Outbound webhook lifecycle
 
@@ -508,5 +510,4 @@ single-endpoint replacement semantics. The encrypted payload contains the
 name, URL, Authorization value, and signing secret.
 `evt.user.<bot-id>.bot_outbound_webhook_state_changed` pauses, resumes, or
 revokes one endpoint. Both commands use the user aggregate OCC boundary.
-`evt.bot_webhook_delivery.<delivery-id>.bot_webhook_delivery_completed`
-continues to record terminal failures only.
+Failure recording uses LOG independently of these domain lifecycle events.

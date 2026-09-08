@@ -15,8 +15,8 @@ message BotOutboundWebhookConfiguredEvent {
   bool independent = 5;
 }
 
-// A terminal failure, deduplicated per delivery aggregate using OCC.
-// Successful and intentionally skipped deliveries do not produce EVT facts.
+// Historical terminal failure, retained for stored EVT compatibility.
+// New failures use chatto.core.log.v1 and do not enter EVT.
 message BotWebhookDeliveryCompletedEvent {
   string delivery_id = 1;
   string bot_user_id = 2;

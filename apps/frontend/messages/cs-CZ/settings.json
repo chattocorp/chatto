@@ -529,7 +529,10 @@
         "revoked": "Webhook zrušen.",
         "revoke_title": "Zrušit odchozí webhook?",
         "revoke_description": "Tím se webhook trvale zruší a jeho čekající opakované pokusy se zruší.",
-        "limit": "Dosáhl jsi limitu 20 odchozích webhooků."
+        "limit": "Dosáhl jsi limitu 20 odchozích webhooků.",
+        "history": "Nedávná selhání",
+        "no_failures": "Žádná uchovaná selhání.",
+        "more_failures": "Načíst další"
       }
     }
   }

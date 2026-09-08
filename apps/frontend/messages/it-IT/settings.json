@@ -529,7 +529,10 @@
         "revoked": "Webhook revocato.",
         "revoke_title": "Revocare il webhook in uscita?",
         "revoke_description": "Questa azione revoca definitivamente il webhook e annulla i tentativi in attesa.",
-        "limit": "Hai raggiunto il limite di 20 webhook in uscita."
+        "limit": "Hai raggiunto il limite di 20 webhook in uscita.",
+        "history": "Errori recenti",
+        "no_failures": "Nessun errore conservato.",
+        "more_failures": "Carica altri"
       }
     }
   }

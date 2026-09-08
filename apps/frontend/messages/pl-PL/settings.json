@@ -529,7 +529,10 @@
         "revoked": "Unieważniono webhook.",
         "revoke_title": "Unieważnić wychodzący webhook?",
         "revoke_description": "Spowoduje to trwałe unieważnienie webhooka i anulowanie oczekujących ponownych prób.",
-        "limit": "Osiągnięto limit 20 wychodzących webhooków."
+        "limit": "Osiągnięto limit 20 wychodzących webhooków.",
+        "history": "Ostatnie błędy",
+        "no_failures": "Brak zachowanych błędów.",
+        "more_failures": "Wczytaj więcej"
       }
     }
   }

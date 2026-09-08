@@ -529,7 +529,10 @@
         "revoked": "Rethoko revokita.",
         "revoke_title": "Revoki eliran rethokon?",
         "revoke_description": "Tio definitive revokas ĉi tiun rethokon kaj nuligas ĝiajn atendajn reprovojn.",
-        "limit": "Vi atingis la limon de 20 eliraj rethokoj."
+        "limit": "Vi atingis la limon de 20 eliraj rethokoj.",
+        "history": "Lastatempaj malsukcesoj",
+        "no_failures": "Neniuj konservitaj malsukcesoj.",
+        "more_failures": "Ŝargi pli"
       }
     }
   }

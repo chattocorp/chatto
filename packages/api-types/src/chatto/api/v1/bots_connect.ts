@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotOutboundWebhookRequest, CreateBotOutboundWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotOutboundWebhooksRequest, ListBotOutboundWebhooksResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RevokeBotOutboundWebhookRequest, RevokeBotOutboundWebhookResponse, UpdateBotOutboundWebhookRequest, UpdateBotOutboundWebhookResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotOutboundWebhookRequest, CreateBotOutboundWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotOutboundWebhooksRequest, ListBotOutboundWebhooksResponse, ListBotsRequest, ListBotsResponse, ListBotWebhookFailuresRequest, ListBotWebhookFailuresResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RevokeBotOutboundWebhookRequest, RevokeBotOutboundWebhookResponse, UpdateBotOutboundWebhookRequest, UpdateBotOutboundWebhookResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,6 +15,19 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
+    /**
+     * List retained failures for an endpoint of a bot you can manage. Returns full
+     * records in recording order, oldest first. Expired records are omitted.
+     * This history is diagnostic; an empty result does not prove successful delivery.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ListBotWebhookFailures
+     */
+    listBotWebhookFailures: {
+      name: "ListBotWebhookFailures",
+      I: ListBotWebhookFailuresRequest,
+      O: ListBotWebhookFailuresResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
      * Returns the complete bounded collection, so callers do not need batch hydration.

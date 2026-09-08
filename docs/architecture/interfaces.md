@@ -201,7 +201,7 @@ issued playlist ticket on its next playlist or segment request.
 
 `BotService.ListBotOutboundWebhooks`, `GetBotOutboundWebhook`,
 `CreateBotOutboundWebhook`, `UpdateBotOutboundWebhook`, and
-`RevokeBotOutboundWebhook` require the bot owner or `bot.manage`.
+`RevokeBotOutboundWebhook`, and `ListBotWebhookFailures` require the bot owner or `bot.manage`.
 Account-manager visibility alone does not grant access. Lists return the full
 bounded collection of at most 20 endpoints. Reads expose names, saved URLs,
 enabled state, creation time, and the latest recorded failure per endpoint.
@@ -209,3 +209,9 @@ Credentials and names are fixed; creation returns a signing secret once.
 Update changes only enabled state. Revocation removes one endpoint permanently.
 Later successes do not clear a recorded failure. The delivery worker sends
 JSON HTTP POST requests to external destinations; it mounts no new route.
+
+`BotService.ListBotWebhookFailures` reads retained LOG records for one current
+endpoint. Pages contain complete records in recording order, oldest first.
+The cursor is encrypted and bound to the viewer, endpoint, and LOG incarnation.
+Page size defaults to 20 and is limited to 100. A captured tail excludes later
+appends from the current pagination session. Expired records are omitted.

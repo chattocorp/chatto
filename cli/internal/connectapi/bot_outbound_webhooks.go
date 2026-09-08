@@ -6,6 +6,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	logv1 "hmans.de/chatto/internal/pb/chatto/core/log/v1"
 )
 
 func apiBotOutboundWebhook(w *core.BotOutboundWebhook) *apiv1.BotOutboundWebhook {
@@ -13,10 +14,7 @@ func apiBotOutboundWebhook(w *core.BotOutboundWebhook) *apiv1.BotOutboundWebhook
 		return nil
 	}
 	result := &apiv1.BotOutboundWebhook{Id: w.ID, Name: w.Name, CreatedAt: timestamppb.New(w.CreatedAt), Url: w.URL, Enabled: w.Enabled, HasAuthorization: w.HasAuthorization}
-	if e := w.Latest; e != nil {
-		x := e.GetBotWebhookDeliveryCompleted()
-		result.LatestDelivery = &apiv1.BotWebhookDelivery{Id: x.GetDeliveryId(), Status: apiBotWebhookStatus(x.GetStatus()), Reason: x.GetReason(), Attempts: x.GetAttempts(), HttpStatus: x.GetHttpStatus(), CompletedAt: e.GetCreatedAt()}
-	}
+	result.LatestDelivery = apiBotWebhookFailure(w.Latest)
 	return result
 }
 func (s *botService) GetBotOutboundWebhook(ctx context.Context, req *connect.Request[apiv1.GetBotOutboundWebhookRequest]) (*connect.Response[apiv1.GetBotOutboundWebhookResponse], error) {
@@ -52,19 +50,6 @@ func (s *botService) RevokeBotOutboundWebhook(ctx context.Context, req *connect.
 	return connect.NewResponse(&apiv1.RevokeBotOutboundWebhookResponse{}), nil
 }
 
-func apiBotWebhookStatus(status string) apiv1.BotWebhookDeliveryStatus {
-	switch status {
-	case "delivered":
-		return apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_DELIVERED
-	case "failed":
-		return apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_FAILED
-	case "skipped":
-		return apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_SKIPPED
-	default:
-		return apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_UNSPECIFIED
-	}
-}
-
 func (s *botService) ListBotOutboundWebhooks(ctx context.Context, req *connect.Request[apiv1.ListBotOutboundWebhooksRequest]) (*connect.Response[apiv1.ListBotOutboundWebhooksResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -90,4 +75,31 @@ func (s *botService) UpdateBotOutboundWebhook(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UpdateBotOutboundWebhookResponse{Webhook: apiBotOutboundWebhook(item)}), nil
+}
+
+func apiBotWebhookFailure(e *logv1.Entry) *apiv1.BotWebhookDelivery {
+	if e == nil {
+		return nil
+	}
+	x := e.GetBotWebhookDeliveryFailed()
+	if x == nil {
+		return nil
+	}
+	return &apiv1.BotWebhookDelivery{Id: e.GetId(), Status: apiv1.BotWebhookDeliveryStatus_BOT_WEBHOOK_DELIVERY_STATUS_FAILED, Reason: x.GetReason(), Attempts: x.GetAttempts(), HttpStatus: x.GetHttpStatus(), CompletedAt: e.GetRecordedAt(), SourceEventId: x.GetSourceEventId()}
+}
+
+func (s *botService) ListBotWebhookFailures(ctx context.Context, req *connect.Request[apiv1.ListBotWebhookFailuresRequest]) (*connect.Response[apiv1.ListBotWebhookFailuresResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	page, err := s.api.core.ListBotWebhookFailures(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId(), req.Msg.GetPageSize(), req.Msg.GetCursor())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	response := &apiv1.ListBotWebhookFailuresResponse{NextCursor: page.NextCursor}
+	for _, entry := range page.Entries {
+		response.Failures = append(response.Failures, apiBotWebhookFailure(entry))
+	}
+	return connect.NewResponse(response), nil
 }

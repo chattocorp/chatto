@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "knip": "^6.22.0",
-    "runling": "^0.5.0",
+    "runling": "^0.6.0",
     "undici": "7.29.0"
   }
 }

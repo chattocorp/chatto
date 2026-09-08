@@ -12,8 +12,8 @@ importers:
         specifier: ^6.22.0
         version: 6.22.0
       runling:
-        specifier: ^0.5.0
-        version: 0.5.0(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
+        specifier: ^0.6.0
+        version: 0.6.0(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       undici:
         specifier: 7.29.0
         version: 7.29.0
@@ -5230,8 +5230,8 @@ packages:
     resolution: {integrity: sha512-DPe5pVFaAsinSaV6QjQ6gdiedWDcRCbUuiQfQa2wmWV7+xC9bGulGI8+TdRmoFkAPaBXk8CrAbnlY2ISniJ47Q==}
     engines: {node: '>=18'}
 
-  runling@0.5.0:
-    resolution: {integrity: sha512-4xsyqCHLWe2YT9n6xO/Jq3xrYaEbT7c9hMKJCCXAg+EAiQPCzBND5Q6O/277I6LciEI9PyizqxTby6OuO/6Igw==}
+  runling@0.6.0:
+    resolution: {integrity: sha512-W+evL9SX2wX1Am8S7q2lKi21pJgLFbd0R8n8A370qP52J9XoCUDxSVk4tdeSHpwNN6dfncwsAoA4fM/6K6BJAQ==}
     engines: {node: '>=22.18.0'}
     hasBin: true
 
@@ -11470,7 +11470,7 @@ snapshots:
 
   run-applescript@7.1.0: {}
 
-  runling@0.5.0(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3):
+  runling@0.6.0(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3):
     dependencies:
       '@earendil-works/pi-coding-agent': 0.84.4(supports-color@7.2.0)(ws@8.21.3)(zod@4.4.3)
       '@earendil-works/pi-tui': 0.84.4

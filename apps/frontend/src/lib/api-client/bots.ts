@@ -44,6 +44,17 @@ export function createBotAPI(config: BotAPIConfig) {
   const client = createChattoClient(BotService, config);
   const headers = () => authHeaders(config);
   return {
+    async listWebhookFailures(
+      botUserId: string,
+      webhookId: string,
+      cursor = '',
+      signal?: AbortSignal
+    ) {
+      return client.listBotWebhookFailures(
+        { botUserId, webhookId, cursor, pageSize: 20 },
+        { headers: headers(), signal }
+      );
+    },
     async listOutboundWebhooks(botUserId: string, signal?: AbortSignal) {
       return (await client.listBotOutboundWebhooks({ botUserId }, { headers: headers(), signal }))
         .webhooks;

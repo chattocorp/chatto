@@ -9,10 +9,12 @@
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, FormDialog, Hint } from '$lib/ui';
+  import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { Button, Checkbox, TextInput } from '$lib/ui/form';
   import BotIntegrationSection from './BotIntegrationSection.svelte';
+  import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
+  import BotWebhookFailureHistory from './BotWebhookFailureHistory.svelte';
   import ShowOnceCredentialDialog from './ShowOnceCredentialDialog.svelte';
 
   let { botId }: { botId: string } = $props();
@@ -28,6 +30,9 @@
   );
   const webhooks = $derived(query.data ?? []);
   const atLimit = $derived(webhooks.length >= 20);
+
+  let historyId = $state('');
+  let historyVisible = $state(false);
 
   let createVisible = $state(false);
   let name = $state('');
@@ -157,17 +162,21 @@
       {@const latest = webhook.latestDelivery}
       <div class="mt-3" role="status">
         <p class="text-warning">{m('settings.bots.outbound.failed')}</p>
-        <div class="flex flex-wrap gap-x-4 gap-y-1 text-muted">
-          <span>{m('settings.bots.outbound.attempts', { attempts: latest.attempts })}</span>
-          {#if latest.httpStatus}<span
-              >{m('settings.bots.outbound.http_status', { status: latest.httpStatus })}</span
-            >{/if}
-          {#if latest.reason}<span
-              >{m('settings.bots.outbound.reason', { reason: latest.reason })}</span
-            >{/if}
-        </div>
+        <BotWebhookFailureDetails failure={latest} />
       </div>
     {/if}
+    <div class="mt-3">
+      <Button
+        size="sm"
+        variant="secondary"
+        onclick={() => {
+          historyId = webhook.id;
+          historyVisible = true;
+        }}
+      >
+        {m('settings.bots.outbound.history')}
+      </Button>
+    </div>
     {#if secrets[webhook.id]}
       <div class="mt-3">
         <Button
@@ -278,3 +287,9 @@
   warning={m('settings.bots.outbound.secret_warning')}
   copiedMessage={m('settings.bots.outbound.secret_copied')}
 />
+
+<Dialog bind:visible={historyVisible} title={m('settings.bots.outbound.history')}>
+  {#if historyVisible}
+    {#key historyId}<BotWebhookFailureHistory {botId} webhookId={historyId} />{/key}
+  {/if}
+</Dialog>

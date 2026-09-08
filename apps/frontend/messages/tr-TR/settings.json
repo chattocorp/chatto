@@ -529,7 +529,10 @@
         "revoked": "Webhook iptal edildi.",
         "revoke_title": "Giden webhook iptal edilsin mi?",
         "revoke_description": "Bu işlem webhook’u kalıcı olarak iptal eder ve bekleyen yeniden denemeleri durdurur.",
-        "limit": "20 giden webhook sınırına ulaştın."
+        "limit": "20 giden webhook sınırına ulaştın.",
+        "history": "Son hatalar",
+        "no_failures": "Saklanan hata yok.",
+        "more_failures": "Daha fazla yükle"
       }
     }
   }

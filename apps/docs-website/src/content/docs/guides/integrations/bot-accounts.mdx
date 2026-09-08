@@ -337,9 +337,16 @@ can delay other deliveries while these workers wait.
 Chatto checks the bot's current access before sending. It skips delivery when
 access is lost, the message is unavailable, or the endpoint is paused or revoked. The
 body contains the currently readable message text. An edit can therefore
-change the body between attempts. The bot page shows the latest recorded failure for the current endpoint.
-Successful deliveries and intentional skips are not recorded. Later success
-does not clear a previous failure.
+change the body between attempts. Select **Recent failures** on an endpoint to
+read its retained failure history. Records show the time, attempt count, HTTP
+status when available, and a safe failure category. History is ordered oldest
+first; use **Load more** for the next page.
+
+Failures expire after seven days by default. Operators can set
+`log.retention` or `CHATTO_LOG_RETENTION`. Successful deliveries and intentional
+skips are not recorded. An empty history does not prove successful delivery.
+A later success does not clear a retained failure. Historical failures from
+older versions are not copied into this history. Backups exclude this history.
 
 Operators can change retry and expiry policy through
 [environment variables or TOML](/reference/environment-variables/#outbound-bot-webhooks).

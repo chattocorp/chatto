@@ -101,8 +101,8 @@ func (x *BotOutboundWebhookConfiguredEvent) GetIndependent() bool {
 	return false
 }
 
-// A terminal failure, deduplicated per delivery aggregate using OCC.
-// Successful and intentionally skipped deliveries do not produce EVT facts.
+// Historical terminal failure, retained for stored EVT compatibility.
+// New failures use chatto.core.log.v1 and do not enter EVT.
 type BotWebhookDeliveryCompletedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	DeliveryId    string                 `protobuf:"bytes,1,opt,name=delivery_id,json=deliveryId,proto3" json:"delivery_id,omitempty"`

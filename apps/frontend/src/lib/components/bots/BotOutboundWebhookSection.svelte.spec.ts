@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   errorToast: vi.fn(),
   api: {
     listOutboundWebhooks: vi.fn(),
+    listWebhookFailures: vi.fn(),
     createOutboundWebhook: vi.fn(),
     updateOutboundWebhook: vi.fn(),
     revokeOutboundWebhook: vi.fn()
@@ -95,7 +96,7 @@ describe('outbound webhook settings', () => {
     expect(container.querySelector('dialog[open]')).toBeNull();
     expect(container.textContent).not.toContain('show-once-secret');
     expect(container.querySelectorAll('[data-testid="bot-outbound-webhooks"] button').length).toBe(
-      5
+      7
     );
     button(container, 'Show signing secret').click();
     flushSync();
@@ -173,5 +174,40 @@ describe('outbound webhook settings', () => {
     await vi.waitFor(() => expect(container.textContent).toContain('limit of 20'));
     expect(button(container, 'Create webhook').disabled).toBe(true);
     expect(button(container, 'Pause').disabled).toBe(false);
+  });
+  it('loads scoped failure history on demand and follows its cursor', async () => {
+    mocks.api.listOutboundWebhooks.mockResolvedValue([first]);
+    mocks.api.listWebhookFailures
+      .mockResolvedValueOnce({
+        failures: [{ id: 'f1', attempts: 2, httpStatus: 503, reason: 'http_error' }],
+        nextCursor: 'next'
+      })
+      .mockResolvedValueOnce({
+        failures: [{ id: 'f2', attempts: 3, httpStatus: 0, reason: 'transport_error' }],
+        nextCursor: ''
+      });
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    await vi.waitFor(() => expect(container.textContent).toContain(first.url));
+    expect(mocks.api.listWebhookFailures).not.toHaveBeenCalled();
+    button(container, 'Recent failures').click();
+    await vi.waitFor(() =>
+      expect(
+        container.querySelector('[data-testid="webhook-failure-history"]')?.textContent
+      ).toContain('HTTP status: 503')
+    );
+    expect(mocks.api.listWebhookFailures).toHaveBeenCalledWith(
+      'bot',
+      'first',
+      '',
+      expect.any(AbortSignal)
+    );
+    button(container, 'Load more').click();
+    await vi.waitFor(() => expect(container.textContent).toContain('transport_error'));
+    expect(mocks.api.listWebhookFailures).toHaveBeenLastCalledWith(
+      'bot',
+      'first',
+      'next',
+      expect.any(AbortSignal)
+    );
   });
 });
