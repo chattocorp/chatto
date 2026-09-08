@@ -79,7 +79,6 @@ func (c *ChattoCore) GetBotOutboundWebhook(ctx context.Context, actorID, botID, 
 	}
 	item.Latest, err = c.latestOperationalLog(ctx, botWebhookLogFilter(botID, webhookID))
 	return item, err
-
 }
 
 // CreateBotOutboundWebhook creates an independent, immutable credential and

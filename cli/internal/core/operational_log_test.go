@@ -44,6 +44,7 @@ func TestLogPaginationScopeAndRetention(t *testing.T) {
 	require.Len(t, page.Entries, 2)
 	require.Equal(t, "entry0", page.Entries[0].GetId())
 	require.NotEmpty(t, page.NextCursor)
+	originalCursor := page.NextCursor
 	// A fixed pagination tail excludes later concurrent appends.
 	appendTestLog(t, c, bot, endpoint.ID, "later")
 	next, err := c.ListBotWebhookFailures(ctx, owner, bot, endpoint.ID, 2, page.NextCursor)
@@ -82,6 +83,17 @@ func TestLogPaginationScopeAndRetention(t *testing.T) {
 	page, err = c.ListBotWebhookFailures(ctx, owner, bot, endpoint.ID, 2, page.NextCursor)
 	require.NoError(t, err)
 	require.Empty(t, page.Entries)
+	// Once expired, the same delivery ID can be recorded again.
+	appendTestLog(t, c, bot, endpoint.ID, "entry0")
+	latest, err := c.latestOperationalLog(ctx, botWebhookLogFilter(bot, endpoint.ID))
+	require.NoError(t, err)
+	require.NotNil(t, latest)
+	// An old cursor must not address a newly created stream with reused sequences.
+	require.NoError(t, c.js.DeleteStream(ctx, "LOG"))
+	_, err = c.js.CreateStream(ctx, cfg)
+	require.NoError(t, err)
+	_, err = c.ListBotWebhookFailures(ctx, owner, bot, endpoint.ID, 2, originalCursor)
+	require.Error(t, err)
 }
 
 func TestLogConcurrentDuplicateAndUnavailableStorage(t *testing.T) {
