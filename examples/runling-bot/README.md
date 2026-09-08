@@ -31,7 +31,8 @@ Run the commands below from that root unless a command changes the directory.
    http://localhost:55003/api/runs/start/chatto
    ```
 
-   Enable delivery and save the endpoint. This setting persists across restarts.
+   Select **Create webhook**. The endpoint starts enabled and persists across
+   restarts. Close the signing-secret dialog; this local example does not use it.
    Use the `localhost` hostname: Chatto permits HTTP for localhost names only.
    The local example does not check the signing secret or an Authorization
    header. Runling binds to loopback; its console and run endpoints have no

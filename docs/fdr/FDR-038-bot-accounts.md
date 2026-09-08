@@ -299,8 +299,8 @@ alternate clients, and a future reliable delivery transport.
 
 **Tradeoff:** Realtime provides bounded reconnect recovery, not indefinite
 delivery. Bots must deduplicate stable event IDs. An integration that must
-process every event after a long outage can use outbound webhooks for direct mentions and DM messages. Other event
-types need a future acknowledged transport or paged activity feature.
+process every event after a long outage needs a future acknowledged transport
+or paged activity feature. Outbound webhooks are also best effort.
 
 ### 11. Incoming webhooks use a separate action credential
 
@@ -342,7 +342,8 @@ are available, but signature verification is the receiver's responsibility.
 The bot uses the normal API to reply. Webhook response bodies have no action.
 
 The saved name and URL remain visible to bot managers; Authorization remains
-write-only. The manager can view each signing secret once after creation.
+write-only. Creation opens the signing-secret dialog immediately. Closing the
+dialog clears the secret. New endpoints start enabled in the UI.
 Names and credentials are fixed. Replacement means creating a new endpoint and
 revoking the old one. Pause and resume preserve credentials. Resume accepts
 only new messages and does not revive cancelled retries. Revocation stops one
