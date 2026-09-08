@@ -116,7 +116,7 @@ navigation, member presence groups, and attachment date groups.
 >
   <div class="px-2 py-1.5">
     <div
-      class="group/section-header relative flex min-h-8 w-full min-w-0 items-center rounded-md transition-colors hover:text-text"
+      class="group/section-header relative flex min-h-8 w-full min-w-0 items-center rounded-md text-muted transition-colors hover:text-text"
       {@attach contextMenuTrigger}
     >
       <button
@@ -124,7 +124,7 @@ navigation, member presence groups, and attachment date groups.
         onclick={toggle}
         aria-expanded={!collapsed}
         data-testid={testid}
-        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider text-muted uppercase focus-visible:outline-2 focus-visible:outline-action"
+        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider uppercase focus-visible:text-text focus-visible:outline-2 focus-visible:outline-action"
       >
         <span class="relative sidebar-icon">
           <span
