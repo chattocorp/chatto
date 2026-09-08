@@ -416,7 +416,7 @@ describe('Bot detail page', () => {
     );
     expect(container.textContent).toContain(expected);
     expect(container.textContent).not.toContain('Create API key');
-    expect(container.textContent).not.toContain('Revoke key');
+    expect(container.querySelector('button[aria-label="Revoke key"]')).toBeNull();
     expect(container.textContent).not.toContain('Replace all keys');
   });
 

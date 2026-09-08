@@ -48,7 +48,7 @@ function deferred<T>() {
 
 function buttonByText(root: ParentNode, text: string): HTMLButtonElement {
   const button = [...root.querySelectorAll('button')].find(
-    (candidate) => candidate.textContent?.trim() === text
+    (candidate) => (candidate.getAttribute('aria-label') || candidate.textContent?.trim()) === text
   );
   if (!(button instanceof HTMLButtonElement)) throw new Error(`Button not found: ${text}`);
   return button;
