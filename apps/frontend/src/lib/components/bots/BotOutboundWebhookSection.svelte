@@ -11,7 +11,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, Dialog, FormDialog, Hint } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
-  import { Button, Checkbox, TextInput } from '$lib/ui/form';
+  import { Button, TextInput } from '$lib/ui/form';
   import BotIntegrationSection from './BotIntegrationSection.svelte';
   import BotWebhookFailureDetails from './BotWebhookFailureDetails.svelte';
   import BotWebhookFailureHistory from './BotWebhookFailureHistory.svelte';
@@ -38,23 +38,19 @@
   let name = $state('');
   let url = $state('');
   let authorization = $state('');
-  let enabled = $state(true);
   let pending = $state(false);
   let createError = $state(false);
   let revokeId = $state('');
   let revokeVisible = $state(false);
 
-  // Secrets exist only for endpoints created in this page session. Closing the
-  // show-once dialog clears that endpoint's value through the bound property.
-  let secrets = $state<Record<string, string>>({});
-  let secretId = $state('');
+  // The shared dialog clears the newly issued secret when it closes.
+  let signingSecret = $state('');
   let secretVisible = $state(false);
 
   function openCreate() {
     name = '';
     url = '';
     authorization = '';
-    enabled = true;
     createError = false;
     createVisible = true;
   }
@@ -75,10 +71,11 @@
         name: name.trim(),
         url,
         authorization,
-        enabled
+        enabled: true
       });
-      if (result.webhook && result.signingSecret) secrets[result.webhook.id] = result.signingSecret;
       createVisible = false;
+      signingSecret = result.signingSecret;
+      secretVisible = !!signingSecret;
       authorization = '';
       await query.refetch();
       toast.success(m('settings.bots.outbound.created'));
@@ -112,7 +109,6 @@
     pending = true;
     try {
       await scope.connection.getAPI(createBotAPI).revokeOutboundWebhook(botId, revokeId);
-      delete secrets[revokeId];
       revokeVisible = false;
       await query.refetch();
       toast.success(m('settings.bots.outbound.revoked'));
@@ -177,20 +173,6 @@
         {m('settings.bots.outbound.history')}
       </Button>
     </div>
-    {#if secrets[webhook.id]}
-      <div class="mt-3">
-        <Button
-          size="sm"
-          variant="secondary"
-          onclick={() => {
-            secretId = webhook.id;
-            secretVisible = true;
-          }}
-        >
-          {m('settings.bots.outbound.show_secret')}
-        </Button>
-      </div>
-    {/if}
   {/snippet}
   {#snippet itemActions(webhook)}
     <Button size="sm" variant="secondary" disabled={pending} onclick={() => toggle(webhook)}>
@@ -256,15 +238,6 @@
     disabled={pending}
     autocomplete="new-password"
   />
-  <div class="self-start">
-    <Checkbox
-      id="bot-outbound-enabled"
-      bind:checked={enabled}
-      label={m('settings.bots.outbound.enabled')}
-      description={m('settings.bots.outbound.enabled_help')}
-      disabled={pending}
-    />
-  </div>
 </FormDialog>
 <ConfirmDialog
   bind:visible={revokeVisible}
@@ -276,12 +249,7 @@
 >
 <ShowOnceCredentialDialog
   bind:visible={secretVisible}
-  bind:value={
-    () => secrets[secretId] ?? '',
-    (value) => {
-      secrets[secretId] = value;
-    }
-  }
+  bind:value={signingSecret}
   {pending}
   title={m('settings.bots.outbound.secret_title')}
   warning={m('settings.bots.outbound.secret_warning')}

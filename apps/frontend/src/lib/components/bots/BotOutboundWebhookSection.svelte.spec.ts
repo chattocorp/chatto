@@ -64,7 +64,7 @@ describe('outbound webhook settings', () => {
   });
   afterEach(() => queryClient.clear());
 
-  it('creates an endpoint in a dialog, toasts, and reveals only its own secret on request', async () => {
+  it('creates an endpoint in a dialog, toasts, and immediately shows its secret once', async () => {
     let resolve!: (result: unknown) => void;
     mocks.api.createOutboundWebhook.mockReturnValue(new Promise((done) => (resolve = done)));
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
@@ -93,17 +93,13 @@ describe('outbound webhook settings', () => {
     mocks.api.listOutboundWebhooks.mockResolvedValue([first, second]);
     resolve({ webhook: first, signingSecret: 'show-once-secret' });
     await vi.waitFor(() => expect(mocks.successToast).toHaveBeenCalledWith('Webhook created.'));
-    expect(container.querySelector('dialog[open]')).toBeNull();
-    expect(container.textContent).not.toContain('show-once-secret');
-    expect(container.querySelectorAll('[data-testid="bot-outbound-webhooks"] button').length).toBe(
-      7
-    );
-    button(container, 'Show signing secret').click();
-    flushSync();
+    expect(container.querySelector('dialog[open]')?.textContent).toContain('show-once-secret');
+    expect(container.textContent).not.toContain('Show signing secret');
     expect(container.textContent).toContain('show-once-secret');
     button(container, 'Got it').click();
     flushSync();
     expect(container.textContent).not.toContain('show-once-secret');
+    expect(container.querySelector('dialog[open]')).toBeNull();
   });
 
   it('pauses one endpoint without creating credentials or changing another endpoint', async () => {

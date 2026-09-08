@@ -245,11 +245,12 @@ human accounts, with the bot's user ID as the target. See the
 Open a bot in **Server Admin → Bots**, then select **Create webhook** in
 **Outbound webhooks**. Enter a name, the destination URL and, if required, the
 complete Authorization header value. Select **Create webhook** to save it.
-Leave **Enable delivery** disabled to create a paused endpoint.
+New webhooks start enabled. Use **Pause** to stop deliveries and **Resume** to
+start them again.
 
-Each endpoint has its own signing secret. If your tool verifies signatures,
-select **Show signing secret** for that endpoint and copy it before leaving
-the page. You can skip this step if your receiver does not verify signatures.
+Each endpoint has its own signing secret, shown once after creation. If your
+tool verifies signatures, copy the secret before closing the dialog. You can
+skip this step if your receiver does not verify signatures.
 
 Each bot can have up to 20 endpoints, including paused endpoints. Each enabled
 endpoint receives new messages that directly mention the
