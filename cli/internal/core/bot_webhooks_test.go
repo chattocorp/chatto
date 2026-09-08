@@ -43,7 +43,7 @@ func waitWebhookOutcome(t *testing.T, c *ChattoCore, owner, bot, status string) 
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		var err error
-		result, err = c.GetBotOutboundWebhook(ctx, owner, bot)
+		result, err = getOnlyWebhook(ctx, c, owner, bot)
 		return err == nil && result != nil && result.Latest != nil && result.Latest.GetBotWebhookDeliveryCompleted().GetStatus() == status
 	}, 5*time.Second, 10*time.Millisecond)
 	return result.Latest
@@ -104,7 +104,7 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	metadata, secret, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "Bearer receiver-secret", true)
+	metadata, secret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "Bearer receiver-secret", true)
 	require.NoError(t, err)
 	source, err := c.PostMessage(ctx, KindDM, room, owner, "Hello @outbound_bot", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -139,7 +139,7 @@ func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	require.Equal(t, int32(4), calls.Load())
 	require.Equal(t, id, (<-received).headers.Get("Chatto-Webhook-Id"))
 	requireNoWebhookOutcomes(t, c)
-	stored, _, _ := c.botWebhooks.projection.Projection().get(bot)
+	stored := c.botWebhooks.projection.Projection().get(bot, metadata.ID).Configuration
 	encoded, err := proto.Marshal(stored)
 	require.NoError(t, err)
 	require.NotContains(t, string(encoded), strings.Replace(server.URL, "127.0.0.1", "localhost", 1))
@@ -168,7 +168,7 @@ func TestBotOutboundWebhookFailureAndAccessLoss(t *testing.T) {
 			startCoreServices(t, c)
 			owner, bot, room := webhookTestBot(t, c)
 			ctx := testContext(t)
-			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+			_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 			require.NoError(t, err)
 			_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 			require.NoError(t, err)
@@ -198,34 +198,34 @@ func TestBotOutboundWebhookManagerBoundary(t *testing.T) {
 	ctx := testContext(t)
 	stranger, err := c.CreateUser(ctx, SystemActorID, "stranger", "Stranger", "password123")
 	require.NoError(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, stranger.GetId(), bot, "https://example.com/hook", "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, stranger.GetId(), bot, "Test endpoint", "https://example.com/hook", "", true)
 	require.Error(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "http://example.com/hook", "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", "http://example.com/hook", "", true)
 	require.ErrorIs(t, err, ErrInvalidArgument)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "https://example.com/hook", "Bearer x\r\nX-Evil: y", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", "https://example.com/hook", "Bearer x\r\nX-Evil: y", true)
 	require.ErrorIs(t, err, ErrInvalidArgument)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, "https://example.com/hook", "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", "https://example.com/hook", "", true)
 	require.NoError(t, err)
-	_, err = c.GetBotOutboundWebhook(ctx, stranger.GetId(), bot)
+	_, err = getOnlyWebhook(ctx, c, stranger.GetId(), bot)
 	require.Error(t, err)
-	_, err = c.GetBotOutboundWebhook(ctx, bot, bot)
+	_, err = getOnlyWebhook(ctx, c, bot, bot)
 	require.Error(t, err)
-	saved, err := c.GetBotOutboundWebhook(ctx, owner, bot)
+	saved, err := getOnlyWebhook(ctx, c, owner, bot)
 	require.NoError(t, err)
 	require.Equal(t, "https://example.com/hook", saved.URL)
-	require.NoError(t, c.DeleteBotOutboundWebhook(ctx, owner, bot))
-	w, err := c.GetBotOutboundWebhook(ctx, owner, bot)
+	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, bot, saved.ID))
+	w, err := getOnlyWebhook(ctx, c, owner, bot)
 	require.NoError(t, err)
 	require.Nil(t, w)
-	require.NoError(t, c.DeleteBotOutboundWebhook(ctx, owner, bot))
+	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, bot, saved.ID))
 }
 
-func TestBotOutboundWebhookExpiryAndReplacement(t *testing.T) {
-	for _, mode := range []string{"expiry", "replacement"} {
+func TestBotOutboundWebhookExpiryAndRevocation(t *testing.T) {
+	for _, mode := range []string{"expiry", "revocation"} {
 		t.Run(mode, func(t *testing.T) {
 			c, _ := newTestCore(t)
 			c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 5, RetryDelay: config.Duration(time.Second), Expiry: config.Duration(200 * time.Millisecond)}
-			if mode == "replacement" {
+			if mode == "revocation" {
 				c.config.BotWebhooks.Expiry = config.Duration(time.Hour)
 				c.config.BotWebhooks.RetryDelay = config.Duration(200 * time.Millisecond)
 			}
@@ -236,18 +236,18 @@ func TestBotOutboundWebhookExpiryAndReplacement(t *testing.T) {
 			startCoreServices(t, c)
 			owner, bot, room := webhookTestBot(t, c)
 			ctx := testContext(t)
-			_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+			endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 			require.NoError(t, err)
 			_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 			require.NoError(t, err)
 			require.Eventually(t, func() bool { return calls.Load() == 1 }, 3*time.Second, 10*time.Millisecond)
-			if mode == "replacement" {
-				_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/replacement", "", true)
+			if mode == "revocation" {
+				err = c.RevokeBotOutboundWebhook(ctx, owner, bot, endpoint.ID)
 				require.NoError(t, err)
 			}
 			waitWebhookDeliveriesDrained(t, c)
 			require.Equal(t, int32(1), calls.Load())
-			if mode == "replacement" {
+			if mode == "revocation" {
 				requireNoWebhookOutcomes(t, c)
 				return
 			}
@@ -273,7 +273,7 @@ func TestBotOutboundWebhookRestartDiscardsRetryState(t *testing.T) {
 	require.NoError(t, c.WaitForBoot(testContext(t)))
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -318,7 +318,7 @@ func TestBotOutboundWebhookRedirectDoesNotForwardSecrets(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(redirect.URL, "127.0.0.1", "localhost", 1), "Bearer secret", true)
+	_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(redirect.URL, "127.0.0.1", "localhost", 1), "Bearer secret", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -353,9 +353,9 @@ func TestBotOutboundWebhookFanoutAcrossReplicas(t *testing.T) {
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, second.User.GetId(), PermissionTargetScope{Kind: MatrixScopeDM}, PermMessageRead, PermissionStateAllow))
 	room, _, err := c.FindOrCreateDM(ctx, owner, []string{first, second.User.GetId()})
 	require.NoError(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, first, strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/good", "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, first, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/good", "", true)
 	require.NoError(t, err)
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, second.User.GetId(), strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/bad", "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, second.User.GetId(), "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1)+"/bad", "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room.GetId(), owner, "Activate both bots", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -376,7 +376,7 @@ func TestBotOutboundWebhookSourceExpiryRecordsFailure(t *testing.T) {
 	startCoreServices(t, c)
 	owner, bot, room := webhookTestBot(t, c)
 	ctx := testContext(t)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindDM, room, owner, "Expired before materialization", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -401,7 +401,7 @@ func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	_, err = c.AddMember(ctx, owner, KindChannel, room.GetId(), bot)
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow))
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	for _, body := range []string{"Ordinary channel message", "@all broadcast", "Hello @outbound_bot"} {
 		_, err = c.PostMessage(ctx, KindChannel, room.GetId(), owner, body, nil, "", "", nil, false)
@@ -420,7 +420,7 @@ func TestBotOutboundWebhookChannelSelection(t *testing.T) {
 	requireNoWebhookOutcomes(t, c)
 }
 
-func TestBotOutboundWebhookConcurrentReplacementReturnsOwnSecret(t *testing.T) {
+func TestBotOutboundWebhookConcurrentCreationReturnsOwnSecret(t *testing.T) {
 	c, _ := setupTestCore(t)
 	owner, bot, _ := webhookTestBot(t, c)
 	ctx := testContext(t)
@@ -432,7 +432,7 @@ func TestBotOutboundWebhookConcurrentReplacementReturnsOwnSecret(t *testing.T) {
 	responses := make(chan response, 8)
 	for i := 0; i < 8; i++ {
 		go func() {
-			w, s, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, "https://example.com/hook", "", false)
+			w, s, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", "https://example.com/hook", "", false)
 			responses <- response{w, s, err}
 		}()
 	}
@@ -456,7 +456,7 @@ func TestBotOutboundWebhookConcurrentReplacementReturnsOwnSecret(t *testing.T) {
 	}
 	for _, r := range succeeded {
 		if secrets[r.webhook.ID] != r.secret {
-			t.Fatal("replacement paired another configuration with its signing secret")
+			t.Fatal("creation paired another configuration with its signing secret")
 		}
 	}
 }
@@ -476,7 +476,7 @@ func TestBotOutboundWebhookMembershipLossIsTerminal(t *testing.T) {
 	_, err = c.AddMember(ctx, owner, KindChannel, room.GetId(), bot)
 	require.NoError(t, err)
 	require.NoError(t, c.SetUserPermissionState(ctx, owner, bot, PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()}, PermMessageReadInteractions, PermissionStateAllow))
-	_, _, err = c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	_, err = c.PostMessage(ctx, KindChannel, room.GetId(), owner, "Hello @outbound_bot", nil, "", "", nil, false)
 	require.NoError(t, err)
@@ -543,7 +543,7 @@ func TestBotOutboundWebhookPoolBoundsHTTPAndCancelsOnShutdown(t *testing.T) {
 	go func() { done <- c.Run(runCtx) }()
 	require.NoError(t, c.WaitForBoot(ctx))
 	owner, bot, room := webhookTestBot(t, c)
-	_, _, err := c.ReplaceBotOutboundWebhook(ctx, owner, bot, strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Test endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
 	require.NoError(t, err)
 	for range botWebhookConcurrency + 1 {
 		_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
@@ -572,4 +572,173 @@ func TestBotWebhookURLPolicy(t *testing.T) {
 	for _, raw := range []string{"http://127.0.0.1/hook", "http://[::1]/hook", "http://192.168.1.10/hook", "http://localhost.example.com/hook", "http://notlocalhost/hook", "http://.localhost/hook", "http://example.com/hook", "http://user:secret@localhost/hook", "http://localhost/hook#fragment"} {
 		require.ErrorIs(t, validateBotWebhookURL(raw), ErrInvalidArgument, raw)
 	}
+}
+
+// Existing delivery tests use one endpoint; collection tests select IDs explicitly.
+func getOnlyWebhook(ctx context.Context, c *ChattoCore, owner, bot string) (*BotOutboundWebhook, error) {
+	items, err := c.ListBotOutboundWebhooks(ctx, owner, bot)
+	if err != nil {
+		return nil, err
+	}
+	if len(items) == 0 {
+		return nil, nil
+	}
+	if len(items) != 1 {
+		return nil, errors.New("expected one webhook")
+	}
+	return items[0], nil
+}
+
+func TestBotOutboundWebhookMultipleEndpointsPreserveCredentials(t *testing.T) {
+	c, _ := setupTestCore(t)
+	owner, bot, room := webhookTestBot(t, c)
+	ctx := testContext(t)
+	requests := make(chan string, 10)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { requests <- r.URL.Path; w.WriteHeader(204) }))
+	defer server.Close()
+	endpointURL := strings.Replace(server.URL, "127.0.0.1", "localhost", 1)
+	first, firstSecret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "First", endpointURL+"/first", "Bearer first", true)
+	require.NoError(t, err)
+	second, secondSecret, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Second", endpointURL+"/second", "Bearer second", true)
+	require.NoError(t, err)
+	require.NotEqual(t, first.ID, second.ID)
+	require.NotEqual(t, firstSecret, secondSecret)
+	post := func() {
+		_, err := c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
+		require.NoError(t, err)
+		waitWebhookDeliveriesDrained(t, c)
+	}
+	post()
+	require.Len(t, requests, 2)
+	paths := []string{<-requests, <-requests}
+	require.ElementsMatch(t, []string{"/first", "/second"}, paths)
+	paused := false
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, &paused)
+	require.NoError(t, err)
+	post()
+	require.Len(t, requests, 1)
+	require.Equal(t, "/second", <-requests)
+	resumed := true
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, first.ID, &resumed)
+	require.NoError(t, err)
+	restored := c.botWebhooks.projection.Projection().get(bot, first.ID)
+	creds, err := c.botWebhooks.credentials(ctx, restored.Configuration)
+	require.NoError(t, err)
+	require.Equal(t, firstSecret, creds.SigningSecret)
+	require.Equal(t, "Bearer first", creds.Authorization)
+	require.Equal(t, first.URL, creds.URL)
+	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, bot, second.ID))
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, second.ID, &resumed)
+	require.ErrorIs(t, err, ErrNotFound)
+	post()
+	require.Len(t, requests, 1)
+	require.Equal(t, "/first", <-requests)
+}
+
+func TestBotOutboundWebhookPauseResumeCancelsOldRetry(t *testing.T) {
+	c, _ := newTestCore(t)
+	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(500 * time.Millisecond)}
+	var calls atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { calls.Add(1); w.WriteHeader(503) }))
+	defer server.Close()
+	startCoreServices(t, c)
+	owner, bot, room := webhookTestBot(t, c)
+	ctx := testContext(t)
+	endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", strings.Replace(server.URL, "127.0.0.1", "localhost", 1), "", true)
+	require.NoError(t, err)
+	_, err = c.PostMessage(ctx, KindDM, room, owner, "Hello", nil, "", "", nil, false)
+	require.NoError(t, err)
+	require.Eventually(t, func() bool { return calls.Load() == 1 }, 3*time.Second, 5*time.Millisecond)
+	enabled := false
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, &enabled)
+	require.NoError(t, err)
+	enabled = true
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, bot, endpoint.ID, &enabled)
+	require.NoError(t, err)
+	waitWebhookDeliveriesDrained(t, c)
+	require.Equal(t, int32(1), calls.Load())
+	requireNoWebhookOutcomes(t, c)
+}
+
+func TestBotOutboundWebhookLimitAcrossReplicas(t *testing.T) {
+	c, nc := setupTestCore(t)
+	ctx := testContext(t)
+	replica, err := NewChattoCore(ctx, nc, c.config)
+	require.NoError(t, err)
+	startCoreServices(t, replica)
+	owner, bot, _ := webhookTestBot(t, c)
+	for range 19 {
+		_, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/hook", "", false)
+		require.NoError(t, err)
+	}
+	results := make(chan error, 2)
+	for _, instance := range []*ChattoCore{c, replica} {
+		go func() {
+			_, _, err := instance.CreateBotOutboundWebhook(ctx, owner, bot, "Last", "https://example.com/hook", "", false)
+			results <- err
+		}()
+	}
+	failures := 0
+	for range 2 {
+		if err := <-results; err != nil {
+			require.ErrorIs(t, err, ErrInvalidArgument)
+			failures++
+		}
+	}
+	require.Equal(t, 1, failures)
+	items, err := replica.ListBotOutboundWebhooks(ctx, owner, bot)
+	require.NoError(t, err)
+	require.Len(t, items, 20)
+	require.NoError(t, replica.RevokeBotOutboundWebhook(ctx, owner, bot, items[0].ID))
+	_, _, err = c.CreateBotOutboundWebhook(ctx, owner, bot, "Replacement", "https://example.com/hook", "", false)
+	require.NoError(t, err)
+}
+
+func TestBotOutboundWebhookLifecycleManagerBoundary(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, bot, _ := webhookTestBot(t, c)
+	endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Endpoint", "https://example.com/hook", "", true)
+	require.NoError(t, err)
+	stranger, err := c.CreateUser(ctx, SystemActorID, "other-manager", "Other", "password123")
+	require.NoError(t, err)
+	enabled := false
+	for _, actor := range []string{stranger.GetId(), bot} {
+		_, err = c.GetBotOutboundWebhook(ctx, actor, bot, endpoint.ID)
+		require.Error(t, err)
+		_, err = c.UpdateBotOutboundWebhook(ctx, actor, bot, endpoint.ID, &enabled)
+		require.Error(t, err)
+		require.Error(t, c.RevokeBotOutboundWebhook(ctx, actor, bot, endpoint.ID))
+	}
+	otherBot, err := c.CreateBot(ctx, owner, "other_bot", "Other bot")
+	require.NoError(t, err)
+	_, err = c.UpdateBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID, &enabled)
+	require.ErrorIs(t, err, ErrNotFound)
+	require.NoError(t, c.RevokeBotOutboundWebhook(ctx, owner, otherBot.User.GetId(), endpoint.ID))
+	current, err := c.GetBotOutboundWebhook(ctx, owner, bot, endpoint.ID)
+	require.NoError(t, err)
+	require.True(t, current.Enabled)
+}
+
+func TestBotOutboundWebhookProjectionLegacyReplay(t *testing.T) {
+	p := newBotWebhookProjection()
+	configure := func(id string, independent, exists bool) *evtv1.Event {
+		x := &evtv1.BotOutboundWebhookConfiguredEvent{BotUserId: "bot", WebhookId: id, Enabled: true, Independent: independent}
+		if exists {
+			x.Credentials = &evtv1.EncryptedUserString{}
+		}
+		return &evtv1.Event{Event: &evtv1.Event_BotOutboundWebhookConfigured{BotOutboundWebhookConfigured: x}}
+	}
+	require.NoError(t, p.Apply(configure("legacy-old", false, true), 1))
+	require.NoError(t, p.Apply(configure("legacy-current", false, true), 2))
+	require.Nil(t, p.get("bot", "legacy-old"))
+	require.NotNil(t, p.get("bot", "legacy-current"))
+	require.NoError(t, p.Apply(configure("new", true, true), 3))
+	require.Len(t, p.list("bot"), 2)
+	// Legacy removal affects only the legacy slot, not independently created endpoints.
+	require.NoError(t, p.Apply(configure("legacy-removal", false, false), 4))
+	require.Nil(t, p.get("bot", "legacy-current"))
+	require.NotNil(t, p.get("bot", "new"))
+	require.NoError(t, p.Apply(&evtv1.Event{Event: &evtv1.Event_UserAccountDeleted{UserAccountDeleted: &evtv1.UserAccountDeletedEvent{UserId: "bot"}}}, 5))
+	require.Empty(t, p.list("bot"))
 }

@@ -503,31 +503,16 @@
         "url": "URL призначення",
         "authorization": "Заголовок Authorization (необов’язково)",
         "enabled": "Увімкнути доставку",
-        "save": "Зберегти кінцеву точку",
-        "replace": "Замінити кінцеву точку",
-        "remove": "Видалити кінцеву точку",
-        "empty": "Вихідний вебхук не налаштовано.",
-        "active": "Доставку ввімкнено.",
-        "disabled": "Доставку вимкнено.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Не вдалося оновити вихідний вебхук.",
         "load_error": "Не вдалося завантажити вихідний вебхук.",
-        "pending": "Помилок доставки не зафіксовано.",
-        "delivered": "Остання доставка успішна.",
         "failed": "Остання зафіксована помилка доставки.",
-        "skipped": "Останню доставку пропущено.",
         "attempts": "Спроби: {attempts}",
         "http_status": "Статус HTTP: {status}",
         "reason": "Причина: {reason}",
         "secret_title": "Секретний ключ підпису вебхука",
         "secret_warning": "Скопіюйте цей ключ зараз, якщо ваш інструмент перевіряє підписи Chatto. Його неможливо буде показати знову.",
         "secret_copied": "Ключ підпису скопійовано",
-        "refresh": "Оновити статус доставки",
-        "remove_title": "Видалити вихідний вебхук?",
-        "remove_description": "Це зупинить нові доставки та скасує доставки в очікуванні.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

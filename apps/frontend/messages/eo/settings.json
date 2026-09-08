@@ -503,31 +503,16 @@
         "url": "Cela URL",
         "authorization": "Authorization-kapo (nedeviga)",
         "enabled": "Ebligi liveradon",
-        "save": "Konservi finpunkton",
-        "replace": "Anstataŭigi finpunkton",
-        "remove": "Forigi finpunkton",
-        "empty": "Neniu elira rethoko estas agordita.",
-        "active": "Liverado estas ebligita.",
-        "disabled": "Liverado estas malebligita.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Ne eblis ĝisdatigi la eliran rethokon.",
         "load_error": "Ne eblis ŝargi la eliran rethokon.",
-        "pending": "Neniu livera malsukceso estas registrita.",
-        "delivered": "La lasta livero sukcesis.",
         "failed": "Laste registrita livera malsukceso.",
-        "skipped": "La lasta livero estis preterlasita.",
         "attempts": "Provoj: {attempts}",
         "http_status": "HTTP-stato: {status}",
         "reason": "Kialo: {reason}",
         "secret_title": "Sekreta subskriba ŝlosilo de la rethoko",
         "secret_warning": "Kopiu ĉi tiun ŝlosilon nun se via ilo kontrolas subskribojn de Chatto. Ne eblos montri ĝin denove.",
         "secret_copied": "Subskriba ŝlosilo kopiita",
-        "refresh": "Aktualigi liveran staton",
-        "remove_title": "Ĉu forigi la eliran rethokon?",
-        "remove_description": "Tio haltigas novajn liverojn kaj nuligas atendantajn liverojn.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

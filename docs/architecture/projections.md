@@ -369,8 +369,12 @@ snapshot fields, or retrievable resources.
 
 [`botWebhookProjection`](../../cli/internal/core/bot_webhook_projection.go)
 uses cold EVT replay. It retains the encrypted configuration and latest terminal
-failure per configured bot. Later success does not clear a failure.
+failure per endpoint. Later success does not clear a failure.
 Deletion removes these entries. It consumes bot
-webhook configuration, account deletion, and delivery failure facts. Full
+webhook configuration, endpoint state changes, account deletion, and delivery
+failure facts. Each endpoint retains its immutable encrypted creation event
+and a separate activation sequence. Pause/resume advances the cutoff without
+changing the credential encryption context. Legacy configurations retain
+their single-endpoint replacement behavior during replay. Full
 delivery history is not retained in memory. The worker reads an exact terminal
 subject to detect previously recorded failures.

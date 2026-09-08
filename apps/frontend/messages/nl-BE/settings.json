@@ -503,31 +503,16 @@
         "url": "Doel-URL",
         "authorization": "Authorization-header (optioneel)",
         "enabled": "Bezorging inschakelen",
-        "save": "Eindpunt opslaan",
-        "replace": "Eindpunt vervangen",
-        "remove": "Eindpunt verwijderen",
-        "empty": "Er is geen uitgaande webhook ingesteld.",
-        "active": "Bezorging is ingeschakeld.",
-        "disabled": "Bezorging is uitgeschakeld.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "De uitgaande webhook kon niet worden bijgewerkt.",
         "load_error": "De uitgaande webhook kon niet worden geladen.",
-        "pending": "Geen bezorgfout geregistreerd.",
-        "delivered": "De laatste bezorging is geslaagd.",
         "failed": "Laatst geregistreerde bezorgfout.",
-        "skipped": "De laatste bezorging is overgeslagen.",
         "attempts": "Pogingen: {attempts}",
         "http_status": "HTTP-status: {status}",
         "reason": "Reden: {reason}",
         "secret_title": "Geheime ondertekeningssleutel voor webhook",
         "secret_warning": "Kopieer deze sleutel nu als je tool Chatto-handtekeningen controleert. Hij kan niet opnieuw worden getoond.",
         "secret_copied": "Ondertekeningssleutel gekopieerd",
-        "refresh": "Bezorgstatus vernieuwen",
-        "remove_title": "Uitgaande webhook verwijderen?",
-        "remove_description": "Dit stopt nieuwe bezorgingen en annuleert wachtende bezorgingen.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

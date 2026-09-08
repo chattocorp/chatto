@@ -503,31 +503,16 @@
         "url": "URL de destino",
         "authorization": "Encabezado Authorization (opcional)",
         "enabled": "Activar entrega",
-        "save": "Guardar destino",
-        "replace": "Reemplazar destino",
-        "remove": "Eliminar destino",
-        "empty": "No hay ningún webhook saliente configurado.",
-        "active": "La entrega está activada.",
-        "disabled": "La entrega está desactivada.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "No se pudo actualizar el webhook saliente.",
         "load_error": "No se pudo cargar el webhook saliente.",
-        "pending": "No se ha registrado ningún fallo de entrega.",
-        "delivered": "La última entrega se completó correctamente.",
         "failed": "Último fallo de entrega registrado.",
-        "skipped": "La última entrega se omitió.",
         "attempts": "Intentos: {attempts}",
         "http_status": "Estado HTTP: {status}",
         "reason": "Motivo: {reason}",
         "secret_title": "Clave secreta de firma del webhook",
         "secret_warning": "Copia esta clave ahora si tu herramienta verifica las firmas de Chatto. No se podrá volver a mostrar.",
         "secret_copied": "Clave de firma copiada",
-        "refresh": "Actualizar estado de entrega",
-        "remove_title": "¿Eliminar el webhook saliente?",
-        "remove_description": "Esto detiene las nuevas entregas y cancela las pendientes.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

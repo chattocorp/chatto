@@ -499,3 +499,14 @@ The status is `failed`; OCC permits one such fact per delivery. No request,
 success, or skip fact enters EVT. Failure payloads are defined in
 [`bot_webhook_events.proto`](../../proto/chatto/core/evt/v1/bot_webhook_events.proto).
 These facts are internal and do not enter the public realtime catalogue.
+
+### Outbound webhook lifecycle
+
+`evt.user.<bot-id>.bot_outbound_webhook_configured` stores encrypted endpoint
+creation. New records set `independent`; older records retain the legacy
+single-endpoint replacement semantics. The encrypted payload contains the
+name, URL, Authorization value, and signing secret.
+`evt.user.<bot-id>.bot_outbound_webhook_state_changed` pauses, resumes, or
+revokes one endpoint. Both commands use the user aggregate OCC boundary.
+`evt.bot_webhook_delivery.<delivery-id>.bot_webhook_delivery_completed`
+continues to record terminal failures only.

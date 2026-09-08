@@ -892,11 +892,13 @@ Authorization and signing credentials are write-only. The saved URL is visible.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Configuration generation, used to cancel earlier pending work. |
+| `id` | `string` | Stable ID of this endpoint. |
 | `enabled` | `bool` | Whether this configuration accepts new messages. |
 | `has_authorization` | `bool` | Whether an Authorization header is configured. |
 | `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
 | `url` | `string` | Saved destination. May contain tool credentials; visible only to bot managers. |
+| `name` | `string` | Human-readable name assigned at creation. |
+| `created_at` | `google.protobuf.Timestamp` | Time this endpoint was created. |
 
 <a id="chatto-api-v1-BotWebhookDelivery"></a>
 

@@ -231,7 +231,7 @@ message ReassignBotOwnerResponse {
 // Endpoint settings visible only to the bot owner or a caller with bot.manage.
 // Authorization and signing credentials are write-only. The saved URL is visible.
 message BotOutboundWebhook {
-  // Configuration generation, used to cancel earlier pending work.
+  // Stable ID of this endpoint.
   string id = 1;
   // Whether this configuration accepts new messages.
   bool enabled = 2;
@@ -242,6 +242,10 @@ message BotOutboundWebhook {
   BotWebhookDelivery latest_delivery = 4;
   // Saved destination. May contain tool credentials; visible only to bot managers.
   string url = 5;
+  // Human-readable name assigned at creation.
+  string name = 6;
+  // Time this endpoint was created.
+  google.protobuf.Timestamp created_at = 7;
 }
 
 // Terminal state of one outbound webhook delivery.
@@ -273,53 +277,86 @@ message BotWebhookDelivery {
   google.protobuf.Timestamp completed_at = 6;
 }
 
-// Read the current endpoint metadata for one managed bot.
-message GetBotOutboundWebhookRequest {
-  // Required bot user ID.
+// Read all endpoints for one managed bot. At most 20 endpoints are returned.
+message ListBotOutboundWebhooksRequest {
+  // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
 }
-// Current endpoint settings without Authorization or signing credentials.
+// All current endpoints, including paused ones.
+message ListBotOutboundWebhooksResponse {
+  // Complete collection, ordered by creation time and ID. No pagination is needed.
+  repeated BotOutboundWebhook webhooks = 1;
+}
+// Read one endpoint belonging to the given managed bot.
+message GetBotOutboundWebhookRequest {
+  // Required managed bot ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required endpoint ID within this bot.
+  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+// Metadata for the requested endpoint.
 message GetBotOutboundWebhookResponse {
-  // Absent when the bot has no configuration.
+  // Endpoint metadata without Authorization or signing credentials.
   BotOutboundWebhook webhook = 1;
 }
-// Replace all endpoint settings. Each replacement cancels earlier pending work.
-message ReplaceBotOutboundWebhookRequest {
-  // Required bot user ID.
+// Create an independent endpoint with fixed destination and credentials.
+message CreateBotOutboundWebhookRequest {
+  // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
   // Absolute HTTPS destination; HTTP is also allowed for localhost names.
-  // Treat secret URL components as credentials.
   string url = 2 [(buf.validate.field).string = {min_len: 1, max_len: 4096}];
-  // Optional complete Authorization header value. Empty removes the header.
+  // Optional complete Authorization header value.
   string authorization = 3 [(buf.validate.field).string.max_len = 4096];
-  // Accept new eligible messages for delivery. False stores a disabled endpoint.
+  // False creates a paused endpoint.
   bool enabled = 4;
+  // Display name, fixed after creation.
+  string name = 5 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
 }
-// Saved endpoint metadata and its show-once signing secret.
-message ReplaceBotOutboundWebhookResponse {
-  // Saved configuration metadata.
+// New endpoint and its show-once request verification secret.
+message CreateBotOutboundWebhookResponse {
+  // Endpoint metadata without Authorization or signing credentials.
   BotOutboundWebhook webhook = 1;
-  // Show-once secret for HMAC-SHA256 request verification.
+  // Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests.
   string signing_secret = 2;
 }
-// Remove the endpoint for one managed bot.
-message DeleteBotOutboundWebhookRequest {
-  // Required bot user ID.
+// Pause or resume one endpoint. Credentials and name cannot be edited.
+message UpdateBotOutboundWebhookRequest {
+  // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required endpoint ID within this bot.
+  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
+  // If omitted, the state is unchanged. Resume accepts only new messages.
+  optional bool enabled = 3;
 }
-// The endpoint was removed, or was already absent.
-message DeleteBotOutboundWebhookResponse {}
+// Endpoint state after the update.
+message UpdateBotOutboundWebhookResponse {
+  // Endpoint metadata without Authorization or signing credentials.
+  BotOutboundWebhook webhook = 1;
+}
+// Revoke one endpoint and cancel its queued retries. In-flight HTTP may finish.
+message RevokeBotOutboundWebhookRequest {
+  // Required managed bot ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required endpoint ID within this bot.
+  string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+// Revocation completed, or this endpoint was already absent.
+message RevokeBotOutboundWebhookResponse {}
 
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service.
 service BotService {
-  // Gets endpoint metadata. Requires bot ownership or bot.manage.
+  // Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
+  // Returns the complete bounded collection, so callers do not need batch hydration.
+  rpc ListBotOutboundWebhooks(ListBotOutboundWebhooksRequest) returns (ListBotOutboundWebhooksResponse);
+  // Gets one endpoint. Requires bot ownership or bot.manage. Missing endpoints return NOT_FOUND.
   rpc GetBotOutboundWebhook(GetBotOutboundWebhookRequest) returns (GetBotOutboundWebhookResponse);
-  // Replaces endpoint settings and returns a new signing secret once.
-  // Requires bot ownership or bot.manage.
-  rpc ReplaceBotOutboundWebhook(ReplaceBotOutboundWebhookRequest) returns (ReplaceBotOutboundWebhookResponse);
-  // Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
-  rpc DeleteBotOutboundWebhook(DeleteBotOutboundWebhookRequest) returns (DeleteBotOutboundWebhookResponse) {
+  // Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
+  rpc CreateBotOutboundWebhook(CreateBotOutboundWebhookRequest) returns (CreateBotOutboundWebhookResponse);
+  // Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+  rpc UpdateBotOutboundWebhook(UpdateBotOutboundWebhookRequest) returns (UpdateBotOutboundWebhookResponse);
+  // Permanently revokes an endpoint. Requires ownership or bot.manage.
+  rpc RevokeBotOutboundWebhook(RevokeBotOutboundWebhookRequest) returns (RevokeBotOutboundWebhookResponse) {
     option idempotency_level = IDEMPOTENT;
   }
 

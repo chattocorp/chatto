@@ -503,31 +503,16 @@
         "url": "عنوان URL للوجهة",
         "authorization": "ترويسة Authorization (اختيارية)",
         "enabled": "تفعيل التسليم",
-        "save": "حفظ نقطة النهاية",
-        "replace": "استبدال نقطة النهاية",
-        "remove": "إزالة نقطة النهاية",
-        "empty": "لم يتم إعداد خطاف ويب صادر.",
-        "active": "التسليم مفعّل.",
-        "disabled": "التسليم معطّل.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "تعذّر تحديث خطاف الويب الصادر.",
         "load_error": "تعذّر تحميل خطاف الويب الصادر.",
-        "pending": "لم يُسجّل أي فشل في التسليم.",
-        "delivered": "نجحت آخر عملية تسليم.",
         "failed": "آخر فشل مسجّل في التسليم.",
-        "skipped": "تم تخطي آخر عملية تسليم.",
         "attempts": "المحاولات: {attempts}",
         "http_status": "حالة HTTP: {status}",
         "reason": "السبب: {reason}",
         "secret_title": "مفتاح توقيع خطاف الويب السري",
         "secret_warning": "انسخ هذا المفتاح الآن إذا كانت أداتك تتحقق من توقيعات Chatto. لا يمكن عرضه مرة أخرى.",
         "secret_copied": "تم نسخ مفتاح التوقيع",
-        "refresh": "تحديث حالة التسليم",
-        "remove_title": "إزالة خطاف الويب الصادر؟",
-        "remove_description": "يؤدي هذا إلى إيقاف عمليات التسليم الجديدة وإلغاء العمليات المعلّقة.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

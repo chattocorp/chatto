@@ -503,31 +503,16 @@
         "url": "目的地 URL",
         "authorization": "Authorization 標頭（選填）",
         "enabled": "啟用傳遞",
-        "save": "儲存端點",
-        "replace": "取代端點",
-        "remove": "移除端點",
-        "empty": "尚未設定傳出 Webhook。",
-        "active": "已啟用傳遞。",
-        "disabled": "已停用傳遞。",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "無法更新傳出 Webhook。",
         "load_error": "無法載入傳出 Webhook。",
-        "pending": "沒有傳遞失敗記錄。",
-        "delivered": "最近一次傳遞成功。",
         "failed": "最近記錄的傳遞失敗。",
-        "skipped": "已略過最近一次傳遞。",
         "attempts": "嘗試次數：{attempts}",
         "http_status": "HTTP 狀態：{status}",
         "reason": "原因：{reason}",
         "secret_title": "Webhook 簽章密鑰",
         "secret_warning": "如果你的工具會驗證 Chatto 簽章，請立即複製此密鑰。之後將無法再次顯示。",
         "secret_copied": "已複製簽章密鑰",
-        "refresh": "重新整理傳遞狀態",
-        "remove_title": "移除傳出 Webhook？",
-        "remove_description": "這會停止新的傳遞並取消待處理的傳遞。",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

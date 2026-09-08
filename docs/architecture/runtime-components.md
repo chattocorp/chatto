@@ -130,7 +130,10 @@ destination into a process-local channel with 64 slots. Eight workers per
 process send requests and wait between retries. A full channel blocks source
 handoff. Shutdown cancels active requests and discards pending work.
 The [`management operations`](../../cli/internal/core/bot_webhooks.go) own
-bot-manager authorization, encrypted configuration, and read-your-writes.
+bot-manager authorization, encrypted endpoint collections, and read-your-writes.
+User-aggregate OCC limits each bot to 20 endpoints. Each endpoint has fixed
+credentials and independent enabled state. Pause/resume advances its activation
+cutoff, so a resumed endpoint cannot send work from a previous enabled period.
 
 ## Development integration bot
 

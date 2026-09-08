@@ -33,6 +33,7 @@ const (
 // never message plaintext or endpoint credentials. Restart abandons this work.
 type botWebhookDelivery struct {
 	DeliveryID, BotUserID, WebhookID, SourceEventID, RoomID string
+	ConfigurationSequence                                   uint64 // Reject retries from a previous enabled period.
 	Triggers                                                []string
 	OccurredAt, ExpiresAt                                   time.Time
 	MaxAttempts                                             uint32
@@ -189,7 +190,9 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 	if err != nil {
 		return err
 	}
-	for _, botID := range candidates {
+	for _, candidate := range candidates {
+		config := candidate.Configuration.GetBotOutboundWebhookConfigured()
+		botID, webhookID := config.GetBotUserId(), config.GetWebhookId()
 		if botID == e.GetActorId() {
 			continue
 		}
@@ -218,13 +221,12 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 			}
 			return err
 		}
-		cfg, seq, _ := m.projection.Projection().get(botID)
-		if cfg == nil || seq >= d.StreamSequence || !cfg.GetBotOutboundWebhookConfigured().GetEnabled() {
+		endpoint := m.projection.Projection().get(botID, webhookID)
+		if endpoint == nil || endpoint.Sequence >= d.StreamSequence || !endpoint.Enabled {
 			continue
 		}
-		webhookID := cfg.GetBotOutboundWebhookConfigured().GetWebhookId()
 		id := botWebhookDeliveryID(botID, webhookID, e.GetId())
-		request := &botWebhookDelivery{DeliveryID: id, BotUserID: botID, WebhookID: webhookID, SourceEventID: e.GetId(), RoomID: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt().AsTime(), ExpiresAt: expiry, MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelay: m.core.config.BotWebhooks.RetryDelayOrDefault()}
+		request := &botWebhookDelivery{ConfigurationSequence: endpoint.Sequence, DeliveryID: id, BotUserID: botID, WebhookID: webhookID, SourceEventID: e.GetId(), RoomID: message.GetRoomId(), Triggers: triggers, OccurredAt: e.GetCreatedAt().AsTime(), ExpiresAt: expiry, MaxAttempts: uint32(m.core.config.BotWebhooks.MaxAttemptsOrDefault()), RetryDelay: m.core.config.BotWebhooks.RetryDelayOrDefault()}
 		if err = m.enqueue(ctx, request); err != nil {
 			return err
 		}
@@ -268,10 +270,11 @@ func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) er
 	if err = m.core.WaitForProjectionsCurrent(ctx); err != nil {
 		return err
 	}
-	cfg, _, _ := m.projection.Projection().get(r.BotUserID)
-	if cfg == nil || !cfg.GetBotOutboundWebhookConfigured().GetEnabled() || cfg.GetBotOutboundWebhookConfigured().GetWebhookId() != r.WebhookID {
+	endpoint := m.projection.Projection().get(r.BotUserID, r.WebhookID)
+	if endpoint == nil || !endpoint.Enabled || endpoint.Sequence != r.ConfigurationSequence {
 		return nil
 	}
+	cfg := endpoint.Configuration
 	if _, err = m.core.GetUser(ctx, r.BotUserID); err != nil {
 		if webhookAccessLost(err) {
 			return nil
@@ -308,8 +311,8 @@ func (m *botWebhookModel) deliver(ctx context.Context, r *botWebhookDelivery) er
 	if err = m.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return err
 	}
-	current, _, _ := m.projection.Projection().get(r.BotUserID)
-	if current == nil || !current.GetBotOutboundWebhookConfigured().GetEnabled() || current.GetBotOutboundWebhookConfigured().GetWebhookId() != r.WebhookID {
+	current := m.projection.Projection().get(r.BotUserID, r.WebhookID)
+	if current == nil || !current.Enabled || current.Sequence != r.ConfigurationSequence {
 		return nil
 	}
 	err = m.core.authorizeAtStableInputs(ctx, func() error {

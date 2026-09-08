@@ -242,25 +242,32 @@ human accounts, with the bot's user ID as the target. See the
 
 ## Outbound webhooks
 
-Open a bot in **Server Admin → Bots**, then use **Outbound webhook**. Enter
-your tool's destination URL and, if required, its complete Authorization header
-value. Enable delivery and select **Save endpoint**. The saved URL stays
-visible. If your tool verifies signatures, select **Show signing secret** and
-copy it before leaving the page. This secret verifies requests from Chatto;
-it is not a bot API key. You can skip this step when your tool does not verify
-signatures.
+Open a bot in **Server Admin → Bots**, then select **Create webhook** in
+**Outbound webhooks**. Enter a name, the destination URL and, if required, the
+complete Authorization header value. Select **Create webhook** to save it.
+Leave **Enable delivery** disabled to create a paused endpoint.
 
-Each bot has one endpoint. It receives new messages that directly mention the
+Each endpoint has its own signing secret. If your tool verifies signatures,
+select **Show signing secret** for that endpoint and copy it before leaving
+the page. You can skip this step if your receiver does not verify signatures.
+
+Each bot can have up to 20 endpoints, including paused endpoints. Each enabled
+endpoint receives new messages that directly mention the
 bot and new messages in DMs that include the bot. This includes thread replies.
 A DM that mentions the bot produces one delivery with both triggers. Messages
 from the bot itself, ordinary channel messages, edits, and reactions do not
 activate the webhook. Notification preferences do not affect it.
 
-Chatto returns the saved URL only to bot managers. It does not return the
-Authorization value. To change settings, edit the URL, enter the Authorization
-value again if required, and select **Replace endpoint**. Replacement creates a new
-signing secret and cancels pending work for the previous endpoint. Removing the
-endpoint also stops delivery.
+Chatto shows the saved names and URLs only to bot managers. Authorization values
+and signing secrets are not returned by later reads. Names, destinations and
+credentials are fixed after creation. To replace an endpoint, create a new one
+and revoke the old one.
+
+Select **Pause** to stop new deliveries and cancel queued retries. **Resume**
+accepts new messages; it does not send messages from the paused period or revive
+cancelled retries. Pausing preserves the credentials. **Revoke webhook** removes
+one endpoint permanently. An HTTP request already in flight can still finish.
+These actions do not affect other endpoints on the bot.
 
 ### Request body
 
@@ -328,7 +335,7 @@ order. Eight workers per process send and retry requests; failed endpoints
 can delay other deliveries while these workers wait.
 
 Chatto checks the bot's current access before sending. It skips delivery when
-access is lost, the message is unavailable, or the endpoint is replaced. The
+access is lost, the message is unavailable, or the endpoint is paused or revoked. The
 body contains the currently readable message text. An edit can therefore
 change the body between attempts. The bot page shows the latest recorded failure for the current endpoint.
 Successful deliveries and intentional skips are not recorded. Later success

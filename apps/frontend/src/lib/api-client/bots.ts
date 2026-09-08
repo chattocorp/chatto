@@ -44,22 +44,27 @@ export function createBotAPI(config: BotAPIConfig) {
   const client = createChattoClient(BotService, config);
   const headers = () => authHeaders(config);
   return {
-    async getOutboundWebhook(botUserId: string, signal?: AbortSignal) {
-      return (
-        (await client.getBotOutboundWebhook({ botUserId }, { headers: headers(), signal }))
-          .webhook ?? null
-      );
+    async listOutboundWebhooks(botUserId: string, signal?: AbortSignal) {
+      return (await client.listBotOutboundWebhooks({ botUserId }, { headers: headers(), signal }))
+        .webhooks;
     },
-    async replaceOutboundWebhook(input: {
+    async createOutboundWebhook(input: {
       botUserId: string;
+      name: string;
       url: string;
       authorization: string;
       enabled: boolean;
     }) {
-      return client.replaceBotOutboundWebhook(input, { headers: headers() });
+      return client.createBotOutboundWebhook(input, { headers: headers() });
     },
-    async deleteOutboundWebhook(botUserId: string) {
-      await client.deleteBotOutboundWebhook({ botUserId }, { headers: headers() });
+    async updateOutboundWebhook(botUserId: string, webhookId: string, enabled: boolean) {
+      return client.updateBotOutboundWebhook(
+        { botUserId, webhookId, enabled },
+        { headers: headers() }
+      );
+    },
+    async revokeOutboundWebhook(botUserId: string, webhookId: string) {
+      await client.revokeBotOutboundWebhook({ botUserId, webhookId }, { headers: headers() });
     },
     async listBots(
       input: { search?: string | null; limit: number; offset: number },

@@ -9,7 +9,6 @@ package evtv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -26,11 +25,13 @@ const (
 type BotOutboundWebhookConfiguredEvent struct {
 	state     protoimpl.MessageState `protogen:"open.v1"`
 	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
-	// Configuration generation. Replacement cancels work for earlier generations.
+	// Stable endpoint ID. Legacy records used this as a replacement generation.
 	WebhookId string `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
 	Enabled   bool   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// JSON endpoint credentials encrypted with the bot's PII key.
-	Credentials   *EncryptedUserString `protobuf:"bytes,4,opt,name=credentials,proto3" json:"credentials,omitempty"`
+	Credentials *EncryptedUserString `protobuf:"bytes,4,opt,name=credentials,proto3" json:"credentials,omitempty"`
+	// New endpoints coexist. False preserves the legacy single-endpoint replacement semantics.
+	Independent   bool `protobuf:"varint,5,opt,name=independent,proto3" json:"independent,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,6 +92,13 @@ func (x *BotOutboundWebhookConfiguredEvent) GetCredentials() *EncryptedUserStrin
 		return x.Credentials
 	}
 	return nil
+}
+
+func (x *BotOutboundWebhookConfiguredEvent) GetIndependent() bool {
+	if x != nil {
+		return x.Independent
+	}
+	return false
 }
 
 // A terminal failure, deduplicated per delivery aggregate using OCC.
@@ -197,17 +205,88 @@ func (x *BotWebhookDeliveryCompletedEvent) GetHttpStatus() uint32 {
 	return 0
 }
 
+// Changes one existing endpoint without changing its credentials.
+type BotOutboundWebhookStateChangedEvent struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	BotUserId string                 `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	WebhookId string                 `protobuf:"bytes,2,opt,name=webhook_id,json=webhookId,proto3" json:"webhook_id,omitempty"`
+	Enabled   bool                   `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	// Revocation permanently removes the endpoint. It cannot be resumed.
+	Revoked       bool `protobuf:"varint,4,opt,name=revoked,proto3" json:"revoked,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) Reset() {
+	*x = BotOutboundWebhookStateChangedEvent{}
+	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotOutboundWebhookStateChangedEvent) ProtoMessage() {}
+
+func (x *BotOutboundWebhookStateChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotOutboundWebhookStateChangedEvent.ProtoReflect.Descriptor instead.
+func (*BotOutboundWebhookStateChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) GetWebhookId() string {
+	if x != nil {
+		return x.WebhookId
+	}
+	return ""
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) GetEnabled() bool {
+	if x != nil {
+		return x.Enabled
+	}
+	return false
+}
+
+func (x *BotOutboundWebhookStateChangedEvent) GetRevoked() bool {
+	if x != nil {
+		return x.Revoked
+	}
+	return false
+}
+
 var File_chatto_core_evt_v1_bot_webhook_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_evt_v1_bot_webhook_events_proto_rawDesc = "" +
 	"\n" +
-	"+chatto/core/evt/v1/bot_webhook_events.proto\x12\x12chatto.core.evt.v1\x1a$chatto/core/evt/v1/user_events.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc7\x01\n" +
+	"+chatto/core/evt/v1/bot_webhook_events.proto\x12\x12chatto.core.evt.v1\x1a$chatto/core/evt/v1/user_events.proto\"\xe9\x01\n" +
 	"!BotOutboundWebhookConfiguredEvent\x12\x1e\n" +
 	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
 	"\n" +
 	"webhook_id\x18\x02 \x01(\tR\twebhookId\x12\x18\n" +
 	"\aenabled\x18\x03 \x01(\bR\aenabled\x12I\n" +
-	"\vcredentials\x18\x04 \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\vcredentials\"\x97\x02\n" +
+	"\vcredentials\x18\x04 \x01(\v2'.chatto.core.evt.v1.EncryptedUserStringR\vcredentials\x12 \n" +
+	"\vindependent\x18\x05 \x01(\bR\vindependent\"\x97\x02\n" +
 	" BotWebhookDeliveryCompletedEvent\x12\x1f\n" +
 	"\vdelivery_id\x18\x01 \x01(\tR\n" +
 	"deliveryId\x12\x1e\n" +
@@ -219,7 +298,13 @@ const file_chatto_core_evt_v1_bot_webhook_events_proto_rawDesc = "" +
 	"\x06reason\x18\x06 \x01(\tR\x06reason\x12\x1a\n" +
 	"\battempts\x18\a \x01(\rR\battempts\x12\x1f\n" +
 	"\vhttp_status\x18\b \x01(\rR\n" +
-	"httpStatusB\xd0\x01\n" +
+	"httpStatus\"\x98\x01\n" +
+	"#BotOutboundWebhookStateChangedEvent\x12\x1e\n" +
+	"\vbot_user_id\x18\x01 \x01(\tR\tbotUserId\x12\x1d\n" +
+	"\n" +
+	"webhook_id\x18\x02 \x01(\tR\twebhookId\x12\x18\n" +
+	"\aenabled\x18\x03 \x01(\bR\aenabled\x12\x18\n" +
+	"\arevoked\x18\x04 \x01(\bR\arevokedB\xd0\x01\n" +
 	"\x16com.chatto.core.evt.v1B\x15BotWebhookEventsProtoP\x01Z4hmans.de/chatto/internal/pb/chatto/core/evt/v1;evtv1\xa2\x02\x03CCE\xaa\x02\x12Chatto.Core.Evt.V1\xca\x02\x12Chatto\\Core\\Evt\\V1\xe2\x02\x1eChatto\\Core\\Evt\\V1\\GPBMetadata\xea\x02\x15Chatto::Core::Evt::V1b\x06proto3"
 
 var (
@@ -234,14 +319,15 @@ func file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_evt_v1_bot_webhook_events_proto_rawDescData
 }
 
-var file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_core_evt_v1_bot_webhook_events_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
 var file_chatto_core_evt_v1_bot_webhook_events_proto_goTypes = []any{
-	(*BotOutboundWebhookConfiguredEvent)(nil), // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
-	(*BotWebhookDeliveryCompletedEvent)(nil),  // 1: chatto.core.evt.v1.BotWebhookDeliveryCompletedEvent
-	(*EncryptedUserString)(nil),               // 2: chatto.core.evt.v1.EncryptedUserString
+	(*BotOutboundWebhookConfiguredEvent)(nil),   // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent
+	(*BotWebhookDeliveryCompletedEvent)(nil),    // 1: chatto.core.evt.v1.BotWebhookDeliveryCompletedEvent
+	(*BotOutboundWebhookStateChangedEvent)(nil), // 2: chatto.core.evt.v1.BotOutboundWebhookStateChangedEvent
+	(*EncryptedUserString)(nil),                 // 3: chatto.core.evt.v1.EncryptedUserString
 }
 var file_chatto_core_evt_v1_bot_webhook_events_proto_depIdxs = []int32{
-	2, // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent.credentials:type_name -> chatto.core.evt.v1.EncryptedUserString
+	3, // 0: chatto.core.evt.v1.BotOutboundWebhookConfiguredEvent.credentials:type_name -> chatto.core.evt.v1.EncryptedUserString
 	1, // [1:1] is the sub-list for method output_type
 	1, // [1:1] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
@@ -261,7 +347,7 @@ func file_chatto_core_evt_v1_bot_webhook_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_evt_v1_bot_webhook_events_proto_rawDesc), len(file_chatto_core_evt_v1_bot_webhook_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   3,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

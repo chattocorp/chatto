@@ -98,11 +98,62 @@ test.describe('Runling webhook bot', () => {
       }>(page, 'chatto.api.v1.BotService/ListBots', {});
       const botId = listed.bots?.find((bot) => bot.user?.login === 'test_bot')?.user?.id;
       if (!botId) throw new Error('Bootstrap bot is missing');
-      await connectPost(page, 'chatto.api.v1.BotService/ReplaceBotOutboundWebhook', {
+      const created = await connectPost<{ webhook: { id: string }; signingSecret: string }>(
+        page,
+        'chatto.api.v1.BotService/CreateBotOutboundWebhook',
+        {
+          name: 'Runling',
+          botUserId: botId,
+          url: `http://localhost:${address.port}/api/runs/start/chatto`,
+          enabled: true
+        }
+      );
+      const paused = await connectPost<{ webhook: { id: string }; signingSecret: string }>(
+        page,
+        'chatto.api.v1.BotService/CreateBotOutboundWebhook',
+        {
+          botUserId: botId,
+          name: 'Paused integration',
+          url: 'https://example.com/hook',
+          enabled: false
+        }
+      );
+      expect(paused.webhook.id).not.toBe(created.webhook.id);
+      expect(paused.signingSecret).not.toBe(created.signingSecret);
+      const endpoints = await connectPost<{ webhooks: Array<{ id: string }> }>(
+        page,
+        'chatto.api.v1.BotService/ListBotOutboundWebhooks',
+        { botUserId: botId }
+      );
+      expect(endpoints.webhooks.map((item) => item.id)).toEqual(
+        expect.arrayContaining([created.webhook.id, paused.webhook.id])
+      );
+      const updated = await connectPost<{
+        webhook: { id: string; enabled: boolean };
+        signingSecret?: string;
+      }>(page, 'chatto.api.v1.BotService/UpdateBotOutboundWebhook', {
         botUserId: botId,
-        url: `http://localhost:${address.port}/api/runs/start/chatto`,
+        webhookId: created.webhook.id,
+        enabled: false
+      });
+      // Protobuf JSON omits scalar defaults; an absent enabled field means false.
+      expect(updated.webhook.enabled ?? false).toBe(false);
+      expect(updated.signingSecret).toBeUndefined();
+      await connectPost(page, 'chatto.api.v1.BotService/UpdateBotOutboundWebhook', {
+        botUserId: botId,
+        webhookId: created.webhook.id,
         enabled: true
       });
+      await connectPost(page, 'chatto.api.v1.BotService/RevokeBotOutboundWebhook', {
+        botUserId: botId,
+        webhookId: paused.webhook.id
+      });
+      const fetched = await connectPost<{ webhook: { id: string; enabled: boolean } }>(
+        page,
+        'chatto.api.v1.BotService/GetBotOutboundWebhook',
+        { botUserId: botId, webhookId: created.webhook.id }
+      );
+      expect(fetched.webhook.enabled).toBe(true);
       const roomId = await getRoomIdByNameViaConnect(page, 'general');
       async function expectReply(
         roomId: string,

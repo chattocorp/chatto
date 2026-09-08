@@ -1,14 +1,18 @@
 <script lang="ts">
-  import { BotWebhookDeliveryStatus } from '@chatto/api-types/api/v1/bots_pb';
+  import {
+    BotWebhookDeliveryStatus,
+    type BotOutboundWebhook
+  } from '@chatto/api-types/api/v1/bots_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import Panel from '$lib/ui/Panel.svelte';
-  import { ConfirmDialog, Hint } from '$lib/ui';
+  import { ConfirmDialog, FormDialog, Hint } from '$lib/ui';
+  import { toast } from '$lib/ui/toast';
   import { Button, Checkbox, TextInput } from '$lib/ui/form';
+  import BotIntegrationSection from './BotIntegrationSection.svelte';
   import ShowOnceCredentialDialog from './ShowOnceCredentialDialog.svelte';
 
   let { botId }: { botId: string } = $props();
@@ -17,63 +21,105 @@
     () => ({
       queryKey: [...settingsQueryKeys.bot(scope.serverId, scope.connection, botId), 'outbound'],
       queryFn: ({ signal }) =>
-        scope.connection.getAPI(createBotAPI).getOutboundWebhook(botId, signal),
+        scope.connection.getAPI(createBotAPI).listOutboundWebhooks(botId, signal),
       refetchInterval: 5000
     }),
     () => queryClient
   );
-  const webhook = $derived(query.data);
-  const latest = $derived(webhook?.latestDelivery);
-  let url = $derived(webhook?.url ?? '');
-  let authorization = $state('');
-  let enabled = $derived(webhook?.enabled ?? true);
-  let pending = $state(false);
-  let error = $state(false);
-  let secret = $state('');
-  let secretVisible = $state(false);
-  let removeVisible = $state(false);
-  let saved = $state(false);
+  const webhooks = $derived(query.data ?? []);
+  const atLimit = $derived(webhooks.length >= 20);
 
-  async function save(event: SubmitEvent) {
-    event.preventDefault();
+  let createVisible = $state(false);
+  let name = $state('');
+  let url = $state('');
+  let authorization = $state('');
+  let enabled = $state(true);
+  let pending = $state(false);
+  let createError = $state(false);
+  let revokeId = $state('');
+  let revokeVisible = $state(false);
+
+  // Secrets exist only for endpoints created in this page session. Closing the
+  // show-once dialog clears that endpoint's value through the bound property.
+  let secrets = $state<Record<string, string>>({});
+  let secretId = $state('');
+  let secretVisible = $state(false);
+
+  function openCreate() {
+    name = '';
+    url = '';
+    authorization = '';
+    enabled = true;
+    createError = false;
+    createVisible = true;
+  }
+
+  function closeCreate() {
+    if (pending) return;
+    createVisible = false;
+    authorization = '';
+  }
+
+  async function create() {
     if (pending) return;
     pending = true;
-    error = false;
-    saved = false;
+    createError = false;
     try {
-      const result = await scope.connection
-        .getAPI(createBotAPI)
-        .replaceOutboundWebhook({ botUserId: botId, url, authorization, enabled });
-      secret = result.signingSecret;
-      secretVisible = false;
+      const result = await scope.connection.getAPI(createBotAPI).createOutboundWebhook({
+        botUserId: botId,
+        name: name.trim(),
+        url,
+        authorization,
+        enabled
+      });
+      if (result.webhook && result.signingSecret) secrets[result.webhook.id] = result.signingSecret;
+      createVisible = false;
       authorization = '';
       await query.refetch();
-      saved = true;
+      toast.success(m('settings.bots.outbound.created'));
     } catch {
-      error = true;
+      createError = true;
     } finally {
       pending = false;
     }
   }
 
-  async function remove() {
+  async function toggle(webhook: BotOutboundWebhook) {
+    if (pending) return;
     pending = true;
-    error = false;
-    saved = false;
     try {
-      await scope.connection.getAPI(createBotAPI).deleteOutboundWebhook(botId);
-      removeVisible = false;
-      secret = '';
+      await scope.connection
+        .getAPI(createBotAPI)
+        .updateOutboundWebhook(botId, webhook.id, !webhook.enabled);
       await query.refetch();
+      toast.success(
+        webhook.enabled ? m('settings.bots.outbound.paused') : m('settings.bots.outbound.resumed')
+      );
     } catch {
-      error = true;
+      toast.error(m('settings.bots.outbound.error'));
+    } finally {
+      pending = false;
+    }
+  }
+
+  async function revoke() {
+    if (pending) return;
+    pending = true;
+    try {
+      await scope.connection.getAPI(createBotAPI).revokeOutboundWebhook(botId, revokeId);
+      delete secrets[revokeId];
+      revokeVisible = false;
+      await query.refetch();
+      toast.success(m('settings.bots.outbound.revoked'));
+    } catch {
+      toast.error(m('settings.bots.outbound.error'));
     } finally {
       pending = false;
     }
   }
 </script>
 
-<!-- @component Configures one outbound bot endpoint and shows its latest durable delivery outcome. -->
+<!-- @component Manages named outbound endpoints with immutable credentials, independent pause/resume, and revocation. -->
 <svelte:window
   onbeforeunload={(event) => {
     if (pending || secretVisible) {
@@ -82,108 +128,151 @@
     }
   }}
 />
-<Panel title={m('settings.bots.outbound.title')}>
-  <div class="flex flex-col gap-4" data-testid="bot-outbound-webhook">
-    <p class="text-text-dim">{m('settings.bots.outbound.description')}</p>
-    {#if query.isError}
-      <Hint tone="warning">{m('settings.bots.outbound.load_error')}</Hint>
-    {:else if webhook}
-      <p>
-        {webhook.enabled
-          ? m('settings.bots.outbound.active')
-          : m('settings.bots.outbound.disabled')}
-      </p>
-      {#if latest}
-        <div class="surface-box p-3" role="status">
-          <p>
-            {latest.status === BotWebhookDeliveryStatus.DELIVERED
-              ? m('settings.bots.outbound.delivered')
-              : latest.status === BotWebhookDeliveryStatus.FAILED
-                ? m('settings.bots.outbound.failed')
-                : m('settings.bots.outbound.skipped')}
-          </p>
-          <p class="text-text-dim">
-            {m('settings.bots.outbound.attempts', { attempts: latest.attempts })}
-          </p>
-          {#if latest.httpStatus}<p>
-              {m('settings.bots.outbound.http_status', { status: latest.httpStatus })}
-            </p>{/if}
-          {#if latest.reason}<p>
-              {m('settings.bots.outbound.reason', { reason: latest.reason })}
-            </p>{/if}
+<BotIntegrationSection
+  title={m('settings.bots.outbound.title')}
+  description={m('settings.bots.outbound.description')}
+  testId="bot-outbound-webhooks"
+  items={webhooks}
+  empty={query.isPending ? m('common.loading') : m('settings.bots.outbound.empty')}
+>
+  {#snippet actions()}
+    <Button
+      size="sm"
+      disabled={pending || atLimit || query.isPending || query.isError}
+      onclick={openCreate}
+    >
+      <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
+      {m('settings.bots.outbound.add')}
+    </Button>
+  {/snippet}
+  {#snippet details(webhook)}
+    <div class="font-medium text-text-top">
+      <bdi>{webhook.name || m('settings.bots.outbound.unnamed')}</bdi>
+    </div>
+    <p class="mt-1 break-all text-muted"><bdi>{webhook.url}</bdi></p>
+    <p class="mt-2 text-muted">
+      {webhook.enabled ? m('settings.bots.outbound.active') : m('settings.bots.outbound.disabled')}
+    </p>
+    {#if webhook.latestDelivery?.status === BotWebhookDeliveryStatus.FAILED}
+      {@const latest = webhook.latestDelivery}
+      <div class="mt-3" role="status">
+        <p class="text-warning">{m('settings.bots.outbound.failed')}</p>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 text-muted">
+          <span>{m('settings.bots.outbound.attempts', { attempts: latest.attempts })}</span>
+          {#if latest.httpStatus}<span
+              >{m('settings.bots.outbound.http_status', { status: latest.httpStatus })}</span
+            >{/if}
+          {#if latest.reason}<span
+              >{m('settings.bots.outbound.reason', { reason: latest.reason })}</span
+            >{/if}
         </div>
-      {:else}<p class="text-text-dim">{m('settings.bots.outbound.pending')}</p>{/if}
-      <p class="text-text-dim">{m('settings.bots.outbound.replace_help')}</p>
-    {:else if !query.isPending}
-      <p>{m('settings.bots.outbound.empty')}</p>
-    {/if}
-    {#if saved}<Hint>{m('settings.bots.outbound.saved')}</Hint>{/if}
-    {#if secret}
-      <div class="flex flex-col gap-2">
-        <p class="text-text-dim">{m('settings.bots.outbound.signing_help')}</p>
-        <Button variant="secondary" onclick={() => (secretVisible = true)}
-          >{m('settings.bots.outbound.show_secret')}</Button
-        >
       </div>
     {/if}
-    {#if error}<Hint tone="warning">{m('settings.bots.outbound.error')}</Hint>{/if}
-    <form onsubmit={save} class="flex flex-col gap-4">
-      <TextInput
-        id="bot-outbound-url"
-        label={m('settings.bots.outbound.url')}
-        type="url"
-        bind:value={url}
-        required
-        maxlength={4096}
-        disabled={pending}
-        autocomplete="off"
-      />
-      <TextInput
-        id="bot-outbound-authorization"
-        label={m('settings.bots.outbound.authorization')}
-        type="password"
-        bind:value={authorization}
-        maxlength={4096}
-        disabled={pending}
-        autocomplete="new-password"
-      />
-      <Checkbox
-        id="bot-outbound-enabled"
-        bind:checked={enabled}
-        label={m('settings.bots.outbound.enabled')}
-        disabled={pending}
-      />
-      <div class="flex flex-wrap gap-3">
+    {#if secrets[webhook.id]}
+      <div class="mt-3">
         <Button
-          type="submit"
-          disabled={pending || query.isPending || query.isError}
-          loading={pending}
-          >{webhook
-            ? m('settings.bots.outbound.replace')
-            : m('settings.bots.outbound.save')}</Button
+          size="sm"
+          variant="secondary"
+          onclick={() => {
+            secretId = webhook.id;
+            secretVisible = true;
+          }}
         >
-        {#if webhook}<Button
-            variant="danger"
-            disabled={pending}
-            onclick={() => (removeVisible = true)}>{m('settings.bots.outbound.remove')}</Button
-          >{/if}
-        <Button variant="secondary" disabled={pending} onclick={() => query.refetch()}
-          >{m('settings.bots.outbound.refresh')}</Button
-        >
+          {m('settings.bots.outbound.show_secret')}
+        </Button>
       </div>
-    </form>
+    {/if}
+  {/snippet}
+  {#snippet itemActions(webhook)}
+    <Button size="sm" variant="secondary" disabled={pending} onclick={() => toggle(webhook)}>
+      {webhook.enabled ? m('settings.bots.outbound.pause') : m('settings.bots.outbound.resume')}
+    </Button>
+    <Button
+      size="sm"
+      variant="danger-secondary"
+      disabled={pending}
+      onclick={() => {
+        revokeId = webhook.id;
+        revokeVisible = true;
+      }}
+    >
+      <span class="iconify icon-[uil--times-circle]" aria-hidden="true"></span>
+      {m('settings.bots.outbound.revoke')}
+    </Button>
+  {/snippet}
+  {#snippet footer()}
+    {#if query.isError}<div class="p-5">
+        <Hint tone="warning">{m('settings.bots.outbound.load_error')}</Hint>
+      </div>{/if}
+    {#if atLimit}<div class="border-t border-border px-5 py-3 text-muted">
+        {m('settings.bots.outbound.limit')}
+      </div>{/if}
+  {/snippet}
+</BotIntegrationSection>
+
+<FormDialog
+  bind:visible={createVisible}
+  title={m('settings.bots.outbound.add')}
+  submitLabel={m('settings.bots.outbound.add')}
+  loading={pending}
+  disabled={!name.trim() || !url.trim() || atLimit}
+  error={createError ? m('settings.bots.outbound.error') : undefined}
+  onsubmit={create}
+  onclose={closeCreate}
+>
+  <TextInput
+    id="bot-outbound-name"
+    label={m('settings.bots.outbound.name')}
+    bind:value={name}
+    required
+    maxlength={64}
+    disabled={pending}
+  />
+  <TextInput
+    id="bot-outbound-url"
+    label={m('settings.bots.outbound.url')}
+    type="url"
+    bind:value={url}
+    required
+    maxlength={4096}
+    disabled={pending}
+    autocomplete="off"
+  />
+  <TextInput
+    id="bot-outbound-authorization"
+    label={m('settings.bots.outbound.authorization')}
+    type="password"
+    bind:value={authorization}
+    maxlength={4096}
+    disabled={pending}
+    autocomplete="new-password"
+  />
+  <div class="self-start">
+    <Checkbox
+      id="bot-outbound-enabled"
+      bind:checked={enabled}
+      label={m('settings.bots.outbound.enabled')}
+      description={m('settings.bots.outbound.enabled_help')}
+      disabled={pending}
+    />
   </div>
-</Panel>
+</FormDialog>
 <ConfirmDialog
-  bind:visible={removeVisible}
-  title={m('settings.bots.outbound.remove_title')}
-  onconfirm={remove}
-  onclose={() => (removeVisible = false)}
-  loading={pending}>{m('settings.bots.outbound.remove_description')}</ConfirmDialog
+  bind:visible={revokeVisible}
+  title={m('settings.bots.outbound.revoke_title')}
+  actionLabel={m('settings.bots.outbound.revoke')}
+  onconfirm={revoke}
+  onclose={() => (revokeVisible = false)}
+  loading={pending}>{m('settings.bots.outbound.revoke_description')}</ConfirmDialog
 >
 <ShowOnceCredentialDialog
   bind:visible={secretVisible}
-  bind:value={secret}
+  bind:value={
+    () => secrets[secretId] ?? '',
+    (value) => {
+      secrets[secretId] = value;
+    }
+  }
   {pending}
   title={m('settings.bots.outbound.secret_title')}
   warning={m('settings.bots.outbound.secret_warning')}

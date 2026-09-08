@@ -1940,11 +1940,44 @@ Response after cancelling an upload.
 Creates and manages bot accounts owned by human users. Bot API keys cannot
 call this service.
 
+<a id="chatto-api-v1-BotService-ListBotOutboundWebhooks"></a>
+
+### ListBotOutboundWebhooks
+
+Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
+Returns the complete bounded collection, so callers do not need batch hydration.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBotOutboundWebhooks
+```
+
+<a id="chatto-api-v1-ListBotOutboundWebhooksRequest"></a>
+
+#### Input: ListBotOutboundWebhooksRequest
+
+Read all endpoints for one managed bot. At most 20 endpoints are returned.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required managed bot ID. |
+
+
+<a id="chatto-api-v1-ListBotOutboundWebhooksResponse"></a>
+
+#### Result: ListBotOutboundWebhooksResponse
+
+All current endpoints, including paused ones.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhooks` | repeated [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Complete collection, ordered by creation time and ID. No pagination is needed. |
+
+
 <a id="chatto-api-v1-BotService-GetBotOutboundWebhook"></a>
 
 ### GetBotOutboundWebhook
 
-Gets endpoint metadata. Requires bot ownership or bot.manage.
+Gets one endpoint. Requires bot ownership or bot.manage. Missing endpoints return NOT_FOUND.
 
 ```http
 POST /api/connect/chatto.api.v1.BotService/GetBotOutboundWebhook
@@ -1954,87 +1987,123 @@ POST /api/connect/chatto.api.v1.BotService/GetBotOutboundWebhook
 
 #### Input: GetBotOutboundWebhookRequest
 
-Read the current endpoint metadata for one managed bot.
+Read one endpoint belonging to the given managed bot.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
+| `bot_user_id` | `string` | Required managed bot ID. |
+| `webhook_id` | `string` | Required endpoint ID within this bot. |
 
 
 <a id="chatto-api-v1-GetBotOutboundWebhookResponse"></a>
 
 #### Result: GetBotOutboundWebhookResponse
 
-Current endpoint settings without Authorization or signing credentials.
+Metadata for the requested endpoint.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Absent when the bot has no configuration. |
+| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Endpoint metadata without Authorization or signing credentials. |
 
 
-<a id="chatto-api-v1-BotService-ReplaceBotOutboundWebhook"></a>
+<a id="chatto-api-v1-BotService-CreateBotOutboundWebhook"></a>
 
-### ReplaceBotOutboundWebhook
+### CreateBotOutboundWebhook
 
-Replaces endpoint settings and returns a new signing secret once.
-Requires bot ownership or bot.manage.
+Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/ReplaceBotOutboundWebhook
+POST /api/connect/chatto.api.v1.BotService/CreateBotOutboundWebhook
 ```
 
-<a id="chatto-api-v1-ReplaceBotOutboundWebhookRequest"></a>
+<a id="chatto-api-v1-CreateBotOutboundWebhookRequest"></a>
 
-#### Input: ReplaceBotOutboundWebhookRequest
+#### Input: CreateBotOutboundWebhookRequest
 
-Replace all endpoint settings. Each replacement cancels earlier pending work.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `url` | `string` | Absolute HTTPS destination; HTTP is also allowed for localhost names. Treat secret URL components as credentials. |
-| `authorization` | `string` | Optional complete Authorization header value. Empty removes the header. |
-| `enabled` | `bool` | Accept new eligible messages for delivery. False stores a disabled endpoint. |
-
-
-<a id="chatto-api-v1-ReplaceBotOutboundWebhookResponse"></a>
-
-#### Result: ReplaceBotOutboundWebhookResponse
-
-Saved endpoint metadata and its show-once signing secret.
+Create an independent endpoint with fixed destination and credentials.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Saved configuration metadata. |
-| `signing_secret` | `string` | Show-once secret for HMAC-SHA256 request verification. |
+| `bot_user_id` | `string` | Required managed bot ID. |
+| `url` | `string` | Absolute HTTPS destination; HTTP is also allowed for localhost names. |
+| `authorization` | `string` | Optional complete Authorization header value. |
+| `enabled` | `bool` | False creates a paused endpoint. |
+| `name` | `string` | Display name, fixed after creation. |
 
 
-<a id="chatto-api-v1-BotService-DeleteBotOutboundWebhook"></a>
+<a id="chatto-api-v1-CreateBotOutboundWebhookResponse"></a>
 
-### DeleteBotOutboundWebhook
+#### Result: CreateBotOutboundWebhookResponse
 
-Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
+New endpoint and its show-once request verification secret.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Endpoint metadata without Authorization or signing credentials. |
+| `signing_secret` | `string` | Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests. |
+
+
+<a id="chatto-api-v1-BotService-UpdateBotOutboundWebhook"></a>
+
+### UpdateBotOutboundWebhook
+
+Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
 
 ```http
-POST /api/connect/chatto.api.v1.BotService/DeleteBotOutboundWebhook
+POST /api/connect/chatto.api.v1.BotService/UpdateBotOutboundWebhook
 ```
 
-<a id="chatto-api-v1-DeleteBotOutboundWebhookRequest"></a>
+<a id="chatto-api-v1-UpdateBotOutboundWebhookRequest"></a>
 
-#### Input: DeleteBotOutboundWebhookRequest
+#### Input: UpdateBotOutboundWebhookRequest
 
-Remove the endpoint for one managed bot.
+Pause or resume one endpoint. Credentials and name cannot be edited.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
+| `bot_user_id` | `string` | Required managed bot ID. |
+| `webhook_id` | `string` | Required endpoint ID within this bot. |
+| `enabled` | `optional bool` | If omitted, the state is unchanged. Resume accepts only new messages. |
 
 
-<a id="chatto-api-v1-DeleteBotOutboundWebhookResponse"></a>
+<a id="chatto-api-v1-UpdateBotOutboundWebhookResponse"></a>
 
-#### Result: DeleteBotOutboundWebhookResponse
+#### Result: UpdateBotOutboundWebhookResponse
 
-The endpoint was removed, or was already absent.
+Endpoint state after the update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `webhook` | [`BotOutboundWebhook`](#chatto-api-v1-BotOutboundWebhook) | Endpoint metadata without Authorization or signing credentials. |
+
+
+<a id="chatto-api-v1-BotService-RevokeBotOutboundWebhook"></a>
+
+### RevokeBotOutboundWebhook
+
+Permanently revokes an endpoint. Requires ownership or bot.manage.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RevokeBotOutboundWebhook
+```
+
+<a id="chatto-api-v1-RevokeBotOutboundWebhookRequest"></a>
+
+#### Input: RevokeBotOutboundWebhookRequest
+
+Revoke one endpoint and cancel its queued retries. In-flight HTTP may finish.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required managed bot ID. |
+| `webhook_id` | `string` | Required endpoint ID within this bot. |
+
+
+<a id="chatto-api-v1-RevokeBotOutboundWebhookResponse"></a>
+
+#### Result: RevokeBotOutboundWebhookResponse
+
+Revocation completed, or this endpoint was already absent.
 
 
 <a id="chatto-api-v1-BotService-ListBots"></a>
@@ -5181,11 +5250,13 @@ Authorization and signing credentials are write-only. The saved URL is visible.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `id` | `string` | Configuration generation, used to cancel earlier pending work. |
+| `id` | `string` | Stable ID of this endpoint. |
 | `enabled` | `bool` | Whether this configuration accepts new messages. |
 | `has_authorization` | `bool` | Whether an Authorization header is configured. |
 | `latest_delivery` | [`BotWebhookDelivery`](#chatto-api-v1-BotWebhookDelivery) | Latest recorded failure for this configuration, when available. Later successes and intentional skips do not clear this failure. |
 | `url` | `string` | Saved destination. May contain tool credentials; visible only to bot managers. |
+| `name` | `string` | Human-readable name assigned at creation. |
+| `created_at` | `google.protobuf.Timestamp` | Time this endpoint was created. |
 
 
 

@@ -140,3 +140,10 @@ append fails, the worker logs a safe category and stops. Success and intentional
 skips produce no facts. No KV state or separate delivery stream is used.
 Receivers must tolerate duplicates and delivery in a different order.
 See [ADR-097](../adr/ADR-097-durable-outbound-bot-webhooks.md).
+
+Each configured bot can have 20 independent endpoints. Handoff produces a
+separate delivery ID per endpoint and source message. Workers verify the
+endpoint's current enabled state and activation sequence before HTTP. Pause,
+resume, and revocation cancel queued work from an earlier enabled period.
+Requests already in flight can finish. Credentials remain fixed across state
+changes. Failure recording remains per delivery in EVT.

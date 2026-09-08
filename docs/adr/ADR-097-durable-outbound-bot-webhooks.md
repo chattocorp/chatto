@@ -17,7 +17,7 @@ Eight workers per process send HTTP requests and wait between retries. A full
 channel blocks source handoff. No separate stream, persisted job protobuf, or
 KV state is used.
 
-Each delivery holds message references, endpoint generation, attempt limit,
+Each delivery holds message references, endpoint ID and activation sequence, attempt limit,
 retry delay, and source-time expiry. It holds no plaintext body or credentials.
 Workers count attempts and use cancellable timers for exponential backoff,
 with a 30-minute delay cap. Operators set retry and expiry policy in TOML or
@@ -29,10 +29,15 @@ Shutdown losses have no failure fact. Success and intentional skips have no
 facts. Delivery IDs remain stable across repeated source handoffs so receivers
 can detect duplicates.
 
-Keep one encrypted endpoint configuration per bot. Use the bot's PII key for
-its URL, optional Authorization value, and signing secret. Replacement creates
-a new generation and stops older pending deliveries. New configurations do not
-receive messages that precede their EVT position.
+Keep up to 20 independent encrypted endpoints per bot, including paused ones.
+Use the bot's PII key for each name, URL, optional Authorization value, and
+signing secret. Credentials and names are fixed after creation. Pause and
+resume record state changes without encrypting new credentials. Each enabled
+period has an EVT sequence cutoff. Old work stays cancelled after resume.
+Revocation permanently removes one endpoint. User-aggregate OCC enforces the
+collection limit and lifecycle across replicas. Legacy single-endpoint facts
+keep their replacement semantics during replay; new independent endpoints
+coexist with the retained legacy endpoint.
 
 Use current authorization and message content before sending. Retraction,
 deletion, and access loss stop delivery. Notification state has no effect.
@@ -56,5 +61,5 @@ future durable implementation can keep the public webhook contract.
 
 The bot page shows the latest recorded failure for the current configuration.
 Later success does not clear that failure. The projection retains encrypted
-settings and one failure per bot. Detailed failures remain in EVT. Payload text
+settings and one failure per endpoint. Detailed failures remain in EVT. Payload text
 is the currently readable message text on each attempt.

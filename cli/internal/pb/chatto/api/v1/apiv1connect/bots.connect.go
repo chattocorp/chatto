@@ -33,15 +33,21 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// BotServiceListBotOutboundWebhooksProcedure is the fully-qualified name of the BotService's
+	// ListBotOutboundWebhooks RPC.
+	BotServiceListBotOutboundWebhooksProcedure = "/chatto.api.v1.BotService/ListBotOutboundWebhooks"
 	// BotServiceGetBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
 	// GetBotOutboundWebhook RPC.
 	BotServiceGetBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/GetBotOutboundWebhook"
-	// BotServiceReplaceBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
-	// ReplaceBotOutboundWebhook RPC.
-	BotServiceReplaceBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/ReplaceBotOutboundWebhook"
-	// BotServiceDeleteBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
-	// DeleteBotOutboundWebhook RPC.
-	BotServiceDeleteBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/DeleteBotOutboundWebhook"
+	// BotServiceCreateBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
+	// CreateBotOutboundWebhook RPC.
+	BotServiceCreateBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/CreateBotOutboundWebhook"
+	// BotServiceUpdateBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
+	// UpdateBotOutboundWebhook RPC.
+	BotServiceUpdateBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/UpdateBotOutboundWebhook"
+	// BotServiceRevokeBotOutboundWebhookProcedure is the fully-qualified name of the BotService's
+	// RevokeBotOutboundWebhook RPC.
+	BotServiceRevokeBotOutboundWebhookProcedure = "/chatto.api.v1.BotService/RevokeBotOutboundWebhook"
 	// BotServiceListBotsProcedure is the fully-qualified name of the BotService's ListBots RPC.
 	BotServiceListBotsProcedure = "/chatto.api.v1.BotService/ListBots"
 	// BotServiceGetBotProcedure is the fully-qualified name of the BotService's GetBot RPC.
@@ -71,13 +77,17 @@ const (
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
 type BotServiceClient interface {
-	// Gets endpoint metadata. Requires bot ownership or bot.manage.
+	// Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
+	// Returns the complete bounded collection, so callers do not need batch hydration.
+	ListBotOutboundWebhooks(context.Context, *connect.Request[v1.ListBotOutboundWebhooksRequest]) (*connect.Response[v1.ListBotOutboundWebhooksResponse], error)
+	// Gets one endpoint. Requires bot ownership or bot.manage. Missing endpoints return NOT_FOUND.
 	GetBotOutboundWebhook(context.Context, *connect.Request[v1.GetBotOutboundWebhookRequest]) (*connect.Response[v1.GetBotOutboundWebhookResponse], error)
-	// Replaces endpoint settings and returns a new signing secret once.
-	// Requires bot ownership or bot.manage.
-	ReplaceBotOutboundWebhook(context.Context, *connect.Request[v1.ReplaceBotOutboundWebhookRequest]) (*connect.Response[v1.ReplaceBotOutboundWebhookResponse], error)
-	// Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
-	DeleteBotOutboundWebhook(context.Context, *connect.Request[v1.DeleteBotOutboundWebhookRequest]) (*connect.Response[v1.DeleteBotOutboundWebhookResponse], error)
+	// Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
+	CreateBotOutboundWebhook(context.Context, *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error)
+	// Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+	UpdateBotOutboundWebhook(context.Context, *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error)
+	// Permanently revokes an endpoint. Requires ownership or bot.manage.
+	RevokeBotOutboundWebhook(context.Context, *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error)
 	// Lists bots visible to the authenticated caller.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	// Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
@@ -116,22 +126,34 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 	baseURL = strings.TrimRight(baseURL, "/")
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
 	return &botServiceClient{
+		listBotOutboundWebhooks: connect.NewClient[v1.ListBotOutboundWebhooksRequest, v1.ListBotOutboundWebhooksResponse](
+			httpClient,
+			baseURL+BotServiceListBotOutboundWebhooksProcedure,
+			connect.WithSchema(botServiceMethods.ByName("ListBotOutboundWebhooks")),
+			connect.WithClientOptions(opts...),
+		),
 		getBotOutboundWebhook: connect.NewClient[v1.GetBotOutboundWebhookRequest, v1.GetBotOutboundWebhookResponse](
 			httpClient,
 			baseURL+BotServiceGetBotOutboundWebhookProcedure,
 			connect.WithSchema(botServiceMethods.ByName("GetBotOutboundWebhook")),
 			connect.WithClientOptions(opts...),
 		),
-		replaceBotOutboundWebhook: connect.NewClient[v1.ReplaceBotOutboundWebhookRequest, v1.ReplaceBotOutboundWebhookResponse](
+		createBotOutboundWebhook: connect.NewClient[v1.CreateBotOutboundWebhookRequest, v1.CreateBotOutboundWebhookResponse](
 			httpClient,
-			baseURL+BotServiceReplaceBotOutboundWebhookProcedure,
-			connect.WithSchema(botServiceMethods.ByName("ReplaceBotOutboundWebhook")),
+			baseURL+BotServiceCreateBotOutboundWebhookProcedure,
+			connect.WithSchema(botServiceMethods.ByName("CreateBotOutboundWebhook")),
 			connect.WithClientOptions(opts...),
 		),
-		deleteBotOutboundWebhook: connect.NewClient[v1.DeleteBotOutboundWebhookRequest, v1.DeleteBotOutboundWebhookResponse](
+		updateBotOutboundWebhook: connect.NewClient[v1.UpdateBotOutboundWebhookRequest, v1.UpdateBotOutboundWebhookResponse](
 			httpClient,
-			baseURL+BotServiceDeleteBotOutboundWebhookProcedure,
-			connect.WithSchema(botServiceMethods.ByName("DeleteBotOutboundWebhook")),
+			baseURL+BotServiceUpdateBotOutboundWebhookProcedure,
+			connect.WithSchema(botServiceMethods.ByName("UpdateBotOutboundWebhook")),
+			connect.WithClientOptions(opts...),
+		),
+		revokeBotOutboundWebhook: connect.NewClient[v1.RevokeBotOutboundWebhookRequest, v1.RevokeBotOutboundWebhookResponse](
+			httpClient,
+			baseURL+BotServiceRevokeBotOutboundWebhookProcedure,
+			connect.WithSchema(botServiceMethods.ByName("RevokeBotOutboundWebhook")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
@@ -204,19 +226,26 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	getBotOutboundWebhook     *connect.Client[v1.GetBotOutboundWebhookRequest, v1.GetBotOutboundWebhookResponse]
-	replaceBotOutboundWebhook *connect.Client[v1.ReplaceBotOutboundWebhookRequest, v1.ReplaceBotOutboundWebhookResponse]
-	deleteBotOutboundWebhook  *connect.Client[v1.DeleteBotOutboundWebhookRequest, v1.DeleteBotOutboundWebhookResponse]
-	listBots                  *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot                    *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots              *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot                 *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	deleteBot                 *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	createBotApiKey           *connect.Client[v1.CreateBotApiKeyRequest, v1.CreateBotApiKeyResponse]
-	revokeBotApiKey           *connect.Client[v1.RevokeBotApiKeyRequest, v1.RevokeBotApiKeyResponse]
-	createBotIncomingWebhook  *connect.Client[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse]
-	revokeBotIncomingWebhook  *connect.Client[v1.RevokeBotIncomingWebhookRequest, v1.RevokeBotIncomingWebhookResponse]
-	reassignBotOwner          *connect.Client[v1.ReassignBotOwnerRequest, v1.ReassignBotOwnerResponse]
+	listBotOutboundWebhooks  *connect.Client[v1.ListBotOutboundWebhooksRequest, v1.ListBotOutboundWebhooksResponse]
+	getBotOutboundWebhook    *connect.Client[v1.GetBotOutboundWebhookRequest, v1.GetBotOutboundWebhookResponse]
+	createBotOutboundWebhook *connect.Client[v1.CreateBotOutboundWebhookRequest, v1.CreateBotOutboundWebhookResponse]
+	updateBotOutboundWebhook *connect.Client[v1.UpdateBotOutboundWebhookRequest, v1.UpdateBotOutboundWebhookResponse]
+	revokeBotOutboundWebhook *connect.Client[v1.RevokeBotOutboundWebhookRequest, v1.RevokeBotOutboundWebhookResponse]
+	listBots                 *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot                   *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots             *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	createBot                *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	deleteBot                *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	createBotApiKey          *connect.Client[v1.CreateBotApiKeyRequest, v1.CreateBotApiKeyResponse]
+	revokeBotApiKey          *connect.Client[v1.RevokeBotApiKeyRequest, v1.RevokeBotApiKeyResponse]
+	createBotIncomingWebhook *connect.Client[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse]
+	revokeBotIncomingWebhook *connect.Client[v1.RevokeBotIncomingWebhookRequest, v1.RevokeBotIncomingWebhookResponse]
+	reassignBotOwner         *connect.Client[v1.ReassignBotOwnerRequest, v1.ReassignBotOwnerResponse]
+}
+
+// ListBotOutboundWebhooks calls chatto.api.v1.BotService.ListBotOutboundWebhooks.
+func (c *botServiceClient) ListBotOutboundWebhooks(ctx context.Context, req *connect.Request[v1.ListBotOutboundWebhooksRequest]) (*connect.Response[v1.ListBotOutboundWebhooksResponse], error) {
+	return c.listBotOutboundWebhooks.CallUnary(ctx, req)
 }
 
 // GetBotOutboundWebhook calls chatto.api.v1.BotService.GetBotOutboundWebhook.
@@ -224,14 +253,19 @@ func (c *botServiceClient) GetBotOutboundWebhook(ctx context.Context, req *conne
 	return c.getBotOutboundWebhook.CallUnary(ctx, req)
 }
 
-// ReplaceBotOutboundWebhook calls chatto.api.v1.BotService.ReplaceBotOutboundWebhook.
-func (c *botServiceClient) ReplaceBotOutboundWebhook(ctx context.Context, req *connect.Request[v1.ReplaceBotOutboundWebhookRequest]) (*connect.Response[v1.ReplaceBotOutboundWebhookResponse], error) {
-	return c.replaceBotOutboundWebhook.CallUnary(ctx, req)
+// CreateBotOutboundWebhook calls chatto.api.v1.BotService.CreateBotOutboundWebhook.
+func (c *botServiceClient) CreateBotOutboundWebhook(ctx context.Context, req *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error) {
+	return c.createBotOutboundWebhook.CallUnary(ctx, req)
 }
 
-// DeleteBotOutboundWebhook calls chatto.api.v1.BotService.DeleteBotOutboundWebhook.
-func (c *botServiceClient) DeleteBotOutboundWebhook(ctx context.Context, req *connect.Request[v1.DeleteBotOutboundWebhookRequest]) (*connect.Response[v1.DeleteBotOutboundWebhookResponse], error) {
-	return c.deleteBotOutboundWebhook.CallUnary(ctx, req)
+// UpdateBotOutboundWebhook calls chatto.api.v1.BotService.UpdateBotOutboundWebhook.
+func (c *botServiceClient) UpdateBotOutboundWebhook(ctx context.Context, req *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error) {
+	return c.updateBotOutboundWebhook.CallUnary(ctx, req)
+}
+
+// RevokeBotOutboundWebhook calls chatto.api.v1.BotService.RevokeBotOutboundWebhook.
+func (c *botServiceClient) RevokeBotOutboundWebhook(ctx context.Context, req *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error) {
+	return c.revokeBotOutboundWebhook.CallUnary(ctx, req)
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -286,13 +320,17 @@ func (c *botServiceClient) ReassignBotOwner(ctx context.Context, req *connect.Re
 
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
-	// Gets endpoint metadata. Requires bot ownership or bot.manage.
+	// Lists all endpoints, including paused endpoints. Requires bot ownership or bot.manage.
+	// Returns the complete bounded collection, so callers do not need batch hydration.
+	ListBotOutboundWebhooks(context.Context, *connect.Request[v1.ListBotOutboundWebhooksRequest]) (*connect.Response[v1.ListBotOutboundWebhooksResponse], error)
+	// Gets one endpoint. Requires bot ownership or bot.manage. Missing endpoints return NOT_FOUND.
 	GetBotOutboundWebhook(context.Context, *connect.Request[v1.GetBotOutboundWebhookRequest]) (*connect.Response[v1.GetBotOutboundWebhookResponse], error)
-	// Replaces endpoint settings and returns a new signing secret once.
-	// Requires bot ownership or bot.manage.
-	ReplaceBotOutboundWebhook(context.Context, *connect.Request[v1.ReplaceBotOutboundWebhookRequest]) (*connect.Response[v1.ReplaceBotOutboundWebhookResponse], error)
-	// Removes the endpoint and cancels pending work. Requires ownership or bot.manage.
-	DeleteBotOutboundWebhook(context.Context, *connect.Request[v1.DeleteBotOutboundWebhookRequest]) (*connect.Response[v1.DeleteBotOutboundWebhookResponse], error)
+	// Creates an endpoint and returns its signing secret once. Requires bot ownership or bot.manage.
+	CreateBotOutboundWebhook(context.Context, *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error)
+	// Pauses or resumes delivery without changing credentials. Requires ownership or bot.manage.
+	UpdateBotOutboundWebhook(context.Context, *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error)
+	// Permanently revokes an endpoint. Requires ownership or bot.manage.
+	RevokeBotOutboundWebhook(context.Context, *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error)
 	// Lists bots visible to the authenticated caller.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
 	// Gets one visible bot. Returns NOT_FOUND for an unknown bot. Returns
@@ -327,22 +365,34 @@ type BotServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
+	botServiceListBotOutboundWebhooksHandler := connect.NewUnaryHandler(
+		BotServiceListBotOutboundWebhooksProcedure,
+		svc.ListBotOutboundWebhooks,
+		connect.WithSchema(botServiceMethods.ByName("ListBotOutboundWebhooks")),
+		connect.WithHandlerOptions(opts...),
+	)
 	botServiceGetBotOutboundWebhookHandler := connect.NewUnaryHandler(
 		BotServiceGetBotOutboundWebhookProcedure,
 		svc.GetBotOutboundWebhook,
 		connect.WithSchema(botServiceMethods.ByName("GetBotOutboundWebhook")),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceReplaceBotOutboundWebhookHandler := connect.NewUnaryHandler(
-		BotServiceReplaceBotOutboundWebhookProcedure,
-		svc.ReplaceBotOutboundWebhook,
-		connect.WithSchema(botServiceMethods.ByName("ReplaceBotOutboundWebhook")),
+	botServiceCreateBotOutboundWebhookHandler := connect.NewUnaryHandler(
+		BotServiceCreateBotOutboundWebhookProcedure,
+		svc.CreateBotOutboundWebhook,
+		connect.WithSchema(botServiceMethods.ByName("CreateBotOutboundWebhook")),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceDeleteBotOutboundWebhookHandler := connect.NewUnaryHandler(
-		BotServiceDeleteBotOutboundWebhookProcedure,
-		svc.DeleteBotOutboundWebhook,
-		connect.WithSchema(botServiceMethods.ByName("DeleteBotOutboundWebhook")),
+	botServiceUpdateBotOutboundWebhookHandler := connect.NewUnaryHandler(
+		BotServiceUpdateBotOutboundWebhookProcedure,
+		svc.UpdateBotOutboundWebhook,
+		connect.WithSchema(botServiceMethods.ByName("UpdateBotOutboundWebhook")),
+		connect.WithHandlerOptions(opts...),
+	)
+	botServiceRevokeBotOutboundWebhookHandler := connect.NewUnaryHandler(
+		BotServiceRevokeBotOutboundWebhookProcedure,
+		svc.RevokeBotOutboundWebhook,
+		connect.WithSchema(botServiceMethods.ByName("RevokeBotOutboundWebhook")),
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -412,12 +462,16 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 	)
 	return "/chatto.api.v1.BotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case BotServiceListBotOutboundWebhooksProcedure:
+			botServiceListBotOutboundWebhooksHandler.ServeHTTP(w, r)
 		case BotServiceGetBotOutboundWebhookProcedure:
 			botServiceGetBotOutboundWebhookHandler.ServeHTTP(w, r)
-		case BotServiceReplaceBotOutboundWebhookProcedure:
-			botServiceReplaceBotOutboundWebhookHandler.ServeHTTP(w, r)
-		case BotServiceDeleteBotOutboundWebhookProcedure:
-			botServiceDeleteBotOutboundWebhookHandler.ServeHTTP(w, r)
+		case BotServiceCreateBotOutboundWebhookProcedure:
+			botServiceCreateBotOutboundWebhookHandler.ServeHTTP(w, r)
+		case BotServiceUpdateBotOutboundWebhookProcedure:
+			botServiceUpdateBotOutboundWebhookHandler.ServeHTTP(w, r)
+		case BotServiceRevokeBotOutboundWebhookProcedure:
+			botServiceRevokeBotOutboundWebhookHandler.ServeHTTP(w, r)
 		case BotServiceListBotsProcedure:
 			botServiceListBotsHandler.ServeHTTP(w, r)
 		case BotServiceGetBotProcedure:
@@ -447,16 +501,24 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 // UnimplementedBotServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBotServiceHandler struct{}
 
+func (UnimplementedBotServiceHandler) ListBotOutboundWebhooks(context.Context, *connect.Request[v1.ListBotOutboundWebhooksRequest]) (*connect.Response[v1.ListBotOutboundWebhooksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ListBotOutboundWebhooks is not implemented"))
+}
+
 func (UnimplementedBotServiceHandler) GetBotOutboundWebhook(context.Context, *connect.Request[v1.GetBotOutboundWebhookRequest]) (*connect.Response[v1.GetBotOutboundWebhookResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.GetBotOutboundWebhook is not implemented"))
 }
 
-func (UnimplementedBotServiceHandler) ReplaceBotOutboundWebhook(context.Context, *connect.Request[v1.ReplaceBotOutboundWebhookRequest]) (*connect.Response[v1.ReplaceBotOutboundWebhookResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ReplaceBotOutboundWebhook is not implemented"))
+func (UnimplementedBotServiceHandler) CreateBotOutboundWebhook(context.Context, *connect.Request[v1.CreateBotOutboundWebhookRequest]) (*connect.Response[v1.CreateBotOutboundWebhookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.CreateBotOutboundWebhook is not implemented"))
 }
 
-func (UnimplementedBotServiceHandler) DeleteBotOutboundWebhook(context.Context, *connect.Request[v1.DeleteBotOutboundWebhookRequest]) (*connect.Response[v1.DeleteBotOutboundWebhookResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.DeleteBotOutboundWebhook is not implemented"))
+func (UnimplementedBotServiceHandler) UpdateBotOutboundWebhook(context.Context, *connect.Request[v1.UpdateBotOutboundWebhookRequest]) (*connect.Response[v1.UpdateBotOutboundWebhookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.UpdateBotOutboundWebhook is not implemented"))
+}
+
+func (UnimplementedBotServiceHandler) RevokeBotOutboundWebhook(context.Context, *connect.Request[v1.RevokeBotOutboundWebhookRequest]) (*connect.Response[v1.RevokeBotOutboundWebhookResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RevokeBotOutboundWebhook is not implemented"))
 }
 
 func (UnimplementedBotServiceHandler) ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error) {

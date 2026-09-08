@@ -8,11 +8,17 @@ import { queryClient } from '$lib/query/client';
 
 const mocks = vi.hoisted(() => ({
   beforeNavigate: vi.fn(),
+  successToast: vi.fn(),
+  errorToast: vi.fn(),
   api: {
-    getOutboundWebhook: vi.fn(),
-    replaceOutboundWebhook: vi.fn(),
-    deleteOutboundWebhook: vi.fn()
+    listOutboundWebhooks: vi.fn(),
+    createOutboundWebhook: vi.fn(),
+    updateOutboundWebhook: vi.fn(),
+    revokeOutboundWebhook: vi.fn()
   }
+}));
+vi.mock('$lib/ui/toast', () => ({
+  toast: { success: mocks.successToast, error: mocks.errorToast }
 }));
 vi.mock('$app/navigation', async (original) => ({
   ...(await original<typeof import('$app/navigation')>()),
@@ -33,104 +39,139 @@ function button(container: ParentNode, text: string) {
   if (!element) throw new Error(`Missing button: ${text}`);
   return element;
 }
+function fill(container: ParentNode, selector: string, value: string) {
+  const input = container.querySelector(selector) as HTMLInputElement;
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  flushSync();
+}
+const first = { id: 'first', name: 'Runling', url: 'https://example.com/first', enabled: true };
+const second = {
+  id: 'second',
+  name: 'Other tool',
+  url: 'https://example.com/second',
+  enabled: false
+};
 
 describe('outbound webhook settings', () => {
   beforeEach(async () => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     queryClient.clear();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    mocks.api.getOutboundWebhook.mockResolvedValue(null);
+    mocks.api.listOutboundWebhooks.mockResolvedValue([]);
   });
   afterEach(() => queryClient.clear());
 
-  it('keeps the saved URL and only shows the signing secret on request', async () => {
-    let resolve!: (result: { signingSecret: string }) => void;
-    mocks.api.replaceOutboundWebhook.mockReturnValue(new Promise((done) => (resolve = done)));
+  it('creates an endpoint in a dialog, toasts, and reveals only its own secret on request', async () => {
+    let resolve!: (result: unknown) => void;
+    mocks.api.createOutboundWebhook.mockReturnValue(new Promise((done) => (resolve = done)));
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
-    await vi.waitFor(() => expect(button(container, 'Save endpoint').disabled).toBe(false));
-    const url = container.querySelector('input[type="url"]') as HTMLInputElement;
-    const auth = container.querySelector('input[type="password"]') as HTMLInputElement;
-    expect(url.labels?.[0]?.textContent).toContain('Destination URL');
-    expect(auth.labels?.[0]?.textContent).toContain('Authorization header');
-    url.value = 'https://example.com/secret';
-    url.dispatchEvent(new Event('input', { bubbles: true }));
-    auth.value = 'Bearer tool-secret';
-    auth.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button(container, 'Create webhook').disabled).toBe(false));
+    expect(container.querySelector('input[type="url"]')).toBeNull();
+    button(container, 'Create webhook').click();
     flushSync();
-    button(container, 'Save endpoint').click();
+    const dialog = container.querySelector('dialog[open]')!;
+    fill(dialog, '#bot-outbound-name', 'Runling');
+    fill(dialog, 'input[type="url"]', first.url);
+    fill(dialog, 'input[type="password"]', 'Bearer receiver-secret');
+    button(dialog, 'Create webhook').click();
     flushSync();
     await vi.waitFor(() =>
-      expect(mocks.api.replaceOutboundWebhook).toHaveBeenCalledWith({
+      expect(mocks.api.createOutboundWebhook).toHaveBeenCalledWith({
         botUserId: 'bot',
-        url: 'https://example.com/secret',
-        authorization: 'Bearer tool-secret',
+        name: 'Runling',
+        url: first.url,
+        authorization: 'Bearer receiver-secret',
         enabled: true
       })
     );
-    const guard = mocks.beforeNavigate.mock.calls.at(-1)?.[0];
     const cancel = vi.fn();
-    guard({ cancel });
+    mocks.beforeNavigate.mock.calls.at(-1)?.[0]({ cancel });
     expect(cancel).toHaveBeenCalledOnce();
-    mocks.api.getOutboundWebhook.mockResolvedValue({
-      id: 'endpoint',
-      url: 'https://example.com/secret',
-      enabled: true
-    });
-    resolve({ signingSecret: 'show-once-signing-secret' });
-    await vi.waitFor(() => expect(container.textContent).toContain('Endpoint saved.'));
-    expect(document.querySelector('dialog[open]')).toBeNull();
+    mocks.api.listOutboundWebhooks.mockResolvedValue([first, second]);
+    resolve({ webhook: first, signingSecret: 'show-once-secret' });
+    await vi.waitFor(() => expect(mocks.successToast).toHaveBeenCalledWith('Webhook created.'));
+    expect(container.querySelector('dialog[open]')).toBeNull();
+    expect(container.textContent).not.toContain('show-once-secret');
+    expect(container.querySelectorAll('[data-testid="bot-outbound-webhooks"] button').length).toBe(
+      5
+    );
     button(container, 'Show signing secret').click();
     flushSync();
-    await vi.waitFor(() => expect(container.textContent).toContain('show-once-signing-secret'));
-    expect(url.value).toBe('https://example.com/secret');
-    expect(auth.value).toBe('');
+    expect(container.textContent).toContain('show-once-secret');
     button(container, 'Got it').click();
     flushSync();
-    expect(container.textContent).not.toContain('show-once-signing-secret');
+    expect(container.textContent).not.toContain('show-once-secret');
   });
 
-  it('shows durable failure and removes an endpoint only after confirmation', async () => {
-    mocks.api.getOutboundWebhook.mockResolvedValue({
-      id: 'endpoint',
-      enabled: true,
+  it('pauses one endpoint without creating credentials or changing another endpoint', async () => {
+    mocks.api.listOutboundWebhooks.mockResolvedValue([first, second]);
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    await vi.waitFor(() => expect(container.textContent).toContain('Other tool'));
+    mocks.api.listOutboundWebhooks.mockResolvedValue([{ ...first, enabled: false }, second]);
+    button(container, 'Pause').click();
+    await vi.waitFor(() => expect(mocks.successToast).toHaveBeenCalledWith('Webhook paused.'));
+    expect(mocks.api.updateOutboundWebhook).toHaveBeenCalledWith('bot', 'first', false);
+    expect(mocks.api.createOutboundWebhook).not.toHaveBeenCalled();
+    expect(mocks.api.revokeOutboundWebhook).not.toHaveBeenCalled();
+    expect(container.textContent).toContain(second.url);
+  });
+
+  it('shows endpoint failures and revokes only the confirmed endpoint', async () => {
+    const failed = {
+      ...first,
       latestDelivery: {
         status: BotWebhookDeliveryStatus.FAILED,
         reason: 'http_error',
         attempts: 5,
         httpStatus: 503
       }
-    });
+    };
+    mocks.api.listOutboundWebhooks.mockResolvedValue([failed, second]);
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
     await vi.waitFor(() =>
-      expect(container.textContent).toContain('Latest recorded delivery failure.')
+      expect(container.textContent).toContain('Last recorded delivery failure.')
     );
-    expect(container.textContent).toContain('Attempts: 5');
     expect(container.textContent).toContain('HTTP status: 503');
-    button(container, 'Remove endpoint').click();
+    button(container, 'Revoke webhook').click();
     flushSync();
-    expect(mocks.api.deleteOutboundWebhook).not.toHaveBeenCalled();
-    mocks.api.getOutboundWebhook.mockResolvedValue(null);
-    button(container, 'Confirm').click();
-    await vi.waitFor(() => expect(mocks.api.deleteOutboundWebhook).toHaveBeenCalledWith('bot'));
+    expect(mocks.api.revokeOutboundWebhook).not.toHaveBeenCalled();
+    mocks.api.listOutboundWebhooks.mockResolvedValue([second]);
+    button(container.querySelector('dialog[open]')!, 'Revoke webhook').click();
+    await vi.waitFor(() => expect(mocks.successToast).toHaveBeenCalledWith('Webhook revoked.'));
+    expect(mocks.api.revokeOutboundWebhook).toHaveBeenCalledWith('bot', 'first');
+    expect(container.textContent).not.toContain(first.url);
+    expect(container.textContent).toContain(second.url);
   });
-  it('loads the saved URL and enabled state without erasing edits on refresh', async () => {
-    mocks.api.getOutboundWebhook.mockResolvedValue({
-      id: 'endpoint',
-      url: 'http://localhost:55030/api/runs/start/chatto',
-      enabled: false
-    });
+
+  it('keeps creation input across refresh and clears it after cancellation', async () => {
     const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
-    const url = container.querySelector('input[type="url"]') as HTMLInputElement;
-    await vi.waitFor(() => expect(url.value).toBe('http://localhost:55030/api/runs/start/chatto'));
-    expect((container.querySelector('input[type="checkbox"]') as HTMLInputElement).checked).toBe(
-      false
-    );
-    url.value = 'https://changed.example/hook';
-    url.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button(container, 'Create webhook').disabled).toBe(false));
+    button(container, 'Create webhook').click();
     flushSync();
-    button(container, 'Refresh delivery status').click();
-    await vi.waitFor(() => expect(mocks.api.getOutboundWebhook).toHaveBeenCalledTimes(2));
-    expect(url.value).toBe('https://changed.example/hook');
+    fill(container, 'input[type="url"]', 'https://changed.example/hook');
+    fill(container, 'input[type="password"]', 'secret');
+    await queryClient.invalidateQueries();
+    expect((container.querySelector('input[type="url"]') as HTMLInputElement).value).toBe(
+      'https://changed.example/hook'
+    );
+    button(container, 'Cancel').click();
+    flushSync();
+    expect(mocks.api.createOutboundWebhook).not.toHaveBeenCalled();
+    button(container, 'Create webhook').click();
+    flushSync();
+    expect((container.querySelector('input[type="url"]') as HTMLInputElement).value).toBe('');
+    expect((container.querySelector('input[type="password"]') as HTMLInputElement).value).toBe('');
+  });
+
+  it('enforces the collection limit while keeping existing endpoint actions available', async () => {
+    mocks.api.listOutboundWebhooks.mockResolvedValue(
+      Array.from({ length: 20 }, (_, i) => ({ ...first, id: String(i) }))
+    );
+    const { container } = render(BotOutboundWebhookSection, { botId: 'bot' });
+    await vi.waitFor(() => expect(container.textContent).toContain('limit of 20'));
+    expect(button(container, 'Create webhook').disabled).toBe(true);
+    expect(button(container, 'Pause').disabled).toBe(false);
   });
 });

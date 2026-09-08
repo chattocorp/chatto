@@ -503,31 +503,16 @@
         "url": "Docelowy adres URL",
         "authorization": "Nagłówek Authorization (opcjonalny)",
         "enabled": "Włącz dostarczanie",
-        "save": "Zapisz punkt końcowy",
-        "replace": "Zastąp punkt końcowy",
-        "remove": "Usuń punkt końcowy",
-        "empty": "Nie skonfigurowano wychodzącego webhooka.",
-        "active": "Dostarczanie jest włączone.",
-        "disabled": "Dostarczanie jest wyłączone.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "Nie udało się zaktualizować wychodzącego webhooka.",
         "load_error": "Nie udało się wczytać wychodzącego webhooka.",
-        "pending": "Nie zarejestrowano błędu dostarczenia.",
-        "delivered": "Ostatnie dostarczenie powiodło się.",
         "failed": "Ostatni zarejestrowany błąd dostarczenia.",
-        "skipped": "Ostatnie dostarczenie zostało pominięte.",
         "attempts": "Próby: {attempts}",
         "http_status": "Status HTTP: {status}",
         "reason": "Powód: {reason}",
         "secret_title": "Tajny klucz podpisu webhooka",
         "secret_warning": "Skopiuj ten klucz teraz, jeśli Twoje narzędzie weryfikuje podpisy Chatto. Nie będzie można go ponownie wyświetlić.",
         "secret_copied": "Skopiowano klucz podpisu",
-        "refresh": "Odśwież status dostarczenia",
-        "remove_title": "Usunąć wychodzący webhook?",
-        "remove_description": "Zatrzyma to nowe dostarczenia i anuluje oczekujące.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }

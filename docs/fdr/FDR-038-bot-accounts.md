@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-08
 
 ## Overview
 
@@ -325,10 +325,10 @@ best-effort and can be delayed, unavailable, or missing after a process or
 storage failure. Rich Slack payloads and replies to existing threads are
 deferred.
 
-### 12. One outbound endpoint per bot
+### 12. Independent outbound webhooks
 
-**Decision:** A bot manager can configure one outbound URL with an optional
-Authorization value. The endpoint receives new direct mentions and messages in
+**Decision:** A bot manager can create up to 20 named outbound endpoints, each
+with its own URL, optional Authorization value, and signing secret. Each enabled endpoint receives new direct mentions and messages in
 DMs that include the bot, including replies. A DM mention produces one
 request with both trigger values. The bot's own messages do not activate it.
 Channel messages without a direct mention, edits, reactions, and notification
@@ -341,11 +341,15 @@ route requests without a separate event selection UI. See ADR-097.
 are available, but signature verification is the receiver's responsibility.
 The bot uses the normal API to reply. Webhook response bodies have no action.
 
-The manager enters the full URL and optional Authorization value. The saved
-URL remains visible to bot managers; Authorization remains write-only. Saving
-replaces the configuration and returns a new signing secret. The manager can
-choose to view this secret after saving; it is not a bot API key. Saving cancels pending work for the old configuration. Removing the
-endpoint stops delivery. Configuration cannot be managed by the bot itself.
+The saved name and URL remain visible to bot managers; Authorization remains
+write-only. The manager can view each signing secret once after creation.
+Names and credentials are fixed. Replacement means creating a new endpoint and
+revoking the old one. Pause and resume preserve credentials. Resume accepts
+only new messages and does not revive cancelled retries. Revocation stops one
+endpoint permanently; an HTTP request already in flight can still finish.
+Paused endpoints count toward the limit. Bot accounts cannot manage endpoints.
+The UI uses the same collection and dialog layout as API keys and incoming
+webhooks, with toast feedback for completed actions.
 
 Chatto retries failed requests within an operator-configured lifetime and
 attempt limit. Delivery is best effort: pending work and retries live in memory
@@ -456,4 +460,4 @@ service, and send the target user ID.
 ## Open Questions
 
 - API-key expiry is deferred.
-- Additional outbound event types and multiple destinations are deferred.
+- Additional outbound event types are deferred.

@@ -503,31 +503,16 @@
         "url": "כתובת URL של היעד",
         "authorization": "כותרת Authorization (אופציונלית)",
         "enabled": "הפעל מסירה",
-        "save": "שמור נקודת קצה",
-        "replace": "החלף נקודת קצה",
-        "remove": "הסר נקודת קצה",
-        "empty": "לא הוגדר webhook יוצא.",
-        "active": "המסירה מופעלת.",
-        "disabled": "המסירה מושבתת.",
-        "replace_help": "The saved URL is shown below. To replace the endpoint, enter its Authorization value again if required. Saving creates a new signing secret and cancels pending deliveries.",
         "error": "לא ניתן לעדכן את ה-webhook היוצא.",
         "load_error": "לא ניתן לטעון את ה-webhook היוצא.",
-        "pending": "לא נרשם כשל במסירה.",
-        "delivered": "המסירה האחרונה הצליחה.",
         "failed": "כשל המסירה האחרון שנרשם.",
-        "skipped": "המסירה האחרונה דולגה.",
         "attempts": "ניסיונות: {attempts}",
         "http_status": "מצב HTTP: {status}",
         "reason": "סיבה: {reason}",
         "secret_title": "מפתח חתימה סודי ל-webhook",
         "secret_warning": "העתק את המפתח כעת אם הכלי שלך מאמת חתימות של Chatto. לא ניתן להציג אותו שוב.",
         "secret_copied": "מפתח החתימה הועתק",
-        "refresh": "רענן מצב מסירה",
-        "remove_title": "להסיר את ה-webhook היוצא?",
-        "remove_description": "פעולה זו עוצרת מסירות חדשות ומבטלת מסירות ממתינות.",
-        "saved": "Endpoint saved.",
-        "show_secret": "Show signing secret",
-        "signing_help": "Signing is optional for your integration. This secret verifies requests from Chatto; it is not a bot API key."
+        "show_secret": "Show signing secret"
       }
     }
   }
