@@ -147,3 +147,9 @@ endpoint's current enabled state and activation sequence before HTTP. Pause,
 resume, and revocation cancel queued work from an earlier enabled period.
 Requests already in flight can finish. Credentials remain fixed across state
 changes. Failure recording remains per delivery in EVT.
+
+Source handoff shares an endpoint projection check across a captured EVT
+prefix. The worker reads the EVT tail before it waits for the endpoint
+projection. Messages through that tail need no repeated projection queries.
+Newer messages require a new check. This process-local position is an
+optimization; each HTTP attempt still checks current endpoint state.

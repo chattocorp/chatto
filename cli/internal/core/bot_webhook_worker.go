@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -56,6 +57,8 @@ type botWebhookModel struct {
 	sourceConsumer jetstream.Consumer
 	client         *http.Client
 	now            func() time.Time
+	sourceSyncMu   sync.Mutex // Coalesce projection catch-up for a committed EVT prefix.
+	sourceSyncSeq  uint64     // Protected by sourceSyncMu; never persisted.
 }
 
 func newBotWebhookModel(c *ChattoCore, p events.ProjectionHandle[*botWebhookProjection]) *botWebhookModel {
@@ -157,6 +160,29 @@ func botWebhookDeliveryID(botID, webhookID, eventID string) string {
 	return hex.EncodeToString(sum[:])
 }
 
+// syncSourceEndpoints catches endpoint state up through the source message.
+// Capture the EVT tail before the filtered projection barrier. All source
+// messages in that prefix can then share this barrier, without four JetStream
+// reads per message during a burst or replay. Delivery still checks current
+// endpoint state before HTTP; this watermark is only a handoff optimization.
+func (m *botWebhookModel) syncSourceEndpoints(ctx context.Context, sourceSeq uint64) error {
+	m.sourceSyncMu.Lock()
+	defer m.sourceSyncMu.Unlock()
+
+	if sourceSeq <= m.sourceSyncSeq {
+		return nil
+	}
+	tail, err := m.core.EventPublisher.LastSubjectSeq(ctx, evtstream.EventSubjectFilter())
+	if err != nil {
+		return err
+	}
+	if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return err
+	}
+	m.sourceSyncSeq = tail
+	return nil
+}
+
 // materialize hands destinations to the bounded process-local pool before
 // acknowledging EVT. Partial handoff or lost source acknowledgement can repeat
 // requests; stable delivery IDs let receivers detect duplicates.
@@ -173,7 +199,7 @@ func (m *botWebhookModel) materialize(ctx context.Context, d events.DurableDeliv
 	// Wait for endpoint state first. With no eligible endpoint, historical
 	// replay needs no room reads. Expired eligible messages still create work
 	// so the delivery worker records their terminal expiry instead of losing it.
-	if err = m.projection.Projector().WaitForCurrent(ctx); err != nil {
+	if err = m.syncSourceEndpoints(ctx, d.StreamSequence); err != nil {
 		return err
 	}
 	candidates := m.projection.Projection().activeBefore(d.StreamSequence)

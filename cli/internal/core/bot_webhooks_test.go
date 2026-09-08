@@ -80,6 +80,36 @@ func requireNoWebhookOutcomes(t *testing.T, c *ChattoCore) {
 		require.NotContains(t, key, "bot_webhook", "webhooks must not use KV")
 	}
 }
+func TestBotOutboundWebhookSourceSyncSharesOnlyCapturedPrefix(t *testing.T) {
+	c, _ := newTestCore(t)
+	startCoreServices(t, c)
+	owner, bot, _ := webhookTestBot(t, c)
+	ctx := testContext(t)
+	// Use a separate handoff model so the running consumer cannot advance it.
+	model := newBotWebhookModel(c, c.botWebhooks.projection)
+	tail, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.EventSubjectFilter())
+	require.NoError(t, err)
+	require.NoError(t, model.syncSourceEndpoints(ctx, tail))
+	covered := model.sourceSyncSeq
+
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	// Covered messages need no network reads, even with a cancelled context.
+	require.NoError(t, model.syncSourceEndpoints(cancelled, tail))
+
+	endpoint, _, err := c.CreateBotOutboundWebhook(ctx, owner, bot, "Later endpoint", "https://example.com/webhook", "", true)
+	require.NoError(t, err)
+	later, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.EventSubjectFilter())
+	require.NoError(t, err)
+	require.Greater(t, later, tail)
+	// A newer prefix needs a fresh barrier. Failure must not advance coverage.
+	require.Error(t, model.syncSourceEndpoints(cancelled, later))
+	require.Equal(t, covered, model.sourceSyncSeq)
+	require.NoError(t, model.syncSourceEndpoints(ctx, later))
+	require.GreaterOrEqual(t, model.sourceSyncSeq, later)
+	require.NotNil(t, model.projection.Projection().get(bot, endpoint.ID))
+}
+
 func TestBotOutboundWebhookRetriesAndAcknowledgement(t *testing.T) {
 	c, _ := newTestCore(t)
 	c.config.BotWebhooks = config.BotWebhooksConfig{MaxAttempts: 3, RetryDelay: config.Duration(50 * time.Millisecond)}

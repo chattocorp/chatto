@@ -17,6 +17,11 @@ Eight workers per process send HTTP requests and wait between retries. A full
 channel blocks source handoff. No separate stream, persisted job protobuf, or
 KV state is used.
 
+Capture the EVT tail before the endpoint projection check. Share that check
+across source messages through the captured tail to reduce JetStream queries
+during bursts and replay. Messages after that tail require a new check.
+HTTP attempts still check current endpoint state.
+
 Each delivery holds message references, endpoint ID and activation sequence, attempt limit,
 retry delay, and source-time expiry. It holds no plaintext body or credentials.
 Workers count attempts and use cancellable timers for exponential backoff,
