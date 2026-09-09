@@ -107,7 +107,8 @@ exercise more authority than its human owner currently possesses.
   any other baseline grants. An absent bot permission is denied.
 - The account permission matrix has a **Joined** row above the permission rows.
   Owners and human bot managers can add and remove the bot in each visible
-  channel room. Changes save immediately and preserve permission grants.
+  channel room. A confirmation dialog explains that the change takes effect immediately
+  after confirmation. Cancel leaves membership unchanged; grants stay unchanged.
   `user.manage-accounts` or `room.manage` for the room can override a
   missing join permission. Otherwise joining requires the bot's effective
   `room.join`, including the owner's permission ceiling. Bans and archived

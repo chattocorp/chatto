@@ -31,7 +31,8 @@
         "description": "Room membership does not grant message permissions.",
         "join": "Add account to #{room}",
         "leave": "Remove account from #{room}",
-        "unavailable": "You cannot change this membership."
+        "unavailable": "You cannot change this membership.",
+        "confirm_immediate": "Confirm to apply this membership change immediately. Configured permissions will stay unchanged."
       },
       "loading": "Loading permissions...",
       "no_data": "No data available.",

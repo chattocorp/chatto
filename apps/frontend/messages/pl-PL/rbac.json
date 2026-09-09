@@ -31,7 +31,8 @@
         "description": "Członkostwo w pokoju nie nadaje uprawnień do wiadomości.",
         "join": "Dodaj konto do #{room}",
         "leave": "Usuń konto z #{room}",
-        "unavailable": "Nie możesz zmienić tego członkostwa."
+        "unavailable": "Nie możesz zmienić tego członkostwa.",
+        "confirm_immediate": "Potwierdź, aby natychmiast zmienić członkostwo. Skonfigurowane uprawnienia pozostaną bez zmian."
       },
       "loading": "Ładowanie uprawnień...",
       "no_data": "Brak dostępnych danych.",

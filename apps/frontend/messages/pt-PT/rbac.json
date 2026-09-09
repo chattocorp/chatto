@@ -31,7 +31,8 @@
         "description": "Pertencer a uma sala não concede permissões de mensagens.",
         "join": "Adicionar conta a #{room}",
         "leave": "Remover conta de #{room}",
-        "unavailable": "Não podes alterar esta participação."
+        "unavailable": "Não podes alterar esta participação.",
+        "confirm_immediate": "Confirma para aplicar esta alteração de participação imediatamente. As permissões configuradas não serão alteradas."
       },
       "loading": "A carregar permissões...",
       "no_data": "Não há dados disponíveis.",

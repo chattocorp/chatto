@@ -7,7 +7,7 @@ rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { Hint } from '$lib/ui';
+  import { ConfirmDialog, Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { loadAccountMemberships } from './accountMemberships';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
@@ -82,6 +82,43 @@ rendering to `SubjectPermissionsMatrix`.
   const visibleUpdatingKey = $derived(
     mutationContext === activeMutationContext ? updatingKey : null
   );
+  // Each account/session owns fresh modal state. Navigation discards it, so an
+  // unconfirmed action cannot reappear when returning to the previous account.
+  class MembershipConfirmation {
+    pending = $state<{
+      scopeId: string;
+      roomLabel: string;
+      joined: boolean;
+    } | null>(null);
+
+    readonly context: string;
+
+    constructor(context: string) {
+      this.context = context;
+    }
+  }
+  const membershipConfirmation = $derived(new MembershipConfirmation(activeMutationContext));
+  const visibleMembershipConfirmation = $derived(membershipConfirmation.pending);
+
+  function requestMembershipChange(scope: MatrixScope, joined: boolean) {
+    if (visibleUpdatingKey || !scope.membership) return;
+    if (joined ? !scope.membership.canJoin : !scope.membership.canLeave) return;
+    membershipConfirmation.pending = {
+      scopeId: scope.id,
+      roomLabel: scope.label,
+      joined
+    };
+  }
+
+  function confirmMembershipChange() {
+    const pending = visibleMembershipConfirmation;
+    membershipConfirmation.pending = null;
+    if (!pending || !serverScope.isCurrent()) return;
+    // Recheck the latest scope after confirmation; permissions may have changed.
+    const scope = data?.scopes.find((scope) => scope.id === pending.scopeId);
+    if (scope) void handleMembershipChange(scope, pending.joined);
+  }
+
   onDestroy(() => {
     mutationGeneration += 1;
   });
@@ -216,7 +253,25 @@ rendering to `SubjectPermissionsMatrix`.
     {subjectKind}
     readOnly={visibleUpdatingKey !== null &&
       (decisionMode === 'tri-state' || visibleUpdatingKey.endsWith('::$membership'))}
-    onMembershipChange={handleMembershipChange}
+    onMembershipChange={requestMembershipChange}
     {decisionMode}
   />
+{/if}
+
+{#if visibleMembershipConfirmation}
+  {@const action = m(
+    visibleMembershipConfirmation.joined
+      ? 'rbac.permissions.membership.join'
+      : 'rbac.permissions.membership.leave',
+    { room: visibleMembershipConfirmation.roomLabel }
+  )}
+  <ConfirmDialog
+    title={action}
+    actionLabel={action}
+    tone={visibleMembershipConfirmation.joined ? 'info' : 'warning'}
+    onconfirm={confirmMembershipChange}
+    onclose={() => (membershipConfirmation.pending = null)}
+  >
+    {m('rbac.permissions.membership.confirm_immediate')}
+  </ConfirmDialog>
 {/if}

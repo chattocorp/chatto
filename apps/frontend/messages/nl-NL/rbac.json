@@ -31,7 +31,8 @@
         "description": "Lidmaatschap van een ruimte geeft geen berichtrechten.",
         "join": "Account toevoegen aan #{room}",
         "leave": "Account verwijderen uit #{room}",
-        "unavailable": "Je kunt dit lidmaatschap niet wijzigen."
+        "unavailable": "Je kunt dit lidmaatschap niet wijzigen.",
+        "confirm_immediate": "Bevestig om dit lidmaatschap onmiddellijk te wijzigen. De ingestelde machtigingen blijven ongewijzigd."
       },
       "loading": "Rechten laden...",
       "no_data": "Geen gegevens beschikbaar.",

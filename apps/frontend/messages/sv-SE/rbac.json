@@ -31,7 +31,8 @@
         "description": "Medlemskap i ett rum ger inga meddelandebehörigheter.",
         "join": "Lägg till konto i #{room}",
         "leave": "Ta bort konto från #{room}",
-        "unavailable": "Du kan inte ändra detta medlemskap."
+        "unavailable": "Du kan inte ändra detta medlemskap.",
+        "confirm_immediate": "Bekräfta för att ändra medlemskapet omedelbart. De konfigurerade behörigheterna förblir oförändrade."
       },
       "loading": "Läser in behörigheter...",
       "no_data": "Ingen data tillgänglig.",

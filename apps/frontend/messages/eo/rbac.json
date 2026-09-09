@@ -31,7 +31,8 @@
         "description": "Membreco en ĉambro ne donas permesojn pri mesaĝoj.",
         "join": "Aldoni konton al #{room}",
         "leave": "Forigi konton el #{room}",
-        "unavailable": "Vi ne povas ŝanĝi ĉi tiun membrecon."
+        "unavailable": "Vi ne povas ŝanĝi ĉi tiun membrecon.",
+        "confirm_immediate": "Konfirmu por tuj apliki ĉi tiun membrecan ŝanĝon. La agorditaj permesoj restos senŝanĝaj."
       },
       "loading": "Ŝarĝante permesojn...",
       "no_data": "Neniuj datumoj haveblaj.",

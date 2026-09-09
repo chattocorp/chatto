@@ -31,7 +31,8 @@
         "description": "L’appartenance à un salon n’accorde pas de permissions sur les messages.",
         "join": "Ajouter le compte à #{room}",
         "leave": "Retirer le compte de #{room}",
-        "unavailable": "Tu ne peux pas modifier cette appartenance."
+        "unavailable": "Tu ne peux pas modifier cette appartenance.",
+        "confirm_immediate": "Confirme pour appliquer immédiatement ce changement d’appartenance. Les permissions configurées resteront inchangées."
       },
       "loading": "Chargement des autorisations...",
       "no_data": "Aucune donnée disponible.",

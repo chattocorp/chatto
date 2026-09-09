@@ -31,7 +31,8 @@
         "description": "加入聊天室不會授予訊息權限。",
         "join": "將帳號加入 #{room}",
         "leave": "將帳號移出 #{room}",
-        "unavailable": "你無法變更此成員資格。"
+        "unavailable": "你無法變更此成員資格。",
+        "confirm_immediate": "確認後將立即套用此成員資格變更。已設定的權限將保持不變。"
       },
       "loading": "正在載入權限...",
       "no_data": "沒有可用資料。",

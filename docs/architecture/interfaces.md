@@ -98,6 +98,9 @@ including its owner's ceiling. Bans and archived rooms prevent adding.
 Removal does not require join permission and works in archived rooms.
 Both operations recheck authorization within room aggregate OCC retries and
 reuse the existing membership and audit events. Neither changes grants.
+`RoomMemberAdded` and `RoomMemberRemoved` identify the acting manager in
+`actor_id` and the target account in their payload. Each audit record commits
+atomically with its membership transition, including permission overrides.
 
 `RoomService.GetMember` and `BatchGetMembers` read the requested accounts'
 effective membership, including universal membership. Account managers can

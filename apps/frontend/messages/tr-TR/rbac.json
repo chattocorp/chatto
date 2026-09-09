@@ -31,7 +31,8 @@
         "description": "Oda üyeliği mesaj izinleri vermez.",
         "join": "Hesabı #{room} odasına ekle",
         "leave": "Hesabı #{room} odasından çıkar",
-        "unavailable": "Bu üyeliği değiştiremezsin."
+        "unavailable": "Bu üyeliği değiştiremezsin.",
+        "confirm_immediate": "Bu üyelik değişikliğini hemen uygulamak için onayla. Yapılandırılmış izinler değişmeyecek."
       },
       "loading": "İzinler yükleniyor...",
       "no_data": "Veri yok.",

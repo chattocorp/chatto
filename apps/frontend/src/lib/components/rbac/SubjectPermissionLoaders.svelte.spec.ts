@@ -480,6 +480,15 @@ describe('subject permission loaders', () => {
 });
 
 describe('account membership mutations', () => {
+  async function confirmMembership() {
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    expect(document.querySelector('dialog[open]')?.textContent).toContain(
+      'Confirm to apply this membership change immediately.'
+    );
+    document.querySelector<HTMLButtonElement>('dialog[open] button[type="submit"]')!.click();
+    await settle();
+  }
+
   beforeEach(() => {
     permissionMocks.batchGetRooms.mockResolvedValue([
       { id: 'work', isUniversal: false, archived: false, canManageRoom: false }
@@ -502,7 +511,7 @@ describe('account membership mutations', () => {
     };
   }
 
-  it('saves membership immediately, refreshes state, and does not write permissions', async () => {
+  it('confirms membership before saving immediately without writing permissions', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
     permissionMocks.addMember.mockImplementation(async () => {
       permissionMocks.batchGetRoomMembers.mockResolvedValue([{ id: 'membership-bot' }]);
@@ -521,6 +530,8 @@ describe('account membership mutations', () => {
     (
       container.querySelector('button[aria-label="Add account to #work"]') as HTMLButtonElement
     ).click();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+    await confirmMembership();
     await expect.poll(() => permissionMocks.addMember.mock.calls.length).toBe(1);
     expect(permissionMocks.addMember).toHaveBeenCalledWith({
       roomId: 'work',
@@ -537,6 +548,8 @@ describe('account membership mutations', () => {
     (
       container.querySelector('button[aria-label="Remove account from #work"]') as HTMLButtonElement
     ).click();
+    expect(permissionMocks.removeMember).not.toHaveBeenCalled();
+    await confirmMembership();
     await expect.poll(() => permissionMocks.removeMember.mock.calls.length).toBe(1);
     await expect
       .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
@@ -562,9 +575,86 @@ describe('account membership mutations', () => {
     container
       .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
       .click();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+    await confirmMembership();
     await expect.poll(() => permissionMocks.addMember.mock.calls.length).toBe(1);
     expect(permissionMocks.addMember).toHaveBeenCalledWith({ roomId: 'work', userId: 'human' });
     expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'cancels a membership change without writing, joined=%s',
+    async (joined) => {
+      permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+      permissionMocks.batchGetRoomMembers.mockResolvedValue(
+        joined ? [{ id: 'membership-bot' }] : []
+      );
+      const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+      const label = joined ? 'Remove account from #work' : 'Add account to #work';
+      await expect
+        .poll(() => container.querySelector(`button[aria-label="${label}"]`))
+        .toBeTruthy();
+      container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+      const cancel = [...document.querySelectorAll<HTMLButtonElement>('dialog[open] button')].find(
+        (button) => button.textContent?.trim() === 'Cancel'
+      );
+      cancel!.click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+      expect(permissionMocks.addMember).not.toHaveBeenCalled();
+      expect(permissionMocks.removeMember).not.toHaveBeenCalled();
+      expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+    }
+  );
+
+  it('discards an unconfirmed action when the account changes', async () => {
+    permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
+      Promise.resolve({ ...botMatrix(), userId })
+    );
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    await expect
+      .poll(() => rendered.container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    rendered.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
+      .click();
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    await rendered.rerender({ userId: 'other-account' });
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+    await rendered.rerender({ userId: 'membership-bot' });
+    await settle();
+    expect(document.querySelector('dialog[open]')).toBeNull();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+  });
+
+  it('rechecks membership availability when confirming', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    await expect
+      .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
+      .click();
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    permissionMocks.batchGetRooms.mockResolvedValue([
+      { id: 'work', isUniversal: false, archived: true, canManageRoom: false }
+    ]);
+    refreshRegisteredAdminQueries('origin');
+    const key = adminQueryKeys.userPermissions(
+      'origin',
+      { queryScope: 'permission-loader-test' },
+      'membership-bot'
+    );
+    await expect
+      .poll(
+        () =>
+          queryClient.getQueryData<{ scopes: { membership?: { canJoin: boolean } }[] }>(key)
+            ?.scopes[0]?.membership?.canJoin
+      )
+      .toBe(false);
+    await confirmMembership();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
   });
 
   it('keeps a bot join locked without effective room.join or a manager override', async () => {
@@ -595,6 +685,7 @@ describe('account membership mutations', () => {
     (
       container.querySelector('button[aria-label="Add account to #work"]') as HTMLButtonElement
     ).click();
+    await confirmMembership();
     await expect.poll(() => container.textContent).toContain('Failed to join room');
     await expect
       .poll(
@@ -628,6 +719,7 @@ describe('account membership mutations', () => {
         'button[aria-label="Add account to #work"]'
       ) as HTMLButtonElement
     ).click();
+    await confirmMembership();
     await expect.poll(() => rejectJoin).toBeTruthy();
     await rendered.rerender({ userId: 'replacement-bot' });
     await expect

@@ -31,7 +31,8 @@
         "description": "Pertenecer a una sala no concede permisos sobre los mensajes.",
         "join": "Añadir la cuenta a #{room}",
         "leave": "Quitar la cuenta de #{room}",
-        "unavailable": "No puedes cambiar esta membresía."
+        "unavailable": "No puedes cambiar esta membresía.",
+        "confirm_immediate": "Confirma para aplicar este cambio de membresía de inmediato. Los permisos configurados no cambiarán."
       },
       "loading": "Cargando permisos...",
       "no_data": "No hay datos disponibles.",

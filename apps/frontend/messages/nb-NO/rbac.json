@@ -31,7 +31,8 @@
         "description": "Medlemskap i et rom gir ikke meldingstillatelser.",
         "join": "Legg til konto i #{room}",
         "leave": "Fjern konto fra #{room}",
-        "unavailable": "Du kan ikke endre dette medlemskapet."
+        "unavailable": "Du kan ikke endre dette medlemskapet.",
+        "confirm_immediate": "Bekreft for å endre medlemskapet umiddelbart. De konfigurerte tillatelsene forblir uendret."
       },
       "loading": "Laster inn tillatelser...",
       "no_data": "Ingen data tilgjengelig.",

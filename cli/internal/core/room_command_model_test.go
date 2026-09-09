@@ -600,6 +600,12 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				}
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.NoError(t, err, "management authority overrides the target's missing room.join")
+				addEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberAdded))
+				require.NoError(t, err)
+				require.Len(t, addEvents, 1)
+				require.Equal(t, manager.Id, addEvents[0].GetActorId(), "EVT must identify the manager who overrides room.join")
+				require.Equal(t, target.Id, addEvents[0].GetRoomMemberAdded().GetUserId())
+
 				allowed, err := c.CanJoinRoomAt(ctx, target.Id, KindChannel, room.Id)
 				require.NoError(t, err)
 				require.False(t, allowed, "adding membership must not change permission grants")
@@ -616,6 +622,12 @@ func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
 				require.NoError(t, err)
 				_, err = c.RoomCommands().RemoveMember(ctx, input)
 				require.NoError(t, err)
+				removeEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberRemoved))
+				require.NoError(t, err)
+				require.Len(t, removeEvents, 1)
+				require.Equal(t, manager.Id, removeEvents[0].GetActorId(), "EVT must identify the manager who removes the account")
+				require.Equal(t, target.Id, removeEvents[0].GetRoomMemberRemoved().GetUserId())
+
 				_, err = c.RoomCommands().AddMember(ctx, input)
 				require.ErrorIs(t, err, ErrRoomArchived)
 				_, err = c.UnarchiveRoom(ctx, SystemActorID, KindChannel, room.Id)

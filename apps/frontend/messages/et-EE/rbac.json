@@ -31,7 +31,8 @@
         "description": "Ruumis osalemine ei anna sõnumiõigusi.",
         "join": "Lisa konto ruumi #{room}",
         "leave": "Eemalda konto ruumist #{room}",
-        "unavailable": "Sa ei saa seda liikmesust muuta."
+        "unavailable": "Sa ei saa seda liikmesust muuta.",
+        "confirm_immediate": "Kinnita, et rakendada liikmesuse muudatus kohe. Seadistatud õigused ei muutu."
       },
       "loading": "Lubade laadimine...",
       "no_data": "Andmed puuduvad.",

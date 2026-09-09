@@ -31,7 +31,8 @@
         "description": "Die Raummitgliedschaft erteilt keine Nachrichtenberechtigungen.",
         "join": "Account zu #{room} hinzufügen",
         "leave": "Account aus #{room} entfernen",
-        "unavailable": "Du kannst diese Mitgliedschaft nicht ändern."
+        "unavailable": "Du kannst diese Mitgliedschaft nicht ändern.",
+        "confirm_immediate": "Bestätige, um diese Mitgliedschaft sofort zu ändern. Die konfigurierten Berechtigungen bleiben unverändert."
       },
       "loading": "Berechtigungen werden geladen...",
       "no_data": "Keine Daten verfügbar.",

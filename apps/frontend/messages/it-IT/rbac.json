@@ -31,7 +31,8 @@
         "description": "L’appartenenza a una stanza non concede permessi sui messaggi.",
         "join": "Aggiungi l’account a #{room}",
         "leave": "Rimuovi l’account da #{room}",
-        "unavailable": "Non puoi modificare questa appartenenza."
+        "unavailable": "Non puoi modificare questa appartenenza.",
+        "confirm_immediate": "Conferma per applicare subito questa modifica all’appartenenza. I permessi configurati resteranno invariati."
       },
       "loading": "Caricamento permessi...",
       "no_data": "Nessun dato disponibile.",
