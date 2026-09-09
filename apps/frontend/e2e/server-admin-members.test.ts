@@ -166,7 +166,8 @@ test.describe('Server Admin Members', () => {
       // The refreshed summary should show manage/server-relevant account facts.
       await expect(page.getByText('Space Roles')).not.toBeVisible();
       await expect(page.locator('div').filter({ hasText: /^Roles$/ })).toBeVisible();
-      await expect(page.getByText('Joined')).toBeVisible();
+      // The account summary and permission matrix both have a Joined label.
+      await expect(page.locator('div').filter({ hasText: /^Joined$/ })).toBeVisible();
       await expect(page.getByTitle('Copy to clipboard')).toBeVisible();
       await expect(page.getByText('Email verified')).toBeVisible();
       await expect(page.getByText(`${admin.login}@example.com`)).toBeVisible();
