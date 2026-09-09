@@ -20,9 +20,27 @@ type RoomDirectoryReadModel struct {
 	core *ChattoCore
 }
 
+// RoomArchiveFilter selects room archive state without changing visibility.
+type RoomArchiveFilter int
+
+const (
+	// RoomArchiveActive preserves the default active-room navigation snapshot.
+	RoomArchiveActive RoomArchiveFilter = iota
+	// RoomArchiveArchived selects only archived rooms.
+	RoomArchiveArchived
+	// RoomArchiveAll selects both active and archived rooms.
+	RoomArchiveAll
+)
+
+func (filter RoomArchiveFilter) matches(archived bool) bool {
+	return filter == RoomArchiveAll || (filter == RoomArchiveArchived) == archived
+}
+
 type RoomDirectoryListOptions struct {
 	IncludeChannels bool
 	IncludeDMs      bool
+	// ArchiveFilter defaults to active rooms and intersects the room-kind flags.
+	ArchiveFilter RoomArchiveFilter
 	// IncludeEmptyDMs includes accessible DMs before their first message.
 	// Public directory and snapshot reads set this; clients choose whether
 	// to hide empty conversations from navigation.
@@ -77,17 +95,20 @@ func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, 
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
+	if opts.ArchiveFilter < RoomArchiveActive || opts.ArchiveFilter > RoomArchiveAll {
+		return nil, invalidArgument("unknown room archive filter")
+	}
 
 	rooms := []*DirectoryRoom{}
 	if opts.IncludeChannels {
-		channelRooms, err := s.visibleChannelRooms(ctx, actorID)
+		channelRooms, err := s.visibleChannelRooms(ctx, actorID, opts.ArchiveFilter)
 		if err != nil {
 			return nil, err
 		}
 		rooms = append(rooms, channelRooms...)
 	}
 	if opts.IncludeDMs {
-		dmRooms, err := s.visibleDMRooms(ctx, actorID, opts.IncludeEmptyDMs)
+		dmRooms, err := s.visibleDMRooms(ctx, actorID, opts.IncludeEmptyDMs, opts.ArchiveFilter)
 		if err != nil {
 			return nil, err
 		}
@@ -257,14 +278,14 @@ func (s *RoomDirectoryReadModel) JoinGroup(ctx context.Context, actorID, groupID
 	return joined, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorID string) ([]*DirectoryRoom, error) {
+func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorID string, archiveFilter RoomArchiveFilter) ([]*DirectoryRoom, error) {
 	rooms, err := s.core.ListRooms(ctx, KindChannel)
 	if err != nil {
 		return nil, err
 	}
 	result := make([]*DirectoryRoom, 0, len(rooms))
 	for _, room := range rooms {
-		if room.GetArchived() {
+		if !archiveFilter.matches(room.GetArchived()) {
 			continue
 		}
 		visible, err := s.core.CanSeeRoom(ctx, actorID, KindChannel, room.Id)
@@ -283,7 +304,7 @@ func (s *RoomDirectoryReadModel) visibleChannelRooms(ctx context.Context, actorI
 	return result, nil
 }
 
-func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string, includeEmpty bool) ([]*DirectoryRoom, error) {
+func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID string, includeEmpty bool, archiveFilter RoomArchiveFilter) ([]*DirectoryRoom, error) {
 	rooms, err := s.core.ListMemberRooms(ctx, KindDM, actorID, MemberRoomListOptions{})
 	if err != nil {
 		return nil, err
@@ -294,6 +315,9 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	}
 	visible := make([]visibleDMRoom, 0, len(rooms))
 	for _, room := range rooms {
+		if !archiveFilter.matches(room.GetArchived()) {
+			continue
+		}
 		canAccess, err := s.core.CanAccessRoomMessages(ctx, actorID, KindDM, room.GetId())
 		if err != nil {
 			return nil, err

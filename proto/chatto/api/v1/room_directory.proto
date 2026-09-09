@@ -23,14 +23,26 @@ message RoomViewerState {
 
 // Room kinds to include in directory responses.
 enum RoomDirectoryScope {
-  // Include visible channel rooms and readable active DM rooms.
+  // Include visible channel rooms and the caller's DM rooms.
   ROOM_DIRECTORY_SCOPE_UNSPECIFIED = 0;
-  // Include visible channel rooms and readable active DM rooms.
+  // Include visible channel rooms and the caller's DM rooms.
   ROOM_DIRECTORY_SCOPE_ALL = 1;
   // Include visible channel rooms only.
   ROOM_DIRECTORY_SCOPE_CHANNELS = 2;
-  // Include the caller's readable active DM rooms only.
+  // Include the caller's DM rooms only.
   ROOM_DIRECTORY_SCOPE_DMS = 3;
+}
+
+// Archive state to include in room directory responses.
+enum RoomArchiveFilter {
+  // Include active rooms only.
+  ROOM_ARCHIVE_FILTER_UNSPECIFIED = 0;
+  // Include active rooms only.
+  ROOM_ARCHIVE_FILTER_ACTIVE = 1;
+  // Include archived rooms only.
+  ROOM_ARCHIVE_FILTER_ARCHIVED = 2;
+  // Include both active and archived rooms.
+  ROOM_ARCHIVE_FILTER_ALL = 3;
 }
 
 // Room metadata plus state and capabilities resolved for the authenticated
@@ -99,11 +111,14 @@ message RoomGroup {
 message ListRoomsRequest {
   // Which room kinds to include. Defaults to all.
   RoomDirectoryScope scope = 1 [(buf.validate.field).enum.defined_only = true];
+  // Archive state to include. Defaults to ACTIVE. Combined with scope; this
+  // filter does not grant access to hidden rooms.
+  RoomArchiveFilter archive_filter = 2 [(buf.validate.field).enum.defined_only = true];
 }
 
 // Finite snapshot of rooms visible to the current user.
 message ListRoomsResponse {
-  // Rooms matching the requested scope.
+  // Visible rooms matching both the room-kind scope and archive filter.
   repeated RoomWithViewerState rooms = 1;
 }
 
@@ -189,9 +204,10 @@ message BatchGetRoomsResponse {
 
 // Reads room directory data.
 service RoomDirectoryService {
-  // Lists rooms visible to the current user. Channel rooms are non-archived
-  // rooms visible through membership or room.list. DM membership exposes room
-  // and participant metadata. Message-derived DM state also requires current
+  // Lists rooms visible to the current user. Defaults to active rooms; use
+  // archive_filter to discover archived rooms or include both states. Channel
+  // rooms require membership or room.list. DM membership exposes room and
+  // participant metadata. Message-derived DM state also requires current
   // read permission. Accessible empty DMs are included. Results are returned as a finite
   // navigation snapshot.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);

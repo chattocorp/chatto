@@ -24,9 +24,10 @@ Reads room directory data.
 
 ### ListRooms
 
-Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM membership exposes room
-and participant metadata. Message-derived DM state also requires current
+Lists rooms visible to the current user. Defaults to active rooms; use
+archive_filter to discover archived rooms or include both states. Channel
+rooms require membership or room.list. DM membership exposes room and
+participant metadata. Message-derived DM state also requires current
 read permission. Accessible empty DMs are included. Results are returned as a finite
 navigation snapshot.
 
@@ -43,6 +44,7 @@ Request for rooms visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope` | [`RoomDirectoryScope`](/reference/connectrpc-api/types/#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+| `archive_filter` | [`RoomArchiveFilter`](/reference/connectrpc-api/types/#chatto-api-v1-RoomArchiveFilter) | Archive state to include. Defaults to ACTIVE. Combined with scope; this filter does not grant access to hidden rooms. |
 
 
 <a id="chatto-api-v1-ListRoomsResponse"></a>
@@ -53,7 +55,7 @@ Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
+| `rooms` | repeated [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Visible rooms matching both the room-kind scope and archive filter. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>

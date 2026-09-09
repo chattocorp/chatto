@@ -90,6 +90,13 @@ Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot
 or either human owner.
 
+`RoomDirectoryService.ListRooms` intersects the room-kind scope with an archive
+filter. The default returns active rooms; callers can select archived rooms or
+both states. The read uses the existing room catalog, visibility checks, and
+canonical room response. Archive discovery does not change membership or
+permissions. Room-group and realtime navigation snapshots keep their default
+active-room scope.
+
 `RoomService.AddMember` and `RemoveMember` accept room managers, account
 managers, bot owners, and human bot managers. `room.manage` for the room or
 `user.manage-accounts` overrides the target account's missing `room.join`.
