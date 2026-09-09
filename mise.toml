@@ -116,6 +116,11 @@ run = ["actionlint", "shellcheck --severity=warning tools/*.sh"]
 # Code Generation
 # =============================================================================
 
+[tasks.lint-proto]
+description = "Check Chatto protobuf naming and schema conventions"
+dir = "proto"
+run = "buf lint"
+
 [tasks.codegen-proto]
 description = "Generate Go and frontend code from protobuf schemas"
 depends = ["setup-cli", "setup-frontend"]

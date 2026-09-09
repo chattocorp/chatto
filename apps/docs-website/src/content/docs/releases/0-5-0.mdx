@@ -402,6 +402,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Public protobuf request and response types now match their RPC names. OAuth
+  admin enum types use `OauthClientSource` and `OauthClientPolicy`. Regenerate
+  clients and update type references; RPC paths and JSON values are unchanged.
+  See the [type migration guide](/guides/integrations/api-compatibility/#protobuf-type-names-in-05).
+
 - Resource update RPCs now share an update-mask contract. Select a field to set
   or reset it; unselected fields stay unchanged. JSON clients can clear fields
   with `null` plus `updateMask`. Empty updates are rejected. Self-service profile

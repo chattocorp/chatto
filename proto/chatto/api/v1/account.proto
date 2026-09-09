@@ -9,7 +9,6 @@ import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 import "chatto/api/v1/users.proto";
 import "chatto/api/v1/viewer.proto";
-import "google/protobuf/descriptor.proto";
 
 // Request to update the authenticated user's profile. Human and bot accounts
 // use this same self-service operation. update_mask selects fields to apply

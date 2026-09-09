@@ -124,15 +124,15 @@ type RoomServiceClient interface {
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
 	// Lists effective room members. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
-	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one effective member, including automatic universal membership.
 	// Channel-room members, room.manage holders, and user.manage-accounts holders
 	// may read members. Bot owners and bot.manage holders may read their target
 	// bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
-	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets effective member rows for the requested accounts. Uses the same
 	// authorization as GetMember; omits unknown accounts and nonmembers.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Adds an account as an explicit channel-room member. room.manage for this
 	// room or user.manage-accounts overrides the target's missing room.join.
 	// Bot owners and bot.manage holders may also add bots, but without either
@@ -254,19 +254,19 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("LeaveRoom")),
 			connect.WithClientOptions(opts...),
 		),
-		listMembers: connect.NewClient[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse](
+		listMembers: connect.NewClient[v1.ListMembersRequest, v1.ListMembersResponse](
 			httpClient,
 			baseURL+RoomServiceListMembersProcedure,
 			connect.WithSchema(roomServiceMethods.ByName("ListMembers")),
 			connect.WithClientOptions(opts...),
 		),
-		getMember: connect.NewClient[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse](
+		getMember: connect.NewClient[v1.GetMemberRequest, v1.GetMemberResponse](
 			httpClient,
 			baseURL+RoomServiceGetMemberProcedure,
 			connect.WithSchema(roomServiceMethods.ByName("GetMember")),
 			connect.WithClientOptions(opts...),
 		),
-		batchGetMembers: connect.NewClient[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse](
+		batchGetMembers: connect.NewClient[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse](
 			httpClient,
 			baseURL+RoomServiceBatchGetMembersProcedure,
 			connect.WithSchema(roomServiceMethods.ByName("BatchGetMembers")),
@@ -363,9 +363,9 @@ type roomServiceClient struct {
 	joinRoomGroup          *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
 	startDM                *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
 	leaveRoom              *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
-	listMembers            *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
-	getMember              *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
-	batchGetMembers        *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
+	listMembers            *connect.Client[v1.ListMembersRequest, v1.ListMembersResponse]
+	getMember              *connect.Client[v1.GetMemberRequest, v1.GetMemberResponse]
+	batchGetMembers        *connect.Client[v1.BatchGetMembersRequest, v1.BatchGetMembersResponse]
 	addMember              *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
 	removeMember           *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
 	listBans               *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
@@ -422,17 +422,17 @@ func (c *roomServiceClient) LeaveRoom(ctx context.Context, req *connect.Request[
 }
 
 // ListMembers calls chatto.api.v1.RoomService.ListMembers.
-func (c *roomServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
+func (c *roomServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
 	return c.listMembers.CallUnary(ctx, req)
 }
 
 // GetMember calls chatto.api.v1.RoomService.GetMember.
-func (c *roomServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+func (c *roomServiceClient) GetMember(ctx context.Context, req *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
 	return c.getMember.CallUnary(ctx, req)
 }
 
 // BatchGetMembers calls chatto.api.v1.RoomService.BatchGetMembers.
-func (c *roomServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+func (c *roomServiceClient) BatchGetMembers(ctx context.Context, req *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
 	return c.batchGetMembers.CallUnary(ctx, req)
 }
 
@@ -530,15 +530,15 @@ type RoomServiceHandler interface {
 	LeaveRoom(context.Context, *connect.Request[v1.LeaveRoomRequest]) (*connect.Response[v1.LeaveRoomResponse], error)
 	// Lists effective room members. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
-	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
+	ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error)
 	// Gets one effective member, including automatic universal membership.
 	// Channel-room members, room.manage holders, and user.manage-accounts holders
 	// may read members. Bot owners and bot.manage holders may read their target
 	// bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
-	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
+	GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error)
 	// Gets effective member rows for the requested accounts. Uses the same
 	// authorization as GetMember; omits unknown accounts and nonmembers.
-	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
+	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error)
 	// Adds an account as an explicit channel-room member. room.manage for this
 	// room or user.manage-accounts overrides the target's missing room.join.
 	// Bot owners and bot.manage holders may also add bots, but without either
@@ -843,15 +843,15 @@ func (UnimplementedRoomServiceHandler) LeaveRoom(context.Context, *connect.Reque
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.LeaveRoom is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error) {
+func (UnimplementedRoomServiceHandler) ListMembers(context.Context, *connect.Request[v1.ListMembersRequest]) (*connect.Response[v1.ListMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.ListMembers is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error) {
+func (UnimplementedRoomServiceHandler) GetMember(context.Context, *connect.Request[v1.GetMemberRequest]) (*connect.Response[v1.GetMemberResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.GetMember is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error) {
+func (UnimplementedRoomServiceHandler) BatchGetMembers(context.Context, *connect.Request[v1.BatchGetMembersRequest]) (*connect.Response[v1.BatchGetMembersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BatchGetMembers is not implemented"))
 }
 

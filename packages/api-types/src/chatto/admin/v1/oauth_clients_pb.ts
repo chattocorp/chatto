@@ -10,32 +10,32 @@ import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 /**
  * How a public OAuth client establishes its identity with this server.
  *
- * @generated from enum chatto.admin.v1.OAuthClientSource
+ * @generated from enum chatto.admin.v1.OauthClientSource
  */
-export enum OAuthClientSource {
+export enum OauthClientSource {
   /**
    * The server does not recognize the source value.
    *
    * @generated from enum value: OAUTH_CLIENT_SOURCE_UNSPECIFIED = 0;
    */
-  OAUTH_CLIENT_SOURCE_UNSPECIFIED = 0,
+  UNSPECIFIED = 0,
 
   /**
    * The client identifies itself with an HTTPS Client ID Metadata Document.
    *
    * @generated from enum value: OAUTH_CLIENT_SOURCE_CIMD = 1;
    */
-  OAUTH_CLIENT_SOURCE_CIMD = 1,
+  CIMD = 1,
 
   /**
    * The client uses a registration built into this Chatto release.
    *
    * @generated from enum value: OAUTH_CLIENT_SOURCE_BUILT_IN = 2;
    */
-  OAUTH_CLIENT_SOURCE_BUILT_IN = 2,
+  BUILT_IN = 2,
 }
-// Retrieve enum metadata with: proto3.getEnumType(OAuthClientSource)
-proto3.util.setEnumType(OAuthClientSource, "chatto.admin.v1.OAuthClientSource", [
+// Retrieve enum metadata with: proto3.getEnumType(OauthClientSource)
+proto3.util.setEnumType(OauthClientSource, "chatto.admin.v1.OauthClientSource", [
   { no: 0, name: "OAUTH_CLIENT_SOURCE_UNSPECIFIED" },
   { no: 1, name: "OAUTH_CLIENT_SOURCE_CIMD" },
   { no: 2, name: "OAUTH_CLIENT_SOURCE_BUILT_IN" },
@@ -45,39 +45,39 @@ proto3.util.setEnumType(OAuthClientSource, "chatto.admin.v1.OAuthClientSource", 
  * Administrator policy for a public OAuth client. Trusted is an informational
  * blessing and never bypasses individual user consent.
  *
- * @generated from enum chatto.admin.v1.OAuthClientPolicy
+ * @generated from enum chatto.admin.v1.OauthClientPolicy
  */
-export enum OAuthClientPolicy {
+export enum OauthClientPolicy {
   /**
    * No valid policy was supplied.
    *
    * @generated from enum value: OAUTH_CLIENT_POLICY_UNSPECIFIED = 0;
    */
-  OAUTH_CLIENT_POLICY_UNSPECIFIED = 0,
+  UNSPECIFIED = 0,
 
   /**
    * The client follows the normal open-client authorization policy.
    *
    * @generated from enum value: OAUTH_CLIENT_POLICY_DEFAULT = 1;
    */
-  OAUTH_CLIENT_POLICY_DEFAULT = 1,
+  DEFAULT = 1,
 
   /**
    * Administrators have labelled the client as trusted without changing consent.
    *
    * @generated from enum value: OAUTH_CLIENT_POLICY_TRUSTED = 2;
    */
-  OAUTH_CLIENT_POLICY_TRUSTED = 2,
+  TRUSTED = 2,
 
   /**
    * The client cannot authorize or use its existing OAuth access tokens.
    *
    * @generated from enum value: OAUTH_CLIENT_POLICY_BLOCKED = 3;
    */
-  OAUTH_CLIENT_POLICY_BLOCKED = 3,
+  BLOCKED = 3,
 }
-// Retrieve enum metadata with: proto3.getEnumType(OAuthClientPolicy)
-proto3.util.setEnumType(OAuthClientPolicy, "chatto.admin.v1.OAuthClientPolicy", [
+// Retrieve enum metadata with: proto3.getEnumType(OauthClientPolicy)
+proto3.util.setEnumType(OauthClientPolicy, "chatto.admin.v1.OauthClientPolicy", [
   { no: 0, name: "OAUTH_CLIENT_POLICY_UNSPECIFIED" },
   { no: 1, name: "OAUTH_CLIENT_POLICY_DEFAULT" },
   { no: 2, name: "OAUTH_CLIENT_POLICY_TRUSTED" },
@@ -114,16 +114,16 @@ export class OAuthClient extends Message<OAuthClient> {
   /**
    * How the client identity was established.
    *
-   * @generated from field: chatto.admin.v1.OAuthClientSource source = 4;
+   * @generated from field: chatto.admin.v1.OauthClientSource source = 4;
    */
-  source = OAuthClientSource.OAUTH_CLIENT_SOURCE_UNSPECIFIED;
+  source = OauthClientSource.UNSPECIFIED;
 
   /**
    * Current server-administrator policy for the client.
    *
-   * @generated from field: chatto.admin.v1.OAuthClientPolicy policy = 5;
+   * @generated from field: chatto.admin.v1.OauthClientPolicy policy = 5;
    */
-  policy = OAuthClientPolicy.OAUTH_CLIENT_POLICY_UNSPECIFIED;
+  policy = OauthClientPolicy.UNSPECIFIED;
 
   /**
    * When this server first completed an authorization for the client.
@@ -164,8 +164,8 @@ export class OAuthClient extends Message<OAuthClient> {
     { no: 1, name: "client_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "client_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "client_origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "source", kind: "enum", T: proto3.getEnumType(OAuthClientSource) },
-    { no: 5, name: "policy", kind: "enum", T: proto3.getEnumType(OAuthClientPolicy) },
+    { no: 4, name: "source", kind: "enum", T: proto3.getEnumType(OauthClientSource) },
+    { no: 5, name: "policy", kind: "enum", T: proto3.getEnumType(OauthClientPolicy) },
     { no: 6, name: "first_authorization_at", kind: "message", T: Timestamp },
     { no: 7, name: "last_authorization_at", kind: "message", T: Timestamp },
     { no: 8, name: "redirect_origins", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
@@ -377,9 +377,9 @@ export class UpdateOAuthClientPolicyRequest extends Message<UpdateOAuthClientPol
   /**
    * New complete policy value. Default removes any trusted or blocked label.
    *
-   * @generated from field: chatto.admin.v1.OAuthClientPolicy policy = 2;
+   * @generated from field: chatto.admin.v1.OauthClientPolicy policy = 2;
    */
-  policy = OAuthClientPolicy.OAUTH_CLIENT_POLICY_UNSPECIFIED;
+  policy = OauthClientPolicy.UNSPECIFIED;
 
   /**
    * Editable fields to apply or reset: policy.
@@ -400,7 +400,7 @@ export class UpdateOAuthClientPolicyRequest extends Message<UpdateOAuthClientPol
   static readonly typeName = "chatto.admin.v1.UpdateOAuthClientPolicyRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "client_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "policy", kind: "enum", T: proto3.getEnumType(OAuthClientPolicy) },
+    { no: 2, name: "policy", kind: "enum", T: proto3.getEnumType(OauthClientPolicy) },
     { no: 3, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 

@@ -921,7 +921,7 @@ Replaces the administrative policy for one OAuth client.
 | Field | Type | Description |
 | --- | --- | --- |
 | `client_id` | `string` | Exact CIMD URL or built-in application URI. |
-| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
+| `policy` | [`OauthClientPolicy`](#chatto-admin-v1-OauthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
 | `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: policy. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
@@ -2469,8 +2469,8 @@ An OAuth client that completed at least one successful user authorization.
 | `client_id` | `string` | Stable client identifier: a CIMD URL or built-in application URI. |
 | `client_name` | `string` | Display name from validated client metadata. |
 | `client_origin` | `string` | Privacy-safe canonical origin derived from validated client metadata. |
-| `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
-| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
+| `source` | [`OauthClientSource`](#chatto-admin-v1-OauthClientSource) | How the client identity was established. |
+| `policy` | [`OauthClientPolicy`](#chatto-admin-v1-OauthClientPolicy) | Current server-administrator policy for the client. |
 | `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
 | `last_authorization_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
 | `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
@@ -2780,9 +2780,9 @@ Current lifecycle state of an invite link.
 | `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
 
 
-<a id="chatto-admin-v1-OAuthClientPolicy"></a>
+<a id="chatto-admin-v1-OauthClientPolicy"></a>
 
-### OAuthClientPolicy
+### OauthClientPolicy
 
 Administrator policy for a public OAuth client. Trusted is an informational
 blessing and never bypasses individual user consent.
@@ -2795,9 +2795,9 @@ blessing and never bypasses individual user consent.
 | `OAUTH_CLIENT_POLICY_BLOCKED` | `3` | The client cannot authorize or use its existing OAuth access tokens. |
 
 
-<a id="chatto-admin-v1-OAuthClientSource"></a>
+<a id="chatto-admin-v1-OauthClientSource"></a>
 
-### OAuthClientSource
+### OauthClientSource
 
 How a public OAuth client establishes its identity with this server.
 

@@ -104,7 +104,7 @@ Replaces the administrative policy for one OAuth client.
 | Field | Type | Description |
 | --- | --- | --- |
 | `client_id` | `string` | Exact CIMD URL or built-in application URI. |
-| `policy` | [`OAuthClientPolicy`](/reference/connectrpc-api/types/#chatto-admin-v1-OAuthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
+| `policy` | [`OauthClientPolicy`](/reference/connectrpc-api/types/#chatto-admin-v1-OauthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
 | `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: policy. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 

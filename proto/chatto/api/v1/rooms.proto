@@ -11,7 +11,6 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "chatto/api/v1/message_types.proto";
-import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
 // Kind of room represented by the public API.
@@ -441,15 +440,15 @@ service RoomService {
   rpc LeaveRoom(LeaveRoomRequest) returns (LeaveRoomResponse);
   // Lists effective room members. Existing members and room.manage holders may
   // list a channel room; other nonmembers need both room.list and room.join.
-  rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
+  rpc ListMembers(ListMembersRequest) returns (ListMembersResponse);
   // Gets one effective member, including automatic universal membership.
   // Channel-room members, room.manage holders, and user.manage-accounts holders
   // may read members. Bot owners and bot.manage holders may read their target
   // bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
-  rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
+  rpc GetMember(GetMemberRequest) returns (GetMemberResponse);
   // Gets effective member rows for the requested accounts. Uses the same
   // authorization as GetMember; omits unknown accounts and nonmembers.
-  rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
+  rpc BatchGetMembers(BatchGetMembersRequest) returns (BatchGetMembersResponse);
   // Adds an account as an explicit channel-room member. room.manage for this
   // room or user.manage-accounts overrides the target's missing room.join.
   // Bot owners and bot.manage holders may also add bots, but without either

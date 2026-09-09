@@ -8,7 +8,7 @@ import "chatto/api/v1/pagination.proto";
 import "google/protobuf/timestamp.proto";
 
 // How a public OAuth client establishes its identity with this server.
-enum OAuthClientSource {
+enum OauthClientSource {
   // The server does not recognize the source value.
   OAUTH_CLIENT_SOURCE_UNSPECIFIED = 0;
   // The client identifies itself with an HTTPS Client ID Metadata Document.
@@ -19,7 +19,7 @@ enum OAuthClientSource {
 
 // Administrator policy for a public OAuth client. Trusted is an informational
 // blessing and never bypasses individual user consent.
-enum OAuthClientPolicy {
+enum OauthClientPolicy {
   // No valid policy was supplied.
   OAUTH_CLIENT_POLICY_UNSPECIFIED = 0;
   // The client follows the normal open-client authorization policy.
@@ -39,9 +39,9 @@ message OAuthClient {
   // Privacy-safe canonical origin derived from validated client metadata.
   string client_origin = 3;
   // How the client identity was established.
-  OAuthClientSource source = 4;
+  OauthClientSource source = 4;
   // Current server-administrator policy for the client.
-  OAuthClientPolicy policy = 5;
+  OauthClientPolicy policy = 5;
   // When this server first completed an authorization for the client.
   google.protobuf.Timestamp first_authorization_at = 6;
   // When this server most recently completed an authorization for the client.
@@ -89,7 +89,7 @@ message UpdateOAuthClientPolicyRequest {
     max_len: 2048
   }];
   // New complete policy value. Default removes any trusted or blocked label.
-  OAuthClientPolicy policy = 2 [(buf.validate.field).enum = {
+  OauthClientPolicy policy = 2 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];

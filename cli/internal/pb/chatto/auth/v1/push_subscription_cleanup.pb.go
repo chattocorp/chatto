@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/descriptorpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -140,7 +139,7 @@ var File_chatto_auth_v1_push_subscription_cleanup_proto protoreflect.FileDescrip
 
 const file_chatto_auth_v1_push_subscription_cleanup_proto_rawDesc = "" +
 	"\n" +
-	".chatto/auth/v1/push_subscription_cleanup.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\x94\x01\n" +
+	".chatto/auth/v1/push_subscription_cleanup.proto\x12\x0echatto.auth.v1\x1a\x1bbuf/validate/validate.proto\"\x94\x01\n" +
 	"\x19DeleteSubscriptionRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\x12\x1e\n" +

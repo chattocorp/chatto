@@ -342,3 +342,26 @@ the old methods and request/response type names are removed:
 `expires_at` to remove any previous expiry, or supply a future time. Use
 `DeleteCustomStatus` to clear the status. These changes do not require a
 stored-data migration.
+
+## Protobuf type names in 0.5
+
+Request and response types now match their RPC names. Each row below applies
+to both the `Request` and `Response` suffix:
+
+| Previous type stem | New type stem |
+| --- | --- |
+| `SubscribePush` | `Subscribe` |
+| `UnsubscribePush` | `Unsubscribe` |
+| `SendTestPushNotification` | `SendTestNotification` |
+| `ListRoomMembers` | `ListMembers` |
+| `GetRoomMember` | `GetMember` |
+| `BatchGetRoomMembers` | `BatchGetMembers` |
+
+The public admin enum types `OAuthClientSource` and `OAuthClientPolicy` are now
+`OauthClientSource` and `OauthClientPolicy`. Generated TypeScript enum members
+also drop the repeated prefix: for example, use `OauthClientPolicy.TRUSTED`.
+The JSON enum values, such as `OAUTH_CLIENT_POLICY_TRUSTED`, are unchanged.
+
+Regenerate clients and update type references. RPC paths, request and response
+fields, field numbers, and enum numbers are unchanged. Existing JSON requests
+still work. These naming changes do not change stored data.

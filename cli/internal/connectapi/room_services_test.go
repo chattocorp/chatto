@@ -309,7 +309,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if addResp.Msg.GetMember().GetUser().GetId() != addTarget.Id {
 		t.Fatalf("AddMember member = %+v, want target", addResp.Msg.GetMember())
 	}
-	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{
 		RoomId: room.Id,
 		UserId: addTarget.Id,
 	})); err != nil {
@@ -335,7 +335,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if removeAgainResp.Msg.GetRemoved() {
 		t.Fatalf("idempotent RemoveMember removed = true, want false")
 	}
-	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+	if _, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetMemberRequest{
 		RoomId: room.Id,
 		UserId: addTarget.Id,
 	})); connect.CodeOf(err) != connect.CodeNotFound {
@@ -1328,14 +1328,14 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 		t.Fatalf("SetPresence member: %v", err)
 	}
 
-	req := connect.NewRequest(&apiv1.ListRoomMembersRequest{RoomId: room.Id, Search: "alice", Page: &apiv1.PageRequest{Limit: 10}})
+	req := connect.NewRequest(&apiv1.ListMembersRequest{RoomId: room.Id, Search: "alice", Page: &apiv1.PageRequest{Limit: 10}})
 	if _, err := env.rooms.ListMembers(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated ListMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.rooms.GetMember(env.ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.GetMember(env.ctx, connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated GetMember code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
-	if _, err := env.rooms.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+	if _, err := env.rooms.BatchGetMembers(env.ctx, connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "room-member-outsider", "Room Outsider", "password")
@@ -1345,10 +1345,10 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if _, err := env.rooms.ListMembers(withCaller(env.ctx, outsider), req); err != nil {
 		t.Fatalf("joinable outsider ListMembers: %v", err)
 	}
-	if _, err := env.rooms.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.GetMember(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: member.Id})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider GetMember code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
-	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
+	if _, err := env.rooms.BatchGetMembers(withCaller(env.ctx, outsider), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: room.Id, UserIds: []string{member.Id}})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("outsider BatchGetMembers code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomJoin); err != nil {
@@ -1380,13 +1380,13 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 	if _, err := env.rooms.ListMembers(managerCtx, req); err != nil {
 		t.Fatalf("manager ListMembers: %v", err)
 	}
-	if _, err := env.rooms.GetMember(managerCtx, connect.NewRequest(&apiv1.GetRoomMemberRequest{
+	if _, err := env.rooms.GetMember(managerCtx, connect.NewRequest(&apiv1.GetMemberRequest{
 		RoomId: room.Id,
 		UserId: member.Id,
 	})); err != nil {
 		t.Fatalf("manager GetMember: %v", err)
 	}
-	if _, err := env.rooms.BatchGetMembers(managerCtx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
+	if _, err := env.rooms.BatchGetMembers(managerCtx, connect.NewRequest(&apiv1.BatchGetMembersRequest{
 		RoomId:  room.Id,
 		UserIds: []string{member.Id},
 	})); err != nil {
@@ -1405,18 +1405,18 @@ func TestRoomServiceMemberReadAuthorization(t *testing.T) {
 		t.Fatalf("room member = %+v, want hydrated Room Alice", got)
 	}
 
-	getResp, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: member.Id}))
+	getResp, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: member.Id}))
 	if err != nil {
 		t.Fatalf("GetMember: %v", err)
 	}
 	if got := getResp.Msg.GetMember(); got.GetUser().GetId() != member.Id || got.GetUser().GetPresenceStatus() != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("GetMember member = %+v, want room member", got)
 	}
-	if _, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: outsider.Id})); connect.CodeOf(err) != connect.CodeNotFound {
+	if _, err := env.rooms.GetMember(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.GetMemberRequest{RoomId: room.Id, UserId: outsider.Id})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("non-member GetMember code = %v, want not_found", connect.CodeOf(err))
 	}
 
-	batchResp, err := env.rooms.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{
+	batchResp, err := env.rooms.BatchGetMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.BatchGetMembersRequest{
 		RoomId:  room.Id,
 		UserIds: []string{member.Id, outsider.Id, env.viewer.Id, member.Id, "missing-user"},
 	}))
@@ -1460,7 +1460,7 @@ func TestRoomServiceListMembersReturnsStablePreviewPageToJoinableNonmember(t *te
 		}
 	}
 
-	resp, err := env.rooms.ListMembers(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListRoomMembersRequest{
+	resp, err := env.rooms.ListMembers(withCaller(env.ctx, caller), connect.NewRequest(&apiv1.ListMembersRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 5},
 	}))
@@ -2167,7 +2167,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.push.Subscribe(env.ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	if _, err := env.push.Subscribe(env.ctx, connect.NewRequest(&apiv1.SubscribeRequest{
 		Endpoint: "https://push.example.test/sub",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
@@ -2175,7 +2175,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("unauthenticated Subscribe code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 
-	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
 		Endpoint: "https://push.example.test/sub",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
@@ -2189,14 +2189,14 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		VAPIDPrivateKey: "private-key",
 		VAPIDSubject:    "mailto:admin@example.com",
 	}
-	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
 		Endpoint: "https://push.example.test/client-host-required",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("missing client host Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
 		Endpoint:     "http://127.0.0.1/internal",
 		P256Dh:       "p256dh-key",
 		Auth:         "auth-secret",
@@ -2205,7 +2205,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unsafe endpoint Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{
 		Endpoint:     "https://push.example.test/sub",
 		P256Dh:       "p256dh-key",
 		Auth:         "auth-secret",
@@ -2234,20 +2234,20 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		}
 		return nil
 	}
-	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
+	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{}))
 	if err != nil {
 		t.Fatalf("SendTestNotification: %v", err)
 	}
 	if !testResp.Msg.GetSent() || testPushCalls != 1 {
 		t.Fatalf("SendTestNotification sent = %v, callback calls = %d", testResp.Msg.GetSent(), testPushCalls)
 	}
-	if _, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{})); connect.CodeOf(err) != connect.CodeResourceExhausted {
+	if _, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{})); connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("repeated SendTestNotification code = %v, want resource_exhausted", connect.CodeOf(err))
 	}
 	if testPushCalls != 1 {
 		t.Fatalf("rate-limited SendTestNotification callback calls = %d, want 1", testPushCalls)
 	}
-	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
+	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribeRequest{
 		Endpoint: "https://push.example.test/sub",
 	}))
 	if err != nil {
@@ -2264,7 +2264,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("subscriptions after unsubscribe = %+v, want none", subs)
 	}
 
-	if _, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
+	if _, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribeRequest{
 		Endpoint: "https://push.example.test/sub",
 	})); err != nil {
 		t.Fatalf("idempotent Unsubscribe: %v", err)
@@ -2304,7 +2304,7 @@ func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {
 		return errors.New("private response marker")
 	}
 
-	_, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
+	_, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnavailable {
 		t.Fatalf("SendTestNotification code = %v, want unavailable", connect.CodeOf(err))
 	}

@@ -26,82 +26,82 @@ const (
 )
 
 // How a public OAuth client establishes its identity with this server.
-type OAuthClientSource int32
+type OauthClientSource int32
 
 const (
 	// The server does not recognize the source value.
-	OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED OAuthClientSource = 0
+	OauthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED OauthClientSource = 0
 	// The client identifies itself with an HTTPS Client ID Metadata Document.
-	OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD OAuthClientSource = 1
+	OauthClientSource_OAUTH_CLIENT_SOURCE_CIMD OauthClientSource = 1
 	// The client uses a registration built into this Chatto release.
-	OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN OAuthClientSource = 2
+	OauthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN OauthClientSource = 2
 )
 
-// Enum value maps for OAuthClientSource.
+// Enum value maps for OauthClientSource.
 var (
-	OAuthClientSource_name = map[int32]string{
+	OauthClientSource_name = map[int32]string{
 		0: "OAUTH_CLIENT_SOURCE_UNSPECIFIED",
 		1: "OAUTH_CLIENT_SOURCE_CIMD",
 		2: "OAUTH_CLIENT_SOURCE_BUILT_IN",
 	}
-	OAuthClientSource_value = map[string]int32{
+	OauthClientSource_value = map[string]int32{
 		"OAUTH_CLIENT_SOURCE_UNSPECIFIED": 0,
 		"OAUTH_CLIENT_SOURCE_CIMD":        1,
 		"OAUTH_CLIENT_SOURCE_BUILT_IN":    2,
 	}
 )
 
-func (x OAuthClientSource) Enum() *OAuthClientSource {
-	p := new(OAuthClientSource)
+func (x OauthClientSource) Enum() *OauthClientSource {
+	p := new(OauthClientSource)
 	*p = x
 	return p
 }
 
-func (x OAuthClientSource) String() string {
+func (x OauthClientSource) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (OAuthClientSource) Descriptor() protoreflect.EnumDescriptor {
+func (OauthClientSource) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_admin_v1_oauth_clients_proto_enumTypes[0].Descriptor()
 }
 
-func (OAuthClientSource) Type() protoreflect.EnumType {
+func (OauthClientSource) Type() protoreflect.EnumType {
 	return &file_chatto_admin_v1_oauth_clients_proto_enumTypes[0]
 }
 
-func (x OAuthClientSource) Number() protoreflect.EnumNumber {
+func (x OauthClientSource) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use OAuthClientSource.Descriptor instead.
-func (OAuthClientSource) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use OauthClientSource.Descriptor instead.
+func (OauthClientSource) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_oauth_clients_proto_rawDescGZIP(), []int{0}
 }
 
 // Administrator policy for a public OAuth client. Trusted is an informational
 // blessing and never bypasses individual user consent.
-type OAuthClientPolicy int32
+type OauthClientPolicy int32
 
 const (
 	// No valid policy was supplied.
-	OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED OAuthClientPolicy = 0
+	OauthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED OauthClientPolicy = 0
 	// The client follows the normal open-client authorization policy.
-	OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT OAuthClientPolicy = 1
+	OauthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT OauthClientPolicy = 1
 	// Administrators have labelled the client as trusted without changing consent.
-	OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED OAuthClientPolicy = 2
+	OauthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED OauthClientPolicy = 2
 	// The client cannot authorize or use its existing OAuth access tokens.
-	OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED OAuthClientPolicy = 3
+	OauthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED OauthClientPolicy = 3
 )
 
-// Enum value maps for OAuthClientPolicy.
+// Enum value maps for OauthClientPolicy.
 var (
-	OAuthClientPolicy_name = map[int32]string{
+	OauthClientPolicy_name = map[int32]string{
 		0: "OAUTH_CLIENT_POLICY_UNSPECIFIED",
 		1: "OAUTH_CLIENT_POLICY_DEFAULT",
 		2: "OAUTH_CLIENT_POLICY_TRUSTED",
 		3: "OAUTH_CLIENT_POLICY_BLOCKED",
 	}
-	OAuthClientPolicy_value = map[string]int32{
+	OauthClientPolicy_value = map[string]int32{
 		"OAUTH_CLIENT_POLICY_UNSPECIFIED": 0,
 		"OAUTH_CLIENT_POLICY_DEFAULT":     1,
 		"OAUTH_CLIENT_POLICY_TRUSTED":     2,
@@ -109,30 +109,30 @@ var (
 	}
 )
 
-func (x OAuthClientPolicy) Enum() *OAuthClientPolicy {
-	p := new(OAuthClientPolicy)
+func (x OauthClientPolicy) Enum() *OauthClientPolicy {
+	p := new(OauthClientPolicy)
 	*p = x
 	return p
 }
 
-func (x OAuthClientPolicy) String() string {
+func (x OauthClientPolicy) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (OAuthClientPolicy) Descriptor() protoreflect.EnumDescriptor {
+func (OauthClientPolicy) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_admin_v1_oauth_clients_proto_enumTypes[1].Descriptor()
 }
 
-func (OAuthClientPolicy) Type() protoreflect.EnumType {
+func (OauthClientPolicy) Type() protoreflect.EnumType {
 	return &file_chatto_admin_v1_oauth_clients_proto_enumTypes[1]
 }
 
-func (x OAuthClientPolicy) Number() protoreflect.EnumNumber {
+func (x OauthClientPolicy) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use OAuthClientPolicy.Descriptor instead.
-func (OAuthClientPolicy) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use OauthClientPolicy.Descriptor instead.
+func (OauthClientPolicy) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_oauth_clients_proto_rawDescGZIP(), []int{1}
 }
 
@@ -146,9 +146,9 @@ type OAuthClient struct {
 	// Privacy-safe canonical origin derived from validated client metadata.
 	ClientOrigin string `protobuf:"bytes,3,opt,name=client_origin,json=clientOrigin,proto3" json:"client_origin,omitempty"`
 	// How the client identity was established.
-	Source OAuthClientSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.admin.v1.OAuthClientSource" json:"source,omitempty"`
+	Source OauthClientSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.admin.v1.OauthClientSource" json:"source,omitempty"`
 	// Current server-administrator policy for the client.
-	Policy OAuthClientPolicy `protobuf:"varint,5,opt,name=policy,proto3,enum=chatto.admin.v1.OAuthClientPolicy" json:"policy,omitempty"`
+	Policy OauthClientPolicy `protobuf:"varint,5,opt,name=policy,proto3,enum=chatto.admin.v1.OauthClientPolicy" json:"policy,omitempty"`
 	// When this server first completed an authorization for the client.
 	FirstAuthorizationAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=first_authorization_at,json=firstAuthorizationAt,proto3" json:"first_authorization_at,omitempty"`
 	// When this server most recently completed an authorization for the client.
@@ -212,18 +212,18 @@ func (x *OAuthClient) GetClientOrigin() string {
 	return ""
 }
 
-func (x *OAuthClient) GetSource() OAuthClientSource {
+func (x *OAuthClient) GetSource() OauthClientSource {
 	if x != nil {
 		return x.Source
 	}
-	return OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED
+	return OauthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED
 }
 
-func (x *OAuthClient) GetPolicy() OAuthClientPolicy {
+func (x *OAuthClient) GetPolicy() OauthClientPolicy {
 	if x != nil {
 		return x.Policy
 	}
-	return OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED
+	return OauthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED
 }
 
 func (x *OAuthClient) GetFirstAuthorizationAt() *timestamppb.Timestamp {
@@ -453,7 +453,7 @@ type UpdateOAuthClientPolicyRequest struct {
 	// Exact CIMD URL or built-in application URI.
 	ClientId string `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	// New complete policy value. Default removes any trusted or blocked label.
-	Policy OAuthClientPolicy `protobuf:"varint,2,opt,name=policy,proto3,enum=chatto.admin.v1.OAuthClientPolicy" json:"policy,omitempty"`
+	Policy OauthClientPolicy `protobuf:"varint,2,opt,name=policy,proto3,enum=chatto.admin.v1.OauthClientPolicy" json:"policy,omitempty"`
 	// Editable fields to apply or reset: policy.
 	// Omit to infer populated fields; * selects all editable fields. An explicit
 	// empty mask is invalid. Unselected values are ignored. Selected absent values
@@ -500,11 +500,11 @@ func (x *UpdateOAuthClientPolicyRequest) GetClientId() string {
 	return ""
 }
 
-func (x *UpdateOAuthClientPolicyRequest) GetPolicy() OAuthClientPolicy {
+func (x *UpdateOAuthClientPolicyRequest) GetPolicy() OauthClientPolicy {
 	if x != nil {
 		return x.Policy
 	}
-	return OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED
+	return OauthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED
 }
 
 func (x *UpdateOAuthClientPolicyRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
@@ -570,8 +570,8 @@ const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\vclient_name\x18\x02 \x01(\tR\n" +
 	"clientName\x12#\n" +
 	"\rclient_origin\x18\x03 \x01(\tR\fclientOrigin\x12:\n" +
-	"\x06source\x18\x04 \x01(\x0e2\".chatto.admin.v1.OAuthClientSourceR\x06source\x12:\n" +
-	"\x06policy\x18\x05 \x01(\x0e2\".chatto.admin.v1.OAuthClientPolicyR\x06policy\x12P\n" +
+	"\x06source\x18\x04 \x01(\x0e2\".chatto.admin.v1.OauthClientSourceR\x06source\x12:\n" +
+	"\x06policy\x18\x05 \x01(\x0e2\".chatto.admin.v1.OauthClientPolicyR\x06policy\x12P\n" +
 	"\x16first_authorization_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14firstAuthorizationAt\x12N\n" +
 	"\x15last_authorization_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x13lastAuthorizationAt\x12)\n" +
 	"\x10redirect_origins\x18\b \x03(\tR\x0fredirectOrigins\x122\n" +
@@ -589,17 +589,17 @@ const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\x1eUpdateOAuthClientPolicyRequest\x12'\n" +
 	"\tclient_id\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\bclientId\x12F\n" +
-	"\x06policy\x18\x02 \x01(\x0e2\".chatto.admin.v1.OAuthClientPolicyB\n" +
+	"\x06policy\x18\x02 \x01(\x0e2\".chatto.admin.v1.OauthClientPolicyB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x06policy\x12;\n" +
 	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\"b\n" +
 	"\x1fUpdateOAuthClientPolicyResponse\x12?\n" +
 	"\foauth_client\x18\x01 \x01(\v2\x1c.chatto.admin.v1.OAuthClientR\voauthClient*x\n" +
-	"\x11OAuthClientSource\x12#\n" +
+	"\x11OauthClientSource\x12#\n" +
 	"\x1fOAUTH_CLIENT_SOURCE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18OAUTH_CLIENT_SOURCE_CIMD\x10\x01\x12 \n" +
 	"\x1cOAUTH_CLIENT_SOURCE_BUILT_IN\x10\x02*\x9b\x01\n" +
-	"\x11OAuthClientPolicy\x12#\n" +
+	"\x11OauthClientPolicy\x12#\n" +
 	"\x1fOAUTH_CLIENT_POLICY_UNSPECIFIED\x10\x00\x12\x1f\n" +
 	"\x1bOAUTH_CLIENT_POLICY_DEFAULT\x10\x01\x12\x1f\n" +
 	"\x1bOAUTH_CLIENT_POLICY_TRUSTED\x10\x02\x12\x1f\n" +
@@ -625,8 +625,8 @@ func file_chatto_admin_v1_oauth_clients_proto_rawDescGZIP() []byte {
 var file_chatto_admin_v1_oauth_clients_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chatto_admin_v1_oauth_clients_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_chatto_admin_v1_oauth_clients_proto_goTypes = []any{
-	(OAuthClientSource)(0),                  // 0: chatto.admin.v1.OAuthClientSource
-	(OAuthClientPolicy)(0),                  // 1: chatto.admin.v1.OAuthClientPolicy
+	(OauthClientSource)(0),                  // 0: chatto.admin.v1.OauthClientSource
+	(OauthClientPolicy)(0),                  // 1: chatto.admin.v1.OauthClientPolicy
 	(*OAuthClient)(nil),                     // 2: chatto.admin.v1.OAuthClient
 	(*ListOAuthClientsRequest)(nil),         // 3: chatto.admin.v1.ListOAuthClientsRequest
 	(*ListOAuthClientsResponse)(nil),        // 4: chatto.admin.v1.ListOAuthClientsResponse
@@ -640,15 +640,15 @@ var file_chatto_admin_v1_oauth_clients_proto_goTypes = []any{
 	(*fieldmaskpb.FieldMask)(nil),           // 12: google.protobuf.FieldMask
 }
 var file_chatto_admin_v1_oauth_clients_proto_depIdxs = []int32{
-	0,  // 0: chatto.admin.v1.OAuthClient.source:type_name -> chatto.admin.v1.OAuthClientSource
-	1,  // 1: chatto.admin.v1.OAuthClient.policy:type_name -> chatto.admin.v1.OAuthClientPolicy
+	0,  // 0: chatto.admin.v1.OAuthClient.source:type_name -> chatto.admin.v1.OauthClientSource
+	1,  // 1: chatto.admin.v1.OAuthClient.policy:type_name -> chatto.admin.v1.OauthClientPolicy
 	9,  // 2: chatto.admin.v1.OAuthClient.first_authorization_at:type_name -> google.protobuf.Timestamp
 	9,  // 3: chatto.admin.v1.OAuthClient.last_authorization_at:type_name -> google.protobuf.Timestamp
 	10, // 4: chatto.admin.v1.ListOAuthClientsRequest.page:type_name -> chatto.api.v1.PageRequest
 	2,  // 5: chatto.admin.v1.ListOAuthClientsResponse.oauth_clients:type_name -> chatto.admin.v1.OAuthClient
 	11, // 6: chatto.admin.v1.ListOAuthClientsResponse.page:type_name -> chatto.api.v1.PageInfo
 	2,  // 7: chatto.admin.v1.GetOAuthClientResponse.oauth_client:type_name -> chatto.admin.v1.OAuthClient
-	1,  // 8: chatto.admin.v1.UpdateOAuthClientPolicyRequest.policy:type_name -> chatto.admin.v1.OAuthClientPolicy
+	1,  // 8: chatto.admin.v1.UpdateOAuthClientPolicyRequest.policy:type_name -> chatto.admin.v1.OauthClientPolicy
 	12, // 9: chatto.admin.v1.UpdateOAuthClientPolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
 	2,  // 10: chatto.admin.v1.UpdateOAuthClientPolicyResponse.oauth_client:type_name -> chatto.admin.v1.OAuthClient
 	3,  // 11: chatto.admin.v1.AdminOAuthClientService.ListOAuthClients:input_type -> chatto.admin.v1.ListOAuthClientsRequest

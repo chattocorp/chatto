@@ -20,7 +20,7 @@ message DirectoryMember {
 }
 
 // Request for members of one room.
-message ListRoomMembersRequest {
+message ListMembersRequest {
   reserved 3, 4;
   reserved "limit", "offset";
 
@@ -35,7 +35,7 @@ message ListRoomMembersRequest {
 }
 
 // Room member page.
-message ListRoomMembersResponse {
+message ListMembersResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
@@ -46,7 +46,7 @@ message ListRoomMembersResponse {
 }
 
 // Request one member of one room by stable user ID.
-message GetRoomMemberRequest {
+message GetMemberRequest {
   // Required room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required target user ID.
@@ -54,13 +54,13 @@ message GetRoomMemberRequest {
 }
 
 // Room member response.
-message GetRoomMemberResponse {
+message GetMemberResponse {
   // Requested room member.
   DirectoryMember member = 1;
 }
 
 // Request room member rows for a set of stable user IDs.
-message BatchGetRoomMembersRequest {
+message BatchGetMembersRequest {
   // Required room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required target user IDs. Unknown IDs and users that are not members of the
@@ -75,7 +75,7 @@ message BatchGetRoomMembersRequest {
 }
 
 // Batch room member response.
-message BatchGetRoomMembersResponse {
+message BatchGetMembersResponse {
   // Found members. The server preserves first-seen request order and
   // de-duplicates repeated IDs.
   repeated DirectoryMember members = 1;

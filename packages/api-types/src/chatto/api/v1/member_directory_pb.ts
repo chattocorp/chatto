@@ -70,9 +70,9 @@ export class DirectoryMember extends Message<DirectoryMember> {
 /**
  * Request for members of one room.
  *
- * @generated from message chatto.api.v1.ListRoomMembersRequest
+ * @generated from message chatto.api.v1.ListMembersRequest
  */
-export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
+export class ListMembersRequest extends Message<ListMembersRequest> {
   /**
    * Required. Room whose effective members should be listed. Existing members
    * and room.manage holders may list a channel room; other nonmembers need both
@@ -96,42 +96,42 @@ export class ListRoomMembersRequest extends Message<ListRoomMembersRequest> {
    */
   page?: PageRequest;
 
-  constructor(data?: PartialMessage<ListRoomMembersRequest>) {
+  constructor(data?: PartialMessage<ListMembersRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListRoomMembersRequest";
+  static readonly typeName = "chatto.api.v1.ListMembersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "search", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "page", kind: "message", T: PageRequest },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomMembersRequest {
-    return new ListRoomMembersRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersRequest {
+    return new ListMembersRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomMembersRequest {
-    return new ListRoomMembersRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMembersRequest {
+    return new ListMembersRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomMembersRequest {
-    return new ListRoomMembersRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMembersRequest {
+    return new ListMembersRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListRoomMembersRequest | PlainMessage<ListRoomMembersRequest> | undefined, b: ListRoomMembersRequest | PlainMessage<ListRoomMembersRequest> | undefined): boolean {
-    return proto3.util.equals(ListRoomMembersRequest, a, b);
+  static equals(a: ListMembersRequest | PlainMessage<ListMembersRequest> | undefined, b: ListMembersRequest | PlainMessage<ListMembersRequest> | undefined): boolean {
+    return proto3.util.equals(ListMembersRequest, a, b);
   }
 }
 
 /**
  * Room member page.
  *
- * @generated from message chatto.api.v1.ListRoomMembersResponse
+ * @generated from message chatto.api.v1.ListMembersResponse
  */
-export class ListRoomMembersResponse extends Message<ListRoomMembersResponse> {
+export class ListMembersResponse extends Message<ListMembersResponse> {
   /**
    * Members in the requested page.
    *
@@ -146,41 +146,41 @@ export class ListRoomMembersResponse extends Message<ListRoomMembersResponse> {
    */
   page?: PageInfo;
 
-  constructor(data?: PartialMessage<ListRoomMembersResponse>) {
+  constructor(data?: PartialMessage<ListMembersResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.ListRoomMembersResponse";
+  static readonly typeName = "chatto.api.v1.ListMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "members", kind: "message", T: DirectoryMember, repeated: true },
     { no: 4, name: "page", kind: "message", T: PageInfo },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomMembersResponse {
-    return new ListRoomMembersResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListMembersResponse {
+    return new ListMembersResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListRoomMembersResponse {
-    return new ListRoomMembersResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListMembersResponse {
+    return new ListMembersResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListRoomMembersResponse {
-    return new ListRoomMembersResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListMembersResponse {
+    return new ListMembersResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListRoomMembersResponse | PlainMessage<ListRoomMembersResponse> | undefined, b: ListRoomMembersResponse | PlainMessage<ListRoomMembersResponse> | undefined): boolean {
-    return proto3.util.equals(ListRoomMembersResponse, a, b);
+  static equals(a: ListMembersResponse | PlainMessage<ListMembersResponse> | undefined, b: ListMembersResponse | PlainMessage<ListMembersResponse> | undefined): boolean {
+    return proto3.util.equals(ListMembersResponse, a, b);
   }
 }
 
 /**
  * Request one member of one room by stable user ID.
  *
- * @generated from message chatto.api.v1.GetRoomMemberRequest
+ * @generated from message chatto.api.v1.GetMemberRequest
  */
-export class GetRoomMemberRequest extends Message<GetRoomMemberRequest> {
+export class GetMemberRequest extends Message<GetMemberRequest> {
   /**
    * Required room ID.
    *
@@ -195,41 +195,41 @@ export class GetRoomMemberRequest extends Message<GetRoomMemberRequest> {
    */
   userId = "";
 
-  constructor(data?: PartialMessage<GetRoomMemberRequest>) {
+  constructor(data?: PartialMessage<GetMemberRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetRoomMemberRequest";
+  static readonly typeName = "chatto.api.v1.GetMemberRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomMemberRequest {
-    return new GetRoomMemberRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMemberRequest {
+    return new GetMemberRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomMemberRequest {
-    return new GetRoomMemberRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMemberRequest {
+    return new GetMemberRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomMemberRequest {
-    return new GetRoomMemberRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMemberRequest {
+    return new GetMemberRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetRoomMemberRequest | PlainMessage<GetRoomMemberRequest> | undefined, b: GetRoomMemberRequest | PlainMessage<GetRoomMemberRequest> | undefined): boolean {
-    return proto3.util.equals(GetRoomMemberRequest, a, b);
+  static equals(a: GetMemberRequest | PlainMessage<GetMemberRequest> | undefined, b: GetMemberRequest | PlainMessage<GetMemberRequest> | undefined): boolean {
+    return proto3.util.equals(GetMemberRequest, a, b);
   }
 }
 
 /**
  * Room member response.
  *
- * @generated from message chatto.api.v1.GetRoomMemberResponse
+ * @generated from message chatto.api.v1.GetMemberResponse
  */
-export class GetRoomMemberResponse extends Message<GetRoomMemberResponse> {
+export class GetMemberResponse extends Message<GetMemberResponse> {
   /**
    * Requested room member.
    *
@@ -237,40 +237,40 @@ export class GetRoomMemberResponse extends Message<GetRoomMemberResponse> {
    */
   member?: DirectoryMember;
 
-  constructor(data?: PartialMessage<GetRoomMemberResponse>) {
+  constructor(data?: PartialMessage<GetMemberResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetRoomMemberResponse";
+  static readonly typeName = "chatto.api.v1.GetMemberResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "member", kind: "message", T: DirectoryMember },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomMemberResponse {
-    return new GetRoomMemberResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetMemberResponse {
+    return new GetMemberResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomMemberResponse {
-    return new GetRoomMemberResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetMemberResponse {
+    return new GetMemberResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomMemberResponse {
-    return new GetRoomMemberResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetMemberResponse {
+    return new GetMemberResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetRoomMemberResponse | PlainMessage<GetRoomMemberResponse> | undefined, b: GetRoomMemberResponse | PlainMessage<GetRoomMemberResponse> | undefined): boolean {
-    return proto3.util.equals(GetRoomMemberResponse, a, b);
+  static equals(a: GetMemberResponse | PlainMessage<GetMemberResponse> | undefined, b: GetMemberResponse | PlainMessage<GetMemberResponse> | undefined): boolean {
+    return proto3.util.equals(GetMemberResponse, a, b);
   }
 }
 
 /**
  * Request room member rows for a set of stable user IDs.
  *
- * @generated from message chatto.api.v1.BatchGetRoomMembersRequest
+ * @generated from message chatto.api.v1.BatchGetMembersRequest
  */
-export class BatchGetRoomMembersRequest extends Message<BatchGetRoomMembersRequest> {
+export class BatchGetMembersRequest extends Message<BatchGetMembersRequest> {
   /**
    * Required room ID.
    *
@@ -286,41 +286,41 @@ export class BatchGetRoomMembersRequest extends Message<BatchGetRoomMembersReque
    */
   userIds: string[] = [];
 
-  constructor(data?: PartialMessage<BatchGetRoomMembersRequest>) {
+  constructor(data?: PartialMessage<BatchGetMembersRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BatchGetRoomMembersRequest";
+  static readonly typeName = "chatto.api.v1.BatchGetMembersRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomMembersRequest {
-    return new BatchGetRoomMembersRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomMembersRequest {
-    return new BatchGetRoomMembersRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomMembersRequest {
-    return new BatchGetRoomMembersRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMembersRequest {
+    return new BatchGetMembersRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BatchGetRoomMembersRequest | PlainMessage<BatchGetRoomMembersRequest> | undefined, b: BatchGetRoomMembersRequest | PlainMessage<BatchGetRoomMembersRequest> | undefined): boolean {
-    return proto3.util.equals(BatchGetRoomMembersRequest, a, b);
+  static equals(a: BatchGetMembersRequest | PlainMessage<BatchGetMembersRequest> | undefined, b: BatchGetMembersRequest | PlainMessage<BatchGetMembersRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetMembersRequest, a, b);
   }
 }
 
 /**
  * Batch room member response.
  *
- * @generated from message chatto.api.v1.BatchGetRoomMembersResponse
+ * @generated from message chatto.api.v1.BatchGetMembersResponse
  */
-export class BatchGetRoomMembersResponse extends Message<BatchGetRoomMembersResponse> {
+export class BatchGetMembersResponse extends Message<BatchGetMembersResponse> {
   /**
    * Found members. The server preserves first-seen request order and
    * de-duplicates repeated IDs.
@@ -329,30 +329,30 @@ export class BatchGetRoomMembersResponse extends Message<BatchGetRoomMembersResp
    */
   members: DirectoryMember[] = [];
 
-  constructor(data?: PartialMessage<BatchGetRoomMembersResponse>) {
+  constructor(data?: PartialMessage<BatchGetMembersResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.BatchGetRoomMembersResponse";
+  static readonly typeName = "chatto.api.v1.BatchGetMembersResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "members", kind: "message", T: DirectoryMember, repeated: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomMembersResponse {
-    return new BatchGetRoomMembersResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomMembersResponse {
-    return new BatchGetRoomMembersResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomMembersResponse {
-    return new BatchGetRoomMembersResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetMembersResponse {
+    return new BatchGetMembersResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: BatchGetRoomMembersResponse | PlainMessage<BatchGetRoomMembersResponse> | undefined, b: BatchGetRoomMembersResponse | PlainMessage<BatchGetRoomMembersResponse> | undefined): boolean {
-    return proto3.util.equals(BatchGetRoomMembersResponse, a, b);
+  static equals(a: BatchGetMembersResponse | PlainMessage<BatchGetMembersResponse> | undefined, b: BatchGetMembersResponse | PlainMessage<BatchGetMembersResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetMembersResponse, a, b);
   }
 }

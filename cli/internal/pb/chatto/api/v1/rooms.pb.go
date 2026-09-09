@@ -2369,7 +2369,7 @@ var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x02\n" +
+	"\x19chatto/api/v1/rooms.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1fchatto/api/v1/attachments.proto\x1a\x1achatto/api/v1/common.proto\x1a$chatto/api/v1/member_directory.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1echatto/api/v1/read_state.proto\x1a!chatto/api/v1/room_timeline.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc3\x02\n" +
 	"\x04Room\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12+\n" +
 	"\x04kind\x18\x02 \x01(\x0e2\x17.chatto.api.v1.RoomKindR\x04kind\x12\x12\n" +
@@ -2513,7 +2513,7 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +
-	"\fROOM_KIND_DM\x10\x022\xb9\x11\n" +
+	"\fROOM_KIND_DM\x10\x022\xa1\x11\n" +
 	"\vRoomService\x12Q\n" +
 	"\n" +
 	"CreateRoom\x12 .chatto.api.v1.CreateRoomRequest\x1a!.chatto.api.v1.CreateRoomResponse\x12Q\n" +
@@ -2524,10 +2524,10 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\bJoinRoom\x12\x1e.chatto.api.v1.JoinRoomRequest\x1a\x1f.chatto.api.v1.JoinRoomResponse\x12Z\n" +
 	"\rJoinRoomGroup\x12#.chatto.api.v1.JoinRoomGroupRequest\x1a$.chatto.api.v1.JoinRoomGroupResponse\x12H\n" +
 	"\aStartDM\x12\x1d.chatto.api.v1.StartDMRequest\x1a\x1e.chatto.api.v1.StartDMResponse\x12N\n" +
-	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12\\\n" +
-	"\vListMembers\x12%.chatto.api.v1.ListRoomMembersRequest\x1a&.chatto.api.v1.ListRoomMembersResponse\x12V\n" +
-	"\tGetMember\x12#.chatto.api.v1.GetRoomMemberRequest\x1a$.chatto.api.v1.GetRoomMemberResponse\x12h\n" +
-	"\x0fBatchGetMembers\x12).chatto.api.v1.BatchGetRoomMembersRequest\x1a*.chatto.api.v1.BatchGetRoomMembersResponse\x12N\n" +
+	"\tLeaveRoom\x12\x1f.chatto.api.v1.LeaveRoomRequest\x1a .chatto.api.v1.LeaveRoomResponse\x12T\n" +
+	"\vListMembers\x12!.chatto.api.v1.ListMembersRequest\x1a\".chatto.api.v1.ListMembersResponse\x12N\n" +
+	"\tGetMember\x12\x1f.chatto.api.v1.GetMemberRequest\x1a .chatto.api.v1.GetMemberResponse\x12`\n" +
+	"\x0fBatchGetMembers\x12%.chatto.api.v1.BatchGetMembersRequest\x1a&.chatto.api.v1.BatchGetMembersResponse\x12N\n" +
 	"\tAddMember\x12\x1f.chatto.api.v1.AddMemberRequest\x1a .chatto.api.v1.AddMemberResponse\x12W\n" +
 	"\fRemoveMember\x12\".chatto.api.v1.RemoveMemberRequest\x1a#.chatto.api.v1.RemoveMemberResponse\x12K\n" +
 	"\bListBans\x12\x1e.chatto.api.v1.ListBansRequest\x1a\x1f.chatto.api.v1.ListBansResponse\x12l\n" +
@@ -2609,15 +2609,15 @@ var file_chatto_api_v1_rooms_proto_goTypes = []any{
 	(*ImageTransformOptions)(nil),          // 47: chatto.api.v1.ImageTransformOptions
 	(*RoomAttachmentListItem)(nil),         // 48: chatto.api.v1.RoomAttachmentListItem
 	(*Message)(nil),                        // 49: chatto.api.v1.Message
-	(*ListRoomMembersRequest)(nil),         // 50: chatto.api.v1.ListRoomMembersRequest
-	(*GetRoomMemberRequest)(nil),           // 51: chatto.api.v1.GetRoomMemberRequest
-	(*BatchGetRoomMembersRequest)(nil),     // 52: chatto.api.v1.BatchGetRoomMembersRequest
+	(*ListMembersRequest)(nil),             // 50: chatto.api.v1.ListMembersRequest
+	(*GetMemberRequest)(nil),               // 51: chatto.api.v1.GetMemberRequest
+	(*BatchGetMembersRequest)(nil),         // 52: chatto.api.v1.BatchGetMembersRequest
 	(*GetRoomEventsRequest)(nil),           // 53: chatto.api.v1.GetRoomEventsRequest
 	(*GetRoomEventsAroundRequest)(nil),     // 54: chatto.api.v1.GetRoomEventsAroundRequest
 	(*MarkRoomAsReadRequest)(nil),          // 55: chatto.api.v1.MarkRoomAsReadRequest
-	(*ListRoomMembersResponse)(nil),        // 56: chatto.api.v1.ListRoomMembersResponse
-	(*GetRoomMemberResponse)(nil),          // 57: chatto.api.v1.GetRoomMemberResponse
-	(*BatchGetRoomMembersResponse)(nil),    // 58: chatto.api.v1.BatchGetRoomMembersResponse
+	(*ListMembersResponse)(nil),            // 56: chatto.api.v1.ListMembersResponse
+	(*GetMemberResponse)(nil),              // 57: chatto.api.v1.GetMemberResponse
+	(*BatchGetMembersResponse)(nil),        // 58: chatto.api.v1.BatchGetMembersResponse
 	(*GetRoomEventsResponse)(nil),          // 59: chatto.api.v1.GetRoomEventsResponse
 	(*GetRoomEventsAroundResponse)(nil),    // 60: chatto.api.v1.GetRoomEventsAroundResponse
 	(*MarkRoomAsReadResponse)(nil),         // 61: chatto.api.v1.MarkRoomAsReadResponse
@@ -2662,9 +2662,9 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	13, // 36: chatto.api.v1.RoomService.JoinRoomGroup:input_type -> chatto.api.v1.JoinRoomGroupRequest
 	15, // 37: chatto.api.v1.RoomService.StartDM:input_type -> chatto.api.v1.StartDMRequest
 	17, // 38: chatto.api.v1.RoomService.LeaveRoom:input_type -> chatto.api.v1.LeaveRoomRequest
-	50, // 39: chatto.api.v1.RoomService.ListMembers:input_type -> chatto.api.v1.ListRoomMembersRequest
-	51, // 40: chatto.api.v1.RoomService.GetMember:input_type -> chatto.api.v1.GetRoomMemberRequest
-	52, // 41: chatto.api.v1.RoomService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetRoomMembersRequest
+	50, // 39: chatto.api.v1.RoomService.ListMembers:input_type -> chatto.api.v1.ListMembersRequest
+	51, // 40: chatto.api.v1.RoomService.GetMember:input_type -> chatto.api.v1.GetMemberRequest
+	52, // 41: chatto.api.v1.RoomService.BatchGetMembers:input_type -> chatto.api.v1.BatchGetMembersRequest
 	19, // 42: chatto.api.v1.RoomService.AddMember:input_type -> chatto.api.v1.AddMemberRequest
 	21, // 43: chatto.api.v1.RoomService.RemoveMember:input_type -> chatto.api.v1.RemoveMemberRequest
 	28, // 44: chatto.api.v1.RoomService.ListBans:input_type -> chatto.api.v1.ListBansRequest
@@ -2686,9 +2686,9 @@ var file_chatto_api_v1_rooms_proto_depIdxs = []int32{
 	14, // 60: chatto.api.v1.RoomService.JoinRoomGroup:output_type -> chatto.api.v1.JoinRoomGroupResponse
 	16, // 61: chatto.api.v1.RoomService.StartDM:output_type -> chatto.api.v1.StartDMResponse
 	18, // 62: chatto.api.v1.RoomService.LeaveRoom:output_type -> chatto.api.v1.LeaveRoomResponse
-	56, // 63: chatto.api.v1.RoomService.ListMembers:output_type -> chatto.api.v1.ListRoomMembersResponse
-	57, // 64: chatto.api.v1.RoomService.GetMember:output_type -> chatto.api.v1.GetRoomMemberResponse
-	58, // 65: chatto.api.v1.RoomService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetRoomMembersResponse
+	56, // 63: chatto.api.v1.RoomService.ListMembers:output_type -> chatto.api.v1.ListMembersResponse
+	57, // 64: chatto.api.v1.RoomService.GetMember:output_type -> chatto.api.v1.GetMemberResponse
+	58, // 65: chatto.api.v1.RoomService.BatchGetMembers:output_type -> chatto.api.v1.BatchGetMembersResponse
 	20, // 66: chatto.api.v1.RoomService.AddMember:output_type -> chatto.api.v1.AddMemberResponse
 	22, // 67: chatto.api.v1.RoomService.RemoveMember:output_type -> chatto.api.v1.RemoveMemberResponse
 	29, // 68: chatto.api.v1.RoomService.ListBans:output_type -> chatto.api.v1.ListBansResponse
@@ -2721,7 +2721,6 @@ func file_chatto_api_v1_rooms_proto_init() {
 	file_chatto_api_v1_read_state_proto_init()
 	file_chatto_api_v1_room_timeline_proto_init()
 	file_chatto_api_v1_message_types_proto_init()
-	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_rooms_proto_msgTypes[4].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
