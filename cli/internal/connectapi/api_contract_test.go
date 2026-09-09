@@ -79,6 +79,25 @@ func TestAPIHandlers(t *testing.T) {
 	}
 }
 
+func TestNotificationServiceDoesNotMountPolicyMethods(t *testing.T) {
+	api := New(nil, config.ChattoConfig{}, "test")
+	mux := http.NewServeMux()
+	for _, handler := range api.Handlers() {
+		mux.Handle(handler.ServicePath, handler.Handler)
+	}
+	for _, method := range []string{"GetNotificationPolicy", "UpdateNotificationPolicy"} {
+		t.Run(method, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/chatto.api.v1.NotificationService/"+method, strings.NewReader("{}"))
+			req.Header.Set("Content-Type", "application/json")
+			response := httptest.NewRecorder()
+			mux.ServeHTTP(response, req)
+			if response.Code != http.StatusNotFound {
+				t.Fatalf("retired policy route returned %d, want 404", response.Code)
+			}
+		})
+	}
+}
+
 func TestAPIHandlerAuthPolicies(t *testing.T) {
 	api := New(nil, config.ChattoConfig{}, "test")
 	got := make(map[string]AuthPolicy)

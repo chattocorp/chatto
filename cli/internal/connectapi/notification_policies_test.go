@@ -51,7 +51,7 @@ func roomNotificationPolicyScope(roomID string) *apiv1.NotificationPolicyScope {
 	return &apiv1.NotificationPolicyScope{Scope: &apiv1.NotificationPolicyScope_RoomId{RoomId: roomID}}
 }
 
-func TestNotificationPolicyServiceScopesBatchAndLegacyCompatibility(t *testing.T) {
+func TestNotificationPolicyServiceScopesAndBatch(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	group, err := env.core.CreateRoomGroup(ctx, core.SystemActorID, "Policy Group", "")
@@ -103,15 +103,6 @@ func TestNotificationPolicyServiceScopesBatchAndLegacyCompatibility(t *testing.T
 	}
 	if got := roomPolicy.Msg.GetPolicy().GetPolicy().GetEffective().GetRoomMessages(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 		t.Fatalf("room group-inherited room messages = %v, want PUSH_NOTIFICATION", got)
-	}
-
-	roomID := room.Id
-	legacy, err := env.notifications.GetNotificationPolicy(ctx, connect.NewRequest(&apiv1.GetNotificationPolicyRequest{RoomId: &roomID}))
-	if err != nil {
-		t.Fatalf("legacy GetNotificationPolicy: %v", err)
-	}
-	if got := legacy.Msg.GetPolicy().GetEffective().GetReactions(); got != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-		t.Fatalf("legacy room effective reactions = %v, want group-inherited UNREAD_BADGE", got)
 	}
 
 	batch, err := env.notificationPolicies.BatchGetNotificationPolicies(ctx, connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{Scopes: []*apiv1.NotificationPolicyScope{

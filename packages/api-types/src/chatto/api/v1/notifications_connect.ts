@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, BatchGetNotificationPoliciesRequest, BatchGetNotificationPoliciesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, NotificationPolicyServiceGetNotificationPolicyRequest, NotificationPolicyServiceGetNotificationPolicyResponse, NotificationPolicyServiceUpdateNotificationPolicyRequest, NotificationPolicyServiceUpdateNotificationPolicyResponse, UpdateNotificationPolicyRequest, UpdateNotificationPolicyResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, BatchGetNotificationPoliciesRequest, BatchGetNotificationPoliciesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, NotificationPolicyServiceGetNotificationPolicyRequest, NotificationPolicyServiceGetNotificationPolicyResponse, NotificationPolicyServiceUpdateNotificationPolicyRequest, NotificationPolicyServiceUpdateNotificationPolicyResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -117,29 +117,6 @@ export const NotificationService = {
       I: DeleteAllNotificationOccurrencesRequest,
       O: DeleteAllNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
-    },
-    /**
-     * Gets explicit and effective modes for every supported signal class.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.GetNotificationPolicy
-     */
-    getNotificationPolicy: {
-      name: "GetNotificationPolicy",
-      I: GetNotificationPolicyRequest,
-      O: GetNotificationPolicyResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Atomically sets or clears selected server- or room-scoped signal-class overrides.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationPolicy
-     */
-    updateNotificationPolicy: {
-      name: "UpdateNotificationPolicy",
-      I: UpdateNotificationPolicyRequest,
-      O: UpdateNotificationPolicyResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

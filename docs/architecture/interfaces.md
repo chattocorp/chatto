@@ -134,9 +134,9 @@ realtime requests.
 
 `NotificationPolicyService` provides explicit server, room-group, and room
 policy scopes. Its batch read accepts at most 100 scopes, removes duplicates in
-first-seen order, and omits missing or inaccessible resource scopes. The
-existing `NotificationService` policy methods remain available for server and
-room integrations.
+first-seen order, and omits missing or inaccessible resource scopes.
+`NotificationService` owns occurrence reads and triage only; policy reads and
+writes use `NotificationPolicyService`.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive

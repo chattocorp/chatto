@@ -15,12 +15,10 @@ const batchGetNotificationPolicies = vi.hoisted(() => vi.fn());
 
 vi.mock('./connect.js', () => ({
   authHeaders: () => new Headers(),
-  createChattoClient: () => ({
-    batchDeleteNotificationOccurrences,
-    batchGetNotificationPolicies,
-    getNotificationPolicy,
-    updateNotificationPolicy
-  })
+  createChattoClient: (service: { typeName: string }) =>
+    service.typeName === 'chatto.api.v1.NotificationPolicyService'
+      ? { batchGetNotificationPolicies, getNotificationPolicy, updateNotificationPolicy }
+      : { batchDeleteNotificationOccurrences }
 }));
 
 beforeEach(() => {
@@ -202,16 +200,22 @@ describe('notification deletion API', () => {
 });
 
 describe('notification policy API', () => {
-  it('normalizes explicit policy fields and absent overrides', async () => {
-    getNotificationPolicy.mockResolvedValue(policyResponse());
+  it.each([undefined, 'room-1'])('reads explicit policy fields for room %s', async (roomId) => {
+    getNotificationPolicy.mockResolvedValue({ policy: policyResponse() });
 
     const policy = await createNotificationAPI({
       baseUrl: '/api/connect',
       bearerToken: null
-    }).getNotificationPolicy('room-1');
+    }).getNotificationPolicy(roomId);
 
     expect(getNotificationPolicy).toHaveBeenCalledWith(
-      { roomId: 'room-1' },
+      {
+        scope: {
+          scope: roomId
+            ? { case: 'roomId', value: roomId }
+            : { case: 'server', value: expect.anything() }
+        }
+      },
       { headers: expect.any(Headers) }
     );
     expect(policy.overrides).toMatchObject({
@@ -225,33 +229,40 @@ describe('notification policy API', () => {
     expect(policy.effective.roomMessages).toBe(NotificationDeliveryMode.UNREAD_BADGE);
   });
 
-  it('sends exact field-mask paths and omits cleared override values', async () => {
-    updateNotificationPolicy.mockResolvedValue(policyResponse());
+  it.each([undefined, 'room-1'])(
+    'updates room %s with exact field-mask paths and clears',
+    async (roomId) => {
+      updateNotificationPolicy.mockResolvedValue({ policy: policyResponse() });
 
-    await createNotificationAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    }).updateNotificationPolicy(
-      {
-        directMessages: NotificationDeliveryMode.OFF,
-        roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
-        reactions: null
-      },
-      'room-1'
-    );
-
-    expect(updateNotificationPolicy).toHaveBeenCalledWith(
-      {
-        roomId: 'room-1',
-        overrides: {
+      await createNotificationAPI({
+        baseUrl: '/api/connect',
+        bearerToken: null
+      }).updateNotificationPolicy(
+        {
           directMessages: NotificationDeliveryMode.OFF,
-          roomMessages: NotificationDeliveryMode.UNREAD_BADGE
+          roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
+          reactions: null
         },
-        updateMask: { paths: ['direct_messages', 'room_messages', 'reactions'] }
-      },
-      { headers: expect.any(Headers) }
-    );
-  });
+        roomId
+      );
+
+      expect(updateNotificationPolicy).toHaveBeenCalledWith(
+        {
+          scope: {
+            scope: roomId
+              ? { case: 'roomId', value: roomId }
+              : { case: 'server', value: expect.anything() }
+          },
+          overrides: {
+            directMessages: NotificationDeliveryMode.OFF,
+            roomMessages: NotificationDeliveryMode.UNREAD_BADGE
+          },
+          updateMask: { paths: ['direct_messages', 'room_messages', 'reactions'] }
+        },
+        { headers: expect.any(Headers) }
+      );
+    }
+  );
 
   it('rejects an empty policy patch without issuing a request', async () => {
     await expect(

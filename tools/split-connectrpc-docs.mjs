@@ -97,7 +97,7 @@ const categories = [
         slug: 'notifications',
         title: 'Notifications',
         description:
-          'Exact notification occurrence listing, read, deletion, and legacy server/room policy RPCs.'
+          'Exact notification occurrence listing, read, and deletion RPCs.'
       },
       {
         name: 'NotificationPolicyService',

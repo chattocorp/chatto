@@ -414,12 +414,7 @@ export async function getNotificationPolicy(
   page: Page,
   roomId?: string
 ): Promise<E2ENotificationPolicy> {
-  const data = await connectPost<NotificationPolicyResponse>(
-    page,
-    'chatto.api.v1.NotificationService/GetNotificationPolicy',
-    roomId ? { roomId } : {}
-  );
-  return normalizeNotificationPolicy(data);
+  return getScopedNotificationPolicy(page, roomId ? { roomId } : { server: {} });
 }
 
 export async function updateNotificationPolicy(
@@ -427,25 +422,7 @@ export async function updateNotificationPolicy(
   patch: Partial<E2ENotificationPolicyShape<E2ENotificationMode | null>>,
   roomId?: string
 ): Promise<E2ENotificationPolicy> {
-  const fields = Object.keys(patch) as Array<keyof typeof patch>;
-  const overrides = Object.fromEntries(
-    fields.flatMap((field) => {
-      const mode = patch[field];
-      return mode === null || mode === undefined
-        ? []
-        : [[field, `NOTIFICATION_DELIVERY_MODE_${mode}`]];
-    })
-  );
-  const data = await connectPost<NotificationPolicyResponse>(
-    page,
-    'chatto.api.v1.NotificationService/UpdateNotificationPolicy',
-    {
-      ...(roomId ? { roomId } : {}),
-      overrides,
-      updateMask: fields.join(',')
-    }
-  );
-  return normalizeNotificationPolicy(data);
+  return updateScopedNotificationPolicy(page, roomId ? { roomId } : { server: {} }, patch);
 }
 
 export async function getScopedNotificationPolicy(
