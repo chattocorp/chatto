@@ -15,14 +15,14 @@ import { Room } from "./rooms_pb.js";
  */
 export enum RoomDirectoryScope {
   /**
-   * Include visible channel rooms and readable active DM rooms.
+   * Include visible channel rooms and the caller's DM rooms.
    *
    * @generated from enum value: ROOM_DIRECTORY_SCOPE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * Include visible channel rooms and readable active DM rooms.
+   * Include visible channel rooms and the caller's DM rooms.
    *
    * @generated from enum value: ROOM_DIRECTORY_SCOPE_ALL = 1;
    */
@@ -36,7 +36,7 @@ export enum RoomDirectoryScope {
   CHANNELS = 2,
 
   /**
-   * Include the caller's readable active DM rooms only.
+   * Include the caller's DM rooms only.
    *
    * @generated from enum value: ROOM_DIRECTORY_SCOPE_DMS = 3;
    */
@@ -48,6 +48,48 @@ proto3.util.setEnumType(RoomDirectoryScope, "chatto.api.v1.RoomDirectoryScope", 
   { no: 1, name: "ROOM_DIRECTORY_SCOPE_ALL" },
   { no: 2, name: "ROOM_DIRECTORY_SCOPE_CHANNELS" },
   { no: 3, name: "ROOM_DIRECTORY_SCOPE_DMS" },
+]);
+
+/**
+ * Archive state to include in room directory responses.
+ *
+ * @generated from enum chatto.api.v1.RoomArchiveFilter
+ */
+export enum RoomArchiveFilter {
+  /**
+   * Include active rooms only.
+   *
+   * @generated from enum value: ROOM_ARCHIVE_FILTER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Include active rooms only.
+   *
+   * @generated from enum value: ROOM_ARCHIVE_FILTER_ACTIVE = 1;
+   */
+  ACTIVE = 1,
+
+  /**
+   * Include archived rooms only.
+   *
+   * @generated from enum value: ROOM_ARCHIVE_FILTER_ARCHIVED = 2;
+   */
+  ARCHIVED = 2,
+
+  /**
+   * Include both active and archived rooms.
+   *
+   * @generated from enum value: ROOM_ARCHIVE_FILTER_ALL = 3;
+   */
+  ALL = 3,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RoomArchiveFilter)
+proto3.util.setEnumType(RoomArchiveFilter, "chatto.api.v1.RoomArchiveFilter", [
+  { no: 0, name: "ROOM_ARCHIVE_FILTER_UNSPECIFIED" },
+  { no: 1, name: "ROOM_ARCHIVE_FILTER_ACTIVE" },
+  { no: 2, name: "ROOM_ARCHIVE_FILTER_ARCHIVED" },
+  { no: 3, name: "ROOM_ARCHIVE_FILTER_ALL" },
 ]);
 
 /**
@@ -423,6 +465,14 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
    */
   scope = RoomDirectoryScope.UNSPECIFIED;
 
+  /**
+   * Archive state to include. Defaults to ACTIVE. Combined with scope; this
+   * filter does not grant access to hidden rooms.
+   *
+   * @generated from field: chatto.api.v1.RoomArchiveFilter archive_filter = 2;
+   */
+  archiveFilter = RoomArchiveFilter.UNSPECIFIED;
+
   constructor(data?: PartialMessage<ListRoomsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -432,6 +482,7 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
   static readonly typeName = "chatto.api.v1.ListRoomsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "enum", T: proto3.getEnumType(RoomDirectoryScope) },
+    { no: 2, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomsRequest {
@@ -458,7 +509,7 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
  */
 export class ListRoomsResponse extends Message<ListRoomsResponse> {
   /**
-   * Rooms matching the requested scope.
+   * Visible rooms matching both the room-kind scope and archive filter.
    *
    * @generated from field: repeated chatto.api.v1.RoomWithViewerState rooms = 1;
    */

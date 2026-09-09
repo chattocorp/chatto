@@ -1088,9 +1088,10 @@ Reads room directory data.
 
 ### ListRooms
 
-Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM membership exposes room
-and participant metadata. Message-derived DM state also requires current
+Lists rooms visible to the current user. Defaults to active rooms; use
+archive_filter to discover archived rooms or include both states. Channel
+rooms require membership or room.list. DM membership exposes room and
+participant metadata. Message-derived DM state also requires current
 read permission. Accessible empty DMs are included. Results are returned as a finite
 navigation snapshot.
 
@@ -1107,6 +1108,7 @@ Request for rooms visible to the current user.
 | Field | Type | Description |
 | --- | --- | --- |
 | `scope` | [`RoomDirectoryScope`](#chatto-api-v1-RoomDirectoryScope) | Which room kinds to include. Defaults to all. |
+| `archive_filter` | [`RoomArchiveFilter`](#chatto-api-v1-RoomArchiveFilter) | Archive state to include. Defaults to ACTIVE. Combined with scope; this filter does not grant access to hidden rooms. |
 
 
 <a id="chatto-api-v1-ListRoomsResponse"></a>
@@ -1117,7 +1119,7 @@ Finite snapshot of rooms visible to the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Rooms matching the requested scope. |
+| `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Visible rooms matching both the room-kind scope and archive filter. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService-ListRoomGroups"></a>
@@ -5674,6 +5676,20 @@ Kind of room represented by the public API.
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
 
 
+<a id="chatto-api-v1-RoomArchiveFilter"></a>
+
+### RoomArchiveFilter
+
+Archive state to include in room directory responses.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_ARCHIVE_FILTER_UNSPECIFIED` | `0` | Include active rooms only. |
+| `ROOM_ARCHIVE_FILTER_ACTIVE` | `1` | Include active rooms only. |
+| `ROOM_ARCHIVE_FILTER_ARCHIVED` | `2` | Include archived rooms only. |
+| `ROOM_ARCHIVE_FILTER_ALL` | `3` | Include both active and archived rooms. |
+
+
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 
 ### RoomDirectoryScope
@@ -5682,10 +5698,10 @@ Room kinds to include in directory responses.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and readable active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and readable active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and the caller's DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and the caller's DM rooms. |
 | `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
-| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's readable active DM rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's DM rooms only. |
 
 
 <a id="chatto-api-v1-AccountCreationPolicy"></a>

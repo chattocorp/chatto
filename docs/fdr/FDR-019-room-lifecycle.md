@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
@@ -22,6 +22,11 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
   Archived rooms vanish from the sidebar, server Overview, and search results.
   Membership and history stay intact, but the room is read-only until an
   administrator unarchives it.
+- **Archive discovery** — API clients can list active rooms, archived rooms,
+  or both. The default room list still includes only active rooms. Archive
+  discovery keeps the normal membership and visibility rules; it does not give
+  access to hidden rooms or another user's DMs. Room-group navigation still
+  omits archived rooms.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
@@ -52,6 +57,10 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 **Decision:** Archive is one boolean in the room projection. Durable room
 archive and unarchive facts change it. The room keeps its event history and
 members; active-room discovery filters on `archived: false`.
+`RoomDirectoryService.ListRooms` accepts an explicit archive filter for clients
+that need the archive. The room-kind scope and archive filter both apply.
+The list retains its complete navigation-snapshot response; it does not
+introduce a page limit that would truncate existing callers' room lists.
 **Why:** Archive's purpose is "stop showing this room everywhere, but don't lose the history". A full archived-rooms-elsewhere migration would mean different code paths for archived rooms, divergent reads, and a hard road back to active state. A flag is enough.
 **Tradeoff:** Every "show me rooms" query needs to remember to filter on `archived`. Centralised in the resolver layer.
 

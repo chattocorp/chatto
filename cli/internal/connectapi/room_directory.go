@@ -19,11 +19,16 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 	if err != nil {
 		return nil, err
 	}
+	archiveFilter, err := coreRoomArchiveFilter(req.Msg.GetArchiveFilter())
+	if err != nil {
+		return nil, connectError(err)
+	}
 
 	rooms, err := s.api.core.RoomDirectoryReads().ListRooms(ctx, caller.UserID, core.RoomDirectoryListOptions{
 		IncludeChannels: roomDirectoryScopeIncludesChannels(req.Msg.GetScope()),
 		IncludeDMs:      roomDirectoryScopeIncludesDMs(req.Msg.GetScope()),
 		IncludeEmptyDMs: true,
+		ArchiveFilter:   archiveFilter,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -39,6 +44,19 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 	}
 
 	return connect.NewResponse(&apiv1.ListRoomsResponse{Rooms: apiRooms}), nil
+}
+
+func coreRoomArchiveFilter(filter apiv1.RoomArchiveFilter) (core.RoomArchiveFilter, error) {
+	switch filter {
+	case apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_UNSPECIFIED, apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ACTIVE:
+		return core.RoomArchiveActive, nil
+	case apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ARCHIVED:
+		return core.RoomArchiveArchived, nil
+	case apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ALL:
+		return core.RoomArchiveAll, nil
+	default:
+		return 0, core.ErrInvalidArgument
+	}
 }
 
 func (s *roomDirectoryService) ListRoomGroups(ctx context.Context, req *connect.Request[apiv1.ListRoomGroupsRequest]) (*connect.Response[apiv1.ListRoomGroupsResponse], error) {

@@ -2687,3 +2687,129 @@ func TestMyAccountServiceUpdatePresence(t *testing.T) {
 		t.Fatalf("explicit online stored presence = %q, want %q", stored, core.PresenceStatusOnline)
 	}
 }
+
+func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	caller, err := env.core.CreateUser(env.ctx, core.SystemActorID, "archive-directory-caller", "Archive Caller", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	ctx := withCaller(env.ctx, caller)
+	createRoom := func(name string) *evtv1.Room {
+		t.Helper()
+		room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", name, "")
+		if err != nil {
+			t.Fatalf("CreateRoom %s: %v", name, err)
+		}
+		return room
+	}
+	active := createRoom("archive-filter-active")
+	archived := createRoom("archive-filter-archived")
+	memberOnly := createRoom("archive-filter-member")
+	hidden := createRoom("archive-filter-hidden")
+	if _, err := env.core.JoinRoom(env.ctx, caller.Id, core.KindChannel, caller.Id, memberOnly.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	for _, room := range []*evtv1.Room{memberOnly, hidden} {
+		if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermRoomList); err != nil {
+			t.Fatalf("DenyRoomPermission: %v", err)
+		}
+	}
+	for _, room := range []*evtv1.Room{archived, memberOnly, hidden} {
+		if _, err := env.core.ArchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, room.Id); err != nil {
+			t.Fatalf("ArchiveRoom: %v", err)
+		}
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, caller.Id, []string{env.viewer.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	otherDM, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, nil)
+	if err != nil {
+		t.Fatalf("FindOrCreateDM other: %v", err)
+	}
+
+	filters := []struct {
+		name             string
+		value            apiv1.RoomArchiveFilter
+		active, archived bool
+	}{
+		{"default", apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_UNSPECIFIED, true, false},
+		{"active", apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ACTIVE, true, false},
+		{"archived", apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ARCHIVED, false, true},
+		{"all", apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ALL, true, true},
+	}
+	scopes := []struct {
+		name          string
+		value         apiv1.RoomDirectoryScope
+		channels, dms bool
+	}{
+		{"default", apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED, true, true},
+		{"all", apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL, true, true},
+		{"channels", apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_CHANNELS, true, false},
+		{"dms", apiv1.RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS, false, true},
+	}
+	for _, filter := range filters {
+		for _, scope := range scopes {
+			t.Run(filter.name+"/"+scope.name, func(t *testing.T) {
+				response, err := env.directory.ListRooms(ctx, connect.NewRequest(&apiv1.ListRoomsRequest{
+					Scope: scope.value, ArchiveFilter: filter.value,
+				}))
+				if err != nil {
+					t.Fatalf("ListRooms: %v", err)
+				}
+				rooms := directoryRoomsByID(response.Msg.GetRooms())
+				for id, want := range map[string]bool{
+					active.Id:     filter.active && scope.channels,
+					archived.Id:   filter.archived && scope.channels,
+					memberOnly.Id: filter.archived && scope.channels,
+					dm.Id:         filter.active && scope.dms,
+					hidden.Id:     false,
+					otherDM.Id:    false,
+				} {
+					if got := rooms[id] != nil; got != want {
+						t.Fatalf("room %s present = %v, want %v", id, got, want)
+					}
+				}
+				for _, room := range response.Msg.GetRooms() {
+					if room.GetRoom().GetArchived() && !filter.archived || !room.GetRoom().GetArchived() && !filter.active {
+						t.Fatalf("room %s has wrong archive state", room.GetRoom().GetId())
+					}
+				}
+				if room := rooms[memberOnly.Id]; room != nil {
+					if !room.GetViewerState().GetIsMember() || apiRoomPermissionGranted(room, core.PermMessagePost) {
+						t.Fatalf("archived member room has incorrect viewer state: %+v", room)
+					}
+				}
+			})
+		}
+	}
+	for _, id := range []string{archived.Id, memberOnly.Id} {
+		response, err := env.directory.GetRoom(ctx, connect.NewRequest(&apiv1.GetRoomRequest{RoomId: id}))
+		if err != nil || !response.Msg.GetRoom().GetRoom().GetArchived() {
+			t.Fatalf("GetRoom archived %s: %v, %v", id, response, err)
+		}
+	}
+	if _, err := env.core.UnarchiveRoom(env.ctx, core.SystemActorID, core.KindChannel, archived.Id); err != nil {
+		t.Fatalf("UnarchiveRoom: %v", err)
+	}
+	for _, filter := range filters {
+		response, err := env.directory.ListRooms(ctx, connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: filter.value}))
+		if err != nil {
+			t.Fatalf("ListRooms after unarchive: %v", err)
+		}
+		if got := directoryRoomsByID(response.Msg.GetRooms())[archived.Id] != nil; got != filter.active {
+			t.Fatalf("unarchived room present with %s = %v, want %v", filter.name, got, filter.active)
+		}
+	}
+}
+
+func TestRoomDirectoryServiceRejectsInvalidArchiveFilter(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	for _, filter := range []apiv1.RoomArchiveFilter{-1, 99} {
+		_, err := env.directory.ListRooms(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: filter}))
+		requireConnectCode(t, err, connect.CodeInvalidArgument)
+	}
+	_, err := env.directory.ListRooms(env.ctx, connect.NewRequest(&apiv1.ListRoomsRequest{ArchiveFilter: apiv1.RoomArchiveFilter_ROOM_ARCHIVE_FILTER_ALL}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+}
