@@ -72,6 +72,9 @@ read permission. Posting remains a separate `message.post` or
 
 ## Post from an external webhook
 
+Every request needs a room ID. Put it in the URL or JSON body. The webhook
+credential does not store a default room.
+
 Open the bot's detail page and choose **Create Webhook**. Give the webhook a
 name that identifies its caller. Optionally select a destination channel room.
 Chatto adds its room ID to the URL. The bot must already be a member of that
@@ -93,24 +96,35 @@ cannot read the telemetry.
 Send a JSON request with Slack-compatible `text` and `channel` fields:
 
 ```http
-POST /webhooks/incoming/cht_IW_…
+POST /webhooks/incoming/YOUR_WEBHOOK_CREDENTIAL
 Content-Type: application/json
 
-{"text":"Deployment finished","channel":"R…"}
+{"text":"Deployment finished","channel":"YOUR_ROOM_ID"}
 ```
 
 Chatto also accepts `body` or `message` instead of `text`, and `room_id` instead of
-`channel`. You can put `room_id` in the query string:
+`channel`. For example, send this JSON body:
+
+```json
+{
+  "message": "Deployment finished",
+  "room_id": "YOUR_ROOM_ID"
+}
+```
+
+You can also put `room_id` in the URL query string:
 
 ```http
-POST /webhooks/incoming/cht_IW_…?room_id=R…
+POST /webhooks/incoming/YOUR_WEBHOOK_CREDENTIAL?room_id=YOUR_ROOM_ID
 Content-Type: application/json
 
 {"text":"Deployment finished"}
 ```
 
-If you specify more than one non-empty body or room field, the values must be equal. Use
-a stable room ID, not a room name. Set `"create_thread": true` to start a
+Replace the placeholders with your webhook credential and room ID. If you send
+more than one non-empty message field, their values must match. All non-empty
+room IDs in the URL and JSON body must also match. Use a stable room ID, not a
+room name. Set `"create_thread": true` to start a
 thread in a channel room that supports threads. The bot needs `message.post`
 and `message.post-in-thread` for explicit thread creation. A room that requires
 threads creates one automatically. Direct messages do not support threads.
@@ -134,6 +148,14 @@ The recorded time can be delayed by approximately one minute.
 </Aside>
 
 For Grafana alerts, follow [Send Grafana alerts to Chatto](/guides/integrations/grafana/).
+
+### Webhook troubleshooting
+
+| Response | Check |
+| --- | --- |
+| `400 invalid_payload` | Send valid JSON with a non-empty `message`, `text`, or `body`. Include a room ID in the URL or JSON body. If you supply multiple message fields, their non-empty values must match. All non-empty room IDs must also match. Message size and room policy limits apply. |
+| `404 channel_not_found` | Use the room's ID, not its name. Check that the room exists and the bot is a member. Both the bot and its owner need permission to post there. A missing room, missing membership, or denied permission returns this same error. |
+| `401 invalid_token` | The webhook credential is invalid or revoked. Create a replacement and update the caller's URL. |
 
 ## Activate a bot from Chatto activity
 
