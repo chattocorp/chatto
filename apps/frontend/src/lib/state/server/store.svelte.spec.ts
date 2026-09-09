@@ -1,3 +1,7 @@
+import {
+  getUserSummaryCache,
+  __resetUserSummaryCachesForTests
+} from '$lib/state/userSummaries.svelte';
 import { RealtimeProjectionUpdate } from '$lib/eventBus.svelte';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -458,6 +462,7 @@ function userLeftRoom(roomId: string, actorId: string, eventId = ''): RealtimePr
 }
 
 beforeEach(() => {
+  __resetUserSummaryCachesForTests();
   registerServerQueryCache({
     server: cacheMocks.removeRegisteredServerQueries,
     admin: cacheMocks.removeRegisteredAdminQueries,
@@ -1533,6 +1538,68 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(cacheMocks.refreshFollowedThreads).toHaveBeenCalledTimes(2);
   });
 
+  it.each([false, true])('uses cached realtime authors (bot: %s)', async (isBot) => {
+    const store = makeStore(new FakeServerConnection([]));
+    const messages = store.messagesForRoom('R1');
+    vi.spyOn(messages, 'refreshPostedMessage').mockResolvedValue(false);
+    await flushPromises();
+    const ingest = vi.spyOn(messages, 'ingestEvent');
+    getUserSummaryCache(store.serverId).prime([
+      {
+        id: 'cached-author',
+        login: 'cached',
+        displayName: 'Cached author',
+        avatarUrl: null,
+        deleted: false,
+        isBot
+      }
+    ]);
+    const post = () =>
+      store.realtimeProjectionHandler(
+        new RealtimeProjectionUpdate({
+          event: new RealtimeEvent({
+            id: 'cached-post',
+            actorId: 'cached-author',
+            event: {
+              case: 'messagePosted',
+              value: new MessagePostedEvent({ roomId: 'R1', bodyPlaintext: 'hello' })
+            }
+          })
+        })
+      );
+    expect(store.projection.users.has('cached-author')).toBe(false);
+    post();
+    expect(ingest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        actor: expect.objectContaining({
+          id: 'cached-author',
+          displayName: 'Cached author',
+          isBot
+        }),
+        actorResolution: undefined
+      })
+    );
+    store.realtimeProjectionHandler(userDeleted('cached-author'));
+    // Even a late cache response must not restore a deleted account.
+    getUserSummaryCache(store.serverId).prime([
+      {
+        id: 'cached-author',
+        login: 'stale',
+        displayName: 'Stale author',
+        avatarUrl: null,
+        deleted: false,
+        isBot
+      }
+    ]);
+    post();
+    expect(ingest).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        actor: null,
+        actorResolution: 'deleted'
+      })
+    );
+  });
+
   it('hydrates a new room post before advancing the retained window', async () => {
     const store = makeStore(new FakeServerConnection([]));
     const messages = store.messagesForRoom('R1');
@@ -1564,6 +1631,8 @@ describe('ServerStateStore unified realtime resources', () => {
     expect(ingest).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'E-POST',
+        actor: null,
+        actorResolution: 'loading',
         event: expect.objectContaining({
           body: 'new body',
           roomId: 'R1',

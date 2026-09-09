@@ -147,10 +147,13 @@ export function createRoomTimelineAPI(config: RoomTimelineAPIConfig): RoomTimeli
     async getMessage({ roomId, eventId, minimumCursor }) {
       try {
         const response = await messages.getMessage({ roomId, eventId }, options(minimumCursor));
-        const users = await timelineUsersForMessages(
+        // A failed author lookup must not synthesize a deleted account.
+        // The realtime row keeps its body and reports the unresolved identity.
+        const users = await batchTimelineUsers(
           config,
-          response.message ? [response.message] : [],
-          minimumCursor
+          messageUserIds(response.message ? [response.message] : []),
+          minimumCursor,
+          true
         );
         return response.message ? messageToTimelineEvent(response.message, users) : null;
       } catch (err) {
@@ -214,7 +217,8 @@ export async function timelineUsersForMessages(
 async function batchTimelineUsers(
   config: RoomTimelineAPIConfig,
   userIds: string[],
-  minimumCursor?: string
+  minimumCursor?: string,
+  requireSuccess = false
 ): Promise<Record<string, User>> {
   if (userIds.length === 0) return {};
 
@@ -236,7 +240,7 @@ async function batchTimelineUsers(
     notifyUserSummaries(config.serverId, summaries, config.onUserSummaries);
     return users;
   } catch (error) {
-    if (minimumCursor) throw error;
+    if (minimumCursor || requireSuccess) throw error;
     return {};
   }
 }

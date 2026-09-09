@@ -104,6 +104,16 @@ row with the authoritative resource. A wider cursor-bounded timeline-window
 refresh then reconciles ordering and pagination cursors. The client does not
 save the event cursor if either read fails.
 
+The temporary row uses the projected user directory, then the per-server user
+summary cache, to resolve its author. If neither has the author, the row keeps
+its body visible and shows a neutral avatar and a name skeleton. A failed or
+empty message read changes this state to “Unknown user”. It does not mark the
+account as deleted. The single-message response replaces the temporary row
+only if no newer row change occurred during the read. Account deletion clears
+copied author data and the loading state. Deletion fences also apply to late
+responses and cached-author fallback.
+
+
 ## Exact snapshot and targeted resource reads
 
 `ServerContentView` supplies one exact EVT boundary `E`. The server captures

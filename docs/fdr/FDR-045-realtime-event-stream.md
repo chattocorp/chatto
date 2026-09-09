@@ -1,7 +1,7 @@
 # FDR-045: Realtime Event Stream
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
@@ -11,6 +11,12 @@ frontend use the same semantic event contract. The bundled frontend also uses
 the stream to build and maintain its local server projection.
 
 ## Behavior
+
+- New message bodies appear while author details load. If the author is not
+  cached, the client shows a neutral avatar and a name skeleton. A failed
+  lookup shows “Unknown user”. Account deletion keeps the deleted-user label,
+  including when the account is deleted during the lookup. People and bots
+  use the same behaviour.
 
 - A client opens one authenticated realtime subscription for a server.
 - A subscription selects `SNAPSHOT` or `LIVE_ONLY` initial state. Snapshot

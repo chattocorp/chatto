@@ -243,25 +243,28 @@ describe('createRoomTimelineAPI', () => {
     expect(userOptions?.timeoutMs).toBe(10_000);
   });
 
-  it('fails a cursor-bound message read when its user hydration fails', async () => {
-    mocks.getMessage.mockResolvedValue({
-      message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
-    });
-    const failure = new Error('user projection unavailable');
-    mocks.batchGetUsers.mockRejectedValue(failure);
-    const api = createRoomTimelineAPI({
-      baseUrl: 'https://remote.example.test/api/connect',
-      bearerToken: null
-    });
+  it.each([undefined, 'opaque-event-cursor'])(
+    'fails message hydration without inventing a deleted author (cursor: %s)',
+    async (minimumCursor) => {
+      mocks.getMessage.mockResolvedValue({
+        message: new Message({ id: 'message-1', actorId: 'u1', roomId: 'room-1' })
+      });
+      const failure = new Error('user projection unavailable');
+      mocks.batchGetUsers.mockRejectedValue(failure);
+      const api = createRoomTimelineAPI({
+        baseUrl: 'https://remote.example.test/api/connect',
+        bearerToken: null
+      });
 
-    await expect(
-      api.getMessage({
-        roomId: 'room-1',
-        eventId: 'message-1',
-        minimumCursor: 'opaque-event-cursor'
-      })
-    ).rejects.toBe(failure);
-  });
+      await expect(
+        api.getMessage({
+          roomId: 'room-1',
+          eventId: 'message-1',
+          minimumCursor
+        })
+      ).rejects.toBe(failure);
+    }
+  );
 });
 
 describe('roomTimelinePageToEventConnectionPage', () => {

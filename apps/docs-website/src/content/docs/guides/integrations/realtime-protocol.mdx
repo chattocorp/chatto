@@ -139,6 +139,13 @@ reactions, pin state, thread details, and other resource state. A client can
 render the event metadata and plaintext first, then replace that temporary row
 with the authoritative resource response.
 
+A missing cached author does not mean that the account was deleted. The bundled
+client shows a neutral avatar and a name skeleton while author details load.
+If the lookup fails, it shows “Unknown user” and keeps the message body visible.
+Deleted accounts keep the deleted-user label. The same behaviour applies to
+people and bots.
+
+
 Process one event as one unit:
 
 1. Decode the complete frame.
