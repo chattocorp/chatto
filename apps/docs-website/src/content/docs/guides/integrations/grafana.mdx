@@ -26,6 +26,11 @@ a custom payload template.
    select the destination room, and create it. Copy the complete URL before
    you close the dialog. The URL includes the destination room ID.
 
+   Check that the URL ends with `?room_id=YOUR_ROOM_ID`. For an existing webhook
+   URL without a room ID, add this suffix and replace `YOUR_ROOM_ID` with the
+   destination room's ID, not its name. If the URL already has other query
+   parameters, use `&room_id=YOUR_ROOM_ID` instead.
+
 3. **Create the contact point in Grafana.**
 
    In Grafana Alerting, open **Contact points** and add a contact point.
@@ -72,11 +77,11 @@ custom payload to use Grafana's default format.
 
 ## Troubleshooting
 
-| Response | Check |
-| --- | --- |
-| `400 invalid_payload` | The request needs a non-empty `message`, `text`, or `body`, and a destination room. All non-empty body aliases must agree; all supplied room IDs must agree. A text-only template such as `slack.default.text` is not a complete JSON payload. Message size and room policy limits also apply. |
-| `404 channel_not_found` | Check the room ID, bot membership, bot posting permissions, and the owner's permissions. |
-| `401 invalid_token` | The webhook credential is invalid or revoked. Create a replacement and update the contact point URL. |
+See [Webhook troubleshooting](/guides/integrations/bot-accounts/#webhook-troubleshooting)
+for response codes and checks for room IDs, membership, and permissions.
+
+Keep **Custom Payload** unset when you use Grafana's default payload. A text-only
+template such as `slack.default.text` is not a complete JSON payload.
 
 <Aside type="caution">
   The webhook URL contains a credential and is shown only once. Keep it out of
