@@ -202,7 +202,7 @@ export function createReplyWorkflow(
       // Start typing before loading context, and keep it active during composition.
       const stopTyping = await r.step("Start typing", () =>
         startTyping(() =>
-          rpc("RoomService/UpdateTypingIndicator", {
+          rpc("RoomService/RefreshTypingIndicator", {
             roomId: input.room_id,
             threadRootEventId: input.thread_root_id ?? input.message.id,
           }),
