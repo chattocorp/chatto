@@ -900,13 +900,6 @@ export class ClearUsernameCooldownRequest extends Message<ClearUsernameCooldownR
  * @generated from message chatto.admin.v1.ClearUsernameCooldownResponse
  */
 export class ClearUsernameCooldownResponse extends Message<ClearUsernameCooldownResponse> {
-  /**
-   * True when the request completed.
-   *
-   * @generated from field: bool cleared = 1;
-   */
-  cleared = false;
-
   constructor(data?: PartialMessage<ClearUsernameCooldownResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -915,7 +908,6 @@ export class ClearUsernameCooldownResponse extends Message<ClearUsernameCooldown
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.ClearUsernameCooldownResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cleared", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ClearUsernameCooldownResponse {
@@ -982,13 +974,6 @@ export class DeleteUserRequest extends Message<DeleteUserRequest> {
  * @generated from message chatto.admin.v1.DeleteUserResponse
  */
 export class DeleteUserResponse extends Message<DeleteUserResponse> {
-  /**
-   * True when the user was deleted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteUserResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -997,7 +982,6 @@ export class DeleteUserResponse extends Message<DeleteUserResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteUserResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteUserResponse {

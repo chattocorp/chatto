@@ -141,7 +141,7 @@ func (s *accountService) DeleteMyAccount(ctx context.Context, req *connect.Reque
 	if err := s.api.core.DeleteUser(ctx, caller.UserID, caller.UserID); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{Deleted: true}), nil
+	return connect.NewResponse(&apiv1.DeleteMyAccountResponse{}), nil
 }
 
 func apiTimeFormatToCore(format apiv1.TimeFormat) evtv1.TimeFormat {

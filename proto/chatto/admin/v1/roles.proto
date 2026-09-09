@@ -97,8 +97,8 @@ message DeleteRoleRequest {
 
 // Result of deleting a role.
 message DeleteRoleResponse {
-  // True when the request completed.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to replace custom role order.

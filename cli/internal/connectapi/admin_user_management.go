@@ -235,7 +235,7 @@ func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, 
 	if err := s.api.core.AdminClearLoginChangeCooldown(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.ClearUsernameCooldownResponse{Cleared: true}), nil
+	return connect.NewResponse(&adminv1.ClearUsernameCooldownResponse{}), nil
 }
 
 func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connect.Request[adminv1.DeleteUserRequest]) (*connect.Response[adminv1.DeleteUserResponse], error) {
@@ -256,7 +256,7 @@ func (s *adminUserManagementService) DeleteUser(ctx context.Context, req *connec
 	if err := s.api.core.AdminDeleteUserAs(ctx, caller.UserID, req.Msg.GetUserId()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.DeleteUserResponse{Deleted: true}), nil
+	return connect.NewResponse(&adminv1.DeleteUserResponse{}), nil
 }
 
 func (s *adminUserManagementService) adminMember(ctx context.Context, member core.AdminMember) *adminv1.AdminMember {

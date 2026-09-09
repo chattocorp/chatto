@@ -99,7 +99,7 @@ describe('createAdminRoomLayoutAPI', () => {
       group: { id: 'g2', name: 'Projects', description: 'Project rooms', items: [] }
     });
     mocks.updateRoomGroup.mockResolvedValue({ group: { id: 'g2', name: 'Renamed', items: [] } });
-    mocks.deleteRoomGroup.mockResolvedValue({ deleted: true });
+    mocks.deleteRoomGroup.mockResolvedValue({});
     mocks.reorderRoomGroups.mockResolvedValue({ groups: [] });
     mocks.moveRoomGroup.mockResolvedValue({ groups: [] });
     mocks.moveRoomToGroup.mockResolvedValue({});
@@ -111,7 +111,7 @@ describe('createAdminRoomLayoutAPI', () => {
     mocks.updateSidebarLink.mockResolvedValue({
       sidebarLink: { id: 'docs', label: 'Docs', url: '/help' }
     });
-    mocks.deleteSidebarLink.mockResolvedValue({ deleted: true });
+    mocks.deleteSidebarLink.mockResolvedValue({});
     mocks.moveSidebarLinkToGroup.mockResolvedValue({});
 
     const api = createAdminRoomLayoutAPI({

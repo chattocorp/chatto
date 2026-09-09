@@ -37,9 +37,9 @@ describe('createPushNotificationAPI', () => {
   });
 
   it('subscribes and unsubscribes with bearer auth', async () => {
-    mocks.subscribe.mockResolvedValue({ subscribed: true });
-    mocks.unsubscribe.mockResolvedValue({ unsubscribed: true });
-    mocks.deleteSubscription.mockResolvedValue({ completed: true });
+    mocks.subscribe.mockResolvedValue({});
+    mocks.unsubscribe.mockResolvedValue({});
+    mocks.deleteSubscription.mockResolvedValue({});
 
     const api = createPushNotificationAPI({
       baseUrl: 'https://origin.test/api/connect',
@@ -101,7 +101,7 @@ describe('createPushNotificationAPI', () => {
   });
 
   it('omits auth headers when no bearer token exists', async () => {
-    mocks.subscribe.mockResolvedValue({ subscribed: true });
+    mocks.subscribe.mockResolvedValue({});
 
     const api = createPushNotificationAPI({
       baseUrl: '/api/connect',

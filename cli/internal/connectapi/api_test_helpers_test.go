@@ -11,6 +11,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
+
 	"connectrpc.com/authn"
 	"connectrpc.com/connect"
 	"github.com/nats-io/nats.go"
@@ -404,4 +407,16 @@ func roomGroupItemsContainSidebarLink(items []*apiv1.RoomGroupItem, linkID strin
 		}
 	}
 	return false
+}
+
+// requireEmptyResponse checks the public JSON acknowledgement contract.
+func requireEmptyResponse(t testing.TB, response proto.Message) {
+	t.Helper()
+	data, err := protojson.Marshal(response)
+	if err != nil {
+		t.Fatalf("marshal response: %v", err)
+	}
+	if string(data) != "{}" {
+		t.Fatalf("response JSON = %s, want {}", data)
+	}
 }

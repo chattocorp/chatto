@@ -373,9 +373,7 @@ func (x *DeleteMessageRequest) GetEventId() string {
 
 // Result of retracting a message.
 type DeleteMessageResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the delete/retract request was accepted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -408,13 +406,6 @@ func (x *DeleteMessageResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteMessageResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMessageResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *DeleteMessageResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to remove one attachment from a message.
@@ -483,9 +474,7 @@ func (x *DeleteAttachmentRequest) GetAttachmentId() string {
 
 // Result of removing one attachment from a message.
 type DeleteAttachmentResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the attachment removal was accepted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -518,13 +507,6 @@ func (x *DeleteAttachmentResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteAttachmentResponse.ProtoReflect.Descriptor instead.
 func (*DeleteAttachmentResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *DeleteAttachmentResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to remove the accepted link preview from a message.
@@ -593,9 +575,7 @@ func (x *DeleteLinkPreviewRequest) GetUrl() string {
 
 // Result of removing a link preview from a message.
 type DeleteLinkPreviewResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the link preview removal was accepted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -628,13 +608,6 @@ func (x *DeleteLinkPreviewResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteLinkPreviewResponse.ProtoReflect.Descriptor instead.
 func (*DeleteLinkPreviewResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_messages_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *DeleteLinkPreviewResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to read one visible message.
@@ -873,21 +846,18 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\amessage\x18\x02 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x01\x10\x02J\x04\b\x03\x10\x04R\aupdatedR\bincludes\"\\\n" +
 	"\x14DeleteMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
-	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"1\n" +
-	"\x15DeleteMessageResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"\x8d\x01\n" +
+	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\"&\n" +
+	"\x15DeleteMessageResponseJ\x04\b\x01\x10\x02R\adeleted\"\x8d\x01\n" +
 	"\x17DeleteAttachmentRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12,\n" +
-	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\"4\n" +
-	"\x18DeleteAttachmentResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"{\n" +
+	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\")\n" +
+	"\x18DeleteAttachmentResponseJ\x04\b\x01\x10\x02R\adeleted\"{\n" +
 	"\x18DeleteLinkPreviewRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12\x19\n" +
-	"\x03url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"5\n" +
-	"\x19DeleteLinkPreviewResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"j\n" +
+	"\x03url\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x03url\"*\n" +
+	"\x19DeleteLinkPreviewResponseJ\x04\b\x01\x10\x02R\adeleted\"j\n" +
 	"\x11GetMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventIdJ\x04\b\x03\x10\x04R\tthumbnail\"V\n" +

@@ -364,9 +364,9 @@ describe('createMessageAPI', () => {
   });
 
   it('deletes message content through MessageService', async () => {
-    mocks.deleteMessage.mockResolvedValue({ deleted: true });
-    mocks.deleteAttachment.mockResolvedValue({ deleted: true });
-    mocks.deleteLinkPreview.mockResolvedValue({ deleted: true });
+    mocks.deleteMessage.mockResolvedValue({});
+    mocks.deleteAttachment.mockResolvedValue({});
+    mocks.deleteLinkPreview.mockResolvedValue({});
 
     const api = createMessageAPI({
       baseUrl: 'https://remote.example.test/api/connect',

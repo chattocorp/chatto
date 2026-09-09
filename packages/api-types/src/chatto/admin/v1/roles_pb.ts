@@ -531,13 +531,6 @@ export class DeleteRoleRequest extends Message<DeleteRoleRequest> {
  * @generated from message chatto.admin.v1.DeleteRoleResponse
  */
 export class DeleteRoleResponse extends Message<DeleteRoleResponse> {
-  /**
-   * True when the request completed.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteRoleResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -546,7 +539,6 @@ export class DeleteRoleResponse extends Message<DeleteRoleResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteRoleResponse {

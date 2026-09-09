@@ -169,7 +169,7 @@ func (s *roomService) LeaveRoom(ctx context.Context, req *connect.Request[apiv1.
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.LeaveRoomResponse{Left: true}), nil
+	return connect.NewResponse(&apiv1.LeaveRoomResponse{}), nil
 }
 
 func (s *roomService) AddMember(ctx context.Context, req *connect.Request[apiv1.AddMemberRequest]) (*connect.Response[apiv1.AddMemberResponse], error) {
@@ -266,7 +266,7 @@ func (s *roomService) RefreshTypingIndicator(ctx context.Context, req *connect.R
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.RefreshTypingIndicatorResponse{Updated: true}), nil
+	return connect.NewResponse(&apiv1.RefreshTypingIndicatorResponse{}), nil
 }
 
 func (s *roomService) BanMember(ctx context.Context, req *connect.Request[apiv1.BanMemberRequest]) (*connect.Response[apiv1.BanMemberResponse], error) {
@@ -289,7 +289,7 @@ func (s *roomService) BanMember(ctx context.Context, req *connect.Request[apiv1.
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.BanMemberResponse{Banned: true}), nil
+	return connect.NewResponse(&apiv1.BanMemberResponse{}), nil
 }
 
 func (s *roomService) UnbanMember(ctx context.Context, req *connect.Request[apiv1.UnbanMemberRequest]) (*connect.Response[apiv1.UnbanMemberResponse], error) {
@@ -305,7 +305,7 @@ func (s *roomService) UnbanMember(ctx context.Context, req *connect.Request[apiv
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UnbanMemberResponse{Unbanned: true}), nil
+	return connect.NewResponse(&apiv1.UnbanMemberResponse{}), nil
 }
 
 func (s *roomService) apiRoomBan(ctx context.Context, ban core.RoomBan) (*apiv1.RoomBan, error) {

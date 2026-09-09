@@ -507,9 +507,7 @@ func (x *DeleteMyAccountRequest) GetConfirmationToken() string {
 
 // Result of deleting the authenticated account.
 type DeleteMyAccountResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the account was deleted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -542,13 +540,6 @@ func (x *DeleteMyAccountResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteMyAccountResponse.ProtoReflect.Descriptor instead.
 func (*DeleteMyAccountResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *DeleteMyAccountResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 var File_chatto_api_v1_account_proto protoreflect.FileDescriptor
@@ -589,9 +580,8 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x1eRequestAccountDeletionResponse\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
-	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
-	"\x17DeleteMyAccountResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xa8\t\n" +
+	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"(\n" +
+	"\x17DeleteMyAccountResponseJ\x04\b\x01\x10\x02R\adeleted2\xa8\t\n" +
 	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12]\n" +
 	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12]\n" +

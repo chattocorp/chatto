@@ -55,10 +55,6 @@ Request to store a PushSubscription returned by the browser Push API.
 
 Response from storing a browser push subscription.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `subscribed` | `bool` | True when the subscription was stored. |
-
 
 <a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
 
@@ -89,10 +85,6 @@ Request to remove a browser push subscription.
 
 Response from removing a browser push subscription.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `unsubscribed` | `bool` | True when the request completed. |
-
 
 <a id="chatto-api-v1-PushNotificationService-SendTestNotification"></a>
 
@@ -118,7 +110,3 @@ Request to test the current user's registered browser push subscriptions.
 #### Result: SendTestNotificationResponse
 
 Result of sending a test Web Push notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `sent` | `bool` | True when the push provider accepted the notification. |

@@ -98,13 +98,6 @@ export class SubscribeRequest extends Message<SubscribeRequest> {
  * @generated from message chatto.api.v1.SubscribeResponse
  */
 export class SubscribeResponse extends Message<SubscribeResponse> {
-  /**
-   * True when the subscription was stored.
-   *
-   * @generated from field: bool subscribed = 1;
-   */
-  subscribed = false;
-
   constructor(data?: PartialMessage<SubscribeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -113,7 +106,6 @@ export class SubscribeResponse extends Message<SubscribeResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.SubscribeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "subscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribeResponse {
@@ -180,13 +172,6 @@ export class UnsubscribeRequest extends Message<UnsubscribeRequest> {
  * @generated from message chatto.api.v1.UnsubscribeResponse
  */
 export class UnsubscribeResponse extends Message<UnsubscribeResponse> {
-  /**
-   * True when the request completed.
-   *
-   * @generated from field: bool unsubscribed = 1;
-   */
-  unsubscribed = false;
-
   constructor(data?: PartialMessage<UnsubscribeResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -195,7 +180,6 @@ export class UnsubscribeResponse extends Message<UnsubscribeResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UnsubscribeResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "unsubscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnsubscribeResponse {
@@ -254,13 +238,6 @@ export class SendTestNotificationRequest extends Message<SendTestNotificationReq
  * @generated from message chatto.api.v1.SendTestNotificationResponse
  */
 export class SendTestNotificationResponse extends Message<SendTestNotificationResponse> {
-  /**
-   * True when the push provider accepted the notification.
-   *
-   * @generated from field: bool sent = 1;
-   */
-  sent = false;
-
   constructor(data?: PartialMessage<SendTestNotificationResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -269,7 +246,6 @@ export class SendTestNotificationResponse extends Message<SendTestNotificationRe
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.SendTestNotificationResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "sent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SendTestNotificationResponse {

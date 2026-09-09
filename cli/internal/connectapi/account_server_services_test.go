@@ -484,9 +484,7 @@ func TestUserServiceAvatarAndMyAccountServiceDeletion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteMyAccount: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 }
 
 func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
@@ -524,9 +522,7 @@ func TestAccountDeletionRequiresDeleteSelfPermission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteMyAccount with restored permission: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 }
 
 func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
@@ -733,9 +729,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ClearUsernameCooldown: %v", err)
 	}
-	if !clearResp.Msg.GetCleared() {
-		t.Fatal("Cleared = false, want true")
-	}
+	requireEmptyResponse(t, clearResp.Msg)
 	if _, err := env.core.UpdateUserLogin(env.ctx, target.Id, "target-unblocked"); err != nil {
 		t.Fatalf("self rename after cooldown clear: %v", err)
 	}
@@ -745,9 +739,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteUser: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
 	}
@@ -774,9 +766,7 @@ func TestAdminUserServiceDeleteUserDoesNotRequireFreshCredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteUser with stale credential: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
 	}
@@ -792,9 +782,7 @@ func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("self DeleteUser: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 	if _, err := env.core.GetUser(env.ctx, env.viewer.Id); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("GetUser after self DeleteUser err = %v, want not found", err)
 	}

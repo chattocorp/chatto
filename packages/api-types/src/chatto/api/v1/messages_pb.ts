@@ -324,13 +324,6 @@ export class DeleteMessageRequest extends Message<DeleteMessageRequest> {
  * @generated from message chatto.api.v1.DeleteMessageResponse
  */
 export class DeleteMessageResponse extends Message<DeleteMessageResponse> {
-  /**
-   * True when the delete/retract request was accepted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteMessageResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -339,7 +332,6 @@ export class DeleteMessageResponse extends Message<DeleteMessageResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DeleteMessageResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteMessageResponse {
@@ -422,13 +414,6 @@ export class DeleteAttachmentRequest extends Message<DeleteAttachmentRequest> {
  * @generated from message chatto.api.v1.DeleteAttachmentResponse
  */
 export class DeleteAttachmentResponse extends Message<DeleteAttachmentResponse> {
-  /**
-   * True when the attachment removal was accepted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteAttachmentResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -437,7 +422,6 @@ export class DeleteAttachmentResponse extends Message<DeleteAttachmentResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DeleteAttachmentResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteAttachmentResponse {
@@ -520,13 +504,6 @@ export class DeleteLinkPreviewRequest extends Message<DeleteLinkPreviewRequest> 
  * @generated from message chatto.api.v1.DeleteLinkPreviewResponse
  */
 export class DeleteLinkPreviewResponse extends Message<DeleteLinkPreviewResponse> {
-  /**
-   * True when the link preview removal was accepted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteLinkPreviewResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -535,7 +512,6 @@ export class DeleteLinkPreviewResponse extends Message<DeleteLinkPreviewResponse
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DeleteLinkPreviewResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteLinkPreviewResponse {

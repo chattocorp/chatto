@@ -166,7 +166,7 @@ describe('createAccountAPI', () => {
 
   it('requests and confirms account deletion', async () => {
     mocks.requestAccountDeletion.mockResolvedValue({ confirmationToken: 'AD-token' });
-    mocks.deleteMyAccount.mockResolvedValue({ deleted: true });
+    mocks.deleteMyAccount.mockResolvedValue({});
 
     const api = createAccountAPI({
       baseUrl: '/api/connect',

@@ -185,6 +185,8 @@ const viewer = await viewerClient.getViewer({}, {
 
 ## Responses And Errors
 
+Commands that only acknowledge success return a named empty response (`{}` in JSON). Use RPC completion to detect success. Fields that report an actual change, state, or count remain part of the response.
+
 Successful unary JSON calls return the protobuf response message as JSON. Field names use protobuf JSON casing, such as `publicProfile` and `directRegistrationEnabled`.
 
 ProtoJSON integrations that need to tolerate future additive oneof variants must configure their decoder to ignore unknown fields. In particular, Notifications 2.0 may add new `NotificationSignal` variants; strict generated JSON clients must be regenerated before receiving such a variant. Binary protobuf is recommended when forward-compatible unknown-field retention is required.

@@ -37,17 +37,18 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       input: SubscribePushInput,
       options: PushRequestOptions = {}
     ): Promise<SubscribePushResult> {
-      const response = await client.subscribe(input, {
+      await client.subscribe(input, {
         headers: headers(),
         ...(options.signal ? { signal: options.signal } : {})
       });
       return {
-        subscribed: response.subscribed
+        subscribed: true
       };
     },
 
     async unsubscribe(endpoint: string): Promise<boolean> {
-      return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
+      await client.unsubscribe({ endpoint }, { headers: headers() });
+      return true;
     },
 
     async deleteByCapability(
@@ -55,11 +56,13 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       auth: string,
       cleanupToken: string
     ): Promise<boolean> {
-      return (await cleanupClient.deleteSubscription({ endpoint, auth, cleanupToken })).completed;
+      await cleanupClient.deleteSubscription({ endpoint, auth, cleanupToken });
+      return true;
     },
 
     async sendTestNotification(): Promise<boolean> {
-      return (await client.sendTestNotification({}, { headers: headers() })).sent;
+      await client.sendTestNotification({}, { headers: headers() });
+      return true;
     }
   };
 }

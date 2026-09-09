@@ -445,13 +445,6 @@ export class DeleteMyAccountRequest extends Message<DeleteMyAccountRequest> {
  * @generated from message chatto.api.v1.DeleteMyAccountResponse
  */
 export class DeleteMyAccountResponse extends Message<DeleteMyAccountResponse> {
-  /**
-   * True when the account was deleted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteMyAccountResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -460,7 +453,6 @@ export class DeleteMyAccountResponse extends Message<DeleteMyAccountResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DeleteMyAccountResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteMyAccountResponse {

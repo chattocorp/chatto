@@ -492,9 +492,7 @@ func (x *CancelExternalIdentityFlowRequest) GetToken() string {
 
 // Result of cancelling a pending external identity flow.
 type CancelExternalIdentityFlowResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when a pending flow was removed or already absent.
-	Cancelled     bool `protobuf:"varint,1,opt,name=cancelled,proto3" json:"cancelled,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -527,13 +525,6 @@ func (x *CancelExternalIdentityFlowResponse) ProtoReflect() protoreflect.Message
 // Deprecated: Use CancelExternalIdentityFlowResponse.ProtoReflect.Descriptor instead.
 func (*CancelExternalIdentityFlowResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_auth_v1_external_identity_auth_proto_rawDescGZIP(), []int{6}
-}
-
-func (x *CancelExternalIdentityFlowResponse) GetCancelled() bool {
-	if x != nil {
-		return x.Cancelled
-	}
-	return false
 }
 
 // Request to confirm a pending provider link using the flow capability token.
@@ -662,9 +653,8 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"expires_in\x18\x05 \x01(\x03R\texpiresIn\x127\n" +
 	"\x18refresh_token_expires_in\x18\x06 \x01(\x03R\x15refreshTokenExpiresIn\"B\n" +
 	"!CancelExternalIdentityFlowRequest\x12\x1d\n" +
-	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"B\n" +
-	"\"CancelExternalIdentityFlowResponse\x12\x1c\n" +
-	"\tcancelled\x18\x01 \x01(\bR\tcancelled\"C\n" +
+	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"5\n" +
+	"\"CancelExternalIdentityFlowResponseJ\x04\b\x01\x10\x02R\tcancelled\"C\n" +
 	"\"ConfirmExternalIdentityLinkRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"u\n" +
 	"#ConfirmExternalIdentityLinkResponse\x12N\n" +

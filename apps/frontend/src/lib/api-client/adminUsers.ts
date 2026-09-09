@@ -175,13 +175,13 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async clearUsernameCooldown(userId: string): Promise<boolean> {
-      const response = await client.clearUsernameCooldown({ userId }, { headers: headers() });
-      return response.cleared;
+      await client.clearUsernameCooldown({ userId }, { headers: headers() });
+      return true;
     },
 
     async deleteUser(input: AdminDeleteUserInput): Promise<boolean> {
-      const response = await client.deleteUser(input, { headers: headers() });
-      return response.deleted;
+      await client.deleteUser(input, { headers: headers() });
+      return true;
     }
   };
 }

@@ -39,8 +39,8 @@ message DeleteSubscriptionRequest {
 }
 
 // Response from capability-authenticated subscription cleanup.
+// Success does not reveal whether a matching subscription existed.
 message DeleteSubscriptionResponse {
-  // True when the idempotent cleanup request completed. It does not reveal
-  // whether a matching subscription existed.
-  bool completed = 1;
+  reserved 1;
+  reserved "completed";
 }

@@ -606,9 +606,7 @@ func (x *DeleteRoleRequest) GetName() string {
 
 // Result of deleting a role.
 type DeleteRoleResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -641,13 +639,6 @@ func (x *DeleteRoleResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteRoleResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRoleResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_roles_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *DeleteRoleResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to replace custom role order.
@@ -784,9 +775,8 @@ const file_chatto_admin_v1_roles_proto_rawDesc = "" +
 	"\x12UpdateRoleResponse\x12.\n" +
 	"\x04role\x18\x01 \x01(\v2\x1a.chatto.admin.v1.AdminRoleR\x04role\"0\n" +
 	"\x11DeleteRoleRequest\x12\x1b\n" +
-	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\".\n" +
-	"\x12DeleteRoleResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"E\n" +
+	"\x04name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04name\"#\n" +
+	"\x12DeleteRoleResponseJ\x04\b\x01\x10\x02R\adeleted\"E\n" +
 	"\x13ReorderRolesRequest\x12.\n" +
 	"\n" +
 	"role_names\x18\x01 \x03(\tB\x0f\xbaH\f\x92\x01\t\x10\xe8\a\"\x04r\x02\x10\x01R\troleNames\"H\n" +

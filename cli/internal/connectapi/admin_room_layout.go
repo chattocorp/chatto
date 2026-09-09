@@ -116,7 +116,7 @@ func (s *adminRoomLayoutService) DeleteRoomGroup(ctx context.Context, req *conne
 	if err := s.api.core.AdminDeleteRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.DeleteRoomGroupResponse{Deleted: true}), nil
+	return connect.NewResponse(&adminv1.DeleteRoomGroupResponse{}), nil
 }
 
 func (s *adminRoomLayoutService) ReorderRoomGroups(ctx context.Context, req *connect.Request[adminv1.ReorderRoomGroupsRequest]) (*connect.Response[adminv1.ReorderRoomGroupsResponse], error) {
@@ -249,7 +249,7 @@ func (s *adminRoomLayoutService) DeleteSidebarLink(ctx context.Context, req *con
 	if err := s.api.core.AdminDeleteSidebarLink(ctx, caller.UserID, req.Msg.GetLinkId()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.DeleteSidebarLinkResponse{Deleted: true}), nil
+	return connect.NewResponse(&adminv1.DeleteSidebarLinkResponse{}), nil
 }
 
 func (s *adminRoomLayoutService) MoveSidebarLinkToGroup(ctx context.Context, req *connect.Request[adminv1.MoveSidebarLinkToGroupRequest]) (*connect.Response[adminv1.MoveSidebarLinkToGroupResponse], error) {

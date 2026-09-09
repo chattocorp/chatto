@@ -125,8 +125,8 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
     async deleteMessage(roomId: string, eventId: string): Promise<boolean> {
       try {
-        const response = await client.deleteMessage({ roomId, eventId }, { headers: headers() });
-        return response.deleted;
+        await client.deleteMessage({ roomId, eventId }, { headers: headers() });
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -138,11 +138,11 @@ export function createMessageAPI(config: MessageAPIConfig) {
       attachmentId: string
     ): Promise<boolean> {
       try {
-        const response = await client.deleteAttachment(
+        await client.deleteAttachment(
           { roomId, eventId, attachmentId },
           { headers: headers() }
         );
-        return response.deleted;
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -150,11 +150,11 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
     async deleteLinkPreview(roomId: string, eventId: string, url: string): Promise<boolean> {
       try {
-        const response = await client.deleteLinkPreview(
+        await client.deleteLinkPreview(
           { roomId, eventId, url },
           { headers: headers() }
         );
-        return response.deleted;
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }

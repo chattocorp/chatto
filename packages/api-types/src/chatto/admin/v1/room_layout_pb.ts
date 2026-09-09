@@ -739,13 +739,6 @@ export class DeleteRoomGroupRequest extends Message<DeleteRoomGroupRequest> {
  * @generated from message chatto.admin.v1.DeleteRoomGroupResponse
  */
 export class DeleteRoomGroupResponse extends Message<DeleteRoomGroupResponse> {
-  /**
-   * True when the room group was deleted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteRoomGroupResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -754,7 +747,6 @@ export class DeleteRoomGroupResponse extends Message<DeleteRoomGroupResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteRoomGroupResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteRoomGroupResponse {
@@ -1482,13 +1474,6 @@ export class DeleteSidebarLinkRequest extends Message<DeleteSidebarLinkRequest> 
  * @generated from message chatto.admin.v1.DeleteSidebarLinkResponse
  */
 export class DeleteSidebarLinkResponse extends Message<DeleteSidebarLinkResponse> {
-  /**
-   * True when the sidebar link was deleted.
-   *
-   * @generated from field: bool deleted = 1;
-   */
-  deleted = false;
-
   constructor(data?: PartialMessage<DeleteSidebarLinkResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1497,7 +1482,6 @@ export class DeleteSidebarLinkResponse extends Message<DeleteSidebarLinkResponse
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.admin.v1.DeleteSidebarLinkResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "deleted", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteSidebarLinkResponse {

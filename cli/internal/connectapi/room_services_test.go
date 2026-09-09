@@ -358,9 +358,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("BanMember: %v", err)
 	}
-	if !banResp.Msg.GetBanned() {
-		t.Fatalf("BanMember banned = false, want true")
-	}
+	requireEmptyResponse(t, banResp.Msg)
 	isTargetMember, err := env.core.RoomMembershipExists(env.ctx, core.KindChannel, target.Id, room.Id)
 	if err != nil {
 		t.Fatalf("RoomMembershipExists target after ban: %v", err)
@@ -421,9 +419,7 @@ func TestRoomServiceMembershipAndModerationCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UnbanMember: %v", err)
 	}
-	if !unbanResp.Msg.GetUnbanned() {
-		t.Fatalf("UnbanMember unbanned = false, want true")
-	}
+	requireEmptyResponse(t, unbanResp.Msg)
 	afterUnbanResp, err := env.rooms.ListBans(ctx, connect.NewRequest(&apiv1.ListBansRequest{}))
 	if err != nil {
 		t.Fatalf("ListBans after unban: %v", err)
@@ -2216,9 +2212,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Subscribe: %v", err)
 	}
-	if !subResp.Msg.GetSubscribed() {
-		t.Fatalf("Subscribe response = %+v, want subscription acknowledgement", subResp.Msg)
-	}
+	requireEmptyResponse(t, subResp.Msg)
 	subs, err := env.core.GetUserPushSubscriptions(env.ctx, env.viewer.Id)
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions: %v", err)
@@ -2238,8 +2232,9 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("SendTestNotification: %v", err)
 	}
-	if !testResp.Msg.GetSent() || testPushCalls != 1 {
-		t.Fatalf("SendTestNotification sent = %v, callback calls = %d", testResp.Msg.GetSent(), testPushCalls)
+	requireEmptyResponse(t, testResp.Msg)
+	if testPushCalls != 1 {
+		t.Fatalf("SendTestNotification callback calls = %d, want 1", testPushCalls)
 	}
 	if _, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestNotificationRequest{})); connect.CodeOf(err) != connect.CodeResourceExhausted {
 		t.Fatalf("repeated SendTestNotification code = %v, want resource_exhausted", connect.CodeOf(err))
@@ -2253,9 +2248,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unsubscribe: %v", err)
 	}
-	if !unsubResp.Msg.GetUnsubscribed() {
-		t.Fatal("Unsubscribe unsubscribed = false, want true")
-	}
+	requireEmptyResponse(t, unsubResp.Msg)
 	subs, err = env.core.GetUserPushSubscriptions(env.ctx, env.viewer.Id)
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions after unsubscribe: %v", err)
@@ -2283,9 +2276,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	if err != nil {
 		t.Fatalf("capability-authenticated DeleteSubscription: %v", err)
 	}
-	if !cleanupResp.Msg.GetCompleted() {
-		t.Fatal("DeleteSubscription completed = false, want true")
-	}
+	requireEmptyResponse(t, cleanupResp.Msg)
 	if owned, err := env.core.PushSubscriptionOwnedByUser(env.ctx, env.viewer.Id, capabilityEndpoint); err != nil || owned {
 		t.Fatalf("capability cleanup ownership = %t, err = %v", owned, err)
 	}

@@ -277,7 +277,7 @@ describe('createExternalIdentityAPI', () => {
   });
 
   it('disconnects a linked identity with bearer auth', async () => {
-    mocks.disconnectExternalIdentity.mockResolvedValue({ disconnected: true });
+    mocks.disconnectExternalIdentity.mockResolvedValue({});
 
     const api = createExternalIdentityAPI({
       serverId: 'remote',

@@ -51,7 +51,7 @@ function fixture(
       if (path.endsWith("RefreshTypingIndicator")) {
         typing.push(JSON.parse(String(init?.body)));
         return Response.json(
-          { updated: !options.typingFailure },
+          {},
           { status: options.typingFailure ? 503 : 200 },
         );
       }

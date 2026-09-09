@@ -72,6 +72,6 @@ message DisconnectExternalIdentityRequest {
 
 // Result of disconnecting a provider identity.
 message DisconnectExternalIdentityResponse {
-  // True when the identity was disconnected.
-  bool disconnected = 1;
+  reserved 1;
+  reserved "disconnected";
 }

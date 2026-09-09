@@ -1349,9 +1349,7 @@ func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	if err != nil {
 		t.Fatalf("moderator DeleteMessage: %v", err)
 	}
-	if !resp.Msg.Deleted {
-		t.Fatal("moderator DeleteMessage Deleted = false, want true")
-	}
+	requireEmptyResponse(t, resp.Msg)
 	if body, err := env.core.GetMessageBody(env.ctx, target.Id); err != nil || body != "" {
 		t.Fatalf("body after moderator delete = %q, %v; want empty, nil", body, err)
 	}
@@ -1466,9 +1464,7 @@ func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("member RefreshTypingIndicator with post denied: %v", err)
 	}
-	if !resp.Msg.Updated {
-		t.Fatal("RefreshTypingIndicator Updated = false, want true")
-	}
+	requireEmptyResponse(t, resp.Msg)
 }
 
 func TestRoomAndThreadTimelineGetRoomEventsPaginatesWithOpaqueCursors(t *testing.T) {

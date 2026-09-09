@@ -97,8 +97,8 @@ message DeleteMyAccountRequest {
 
 // Result of deleting the authenticated account.
 message DeleteMyAccountResponse {
-  // True when the account was deleted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Self-service account, profile, display preference, presence,
