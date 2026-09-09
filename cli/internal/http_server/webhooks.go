@@ -25,8 +25,10 @@ func (s *HTTPServer) setupWebhookRoutes() {
 }
 
 type incomingWebhookPayload struct {
+	// Non-empty body aliases must agree. Message accepts Grafana's default webhook payload.
 	Text         string `json:"text"`
 	Body         string `json:"body"`
+	Message      string `json:"message"`
 	Channel      string `json:"channel"`
 	RoomID       string `json:"room_id"`
 	CreateThread bool   `json:"create_thread"`
@@ -54,7 +56,7 @@ func (s *HTTPServer) handleIncomingWebhook(c *gin.Context) {
 		incomingWebhookError(c, http.StatusBadRequest, "invalid_payload")
 		return
 	}
-	body, ok := matchingIncomingWebhookValue(payload.Text, payload.Body)
+	body, ok := matchingIncomingWebhookValue(payload.Text, payload.Body, payload.Message)
 	if !ok || strings.TrimSpace(body) == "" {
 		incomingWebhookError(c, http.StatusBadRequest, "invalid_payload")
 		return

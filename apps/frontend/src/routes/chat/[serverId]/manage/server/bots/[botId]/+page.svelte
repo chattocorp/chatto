@@ -6,6 +6,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
+  import { RoomKind } from '$lib/api-client/roomDirectory';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId } from '$lib/ui';
   import Panel from '$lib/ui/Panel.svelte';
@@ -25,7 +26,7 @@
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { ConfirmDialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
+  import { Button, Select } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
@@ -94,6 +95,14 @@
   );
   let componentActive = true;
   let deleteVisible = $state(false);
+  let webhookRoomId = $state('');
+  const webhookRoomOptions = $derived([
+    { value: '', label: m('settings.bots.webhook_room_none') },
+    ...serverScope.store.navigation.rooms
+      .filter((room) => room.type === RoomKind.CHANNEL)
+      .map((room) => ({ value: room.id, label: room.name }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  ]);
   let deleteLoading = $state(false);
   let reassignVisible = $state(false);
   let reassignOwnerUserId = $state('');
@@ -193,12 +202,17 @@
   async function createWebhook(name: string): Promise<string | null> {
     if (!bot) return null;
     const mutationTarget = targetKey;
+    const roomId = webhookRoomId;
     try {
       const created = await botAPI().createBotIncomingWebhook(bot.id, name);
       if (!isCurrentTarget(mutationTarget)) return null;
       refreshBot();
       toast.success(m('settings.bots.webhook_created'));
-      return created.webhookUrl;
+      if (!roomId) return created.webhookUrl;
+      // The URL selects the destination; it does not restrict the credential's permissions.
+      const url = new URL(created.webhookUrl);
+      url.searchParams.set('room_id', roomId);
+      return url.toString();
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
         toast.error(
@@ -437,8 +451,20 @@
                 copied: m('settings.bots.webhook_url_copied')
               }}
               oncreate={createWebhook}
+              oncreateopen={() => (webhookRoomId = '')}
               onrevoke={revokeWebhook}
-            />
+            >
+              {#snippet createFields(pending)}
+                <Select
+                  id="create-bot-webhook-room"
+                  label={m('settings.bots.webhook_room')}
+                  description={m('settings.bots.webhook_room_description')}
+                  options={webhookRoomOptions}
+                  bind:value={webhookRoomId}
+                  disabled={pending}
+                />
+              {/snippet}
+            </BotCredentialSection>
           {/if}
 
           {#if supportsMultipleAPIKeys}

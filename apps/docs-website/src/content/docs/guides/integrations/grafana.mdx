@@ -1,0 +1,84 @@
+---
+title: Send Grafana alerts to Chatto
+description: Connect a Grafana webhook contact point to a Chatto room.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Use Grafana's **Webhook** integration to send alerts to a Chatto room. Chatto
+reads the `message` field from Grafana's default JSON payload. You do not need
+a custom payload template.
+
+## Connect Grafana
+
+<Steps>
+
+1. **Prepare the bot in Chatto.**
+
+   [Create a bot](/guides/integrations/bot-accounts/) and add it to the destination
+   channel room. Give it `message.post` permission. If the room requires threads,
+   also give it `message.post-in-thread`. The bot's owner must have these
+   permissions too.
+
+2. **Create the webhook in Chatto.**
+
+   Open the bot's detail page and select **Create Webhook**. Name it `Grafana`,
+   select the destination room, and create it. Copy the complete URL before
+   you close the dialog. The URL includes the destination room ID.
+
+3. **Create the contact point in Grafana.**
+
+   In Grafana Alerting, open **Contact points** and add a contact point.
+   Select **Webhook** as the integration and paste the Chatto URL.
+   Keep **POST** as the HTTP method. Leave **Custom Payload** unset.
+
+4. **Test and route alerts.**
+
+   Send a predefined test notification and check that it appears in the Chatto
+   room. Save the contact point. Select it in the alert rule's notification
+   settings or route alerts to it through a notification policy.
+
+</Steps>
+
+## Change the message
+
+Use the contact point's **Message** field to change the notification text.
+You can use Grafana notification templates in that field. Keep **Custom Payload**
+unset so Grafana still sends the standard JSON structure.
+
+Chatto posts the formatted message that Grafana supplies. Firing and resolved
+notifications create separate messages. Chatto does not update earlier alerts
+or group them into threads by alert identity.
+
+See [Grafana's webhook documentation](https://grafana.com/docs/grafana/latest/alerting/configure-notifications/manage-contact-points/integrations/webhook-notifier/)
+for contact point settings and templates.
+
+## Older Chatto servers
+
+Servers without support for `message` return `400 invalid_payload` for the
+default Grafana payload. Upgrade the Chatto server, or use this custom payload
+template if your Grafana version supports **Custom Payload**:
+
+```text
+{{ define "chatto.webhook" -}}
+{{ coll.Dict "text" (tmpl.Exec "default.message" .) | data.ToJSON }}
+{{- end }}
+```
+
+Select `chatto.webhook` as the payload template. Keep the destination `room_id`
+in the webhook URL. If your Chatto client has no room selector, add
+`?room_id=YOUR_ROOM_ID` to the URL. After you upgrade the server, remove the
+custom payload to use Grafana's default format.
+
+## Troubleshooting
+
+| Response | Check |
+| --- | --- |
+| `400 invalid_payload` | The request needs a non-empty `message`, `text`, or `body`, and a destination room. All non-empty body aliases must agree; all supplied room IDs must agree. A text-only template such as `slack.default.text` is not a complete JSON payload. Message size and room policy limits also apply. |
+| `404 channel_not_found` | Check the room ID, bot membership, bot posting permissions, and the owner's permissions. |
+| `401 invalid_token` | The webhook credential is invalid or revoked. Create a replacement and update the contact point URL. |
+
+<Aside type="caution">
+  The webhook URL contains a credential and is shown only once. Keep it out of
+  logs and support requests. Create a separate webhook for each integration.
+</Aside>

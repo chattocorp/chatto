@@ -260,7 +260,9 @@ test.describe('Bot account lifecycle', () => {
     await expect(getRoomAsBot(serverURL, backupKey, roomId)).resolves.toEqual({ status: 200 });
 
     const apiKeyList = page.getByTestId('bot-api-keys');
-    const defaultKey = apiKeyList.locator('.selectable-list-item').filter({ hasText: 'Default key' });
+    const defaultKey = apiKeyList
+      .locator('.selectable-list-item')
+      .filter({ hasText: 'Default key' });
     await defaultKey.getByRole('button', { name: 'Revoke key', exact: true }).click();
     const revokeKeyDialog = page.getByRole('dialog', { name: 'Revoke key' });
     await revokeKeyDialog.getByRole('button', { name: 'Revoke key', exact: true }).click();
@@ -288,8 +290,25 @@ test.describe('Bot account lifecycle', () => {
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const createWebhookDialog = page.getByRole('dialog', { name: 'Create Webhook' });
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Production');
+    await createWebhookDialog.getByLabel('Destination room (optional)').selectOption(webhookRoomId);
     await createWebhookDialog.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     const originalWebhookURL = await captureShowOnceWebhookURL(page);
+    expect(new URL(originalWebhookURL).searchParams.get('room_id')).toBe(webhookRoomId);
+    // Use the copied URL without adding a destination or a custom Grafana payload.
+    const grafanaResponse = await fetch(originalWebhookURL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        receiver: 'Chatto',
+        status: 'firing',
+        title: '[FIRING:1] TestAlert',
+        message: '**Firing**\nGrafana test notification',
+        alerts: [],
+        version: '1'
+      })
+    });
+    expect(grafanaResponse.status).toBe(200);
+    expect(await grafanaResponse.text()).toBe('ok');
 
     await page.getByRole('button', { name: 'Create Webhook', exact: true }).click();
     await createWebhookDialog.getByRole('textbox', { name: 'Name' }).fill('Backup');

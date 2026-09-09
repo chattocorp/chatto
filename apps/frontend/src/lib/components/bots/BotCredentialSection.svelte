@@ -24,6 +24,7 @@
 </script>
 
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import ShowOnceCredentialDialog from './ShowOnceCredentialDialog.svelte';
   import { ConfirmDialog, FormDialog } from '$lib/ui';
   import BotIntegrationSection from './BotIntegrationSection.svelte';
@@ -37,6 +38,8 @@
     labels,
     createIcon,
     limit = 20,
+    createFields,
+    oncreateopen,
     oncreate,
     onrevoke
   }: {
@@ -46,6 +49,10 @@
     labels: BotCredentialSectionLabels;
     createIcon: string;
     limit?: number;
+    /** Optional integration fields. Receives whether credential issuance is pending. */
+    createFields?: Snippet<[boolean]>;
+    /** Resets caller-owned creation fields each time the dialog opens. */
+    oncreateopen?: () => void;
     /** Returns the show-once credential, or null when creation did not complete for this target. */
     oncreate: (name: string) => Promise<string | null>;
     /** Returns true when revocation completed for this target. */
@@ -66,6 +73,7 @@
 
   function openCreate() {
     createName = '';
+    oncreateopen?.();
     createVisible = true;
   }
 
@@ -159,6 +167,7 @@
     required
     bind:value={createName}
   />
+  {@render createFields?.(createLoading)}
 </FormDialog>
 
 <ShowOnceCredentialDialog
