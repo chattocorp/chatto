@@ -783,13 +783,13 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	checkInaccessible("UnfollowThread", err)
 
 	roomID := dm.Id
-	_, err = env.notifications.GetNotificationPolicy(ctx, connect.NewRequest(&apiv1.GetNotificationPolicyRequest{
-		RoomId: &roomID,
+	_, err = env.notificationPolicies.GetNotificationPolicy(ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceGetNotificationPolicyRequest{
+		Scope: roomNotificationPolicyScope(roomID),
 	}))
 	checkInaccessible("GetNotificationPolicy", err)
 
-	_, err = env.notifications.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.UpdateNotificationPolicyRequest{
-		RoomId: &roomID,
+	_, err = env.notificationPolicies.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceUpdateNotificationPolicyRequest{
+		Scope: roomNotificationPolicyScope(roomID),
 		Overrides: &apiv1.NotificationDeliveryModes{
 			DirectMessages: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
 		},
@@ -1644,7 +1644,8 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("list after delete all = %+v, %v, want empty", afterDeleteAll, err)
 	}
 
-	policy, err := env.notifications.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.UpdateNotificationPolicyRequest{
+	policy, err := env.notificationPolicies.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.NotificationPolicyServiceUpdateNotificationPolicyRequest{
+		Scope: serverNotificationPolicyScope(),
 		Overrides: &apiv1.NotificationDeliveryModes{
 			DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
 		},
@@ -1653,8 +1654,8 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateNotificationPolicy: %v", err)
 	}
-	if policy.Msg.GetPolicy().GetOverrides().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION ||
-		policy.Msg.GetPolicy().GetEffective().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+	if policy.Msg.GetPolicy().GetPolicy().GetOverrides().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION ||
+		policy.Msg.GetPolicy().GetPolicy().GetEffective().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
 		t.Fatalf("notification policy = %+v, want direct mention IN_APP_NOTIFICATION", policy.Msg.GetPolicy())
 	}
 }

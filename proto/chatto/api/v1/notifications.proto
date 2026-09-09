@@ -290,41 +290,6 @@ message NotificationPolicy {
   NotificationDeliveryModes effective = 2;
 }
 
-// Request the authenticated viewer's notification policy.
-message GetNotificationPolicyRequest {
-  // Empty returns server-scoped preferences. A room ID returns the inherited
-  // effective policy for that room and requires current membership.
-  optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Complete supported notification policy for one scope.
-message GetNotificationPolicyResponse {
-  // Room scope when requested; absent for server scope.
-  optional string room_id = 1;
-  // Explicit and effective policy for the requested scope.
-  NotificationPolicy policy = 2;
-}
-
-// Sparsely update notification policy overrides.
-message UpdateNotificationPolicyRequest {
-  // Room scope to change; absent changes the server scope.
-  optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Sparse override values. Fields selected by update_mask but absent here are
-  // cleared to Inherit.
-  NotificationDeliveryModes overrides = 2;
-  // Fields to set or clear, relative to overrides. The mask must contain at
-  // least one supported delivery-mode field.
-  google.protobuf.FieldMask update_mask = 3;
-}
-
-// Complete supported notification policy after a sparse update.
-message UpdateNotificationPolicyResponse {
-  // Room scope when changed; absent for server scope.
-  optional string room_id = 1;
-  // Explicit and effective policy after the update.
-  NotificationPolicy policy = 2;
-}
-
 // Explicit target for one notification policy. Clients must select exactly
 // one scope. Direct-message rooms use room scope and never inherit from a room
 // group.
@@ -441,13 +406,6 @@ service NotificationService {
   // Returns UNIMPLEMENTED rather than partially deleting a signal kind this
   // server cannot validate.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
-  // Gets explicit and effective modes for every supported signal class.
-  rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
-  // Atomically sets or clears selected server- or room-scoped signal-class overrides.
-  rpc UpdateNotificationPolicy(UpdateNotificationPolicyRequest) returns (UpdateNotificationPolicyResponse) {
-    option idempotency_level = IDEMPOTENT;
-  }
-
 }
 
 // Reads and updates the authenticated viewer's server, room-group, and room

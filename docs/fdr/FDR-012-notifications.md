@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
@@ -348,9 +348,11 @@ to `EVT`. Notification policy changes remain user-configuration facts in
 upgraded server. After the 0.5.0 contract ships, new signal variants are
 additive.
 
-The legacy server and room policy operations remain available, while the new
-policy service adds explicit server, room-group, and room scopes. Deprecated
-delivery names and followed-room slots remain readable so old stored values do
+The policy API uses only `NotificationPolicyService`, with explicit server,
+room-group, and room scopes. Chatto 0.5 removes the redundant policy methods
+from `NotificationService` so each operation has one public service. Stored
+policy state is unchanged by this removal. Deprecated delivery names and
+followed-room slots remain readable so old stored values do
 not acquire a new meaning. Current clients use Room messages at room scope
 instead of the retired followed-room cause.
 

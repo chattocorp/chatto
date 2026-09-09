@@ -173,8 +173,15 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     },
 
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicy> {
-      const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
-      return notificationPolicy(response.policy);
+      const response = await policyClient.getNotificationPolicy(
+        {
+          scope: apiNotificationPolicyScope(
+            roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
+          )
+        },
+        { headers: headers() }
+      );
+      return notificationPolicy(response.policy?.policy);
     },
 
     async updateNotificationPolicy(
@@ -183,11 +190,17 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     ): Promise<NotificationPolicy> {
       const { overrides, paths } = notificationPolicyUpdate(patch);
       if (paths.length === 0) throw new Error('Notification policy update is empty');
-      const response = await client.updateNotificationPolicy(
-        { roomId, overrides, updateMask: { paths } },
+      const response = await policyClient.updateNotificationPolicy(
+        {
+          scope: apiNotificationPolicyScope(
+            roomId ? { kind: 'room', id: roomId } : { kind: 'server' }
+          ),
+          overrides,
+          updateMask: { paths }
+        },
         { headers: headers() }
       );
-      return notificationPolicy(response.policy);
+      return notificationPolicy(response.policy?.policy);
     },
 
     async getScopedNotificationPolicy(
