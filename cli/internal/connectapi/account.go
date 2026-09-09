@@ -18,29 +18,16 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.DisplayName == nil && req.Msg.Login == nil && req.Msg.Bio == nil {
-		return nil, invalidArgument("at least one of display_name, login, or bio must be provided")
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
 	}
 
-	var updated *evtv1.User
-	if req.Msg.DisplayName != nil {
-		updated, err = s.api.core.UpdateUserDisplayName(ctx, caller.UserID, req.Msg.GetDisplayName())
-		if err != nil {
-			return nil, connectError(err)
-		}
+	updated, err := s.api.core.UpdateOwnUserProfile(ctx, caller.UserID, req.Msg.Login, req.Msg.DisplayName, req.Msg.Bio)
+	if err != nil {
+		return nil, connectError(err)
 	}
-	if req.Msg.Login != nil {
-		updated, err = s.api.core.UpdateUserLogin(ctx, caller.UserID, req.Msg.GetLogin())
-		if err != nil {
-			return nil, connectError(err)
-		}
-	}
-	if req.Msg.Bio != nil {
-		updated, err = s.api.core.UpdateUserBio(ctx, caller.UserID, req.Msg.GetBio())
-		if err != nil {
-			return nil, connectError(err)
-		}
-	}
+
 	user, err := requiredUserSummary(ctx, s.api, updated)
 	if err != nil {
 		return nil, err
@@ -48,7 +35,7 @@ func (s *accountService) UpdateProfile(ctx context.Context, req *connect.Request
 	return connect.NewResponse(&apiv1.UpdateProfileResponse{User: user}), nil
 }
 
-func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Request[apiv1.UpdatePasswordRequest]) (*connect.Response[apiv1.UpdatePasswordResponse], error) {
+func (s *accountService) ChangePassword(ctx context.Context, req *connect.Request[apiv1.ChangePasswordRequest]) (*connect.Response[apiv1.ChangePasswordResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -79,7 +66,7 @@ func (s *accountService) UpdatePassword(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.UpdatePasswordResponse{User: responseUser}), nil
+	return connect.NewResponse(&apiv1.ChangePasswordResponse{User: responseUser}), nil
 }
 
 func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[apiv1.UpdateSettingsRequest]) (*connect.Response[apiv1.UpdateSettingsResponse], error) {
@@ -87,9 +74,9 @@ func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Reques
 	if err != nil {
 		return nil, err
 	}
-
-	if req.Msg.Timezone == nil && req.Msg.TimeFormat == nil && req.Msg.ShareTimezone == nil {
-		return nil, invalidArgument("at least one settings field must be provided")
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
 	}
 
 	input := core.UserSettingsInput{}

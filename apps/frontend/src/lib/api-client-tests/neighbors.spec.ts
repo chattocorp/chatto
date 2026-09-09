@@ -54,7 +54,12 @@ describe('createNeighborAPI', () => {
     await expect(api.delete(second)).resolves.toBeUndefined();
 
     expect(mocks.updateNeighbor).toHaveBeenCalledWith(
-      { neighborId: 'N1', origin: 'https://two.example', revision: 'E1' },
+      {
+        neighborId: 'N1',
+        origin: 'https://two.example',
+        revision: 'E1',
+        updateMask: { paths: ['origin'] }
+      },
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(mocks.deleteNeighbor).toHaveBeenCalledWith(

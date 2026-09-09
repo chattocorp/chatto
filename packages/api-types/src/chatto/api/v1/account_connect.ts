@@ -3,10 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
-import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
+import { SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
 /**
@@ -33,12 +33,12 @@ export const MyAccountService = {
     /**
      * Updates or adds the authenticated user's password.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePassword
+     * @generated from rpc chatto.api.v1.MyAccountService.ChangePassword
      */
-    updatePassword: {
-      name: "UpdatePassword",
-      I: UpdatePasswordRequest,
-      O: UpdatePasswordResponse,
+    changePassword: {
+      name: "ChangePassword",
+      I: ChangePasswordRequest,
+      O: ChangePasswordResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -93,12 +93,12 @@ export const MyAccountService = {
      * clients should refresh it periodically while visible, and should stop
      * calling this RPC when the user chooses to appear offline.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePresence
+     * @generated from rpc chatto.api.v1.MyAccountService.SetPresence
      */
-    updatePresence: {
-      name: "UpdatePresence",
-      I: UpdatePresenceRequest,
-      O: UpdatePresenceResponse,
+    setPresence: {
+      name: "SetPresence",
+      I: SetPresenceRequest,
+      O: SetPresenceResponse,
       kind: MethodKind.Unary,
     },
     /**

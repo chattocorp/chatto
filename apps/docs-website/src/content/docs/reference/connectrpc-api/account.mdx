@@ -37,14 +37,15 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 #### Input: UpdateProfileRequest
 
 Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. Omitted fields stay unchanged.
-At least one field must be present; an empty patch is INVALID_ARGUMENT.
+use this same self-service operation. update_mask selects fields to apply
+or reset. Fields outside the mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 | `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -58,19 +59,19 @@ Result of a profile update.
 | `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdatePassword"></a>
+<a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 
-### UpdatePassword
+### ChangePassword
 
 Updates or adds the authenticated user's password.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePassword
+POST /api/connect/chatto.api.v1.MyAccountService/ChangePassword
 ```
 
-<a id="chatto-api-v1-UpdatePasswordRequest"></a>
+<a id="chatto-api-v1-ChangePasswordRequest"></a>
 
-#### Input: UpdatePasswordRequest
+#### Input: ChangePasswordRequest
 
 Request to update or add the authenticated user's password.
 
@@ -80,9 +81,9 @@ Request to update or add the authenticated user's password.
 | `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
 
 
-<a id="chatto-api-v1-UpdatePasswordResponse"></a>
+<a id="chatto-api-v1-ChangePasswordResponse"></a>
 
-#### Result: UpdatePasswordResponse
+#### Result: ChangePasswordResponse
 
 Result of updating or adding the authenticated account password.
 
@@ -105,15 +106,15 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 
 #### Input: UpdateSettingsRequest
 
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. At least one field must be present; an empty patch
-is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
+Request to patch the authenticated user's display preferences. update_mask
+selects fields to apply or reset. Resetting timezone clears the override.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
 | `time_format` | optional [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time format. UNSPECIFIED restores the automatic format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: timezone, time_format, share_timezone. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateSettingsResponse"></a>
@@ -226,21 +227,21 @@ Result of disconnecting a provider identity.
 | `disconnected` | `bool` | True when the identity was disconnected. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
+<a id="chatto-api-v1-MyAccountService-SetPresence"></a>
 
-### UpdatePresence
+### SetPresence
 
 Updates the current user's live presence status. This state is transient:
 clients should refresh it periodically while visible, and should stop
 calling this RPC when the user chooses to appear offline.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePresence
+POST /api/connect/chatto.api.v1.MyAccountService/SetPresence
 ```
 
-<a id="chatto-api-v1-UpdatePresenceRequest"></a>
+<a id="chatto-api-v1-SetPresenceRequest"></a>
 
-#### Input: UpdatePresenceRequest
+#### Input: SetPresenceRequest
 
 Request to update the current user's live presence status.
 
@@ -250,9 +251,9 @@ Request to update the current user's live presence status.
 | `user_selected` | `bool` | True when this update comes from a deliberate user selection rather than automatic idle/refresh updates. Automatic updates do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
 
 
-<a id="chatto-api-v1-UpdatePresenceResponse"></a>
+<a id="chatto-api-v1-SetPresenceResponse"></a>
 
-#### Result: UpdatePresenceResponse
+#### Result: SetPresenceResponse
 
 Result of updating live presence.
 

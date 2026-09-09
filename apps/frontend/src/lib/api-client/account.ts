@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
@@ -40,7 +41,7 @@ export type UpdateSettingsInput = {
   shareTimezone?: boolean;
 };
 
-export type UpdatePasswordInput = {
+export type ChangePasswordInput = {
   password: string;
   currentPassword?: string;
 };
@@ -51,14 +52,17 @@ export function createAccountAPI(config: AccountAPIConfig) {
 
   return {
     async updateProfile(input: UpdateProfileInput): Promise<AccountUser> {
-      const response = await client.updateProfile(input, {
-        headers: headers()
-      });
+      const response = await client.updateProfile(
+        { ...input, updateMask: updateMask(input, ['displayName', 'login', 'bio']) },
+        {
+          headers: headers()
+        }
+      );
       return accountUser(response.user);
     },
 
-    async updatePassword(input: UpdatePasswordInput): Promise<void> {
-      await client.updatePassword(
+    async changePassword(input: ChangePasswordInput): Promise<void> {
+      await client.changePassword(
         { password: input.password, currentPassword: input.currentPassword },
         { headers: headers() }
       );
@@ -70,7 +74,8 @@ export function createAccountAPI(config: AccountAPIConfig) {
           timezone: input.timezone === null ? '' : input.timezone,
           timeFormat:
             input.timeFormat === undefined ? undefined : timeFormatOrAuto(input.timeFormat),
-          shareTimezone: input.shareTimezone
+          shareTimezone: input.shareTimezone,
+          updateMask: updateMask(input, ['timezone', 'timeFormat', 'shareTimezone'])
         },
         { headers: headers() }
       );

@@ -70,8 +70,9 @@ func (s *botService) UpdateBotOutboundWebhook(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
-	if req.Msg.Enabled == nil && req.Msg.Url == nil && req.Msg.Authorization == nil {
-		return nil, invalidArgument("at least one webhook field must be provided")
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
 	}
 
 	item, err := s.api.core.UpdateBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId(), core.BotOutboundWebhookPatch{Enabled: req.Msg.Enabled, URL: req.Msg.Url, Authorization: req.Msg.Authorization})

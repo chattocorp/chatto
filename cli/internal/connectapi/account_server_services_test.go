@@ -363,54 +363,54 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	}
 	oauthCtx := withBearerCredential(env.ctx, passwordless, oauthToken)
 
-	if _, err := env.account.UpdatePassword(env.ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(env.ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdatePassword code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated ChangePassword code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty UpdatePassword code = %v, want invalid_argument", connect.CodeOf(err))
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty ChangePassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "short",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("short UpdatePassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("short ChangePassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("UpdatePassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("ChangePassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(oauthCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(oauthCtx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("UpdatePassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("ChangePassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(freshCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(freshCtx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "newpassword456",
 	})); err != nil {
-		t.Fatalf("UpdatePassword: %v", err)
+		t.Fatalf("ChangePassword: %v", err)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "newpassword456"); err != nil {
 		t.Fatalf("VerifyPassword: %v", err)
 	}
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password: "anotherpassword456",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("second UpdatePassword without current code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("second ChangePassword without current code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password:        "anotherpassword456",
 		CurrentPassword: "wrongpassword",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("second UpdatePassword wrong current code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("second ChangePassword wrong current code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.account.UpdatePassword(ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
+	if _, err := env.account.ChangePassword(ctx, connect.NewRequest(&apiv1.ChangePasswordRequest{
 		Password:        "anotherpassword456",
 		CurrentPassword: "newpassword456",
 	})); err != nil {
-		t.Fatalf("UpdatePassword with current: %v", err)
+		t.Fatalf("ChangePassword with current: %v", err)
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "anotherpassword456"); err != nil {
 		t.Fatalf("VerifyPassword changed: %v", err)
@@ -546,11 +546,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated UpdateUser code = %v, want unauthenticated", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(env.ctx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(env.ctx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateUserPassword code = %v, want unauthenticated", connect.CodeOf(err))
+		t.Fatalf("unauthenticated ChangeUserPassword code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(env.ctx, connect.NewRequest(&adminv1.DeleteUserRequest{
 		UserId: target.Id,
@@ -563,11 +563,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular UpdateUser code = %v, want permission_denied", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("regular ChangeUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(withCaller(env.ctx, regular), connect.NewRequest(&adminv1.DeleteUserRequest{
 		UserId: target.Id,
@@ -602,11 +602,11 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, roleAssigner.Id, core.PermRoleAssign); err != nil {
 		t.Fatalf("GrantUserPermission role.assign: %v", err)
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(withCaller(env.ctx, roleAssigner), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("role.assign-only UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("role.assign-only ChangeUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 
 	accountManager, err := env.core.CreateUser(env.ctx, core.SystemActorID, "admin-user-account-manager", "Admin User Account Manager", "password")
@@ -634,22 +634,22 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if member := accountUpdateResp.Msg.GetMember(); member.GetUser().GetId() != target.Id || member.GetUser().GetDisplayName() != "Account Managed Target" {
 		t.Fatalf("account manager UpdateUser member = %+v, want updated target", member)
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(withCaller(env.ctx, accountManager), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("account manager stale UpdateUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("account manager stale ChangeUserPassword code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	accountManagerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, accountManager.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateAuthTokenWithSource account manager: %v", err)
 	}
-	accountManagerResp, err := env.adminUsers.UpdateUserPassword(withArmedBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	accountManagerResp, err := env.adminUsers.ChangeUserPassword(withArmedBearerCredential(env.ctx, accountManager, accountManagerToken), connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "accountmanagerpass456",
 	}))
 	if err != nil {
-		t.Fatalf("account manager UpdateUserPassword: %v", err)
+		t.Fatalf("account manager ChangeUserPassword: %v", err)
 	}
 	if got := accountManagerResp.Msg.GetMember().GetUser().GetId(); got != target.Id {
 		t.Fatalf("account manager password member ID = %q, want %q", got, target.Id)
@@ -676,25 +676,25 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty UpdateUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId: target.Id,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("empty UpdateUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("empty ChangeUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	if _, err := env.adminUsers.DeleteUser(adminCtx, connect.NewRequest(&adminv1.DeleteUserRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "short",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("short UpdateUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("short ChangeUserPassword code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	if _, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   admin.Id,
 		Password: "newpassword456",
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("self UpdateUserPassword code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("self ChangeUserPassword code = %v, want permission_denied", connect.CodeOf(err))
 	}
 	resp, err := env.adminUsers.UpdateUser(adminCtx, connect.NewRequest(&adminv1.UpdateUserRequest{
 		UserId:      target.Id,
@@ -707,12 +707,12 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	if user := resp.Msg.GetUser(); user.GetId() != target.Id || user.GetDisplayName() != "Managed Target" || user.GetLogin() != "managed-target" {
 		t.Fatalf("updated user = %+v, want managed target", user)
 	}
-	passwordResp, err := env.adminUsers.UpdateUserPassword(adminCtx, connect.NewRequest(&adminv1.UpdateUserPasswordRequest{
+	passwordResp, err := env.adminUsers.ChangeUserPassword(adminCtx, connect.NewRequest(&adminv1.ChangeUserPasswordRequest{
 		UserId:   target.Id,
 		Password: "adminpassword456",
 	}))
 	if err != nil {
-		t.Fatalf("UpdateUserPassword: %v", err)
+		t.Fatalf("ChangeUserPassword: %v", err)
 	}
 	if got := passwordResp.Msg.GetMember().GetUser().GetId(); got != target.Id {
 		t.Fatalf("password member ID = %q, want %q", got, target.Id)

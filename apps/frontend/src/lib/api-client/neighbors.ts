@@ -35,7 +35,12 @@ export function createNeighborAPI(config: NeighborAPIConfig) {
 
     async update(neighbor: Neighbor, origin: string): Promise<Neighbor> {
       const response = await client.updateNeighbor(
-        { neighborId: neighbor.id, origin, revision: neighbor.revision },
+        {
+          neighborId: neighbor.id,
+          origin,
+          revision: neighbor.revision,
+          updateMask: { paths: ['origin'] }
+        },
         { headers: headers() }
       );
       if (!response.neighbor) throw new Error('Neighbor response was incomplete.');

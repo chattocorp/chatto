@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	_ "google.golang.org/protobuf/types/descriptorpb"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -24,18 +25,23 @@ const (
 )
 
 // Request to update the authenticated user's profile. Human and bot accounts
-// use this same self-service operation. Omitted fields stay unchanged.
-// At least one field must be present; an empty patch is INVALID_ARGUMENT.
+// use this same self-service operation. update_mask selects fields to apply
+// or reset. Fields outside the mask stay unchanged.
 type UpdateProfileRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// New display name, when changing it. Empty clears the explicit display
-	// name. The server also rejects control and confusing invisible characters.
+	// New non-empty display name. The server also rejects control and
+	// confusing invisible characters.
 	DisplayName *string `protobuf:"bytes,1,opt,name=display_name,json=displayName,proto3,oneof" json:"display_name,omitempty"`
 	// New login identifier, when changing it. The server accepts ASCII letters,
 	// digits, period, underscore, and hyphen, starting with a letter or digit.
 	Login *string `protobuf:"bytes,2,opt,name=login,proto3,oneof" json:"login,omitempty"`
 	// New Markdown biography, when changing it. Empty clears the bio.
-	Bio           *string `protobuf:"bytes,3,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
+	Bio *string `protobuf:"bytes,3,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
+	// Editable fields to apply or reset: display_name, login, bio.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -91,6 +97,13 @@ func (x *UpdateProfileRequest) GetBio() string {
 	return ""
 }
 
+func (x *UpdateProfileRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
+}
+
 // Result of a profile update.
 type UpdateProfileResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -138,7 +151,7 @@ func (x *UpdateProfileResponse) GetUser() *User {
 }
 
 // Request to update or add the authenticated user's password.
-type UpdatePasswordRequest struct {
+type ChangePasswordRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New password. The server applies the same password policy as registration
 	// and password reset.
@@ -150,20 +163,20 @@ type UpdatePasswordRequest struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *UpdatePasswordRequest) Reset() {
-	*x = UpdatePasswordRequest{}
+func (x *ChangePasswordRequest) Reset() {
+	*x = ChangePasswordRequest{}
 	mi := &file_chatto_api_v1_account_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdatePasswordRequest) String() string {
+func (x *ChangePasswordRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdatePasswordRequest) ProtoMessage() {}
+func (*ChangePasswordRequest) ProtoMessage() {}
 
-func (x *UpdatePasswordRequest) ProtoReflect() protoreflect.Message {
+func (x *ChangePasswordRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_account_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -175,19 +188,19 @@ func (x *UpdatePasswordRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdatePasswordRequest.ProtoReflect.Descriptor instead.
-func (*UpdatePasswordRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use ChangePasswordRequest.ProtoReflect.Descriptor instead.
+func (*ChangePasswordRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *UpdatePasswordRequest) GetPassword() string {
+func (x *ChangePasswordRequest) GetPassword() string {
 	if x != nil {
 		return x.Password
 	}
 	return ""
 }
 
-func (x *UpdatePasswordRequest) GetCurrentPassword() string {
+func (x *ChangePasswordRequest) GetCurrentPassword() string {
 	if x != nil {
 		return x.CurrentPassword
 	}
@@ -195,7 +208,7 @@ func (x *UpdatePasswordRequest) GetCurrentPassword() string {
 }
 
 // Result of updating or adding the authenticated account password.
-type UpdatePasswordResponse struct {
+type ChangePasswordResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Current authenticated user profile after the password update.
 	User          *User `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
@@ -203,20 +216,20 @@ type UpdatePasswordResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UpdatePasswordResponse) Reset() {
-	*x = UpdatePasswordResponse{}
+func (x *ChangePasswordResponse) Reset() {
+	*x = ChangePasswordResponse{}
 	mi := &file_chatto_api_v1_account_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdatePasswordResponse) String() string {
+func (x *ChangePasswordResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdatePasswordResponse) ProtoMessage() {}
+func (*ChangePasswordResponse) ProtoMessage() {}
 
-func (x *UpdatePasswordResponse) ProtoReflect() protoreflect.Message {
+func (x *ChangePasswordResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_account_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -228,21 +241,20 @@ func (x *UpdatePasswordResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdatePasswordResponse.ProtoReflect.Descriptor instead.
-func (*UpdatePasswordResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use ChangePasswordResponse.ProtoReflect.Descriptor instead.
+func (*ChangePasswordResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_account_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *UpdatePasswordResponse) GetUser() *User {
+func (x *ChangePasswordResponse) GetUser() *User {
 	if x != nil {
 		return x.User
 	}
 	return nil
 }
 
-// Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. At least one field must be present; an empty patch
-// is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
+// Request to patch the authenticated user's display preferences. update_mask
+// selects fields to apply or reset. Resetting timezone clears the override.
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone override. Empty clears the override.
@@ -251,6 +263,11 @@ type UpdateSettingsRequest struct {
 	TimeFormat *TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat,oneof" json:"time_format,omitempty"`
 	// Whether the stored time zone may appear on the user's public profile.
 	ShareTimezone *bool `protobuf:"varint,3,opt,name=share_timezone,json=shareTimezone,proto3,oneof" json:"share_timezone,omitempty"`
+	// Editable fields to apply or reset: timezone, time_format, share_timezone.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -304,6 +321,13 @@ func (x *UpdateSettingsRequest) GetShareTimezone() bool {
 		return *x.ShareTimezone
 	}
 	return false
+}
+
+func (x *UpdateSettingsRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Result of updating display preferences.
@@ -532,27 +556,31 @@ var File_chatto_api_v1_account_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\n" +
-	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\x1a google/protobuf/descriptor.proto\"\xb1\x01\n" +
-	"\x14UpdateProfileRequest\x12/\n" +
-	"\fdisplay_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18 H\x00R\vdisplayName\x88\x01\x01\x12$\n" +
+	"\x1bchatto/api/v1/account.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a'chatto/api/v1/external_identities.proto\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1achatto/api/v1/viewer.proto\x1a google/protobuf/descriptor.proto\"\xf0\x01\n" +
+	"\x14UpdateProfileRequest\x121\n" +
+	"\fdisplay_name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 H\x00R\vdisplayName\x88\x01\x01\x12$\n" +
 	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 H\x01R\x05login\x88\x01\x01\x12\x1f\n" +
-	"\x03bio\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aH\x02R\x03bio\x88\x01\x01B\x0f\n" +
+	"\x03bio\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aH\x02R\x03bio\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\x0f\n" +
 	"\r_display_nameB\b\n" +
 	"\x06_loginB\x06\n" +
 	"\x04_bio\"@\n" +
 	"\x15UpdateProfileResponse\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"t\n" +
-	"\x15UpdatePasswordRequest\x12&\n" +
+	"\x15ChangePasswordRequest\x12&\n" +
 	"\bpassword\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\x123\n" +
 	"\x10current_password\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fcurrentPassword\"A\n" +
-	"\x16UpdatePasswordResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\xd5\x01\n" +
+	"\x16ChangePasswordResponse\x12'\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x9c\x02\n" +
 	"\x15UpdateSettingsRequest\x12\x1f\n" +
-	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12?\n" +
-	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatH\x01R\n" +
+	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12I\n" +
+	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatB\b\xbaH\x05\x82\x01\x02\x10\x01H\x01R\n" +
 	"timeFormat\x88\x01\x01\x12*\n" +
-	"\x0eshare_timezone\x18\x03 \x01(\bH\x02R\rshareTimezone\x88\x01\x01B\v\n" +
+	"\x0eshare_timezone\x18\x03 \x01(\bH\x02R\rshareTimezone\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\v\n" +
 	"\t_timezoneB\x0e\n" +
 	"\f_time_formatB\x11\n" +
 	"\x0f_share_timezone\"Q\n" +
@@ -564,15 +592,15 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
 	"\x17DeleteMyAccountResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xb1\t\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xa8\t\n" +
 	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12]\n" +
-	"\x0eUpdatePassword\x12$.chatto.api.v1.UpdatePasswordRequest\x1a%.chatto.api.v1.UpdatePasswordResponse\x12]\n" +
+	"\x0eChangePassword\x12$.chatto.api.v1.ChangePasswordRequest\x1a%.chatto.api.v1.ChangePasswordResponse\x12]\n" +
 	"\x0eUpdateSettings\x12$.chatto.api.v1.UpdateSettingsRequest\x1a%.chatto.api.v1.UpdateSettingsResponse\x12u\n" +
 	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
 	"\x19StartExternalIdentityLink\x12/.chatto.api.v1.StartExternalIdentityLinkRequest\x1a0.chatto.api.v1.StartExternalIdentityLinkResponse\x12\x81\x01\n" +
-	"\x1aDisconnectExternalIdentity\x120.chatto.api.v1.DisconnectExternalIdentityRequest\x1a1.chatto.api.v1.DisconnectExternalIdentityResponse\x12]\n" +
-	"\x0eUpdatePresence\x12$.chatto.api.v1.UpdatePresenceRequest\x1a%.chatto.api.v1.UpdatePresenceResponse\x12`\n" +
+	"\x1aDisconnectExternalIdentity\x120.chatto.api.v1.DisconnectExternalIdentityRequest\x1a1.chatto.api.v1.DisconnectExternalIdentityResponse\x12T\n" +
+	"\vSetPresence\x12!.chatto.api.v1.SetPresenceRequest\x1a\".chatto.api.v1.SetPresenceResponse\x12`\n" +
 	"\x0fSetCustomStatus\x12%.chatto.api.v1.SetCustomStatusRequest\x1a&.chatto.api.v1.SetCustomStatusResponse\x12n\n" +
 	"\x12DeleteCustomStatus\x12(.chatto.api.v1.DeleteCustomStatusRequest\x1a).chatto.api.v1.DeleteCustomStatusResponse\"\x03\x90\x02\x02\x12u\n" +
 	"\x16RequestAccountDeletion\x12,.chatto.api.v1.RequestAccountDeletionRequest\x1a-.chatto.api.v1.RequestAccountDeletionResponse\x12`\n" +
@@ -595,62 +623,65 @@ var file_chatto_api_v1_account_proto_msgTypes = make([]protoimpl.MessageInfo, 10
 var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*UpdateProfileRequest)(nil),               // 0: chatto.api.v1.UpdateProfileRequest
 	(*UpdateProfileResponse)(nil),              // 1: chatto.api.v1.UpdateProfileResponse
-	(*UpdatePasswordRequest)(nil),              // 2: chatto.api.v1.UpdatePasswordRequest
-	(*UpdatePasswordResponse)(nil),             // 3: chatto.api.v1.UpdatePasswordResponse
+	(*ChangePasswordRequest)(nil),              // 2: chatto.api.v1.ChangePasswordRequest
+	(*ChangePasswordResponse)(nil),             // 3: chatto.api.v1.ChangePasswordResponse
 	(*UpdateSettingsRequest)(nil),              // 4: chatto.api.v1.UpdateSettingsRequest
 	(*UpdateSettingsResponse)(nil),             // 5: chatto.api.v1.UpdateSettingsResponse
 	(*RequestAccountDeletionRequest)(nil),      // 6: chatto.api.v1.RequestAccountDeletionRequest
 	(*RequestAccountDeletionResponse)(nil),     // 7: chatto.api.v1.RequestAccountDeletionResponse
 	(*DeleteMyAccountRequest)(nil),             // 8: chatto.api.v1.DeleteMyAccountRequest
 	(*DeleteMyAccountResponse)(nil),            // 9: chatto.api.v1.DeleteMyAccountResponse
-	(*User)(nil),                               // 10: chatto.api.v1.User
-	(TimeFormat)(0),                            // 11: chatto.api.v1.TimeFormat
-	(*UserSettings)(nil),                       // 12: chatto.api.v1.UserSettings
-	(*ListExternalIdentitiesRequest)(nil),      // 13: chatto.api.v1.ListExternalIdentitiesRequest
-	(*StartExternalIdentityLinkRequest)(nil),   // 14: chatto.api.v1.StartExternalIdentityLinkRequest
-	(*DisconnectExternalIdentityRequest)(nil),  // 15: chatto.api.v1.DisconnectExternalIdentityRequest
-	(*UpdatePresenceRequest)(nil),              // 16: chatto.api.v1.UpdatePresenceRequest
-	(*SetCustomStatusRequest)(nil),             // 17: chatto.api.v1.SetCustomStatusRequest
-	(*DeleteCustomStatusRequest)(nil),          // 18: chatto.api.v1.DeleteCustomStatusRequest
-	(*ListExternalIdentitiesResponse)(nil),     // 19: chatto.api.v1.ListExternalIdentitiesResponse
-	(*StartExternalIdentityLinkResponse)(nil),  // 20: chatto.api.v1.StartExternalIdentityLinkResponse
-	(*DisconnectExternalIdentityResponse)(nil), // 21: chatto.api.v1.DisconnectExternalIdentityResponse
-	(*UpdatePresenceResponse)(nil),             // 22: chatto.api.v1.UpdatePresenceResponse
-	(*SetCustomStatusResponse)(nil),            // 23: chatto.api.v1.SetCustomStatusResponse
-	(*DeleteCustomStatusResponse)(nil),         // 24: chatto.api.v1.DeleteCustomStatusResponse
+	(*fieldmaskpb.FieldMask)(nil),              // 10: google.protobuf.FieldMask
+	(*User)(nil),                               // 11: chatto.api.v1.User
+	(TimeFormat)(0),                            // 12: chatto.api.v1.TimeFormat
+	(*UserSettings)(nil),                       // 13: chatto.api.v1.UserSettings
+	(*ListExternalIdentitiesRequest)(nil),      // 14: chatto.api.v1.ListExternalIdentitiesRequest
+	(*StartExternalIdentityLinkRequest)(nil),   // 15: chatto.api.v1.StartExternalIdentityLinkRequest
+	(*DisconnectExternalIdentityRequest)(nil),  // 16: chatto.api.v1.DisconnectExternalIdentityRequest
+	(*SetPresenceRequest)(nil),                 // 17: chatto.api.v1.SetPresenceRequest
+	(*SetCustomStatusRequest)(nil),             // 18: chatto.api.v1.SetCustomStatusRequest
+	(*DeleteCustomStatusRequest)(nil),          // 19: chatto.api.v1.DeleteCustomStatusRequest
+	(*ListExternalIdentitiesResponse)(nil),     // 20: chatto.api.v1.ListExternalIdentitiesResponse
+	(*StartExternalIdentityLinkResponse)(nil),  // 21: chatto.api.v1.StartExternalIdentityLinkResponse
+	(*DisconnectExternalIdentityResponse)(nil), // 22: chatto.api.v1.DisconnectExternalIdentityResponse
+	(*SetPresenceResponse)(nil),                // 23: chatto.api.v1.SetPresenceResponse
+	(*SetCustomStatusResponse)(nil),            // 24: chatto.api.v1.SetCustomStatusResponse
+	(*DeleteCustomStatusResponse)(nil),         // 25: chatto.api.v1.DeleteCustomStatusResponse
 }
 var file_chatto_api_v1_account_proto_depIdxs = []int32{
-	10, // 0: chatto.api.v1.UpdateProfileResponse.user:type_name -> chatto.api.v1.User
-	10, // 1: chatto.api.v1.UpdatePasswordResponse.user:type_name -> chatto.api.v1.User
-	11, // 2: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
-	12, // 3: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
-	0,  // 4: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
-	2,  // 5: chatto.api.v1.MyAccountService.UpdatePassword:input_type -> chatto.api.v1.UpdatePasswordRequest
-	4,  // 6: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
-	13, // 7: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
-	14, // 8: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
-	15, // 9: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
-	16, // 10: chatto.api.v1.MyAccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
-	17, // 11: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
-	18, // 12: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
-	6,  // 13: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
-	8,  // 14: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
-	1,  // 15: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
-	3,  // 16: chatto.api.v1.MyAccountService.UpdatePassword:output_type -> chatto.api.v1.UpdatePasswordResponse
-	5,  // 17: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
-	19, // 18: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
-	20, // 19: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
-	21, // 20: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
-	22, // 21: chatto.api.v1.MyAccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
-	23, // 22: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
-	24, // 23: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
-	7,  // 24: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
-	9,  // 25: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
-	15, // [15:26] is the sub-list for method output_type
-	4,  // [4:15] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	10, // 0: chatto.api.v1.UpdateProfileRequest.update_mask:type_name -> google.protobuf.FieldMask
+	11, // 1: chatto.api.v1.UpdateProfileResponse.user:type_name -> chatto.api.v1.User
+	11, // 2: chatto.api.v1.ChangePasswordResponse.user:type_name -> chatto.api.v1.User
+	12, // 3: chatto.api.v1.UpdateSettingsRequest.time_format:type_name -> chatto.api.v1.TimeFormat
+	10, // 4: chatto.api.v1.UpdateSettingsRequest.update_mask:type_name -> google.protobuf.FieldMask
+	13, // 5: chatto.api.v1.UpdateSettingsResponse.settings:type_name -> chatto.api.v1.UserSettings
+	0,  // 6: chatto.api.v1.MyAccountService.UpdateProfile:input_type -> chatto.api.v1.UpdateProfileRequest
+	2,  // 7: chatto.api.v1.MyAccountService.ChangePassword:input_type -> chatto.api.v1.ChangePasswordRequest
+	4,  // 8: chatto.api.v1.MyAccountService.UpdateSettings:input_type -> chatto.api.v1.UpdateSettingsRequest
+	14, // 9: chatto.api.v1.MyAccountService.ListExternalIdentities:input_type -> chatto.api.v1.ListExternalIdentitiesRequest
+	15, // 10: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
+	16, // 11: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
+	17, // 12: chatto.api.v1.MyAccountService.SetPresence:input_type -> chatto.api.v1.SetPresenceRequest
+	18, // 13: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
+	19, // 14: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
+	6,  // 15: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
+	8,  // 16: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
+	1,  // 17: chatto.api.v1.MyAccountService.UpdateProfile:output_type -> chatto.api.v1.UpdateProfileResponse
+	3,  // 18: chatto.api.v1.MyAccountService.ChangePassword:output_type -> chatto.api.v1.ChangePasswordResponse
+	5,  // 19: chatto.api.v1.MyAccountService.UpdateSettings:output_type -> chatto.api.v1.UpdateSettingsResponse
+	20, // 20: chatto.api.v1.MyAccountService.ListExternalIdentities:output_type -> chatto.api.v1.ListExternalIdentitiesResponse
+	21, // 21: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
+	22, // 22: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
+	23, // 23: chatto.api.v1.MyAccountService.SetPresence:output_type -> chatto.api.v1.SetPresenceResponse
+	24, // 24: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
+	25, // 25: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
+	7,  // 26: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
+	9,  // 27: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse
+	17, // [17:28] is the sub-list for method output_type
+	6,  // [6:17] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_account_proto_init() }

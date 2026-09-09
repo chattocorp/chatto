@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/message_types.proto";
@@ -70,18 +71,23 @@ message CreateMessageResponse {
   Message message = 1;
 }
 
-// Request to patch a message. Omitted fields stay unchanged. At least one
-// editable field must be present; an empty patch is INVALID_ARGUMENT.
+// Request to patch a message. update_mask selects fields to apply or reset.
+// Fields outside the mask stay unchanged.
 message UpdateMessageRequest {
   // Required. Room containing the message.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required. Event ID of the message to edit.
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
-  // New message body text. Omit to preserve the current body.
+  // New message body text. Select body in update_mask to change it.
   optional string body = 3 [(buf.validate.field).string.max_len = 10000];
   // For thread replies, whether a channel echo should exist after saving.
-  // Omit to preserve the current echo state.
+  // Select also_send_to_channel in update_mask to change it.
   optional bool also_send_to_channel = 4;
+  // Editable fields to apply or reset: body, also_send_to_channel.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 5;
 }
 
 // Result of editing a message.

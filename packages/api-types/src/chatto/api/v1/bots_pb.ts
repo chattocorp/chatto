@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
@@ -1684,9 +1684,8 @@ export class CreateBotOutboundWebhookResponse extends Message<CreateBotOutboundW
 }
 
 /**
- * Patch delivery settings or pause/resume one endpoint. Omitted fields stay
- * unchanged. At least one field must be present; an empty patch is
- * INVALID_ARGUMENT. Name and signing secret stay fixed.
+ * Patch delivery settings or pause/resume one endpoint. update_mask selects
+ * fields to apply or reset. Name and signing secret stay fixed.
  *
  * @generated from message chatto.api.v1.UpdateBotOutboundWebhookRequest
  */
@@ -1706,25 +1705,35 @@ export class UpdateBotOutboundWebhookRequest extends Message<UpdateBotOutboundWe
   webhookId = "";
 
   /**
-   * If omitted, the state is unchanged. Resume accepts only new messages.
+   * Selected enabled state. False pauses delivery; resume accepts only new messages.
    *
    * @generated from field: optional bool enabled = 3;
    */
   enabled?: boolean;
 
   /**
-   * New destination. Omit to keep it. Changing settings cancels queued retries.
+   * Selected new destination. Changing settings cancels queued retries.
    *
    * @generated from field: optional string url = 4;
    */
   url?: string;
 
   /**
-   * New Authorization header. Omit to keep it; empty removes it. Never returned.
+   * Selected Authorization header. Absent or empty removes it. Never returned.
    *
    * @generated from field: optional string authorization = 5;
    */
   authorization?: string;
+
+  /**
+   * Editable fields to apply or reset: enabled, url, authorization.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 6;
+   */
+  updateMask?: FieldMask;
 
   constructor(data?: PartialMessage<UpdateBotOutboundWebhookRequest>) {
     super();
@@ -1739,6 +1748,7 @@ export class UpdateBotOutboundWebhookRequest extends Message<UpdateBotOutboundWe
     { no: 3, name: "enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 4, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 5, name: "authorization", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 6, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBotOutboundWebhookRequest {

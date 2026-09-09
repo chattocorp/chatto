@@ -63,9 +63,9 @@ proto3.util.setEnumType(PresenceStatus, "chatto.api.v1.PresenceStatus", [
 /**
  * Request to update the current user's live presence status.
  *
- * @generated from message chatto.api.v1.UpdatePresenceRequest
+ * @generated from message chatto.api.v1.SetPresenceRequest
  */
-export class UpdatePresenceRequest extends Message<UpdatePresenceRequest> {
+export class SetPresenceRequest extends Message<SetPresenceRequest> {
   /**
    * Live status to store for the authenticated user. Offline is rejected.
    *
@@ -82,41 +82,41 @@ export class UpdatePresenceRequest extends Message<UpdatePresenceRequest> {
    */
   userSelected = false;
 
-  constructor(data?: PartialMessage<UpdatePresenceRequest>) {
+  constructor(data?: PartialMessage<SetPresenceRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdatePresenceRequest";
+  static readonly typeName = "chatto.api.v1.SetPresenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 2, name: "user_selected", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePresenceRequest {
-    return new UpdatePresenceRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPresenceRequest {
+    return new SetPresenceRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePresenceRequest {
-    return new UpdatePresenceRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPresenceRequest {
+    return new SetPresenceRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePresenceRequest {
-    return new UpdatePresenceRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPresenceRequest {
+    return new SetPresenceRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdatePresenceRequest | PlainMessage<UpdatePresenceRequest> | undefined, b: UpdatePresenceRequest | PlainMessage<UpdatePresenceRequest> | undefined): boolean {
-    return proto3.util.equals(UpdatePresenceRequest, a, b);
+  static equals(a: SetPresenceRequest | PlainMessage<SetPresenceRequest> | undefined, b: SetPresenceRequest | PlainMessage<SetPresenceRequest> | undefined): boolean {
+    return proto3.util.equals(SetPresenceRequest, a, b);
   }
 }
 
 /**
  * Result of updating live presence.
  *
- * @generated from message chatto.api.v1.UpdatePresenceResponse
+ * @generated from message chatto.api.v1.SetPresenceResponse
  */
-export class UpdatePresenceResponse extends Message<UpdatePresenceResponse> {
+export class SetPresenceResponse extends Message<SetPresenceResponse> {
   /**
    * Reportable status accepted and stored by the server.
    *
@@ -124,30 +124,30 @@ export class UpdatePresenceResponse extends Message<UpdatePresenceResponse> {
    */
   status = PresenceStatus.UNSPECIFIED;
 
-  constructor(data?: PartialMessage<UpdatePresenceResponse>) {
+  constructor(data?: PartialMessage<SetPresenceResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdatePresenceResponse";
+  static readonly typeName = "chatto.api.v1.SetPresenceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePresenceResponse {
-    return new UpdatePresenceResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPresenceResponse {
+    return new SetPresenceResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePresenceResponse {
-    return new UpdatePresenceResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPresenceResponse {
+    return new SetPresenceResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePresenceResponse {
-    return new UpdatePresenceResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPresenceResponse {
+    return new SetPresenceResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdatePresenceResponse | PlainMessage<UpdatePresenceResponse> | undefined, b: UpdatePresenceResponse | PlainMessage<UpdatePresenceResponse> | undefined): boolean {
-    return proto3.util.equals(UpdatePresenceResponse, a, b);
+  static equals(a: SetPresenceResponse | PlainMessage<SetPresenceResponse> | undefined, b: SetPresenceResponse | PlainMessage<SetPresenceResponse> | undefined): boolean {
+    return proto3.util.equals(SetPresenceResponse, a, b);
   }
 }

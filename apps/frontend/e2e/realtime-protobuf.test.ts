@@ -367,7 +367,7 @@ test.describe('protobuf realtime stream', () => {
         });
 
       let dmSenderDisplayName = '';
-      await connectPost(page, 'chatto.api.v1.MyAccountService/UpdatePresence', {
+      await connectPost(page, 'chatto.api.v1.MyAccountService/SetPresence', {
         status: 'PRESENCE_STATUS_DO_NOT_DISTURB',
         userSelected: true
       });

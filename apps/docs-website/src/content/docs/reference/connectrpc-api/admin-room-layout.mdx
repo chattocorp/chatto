@@ -173,6 +173,7 @@ Request to update a room group.
 | `group_id` | `string` | Required room group ID. |
 | `name` | `optional string` | New group display name, when changing it. |
 | `description` | `optional string` | New public group description, when changing it. Empty clears the description. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateRoomGroupResponse"></a>
@@ -445,6 +446,7 @@ Request to update a sidebar link.
 | `link_id` | `string` | Required sidebar link ID. |
 | `label` | `optional string` | New display label, when changing it. |
 | `url` | `optional string` | New absolute http(s) URL or server-local path, when changing it. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: label, url. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateSidebarLinkResponse"></a>

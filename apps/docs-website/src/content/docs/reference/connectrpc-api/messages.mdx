@@ -118,15 +118,16 @@ POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
 
 #### Input: UpdateMessageRequest
 
-Request to patch a message. Omitted fields stay unchanged. At least one
-editable field must be present; an empty patch is INVALID_ARGUMENT.
+Request to patch a message. update_mask selects fields to apply or reset.
+Fields outside the mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `optional string` | New message body text. Omit to preserve the current body. |
-| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+| `body` | `optional string` | New message body text. Select body in update_mask to change it. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Select also_send_to_channel in update_mask to change it. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: body, also_send_to_channel. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateMessageResponse"></a>

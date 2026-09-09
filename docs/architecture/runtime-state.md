@@ -134,7 +134,7 @@ so NATS emits delete markers on expiry. A single per-process **PresenceHub**
 watches `presence.>`, retains the current snapshot for bulk API response
 hydration, and emits `PresenceChanged` only when a user's status changes.
 Singular mutation responses still read KV directly when they require
-read-your-writes. Clients refresh through `MyAccountService.UpdatePresence`;
+read-your-writes. Clients refresh through `MyAccountService.SetPresence`;
 disconnect and "look offline" stop refreshing instead of writing `OFFLINE`.
 
 Ephemeral `lease.{name}` records coordinate singleton background work and

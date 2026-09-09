@@ -219,8 +219,9 @@ Request to update a user's identity as a server-admin action.
 | Field | Type | Description |
 | --- | --- | --- |
 | `user_id` | `string` | Target user ID. |
-| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateUserResponse"></a>
@@ -235,21 +236,21 @@ Result of an admin user update.
 | `member` | [`AdminMember`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminMember) | Updated admin member row. |
 
 
-<a id="chatto-admin-v1-AdminUserService-UpdateUserPassword"></a>
+<a id="chatto-admin-v1-AdminUserService-ChangeUserPassword"></a>
 
-### UpdateUserPassword
+### ChangeUserPassword
 
 Updates another user's password as an admin action. Requires
 user.manage-accounts and a fresh credential for the caller; the caller
 cannot target their own account.
 
 ```http
-POST /api/connect/chatto.admin.v1.AdminUserService/UpdateUserPassword
+POST /api/connect/chatto.admin.v1.AdminUserService/ChangeUserPassword
 ```
 
-<a id="chatto-admin-v1-UpdateUserPasswordRequest"></a>
+<a id="chatto-admin-v1-ChangeUserPasswordRequest"></a>
 
-#### Input: UpdateUserPasswordRequest
+#### Input: ChangeUserPasswordRequest
 
 Request to update a user's password as a server-admin action.
 
@@ -259,9 +260,9 @@ Request to update a user's password as a server-admin action.
 | `password` | `string` | New password. The server applies the same password policy as registration and password reset. |
 
 
-<a id="chatto-admin-v1-UpdateUserPasswordResponse"></a>
+<a id="chatto-admin-v1-ChangeUserPasswordResponse"></a>
 
-#### Result: UpdateUserPasswordResponse
+#### Result: ChangeUserPasswordResponse
 
 Result of an admin password update.
 

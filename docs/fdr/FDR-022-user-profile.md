@@ -9,8 +9,17 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Behavior
 
-`MyAccountService.UpdateProfile` and `UpdateSettings` use patches: omitted
-fields stay unchanged, and an empty patch returns `INVALID_ARGUMENT`.
+`MyAccountService.UpdateProfile` and `UpdateSettings` use update masks as defined
+in [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md). Unselected fields
+stay unchanged. A selected field without a value resets to its default or
+absence: bio and timezone can be cleared, but login and display name must be
+non-empty. An omitted mask selects populated fields; an explicit empty mask is
+invalid. The bundled client sends explicit masks.
+
+Self-service profile edits validate all selected fields before writing them.
+The profile facts and any login cooldown fact commit in one atomic batch. A
+failed login change cannot leave a new display name or bio behind. A conflict
+at append returns to the caller instead of replaying the batch.
 `SetCustomStatus` replaces the complete status. Emoji and text are required;
 omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
@@ -40,7 +49,7 @@ omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 ### 2. Login uniqueness is enforced with projection catch-up and OCC
 
-**Decision:** Login changes wait for the user projection to catch up, check its derived normalised login-digest index, and append the encrypted login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection. Projection apply decrypts the login transiently to update the digest index; user reads decrypt it again only while hydrating the response.
+**Decision:** Login changes wait for the user projection to catch up, check its derived normalised login-digest index, and append the encrypted login-change event with optimistic concurrency over the user subject family. Self-service profile updates return an append conflict to the caller; existing admin commands can retry against the updated projection. Projection apply decrypts the login transiently to update the digest index; user reads decrypt it again only while hydrating the response.
 **Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
 **Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 

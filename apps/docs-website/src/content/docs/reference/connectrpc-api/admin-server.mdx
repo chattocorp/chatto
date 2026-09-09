@@ -74,6 +74,7 @@ Request to update runtime-editable server profile settings.
 | `description` | `optional string` | Optional short server description for OG link-preview metadata. Set to empty string to clear. |
 | `motd` | `optional string` | Optional message of the day for the header. Set to empty string to clear. |
 | `welcome_message` | `optional string` | Optional welcome message shown on the login page. Set to empty string to clear. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: server_name, description, motd, welcome_message. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateServerConfigResponse"></a>
@@ -256,7 +257,8 @@ Request to update the server blocked-username list.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `blocked_usernames` | `repeated string` | Blocked usernames. Empty entries are ignored and entries are normalized by the server. |
+| `blocked_usernames` | `repeated string` | Complete replacement list. Select blocked_usernames in update_mask and omit this field or send [] to clear the list. Empty entries are ignored and entries are normalized by the server. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: blocked_usernames. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateBlockedUsernamesResponse"></a>
@@ -385,6 +387,7 @@ Request to change one advertised server origin.
 | `neighbor_id` | `string` | No field description provided. |
 | `origin` | `string` | No field description provided. |
 | `revision` | `string` | No field description provided. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: origin. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateNeighborResponse"></a>

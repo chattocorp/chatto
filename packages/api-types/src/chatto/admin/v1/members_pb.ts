@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "../../api/v1/users_pb.js";
 import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 import { Role } from "../../api/v1/roles_pb.js";
@@ -657,8 +657,8 @@ export class UpdateUserRequest extends Message<UpdateUserRequest> {
   userId = "";
 
   /**
-   * New display name, when changing it. Empty clears the explicit display
-   * name. The server also rejects control and confusing invisible characters.
+   * New non-empty display name. The server also rejects control and
+   * confusing invisible characters.
    *
    * @generated from field: optional string display_name = 2;
    */
@@ -672,6 +672,16 @@ export class UpdateUserRequest extends Message<UpdateUserRequest> {
    */
   login?: string;
 
+  /**
+   * Editable fields to apply or reset: display_name, login.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 4;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateUserRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -683,6 +693,7 @@ export class UpdateUserRequest extends Message<UpdateUserRequest> {
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserRequest {
@@ -754,9 +765,9 @@ export class UpdateUserResponse extends Message<UpdateUserResponse> {
 /**
  * Request to update a user's password as a server-admin action.
  *
- * @generated from message chatto.admin.v1.UpdateUserPasswordRequest
+ * @generated from message chatto.admin.v1.ChangeUserPasswordRequest
  */
-export class UpdateUserPasswordRequest extends Message<UpdateUserPasswordRequest> {
+export class ChangeUserPasswordRequest extends Message<ChangeUserPasswordRequest> {
   /**
    * Target user ID.
    *
@@ -772,41 +783,41 @@ export class UpdateUserPasswordRequest extends Message<UpdateUserPasswordRequest
    */
   password = "";
 
-  constructor(data?: PartialMessage<UpdateUserPasswordRequest>) {
+  constructor(data?: PartialMessage<ChangeUserPasswordRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.UpdateUserPasswordRequest";
+  static readonly typeName = "chatto.admin.v1.ChangeUserPasswordRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserPasswordRequest {
-    return new UpdateUserPasswordRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChangeUserPasswordRequest {
+    return new ChangeUserPasswordRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserPasswordRequest {
-    return new UpdateUserPasswordRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChangeUserPasswordRequest {
+    return new ChangeUserPasswordRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserPasswordRequest {
-    return new UpdateUserPasswordRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChangeUserPasswordRequest {
+    return new ChangeUserPasswordRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdateUserPasswordRequest | PlainMessage<UpdateUserPasswordRequest> | undefined, b: UpdateUserPasswordRequest | PlainMessage<UpdateUserPasswordRequest> | undefined): boolean {
-    return proto3.util.equals(UpdateUserPasswordRequest, a, b);
+  static equals(a: ChangeUserPasswordRequest | PlainMessage<ChangeUserPasswordRequest> | undefined, b: ChangeUserPasswordRequest | PlainMessage<ChangeUserPasswordRequest> | undefined): boolean {
+    return proto3.util.equals(ChangeUserPasswordRequest, a, b);
   }
 }
 
 /**
  * Result of an admin password update.
  *
- * @generated from message chatto.admin.v1.UpdateUserPasswordResponse
+ * @generated from message chatto.admin.v1.ChangeUserPasswordResponse
  */
-export class UpdateUserPasswordResponse extends Message<UpdateUserPasswordResponse> {
+export class ChangeUserPasswordResponse extends Message<ChangeUserPasswordResponse> {
   /**
    * Updated admin member row.
    *
@@ -814,31 +825,31 @@ export class UpdateUserPasswordResponse extends Message<UpdateUserPasswordRespon
    */
   member?: AdminMember;
 
-  constructor(data?: PartialMessage<UpdateUserPasswordResponse>) {
+  constructor(data?: PartialMessage<ChangeUserPasswordResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.UpdateUserPasswordResponse";
+  static readonly typeName = "chatto.admin.v1.ChangeUserPasswordResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "member", kind: "message", T: AdminMember },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateUserPasswordResponse {
-    return new UpdateUserPasswordResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChangeUserPasswordResponse {
+    return new ChangeUserPasswordResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateUserPasswordResponse {
-    return new UpdateUserPasswordResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChangeUserPasswordResponse {
+    return new ChangeUserPasswordResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateUserPasswordResponse {
-    return new UpdateUserPasswordResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChangeUserPasswordResponse {
+    return new ChangeUserPasswordResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdateUserPasswordResponse | PlainMessage<UpdateUserPasswordResponse> | undefined, b: UpdateUserPasswordResponse | PlainMessage<UpdateUserPasswordResponse> | undefined): boolean {
-    return proto3.util.equals(UpdateUserPasswordResponse, a, b);
+  static equals(a: ChangeUserPasswordResponse | PlainMessage<ChangeUserPasswordResponse> | undefined, b: ChangeUserPasswordResponse | PlainMessage<ChangeUserPasswordResponse> | undefined): boolean {
+    return proto3.util.equals(ChangeUserPasswordResponse, a, b);
   }
 }
 

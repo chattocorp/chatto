@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { ServerPublicProfile } from "../../api/v1/server_pb.js";
 import { ImageUpload } from "../../api/v1/common_pb.js";
 
@@ -191,6 +191,16 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
    */
   welcomeMessage?: string;
 
+  /**
+   * Editable fields to apply or reset: server_name, description, motd, welcome_message.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 5;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateServerConfigRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -203,6 +213,7 @@ export class UpdateServerConfigRequest extends Message<UpdateServerConfigRequest
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "motd", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "welcome_message", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateServerConfigRequest {
@@ -665,12 +676,23 @@ export class GetServerSecurityConfigResponse extends Message<GetServerSecurityCo
  */
 export class UpdateBlockedUsernamesRequest extends Message<UpdateBlockedUsernamesRequest> {
   /**
-   * Blocked usernames. Empty entries are ignored and entries are normalized by
-   * the server.
+   * Complete replacement list. Select blocked_usernames in update_mask and
+   * omit this field or send [] to clear the list. Empty entries are ignored
+   * and entries are normalized by the server.
    *
    * @generated from field: repeated string blocked_usernames = 1;
    */
   blockedUsernames: string[] = [];
+
+  /**
+   * Editable fields to apply or reset: blocked_usernames.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 2;
+   */
+  updateMask?: FieldMask;
 
   constructor(data?: PartialMessage<UpdateBlockedUsernamesRequest>) {
     super();
@@ -681,6 +703,7 @@ export class UpdateBlockedUsernamesRequest extends Message<UpdateBlockedUsername
   static readonly typeName = "chatto.admin.v1.UpdateBlockedUsernamesRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "blocked_usernames", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateBlockedUsernamesRequest {
@@ -1047,6 +1070,16 @@ export class UpdateNeighborRequest extends Message<UpdateNeighborRequest> {
    */
   revision = "";
 
+  /**
+   * Editable fields to apply or reset: origin.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 5;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateNeighborRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1058,6 +1091,7 @@ export class UpdateNeighborRequest extends Message<UpdateNeighborRequest> {
     { no: 1, name: "neighbor_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "revision", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNeighborRequest {

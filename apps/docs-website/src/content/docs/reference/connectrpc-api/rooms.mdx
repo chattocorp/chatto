@@ -79,8 +79,8 @@ POST /api/connect/chatto.api.v1.RoomService/UpdateRoom
 #### Input: UpdateRoomRequest
 
 Request to update a room's editable metadata.
-Omitted fields stay unchanged. At least one editable field must be present;
-an empty patch is INVALID_ARGUMENT.
+update_mask selects editable fields to apply or reset. Fields outside the
+mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -90,6 +90,7 @@ an empty patch is INVALID_ARGUMENT.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -665,20 +666,20 @@ Result of unpinning a message.
 | `deleted` | `bool` | True when the message is not pinned after this call. |
 
 
-<a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
+<a id="chatto-api-v1-RoomService-RefreshTypingIndicator"></a>
 
-### UpdateTypingIndicator
+### RefreshTypingIndicator
 
 Refreshes the current user's live-only typing indicator for a room or
 thread. Room membership is required; message posting permission is not.
 
 ```http
-POST /api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator
+POST /api/connect/chatto.api.v1.RoomService/RefreshTypingIndicator
 ```
 
-<a id="chatto-api-v1-UpdateTypingIndicatorRequest"></a>
+<a id="chatto-api-v1-RefreshTypingIndicatorRequest"></a>
 
-#### Input: UpdateTypingIndicatorRequest
+#### Input: RefreshTypingIndicatorRequest
 
 Request to refresh the current user's live-only typing indicator.
 
@@ -688,9 +689,9 @@ Request to refresh the current user's live-only typing indicator.
 | `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
 
 
-<a id="chatto-api-v1-UpdateTypingIndicatorResponse"></a>
+<a id="chatto-api-v1-RefreshTypingIndicatorResponse"></a>
 
-#### Result: UpdateTypingIndicatorResponse
+#### Result: RefreshTypingIndicatorResponse
 
 Result of refreshing a typing indicator.
 

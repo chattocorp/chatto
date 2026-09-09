@@ -108,6 +108,10 @@ func (s *notificationPolicyService) UpdateNotificationPolicy(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 	scope, err := coreNotificationPolicyScope(req.Msg.GetScope())
 	if err != nil {
 		return nil, connectError(err)

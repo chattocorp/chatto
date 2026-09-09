@@ -176,17 +176,17 @@ POST /api/connect/chatto.api.v1.BotService/UpdateBotOutboundWebhook
 
 #### Input: UpdateBotOutboundWebhookRequest
 
-Patch delivery settings or pause/resume one endpoint. Omitted fields stay
-unchanged. At least one field must be present; an empty patch is
-INVALID_ARGUMENT. Name and signing secret stay fixed.
+Patch delivery settings or pause/resume one endpoint. update_mask selects
+fields to apply or reset. Name and signing secret stay fixed.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required managed bot ID. |
 | `webhook_id` | `string` | Required endpoint ID within this bot. |
-| `enabled` | `optional bool` | If omitted, the state is unchanged. Resume accepts only new messages. |
-| `url` | `optional string` | New destination. Omit to keep it. Changing settings cancels queued retries. |
-| `authorization` | `optional string` | New Authorization header. Omit to keep it; empty removes it. Never returned. |
+| `enabled` | `optional bool` | Selected enabled state. False pauses delivery; resume accepts only new messages. |
+| `url` | `optional string` | Selected new destination. Changing settings cancels queued retries. |
+| `authorization` | `optional string` | Selected Authorization header. Absent or empty removes it. Never returned. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: enabled, url, authorization. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateBotOutboundWebhookResponse"></a>

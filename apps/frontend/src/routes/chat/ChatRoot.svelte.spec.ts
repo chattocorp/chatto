@@ -45,7 +45,7 @@ const mocks = vi.hoisted(() => {
     stopPresenceTracking: vi.fn(),
     initSessionChannel: vi.fn(),
     stopSessionChannel: vi.fn(),
-    updatePresenceEntries: vi.fn(),
+    setPresenceEntries: vi.fn(),
     useProjectionEvent: vi.fn(),
     useSessionTerminated: vi.fn(),
     firstAuthenticatedServerId: vi.fn(() => 'remote'),
@@ -133,7 +133,7 @@ vi.mock('$lib/presenceTracking', () => ({
 }));
 
 vi.mock('$lib/state/presenceCache.svelte', () => ({
-  updateAuthenticatedCurrentUserPresenceEntries: mocks.updatePresenceEntries
+  updateAuthenticatedCurrentUserPresenceEntries: mocks.setPresenceEntries
 }));
 
 vi.mock('$lib/state/presencePreference.svelte', () => ({
@@ -281,7 +281,7 @@ describe('ChatRoot', () => {
     ).toEqual([{ serverId: 'origin' }, { serverId: 'remote' }]);
 
     applyPresenceStatus(PresenceStatus.AWAY);
-    expect(mocks.updatePresenceEntries).toHaveBeenLastCalledWith(
+    expect(mocks.setPresenceEntries).toHaveBeenLastCalledWith(
       presenceCache,
       [
         expect.objectContaining({ serverId: 'origin', isAuthenticated: true }),
@@ -343,7 +343,7 @@ describe('ChatRoot', () => {
     ).toEqual([{ serverId: 'remote' }]);
 
     applyPresenceStatus(PresenceStatus.AWAY);
-    expect(mocks.updatePresenceEntries).toHaveBeenLastCalledWith(
+    expect(mocks.setPresenceEntries).toHaveBeenLastCalledWith(
       presenceCache,
       [
         expect.objectContaining({ serverId: 'origin', isAuthenticated: false }),

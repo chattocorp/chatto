@@ -2284,8 +2284,9 @@ type NotificationPolicyServiceUpdateNotificationPolicyRequest struct {
 	// Sparse override values. Fields selected by update_mask but absent here are
 	// cleared to Inherit.
 	Overrides *NotificationDeliveryModes `protobuf:"bytes,2,opt,name=overrides,proto3" json:"overrides,omitempty"`
-	// Fields to set or clear, relative to overrides. The mask must contain at
-	// least one supported delivery-mode field.
+	// Fields to set or clear, relative to overrides. Omit to infer populated
+	// overrides; * selects all supported fields. An explicit empty mask is
+	// invalid. Unselected override values are ignored.
 	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

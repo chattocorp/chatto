@@ -78,11 +78,35 @@ or transport semantics are genuinely different. Prefer returning or embedding
 the canonical resource plus explicit related fields over creating multiple
 frontend-shaped flavors of the same resource.
 
-Request messages should make client intent explicit. `Update*` operations use
-patch semantics by default, with proto3 `optional` scalar fields or a field mask
-to distinguish "leave unchanged" from "set to default/empty". Full resource
-replacement should be named `Replace<Resource>` or have an explicit compatibility
-rationale. When one operation targets the same resource by multiple equivalent
+Request messages make client intent explicit. All public resource `Update*`
+operations use `google.protobuf.FieldMask update_mask` (standardized in 0.5 on
+2026-09-09). Paths select editable fields, relative to the resource values; IDs
+and concurrency tokens are not editable. Existing requests retain their flat
+value fields. Notification policy paths are relative to `overrides`.
+
+Fields outside the mask are ignored before field validation. A selected field
+with no value resets to its default or absence, subject to resource validation:
+a bio can be cleared, but a login cannot be empty. Selected lists are replaced,
+including by an empty list. Notification overrides reset to inheritance when
+selected without a value. An omitted mask selects populated fields, including
+explicit defaults in optional scalars. An explicit empty mask is invalid. `*`
+alone selects all editable fields. Unknown paths and unsupported nested paths
+are invalid. Clients should send explicit paths: inference cannot express all
+resets, and `*` also selects editable fields added in later releases.
+
+ProtoJSON encodes the mask as a comma-separated string of camelCase paths.
+For example, `{"updateMask":"bio","bio":null}` clears the bio. JSON `null`
+parses as an absent value; the mask supplies the reset intent. Binary and JSON
+clients use the same semantics. Domain commands retain authorization,
+validation, and concurrency checks; mask handling does not merge a stored
+resource into a replacement request.
+
+Commands use verbs that describe their behavior: `ChangePassword`,
+`ChangeUserPassword`, `SetPresence`, `RefreshTypingIndicator`, and
+`SetCustomStatus` do not use update masks. Full resource replacement should be
+named `Replace<Resource>` or have an explicit compatibility rationale.
+
+When one operation targets the same resource by multiple equivalent
 identifiers, the request should use a `oneof` target instead of parallel
 optional/string fields; separate RPCs are reserved for identifiers with
 different authorization, visibility, absence, response-shape, or performance

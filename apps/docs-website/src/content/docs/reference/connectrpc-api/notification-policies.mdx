@@ -108,7 +108,7 @@ Sparsely update notification policy overrides at one explicit scope.
 | --- | --- | --- |
 | `scope` | [`NotificationPolicyScope`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
 | `overrides` | [`NotificationDeliveryModes`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
-| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. Omit to infer populated overrides; * selects all supported fields. An explicit empty mask is invalid. Unselected override values are ignored. |
 
 
 <a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyResponse"></a>

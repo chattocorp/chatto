@@ -47,7 +47,7 @@ export function createOAuthClientAPI(config: OAuthClientAPIConfig) {
     },
     async updatePolicy(clientId: string, policy: EditableOAuthClientPolicyName) {
       const response = await client.updateOAuthClientPolicy(
-        { clientId, policy: apiPolicy(policy) },
+        { clientId, policy: apiPolicy(policy), updateMask: { paths: ['policy'] } },
         { headers: headers() }
       );
       if (!response.oauthClient) throw new Error('OAuth-client response was incomplete.');

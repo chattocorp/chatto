@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 const (
@@ -113,7 +114,39 @@ func normalizeBio(bio string) string {
 	return strings.TrimSpace(bio)
 }
 
+// UpdateOwnUserProfile applies one self-service identity patch as an atomic
+// batch. Omitted fields remain unchanged. Login changes retain the existing
+// cooldown and permission-based bypass. Conflicts are returned to the caller;
+// replacement values are never replayed after a concurrent profile edit.
+// Authorization: userID must identify the authenticated caller.
+func (c *ChattoCore) UpdateOwnUserProfile(ctx context.Context, userID string, login, displayName, bio *string) (*evtv1.User, error) {
+	if err := requireAuthenticatedActor(userID); err != nil {
+		return nil, err
+	}
+	if login == nil && displayName == nil && bio == nil {
+		return nil, ErrInvalidArgument
+	}
+	enforceCooldown := false
+	if login != nil {
+		if err := c.authorizeAtStableInputs(ctx, func() error {
+			canManage, err := c.CanManageUserAccounts(ctx, userID)
+			if err != nil {
+				return err
+			}
+			enforceCooldown = !canManage
+			return nil
+		}); err != nil {
+			return nil, err
+		}
+	}
+	return c.updateUserProfileWithCooldown(ctx, userID, userID, login, displayName, bio, false, enforceCooldown)
+}
+
 func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts bool) (*evtv1.User, error) {
+	return c.updateUserProfileWithCooldown(ctx, actorID, userID, login, displayName, bio, retryConflicts, false)
+}
+
+func (c *ChattoCore) updateUserProfileWithCooldown(ctx context.Context, actorID, userID string, login, displayName, bio *string, retryConflicts, enforceCooldown bool) (*evtv1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -143,6 +176,22 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 				return nil, ErrUsernameBlocked
 			}
 		}
+	}
+
+	checkCooldown := func() error {
+		if enforceCooldown && loginNeedsMentionCheck {
+			lastChange, err := c.GetLastLoginChange(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if !lastChange.IsZero() && time.Since(lastChange) < LoginChangeCooldown {
+				return ErrLoginChangeCooldown
+			}
+		}
+		return nil
+	}
+	if err := checkCooldown(); err != nil {
+		return nil, err
 	}
 
 	var nextDisplayName string
@@ -183,6 +232,13 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 		}
 		loginChangedEvent.GetUserLoginChanged().EncryptedLogin = encryptedLogin
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(loginChangedEvent), Event: loginChangedEvent})
+		if enforceCooldown && loginNeedsMentionCheck {
+			cooldown := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserLoginCooldownStarted{
+				UserLoginCooldownStarted: &evtv1.UserLoginCooldownStartedEvent{UserId: userID},
+			}})
+			cooldown.CreatedAt = loginChangedEvent.GetCreatedAt()
+			entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(cooldown), Event: cooldown})
+		}
 	}
 	if displayNameChanged {
 		displayNameChangedEvent := newEvent(actorID, &evtv1.Event{Event: &evtv1.Event_UserDisplayNameChanged{
@@ -214,8 +270,20 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	}
 
 	checkUserExists := func() error {
-		if _, err := c.GetUser(ctx, userID); err != nil {
+		if err := checkCooldown(); err != nil {
+			return err
+		}
+		current, err := c.GetUser(ctx, userID)
+		if err != nil {
 			return fmt.Errorf("user not found: %w", err)
+		}
+		// Batch construction can precede the append helper's OCC capture.
+		// Recheck selected source values after projection catch-up so a stale
+		// case-only rename cannot bypass a concurrent rename's cooldown.
+		if !retryConflicts && ((login != nil && current.GetLogin() != user.GetLogin()) ||
+			(displayName != nil && current.GetDisplayName() != user.GetDisplayName()) ||
+			(bio != nil && current.GetBio() != user.GetBio())) {
+			return events.ErrConflict
 		}
 		return nil
 	}

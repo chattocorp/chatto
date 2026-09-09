@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.admin.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/room_directory.proto";
 import "chatto/api/v1/rooms.proto";
@@ -126,6 +127,11 @@ message UpdateRoomGroupRequest {
   // New public group description, when changing it. Empty clears the
   // description.
   optional string description = 3 [(buf.validate.field).string.max_len = 500];
+  // Editable fields to apply or reset: name, description.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 4;
 }
 
 // Result of updating a room group.
@@ -262,6 +268,11 @@ message UpdateSidebarLinkRequest {
     min_len: 1
     max_len: 2048
   }];
+  // Editable fields to apply or reset: label, url.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 4;
 }
 
 // Result of updating a sidebar link.

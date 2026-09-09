@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/attachments.proto";
 import "chatto/api/v1/common.proto";
@@ -86,8 +87,8 @@ message CreateRoomResponse {
 }
 
 // Request to update a room's editable metadata.
-// Omitted fields stay unchanged. At least one editable field must be present;
-// an empty patch is INVALID_ARGUMENT.
+// update_mask selects editable fields to apply or reset. Fields outside the
+// mask stay unchanged.
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
@@ -110,6 +111,11 @@ message UpdateRoomRequest {
   // New threading policy. Direct-message rooms cannot set this field, and an
   // explicitly supplied UNSPECIFIED or unknown value is rejected.
   optional RoomThreadingMode threading_mode = 6;
+  // Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 7;
 }
 
 // Result of updating a room.
@@ -387,7 +393,7 @@ message DeletePinnedMessageResponse {
 }
 
 // Request to refresh the current user's live-only typing indicator.
-message UpdateTypingIndicatorRequest {
+message RefreshTypingIndicatorRequest {
   // Required. Room where the current user is typing.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Event ID of the thread root when typing inside a thread.
@@ -395,7 +401,7 @@ message UpdateTypingIndicatorRequest {
 }
 
 // Result of refreshing a typing indicator.
-message UpdateTypingIndicatorResponse {
+message RefreshTypingIndicatorResponse {
   // True when the typing indicator was accepted for publish.
   bool updated = 1;
 }
@@ -478,7 +484,7 @@ service RoomService {
   rpc DeletePinnedMessage(DeletePinnedMessageRequest) returns (DeletePinnedMessageResponse);
   // Refreshes the current user's live-only typing indicator for a room or
   // thread. Room membership is required; message posting permission is not.
-  rpc UpdateTypingIndicator(UpdateTypingIndicatorRequest) returns (UpdateTypingIndicatorResponse);
+  rpc RefreshTypingIndicator(RefreshTypingIndicatorRequest) returns (RefreshTypingIndicatorResponse);
   // Returns one page of room timeline events, including related user data
   // needed to render the page. Room membership is required. Reads also require
   // message.read or message.read-interactions. The server returns only related

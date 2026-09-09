@@ -62,6 +62,10 @@ func (s *adminOAuthClientService) UpdateOAuthClientPolicy(ctx context.Context, r
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 	policy, err := coreOAuthClientPolicy(req.Msg.GetPolicy())
 	if err != nil {
 		return nil, connectError(err)

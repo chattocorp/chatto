@@ -88,7 +88,7 @@ func (PresenceStatus) EnumDescriptor() ([]byte, []int) {
 }
 
 // Request to update the current user's live presence status.
-type UpdatePresenceRequest struct {
+type SetPresenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Live status to store for the authenticated user. Offline is rejected.
 	Status PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
@@ -100,20 +100,20 @@ type UpdatePresenceRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UpdatePresenceRequest) Reset() {
-	*x = UpdatePresenceRequest{}
+func (x *SetPresenceRequest) Reset() {
+	*x = SetPresenceRequest{}
 	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdatePresenceRequest) String() string {
+func (x *SetPresenceRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdatePresenceRequest) ProtoMessage() {}
+func (*SetPresenceRequest) ProtoMessage() {}
 
-func (x *UpdatePresenceRequest) ProtoReflect() protoreflect.Message {
+func (x *SetPresenceRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_presence_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -125,19 +125,19 @@ func (x *UpdatePresenceRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdatePresenceRequest.ProtoReflect.Descriptor instead.
-func (*UpdatePresenceRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetPresenceRequest.ProtoReflect.Descriptor instead.
+func (*SetPresenceRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *UpdatePresenceRequest) GetStatus() PresenceStatus {
+func (x *SetPresenceRequest) GetStatus() PresenceStatus {
 	if x != nil {
 		return x.Status
 	}
 	return PresenceStatus_PRESENCE_STATUS_UNSPECIFIED
 }
 
-func (x *UpdatePresenceRequest) GetUserSelected() bool {
+func (x *SetPresenceRequest) GetUserSelected() bool {
 	if x != nil {
 		return x.UserSelected
 	}
@@ -145,7 +145,7 @@ func (x *UpdatePresenceRequest) GetUserSelected() bool {
 }
 
 // Result of updating live presence.
-type UpdatePresenceResponse struct {
+type SetPresenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Reportable status accepted and stored by the server.
 	Status        PresenceStatus `protobuf:"varint,1,opt,name=status,proto3,enum=chatto.api.v1.PresenceStatus" json:"status,omitempty"`
@@ -153,20 +153,20 @@ type UpdatePresenceResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UpdatePresenceResponse) Reset() {
-	*x = UpdatePresenceResponse{}
+func (x *SetPresenceResponse) Reset() {
+	*x = SetPresenceResponse{}
 	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UpdatePresenceResponse) String() string {
+func (x *SetPresenceResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UpdatePresenceResponse) ProtoMessage() {}
+func (*SetPresenceResponse) ProtoMessage() {}
 
-func (x *UpdatePresenceResponse) ProtoReflect() protoreflect.Message {
+func (x *SetPresenceResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_presence_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -178,12 +178,12 @@ func (x *UpdatePresenceResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UpdatePresenceResponse.ProtoReflect.Descriptor instead.
-func (*UpdatePresenceResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use SetPresenceResponse.ProtoReflect.Descriptor instead.
+func (*SetPresenceResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_presence_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *UpdatePresenceResponse) GetStatus() PresenceStatus {
+func (x *SetPresenceResponse) GetStatus() PresenceStatus {
 	if x != nil {
 		return x.Status
 	}
@@ -194,11 +194,11 @@ var File_chatto_api_v1_presence_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_presence_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"\x81\x01\n" +
-	"\x15UpdatePresenceRequest\x12C\n" +
+	"\x1cchatto/api/v1/presence.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"~\n" +
+	"\x12SetPresenceRequest\x12C\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusB\f\xbaH\t\x82\x01\x06\x10\x01 \x00 \x04R\x06status\x12#\n" +
-	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"O\n" +
-	"\x16UpdatePresenceResponse\x125\n" +
+	"\ruser_selected\x18\x02 \x01(\bR\fuserSelected\"L\n" +
+	"\x13SetPresenceResponse\x125\n" +
 	"\x06status\x18\x01 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x06status*\xa8\x01\n" +
 	"\x0ePresenceStatus\x12\x1f\n" +
 	"\x1bPRESENCE_STATUS_UNSPECIFIED\x10\x00\x12\x1a\n" +
@@ -223,13 +223,13 @@ func file_chatto_api_v1_presence_proto_rawDescGZIP() []byte {
 var file_chatto_api_v1_presence_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_chatto_api_v1_presence_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_presence_proto_goTypes = []any{
-	(PresenceStatus)(0),            // 0: chatto.api.v1.PresenceStatus
-	(*UpdatePresenceRequest)(nil),  // 1: chatto.api.v1.UpdatePresenceRequest
-	(*UpdatePresenceResponse)(nil), // 2: chatto.api.v1.UpdatePresenceResponse
+	(PresenceStatus)(0),         // 0: chatto.api.v1.PresenceStatus
+	(*SetPresenceRequest)(nil),  // 1: chatto.api.v1.SetPresenceRequest
+	(*SetPresenceResponse)(nil), // 2: chatto.api.v1.SetPresenceResponse
 }
 var file_chatto_api_v1_presence_proto_depIdxs = []int32{
-	0, // 0: chatto.api.v1.UpdatePresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
-	0, // 1: chatto.api.v1.UpdatePresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
+	0, // 0: chatto.api.v1.SetPresenceRequest.status:type_name -> chatto.api.v1.PresenceStatus
+	0, // 1: chatto.api.v1.SetPresenceResponse.status:type_name -> chatto.api.v1.PresenceStatus
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name

@@ -36,7 +36,7 @@
       ? m('common.validation.passwords_match')
       : undefined
   );
-  const canUpdatePassword = $derived(
+  const canChangePassword = $derived(
     password !== '' &&
       confirmPassword !== '' &&
       (!hasPassword || currentPassword !== '') &&
@@ -46,9 +46,9 @@
       !passwordSubmitting
   );
 
-  async function handleUpdatePassword(e: Event) {
+  async function handleChangePassword(e: Event) {
     e.preventDefault();
-    if (!canUpdatePassword) {
+    if (!canChangePassword) {
       passwordError =
         passwordValidationError ||
         currentPasswordError ||
@@ -61,7 +61,7 @@
     passwordSubmitting = true;
     passwordError = '';
     try {
-      await getAccountAPI().updatePassword({
+      await getAccountAPI().changePassword({
         password,
         currentPassword: wasChangingPassword ? currentPassword : undefined
       });
@@ -92,7 +92,7 @@
 </script>
 
 <Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
-  <form class="flex max-w-md flex-col gap-4" onsubmit={handleUpdatePassword}>
+  <form class="flex max-w-md flex-col gap-4" onsubmit={handleChangePassword}>
     <p class="text-sm text-muted">
       {hasPassword
         ? m('settings.account.password.change_description')
@@ -137,7 +137,7 @@
         type="submit"
         loading={passwordSubmitting}
         loadingText={m('settings.account.password.saving')}
-        disabled={!canUpdatePassword}
+        disabled={!canChangePassword}
       >
         <span class="iconify icon-[mdi--key-plus]"></span>
         {hasPassword

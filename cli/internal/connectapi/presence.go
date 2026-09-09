@@ -9,7 +9,7 @@ import (
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-func (s *accountService) UpdatePresence(ctx context.Context, req *connect.Request[apiv1.UpdatePresenceRequest]) (*connect.Response[apiv1.UpdatePresenceResponse], error) {
+func (s *accountService) SetPresence(ctx context.Context, req *connect.Request[apiv1.SetPresenceRequest]) (*connect.Response[apiv1.SetPresenceResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (s *accountService) UpdatePresence(ctx context.Context, req *connect.Reques
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdatePresenceResponse{
+	return connect.NewResponse(&apiv1.SetPresenceResponse{
 		Status: corePresenceStatusToAPI(storedStatus),
 	}), nil
 }

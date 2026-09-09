@@ -315,7 +315,8 @@ describe('getAuthenticatedServerState', () => {
         serverName: 'Connect Server',
         description: 'Connect description',
         motd: 'Connect MOTD',
-        welcomeMessage: 'Connect welcome'
+        welcomeMessage: 'Connect welcome',
+        updateMask: { paths: ['server_name', 'description', 'motd', 'welcome_message'] }
       },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -458,7 +459,10 @@ describe('getAuthenticatedServerState', () => {
       { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(mocks.updateBlockedUsernames).toHaveBeenCalledWith(
-      { blockedUsernames: ['root', 'admin', 'reserved'] },
+      {
+        blockedUsernames: ['root', 'admin', 'reserved'],
+        updateMask: { paths: ['blocked_usernames'] }
+      },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

@@ -65,6 +65,10 @@ func (s *messageService) UpdateMessage(ctx context.Context, req *connect.Request
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 
 	event, kind, err := s.api.core.Messages().UpdateMessage(ctx, core.MessageUpdateInput{
 		ActorID:           caller.UserID,

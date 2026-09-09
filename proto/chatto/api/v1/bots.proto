@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
@@ -307,20 +308,24 @@ message CreateBotOutboundWebhookResponse {
   // Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests.
   string signing_secret = 2;
 }
-// Patch delivery settings or pause/resume one endpoint. Omitted fields stay
-// unchanged. At least one field must be present; an empty patch is
-// INVALID_ARGUMENT. Name and signing secret stay fixed.
+// Patch delivery settings or pause/resume one endpoint. update_mask selects
+// fields to apply or reset. Name and signing secret stay fixed.
 message UpdateBotOutboundWebhookRequest {
   // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
   // Required endpoint ID within this bot.
   string webhook_id = 2 [(buf.validate.field).string.min_len = 1];
-  // If omitted, the state is unchanged. Resume accepts only new messages.
+  // Selected enabled state. False pauses delivery; resume accepts only new messages.
   optional bool enabled = 3;
-  // New destination. Omit to keep it. Changing settings cancels queued retries.
+  // Selected new destination. Changing settings cancels queued retries.
   optional string url = 4 [(buf.validate.field).string = {min_len: 1, max_len: 4096}];
-  // New Authorization header. Omit to keep it; empty removes it. Never returned.
+  // Selected Authorization header. Absent or empty removes it. Never returned.
   optional string authorization = 5 [(buf.validate.field).string.max_len = 4096];
+  // Editable fields to apply or reset: enabled, url, authorization.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 6;
 }
 // Endpoint state after the update.
 message UpdateBotOutboundWebhookResponse {

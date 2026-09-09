@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
@@ -201,8 +202,13 @@ type UpdateServerConfigRequest struct {
 	// Optional welcome message shown on the login page. Set to empty string to
 	// clear.
 	WelcomeMessage *string `protobuf:"bytes,4,opt,name=welcome_message,json=welcomeMessage,proto3,oneof" json:"welcome_message,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Editable fields to apply or reset: server_name, description, motd, welcome_message.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateServerConfigRequest) Reset() {
@@ -261,6 +267,13 @@ func (x *UpdateServerConfigRequest) GetWelcomeMessage() string {
 		return *x.WelcomeMessage
 	}
 	return ""
+}
+
+func (x *UpdateServerConfigRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Result of updating runtime-editable server profile settings.
@@ -755,11 +768,17 @@ func (x *GetServerSecurityConfigResponse) GetBlockedUsernames() []string {
 // Request to update the server blocked-username list.
 type UpdateBlockedUsernamesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Blocked usernames. Empty entries are ignored and entries are normalized by
-	// the server.
+	// Complete replacement list. Select blocked_usernames in update_mask and
+	// omit this field or send [] to clear the list. Empty entries are ignored
+	// and entries are normalized by the server.
 	BlockedUsernames []string `protobuf:"bytes,1,rep,name=blocked_usernames,json=blockedUsernames,proto3" json:"blocked_usernames,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Editable fields to apply or reset: blocked_usernames.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,2,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateBlockedUsernamesRequest) Reset() {
@@ -795,6 +814,13 @@ func (*UpdateBlockedUsernamesRequest) Descriptor() ([]byte, []int) {
 func (x *UpdateBlockedUsernamesRequest) GetBlockedUsernames() []string {
 	if x != nil {
 		return x.BlockedUsernames
+	}
+	return nil
+}
+
+func (x *UpdateBlockedUsernamesRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
 	}
 	return nil
 }
@@ -1173,10 +1199,15 @@ func (x *CreateNeighborResponse) GetNeighbor() *Neighbor {
 
 // Request to change one advertised server origin.
 type UpdateNeighborRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	NeighborId    string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
-	Origin        string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
-	Revision      string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	NeighborId string                 `protobuf:"bytes,1,opt,name=neighbor_id,json=neighborId,proto3" json:"neighbor_id,omitempty"`
+	Origin     string                 `protobuf:"bytes,2,opt,name=origin,proto3" json:"origin,omitempty"`
+	Revision   string                 `protobuf:"bytes,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// Editable fields to apply or reset: origin.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1230,6 +1261,13 @@ func (x *UpdateNeighborRequest) GetRevision() string {
 		return x.Revision
 	}
 	return ""
+}
+
+func (x *UpdateNeighborRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Updated Neighbor.
@@ -1371,7 +1409,7 @@ var File_chatto_admin_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a\x1achatto/api/v1/server.proto\"\x8e\x01\n" +
+	"\x1cchatto/admin/v1/server.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1achatto/api/v1/common.proto\x1a\x1achatto/api/v1/server.proto\"\x8e\x01\n" +
 	"\fServerConfig\x12\x1f\n" +
 	"\vserver_name\x18\x01 \x01(\tR\n" +
 	"serverName\x12 \n" +
@@ -1381,13 +1419,15 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x16GetServerConfigRequest\"\xaa\x01\n" +
 	"\x17GetServerConfigResponse\x125\n" +
 	"\x06config\x18\x01 \x01(\v2\x1d.chatto.admin.v1.ServerConfigR\x06config\x12I\n" +
-	"\x0epublic_profile\x18\x03 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x02\x10\x03R\aprofile\"\x93\x02\n" +
+	"\x0epublic_profile\x18\x03 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x02\x10\x03R\aprofile\"\xd0\x02\n" +
 	"\x19UpdateServerConfigRequest\x12-\n" +
 	"\vserver_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18PH\x00R\n" +
 	"serverName\x88\x01\x01\x12/\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01\x12!\n" +
 	"\x04motd\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aH\x02R\x04motd\x88\x01\x01\x126\n" +
-	"\x0fwelcome_message\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x03R\x0ewelcomeMessage\x88\x01\x01B\x0e\n" +
+	"\x0fwelcome_message\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x03R\x0ewelcomeMessage\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x05 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\x0e\n" +
 	"\f_server_nameB\x0e\n" +
 	"\f_descriptionB\a\n" +
 	"\x05_motdB\x12\n" +
@@ -1411,9 +1451,11 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x0epublic_profile\x18\x02 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\rpublicProfileJ\x04\b\x01\x10\x02R\aprofile\" \n" +
 	"\x1eGetServerSecurityConfigRequest\"N\n" +
 	"\x1fGetServerSecurityConfigResponse\x12+\n" +
-	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"W\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"\x94\x01\n" +
 	"\x1dUpdateBlockedUsernamesRequest\x126\n" +
-	"\x11blocked_usernames\x18\x01 \x03(\tB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x10blockedUsernames\"M\n" +
+	"\x11blocked_usernames\x18\x01 \x03(\tB\t\xbaH\x06\x92\x01\x03\x10\xe8\aR\x10blockedUsernames\x12;\n" +
+	"\vupdate_mask\x18\x02 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMask\"M\n" +
 	"\x1eUpdateBlockedUsernamesResponse\x12+\n" +
 	"\x11blocked_usernames\x18\x01 \x03(\tR\x10blockedUsernames\"a\n" +
 	"\bNeighbor\x12\x0e\n" +
@@ -1432,13 +1474,15 @@ const file_chatto_admin_v1_server_proto_rawDesc = "" +
 	"\x06origin\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06originJ\x04\b\x02\x10\x03R\vtestimonial\"O\n" +
 	"\x16CreateNeighborResponse\x125\n" +
-	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"\xa1\x01\n" +
+	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"\xde\x01\n" +
 	"\x15UpdateNeighborRequest\x12*\n" +
 	"\vneighbor_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\n" +
 	"neighborId\x12\"\n" +
 	"\x06origin\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x06origin\x12%\n" +
-	"\brevision\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevisionJ\x04\b\x04\x10\x05R\vtestimonial\"O\n" +
+	"\brevision\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\brevision\x12;\n" +
+	"\vupdate_mask\x18\x05 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskJ\x04\b\x04\x10\x05R\vtestimonial\"O\n" +
 	"\x16UpdateNeighborResponse\x125\n" +
 	"\bneighbor\x18\x01 \x01(\v2\x19.chatto.admin.v1.NeighborR\bneighbor\"j\n" +
 	"\x15DeleteNeighborRequest\x12*\n" +
@@ -1506,54 +1550,58 @@ var file_chatto_admin_v1_server_proto_goTypes = []any{
 	(*DeleteNeighborRequest)(nil),           // 26: chatto.admin.v1.DeleteNeighborRequest
 	(*DeleteNeighborResponse)(nil),          // 27: chatto.admin.v1.DeleteNeighborResponse
 	(*v1.ServerPublicProfile)(nil),          // 28: chatto.api.v1.ServerPublicProfile
-	(*v1.ImageUpload)(nil),                  // 29: chatto.api.v1.ImageUpload
+	(*fieldmaskpb.FieldMask)(nil),           // 29: google.protobuf.FieldMask
+	(*v1.ImageUpload)(nil),                  // 30: chatto.api.v1.ImageUpload
 }
 var file_chatto_admin_v1_server_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.GetServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
 	28, // 1: chatto.admin.v1.GetServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	28, // 2: chatto.admin.v1.UpdateServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	0,  // 3: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
-	29, // 4: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
-	28, // 5: chatto.admin.v1.UploadServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	28, // 6: chatto.admin.v1.DeleteServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	29, // 7: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
-	28, // 8: chatto.admin.v1.UploadServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	28, // 9: chatto.admin.v1.DeleteServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
-	17, // 10: chatto.admin.v1.ListNeighborsResponse.neighbors:type_name -> chatto.admin.v1.Neighbor
-	17, // 11: chatto.admin.v1.GetNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
-	17, // 12: chatto.admin.v1.CreateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
-	17, // 13: chatto.admin.v1.UpdateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
-	1,  // 14: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
-	3,  // 15: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
-	5,  // 16: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
-	7,  // 17: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
-	9,  // 18: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
-	11, // 19: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
-	13, // 20: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
-	15, // 21: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
-	18, // 22: chatto.admin.v1.AdminServerService.ListNeighbors:input_type -> chatto.admin.v1.ListNeighborsRequest
-	20, // 23: chatto.admin.v1.AdminServerService.GetNeighbor:input_type -> chatto.admin.v1.GetNeighborRequest
-	22, // 24: chatto.admin.v1.AdminServerService.CreateNeighbor:input_type -> chatto.admin.v1.CreateNeighborRequest
-	24, // 25: chatto.admin.v1.AdminServerService.UpdateNeighbor:input_type -> chatto.admin.v1.UpdateNeighborRequest
-	26, // 26: chatto.admin.v1.AdminServerService.DeleteNeighbor:input_type -> chatto.admin.v1.DeleteNeighborRequest
-	2,  // 27: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
-	4,  // 28: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
-	6,  // 29: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
-	8,  // 30: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
-	10, // 31: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
-	12, // 32: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
-	14, // 33: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
-	16, // 34: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
-	19, // 35: chatto.admin.v1.AdminServerService.ListNeighbors:output_type -> chatto.admin.v1.ListNeighborsResponse
-	21, // 36: chatto.admin.v1.AdminServerService.GetNeighbor:output_type -> chatto.admin.v1.GetNeighborResponse
-	23, // 37: chatto.admin.v1.AdminServerService.CreateNeighbor:output_type -> chatto.admin.v1.CreateNeighborResponse
-	25, // 38: chatto.admin.v1.AdminServerService.UpdateNeighbor:output_type -> chatto.admin.v1.UpdateNeighborResponse
-	27, // 39: chatto.admin.v1.AdminServerService.DeleteNeighbor:output_type -> chatto.admin.v1.DeleteNeighborResponse
-	27, // [27:40] is the sub-list for method output_type
-	14, // [14:27] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	29, // 2: chatto.admin.v1.UpdateServerConfigRequest.update_mask:type_name -> google.protobuf.FieldMask
+	28, // 3: chatto.admin.v1.UpdateServerConfigResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	0,  // 4: chatto.admin.v1.UpdateServerConfigResponse.config:type_name -> chatto.admin.v1.ServerConfig
+	30, // 5: chatto.admin.v1.UploadServerLogoRequest.image:type_name -> chatto.api.v1.ImageUpload
+	28, // 6: chatto.admin.v1.UploadServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 7: chatto.admin.v1.DeleteServerLogoResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	30, // 8: chatto.admin.v1.UploadServerBannerRequest.image:type_name -> chatto.api.v1.ImageUpload
+	28, // 9: chatto.admin.v1.UploadServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	28, // 10: chatto.admin.v1.DeleteServerBannerResponse.public_profile:type_name -> chatto.api.v1.ServerPublicProfile
+	29, // 11: chatto.admin.v1.UpdateBlockedUsernamesRequest.update_mask:type_name -> google.protobuf.FieldMask
+	17, // 12: chatto.admin.v1.ListNeighborsResponse.neighbors:type_name -> chatto.admin.v1.Neighbor
+	17, // 13: chatto.admin.v1.GetNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	17, // 14: chatto.admin.v1.CreateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	29, // 15: chatto.admin.v1.UpdateNeighborRequest.update_mask:type_name -> google.protobuf.FieldMask
+	17, // 16: chatto.admin.v1.UpdateNeighborResponse.neighbor:type_name -> chatto.admin.v1.Neighbor
+	1,  // 17: chatto.admin.v1.AdminServerService.GetServerConfig:input_type -> chatto.admin.v1.GetServerConfigRequest
+	3,  // 18: chatto.admin.v1.AdminServerService.UpdateServerConfig:input_type -> chatto.admin.v1.UpdateServerConfigRequest
+	5,  // 19: chatto.admin.v1.AdminServerService.UploadServerLogo:input_type -> chatto.admin.v1.UploadServerLogoRequest
+	7,  // 20: chatto.admin.v1.AdminServerService.DeleteServerLogo:input_type -> chatto.admin.v1.DeleteServerLogoRequest
+	9,  // 21: chatto.admin.v1.AdminServerService.UploadServerBanner:input_type -> chatto.admin.v1.UploadServerBannerRequest
+	11, // 22: chatto.admin.v1.AdminServerService.DeleteServerBanner:input_type -> chatto.admin.v1.DeleteServerBannerRequest
+	13, // 23: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:input_type -> chatto.admin.v1.GetServerSecurityConfigRequest
+	15, // 24: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:input_type -> chatto.admin.v1.UpdateBlockedUsernamesRequest
+	18, // 25: chatto.admin.v1.AdminServerService.ListNeighbors:input_type -> chatto.admin.v1.ListNeighborsRequest
+	20, // 26: chatto.admin.v1.AdminServerService.GetNeighbor:input_type -> chatto.admin.v1.GetNeighborRequest
+	22, // 27: chatto.admin.v1.AdminServerService.CreateNeighbor:input_type -> chatto.admin.v1.CreateNeighborRequest
+	24, // 28: chatto.admin.v1.AdminServerService.UpdateNeighbor:input_type -> chatto.admin.v1.UpdateNeighborRequest
+	26, // 29: chatto.admin.v1.AdminServerService.DeleteNeighbor:input_type -> chatto.admin.v1.DeleteNeighborRequest
+	2,  // 30: chatto.admin.v1.AdminServerService.GetServerConfig:output_type -> chatto.admin.v1.GetServerConfigResponse
+	4,  // 31: chatto.admin.v1.AdminServerService.UpdateServerConfig:output_type -> chatto.admin.v1.UpdateServerConfigResponse
+	6,  // 32: chatto.admin.v1.AdminServerService.UploadServerLogo:output_type -> chatto.admin.v1.UploadServerLogoResponse
+	8,  // 33: chatto.admin.v1.AdminServerService.DeleteServerLogo:output_type -> chatto.admin.v1.DeleteServerLogoResponse
+	10, // 34: chatto.admin.v1.AdminServerService.UploadServerBanner:output_type -> chatto.admin.v1.UploadServerBannerResponse
+	12, // 35: chatto.admin.v1.AdminServerService.DeleteServerBanner:output_type -> chatto.admin.v1.DeleteServerBannerResponse
+	14, // 36: chatto.admin.v1.AdminServerService.GetServerSecurityConfig:output_type -> chatto.admin.v1.GetServerSecurityConfigResponse
+	16, // 37: chatto.admin.v1.AdminServerService.UpdateBlockedUsernames:output_type -> chatto.admin.v1.UpdateBlockedUsernamesResponse
+	19, // 38: chatto.admin.v1.AdminServerService.ListNeighbors:output_type -> chatto.admin.v1.ListNeighborsResponse
+	21, // 39: chatto.admin.v1.AdminServerService.GetNeighbor:output_type -> chatto.admin.v1.GetNeighborResponse
+	23, // 40: chatto.admin.v1.AdminServerService.CreateNeighbor:output_type -> chatto.admin.v1.CreateNeighborResponse
+	25, // 41: chatto.admin.v1.AdminServerService.UpdateNeighbor:output_type -> chatto.admin.v1.UpdateNeighborResponse
+	27, // 42: chatto.admin.v1.AdminServerService.DeleteNeighbor:output_type -> chatto.admin.v1.DeleteNeighborResponse
+	30, // [30:43] is the sub-list for method output_type
+	17, // [17:30] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_server_proto_init() }

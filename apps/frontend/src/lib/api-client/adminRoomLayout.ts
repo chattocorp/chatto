@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import {
@@ -149,7 +150,8 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
           {
             groupId: input.groupId,
             name: input.name,
-            description: input.description === null ? '' : input.description
+            description: input.description === null ? '' : input.description,
+            updateMask: updateMask(input, ['name', 'description'])
           },
           { headers: headers() }
         );
@@ -268,9 +270,12 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
       url: string;
     }): Promise<AdminSidebarLinkInfo | null> {
       try {
-        const response = await layout.updateSidebarLink(input, {
-          headers: headers()
-        });
+        const response = await layout.updateSidebarLink(
+          { ...input, updateMask: updateMask(input, ['label', 'url']) },
+          {
+            headers: headers()
+          }
+        );
         return response.sidebarLink ? mapSidebarLink(response.sidebarLink) : null;
       } catch (err) {
         return handleAuthError(config, err);

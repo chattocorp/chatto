@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
@@ -713,7 +714,12 @@ type UpdateRoomGroupRequest struct {
 	Name *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
 	// New public group description, when changing it. Empty clears the
 	// description.
-	Description   *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	Description *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	// Editable fields to apply or reset: name, description.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -767,6 +773,13 @@ func (x *UpdateRoomGroupRequest) GetDescription() string {
 		return *x.Description
 	}
 	return ""
+}
+
+func (x *UpdateRoomGroupRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Result of updating a room group.
@@ -1534,7 +1547,12 @@ type UpdateSidebarLinkRequest struct {
 	// New display label, when changing it.
 	Label *string `protobuf:"bytes,2,opt,name=label,proto3,oneof" json:"label,omitempty"`
 	// New absolute http(s) URL or server-local path, when changing it.
-	Url           *string `protobuf:"bytes,3,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	Url *string `protobuf:"bytes,3,opt,name=url,proto3,oneof" json:"url,omitempty"`
+	// Editable fields to apply or reset: label, url.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1588,6 +1606,13 @@ func (x *UpdateSidebarLinkRequest) GetUrl() string {
 		return *x.Url
 	}
 	return ""
+}
+
+func (x *UpdateSidebarLinkRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Result of updating a sidebar link.
@@ -1833,7 +1858,7 @@ var File_chatto_admin_v1_room_layout_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/room_layout.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x19chatto/api/v1/rooms.proto\"\x89\x01\n" +
+	"!chatto/admin/v1/room_layout.proto\x12\x0fchatto.admin.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\"chatto/api/v1/room_directory.proto\x1a\x19chatto/api/v1/rooms.proto\"\x89\x01\n" +
 	"\x13AdminRoomLayoutItem\x12)\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomH\x00R\x04room\x12?\n" +
 	"\fsidebar_link\x18\x02 \x01(\v2\x1a.chatto.api.v1.SidebarLinkH\x00R\vsidebarLinkB\x06\n" +
@@ -1867,11 +1892,13 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PR\x04name\x12*\n" +
 	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\vdescription\"V\n" +
 	"\x17CreateRoomGroupResponse\x12;\n" +
-	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"\xaa\x01\n" +
+	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"\xe7\x01\n" +
 	"\x16UpdateRoomGroupRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\x12\"\n" +
 	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PH\x00R\x04name\x88\x01\x01\x12/\n" +
-	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01B\a\n" +
+	"\vdescription\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03H\x01R\vdescription\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\a\n" +
 	"\x05_nameB\x0e\n" +
 	"\f_description\"V\n" +
 	"\x17UpdateRoomGroupResponse\x12;\n" +
@@ -1912,12 +1939,14 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x03url\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x10R\x03url\"Z\n" +
 	"\x19CreateSidebarLinkResponse\x12=\n" +
-	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"\x97\x01\n" +
+	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"\xd4\x01\n" +
 	"\x18UpdateSidebarLinkRequest\x12 \n" +
 	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\x12$\n" +
 	"\x05label\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18PH\x00R\x05label\x88\x01\x01\x12!\n" +
 	"\x03url\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x10H\x01R\x03url\x88\x01\x01B\b\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x10H\x01R\x03url\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\b\n" +
 	"\x06_labelB\x06\n" +
 	"\x04_url\"Z\n" +
 	"\x19UpdateSidebarLinkResponse\x12=\n" +
@@ -2004,6 +2033,7 @@ var file_chatto_admin_v1_room_layout_proto_goTypes = []any{
 	(*MoveSidebarLinkToGroupResponse)(nil),     // 33: chatto.admin.v1.MoveSidebarLinkToGroupResponse
 	(*v1.Room)(nil),                            // 34: chatto.api.v1.Room
 	(*v1.SidebarLink)(nil),                     // 35: chatto.api.v1.SidebarLink
+	(*fieldmaskpb.FieldMask)(nil),              // 36: google.protobuf.FieldMask
 }
 var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
 	34, // 0: chatto.admin.v1.AdminRoomLayoutItem.room:type_name -> chatto.api.v1.Room
@@ -2014,53 +2044,55 @@ var file_chatto_admin_v1_room_layout_proto_depIdxs = []int32{
 	2,  // 5: chatto.admin.v1.ListRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
 	0,  // 6: chatto.admin.v1.AdminRoomLayoutItemInput.kind:type_name -> chatto.admin.v1.AdminRoomLayoutItemKind
 	2,  // 7: chatto.admin.v1.CreateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	2,  // 8: chatto.admin.v1.UpdateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	2,  // 9: chatto.admin.v1.ReorderRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	2,  // 10: chatto.admin.v1.MoveRoomGroupResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	34, // 11: chatto.admin.v1.MoveRoomToGroupResponse.room:type_name -> chatto.api.v1.Room
-	9,  // 12: chatto.admin.v1.ReorderSidebarItemsInGroupRequest.items:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
-	2,  // 13: chatto.admin.v1.ReorderSidebarItemsInGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	9,  // 14: chatto.admin.v1.MoveSidebarItemRequest.item:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
-	9,  // 15: chatto.admin.v1.MoveSidebarItemRequest.before:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
-	2,  // 16: chatto.admin.v1.MoveSidebarItemResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
-	35, // 17: chatto.admin.v1.CreateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	35, // 18: chatto.admin.v1.UpdateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	35, // 19: chatto.admin.v1.MoveSidebarLinkToGroupResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
-	3,  // 20: chatto.admin.v1.AdminRoomLayoutService.GetRoom:input_type -> chatto.admin.v1.GetRoomRequest
-	5,  // 21: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:input_type -> chatto.admin.v1.GetRoomGroupRequest
-	7,  // 22: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:input_type -> chatto.admin.v1.ListRoomGroupsRequest
-	10, // 23: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:input_type -> chatto.admin.v1.CreateRoomGroupRequest
-	12, // 24: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:input_type -> chatto.admin.v1.UpdateRoomGroupRequest
-	14, // 25: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:input_type -> chatto.admin.v1.DeleteRoomGroupRequest
-	16, // 26: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:input_type -> chatto.admin.v1.ReorderRoomGroupsRequest
-	18, // 27: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:input_type -> chatto.admin.v1.MoveRoomGroupRequest
-	20, // 28: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:input_type -> chatto.admin.v1.MoveRoomToGroupRequest
-	22, // 29: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:input_type -> chatto.admin.v1.ReorderSidebarItemsInGroupRequest
-	24, // 30: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:input_type -> chatto.admin.v1.MoveSidebarItemRequest
-	26, // 31: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:input_type -> chatto.admin.v1.CreateSidebarLinkRequest
-	28, // 32: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:input_type -> chatto.admin.v1.UpdateSidebarLinkRequest
-	30, // 33: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:input_type -> chatto.admin.v1.DeleteSidebarLinkRequest
-	32, // 34: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:input_type -> chatto.admin.v1.MoveSidebarLinkToGroupRequest
-	4,  // 35: chatto.admin.v1.AdminRoomLayoutService.GetRoom:output_type -> chatto.admin.v1.GetRoomResponse
-	6,  // 36: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:output_type -> chatto.admin.v1.GetRoomGroupResponse
-	8,  // 37: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:output_type -> chatto.admin.v1.ListRoomGroupsResponse
-	11, // 38: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:output_type -> chatto.admin.v1.CreateRoomGroupResponse
-	13, // 39: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:output_type -> chatto.admin.v1.UpdateRoomGroupResponse
-	15, // 40: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:output_type -> chatto.admin.v1.DeleteRoomGroupResponse
-	17, // 41: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:output_type -> chatto.admin.v1.ReorderRoomGroupsResponse
-	19, // 42: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:output_type -> chatto.admin.v1.MoveRoomGroupResponse
-	21, // 43: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:output_type -> chatto.admin.v1.MoveRoomToGroupResponse
-	23, // 44: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:output_type -> chatto.admin.v1.ReorderSidebarItemsInGroupResponse
-	25, // 45: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:output_type -> chatto.admin.v1.MoveSidebarItemResponse
-	27, // 46: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:output_type -> chatto.admin.v1.CreateSidebarLinkResponse
-	29, // 47: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:output_type -> chatto.admin.v1.UpdateSidebarLinkResponse
-	31, // 48: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:output_type -> chatto.admin.v1.DeleteSidebarLinkResponse
-	33, // 49: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:output_type -> chatto.admin.v1.MoveSidebarLinkToGroupResponse
-	35, // [35:50] is the sub-list for method output_type
-	20, // [20:35] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	36, // 8: chatto.admin.v1.UpdateRoomGroupRequest.update_mask:type_name -> google.protobuf.FieldMask
+	2,  // 9: chatto.admin.v1.UpdateRoomGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	2,  // 10: chatto.admin.v1.ReorderRoomGroupsResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	2,  // 11: chatto.admin.v1.MoveRoomGroupResponse.groups:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	34, // 12: chatto.admin.v1.MoveRoomToGroupResponse.room:type_name -> chatto.api.v1.Room
+	9,  // 13: chatto.admin.v1.ReorderSidebarItemsInGroupRequest.items:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	2,  // 14: chatto.admin.v1.ReorderSidebarItemsInGroupResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	9,  // 15: chatto.admin.v1.MoveSidebarItemRequest.item:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	9,  // 16: chatto.admin.v1.MoveSidebarItemRequest.before:type_name -> chatto.admin.v1.AdminRoomLayoutItemInput
+	2,  // 17: chatto.admin.v1.MoveSidebarItemResponse.group:type_name -> chatto.admin.v1.AdminRoomLayoutGroup
+	35, // 18: chatto.admin.v1.CreateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	36, // 19: chatto.admin.v1.UpdateSidebarLinkRequest.update_mask:type_name -> google.protobuf.FieldMask
+	35, // 20: chatto.admin.v1.UpdateSidebarLinkResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	35, // 21: chatto.admin.v1.MoveSidebarLinkToGroupResponse.sidebar_link:type_name -> chatto.api.v1.SidebarLink
+	3,  // 22: chatto.admin.v1.AdminRoomLayoutService.GetRoom:input_type -> chatto.admin.v1.GetRoomRequest
+	5,  // 23: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:input_type -> chatto.admin.v1.GetRoomGroupRequest
+	7,  // 24: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:input_type -> chatto.admin.v1.ListRoomGroupsRequest
+	10, // 25: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:input_type -> chatto.admin.v1.CreateRoomGroupRequest
+	12, // 26: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:input_type -> chatto.admin.v1.UpdateRoomGroupRequest
+	14, // 27: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:input_type -> chatto.admin.v1.DeleteRoomGroupRequest
+	16, // 28: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:input_type -> chatto.admin.v1.ReorderRoomGroupsRequest
+	18, // 29: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:input_type -> chatto.admin.v1.MoveRoomGroupRequest
+	20, // 30: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:input_type -> chatto.admin.v1.MoveRoomToGroupRequest
+	22, // 31: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:input_type -> chatto.admin.v1.ReorderSidebarItemsInGroupRequest
+	24, // 32: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:input_type -> chatto.admin.v1.MoveSidebarItemRequest
+	26, // 33: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:input_type -> chatto.admin.v1.CreateSidebarLinkRequest
+	28, // 34: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:input_type -> chatto.admin.v1.UpdateSidebarLinkRequest
+	30, // 35: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:input_type -> chatto.admin.v1.DeleteSidebarLinkRequest
+	32, // 36: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:input_type -> chatto.admin.v1.MoveSidebarLinkToGroupRequest
+	4,  // 37: chatto.admin.v1.AdminRoomLayoutService.GetRoom:output_type -> chatto.admin.v1.GetRoomResponse
+	6,  // 38: chatto.admin.v1.AdminRoomLayoutService.GetRoomGroup:output_type -> chatto.admin.v1.GetRoomGroupResponse
+	8,  // 39: chatto.admin.v1.AdminRoomLayoutService.ListRoomGroups:output_type -> chatto.admin.v1.ListRoomGroupsResponse
+	11, // 40: chatto.admin.v1.AdminRoomLayoutService.CreateRoomGroup:output_type -> chatto.admin.v1.CreateRoomGroupResponse
+	13, // 41: chatto.admin.v1.AdminRoomLayoutService.UpdateRoomGroup:output_type -> chatto.admin.v1.UpdateRoomGroupResponse
+	15, // 42: chatto.admin.v1.AdminRoomLayoutService.DeleteRoomGroup:output_type -> chatto.admin.v1.DeleteRoomGroupResponse
+	17, // 43: chatto.admin.v1.AdminRoomLayoutService.ReorderRoomGroups:output_type -> chatto.admin.v1.ReorderRoomGroupsResponse
+	19, // 44: chatto.admin.v1.AdminRoomLayoutService.MoveRoomGroup:output_type -> chatto.admin.v1.MoveRoomGroupResponse
+	21, // 45: chatto.admin.v1.AdminRoomLayoutService.MoveRoomToGroup:output_type -> chatto.admin.v1.MoveRoomToGroupResponse
+	23, // 46: chatto.admin.v1.AdminRoomLayoutService.ReorderSidebarItemsInGroup:output_type -> chatto.admin.v1.ReorderSidebarItemsInGroupResponse
+	25, // 47: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarItem:output_type -> chatto.admin.v1.MoveSidebarItemResponse
+	27, // 48: chatto.admin.v1.AdminRoomLayoutService.CreateSidebarLink:output_type -> chatto.admin.v1.CreateSidebarLinkResponse
+	29, // 49: chatto.admin.v1.AdminRoomLayoutService.UpdateSidebarLink:output_type -> chatto.admin.v1.UpdateSidebarLinkResponse
+	31, // 50: chatto.admin.v1.AdminRoomLayoutService.DeleteSidebarLink:output_type -> chatto.admin.v1.DeleteSidebarLinkResponse
+	33, // 51: chatto.admin.v1.AdminRoomLayoutService.MoveSidebarLinkToGroup:output_type -> chatto.admin.v1.MoveSidebarLinkToGroupResponse
+	37, // [37:52] is the sub-list for method output_type
+	22, // [22:37] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_room_layout_proto_init() }

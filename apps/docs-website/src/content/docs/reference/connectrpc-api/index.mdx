@@ -28,6 +28,12 @@ POST /api/connect/chatto.discovery.v1.ServerDiscoveryService/GetServer
 
 `chatto.discovery.v1` server discovery is unauthenticated. Most other documented ConnectRPC services require an `Authorization: Bearer <token>` header or a browser session when called by the bundled web client.
 
+## Resource Updates
+
+Resource `Update*` methods use `update_mask` to select editable fields. Unselected fields stay unchanged. A selected field without a value resets to its default or absence, subject to validation. Selected lists replace the previous list, including with an empty list.
+
+In JSON, use a comma-separated camelCase string: `{"updateMask":"timezone,shareTimezone","timezone":null,"shareTimezone":false}`. Generated clients use snake_case paths in `FieldMask.paths`. An omitted mask selects populated fields; an explicit empty mask is invalid. Prefer explicit paths to `*`, which selects all editable fields. See the [update migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05) for reset rules and command renames.
+
 ## Authentication And Permissions
 
 [ServerDiscoveryService.GetServer](/reference/connectrpc-api/server-discovery/#chatto-discovery-v1-ServerDiscoveryService-GetServer) is public so clients can discover branding, registration state, and login providers before a user signs in.

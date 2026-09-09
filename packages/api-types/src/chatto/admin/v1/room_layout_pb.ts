@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Room } from "../../api/v1/rooms_pb.js";
 import { SidebarLink } from "../../api/v1/room_directory_pb.js";
 
@@ -610,6 +610,16 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
    */
   description?: string;
 
+  /**
+   * Editable fields to apply or reset: name, description.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 4;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateRoomGroupRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -621,6 +631,7 @@ export class UpdateRoomGroupRequest extends Message<UpdateRoomGroupRequest> {
     { no: 1, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomGroupRequest {
@@ -1342,6 +1353,16 @@ export class UpdateSidebarLinkRequest extends Message<UpdateSidebarLinkRequest> 
    */
   url?: string;
 
+  /**
+   * Editable fields to apply or reset: label, url.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 4;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateSidebarLinkRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1353,6 +1374,7 @@ export class UpdateSidebarLinkRequest extends Message<UpdateSidebarLinkRequest> 
     { no: 1, name: "link_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSidebarLinkRequest {

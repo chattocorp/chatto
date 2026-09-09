@@ -89,6 +89,10 @@ func (s *adminRoomLayoutService) UpdateRoomGroup(ctx context.Context, req *conne
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 
 	group, err := s.api.core.AdminUpdateRoomGroup(ctx, caller.UserID, req.Msg.GetGroupId(), req.Msg.Name, req.Msg.Description)
 	if err != nil {
@@ -221,6 +225,10 @@ func (s *adminRoomLayoutService) CreateSidebarLink(ctx context.Context, req *con
 
 func (s *adminRoomLayoutService) UpdateSidebarLink(ctx context.Context, req *connect.Request[adminv1.UpdateSidebarLinkRequest]) (*connect.Response[adminv1.UpdateSidebarLinkResponse], error) {
 	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
 	if err != nil {
 		return nil, err
 	}

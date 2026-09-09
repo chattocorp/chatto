@@ -1,3 +1,4 @@
+import { updateMask } from "./updateMask";
 import {
   authHeaders,
   Code,
@@ -130,7 +131,10 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async updateRole(input: UpdateRoleInput): Promise<ServerRole> {
-      const response = await adminClient.updateRole(input, {
+      const response = await adminClient.updateRole({
+        ...input,
+        updateMask: updateMask(input, ["displayName", "description", "pingable"]),
+      }, {
         headers: headers(),
       });
       return requiredAdminRole(response.role);

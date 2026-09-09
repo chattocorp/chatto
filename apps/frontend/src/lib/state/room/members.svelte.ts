@@ -258,7 +258,7 @@ export class RoomMembersStore {
     }
   }
 
-  updatePresence(userId: string, status: PresenceStatus): void {
+  setPresence(userId: string, status: PresenceStatus): void {
     this.livePresence.set(userId, status);
     this.presenceVersion++;
   }

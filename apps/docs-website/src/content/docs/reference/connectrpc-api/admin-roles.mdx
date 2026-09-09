@@ -147,6 +147,7 @@ Request to update role metadata.
 | `display_name` | `optional string` | Display name shown in admin and mention UIs, when changing it. |
 | `description` | `optional string` | Role description, when changing it. Empty clears the description. |
 | `pingable` | `optional bool` | Whether messages may notify users assigned to this role, when changing it. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, description, pingable. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-admin-v1-UpdateRoleResponse"></a>

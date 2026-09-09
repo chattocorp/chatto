@@ -4,21 +4,21 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
  * Request to update the authenticated user's profile. Human and bot accounts
- * use this same self-service operation. Omitted fields stay unchanged.
- * At least one field must be present; an empty patch is INVALID_ARGUMENT.
+ * use this same self-service operation. update_mask selects fields to apply
+ * or reset. Fields outside the mask stay unchanged.
  *
  * @generated from message chatto.api.v1.UpdateProfileRequest
  */
 export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
   /**
-   * New display name, when changing it. Empty clears the explicit display
-   * name. The server also rejects control and confusing invisible characters.
+   * New non-empty display name. The server also rejects control and
+   * confusing invisible characters.
    *
    * @generated from field: optional string display_name = 1;
    */
@@ -39,6 +39,16 @@ export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
    */
   bio?: string;
 
+  /**
+   * Editable fields to apply or reset: display_name, login, bio.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 4;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateProfileRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -50,6 +60,7 @@ export class UpdateProfileRequest extends Message<UpdateProfileRequest> {
     { no: 1, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateProfileRequest {
@@ -113,9 +124,9 @@ export class UpdateProfileResponse extends Message<UpdateProfileResponse> {
 /**
  * Request to update or add the authenticated user's password.
  *
- * @generated from message chatto.api.v1.UpdatePasswordRequest
+ * @generated from message chatto.api.v1.ChangePasswordRequest
  */
-export class UpdatePasswordRequest extends Message<UpdatePasswordRequest> {
+export class ChangePasswordRequest extends Message<ChangePasswordRequest> {
   /**
    * New password. The server applies the same password policy as registration
    * and password reset.
@@ -132,41 +143,41 @@ export class UpdatePasswordRequest extends Message<UpdatePasswordRequest> {
    */
   currentPassword = "";
 
-  constructor(data?: PartialMessage<UpdatePasswordRequest>) {
+  constructor(data?: PartialMessage<ChangePasswordRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdatePasswordRequest";
+  static readonly typeName = "chatto.api.v1.ChangePasswordRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "current_password", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePasswordRequest {
-    return new UpdatePasswordRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChangePasswordRequest {
+    return new ChangePasswordRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePasswordRequest {
-    return new UpdatePasswordRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChangePasswordRequest {
+    return new ChangePasswordRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePasswordRequest {
-    return new UpdatePasswordRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChangePasswordRequest {
+    return new ChangePasswordRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdatePasswordRequest | PlainMessage<UpdatePasswordRequest> | undefined, b: UpdatePasswordRequest | PlainMessage<UpdatePasswordRequest> | undefined): boolean {
-    return proto3.util.equals(UpdatePasswordRequest, a, b);
+  static equals(a: ChangePasswordRequest | PlainMessage<ChangePasswordRequest> | undefined, b: ChangePasswordRequest | PlainMessage<ChangePasswordRequest> | undefined): boolean {
+    return proto3.util.equals(ChangePasswordRequest, a, b);
   }
 }
 
 /**
  * Result of updating or adding the authenticated account password.
  *
- * @generated from message chatto.api.v1.UpdatePasswordResponse
+ * @generated from message chatto.api.v1.ChangePasswordResponse
  */
-export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
+export class ChangePasswordResponse extends Message<ChangePasswordResponse> {
   /**
    * Current authenticated user profile after the password update.
    *
@@ -174,38 +185,37 @@ export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
    */
   user?: User;
 
-  constructor(data?: PartialMessage<UpdatePasswordResponse>) {
+  constructor(data?: PartialMessage<ChangePasswordResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdatePasswordResponse";
+  static readonly typeName = "chatto.api.v1.ChangePasswordResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user", kind: "message", T: User },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdatePasswordResponse {
-    return new UpdatePasswordResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ChangePasswordResponse {
+    return new ChangePasswordResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdatePasswordResponse {
-    return new UpdatePasswordResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ChangePasswordResponse {
+    return new ChangePasswordResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdatePasswordResponse {
-    return new UpdatePasswordResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ChangePasswordResponse {
+    return new ChangePasswordResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined, b: UpdatePasswordResponse | PlainMessage<UpdatePasswordResponse> | undefined): boolean {
-    return proto3.util.equals(UpdatePasswordResponse, a, b);
+  static equals(a: ChangePasswordResponse | PlainMessage<ChangePasswordResponse> | undefined, b: ChangePasswordResponse | PlainMessage<ChangePasswordResponse> | undefined): boolean {
+    return proto3.util.equals(ChangePasswordResponse, a, b);
   }
 }
 
 /**
- * Request to update the authenticated user's display preferences. Omitted
- * fields are left unchanged. At least one field must be present; an empty patch
- * is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
+ * Request to patch the authenticated user's display preferences. update_mask
+ * selects fields to apply or reset. Resetting timezone clears the override.
  *
  * @generated from message chatto.api.v1.UpdateSettingsRequest
  */
@@ -231,6 +241,16 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
    */
   shareTimezone?: boolean;
 
+  /**
+   * Editable fields to apply or reset: timezone, time_format, share_timezone.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 4;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateSettingsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -242,6 +262,7 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
     { no: 1, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 2, name: "time_format", kind: "enum", T: proto3.getEnumType(TimeFormat), opt: true },
     { no: 3, name: "share_timezone", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 4, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateSettingsRequest {

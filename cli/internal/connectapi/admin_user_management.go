@@ -163,6 +163,10 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 	if req.Msg.GetUserId() == "" {
 		return nil, invalidArgument("user_id is required")
 	}
@@ -184,7 +188,7 @@ func (s *adminUserManagementService) UpdateUser(ctx context.Context, req *connec
 	return connect.NewResponse(&adminv1.UpdateUserResponse{User: updatedUser, Member: updatedMember}), nil
 }
 
-func (s *adminUserManagementService) UpdateUserPassword(ctx context.Context, req *connect.Request[adminv1.UpdateUserPasswordRequest]) (*connect.Response[adminv1.UpdateUserPasswordResponse], error) {
+func (s *adminUserManagementService) ChangeUserPassword(ctx context.Context, req *connect.Request[adminv1.ChangeUserPasswordRequest]) (*connect.Response[adminv1.ChangeUserPasswordResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -217,7 +221,7 @@ func (s *adminUserManagementService) UpdateUserPassword(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&adminv1.UpdateUserPasswordResponse{Member: member}), nil
+	return connect.NewResponse(&adminv1.ChangeUserPasswordResponse{Member: member}), nil
 }
 
 func (s *adminUserManagementService) ClearUsernameCooldown(ctx context.Context, req *connect.Request[adminv1.ClearUsernameCooldownRequest]) (*connect.Response[adminv1.ClearUsernameCooldownResponse], error) {

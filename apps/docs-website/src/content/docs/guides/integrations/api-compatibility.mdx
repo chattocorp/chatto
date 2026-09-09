@@ -287,21 +287,58 @@ clients and servers from opposite sides of that development-only change.
    reconnect behaviour that your integration depends on.
 4. Deploy the server and client changes together when the API changed.
 
-## Resource patches and custom status in 0.5
+## Resource updates in 0.5
 
-`UpdateProfile`, `UpdateSettings`, `UpdateRoom`, `UpdateMessage`, and
-`UpdateBotOutboundWebhook` preserve omitted editable fields. Supply at least
-one editable field; an empty patch returns `INVALID_ARGUMENT`. In 0.5 this also
-applies to settings and outbound webhook updates, which previously accepted
-empty patches. Resource IDs do not count as editable fields.
+All resource `Update*` RPCs in `chatto.api.v1` and `chatto.admin.v1` accept
+`google.protobuf.FieldMask update_mask`. This includes profiles, settings,
+rooms, messages, outbound webhooks, notification policies, admin users, server
+configuration, blocked usernames, neighbors, roles, room groups, sidebar links,
+and OAuth client policies.
 
-An explicit empty string, `false`, or zero counts as a supplied value. The
-field's validation still applies. For example, an empty bio, room description,
-timezone, or webhook authorization clears that field; an empty login or room
-name is invalid. Set `slow_mode_seconds` to zero to disable slow mode.
+- Fields outside the mask stay unchanged, even if the request supplies values.
+- A selected field without a value resets to its default or absence. Validation
+  still applies: bio, timezone, and webhook authorization can be cleared; login,
+  display name, and room name cannot be empty.
+- Selected lists replace the previous list. An empty list clears it.
+- Notification policy paths refer to fields inside `overrides`. Selecting an
+  override without a value restores inheritance.
+- If the mask is omitted, populated fields select themselves. Explicit defaults
+  in optional scalar fields count as populated. An empty list or JSON `null`
+  does not select itself: supply a mask to clear it.
+- An explicit empty mask, an unknown path, or an unsupported nested path returns
+  `INVALID_ARGUMENT`. IDs and revision tokens cannot be selected.
+- `*` alone selects all editable fields. Prefer explicit paths because `*` also
+  selects fields added in later releases.
 
-`MyAccountService.SetCustomStatus` replaces `UpdateCustomStatus`, including its
-request and response type names. Regenerate your client and use the new method;
-the old RPC is removed. Send both emoji and text. Omit `expires_at` to remove
-any previous expiry, or supply a future time. Use `DeleteCustomStatus` to clear
-the status. These changes do not require a stored-data migration.
+Generated clients use snake_case paths, such as `share_timezone`. Connect's
+JSON mode represents the mask as a comma-separated string of camelCase paths.
+For example, this `MyAccountService.UpdateSettings` request clears the timezone
+and disables sharing while preserving the time format:
+
+```json
+{
+  "updateMask": "timezone,shareTimezone",
+  "timezone": null,
+  "shareTimezone": false
+}
+```
+
+JSON `null` parses as an absent field; the mask makes it a reset. You can also
+omit `timezone` in this example. The server applies the same contract to binary
+and JSON requests. Empty updates return `INVALID_ARGUMENT`.
+
+Commands use these names in 0.5. Regenerate clients and replace the old calls;
+the old methods and request/response type names are removed:
+
+| Old method | New method |
+| --- | --- |
+| `MyAccountService.UpdateCustomStatus` | `MyAccountService.SetCustomStatus` |
+| `MyAccountService.UpdatePassword` | `MyAccountService.ChangePassword` |
+| `AdminUserService.UpdateUserPassword` | `AdminUserService.ChangeUserPassword` |
+| `MyAccountService.UpdatePresence` | `MyAccountService.SetPresence` |
+| `RoomService.UpdateTypingIndicator` | `RoomService.RefreshTypingIndicator` |
+
+`SetCustomStatus` replaces the complete status. Send both emoji and text. Omit
+`expires_at` to remove any previous expiry, or supply a future time. Use
+`DeleteCustomStatus` to clear the status. These changes do not require a
+stored-data migration.

@@ -202,7 +202,8 @@ export async function updateServerConfig(
       serverName: input.name,
       description: input.description,
       motd: input.motd,
-      welcomeMessage: input.welcomeMessage
+      welcomeMessage: input.welcomeMessage,
+      updateMask: { paths: ['server_name', 'description', 'motd', 'welcome_message'] }
     },
     { headers }
   );
@@ -282,7 +283,10 @@ export async function updateBlockedUsernames(
 ): Promise<ServerSecurityConfig> {
   const { adminServer, headers } = serverClients(config);
   const response = await adminServer.updateBlockedUsernames(
-    { blockedUsernames: blockedUsernameEntries(blockedUsernames) },
+    {
+      blockedUsernames: blockedUsernameEntries(blockedUsernames),
+      updateMask: { paths: ['blocked_usernames'] }
+    },
     { headers }
   );
   return {
