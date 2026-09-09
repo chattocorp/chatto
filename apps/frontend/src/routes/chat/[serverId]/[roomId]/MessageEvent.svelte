@@ -94,13 +94,19 @@
   // Deleted actors may be absent or retained as a deleted reference.
   // Guard with event?. for Svelte 5 reactivity glitch during virtualizer data transitions.
   const actor = $derived(event?.actor ?? null);
-  const deletedActor = $derived(!actor || actor.deleted);
+  const authorLoading = $derived(!actor && event?.actorResolution === 'loading');
+  const authorUnavailable = $derived(!actor && event?.actorResolution === 'unavailable');
+  const deletedActor = $derived(
+    !!actor?.deleted || (!actor && !authorLoading && !authorUnavailable)
+  );
 
   // Display name with live updates from profile cache
   const displayName = $derived(
     !deletedActor && actor
       ? getLiveDisplayName(actor.id, actor.displayName || actor.login)
-      : m('common.deleted_user')
+      : deletedActor
+        ? m('common.deleted_user')
+        : m('common.unknown_user')
   );
   const actorCallPresence = $derived(
     !deletedActor && actor ? activeCallRooms.getParticipantCallPresence(roomId, actor.id) : null
@@ -569,6 +575,8 @@
     eventId={event.id}
     {actor}
     {displayName}
+    {authorLoading}
+    missingActorIsDeleted={deletedActor}
     body={msg.body}
     deleted={isDeleted}
     edited={isEdited}

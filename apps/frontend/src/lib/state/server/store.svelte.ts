@@ -39,6 +39,7 @@ import { ServerProjectionStore } from './projection.svelte';
 import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import type { RealtimeEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
@@ -50,6 +51,7 @@ import {
 import { notifyUserSummaries } from '$lib/api-client/hooks';
 import {
   clearUserSummaryCache,
+  getUserSummaryCache,
   removeUserSummaryCacheEntry
 } from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
@@ -1011,11 +1013,22 @@ export class ServerStateStore {
     const posted = event.event.case === 'messagePosted' ? event.event.value : null;
     if (!posted || posted.bodyPlaintext === undefined || !event.id) return;
     const actorMember = event.actorId ? this.projection.users.get(event.actorId) : null;
+    const actorDeleted = !!event.actorId && this.#deletedRealtimeUserIds.has(event.actorId);
+    const cachedActor =
+      !actorDeleted && event.actorId ? getUserSummaryCache(this.serverId).get(event.actorId) : null;
+    const actor = actorDeleted
+      ? null
+      : actorMember
+        ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember))
+        : cachedActor
+          ? { ...cachedActor, presenceStatus: PresenceStatus.OFFLINE }
+          : null;
     const timelineEvent: TimelineEventView = {
       id: event.id,
       createdAt: event.createdAt?.toDate().toISOString() ?? new SvelteDate().toISOString(),
       actorId: event.actorId || null,
-      actor: actorMember ? avatarUserFromDirectoryMember(mapDirectoryMember(actorMember)) : null,
+      actor,
+      actorResolution: actorDeleted ? 'deleted' : actor ? undefined : 'loading',
       event: {
         kind: TimelineEventKind.MessagePosted,
         roomId: posted.roomId,

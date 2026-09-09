@@ -70,6 +70,10 @@ export type TimelineEventView = {
   createdAt: string;
   actorId?: string | null;
   actor?: UserAvatarUserView | null;
+  /** Missing realtime author data is not evidence of account deletion.
+   * Omitted after hydration; `deleted` also marks accounts scrubbed during a read.
+   */
+  actorResolution?: 'loading' | 'unavailable' | 'deleted';
   event: TimelineEventPayload;
 };
 

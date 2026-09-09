@@ -21,6 +21,7 @@ identity, body rendering, and row geometry consistent.
     actor,
     displayName,
     missingActorIsDeleted = true,
+    authorLoading = false,
     body = null,
     deleted = false,
     edited = false,
@@ -59,6 +60,8 @@ identity, body rendering, and row geometry consistent.
     actor: UserAvatarUserView | null;
     displayName: string;
     missingActorIsDeleted?: boolean;
+    /** Show a name skeleton while a realtime author lookup is pending. */
+    authorLoading?: boolean;
     body?: string | null;
     deleted?: boolean;
     edited?: boolean;
@@ -140,7 +143,7 @@ identity, body rendering, and row geometry consistent.
           </div>
         {/if}
       {:else}
-        {@const deletedActor = actor?.deleted || missingActorIsDeleted}
+        {@const deletedActor = actor?.deleted || (missingActorIsDeleted && !authorLoading)}
         <div
           class={[
             'absolute start-2 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-surface-emphasized text-muted shadow-md ring-1 ring-surface-emphasized/30',
@@ -183,7 +186,12 @@ identity, body rendering, and row geometry consistent.
                 {@render authorSuffix?.()}
               </strong>
             {/if}
-          {:else if actor?.deleted || missingActorIsDeleted}
+          {:else if authorLoading && !actor?.deleted}
+            <span class="inline-flex h-4 w-24" aria-busy="true">
+              <span class="skeleton h-full w-full rounded" aria-hidden="true"></span>
+              <span class="sr-only">{m('common.loading')}</span>
+            </span>
+          {:else if actor?.deleted || (missingActorIsDeleted && !authorLoading)}
             <strong class="shrink-0 leading-none font-semibold text-muted">
               <DeletedUserLabel />
             </strong>

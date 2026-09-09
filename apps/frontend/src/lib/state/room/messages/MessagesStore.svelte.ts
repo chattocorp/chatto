@@ -90,10 +90,10 @@ function isMessagePostedPayload(
 }
 
 function scrubUserFromEvent(event: TimelineEventView, userId: string): TimelineEventView {
-  const scrubActor = event.actor?.id === userId;
+  const scrubActor = event.actorId === userId || event.actor?.id === userId;
   const payload = event.event;
   if (!isMessagePostedPayload(payload)) {
-    return scrubActor ? { ...event, actor: null } : event;
+    return scrubActor ? { ...event, actor: null, actorResolution: 'deleted' } : event;
   }
 
   const threadParticipants = payload.threadParticipants.filter(
@@ -112,6 +112,7 @@ function scrubUserFromEvent(event: TimelineEventView, userId: string): TimelineE
   return {
     ...event,
     actor: scrubActor ? null : event.actor,
+    actorResolution: scrubActor ? 'deleted' : event.actorResolution,
     event: {
       ...payload,
       threadParticipants,
@@ -928,6 +929,8 @@ export class MessagesStore {
     const source = this.source;
     if (!source || !eventId) return false;
 
+    const previous = this.events.find((event) => event.id === eventId);
+    const previousFingerprint = previous ? eventFingerprint(previous) : null;
     try {
       const event = await this.roomTimeline.getMessage({
         roomId: source.roomId,
@@ -935,10 +938,22 @@ export class MessagesStore {
         minimumCursor
       });
       if (this.source !== source || !acceptResult()) return false;
-      if (event) this.ingestEvent(event);
+      if (event) {
+        const currentIndex = this.events.findIndex((candidate) => candidate.id === eventId);
+        const hydrated = this.applyPrivacyBoundaries(event);
+        if (hydrated && currentIndex === -1) this.ingestEvent(hydrated);
+        else if (hydrated && eventFingerprint(this.events[currentIndex]) === previousFingerprint) {
+          // Replace the temporary row. Ordinary ingestion deduplicates event IDs.
+          // A newer local change or resource response takes precedence over this read.
+          this.clearOptimisticVersionForEvent(eventId);
+          this.events[currentIndex] = hydrated;
+          this.sortEvents();
+        }
+      } else this.markAuthorUnavailable(eventId);
       return true;
     } catch (error) {
-      if (!acceptResult()) return false;
+      if (this.source !== source || !acceptResult()) return false;
+      this.markAuthorUnavailable(eventId);
       if (isConnectCode(error, Code.PermissionDenied) || isConnectCode(error, Code.NotFound)) {
         return this.source === source;
       }
@@ -946,6 +961,15 @@ export class MessagesStore {
       if (minimumCursor) throw error;
       return this.source === source;
     }
+  }
+
+  /** End a failed author load without changing resolved or deleted identities. */
+  private markAuthorUnavailable(eventId: string): void {
+    this.events = this.events.map((event) =>
+      event.id === eventId && event.actorResolution === 'loading'
+        ? { ...event, actorResolution: 'unavailable' }
+        : event
+    );
   }
 
   private onMessagePosted(spaceEvent: TimelineEventView, eventData: MessagePostedPayload): void {

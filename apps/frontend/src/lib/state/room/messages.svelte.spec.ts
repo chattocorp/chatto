@@ -9,7 +9,7 @@ import {
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
-import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { RoomThreadingMode } from '$lib/roomThreading';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
@@ -50,10 +50,12 @@ async function settle() {
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((resolvePromise) => {
+  let reject!: (reason: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function threadMessageEvent(id: string, threadRootEventId: string | null = null) {
@@ -2684,6 +2686,123 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.rootEvents.map((event) => event.id)).toEqual(['m1', 'm2', 'm3']);
     store.dispose();
   });
+
+  it.each([
+    { isBot: false, thread: false },
+    { isBot: true, thread: false },
+    { isBot: false, thread: true },
+    { isBot: true, thread: true }
+  ])('resolves a pending realtime author ($isBot, thread: $thread)', async ({ isBot, thread }) => {
+    const pending = deferred<TimelineEventView>();
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
+    );
+    if (thread) store.setThread('room-1', 'root');
+    else store.setRoom('room-1');
+    await settle();
+    store.ingestEvent({
+      ...threadMessageEvent('m3', thread ? 'root' : null),
+      actorResolution: 'loading'
+    });
+    const refreshing = store.refreshPostedMessage('m3');
+    expect(store.events[0]).toMatchObject({ actor: null, actorResolution: 'loading' });
+    const actor = {
+      id: 'u1',
+      login: 'author',
+      displayName: 'Author',
+      deleted: false,
+      isBot,
+      avatarUrl: null,
+      presenceStatus: 0
+    };
+    pending.resolve({ ...threadMessageEvent('m3', thread ? 'root' : null), actor });
+    await refreshing;
+    expect(store.events[0]?.actor).toMatchObject({ id: 'u1', isBot });
+    expect(store.events[0]?.actorResolution).toBeUndefined();
+    store.dispose();
+  });
+
+  it.each(['failure', 'missing', 'deleted-success', 'deleted-failure'])(
+    'ends author loading safely after %s',
+    async (result) => {
+      const pending = deferred<TimelineEventView | null>();
+      const store = new MessagesStore(
+        new FakeQueryClient() as unknown as ServerConnection,
+        () => null,
+        fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
+      );
+      store.setRoom('room-1');
+      await settle();
+      store.ingestEvent({ ...threadMessageEvent('m3'), actorResolution: 'loading' });
+      const refreshing = store.refreshPostedMessage('m3');
+      const deleted = result.startsWith('deleted');
+      if (deleted) {
+        store.scrubUserReferences('u1');
+        expect(store.events[0]?.actorResolution).toBe('deleted');
+      }
+      if (result.endsWith('failure'))
+        pending.reject(new ConnectError('Unavailable', Code.Unavailable));
+      else if (result === 'missing') pending.resolve(null);
+      else
+        pending.resolve({
+          ...threadMessageEvent('m3'),
+          actor: {
+            id: 'u1',
+            login: 'stale',
+            displayName: 'Stale author',
+            deleted: false,
+            avatarUrl: null,
+            presenceStatus: 0
+          }
+        });
+      await refreshing;
+      expect(store.events[0]).toMatchObject({
+        actor: null,
+        actorResolution: deleted ? 'deleted' : 'unavailable'
+      });
+      expect(store.events[0]?.event).toMatchObject({ body: threadMessageEvent('m3').event.body });
+      store.dispose();
+    }
+  );
+
+  it.each([false, true])(
+    'preserves a newer author response during message hydration (in place: %s)',
+    async (inPlace) => {
+      const pending = deferred<TimelineEventView>();
+      const store = new MessagesStore(
+        new FakeQueryClient() as unknown as ServerConnection,
+        () => null,
+        fakeTimelineAPI({ getMessage: vi.fn(() => pending.promise) })
+      );
+      store.setRoom('room-1');
+      await settle();
+      const event = { ...threadMessageEvent('m3'), actorResolution: 'loading' as const };
+      store.ingestEvent(event);
+      const refreshing = store.refreshPostedMessage('m3');
+      const newer = {
+        ...event,
+        actorResolution: undefined,
+        actor: {
+          id: 'u1',
+          login: 'current',
+          displayName: 'Current author',
+          deleted: false,
+          avatarUrl: null,
+          presenceStatus: 0
+        }
+      };
+      if (inPlace) {
+        store.events[0].actor = newer.actor;
+        store.events[0].actorResolution = undefined;
+      } else store.events = [newer];
+      pending.resolve({ ...newer, actor: { ...newer.actor, displayName: 'Old author' } });
+      await refreshing;
+      expect(store.events[0]?.actor?.displayName).toBe('Current author');
+      store.dispose();
+    }
+  );
 
   it('hydrates one realtime post before its timeline window is reconciled', async () => {
     const posted = threadMessageEvent('m3');
