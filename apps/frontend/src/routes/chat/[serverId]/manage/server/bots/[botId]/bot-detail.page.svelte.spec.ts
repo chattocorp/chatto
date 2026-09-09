@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import { RoomKind } from '$lib/api-client/roomDirectory';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
@@ -64,6 +65,13 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
             : feature !== 'botMultipleApiKeys' || mocks.supportsMultipleAPIKeys
       },
       currentUser: { user: { settings: mocks.settings } },
+      navigation: {
+        rooms: [
+          { id: 'R-alerts', name: 'alerts', type: RoomKind.CHANNEL },
+          { id: 'R-general', name: 'general', type: RoomKind.CHANNEL },
+          { id: 'R-dm', name: 'Private conversation', type: RoomKind.DM }
+        ]
+      },
       permissions: { canAdminManageAccounts: mocks.canManageAccounts },
       projection: {
         viewer: {
@@ -210,6 +218,43 @@ describe('Bot detail page', () => {
       expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret')
     );
     expect(container.textContent).toContain('This URL is shown only once');
+  });
+
+  it('includes the selected room in the show-once URL and resets it for the next webhook', async () => {
+    mocks.createBotIncomingWebhook.mockResolvedValue({
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret?existing=keep'
+    });
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Create Webhook').click();
+    flushSync();
+    const select = container.querySelector('#create-bot-webhook-room') as HTMLSelectElement;
+    expect([...select.options].map((option) => option.value)).toEqual([
+      '',
+      'R-alerts',
+      'R-general'
+    ]);
+    select.value = 'R-alerts';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    flushSync();
+    setInput(container.querySelector('#create-bot-webhook-name') as HTMLInputElement, 'Grafana');
+    buttonByText(container.querySelector('dialog[open]')!, 'Create Webhook').click();
+
+    await vi.waitFor(() =>
+      expect(container.querySelector('dialog[open] code')?.textContent).toBe(
+        'https://chat.example/webhooks/incoming/secret?existing=keep&room_id=R-alerts'
+      )
+    );
+    expect(mocks.createBotIncomingWebhook).toHaveBeenCalledWith('bot-user-id', 'Grafana');
+    buttonByText(container, 'Got it').click();
+    flushSync();
+    expect(container.textContent).not.toContain('/incoming/secret');
+    buttonByText(container, 'Create Webhook').click();
+    flushSync();
+    expect((container.querySelector('#create-bot-webhook-room') as HTMLSelectElement).value).toBe(
+      ''
+    );
   });
 
   it('uploads the selected bot avatar through the user API', async () => {

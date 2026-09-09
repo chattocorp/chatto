@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -96,6 +97,81 @@ func TestIncomingWebhookPostsThroughBotPermissionsAndSupportsExistingDMs(t *test
 	response = post(path+"?room_id="+room.GetId(), `{"text":"mismatch","channel":"`+dm.GetId()+`"}`)
 	if response.Code != http.StatusBadRequest {
 		t.Fatalf("mismatched target webhook = %d %q", response.Code, response.Body.String())
+	}
+	// Grafana's default envelope contains alert metadata and a preformatted message.
+	// Chatto uses the message verbatim and ignores the remaining provider fields.
+	for _, tc := range []struct {
+		name, status, state, title, message string
+	}{
+		{"test", "firing", "alerting", "[FIRING:1] TestAlert Grafana", "**Firing**\n\nLabels:\n - alertname = TestAlert\nAnnotations:\n - summary = Notification test"},
+		{"firing", "firing", "alerting", "[FIRING:1] HighMemory", "**Firing**\n\nMemory above \"80%\"\nSource: https://grafana.example.com/alerting/memory/view"},
+		{"resolved", "resolved", "ok", "[RESOLVED] HighMemory", "**Resolved**\n\nMemory is normal.\nSource: https://grafana.example.com/alerting/memory/view"},
+	} {
+		t.Run("Grafana "+tc.name, func(t *testing.T) {
+			payload, err := json.Marshal(map[string]any{
+				"receiver": "Chatto", "status": tc.status, "orgId": 1,
+				"alerts": []map[string]any{{
+					"status": tc.status, "labels": map[string]string{"alertname": tc.name},
+					"annotations": map[string]string{"summary": "Monitoring notification"},
+					"startsAt":    "2026-09-09T08:00:00Z", "endsAt": "2026-09-09T09:00:00Z",
+					"generatorURL": "https://grafana.example.com/alerting/memory/view",
+					"fingerprint":  "example", "values": map[string]int{"B": 81},
+				}},
+				"groupLabels": map[string]string{}, "commonLabels": map[string]string{},
+				"commonAnnotations": map[string]string{}, "externalURL": "https://grafana.example.com/",
+				"version": "1", "groupKey": "{}:{}", "truncatedAlerts": 0,
+				"title": tc.title, "state": tc.state, "message": tc.message,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := post(path+"?room_id="+room.GetId(), string(payload))
+			if response.Code != http.StatusOK || response.Body.String() != "ok" {
+				t.Fatalf("Grafana webhook = %d %q", response.Code, response.Body.String())
+			}
+			posted, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(evtstream.EventMessagePosted))
+			if err != nil || len(posted) == 0 {
+				t.Fatalf("message events = %d, %v", len(posted), err)
+			}
+			if body, err := s.core.GetMessageBody(ctx, posted[len(posted)-1].GetId()); err != nil || body != tc.message {
+				t.Fatalf("Grafana message body = %q, %v; want %q", body, err, tc.message)
+			}
+		})
+	}
+
+	for _, tc := range []struct {
+		name, payload string
+		status        int
+	}{
+		{"matching aliases", `{"text":"same","body":"same","message":"same"}`, http.StatusOK},
+		{"empty aliases", `{"text":"","body":"","message":"Grafana"}`, http.StatusOK},
+		{"text conflict", `{"text":"one","message":"two"}`, http.StatusBadRequest},
+		{"body conflict", `{"body":"one","message":"two"}`, http.StatusBadRequest},
+		{"existing conflict", `{"text":"one","body":"two"}`, http.StatusBadRequest},
+		{"blank message", `{"message":"  "}`, http.StatusBadRequest},
+		{"missing message", `{"title":"Alert","alerts":[]}`, http.StatusBadRequest},
+		{"wrong type", `{"message":{"text":"nested"}}`, http.StatusBadRequest},
+		{"trailing JSON", `{"message":"first"} {"message":"second"}`, http.StatusBadRequest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(evtstream.EventMessagePosted))
+			if err != nil {
+				t.Fatal(err)
+			}
+			response := post(path+"?room_id="+room.GetId(), tc.payload)
+			if response.Code != tc.status {
+				t.Fatalf("webhook = %d %q; want %d", response.Code, response.Body.String(), tc.status)
+			}
+			if tc.status == http.StatusBadRequest {
+				if response.Body.String() != "invalid_payload" {
+					t.Fatalf("error = %q", response.Body.String())
+				}
+				after, _, err := s.core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.GetId()).Subject(evtstream.EventMessagePosted))
+				if err != nil || len(after) != len(before) {
+					t.Fatalf("rejected webhook changed message count: %d -> %d, %v", len(before), len(after), err)
+				}
+			}
+		})
 	}
 	response = post("/webhooks/incoming/invalid", `not-json`)
 	if response.Code != http.StatusUnauthorized {

@@ -61,8 +61,14 @@ exercise more authority than its human owner currently possesses.
   this optional telemetry, the page shows that it is temporarily unavailable.
 - An incoming webhook can post plain-text messages as the bot. It accepts
   Slack-compatible `text` and `channel` fields, Chatto `body` and `room_id`
-  aliases, an optional `room_id` query parameter, and the Chatto
-  `create_thread` extension. All specified destinations and bodies must agree.
+  aliases, Grafana `message`, an optional `room_id` query parameter, and the Chatto
+  `create_thread` extension. All non-empty destinations and bodies must agree.
+- Webhook creation has an optional destination channel selector. It lists
+  visible, active channel rooms and adds the selected room ID to the copied
+  URL. The bot still needs membership and posting permission. This choice
+  does not restrict the credential to that room.
+- Grafana can send its default webhook payload without a custom template.
+  Chatto posts its formatted message, including firing or resolved status.
 - An incoming webhook uses stable room IDs. It can select any channel room
   where the bot is a member and has the normal posting permissions. It can
   select an existing human-started DM that contains the bot. It cannot create

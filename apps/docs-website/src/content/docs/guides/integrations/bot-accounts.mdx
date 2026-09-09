@@ -73,7 +73,10 @@ read permission. Posting remains a separate `message.post` or
 ## Post from an external webhook
 
 Open the bot's detail page and choose **Create Webhook**. Give the webhook a
-name that identifies its caller. Copy the complete URL before you close the
+name that identifies its caller. Optionally select a destination channel room.
+Chatto adds its room ID to the URL. The bot must already be a member of that
+room and have permission to post. Leave the destination unset if the caller
+specifies a room in each request. Copy the complete URL before you close the
 dialog. Chatto cannot show the credential again. Chatto stops in-app
 navigation while it creates or shows the credential. Your browser asks for
 confirmation if you try to unload the page. A bot can have at most 20 active
@@ -96,7 +99,7 @@ Content-Type: application/json
 {"text":"Deployment finished","channel":"R…"}
 ```
 
-Chatto also accepts `body` instead of `text`, and `room_id` instead of
+Chatto also accepts `body` or `message` instead of `text`, and `room_id` instead of
 `channel`. You can put `room_id` in the query string:
 
 ```http
@@ -106,7 +109,7 @@ Content-Type: application/json
 {"text":"Deployment finished"}
 ```
 
-If you specify more than one body or room field, the values must be equal. Use
+If you specify more than one non-empty body or room field, the values must be equal. Use
 a stable room ID, not a room name. Set `"create_thread": true` to start a
 thread in a channel room that supports threads. The bot needs `message.post`
 and `message.post-in-thread` for explicit thread creation. A room that requires
@@ -129,6 +132,8 @@ The recorded time can be delayed by approximately one minute.
   logs, screenshots, and support requests. Configure reverse proxies to redact
   `/webhooks/incoming/…` paths.
 </Aside>
+
+For Grafana alerts, follow [Send Grafana alerts to Chatto](/guides/integrations/grafana/).
 
 ## Activate a bot from Chatto activity
 

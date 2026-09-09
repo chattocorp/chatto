@@ -108,6 +108,7 @@ export default defineConfig({
             "guides/integrations/realtime-typescript",
             "guides/integrations/mcp",
             "guides/integrations/bot-accounts",
+            "guides/integrations/grafana",
             "guides/integrations/api-compatibility",
             "guides/integrations/external-login-providers",
             "guides/integrations/community-shields",
