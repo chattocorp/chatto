@@ -27,6 +27,9 @@ login forms.
    browser asks for confirmation if you try to unload the page.
 4. Open the bot's detail page and enable the server, room-group, or room
    permissions the integration needs.
+5. Enable `room.join` for the rooms the bot needs. In the **Joined** row at the
+   top of the matrix, select each room to add the bot. Clear it to remove the
+   bot. Confirm in the dialog to apply the change immediately.
 
 </Steps>
 
@@ -59,6 +62,16 @@ Before granting an elevation-required permission, activate privileged mode.
 You must have that permission active at the target scope, even when you manage
 another user's bot. Removing a grant uses the normal bot management checks and
 does not require activation of that permission.
+
+You can manage room membership for your own bots without `room.manage`.
+With `user.manage-accounts` or `room.manage` for the room, you can add an
+account without its `room.join` permission. Otherwise the bot needs effective
+`room.join`, limited by your current permissions. Room bans and archived rooms
+prevent joining.
+You can remove the bot even after it loses `room.join`, including from archived
+rooms. Joining and leaving preserve its configured permissions. Universal-room
+membership is automatic and cannot be changed in this row. The row does not
+manage direct messages.
 
 Channel-room membership alone does not expose messages to a bot. Grant
 `message.read` for broad room access. Grant `message.read-interactions` when

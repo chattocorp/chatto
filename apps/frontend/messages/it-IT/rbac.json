@@ -27,6 +27,13 @@
       "pingable_description": "I ruoli pingabili vengono visualizzati nel completamento automatico @ e avvisano i membri della stanza assegnata."
     },
     "permissions": {
+      "membership": {
+        "description": "L’appartenenza a una stanza non concede permessi sui messaggi.",
+        "join": "Aggiungi l’account a #{room}",
+        "leave": "Rimuovi l’account da #{room}",
+        "unavailable": "Non puoi modificare questa appartenenza.",
+        "confirm_immediate": "Conferma per applicare subito questa modifica all’appartenenza. I permessi configurati resteranno invariati."
+      },
       "loading": "Caricamento permessi...",
       "no_data": "Nessun dato disponibile.",
       "no_roles": "Nessun ruolo applicabile in questo ambito.",

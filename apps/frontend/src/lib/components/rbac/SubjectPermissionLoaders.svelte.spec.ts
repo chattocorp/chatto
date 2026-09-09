@@ -11,11 +11,17 @@ import {
   removeRegisteredAdminUserQueries
 } from '$lib/query/cacheRegistry';
 
+const viewerPermissions = vi.hoisted(() => ({ canAdminManageAccounts: true }));
+
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
   getUserPermissionMatrix: vi.fn(),
   setRolePermission: vi.fn(),
-  setUserPermission: vi.fn()
+  setUserPermission: vi.fn(),
+  addMember: vi.fn(),
+  removeMember: vi.fn(),
+  batchGetRooms: vi.fn(),
+  batchGetRoomMembers: vi.fn()
 }));
 
 vi.mock('$lib/api-client/permissions', () => ({
@@ -25,7 +31,7 @@ vi.mock('$lib/api-client/permissions', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: {},
+    store: { permissions: viewerPermissions },
     connection: { queryScope: 'permission-loader-test', getAPI: () => permissionMocks },
     isCurrent: () => true
   })
@@ -76,6 +82,9 @@ async function settle(): Promise<void> {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  viewerPermissions.canAdminManageAccounts = true;
+  permissionMocks.batchGetRooms.mockResolvedValue([]);
+  permissionMocks.batchGetRoomMembers.mockResolvedValue([]);
   permissionMocks.getRolePermissionMatrix.mockImplementation((roleName: string) =>
     Promise.resolve(matrix({ roleName }))
   );
@@ -328,7 +337,9 @@ describe('subject permission loaders', () => {
     const rendered = render(UserPermissionsMatrix, {
       props: { userId: 'bot-inheritance', decisionMode: 'binary', ownerCapped: true }
     });
-    await settle();
+    await expect
+      .poll(() => scopedCellButton(rendered.container, 'group:general', 'message.post'))
+      .toBeTruthy();
     const table = rendered.container.querySelector('table');
     const group = scopedCellButton(rendered.container, 'group:general', 'message.post');
     const room = scopedCellButton(rendered.container, 'room:lobby', 'message.post');
@@ -465,5 +476,264 @@ describe('subject permission loaders', () => {
       scope: { tier: 'server' },
       state: 'deny'
     });
+  });
+});
+
+describe('account membership mutations', () => {
+  async function confirmMembership() {
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    expect(document.querySelector('dialog[open]')?.textContent).toContain(
+      'Confirm to apply this membership change immediately.'
+    );
+    document.querySelector<HTMLButtonElement>('dialog[open] button[type="submit"]')!.click();
+    await settle();
+  }
+
+  beforeEach(() => {
+    permissionMocks.batchGetRooms.mockResolvedValue([
+      { id: 'work', isUniversal: false, archived: false, canManageRoom: false }
+    ]);
+  });
+  function botMatrix() {
+    return {
+      ...matrix({ userId: 'membership-bot' }),
+      scopes: [
+        {
+          id: 'room:work',
+          label: 'work',
+          kind: 'ROOM',
+          parentGroupId: ''
+        }
+      ],
+      cells: [
+        { permission: 'room.manage', scopeId: 'room:work', override: 'NONE', effective: 'NONE' }
+      ]
+    };
+  }
+
+  it('confirms membership before saving immediately without writing permissions', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    permissionMocks.addMember.mockImplementation(async () => {
+      permissionMocks.batchGetRoomMembers.mockResolvedValue([{ id: 'membership-bot' }]);
+      return {};
+    });
+    permissionMocks.removeMember.mockImplementation(async () => {
+      permissionMocks.batchGetRoomMembers.mockResolvedValue([]);
+      return true;
+    });
+    const { container } = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: false, decisionMode: 'tri-state' }
+    });
+    await expect
+      .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    (
+      container.querySelector('button[aria-label="Add account to #work"]') as HTMLButtonElement
+    ).click();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+    await confirmMembership();
+    await expect.poll(() => permissionMocks.addMember.mock.calls.length).toBe(1);
+    expect(permissionMocks.addMember).toHaveBeenCalledWith({
+      roomId: 'work',
+      userId: 'membership-bot'
+    });
+    await expect
+      .poll(
+        () =>
+          container.querySelector<HTMLButtonElement>(
+            'button[aria-label="Remove account from #work"]'
+          )?.disabled
+      )
+      .toBe(false);
+    (
+      container.querySelector('button[aria-label="Remove account from #work"]') as HTMLButtonElement
+    ).click();
+    expect(permissionMocks.removeMember).not.toHaveBeenCalled();
+    await confirmMembership();
+    await expect.poll(() => permissionMocks.removeMember.mock.calls.length).toBe(1);
+    await expect
+      .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+  });
+
+  it('lets a scoped room manager add a human without room.join', async () => {
+    viewerPermissions.canAdminManageAccounts = false;
+    permissionMocks.batchGetRooms.mockResolvedValue([
+      { id: 'work', isUniversal: false, archived: false, canManageRoom: true }
+    ]);
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue({ ...botMatrix(), userId: 'human' });
+    permissionMocks.addMember.mockResolvedValue({});
+    const { container } = render(UserPermissionsMatrix, { props: { userId: 'human' } });
+    await expect
+      .poll(
+        () =>
+          container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')
+            ?.disabled
+      )
+      .toBe(false);
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
+      .click();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+    await confirmMembership();
+    await expect.poll(() => permissionMocks.addMember.mock.calls.length).toBe(1);
+    expect(permissionMocks.addMember).toHaveBeenCalledWith({ roomId: 'work', userId: 'human' });
+    expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])(
+    'cancels a membership change without writing, joined=%s',
+    async (joined) => {
+      permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+      permissionMocks.batchGetRoomMembers.mockResolvedValue(
+        joined ? [{ id: 'membership-bot' }] : []
+      );
+      const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+      const label = joined ? 'Remove account from #work' : 'Add account to #work';
+      await expect
+        .poll(() => container.querySelector(`button[aria-label="${label}"]`))
+        .toBeTruthy();
+      container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)!.click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+      const cancel = [...document.querySelectorAll<HTMLButtonElement>('dialog[open] button')].find(
+        (button) => button.textContent?.trim() === 'Cancel'
+      );
+      cancel!.click();
+      await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+      expect(permissionMocks.addMember).not.toHaveBeenCalled();
+      expect(permissionMocks.removeMember).not.toHaveBeenCalled();
+      expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+    }
+  );
+
+  it('discards an unconfirmed action when the account changes', async () => {
+    permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
+      Promise.resolve({ ...botMatrix(), userId })
+    );
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    await expect
+      .poll(() => rendered.container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    rendered.container
+      .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
+      .click();
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    await rendered.rerender({ userId: 'other-account' });
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
+    await rendered.rerender({ userId: 'membership-bot' });
+    await settle();
+    expect(document.querySelector('dialog[open]')).toBeNull();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+  });
+
+  it('rechecks membership availability when confirming', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    const { container } = render(UserPermissionsMatrix, { props: { userId: 'membership-bot' } });
+    await expect
+      .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    container
+      .querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')!
+      .click();
+    await expect.poll(() => document.querySelector('dialog[open]')).toBeTruthy();
+    permissionMocks.batchGetRooms.mockResolvedValue([
+      { id: 'work', isUniversal: false, archived: true, canManageRoom: false }
+    ]);
+    refreshRegisteredAdminQueries('origin');
+    const key = adminQueryKeys.userPermissions(
+      'origin',
+      { queryScope: 'permission-loader-test' },
+      'membership-bot'
+    );
+    await expect
+      .poll(
+        () =>
+          queryClient.getQueryData<{ scopes: { membership?: { canJoin: boolean } }[] }>(key)
+            ?.scopes[0]?.membership?.canJoin
+      )
+      .toBe(false);
+    await confirmMembership();
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+  });
+
+  it('keeps a bot join locked without effective room.join or a manager override', async () => {
+    viewerPermissions.canAdminManageAccounts = false;
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    const { container } = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: true }
+    });
+    await expect
+      .poll(
+        () =>
+          container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')
+            ?.disabled
+      )
+      .toBe(true);
+    expect(permissionMocks.addMember).not.toHaveBeenCalled();
+  });
+
+  it('retains authoritative membership after a failed join and allows retry', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue(botMatrix());
+    permissionMocks.addMember.mockRejectedValue(new Error('denied'));
+    const { container } = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+    });
+    await expect
+      .poll(() => container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    (
+      container.querySelector('button[aria-label="Add account to #work"]') as HTMLButtonElement
+    ).click();
+    await confirmMembership();
+    await expect.poll(() => container.textContent).toContain('Failed to join room');
+    await expect
+      .poll(
+        () =>
+          container.querySelector<HTMLButtonElement>('button[aria-label="Add account to #work"]')
+            ?.disabled
+      )
+      .toBe(false);
+    expect(permissionMocks.getUserPermissionMatrix.mock.calls.length).toBeGreaterThan(1);
+    expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+  });
+  it('ignores a late membership failure after switching bots', async () => {
+    let rejectJoin: ((error: Error) => void) | undefined;
+    permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
+      Promise.resolve({ ...botMatrix(), userId })
+    );
+    permissionMocks.addMember.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectJoin = reject;
+        })
+    );
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'membership-bot', ownerCapped: true, decisionMode: 'binary' }
+    });
+    await expect
+      .poll(() => rendered.container.querySelector('button[aria-label="Add account to #work"]'))
+      .toBeTruthy();
+    (
+      rendered.container.querySelector(
+        'button[aria-label="Add account to #work"]'
+      ) as HTMLButtonElement
+    ).click();
+    await confirmMembership();
+    await expect.poll(() => rejectJoin).toBeTruthy();
+    await rendered.rerender({ userId: 'replacement-bot' });
+    await expect
+      .poll(() =>
+        permissionMocks.getUserPermissionMatrix.mock.calls.some(([id]) => id === 'replacement-bot')
+      )
+      .toBe(true);
+    rejectJoin!(new Error('stale failure'));
+    await settle();
+    expect(rendered.container.textContent).not.toContain('Failed to join room');
+    expect(
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Add account to #work"]'
+      )?.disabled
+    ).toBe(false);
   });
 });

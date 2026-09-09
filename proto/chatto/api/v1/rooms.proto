@@ -434,21 +434,24 @@ service RoomService {
   // Lists effective room members. Existing members and room.manage holders may
   // list a channel room; other nonmembers need both room.list and room.join.
   rpc ListMembers(ListRoomMembersRequest) returns (ListRoomMembersResponse);
-  // Gets one explicit member of a room. Existing members and room.manage
-  // holders may read channel-room members; DMs remain membership-only. Returns
-  // NOT_FOUND when the target is unknown or not a room member.
+  // Gets one effective member, including automatic universal membership.
+  // Channel-room members, room.manage holders, and user.manage-accounts holders
+  // may read members. Bot owners and bot.manage holders may read their target
+  // bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
   rpc GetMember(GetRoomMemberRequest) returns (GetRoomMemberResponse);
-  // Gets explicit room member rows for multiple users. Existing members and
-  // room.manage holders may read channel-room members; DMs remain
-  // membership-only.
+  // Gets effective member rows for the requested accounts. Uses the same
+  // authorization as GetMember; omits unknown accounts and nonmembers.
   rpc BatchGetMembers(BatchGetRoomMembersRequest) returns (BatchGetRoomMembersResponse);
-  // Adds a user as an explicit member of a channel room. The caller must be
-  // allowed to manage the room. Direct-message and universal rooms cannot be
-  // managed this way.
+  // Adds an account as an explicit channel-room member. room.manage for this
+  // room or user.manage-accounts overrides the target's missing room.join.
+  // Bot owners and bot.manage holders may also add bots, but without either
+  // override the bot needs effective room.join, bounded by its owner's authority.
+  // Preserves permission grants. Bans, archived, universal, and DM rooms prevent adding.
   rpc AddMember(AddMemberRequest) returns (AddMemberResponse);
-  // Removes a user from a channel room's explicit members. The caller must be
-  // allowed to manage the room. Direct-message and universal rooms cannot be
-  // managed this way.
+  // Removes an explicit channel-room member. Requires room.manage for this room,
+  // user.manage-accounts, ownership of the target bot, or bot.manage.
+  // Removal is allowed after room.join is lost and from archived rooms.
+  // Preserves permission grants. Universal and DM membership cannot be edited.
   rpc RemoveMember(RemoveMemberRequest) returns (RemoveMemberResponse);
   // Lists active channel room bans. The caller must be allowed to moderate room
   // membership bans.

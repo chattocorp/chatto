@@ -27,6 +27,13 @@
       "pingable_description": "Role, które można pingować, pojawiają się w @ autouzupełnianiu i powiadamiają przypisanych członków pokoju."
     },
     "permissions": {
+      "membership": {
+        "description": "Członkostwo w pokoju nie nadaje uprawnień do wiadomości.",
+        "join": "Dodaj konto do #{room}",
+        "leave": "Usuń konto z #{room}",
+        "unavailable": "Nie możesz zmienić tego członkostwa.",
+        "confirm_immediate": "Potwierdź, aby natychmiast zmienić członkostwo. Skonfigurowane uprawnienia pozostaną bez zmian."
+      },
       "loading": "Ładowanie uprawnień...",
       "no_data": "Brak dostępnych danych.",
       "no_roles": "Brak ról mających zastosowanie w tym zakresie.",

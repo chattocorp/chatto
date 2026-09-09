@@ -105,6 +105,17 @@ exercise more authority than its human owner currently possesses.
   durable mention fact.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
+- The account permission matrix has a **Joined** row above the permission rows.
+  Owners and human bot managers can add and remove the bot in each visible
+  channel room. A confirmation dialog explains that the change takes effect immediately
+  after confirmation. Cancel leaves membership unchanged; grants stay unchanged.
+  `user.manage-accounts` or `room.manage` for the room can override a
+  missing join permission. Otherwise joining requires the bot's effective
+  `room.join`, including the owner's permission ceiling. Bans and archived
+  rooms prevent joining. Bot owners do not need `room.manage`. Removal does
+  not require `room.join` and remains
+  available for archived rooms. Universal membership is automatic; server,
+  group, and DM columns have no membership control.
 - Channel-room membership does not give a bot message content. The bot needs
   an explicit `message.read` grant for broad access or an explicit
   `message.read-interactions` grant for related threads. The broad grant
@@ -412,6 +423,13 @@ separate permission. Effective owners retain their normal all-permissions
 override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
+
+Account membership uses the existing room APIs. Targeted reads now permit
+account managers and managers of the requested bot. Add and remove operations
+accept account managers and bot managers in addition to room managers. Room
+and account managers can override a missing join permission. Membership events
+and permission grants keep their existing storage format. No data migration
+is required.
 
 Bot identity, management, reassignment, permission ceilings, and named
 credentials are additive in Chatto 0.5. The removal of the experimental

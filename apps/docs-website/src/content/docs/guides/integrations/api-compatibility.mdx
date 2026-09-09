@@ -163,6 +163,20 @@ provide a relationship-list API. Older replicas do not know the narrow
 permission and deny this mode when `message.read` is absent. Complete the
 replica rollout before you depend on narrow-read availability.
 
+The account permission matrix uses the existing room membership APIs.
+`RoomService.AddMember` and `RemoveMember` now accept account managers and
+managers of the target bot in addition to room managers. `user.manage-accounts`
+or `room.manage` for the room overrides the target's missing `room.join`.
+Without either permission, a bot manager needs the bot's effective `room.join`,
+including its owner's ceiling. Removal does not require `room.join`.
+Both actions preserve configured permissions. Bans and archived rooms prevent
+adding; removal remains available in archived rooms.
+
+`GetMember` and `BatchGetMembers` now allow account managers to read channel
+membership, and bot managers to read their target bots' membership. DM reads
+still require caller membership. The permission API has no membership fields.
+Existing membership events need no migration.
+
 Chatto 0.5 also denies `RoomService.StartDM` to bot callers. This rule applies
 when the requested DM already exists. A human must start the DM, after which
 the bot can interact through its normal permissions. A bot integration that

@@ -90,6 +90,27 @@ Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot
 or either human owner.
 
+`RoomService.AddMember` and `RemoveMember` accept room managers, account
+managers, bot owners, and human bot managers. `room.manage` for the room or
+`user.manage-accounts` overrides the target account's missing `room.join`.
+Without either override, a bot manager needs the bot's effective `room.join`,
+including its owner's ceiling. Bans and archived rooms prevent adding.
+Removal does not require join permission and works in archived rooms.
+Both operations recheck authorization within room aggregate OCC retries and
+reuse the existing membership and audit events. Neither changes grants.
+`RoomMemberAdded` and `RoomMemberRemoved` identify the acting manager in
+`actor_id` and the target account in their payload. Each audit record commits
+atomically with its membership transition, including permission overrides.
+
+`RoomService.GetMember` and `BatchGetMembers` read the requested accounts'
+effective membership, including universal membership. Account managers can
+read channel membership without joining. Bot managers can read only their
+target bots through this additional gate; they cannot list other members.
+DM reads still require caller membership. The account permission matrix UI
+composes these reads with `RoomDirectoryService.BatchGetRooms`; membership is
+not part of the permission API. Client reads use batches of at most 100 rooms
+and at most six concurrent member lookups.
+
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
 layout so empty groups remain configurable. Each bot API key authenticates the

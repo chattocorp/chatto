@@ -7,6 +7,25 @@
 
 Chatto controls who can do what through role-based access control. Every authenticated human user holds one or more roles; each role grants or denies specific permissions. Permissions can also be overridden per room-group and per room, giving operators fine-grained control without inventing parallel role systems. Bot accounts are the deliberate exception: they use an explicit direct-permission allowlist bounded by their human owner's current authority (FDR-038).
 
+## Account Room Membership
+
+The account permission matrix has a **Joined** row for human and bot accounts.
+A confirmation dialog explains that the membership change takes effect
+immediately after confirmation. Cancel leaves membership unchanged.
+Configured permission grants stay unchanged.
+`user.manage-accounts` or `room.manage` for the room can add an account without
+its `room.join` permission. This lets a room manager invite a user who cannot
+join independently. These permissions also authorize removal after join
+permission is lost, including from archived rooms.
+
+Bot owners and human bot managers can manage their bots without `room.manage`.
+Without an account or room management override, adding a bot requires its
+effective `room.join`, including its owner's ceiling. Bans and archived rooms
+prevent adding. Universal membership remains automatic; DMs are excluded.
+The event log records the acting manager and target account for each change,
+including management overrides. Membership does not grant message permissions.
+See [FDR-038](FDR-038-bot-accounts.md).
+
 ## Behavior
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.

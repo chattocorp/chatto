@@ -7,8 +7,10 @@ rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { Hint } from '$lib/ui';
+  import { ConfirmDialog, Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { loadAccountMemberships } from './accountMemberships';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -48,12 +50,17 @@ rendering to `SubjectPermissionsMatrix`.
       const serverId = serverScope.serverId;
       const activeConnection = serverScope.connection;
       const activeUserId = userId;
+      const isBot = ownerCapped;
+      const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
       return {
         queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
-        queryFn: ({ signal }) =>
-          activeConnection
+        queryFn: async ({ signal }) => {
+          const matrix = await activeConnection
             .getAPI(createPermissionAPI)
-            .getUserPermissionMatrix(activeUserId, { signal })
+            .getUserPermissionMatrix(activeUserId, { signal });
+          if (!matrix) return null;
+          return loadAccountMemberships(activeConnection, matrix, isBot, canManageAccounts, signal);
+        }
       };
     },
     () => queryClient
@@ -75,6 +82,43 @@ rendering to `SubjectPermissionsMatrix`.
   const visibleUpdatingKey = $derived(
     mutationContext === activeMutationContext ? updatingKey : null
   );
+  // Each account/session owns fresh modal state. Navigation discards it, so an
+  // unconfirmed action cannot reappear when returning to the previous account.
+  class MembershipConfirmation {
+    pending = $state<{
+      scopeId: string;
+      roomLabel: string;
+      joined: boolean;
+    } | null>(null);
+
+    readonly context: string;
+
+    constructor(context: string) {
+      this.context = context;
+    }
+  }
+  const membershipConfirmation = $derived(new MembershipConfirmation(activeMutationContext));
+  const visibleMembershipConfirmation = $derived(membershipConfirmation.pending);
+
+  function requestMembershipChange(scope: MatrixScope, joined: boolean) {
+    if (visibleUpdatingKey || !scope.membership) return;
+    if (joined ? !scope.membership.canJoin : !scope.membership.canLeave) return;
+    membershipConfirmation.pending = {
+      scopeId: scope.id,
+      roomLabel: scope.label,
+      joined
+    };
+  }
+
+  function confirmMembershipChange() {
+    const pending = visibleMembershipConfirmation;
+    membershipConfirmation.pending = null;
+    if (!pending || !serverScope.isCurrent()) return;
+    // Recheck the latest scope after confirmation; permissions may have changed.
+    const scope = data?.scopes.find((scope) => scope.id === pending.scopeId);
+    if (scope) void handleMembershipChange(scope, pending.joined);
+  }
+
   onDestroy(() => {
     mutationGeneration += 1;
   });
@@ -92,8 +136,46 @@ rendering to `SubjectPermissionsMatrix`.
     return { tier: 'server' };
   }
 
+  // Fence mutation feedback by server session and account identity. Reconcile after
+  // both success and failure because a failed response can follow a committed write.
+  async function handleMembershipChange(scope: MatrixScope, joined: boolean) {
+    if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.membership) return;
+    if (joined ? !scope.membership.canJoin : !scope.membership.canLeave) return;
+    const generation = ++mutationGeneration;
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeUserId = data.userId;
+    const context = JSON.stringify([serverId, activeConnection.queryScope, activeUserId]);
+    const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
+    updatingKey = `${scope.id}::$membership`;
+    mutationContext = context;
+    mutationError = null;
+    const current = () =>
+      mutationGeneration === generation &&
+      serverScope.isCurrent() &&
+      context === activeMutationContext;
+    try {
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      const api = activeConnection.getAPI(createRoomCommandAPI);
+      const input = { roomId: scope.id.slice('room:'.length), userId: activeUserId };
+      if (joined) await api.addMember(input);
+      else await api.removeMember(input);
+      if (current()) toast.success(m('common.saved'));
+    } catch {
+      if (current()) {
+        const message = m(joined ? 'room.join.failed' : 'room.leave.failed');
+        mutationError = { context, message };
+        toast.error(message);
+      }
+    } finally {
+      if (serverScope.isCurrent()) await queryClient.invalidateQueries({ queryKey, exact: true });
+      if (mutationGeneration === generation) updatingKey = null;
+    }
+  }
+
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data || visibleUpdatingKey) return;
+    const refreshMembership = data.scopes.some((scope) => scope.membership);
     const generation = ++mutationGeneration;
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
@@ -142,10 +224,9 @@ rendering to `SubjectPermissionsMatrix`.
     void queryClient.invalidateQueries({
       queryKey,
       exact: true,
-      // The binary matrix derives inheritance from direct decisions, so its
-      // mutation response is enough to update the active view. Mark it stale
-      // for the next mount without replacing the whole visible matrix now.
-      refetchType: decisionMode === 'binary' ? 'none' : 'active'
+      // Binary permissions derive inheritance locally. Bot membership actions
+      // also depend on effective permissions, so refresh those from the server.
+      refetchType: decisionMode === 'binary' && !refreshMembership ? 'none' : 'active'
     });
     if (!serverScope.isCurrent()) return;
     if (mutationGeneration === generation) updatingKey = null;
@@ -170,7 +251,27 @@ rendering to `SubjectPermissionsMatrix`.
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
     {subjectKind}
-    readOnly={decisionMode === 'tri-state' && visibleUpdatingKey !== null}
+    readOnly={visibleUpdatingKey !== null &&
+      (decisionMode === 'tri-state' || visibleUpdatingKey.endsWith('::$membership'))}
+    onMembershipChange={requestMembershipChange}
     {decisionMode}
   />
+{/if}
+
+{#if visibleMembershipConfirmation}
+  {@const action = m(
+    visibleMembershipConfirmation.joined
+      ? 'rbac.permissions.membership.join'
+      : 'rbac.permissions.membership.leave',
+    { room: visibleMembershipConfirmation.roomLabel }
+  )}
+  <ConfirmDialog
+    title={action}
+    actionLabel={action}
+    tone={visibleMembershipConfirmation.joined ? 'info' : 'warning'}
+    onconfirm={confirmMembershipChange}
+    onclose={() => (membershipConfirmation.pending = null)}
+  >
+    {m('rbac.permissions.membership.confirm_immediate')}
+  </ConfirmDialog>
 {/if}

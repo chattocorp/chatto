@@ -27,6 +27,13 @@
       "pingable_description": "Pingable roles appear in @ autocomplete and notify assigned room members."
     },
     "permissions": {
+      "membership": {
+        "description": "Room membership does not grant message permissions.",
+        "join": "Add account to #{room}",
+        "leave": "Remove account from #{room}",
+        "unavailable": "You cannot change this membership.",
+        "confirm_immediate": "Confirm to apply this membership change immediately. Configured permissions will stay unchanged."
+      },
       "loading": "Loading permissions...",
       "no_data": "No data available.",
       "no_roles": "No roles applicable at this scope.",

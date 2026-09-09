@@ -27,6 +27,13 @@
       "pingable_description": "可提及的角色会显示在 @ 自动补全中，并通知聊天室内已分配该角色的成员。"
     },
     "permissions": {
+      "membership": {
+        "description": "加入聊天室不会授予消息权限。",
+        "join": "将账户加入 #{room}",
+        "leave": "将账户移出 #{room}",
+        "unavailable": "你无法更改此成员资格。",
+        "confirm_immediate": "确认后将立即应用此成员资格更改。已配置的权限将保持不变。"
+      },
       "loading": "正在加载权限...",
       "no_data": "暂无数据。",
       "no_roles": "此范围内没有适用的角色。",

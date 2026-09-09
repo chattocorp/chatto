@@ -27,6 +27,13 @@
       "pingable_description": "Pingbare Rollen erscheinen in der @-Autovervollständigung und benachrichtigen zugewiesene Raummitglieder."
     },
     "permissions": {
+      "membership": {
+        "description": "Die Raummitgliedschaft erteilt keine Nachrichtenberechtigungen.",
+        "join": "Account zu #{room} hinzufügen",
+        "leave": "Account aus #{room} entfernen",
+        "unavailable": "Du kannst diese Mitgliedschaft nicht ändern.",
+        "confirm_immediate": "Bestätige, um diese Mitgliedschaft sofort zu ändern. Die konfigurierten Berechtigungen bleiben unverändert."
+      },
       "loading": "Berechtigungen werden geladen...",
       "no_data": "Keine Daten verfügbar.",
       "no_roles": "Keine Rollen für diesen Bereich anwendbar.",

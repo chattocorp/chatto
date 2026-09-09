@@ -17,6 +17,13 @@ its permission row and scope column. The surrounding pane owns vertical
 scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
+  /** Client view of membership, loaded through the room APIs. */
+  export type AccountRoomMembership = {
+    joined: boolean;
+    automatic: boolean;
+    canJoin: boolean;
+    canLeave: boolean;
+  };
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixTable } from '$lib/ui/matrix';
   import { Hint } from '$lib/ui';
@@ -38,6 +45,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     label: string;
     kind: MatrixScopeKind;
     parentGroupId: string;
+    membership?: AccountRoomMembership;
   };
   export type MatrixCellData = {
     permission: string;
@@ -62,7 +70,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     subjectKind = 'subject',
     forceAllow = false,
     readOnly = false,
-    decisionMode = 'tri-state'
+    decisionMode = 'tri-state',
+    onMembershipChange
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -76,6 +85,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
+    /** Enables the account membership row, separate from permission cells. */
+    onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
 
   // ----- Column layout ----------------------------------------------------
@@ -125,6 +136,13 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         )
       : permissions;
   });
+  const membershipRow = '$membership';
+  const showMembership = $derived(
+    Boolean(onMembershipChange) && data.scopes.some((s) => s.membership)
+  );
+  const rows = $derived(
+    showMembership ? [membershipRow, ...filteredPermissions] : filteredPermissions
+  );
   // ----- Cell lookup ------------------------------------------------------
 
   const cellIndex = $derived.by(() => {
@@ -219,11 +237,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       </div>
     {/snippet}
     <MatrixTable
-      rows={filteredPermissions}
+      {rows}
       columns={matrixScopes}
       getRowKey={(permission) => permission}
       getColumnKey={(scope) => scope.id}
-      getGroupKey={(permission) => getPermissionCategory(permission)}
+      getGroupKey={(permission) =>
+        permission === membershipRow ? null : getPermissionCategory(permission)}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
       compact
       columnHeaderHeight="10rem"
@@ -233,7 +252,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         'data-scope': scope.id,
         'data-permission': permission
       })}
-      isCellInteractive={(permission, scope) => Boolean(cellFor(scope.id, permission))}
+      isCellInteractive={(permission, scope) =>
+        permission === membershipRow
+          ? Boolean(scope.membership)
+          : Boolean(cellFor(scope.id, permission))}
       spacerTestId="permission-matrix-spacer"
     >
       {#snippet leadingHeader()}
@@ -263,14 +285,40 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       {#snippet rowHeader(permission, highlighted)}
         <span
           data-testid="permission-name"
-          title={getPermissionDescription(permission)}
-          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}>{permission}</span
+          title={permission === membershipRow
+            ? m('rbac.permissions.membership.description')
+            : getPermissionDescription(permission)}
+          class={['text-sm whitespace-nowrap', highlighted ? 'text-action' : '']}
+          >{permission === membershipRow ? m('room.directory.joined') : permission}</span
         >
       {/snippet}
       {#snippet cell(permission, scope)}
         {@const permissionId = permission}
         {@const cell = cellFor(scope.id, permission)}
-        {#if cell}
+        {#if permission === membershipRow && scope.membership}
+          {@const membership = scope.membership}
+          {@const action = m(
+            membership.joined
+              ? 'rbac.permissions.membership.leave'
+              : 'rbac.permissions.membership.join',
+            { room: scope.label }
+          )}
+          <MatrixCell
+            override={membership.joined ? 'allow' : 'neutral'}
+            decisionMode="binary"
+            disabled={readOnly}
+            locked={membership.automatic ||
+              !(membership.joined ? membership.canLeave : membership.canJoin)}
+            updating={updatingKey === `${scope.id}::${membershipRow}`}
+            ariaLabel={action}
+            title={membership.automatic
+              ? m('room.directory.universal_title')
+              : !(membership.joined ? membership.canLeave : membership.canJoin)
+                ? m('rbac.permissions.membership.unavailable')
+                : action}
+            onCycle={() => onMembershipChange?.(scope, !membership.joined)}
+          />
+        {:else if cell}
           {@const ov = decisionToState(cell.override)}
           {@const eff = decisionToState(cell.effective)}
           {@const parent = parentDecision(scope, permission)}

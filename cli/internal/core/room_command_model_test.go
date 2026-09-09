@@ -2,7 +2,10 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"hmans.de/chatto/internal/evtstream"
 )
@@ -384,5 +387,258 @@ func TestRoomCommandModelManageRoomMembersRejectsInvalidTargets(t *testing.T) {
 		UserID:  banned.Id,
 	}); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("AddMember banned error = %v, want ErrPermissionDenied", err)
+	}
+}
+
+func TestBotOwnerRoomMembership(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "membership-owner", "Membership Owner", "password")
+	require.NoError(t, err)
+	other, err := c.CreateUser(ctx, SystemActorID, "membership-other", "Other", "password")
+	require.NoError(t, err)
+	bot, err := c.CreateBot(ctx, owner.Id, "membership_bot", "Membership Bot")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-membership", "")
+	require.NoError(t, err)
+	input := RoomUserInput{ActorID: owner.Id, RoomID: room.Id, UserID: bot.User.Id}
+	commands := c.RoomCommands()
+	canManage, err := c.PermResolver().HasRoomPermission(ctx, owner.Id, KindChannel, room.Id, PermRoomManage)
+	require.NoError(t, err)
+	require.False(t, canManage, "fixture owner must not have room.manage")
+
+	joined := func() bool {
+		t.Helper()
+		joined, err := c.RoomMembershipExists(ctx, KindChannel, bot.User.Id, room.Id)
+		require.NoError(t, err)
+		return joined
+	}
+	canJoin := func() bool {
+		t.Helper()
+		allowed, err := c.CanJoinRoomAt(ctx, bot.User.Id, KindChannel, room.Id)
+		require.NoError(t, err)
+		return allowed
+	}
+	grant := func(state PermissionState) {
+		t.Helper()
+		require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id,
+			PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}, PermRoomJoin, state))
+	}
+
+	require.False(t, canJoin())
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied, "bot needs an explicit grant")
+	grant(PermissionStateAllow)
+	require.True(t, canJoin())
+	otherInput := input
+	otherInput.ActorID = other.Id
+	_, err = commands.AddMember(ctx, otherInput)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	_, err = commands.AddMember(ctx, input)
+	require.NoError(t, err)
+	_, err = commands.AddMember(ctx, input)
+	require.NoError(t, err, "join is idempotent")
+	require.True(t, joined())
+	require.True(t, joined())
+	canRead, err := c.CanReadMessages(ctx, bot.User.Id, KindChannel, room.Id)
+	require.NoError(t, err)
+	require.False(t, canRead, "joining must not grant message permissions")
+	_, err = commands.RemoveMember(ctx, otherInput)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+
+	grant(PermissionStateNone)
+	require.True(t, joined(), "join grant loss must not prevent removal")
+	removed, err := commands.RemoveMember(ctx, input)
+	require.NoError(t, err)
+	require.True(t, removed)
+	removed, err = commands.RemoveMember(ctx, input)
+	require.NoError(t, err)
+	require.False(t, removed, "leave is idempotent")
+
+	grant(PermissionStateAllow)
+	_, err = commands.AddMember(ctx, input)
+	require.NoError(t, err)
+	// Keep the room visible through the owner's own membership after its join
+	// permission is revoked; matrix directory visibility remains unchanged.
+	_, err = c.JoinRoom(ctx, owner.Id, KindChannel, owner.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied, "owner ceiling applies even to an existing member")
+	require.True(t, joined())
+	_, err = commands.RemoveMember(ctx, input)
+	require.NoError(t, err)
+	matrix, err := c.GetUserPermissionMatrix(ctx, owner.Id, bot.User.Id)
+	require.NoError(t, err)
+	for _, cell := range matrix.Cells {
+		if cell.ScopeID == "room:"+room.Id && cell.Permission == string(PermRoomJoin) {
+			require.Equal(t, MatrixDecisionAllow, cell.Override, "leave preserves the stored grant")
+		}
+	}
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.NoError(t, c.GrantRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+	_, err = commands.AddMember(ctx, input)
+	require.NoError(t, err)
+	_, err = c.ArchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
+	require.NoError(t, err)
+	_, err = commands.RemoveMember(ctx, input)
+	require.NoError(t, err, "bot owner can clean up archived rooms")
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrRoomArchived)
+	_, err = c.UnarchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
+	require.NoError(t, err)
+	_, err = commands.AddMember(ctx, input)
+	require.NoError(t, err)
+	_, err = c.BanMember(ctx, SystemActorID, KindChannel, room.Id, bot.User.Id, "membership test", nil)
+	require.NoError(t, err)
+	_, err = commands.AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.False(t, canJoin())
+
+	// Universal membership follows effective room.join, not explicit writes.
+	universal, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-universal", "")
+	require.NoError(t, err)
+	_, err = c.SetRoomUniversal(ctx, SystemActorID, KindChannel, universal.Id, true)
+	require.NoError(t, err)
+	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id,
+		PermissionTargetScope{Kind: MatrixScopeRoom, ID: universal.Id}, PermRoomJoin, PermissionStateAllow))
+	universalInput := input
+	universalInput.RoomID = universal.Id
+	_, err = commands.AddMember(ctx, universalInput)
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	_, err = commands.RemoveMember(ctx, universalInput)
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	universalJoined, err := c.RoomMembershipExists(ctx, KindChannel, bot.User.Id, universal.Id)
+	require.NoError(t, err)
+	require.True(t, universalJoined)
+	dm, _, err := commands.StartDM(ctx, RoomStartDMInput{ActorID: owner.Id, ParticipantIDs: []string{bot.User.Id}})
+	require.NoError(t, err)
+	dmInput := input
+	dmInput.RoomID = dm.Id
+	_, err = commands.AddMember(ctx, dmInput)
+	require.ErrorIs(t, err, ErrInvalidArgument)
+	_, err = commands.RemoveMember(ctx, dmInput)
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	// Bot management does not authorize adding human accounts.
+	humanInput := input
+	humanInput.UserID = other.Id
+	_, err = commands.AddMember(ctx, humanInput)
+	require.ErrorIs(t, err, ErrPermissionDenied)
+}
+
+func TestBotManagerMembershipAndAuthorizationRetry(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "retry-owner", "Owner", "password")
+	require.NoError(t, err)
+	manager, err := c.CreateUser(ctx, SystemActorID, "retry-manager", "Manager", "password")
+	require.NoError(t, err)
+	require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage))
+	bot, err := c.CreateBot(ctx, owner.Id, "retry_bot", "Retry Bot")
+	require.NoError(t, err)
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "bot-retry", "")
+	require.NoError(t, err)
+	input := RoomUserInput{ActorID: manager.Id, UserID: bot.User.Id, RoomID: room.Id}
+	_, err = c.RoomCommands().AddMember(ctx, input)
+	require.ErrorIs(t, err, ErrPermissionDenied, "global manager cannot bypass the bot allowlist")
+	require.NoError(t, c.SetUserPermissionState(ctx, owner.Id, bot.User.Id,
+		PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}, PermRoomJoin, PermissionStateAllow))
+	_, err = c.RoomCommands().AddMember(ctx, input)
+	require.NoError(t, err)
+	_, err = c.RoomCommands().RemoveMember(ctx, input)
+	require.NoError(t, err)
+
+	// The second authorization call follows room catch-up. Change that room's
+	// tail to force OCC failure, then reject the next authorization decision.
+	calls := 0
+	_, err = c.addMember(ctx, manager.Id, KindChannel, room.Id, bot.User.Id, func() error {
+		calls++
+		if calls > 2 {
+			return ErrPermissionDenied
+		}
+		if calls == 2 {
+			_, err := c.UpdateRoom(ctx, SystemActorID, KindChannel, room.Id, room.Name, "concurrent change")
+			return err
+		}
+		return c.RoomCommands().authorizeMembershipChange(ctx, input, true)
+	})
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.Equal(t, 3, calls, "authorization must be repeated after OCC conflict")
+	joined, err := c.RoomMembershipExists(ctx, KindChannel, bot.User.Id, room.Id)
+	require.NoError(t, err)
+	require.False(t, joined)
+}
+
+func TestAccountMembershipManagerOverridesJoinPermission(t *testing.T) {
+	for _, authority := range []Permission{PermUserManageAccounts, PermRoomManage} {
+		for _, botTarget := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/bot=%t", authority, botTarget), func(t *testing.T) {
+				c, _ := setupTestCore(t)
+				ctx := testContext(t)
+				manager, err := c.CreateUser(ctx, SystemActorID, "account-manager", "Manager", "password")
+				require.NoError(t, err)
+				owner, err := c.CreateUser(ctx, SystemActorID, "account-owner", "Owner", "password")
+				require.NoError(t, err)
+				target := owner
+				if botTarget {
+					bot, err := c.CreateBot(ctx, owner.Id, "managed_account_bot", "Bot")
+					require.NoError(t, err)
+					target = bot.User
+				}
+				room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "managed-membership", "")
+				require.NoError(t, err)
+				require.NoError(t, c.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermRoomJoin))
+				input := RoomUserInput{ActorID: manager.Id, RoomID: room.Id, UserID: target.Id}
+				_, err = c.RoomCommands().AddMember(ctx, input)
+				require.ErrorIs(t, err, ErrPermissionDenied)
+				if authority == PermRoomManage {
+					require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, authority))
+				} else {
+					require.NoError(t, c.GrantUserPermission(ctx, SystemActorID, manager.Id, authority))
+				}
+				_, err = c.RoomCommands().AddMember(ctx, input)
+				require.NoError(t, err, "management authority overrides the target's missing room.join")
+				addEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberAdded))
+				require.NoError(t, err)
+				require.Len(t, addEvents, 1)
+				require.Equal(t, manager.Id, addEvents[0].GetActorId(), "EVT must identify the manager who overrides room.join")
+				require.Equal(t, target.Id, addEvents[0].GetRoomMemberAdded().GetUserId())
+
+				allowed, err := c.CanJoinRoomAt(ctx, target.Id, KindChannel, room.Id)
+				require.NoError(t, err)
+				require.False(t, allowed, "adding membership must not change permission grants")
+				members, err := c.GetRoomMemberReferencesForLookup(ctx, manager.Id, room.Id, []string{target.Id})
+				require.NoError(t, err)
+				require.Len(t, members, 1, "account managers need not join to inspect membership")
+				if authority == PermRoomManage {
+					otherRoom, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "other-membership", "")
+					require.NoError(t, err)
+					_, err = c.RoomCommands().AddMember(ctx, RoomUserInput{ActorID: manager.Id, RoomID: otherRoom.Id, UserID: target.Id})
+					require.ErrorIs(t, err, ErrPermissionDenied, "room management is scoped to its room")
+				}
+				_, err = c.ArchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
+				require.NoError(t, err)
+				_, err = c.RoomCommands().RemoveMember(ctx, input)
+				require.NoError(t, err)
+				removeEvents, _, err := c.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomMemberRemoved))
+				require.NoError(t, err)
+				require.Len(t, removeEvents, 1)
+				require.Equal(t, manager.Id, removeEvents[0].GetActorId(), "EVT must identify the manager who removes the account")
+				require.Equal(t, target.Id, removeEvents[0].GetRoomMemberRemoved().GetUserId())
+
+				_, err = c.RoomCommands().AddMember(ctx, input)
+				require.ErrorIs(t, err, ErrRoomArchived)
+				_, err = c.UnarchiveRoom(ctx, SystemActorID, KindChannel, room.Id)
+				require.NoError(t, err)
+				_, err = c.RoomCommands().AddMember(ctx, input)
+				require.NoError(t, err)
+				_, err = c.BanMember(ctx, SystemActorID, KindChannel, room.Id, target.Id, "test", nil)
+				require.NoError(t, err)
+				_, err = c.RoomCommands().AddMember(ctx, input)
+				require.ErrorIs(t, err, ErrPermissionDenied, "a join override must not override a ban")
+			})
+		}
 	}
 }
