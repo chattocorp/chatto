@@ -1515,13 +1515,13 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
 
-	setResp, err := env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	setResp, err := env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji:     "🌿",
 		Text:      "In focus mode",
 		ExpiresAt: expiresAt,
 	}))
 	if err != nil {
-		t.Fatalf("UpdateCustomStatus: %v", err)
+		t.Fatalf("SetCustomStatus: %v", err)
 	}
 	if got := setResp.Msg.GetStatus(); got.GetEmoji() != "🌿" || got.GetText() != "In focus mode" {
 		t.Fatalf("status = %+v, want focus status", got)
@@ -1538,20 +1538,44 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 		t.Fatalf("stored CustomStatus = %+v, want set status", stored.GetCustomStatus())
 	}
 
-	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	_, err = env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji: "🌿",
 		Text:  "   ",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
+		t.Fatalf("SetCustomStatus blank text error = %v, want InvalidArgument", err)
 	}
 
-	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	_, err = env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji: "e",
 		Text:  "Invalid emoji",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UpdateCustomStatus invalid emoji error = %v, want InvalidArgument", err)
+		t.Fatalf("SetCustomStatus invalid emoji error = %v, want InvalidArgument", err)
+	}
+
+	for _, request := range []*apiv1.SetCustomStatusRequest{{}, {Emoji: "🌿"}, {Text: "Incomplete"}} {
+		_, err := env.account.SetCustomStatus(ctx, connect.NewRequest(request))
+		requireConnectCode(t, err, connect.CodeInvalidArgument)
+	}
+	_, err = env.account.SetCustomStatus(env.ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+
+	replaced, err := env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+		Emoji: "☕", Text: "On a break",
+	}))
+	if err != nil {
+		t.Fatalf("SetCustomStatus replacement: %v", err)
+	}
+	if got := replaced.Msg.GetStatus(); got.GetEmoji() != "☕" || got.GetText() != "On a break" || got.GetExpiresAt() != nil {
+		t.Fatalf("replacement must replace text and emoji and remove expiry: %+v", got)
+	}
+	stored, err = env.core.GetUser(ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GetCustomStatus().GetExpiresAt() != nil || stored.GetCustomStatus().GetText() != "On a break" {
+		t.Fatal("replacement was not stored")
 	}
 
 	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))

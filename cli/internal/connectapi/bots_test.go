@@ -241,3 +241,39 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, removed.Msg.Removed)
 }
+
+func TestBotServiceOutboundWebhookPatchPresence(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	service := &botService{api: env.api}
+	ctx := withCaller(env.ctx, env.viewer)
+	// Empty patches are rejected before target lookup, but after authentication.
+	request := &apiv1.UpdateBotOutboundWebhookRequest{BotUserId: "missing", WebhookId: "missing"}
+	_, err := service.UpdateBotOutboundWebhook(env.ctx, connect.NewRequest(request))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+	_, err = service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(request))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	bot, err := service.CreateBot(ctx, connect.NewRequest(&apiv1.CreateBotRequest{Login: "patch_bot", DisplayName: "Patch Bot"}))
+	require.NoError(t, err)
+	created, err := service.CreateBotOutboundWebhook(ctx, connect.NewRequest(&apiv1.CreateBotOutboundWebhookRequest{
+		BotUserId: bot.Msg.GetBot().GetUser().GetId(), Name: "Patch", Url: "https://example.com/webhook", Authorization: "test-credential",
+	}))
+	require.NoError(t, err)
+	request.BotUserId = bot.Msg.GetBot().GetUser().GetId()
+	request.WebhookId = created.Msg.GetWebhook().GetId()
+	_, err = service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(request))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+	request.Enabled = new(bool)
+	updated, err := service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(request))
+	require.NoError(t, err)
+	require.False(t, updated.Msg.GetWebhook().GetEnabled())
+	require.Equal(t, "https://example.com/webhook", updated.Msg.GetWebhook().GetUrl())
+	require.True(t, updated.Msg.GetWebhook().GetHasAuthorization())
+	request.Enabled = nil
+	request.Authorization = new(string)
+	updated, err = service.UpdateBotOutboundWebhook(ctx, connect.NewRequest(request))
+	require.NoError(t, err)
+	require.False(t, updated.Msg.GetWebhook().GetHasAuthorization())
+	require.False(t, updated.Msg.GetWebhook().GetEnabled())
+	require.Equal(t, "https://example.com/webhook", updated.Msg.GetWebhook().GetUrl())
+}

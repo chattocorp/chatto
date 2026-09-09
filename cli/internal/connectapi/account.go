@@ -88,6 +88,10 @@ func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Reques
 		return nil, err
 	}
 
+	if req.Msg.Timezone == nil && req.Msg.TimeFormat == nil && req.Msg.ShareTimezone == nil {
+		return nil, invalidArgument("at least one settings field must be provided")
+	}
+
 	input := core.UserSettingsInput{}
 	if req.Msg.Timezone != nil {
 		timezone := req.Msg.GetTimezone()

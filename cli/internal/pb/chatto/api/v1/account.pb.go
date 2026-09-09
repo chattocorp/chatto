@@ -24,7 +24,8 @@ const (
 )
 
 // Request to update the authenticated user's profile. Human and bot accounts
-// use this same self-service operation. At least one field must be present.
+// use this same self-service operation. Omitted fields stay unchanged.
+// At least one field must be present; an empty patch is INVALID_ARGUMENT.
 type UpdateProfileRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New display name, when changing it. Empty clears the explicit display
@@ -240,12 +241,13 @@ func (x *UpdatePasswordResponse) GetUser() *User {
 }
 
 // Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. An empty timezone clears the explicit timezone.
+// fields are left unchanged. At least one field must be present; an empty patch
+// is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone override. Empty clears the override.
 	Timezone *string `protobuf:"bytes,1,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
-	// Preferred time format.
+	// Preferred time format. UNSPECIFIED restores the automatic format.
 	TimeFormat *TimeFormat `protobuf:"varint,2,opt,name=time_format,json=timeFormat,proto3,enum=chatto.api.v1.TimeFormat,oneof" json:"time_format,omitempty"`
 	// Whether the stored time zone may appear on the user's public profile.
 	ShareTimezone *bool `protobuf:"varint,3,opt,name=share_timezone,json=shareTimezone,proto3,oneof" json:"share_timezone,omitempty"`
@@ -562,7 +564,7 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
 	"\x17DeleteMyAccountResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xba\t\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xb1\t\n" +
 	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12]\n" +
 	"\x0eUpdatePassword\x12$.chatto.api.v1.UpdatePasswordRequest\x1a%.chatto.api.v1.UpdatePasswordResponse\x12]\n" +
@@ -570,8 +572,8 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
 	"\x19StartExternalIdentityLink\x12/.chatto.api.v1.StartExternalIdentityLinkRequest\x1a0.chatto.api.v1.StartExternalIdentityLinkResponse\x12\x81\x01\n" +
 	"\x1aDisconnectExternalIdentity\x120.chatto.api.v1.DisconnectExternalIdentityRequest\x1a1.chatto.api.v1.DisconnectExternalIdentityResponse\x12]\n" +
-	"\x0eUpdatePresence\x12$.chatto.api.v1.UpdatePresenceRequest\x1a%.chatto.api.v1.UpdatePresenceResponse\x12i\n" +
-	"\x12UpdateCustomStatus\x12(.chatto.api.v1.UpdateCustomStatusRequest\x1a).chatto.api.v1.UpdateCustomStatusResponse\x12n\n" +
+	"\x0eUpdatePresence\x12$.chatto.api.v1.UpdatePresenceRequest\x1a%.chatto.api.v1.UpdatePresenceResponse\x12`\n" +
+	"\x0fSetCustomStatus\x12%.chatto.api.v1.SetCustomStatusRequest\x1a&.chatto.api.v1.SetCustomStatusResponse\x12n\n" +
 	"\x12DeleteCustomStatus\x12(.chatto.api.v1.DeleteCustomStatusRequest\x1a).chatto.api.v1.DeleteCustomStatusResponse\"\x03\x90\x02\x02\x12u\n" +
 	"\x16RequestAccountDeletion\x12,.chatto.api.v1.RequestAccountDeletionRequest\x1a-.chatto.api.v1.RequestAccountDeletionResponse\x12`\n" +
 	"\x0fDeleteMyAccount\x12%.chatto.api.v1.DeleteMyAccountRequest\x1a&.chatto.api.v1.DeleteMyAccountResponseB\xa8\x01\n" +
@@ -608,13 +610,13 @@ var file_chatto_api_v1_account_proto_goTypes = []any{
 	(*StartExternalIdentityLinkRequest)(nil),   // 14: chatto.api.v1.StartExternalIdentityLinkRequest
 	(*DisconnectExternalIdentityRequest)(nil),  // 15: chatto.api.v1.DisconnectExternalIdentityRequest
 	(*UpdatePresenceRequest)(nil),              // 16: chatto.api.v1.UpdatePresenceRequest
-	(*UpdateCustomStatusRequest)(nil),          // 17: chatto.api.v1.UpdateCustomStatusRequest
+	(*SetCustomStatusRequest)(nil),             // 17: chatto.api.v1.SetCustomStatusRequest
 	(*DeleteCustomStatusRequest)(nil),          // 18: chatto.api.v1.DeleteCustomStatusRequest
 	(*ListExternalIdentitiesResponse)(nil),     // 19: chatto.api.v1.ListExternalIdentitiesResponse
 	(*StartExternalIdentityLinkResponse)(nil),  // 20: chatto.api.v1.StartExternalIdentityLinkResponse
 	(*DisconnectExternalIdentityResponse)(nil), // 21: chatto.api.v1.DisconnectExternalIdentityResponse
 	(*UpdatePresenceResponse)(nil),             // 22: chatto.api.v1.UpdatePresenceResponse
-	(*UpdateCustomStatusResponse)(nil),         // 23: chatto.api.v1.UpdateCustomStatusResponse
+	(*SetCustomStatusResponse)(nil),            // 23: chatto.api.v1.SetCustomStatusResponse
 	(*DeleteCustomStatusResponse)(nil),         // 24: chatto.api.v1.DeleteCustomStatusResponse
 }
 var file_chatto_api_v1_account_proto_depIdxs = []int32{
@@ -629,7 +631,7 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	14, // 8: chatto.api.v1.MyAccountService.StartExternalIdentityLink:input_type -> chatto.api.v1.StartExternalIdentityLinkRequest
 	15, // 9: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:input_type -> chatto.api.v1.DisconnectExternalIdentityRequest
 	16, // 10: chatto.api.v1.MyAccountService.UpdatePresence:input_type -> chatto.api.v1.UpdatePresenceRequest
-	17, // 11: chatto.api.v1.MyAccountService.UpdateCustomStatus:input_type -> chatto.api.v1.UpdateCustomStatusRequest
+	17, // 11: chatto.api.v1.MyAccountService.SetCustomStatus:input_type -> chatto.api.v1.SetCustomStatusRequest
 	18, // 12: chatto.api.v1.MyAccountService.DeleteCustomStatus:input_type -> chatto.api.v1.DeleteCustomStatusRequest
 	6,  // 13: chatto.api.v1.MyAccountService.RequestAccountDeletion:input_type -> chatto.api.v1.RequestAccountDeletionRequest
 	8,  // 14: chatto.api.v1.MyAccountService.DeleteMyAccount:input_type -> chatto.api.v1.DeleteMyAccountRequest
@@ -640,7 +642,7 @@ var file_chatto_api_v1_account_proto_depIdxs = []int32{
 	20, // 19: chatto.api.v1.MyAccountService.StartExternalIdentityLink:output_type -> chatto.api.v1.StartExternalIdentityLinkResponse
 	21, // 20: chatto.api.v1.MyAccountService.DisconnectExternalIdentity:output_type -> chatto.api.v1.DisconnectExternalIdentityResponse
 	22, // 21: chatto.api.v1.MyAccountService.UpdatePresence:output_type -> chatto.api.v1.UpdatePresenceResponse
-	23, // 22: chatto.api.v1.MyAccountService.UpdateCustomStatus:output_type -> chatto.api.v1.UpdateCustomStatusResponse
+	23, // 22: chatto.api.v1.MyAccountService.SetCustomStatus:output_type -> chatto.api.v1.SetCustomStatusResponse
 	24, // 23: chatto.api.v1.MyAccountService.DeleteCustomStatus:output_type -> chatto.api.v1.DeleteCustomStatusResponse
 	7,  // 24: chatto.api.v1.MyAccountService.RequestAccountDeletion:output_type -> chatto.api.v1.RequestAccountDeletionResponse
 	9,  // 25: chatto.api.v1.MyAccountService.DeleteMyAccount:output_type -> chatto.api.v1.DeleteMyAccountResponse

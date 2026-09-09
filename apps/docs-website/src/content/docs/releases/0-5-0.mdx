@@ -402,6 +402,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Integrations must use `MyAccountService.SetCustomStatus` in place of
+  `UpdateCustomStatus`. The method replaces the complete status; omitted expiry
+  means no expiry. Empty settings and outbound webhook patches now return
+  `INVALID_ARGUMENT`, consistent with profile, room, and message patches.
+
 - Integrations can discover archived rooms with `RoomDirectoryService.ListRooms`
   by selecting active, archived, or all rooms. The default remains active rooms,
   and normal room visibility rules apply.

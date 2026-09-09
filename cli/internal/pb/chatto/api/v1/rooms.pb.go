@@ -394,6 +394,8 @@ func (x *CreateRoomResponse) GetRoom() *Room {
 }
 
 // Request to update a room's editable metadata.
+// Omitted fields stay unchanged. At least one editable field must be present;
+// an empty patch is INVALID_ARGUMENT.
 type UpdateRoomRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room to update.

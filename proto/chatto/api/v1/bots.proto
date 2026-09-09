@@ -307,7 +307,9 @@ message CreateBotOutboundWebhookResponse {
   // Returned only at creation. Configure the receiver with this HMAC secret if it verifies requests.
   string signing_secret = 2;
 }
-// Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
+// Patch delivery settings or pause/resume one endpoint. Omitted fields stay
+// unchanged. At least one field must be present; an empty patch is
+// INVALID_ARGUMENT. Name and signing secret stay fixed.
 message UpdateBotOutboundWebhookRequest {
   // Required managed bot ID.
   string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];

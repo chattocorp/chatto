@@ -37,7 +37,8 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 #### Input: UpdateProfileRequest
 
 Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. At least one field must be present.
+use this same self-service operation. Omitted fields stay unchanged.
+At least one field must be present; an empty patch is INVALID_ARGUMENT.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -105,12 +106,13 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 #### Input: UpdateSettingsRequest
 
 Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
+fields are left unchanged. At least one field must be present; an empty patch
+is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
-| `time_format` | optional [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `time_format` | optional [`TimeFormat`](/reference/connectrpc-api/types/#chatto-api-v1-TimeFormat) | Preferred time format. UNSPECIFIED restores the automatic format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. |
 
 
@@ -259,22 +261,24 @@ Result of updating live presence.
 | `status` | [`PresenceStatus`](/reference/connectrpc-api/types/#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdateCustomStatus"></a>
+<a id="chatto-api-v1-MyAccountService-SetCustomStatus"></a>
 
-### UpdateCustomStatus
+### SetCustomStatus
 
-Updates or replaces the current user's custom status. Emoji and text are
-required, and expires_at must be omitted or in the future.
+Sets the current user's complete custom status. Emoji and text are required.
+Omit expires_at for no expiry, or supply a future time.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus
+POST /api/connect/chatto.api.v1.MyAccountService/SetCustomStatus
 ```
 
-<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
+<a id="chatto-api-v1-SetCustomStatusRequest"></a>
 
-#### Input: UpdateCustomStatusRequest
+#### Input: SetCustomStatusRequest
 
-Request to update or replace the current user's custom status.
+Request to replace the current user's complete custom status. Emoji and text
+are required. Omitted expires_at removes any previous expiry. Use
+DeleteCustomStatus to clear the status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -283,11 +287,11 @@ Request to update or replace the current user's custom status.
 | `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
 
 
-<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
+<a id="chatto-api-v1-SetCustomStatusResponse"></a>
 
-#### Result: UpdateCustomStatusResponse
+#### Result: SetCustomStatusResponse
 
-Result of updating the current user's custom status.
+Result of setting the current user's complete custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |

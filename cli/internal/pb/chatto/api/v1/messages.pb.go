@@ -182,7 +182,8 @@ func (x *CreateMessageResponse) GetMessage() *Message {
 	return nil
 }
 
-// Request to patch a message.
+// Request to patch a message. Omitted fields stay unchanged. At least one
+// editable field must be present; an empty patch is INVALID_ARGUMENT.
 type UpdateMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message.

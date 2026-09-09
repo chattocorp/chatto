@@ -10,7 +10,7 @@ import (
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
-func (s *accountService) UpdateCustomStatus(ctx context.Context, req *connect.Request[apiv1.UpdateCustomStatusRequest]) (*connect.Response[apiv1.UpdateCustomStatusResponse], error) {
+func (s *accountService) SetCustomStatus(ctx context.Context, req *connect.Request[apiv1.SetCustomStatusRequest]) (*connect.Response[apiv1.SetCustomStatusResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -25,7 +25,7 @@ func (s *accountService) UpdateCustomStatus(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UpdateCustomStatusResponse{
+	return connect.NewResponse(&apiv1.SetCustomStatusResponse{
 		Status: coreCustomStatusToAPI(updated.GetCustomStatus()),
 	}), nil
 }

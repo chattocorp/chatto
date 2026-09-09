@@ -1,13 +1,18 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
 A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, bio, and avatar changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
+
+`MyAccountService.UpdateProfile` and `UpdateSettings` use patches: omitted
+fields stay unchanged, and an empty patch returns `INVALID_ARGUMENT`.
+`SetCustomStatus` replaces the complete status. Emoji and text are required;
+omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
 - **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Bot logins must end in `_bot`. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message.

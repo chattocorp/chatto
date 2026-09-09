@@ -20,6 +20,10 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
 [ADR-085](../adr/ADR-085-agent-integration-through-mcp.md).
 
+`MyAccountService.SetCustomStatus` replaces the complete custom status through
+the existing core status command. Profile, settings, room, message, and outbound
+webhook patch requests preserve omitted fields and reject empty patches.
+
 ## Transport boundaries
 
 | Surface | Mount | Contract | Access boundary |

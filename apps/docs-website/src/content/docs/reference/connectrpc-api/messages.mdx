@@ -118,7 +118,8 @@ POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
 
 #### Input: UpdateMessageRequest
 
-Request to patch a message.
+Request to patch a message. Omitted fields stay unchanged. At least one
+editable field must be present; an empty patch is INVALID_ARGUMENT.
 
 | Field | Type | Description |
 | --- | --- | --- |

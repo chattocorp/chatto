@@ -1359,3 +1359,38 @@ func TestAdminServerServiceSecurityConfig(t *testing.T) {
 		t.Fatalf("oversized UpdateBlockedUsernames code = %v, want invalid argument", connect.CodeOf(err))
 	}
 }
+
+func TestMyAccountServiceSettingsPatchPresence(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	_, err := env.account.UpdateSettings(env.ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+	_, err = env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{}))
+	requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+	timezone, share := "Europe/Berlin", true
+	_, err = env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{
+		Timezone: &timezone, ShareTimezone: &share, TimeFormat: apiv1.TimeFormat_TIME_FORMAT_24_HOUR.Enum(),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	share = false
+	response, err := env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{ShareTimezone: &share}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetSettings(); got.GetShareTimezone() || got.GetTimezone() != timezone || got.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_24_HOUR {
+		t.Fatalf("false must be applied and omitted fields preserved: %+v", got)
+	}
+	clear := ""
+	response, err = env.account.UpdateSettings(ctx, connect.NewRequest(&apiv1.UpdateSettingsRequest{
+		Timezone: &clear, TimeFormat: apiv1.TimeFormat_TIME_FORMAT_UNSPECIFIED.Enum(),
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := response.Msg.GetSettings(); got.Timezone != nil || got.GetTimeFormat() != apiv1.TimeFormat_TIME_FORMAT_AUTO {
+		t.Fatalf("explicit defaults must clear overrides: %+v", got)
+	}
+}

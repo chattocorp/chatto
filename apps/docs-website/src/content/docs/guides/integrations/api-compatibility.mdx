@@ -286,3 +286,22 @@ clients and servers from opposite sides of that development-only change.
 3. Test authentication, required RPCs, error handling, pagination, and realtime
    reconnect behaviour that your integration depends on.
 4. Deploy the server and client changes together when the API changed.
+
+## Resource patches and custom status in 0.5
+
+`UpdateProfile`, `UpdateSettings`, `UpdateRoom`, `UpdateMessage`, and
+`UpdateBotOutboundWebhook` preserve omitted editable fields. Supply at least
+one editable field; an empty patch returns `INVALID_ARGUMENT`. In 0.5 this also
+applies to settings and outbound webhook updates, which previously accepted
+empty patches. Resource IDs do not count as editable fields.
+
+An explicit empty string, `false`, or zero counts as a supplied value. The
+field's validation still applies. For example, an empty bio, room description,
+timezone, or webhook authorization clears that field; an empty login or room
+name is invalid. Set `slow_mode_seconds` to zero to disable slow mode.
+
+`MyAccountService.SetCustomStatus` replaces `UpdateCustomStatus`, including its
+request and response type names. Regenerate your client and use the new method;
+the old RPC is removed. Send both emoji and text. Omit `expires_at` to remove
+any previous expiry, or supply a future time. Use `DeleteCustomStatus` to clear
+the status. These changes do not require a stored-data migration.

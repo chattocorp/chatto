@@ -11,7 +11,8 @@ import "chatto/api/v1/viewer.proto";
 import "google/protobuf/descriptor.proto";
 
 // Request to update the authenticated user's profile. Human and bot accounts
-// use this same self-service operation. At least one field must be present.
+// use this same self-service operation. Omitted fields stay unchanged.
+// At least one field must be present; an empty patch is INVALID_ARGUMENT.
 message UpdateProfileRequest {
   // New display name, when changing it. Empty clears the explicit display
   // name. The server also rejects control and confusing invisible characters.
@@ -52,11 +53,12 @@ message UpdatePasswordResponse {
 }
 
 // Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. An empty timezone clears the explicit timezone.
+// fields are left unchanged. At least one field must be present; an empty patch
+// is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
 message UpdateSettingsRequest {
   // IANA timezone override. Empty clears the override.
   optional string timezone = 1;
-  // Preferred time format.
+  // Preferred time format. UNSPECIFIED restores the automatic format.
   optional TimeFormat time_format = 2;
   // Whether the stored time zone may appear on the user's public profile.
   optional bool share_timezone = 3;
@@ -113,9 +115,9 @@ service MyAccountService {
   // clients should refresh it periodically while visible, and should stop
   // calling this RPC when the user chooses to appear offline.
   rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
-  // Updates or replaces the current user's custom status. Emoji and text are
-  // required, and expires_at must be omitted or in the future.
-  rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
+  // Sets the current user's complete custom status. Emoji and text are required.
+  // Omit expires_at for no expiry, or supply a future time.
+  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
   // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
   rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse) {

@@ -79,6 +79,8 @@ POST /api/connect/chatto.api.v1.RoomService/UpdateRoom
 #### Input: UpdateRoomRequest
 
 Request to update a room's editable metadata.
+Omitted fields stay unchanged. At least one editable field must be present;
+an empty patch is INVALID_ARGUMENT.
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -10,7 +10,8 @@ import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
 /**
  * Request to update the authenticated user's profile. Human and bot accounts
- * use this same self-service operation. At least one field must be present.
+ * use this same self-service operation. Omitted fields stay unchanged.
+ * At least one field must be present; an empty patch is INVALID_ARGUMENT.
  *
  * @generated from message chatto.api.v1.UpdateProfileRequest
  */
@@ -203,7 +204,8 @@ export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
 
 /**
  * Request to update the authenticated user's display preferences. Omitted
- * fields are left unchanged. An empty timezone clears the explicit timezone.
+ * fields are left unchanged. At least one field must be present; an empty patch
+ * is INVALID_ARGUMENT. An empty timezone clears the explicit timezone.
  *
  * @generated from message chatto.api.v1.UpdateSettingsRequest
  */
@@ -216,7 +218,7 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
   timezone?: string;
 
   /**
-   * Preferred time format.
+   * Preferred time format. UNSPECIFIED restores the automatic format.
    *
    * @generated from field: optional chatto.api.v1.TimeFormat time_format = 2;
    */

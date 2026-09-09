@@ -151,7 +151,8 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
 }
 
 /**
- * Request to patch a message.
+ * Request to patch a message. Omitted fields stay unchanged. At least one
+ * editable field must be present; an empty patch is INVALID_ARGUMENT.
  *
  * @generated from message chatto.api.v1.UpdateMessageRequest
  */

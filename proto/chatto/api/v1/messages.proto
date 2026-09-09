@@ -70,7 +70,8 @@ message CreateMessageResponse {
   Message message = 1;
 }
 
-// Request to patch a message.
+// Request to patch a message. Omitted fields stay unchanged. At least one
+// editable field must be present; an empty patch is INVALID_ARGUMENT.
 message UpdateMessageRequest {
   // Required. Room containing the message.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];

@@ -6,7 +6,7 @@
   import { toast } from '$lib/ui/toast';
   import {
     deleteCustomStatus as deleteCustomStatusViaAPI,
-    updateCustomStatus as updateCustomStatusViaAPI,
+    setCustomStatus as setCustomStatusViaAPI,
     type CustomUserStatusAPIConfig
   } from '$lib/api-client/userStatus';
   import type { CustomUserStatus } from '$lib/state/userProfiles.svelte';
@@ -249,7 +249,7 @@
     error = '';
 
     try {
-      const customStatus = await updateCustomStatusViaAPI(config, {
+      const customStatus = await setCustomStatusViaAPI(config, {
         emoji,
         text,
         expiresAt: compact ? null : expiryInputToISO(statusExpiresAt)
@@ -279,7 +279,7 @@
     error = '';
 
     try {
-      const customStatus = await updateCustomStatusViaAPI(config, {
+      const customStatus = await setCustomStatusViaAPI(config, {
         emoji: template.emoji,
         text: customStatusTemplateText(mode),
         expiresAt: defaultTemplateExpiry(mode)?.toISOString() ?? null

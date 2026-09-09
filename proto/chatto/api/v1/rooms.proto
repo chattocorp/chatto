@@ -86,6 +86,8 @@ message CreateRoomResponse {
 }
 
 // Request to update a room's editable metadata.
+// Omitted fields stay unchanged. At least one editable field must be present;
+// an empty patch is INVALID_ARGUMENT.
 message UpdateRoomRequest {
   // Required. Room to update.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];

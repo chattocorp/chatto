@@ -7,7 +7,7 @@ import { DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletion
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
-import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
+import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
 /**
  * Self-service account, profile, display preference, presence,
@@ -102,15 +102,15 @@ export const MyAccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates or replaces the current user's custom status. Emoji and text are
-     * required, and expires_at must be omitted or in the future.
+     * Sets the current user's complete custom status. Emoji and text are required.
+     * Omit expires_at for no expiry, or supply a future time.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdateCustomStatus
+     * @generated from rpc chatto.api.v1.MyAccountService.SetCustomStatus
      */
-    updateCustomStatus: {
-      name: "UpdateCustomStatus",
-      I: UpdateCustomStatusRequest,
-      O: UpdateCustomStatusResponse,
+    setCustomStatus: {
+      name: "SetCustomStatus",
+      I: SetCustomStatusRequest,
+      O: SetCustomStatusResponse,
       kind: MethodKind.Unary,
     },
     /**

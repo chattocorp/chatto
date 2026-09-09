@@ -1913,7 +1913,9 @@ func (x *CreateBotOutboundWebhookResponse) GetSigningSecret() string {
 	return ""
 }
 
-// Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
+// Patch delivery settings or pause/resume one endpoint. Omitted fields stay
+// unchanged. At least one field must be present; an empty patch is
+// INVALID_ARGUMENT. Name and signing secret stay fixed.
 type UpdateBotOutboundWebhookRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required managed bot ID.

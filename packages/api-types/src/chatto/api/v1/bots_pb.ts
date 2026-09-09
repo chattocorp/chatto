@@ -1684,7 +1684,9 @@ export class CreateBotOutboundWebhookResponse extends Message<CreateBotOutboundW
 }
 
 /**
- * Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
+ * Patch delivery settings or pause/resume one endpoint. Omitted fields stay
+ * unchanged. At least one field must be present; an empty patch is
+ * INVALID_ARGUMENT. Name and signing secret stay fixed.
  *
  * @generated from message chatto.api.v1.UpdateBotOutboundWebhookRequest
  */

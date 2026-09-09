@@ -17,7 +17,7 @@ export type CustomUserStatus = {
   expiresAt: string | null;
 };
 
-export async function updateCustomStatus(
+export async function setCustomStatus(
   config: CustomUserStatusAPIConfig,
   input: {
     emoji: string;
@@ -27,7 +27,7 @@ export async function updateCustomStatus(
 ): Promise<CustomUserStatus | null> {
   const client = createUserStatusClient(config);
   try {
-    const response = await client.updateCustomStatus(
+    const response = await client.setCustomStatus(
       {
         emoji: input.emoji,
         text: input.text,
