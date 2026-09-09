@@ -4,14 +4,14 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { presencePreference } from '$lib/state/presencePreference.svelte';
 import { __presenceTrackingTest, initPresenceTracking, setPresenceMode } from './presenceTracking';
 
-type UpdatePresence = (
+type SetPresence = (
 	status: APIPresenceStatus,
 	userSelected?: boolean
 ) => Promise<APIPresenceStatus>;
 type PresenceStatusHandler = (status: PresenceStatus) => void;
 
 const mocks = vi.hoisted(() => ({
-	updatePresence: vi.fn()
+	setPresence: vi.fn()
 }));
 
 let windowTarget: EventTarget;
@@ -30,23 +30,23 @@ function dispatchStorageMode(mode: string) {
 function startTracking() {
 	onStatusChange = vi.fn<PresenceStatusHandler>();
 	cleanup = initPresenceTracking(
-		() => [{ updatePresence: mocks.updatePresence }],
+		() => [{ setPresence: mocks.setPresence }],
 		onStatusChange
 	);
 }
 
 function sentStatuses(): APIPresenceStatus[] {
-	return mocks.updatePresence.mock.calls.map((call) => call[0]);
+	return mocks.setPresence.mock.calls.map((call) => call[0]);
 }
 
 function sentUserSelectedFlags(): Array<boolean | undefined> {
-	return mocks.updatePresence.mock.calls.map((call) => call[1]);
+	return mocks.setPresence.mock.calls.map((call) => call[1]);
 }
 
 describe('initPresenceTracking', () => {
 	beforeEach(() => {
 		vi.useFakeTimers({ now: 0 });
-		mocks.updatePresence = vi.fn<UpdatePresence>((status) => Promise.resolve(status));
+		mocks.setPresence = vi.fn<SetPresence>((status) => Promise.resolve(status));
 		windowTarget = new EventTarget();
 		cleanup = null;
 
@@ -127,7 +127,7 @@ describe('initPresenceTracking', () => {
 	});
 
 	it('reconciles local status to the server-accepted presence', async () => {
-		mocks.updatePresence.mockImplementationOnce(() =>
+		mocks.setPresence.mockImplementationOnce(() =>
 			Promise.resolve(APIPresenceStatus.DO_NOT_DISTURB)
 		);
 

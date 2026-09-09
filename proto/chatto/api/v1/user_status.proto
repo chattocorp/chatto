@@ -21,8 +21,10 @@ message CustomUserStatus {
   google.protobuf.Timestamp expires_at = 3;
 }
 
-// Request to update or replace the current user's custom status.
-message UpdateCustomStatusRequest {
+// Request to replace the current user's complete custom status. Emoji and text
+// are required. Omitted expires_at removes any previous expiry. Use
+// DeleteCustomStatus to clear the status.
+message SetCustomStatusRequest {
   // Short emoji marker displayed with the status.
   string emoji = 1;
   // User-written status text.
@@ -31,8 +33,8 @@ message UpdateCustomStatusRequest {
   google.protobuf.Timestamp expires_at = 3;
 }
 
-// Result of updating the current user's custom status.
-message UpdateCustomStatusResponse {
+// Result of setting the current user's complete custom status.
+message SetCustomStatusResponse {
   // Stored custom status after validation and normalization.
   CustomUserStatus status = 1;
 }

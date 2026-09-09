@@ -13,6 +13,12 @@ description: "Design rules concerning Chatto's ConnectRPC API, both resources an
   hydrate.
 - Keep commands, explicit reads, pagination, history, and read-your-writes
   responses in ConnectRPC. Realtime delivery does not replace these APIs.
+- Resource `Update*` RPCs must use `google.protobuf.FieldMask update_mask`.
+  Unselected fields stay unchanged; selected fields can be set or cleared,
+  subject to validation. Apply masks before validation. Omitted masks infer
+  populated fields; explicit empty masks are invalid. Clients should send
+  explicit paths. Commands use specific verbs such as `Set`, `Change`, or
+  `Refresh`.
 
 ### Realtime API
 

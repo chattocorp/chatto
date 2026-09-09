@@ -70,6 +70,11 @@ func (s *botService) UpdateBotOutboundWebhook(ctx context.Context, req *connect.
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
+
 	item, err := s.api.core.UpdateBotOutboundWebhook(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetWebhookId(), core.BotOutboundWebhookPatch{Enabled: req.Msg.Enabled, URL: req.Msg.Url, Authorization: req.Msg.Authorization})
 	if err != nil {
 		return nil, connectError(err)

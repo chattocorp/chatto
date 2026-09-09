@@ -262,6 +262,8 @@ POST /api/connect/chatto.api.v1.RoomService/UpdateRoom
 #### Input: UpdateRoomRequest
 
 Request to update a room's editable metadata.
+update_mask selects editable fields to apply or reset. Fields outside the
+mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -271,6 +273,7 @@ Request to update a room's editable metadata.
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
 | `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: name, description, universal, slow_mode_seconds, threading_mode. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -846,20 +849,20 @@ Result of unpinning a message.
 | `deleted` | `bool` | True when the message is not pinned after this call. |
 
 
-<a id="chatto-api-v1-RoomService-UpdateTypingIndicator"></a>
+<a id="chatto-api-v1-RoomService-RefreshTypingIndicator"></a>
 
-### UpdateTypingIndicator
+### RefreshTypingIndicator
 
 Refreshes the current user's live-only typing indicator for a room or
 thread. Room membership is required; message posting permission is not.
 
 ```http
-POST /api/connect/chatto.api.v1.RoomService/UpdateTypingIndicator
+POST /api/connect/chatto.api.v1.RoomService/RefreshTypingIndicator
 ```
 
-<a id="chatto-api-v1-UpdateTypingIndicatorRequest"></a>
+<a id="chatto-api-v1-RefreshTypingIndicatorRequest"></a>
 
-#### Input: UpdateTypingIndicatorRequest
+#### Input: RefreshTypingIndicatorRequest
 
 Request to refresh the current user's live-only typing indicator.
 
@@ -869,9 +872,9 @@ Request to refresh the current user's live-only typing indicator.
 | `thread_root_event_id` | `string` | Event ID of the thread root when typing inside a thread. |
 
 
-<a id="chatto-api-v1-UpdateTypingIndicatorResponse"></a>
+<a id="chatto-api-v1-RefreshTypingIndicatorResponse"></a>
 
-#### Result: UpdateTypingIndicatorResponse
+#### Result: RefreshTypingIndicatorResponse
 
 Result of refreshing a typing indicator.
 
@@ -1415,13 +1418,15 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateProfile
 #### Input: UpdateProfileRequest
 
 Request to update the authenticated user's profile. Human and bot accounts
-use this same self-service operation. At least one field must be present.
+use this same self-service operation. update_mask selects fields to apply
+or reset. Fields outside the mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `display_name` | `optional string` | New display name, when changing it. Empty clears the explicit display name. The server also rejects control and confusing invisible characters. |
+| `display_name` | `optional string` | New non-empty display name. The server also rejects control and confusing invisible characters. |
 | `login` | `optional string` | New login identifier, when changing it. The server accepts ASCII letters, digits, period, underscore, and hyphen, starting with a letter or digit. |
 | `bio` | `optional string` | New Markdown biography, when changing it. Empty clears the bio. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: display_name, login, bio. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateProfileResponse"></a>
@@ -1435,19 +1440,19 @@ Result of a profile update.
 | `user` | [`User`](#chatto-api-v1-User) | Updated user profile. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdatePassword"></a>
+<a id="chatto-api-v1-MyAccountService-ChangePassword"></a>
 
-### UpdatePassword
+### ChangePassword
 
 Updates or adds the authenticated user's password.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePassword
+POST /api/connect/chatto.api.v1.MyAccountService/ChangePassword
 ```
 
-<a id="chatto-api-v1-UpdatePasswordRequest"></a>
+<a id="chatto-api-v1-ChangePasswordRequest"></a>
 
-#### Input: UpdatePasswordRequest
+#### Input: ChangePasswordRequest
 
 Request to update or add the authenticated user's password.
 
@@ -1457,9 +1462,9 @@ Request to update or add the authenticated user's password.
 | `current_password` | `string` | Current password. Required when the account already has a password; omitted when adding the first password to a passwordless account. |
 
 
-<a id="chatto-api-v1-UpdatePasswordResponse"></a>
+<a id="chatto-api-v1-ChangePasswordResponse"></a>
 
-#### Result: UpdatePasswordResponse
+#### Result: ChangePasswordResponse
 
 Result of updating or adding the authenticated account password.
 
@@ -1482,14 +1487,15 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 
 #### Input: UpdateSettingsRequest
 
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
+Request to patch the authenticated user's display preferences. update_mask
+selects fields to apply or reset. Resetting timezone clears the override.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `timezone` | `optional string` | IANA timezone override. Empty clears the override. |
-| `time_format` | optional [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. |
+| `time_format` | optional [`TimeFormat`](#chatto-api-v1-TimeFormat) | Preferred time format. UNSPECIFIED restores the automatic format. |
 | `share_timezone` | `optional bool` | Whether the stored time zone may appear on the user's public profile. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: timezone, time_format, share_timezone. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateSettingsResponse"></a>
@@ -1602,21 +1608,21 @@ Result of disconnecting a provider identity.
 | `disconnected` | `bool` | True when the identity was disconnected. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdatePresence"></a>
+<a id="chatto-api-v1-MyAccountService-SetPresence"></a>
 
-### UpdatePresence
+### SetPresence
 
 Updates the current user's live presence status. This state is transient:
 clients should refresh it periodically while visible, and should stop
 calling this RPC when the user chooses to appear offline.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdatePresence
+POST /api/connect/chatto.api.v1.MyAccountService/SetPresence
 ```
 
-<a id="chatto-api-v1-UpdatePresenceRequest"></a>
+<a id="chatto-api-v1-SetPresenceRequest"></a>
 
-#### Input: UpdatePresenceRequest
+#### Input: SetPresenceRequest
 
 Request to update the current user's live presence status.
 
@@ -1626,9 +1632,9 @@ Request to update the current user's live presence status.
 | `user_selected` | `bool` | True when this update comes from a deliberate user selection rather than automatic idle/refresh updates. Automatic updates do not overwrite an active manually selected Away or Do Not Disturb status from another client. |
 
 
-<a id="chatto-api-v1-UpdatePresenceResponse"></a>
+<a id="chatto-api-v1-SetPresenceResponse"></a>
 
-#### Result: UpdatePresenceResponse
+#### Result: SetPresenceResponse
 
 Result of updating live presence.
 
@@ -1637,22 +1643,24 @@ Result of updating live presence.
 | `status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Reportable status accepted and stored by the server. |
 
 
-<a id="chatto-api-v1-MyAccountService-UpdateCustomStatus"></a>
+<a id="chatto-api-v1-MyAccountService-SetCustomStatus"></a>
 
-### UpdateCustomStatus
+### SetCustomStatus
 
-Updates or replaces the current user's custom status. Emoji and text are
-required, and expires_at must be omitted or in the future.
+Sets the current user's complete custom status. Emoji and text are required.
+Omit expires_at for no expiry, or supply a future time.
 
 ```http
-POST /api/connect/chatto.api.v1.MyAccountService/UpdateCustomStatus
+POST /api/connect/chatto.api.v1.MyAccountService/SetCustomStatus
 ```
 
-<a id="chatto-api-v1-UpdateCustomStatusRequest"></a>
+<a id="chatto-api-v1-SetCustomStatusRequest"></a>
 
-#### Input: UpdateCustomStatusRequest
+#### Input: SetCustomStatusRequest
 
-Request to update or replace the current user's custom status.
+Request to replace the current user's complete custom status. Emoji and text
+are required. Omitted expires_at removes any previous expiry. Use
+DeleteCustomStatus to clear the status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1661,11 +1669,11 @@ Request to update or replace the current user's custom status.
 | `expires_at` | `google.protobuf.Timestamp` | Optional future time after which clients should stop showing the status. |
 
 
-<a id="chatto-api-v1-UpdateCustomStatusResponse"></a>
+<a id="chatto-api-v1-SetCustomStatusResponse"></a>
 
-#### Result: UpdateCustomStatusResponse
+#### Result: SetCustomStatusResponse
 
-Result of updating the current user's custom status.
+Result of setting the current user's complete custom status.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2100,15 +2108,17 @@ POST /api/connect/chatto.api.v1.BotService/UpdateBotOutboundWebhook
 
 #### Input: UpdateBotOutboundWebhookRequest
 
-Edit delivery settings or pause/resume one endpoint. Name and signing secret stay fixed.
+Patch delivery settings or pause/resume one endpoint. update_mask selects
+fields to apply or reset. Name and signing secret stay fixed.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `bot_user_id` | `string` | Required managed bot ID. |
 | `webhook_id` | `string` | Required endpoint ID within this bot. |
-| `enabled` | `optional bool` | If omitted, the state is unchanged. Resume accepts only new messages. |
-| `url` | `optional string` | New destination. Omit to keep it. Changing settings cancels queued retries. |
-| `authorization` | `optional string` | New Authorization header. Omit to keep it; empty removes it. Never returned. |
+| `enabled` | `optional bool` | Selected enabled state. False pauses delivery; resume accepts only new messages. |
+| `url` | `optional string` | Selected new destination. Changing settings cancels queued retries. |
+| `authorization` | `optional string` | Selected Authorization header. Absent or empty removes it. Never returned. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: enabled, url, authorization. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateBotOutboundWebhookResponse"></a>
@@ -2681,14 +2691,16 @@ POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
 
 #### Input: UpdateMessageRequest
 
-Request to patch a message.
+Request to patch a message. update_mask selects fields to apply or reset.
+Fields outside the mask stay unchanged.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
 | `event_id` | `string` | Required. Event ID of the message to edit. |
-| `body` | `optional string` | New message body text. Omit to preserve the current body. |
-| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Omit to preserve the current echo state. |
+| `body` | `optional string` | New message body text. Select body in update_mask to change it. |
+| `also_send_to_channel` | `optional bool` | For thread replies, whether a channel echo should exist after saving. Select also_send_to_channel in update_mask to change it. |
+| `update_mask` | `google.protobuf.FieldMask` | Editable fields to apply or reset: body, also_send_to_channel. Omit to infer populated fields; * selects all editable fields. An explicit empty mask is invalid. Unselected values are ignored. Selected absent values reset the field to its default, subject to field validation. |
 
 
 <a id="chatto-api-v1-UpdateMessageResponse"></a>
@@ -3060,7 +3072,7 @@ Sparsely update notification policy overrides at one explicit scope.
 | --- | --- | --- |
 | `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
 | `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
-| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. Omit to infer populated overrides; * selects all supported fields. An explicit empty mask is invalid. Unselected override values are ignored. |
 
 
 <a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyResponse"></a>

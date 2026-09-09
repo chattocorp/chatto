@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -182,20 +183,26 @@ func (x *CreateMessageResponse) GetMessage() *Message {
 	return nil
 }
 
-// Request to patch a message.
+// Request to patch a message. update_mask selects fields to apply or reset.
+// Fields outside the mask stay unchanged.
 type UpdateMessageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room containing the message.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Required. Event ID of the message to edit.
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// New message body text. Omit to preserve the current body.
+	// New message body text. Select body in update_mask to change it.
 	Body *string `protobuf:"bytes,3,opt,name=body,proto3,oneof" json:"body,omitempty"`
 	// For thread replies, whether a channel echo should exist after saving.
-	// Omit to preserve the current echo state.
+	// Select also_send_to_channel in update_mask to change it.
 	AlsoSendToChannel *bool `protobuf:"varint,4,opt,name=also_send_to_channel,json=alsoSendToChannel,proto3,oneof" json:"also_send_to_channel,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Editable fields to apply or reset: body, also_send_to_channel.
+	// Omit to infer populated fields; * selects all editable fields. An explicit
+	// empty mask is invalid. Unselected values are ignored. Selected absent values
+	// reset the field to its default, subject to field validation.
+	UpdateMask    *fieldmaskpb.FieldMask `protobuf:"bytes,5,opt,name=update_mask,json=updateMask,proto3" json:"update_mask,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateMessageRequest) Reset() {
@@ -254,6 +261,13 @@ func (x *UpdateMessageRequest) GetAlsoSendToChannel() bool {
 		return *x.AlsoSendToChannel
 	}
 	return false
+}
+
+func (x *UpdateMessageRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
+	if x != nil {
+		return x.UpdateMask
+	}
+	return nil
 }
 
 // Result of editing a message.
@@ -830,7 +844,7 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"\xae\x03\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"\xae\x03\n" +
 	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12B\n" +
@@ -845,12 +859,14 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\rcreate_thread\x18\v \x01(\bR\fcreateThreadJ\x04\b\b\x10\tJ\x04\b\t\x10\n" +
 	"J\x04\b\a\x10\bR\flink_previewR\vattachmentsR\x1amention_confirmation_token\"u\n" +
 	"\x15CreateMessageResponse\x120\n" +
-	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\xd7\x01\n" +
+	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessageJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\x14mention_confirmationR\bincludes\"\x94\x02\n" +
 	"\x14UpdateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12!\n" +
 	"\x04body\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x90NH\x00R\x04body\x88\x01\x01\x124\n" +
-	"\x14also_send_to_channel\x18\x04 \x01(\bH\x01R\x11alsoSendToChannel\x88\x01\x01B\a\n" +
+	"\x14also_send_to_channel\x18\x04 \x01(\bH\x01R\x11alsoSendToChannel\x88\x01\x01\x12;\n" +
+	"\vupdate_mask\x18\x05 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
+	"updateMaskB\a\n" +
 	"\x05_bodyB\x17\n" +
 	"\x15_also_send_to_channel\"h\n" +
 	"\x15UpdateMessageResponse\x120\n" +
@@ -926,43 +942,45 @@ var file_chatto_api_v1_messages_proto_goTypes = []any{
 	(*BatchGetMessagesRequest)(nil),   // 12: chatto.api.v1.BatchGetMessagesRequest
 	(*BatchGetMessagesResponse)(nil),  // 13: chatto.api.v1.BatchGetMessagesResponse
 	(*Message)(nil),                   // 14: chatto.api.v1.Message
-	(*FetchLinkPreviewRequest)(nil),   // 15: chatto.api.v1.FetchLinkPreviewRequest
-	(*AddReactionRequest)(nil),        // 16: chatto.api.v1.AddReactionRequest
-	(*RemoveReactionRequest)(nil),     // 17: chatto.api.v1.RemoveReactionRequest
-	(*FetchLinkPreviewResponse)(nil),  // 18: chatto.api.v1.FetchLinkPreviewResponse
-	(*AddReactionResponse)(nil),       // 19: chatto.api.v1.AddReactionResponse
-	(*RemoveReactionResponse)(nil),    // 20: chatto.api.v1.RemoveReactionResponse
+	(*fieldmaskpb.FieldMask)(nil),     // 15: google.protobuf.FieldMask
+	(*FetchLinkPreviewRequest)(nil),   // 16: chatto.api.v1.FetchLinkPreviewRequest
+	(*AddReactionRequest)(nil),        // 17: chatto.api.v1.AddReactionRequest
+	(*RemoveReactionRequest)(nil),     // 18: chatto.api.v1.RemoveReactionRequest
+	(*FetchLinkPreviewResponse)(nil),  // 19: chatto.api.v1.FetchLinkPreviewResponse
+	(*AddReactionResponse)(nil),       // 20: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionResponse)(nil),    // 21: chatto.api.v1.RemoveReactionResponse
 }
 var file_chatto_api_v1_messages_proto_depIdxs = []int32{
 	14, // 0: chatto.api.v1.CreateMessageResponse.message:type_name -> chatto.api.v1.Message
-	14, // 1: chatto.api.v1.UpdateMessageResponse.message:type_name -> chatto.api.v1.Message
-	14, // 2: chatto.api.v1.GetMessageResponse.message:type_name -> chatto.api.v1.Message
-	14, // 3: chatto.api.v1.BatchGetMessagesResponse.messages:type_name -> chatto.api.v1.Message
-	15, // 4: chatto.api.v1.MessageService.FetchLinkPreview:input_type -> chatto.api.v1.FetchLinkPreviewRequest
-	0,  // 5: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
-	2,  // 6: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
-	4,  // 7: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
-	6,  // 8: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
-	8,  // 9: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
-	10, // 10: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
-	12, // 11: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
-	16, // 12: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
-	17, // 13: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
-	18, // 14: chatto.api.v1.MessageService.FetchLinkPreview:output_type -> chatto.api.v1.FetchLinkPreviewResponse
-	1,  // 15: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
-	3,  // 16: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
-	5,  // 17: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
-	7,  // 18: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
-	9,  // 19: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
-	11, // 20: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
-	13, // 21: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
-	19, // 22: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
-	20, // 23: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
-	14, // [14:24] is the sub-list for method output_type
-	4,  // [4:14] is the sub-list for method input_type
-	4,  // [4:4] is the sub-list for extension type_name
-	4,  // [4:4] is the sub-list for extension extendee
-	0,  // [0:4] is the sub-list for field type_name
+	15, // 1: chatto.api.v1.UpdateMessageRequest.update_mask:type_name -> google.protobuf.FieldMask
+	14, // 2: chatto.api.v1.UpdateMessageResponse.message:type_name -> chatto.api.v1.Message
+	14, // 3: chatto.api.v1.GetMessageResponse.message:type_name -> chatto.api.v1.Message
+	14, // 4: chatto.api.v1.BatchGetMessagesResponse.messages:type_name -> chatto.api.v1.Message
+	16, // 5: chatto.api.v1.MessageService.FetchLinkPreview:input_type -> chatto.api.v1.FetchLinkPreviewRequest
+	0,  // 6: chatto.api.v1.MessageService.CreateMessage:input_type -> chatto.api.v1.CreateMessageRequest
+	2,  // 7: chatto.api.v1.MessageService.UpdateMessage:input_type -> chatto.api.v1.UpdateMessageRequest
+	4,  // 8: chatto.api.v1.MessageService.DeleteMessage:input_type -> chatto.api.v1.DeleteMessageRequest
+	6,  // 9: chatto.api.v1.MessageService.DeleteAttachment:input_type -> chatto.api.v1.DeleteAttachmentRequest
+	8,  // 10: chatto.api.v1.MessageService.DeleteLinkPreview:input_type -> chatto.api.v1.DeleteLinkPreviewRequest
+	10, // 11: chatto.api.v1.MessageService.GetMessage:input_type -> chatto.api.v1.GetMessageRequest
+	12, // 12: chatto.api.v1.MessageService.BatchGetMessages:input_type -> chatto.api.v1.BatchGetMessagesRequest
+	17, // 13: chatto.api.v1.MessageService.AddReaction:input_type -> chatto.api.v1.AddReactionRequest
+	18, // 14: chatto.api.v1.MessageService.RemoveReaction:input_type -> chatto.api.v1.RemoveReactionRequest
+	19, // 15: chatto.api.v1.MessageService.FetchLinkPreview:output_type -> chatto.api.v1.FetchLinkPreviewResponse
+	1,  // 16: chatto.api.v1.MessageService.CreateMessage:output_type -> chatto.api.v1.CreateMessageResponse
+	3,  // 17: chatto.api.v1.MessageService.UpdateMessage:output_type -> chatto.api.v1.UpdateMessageResponse
+	5,  // 18: chatto.api.v1.MessageService.DeleteMessage:output_type -> chatto.api.v1.DeleteMessageResponse
+	7,  // 19: chatto.api.v1.MessageService.DeleteAttachment:output_type -> chatto.api.v1.DeleteAttachmentResponse
+	9,  // 20: chatto.api.v1.MessageService.DeleteLinkPreview:output_type -> chatto.api.v1.DeleteLinkPreviewResponse
+	11, // 21: chatto.api.v1.MessageService.GetMessage:output_type -> chatto.api.v1.GetMessageResponse
+	13, // 22: chatto.api.v1.MessageService.BatchGetMessages:output_type -> chatto.api.v1.BatchGetMessagesResponse
+	20, // 23: chatto.api.v1.MessageService.AddReaction:output_type -> chatto.api.v1.AddReactionResponse
+	21, // 24: chatto.api.v1.MessageService.RemoveReaction:output_type -> chatto.api.v1.RemoveReactionResponse
+	15, // [15:25] is the sub-list for method output_type
+	5,  // [5:15] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_messages_proto_init() }

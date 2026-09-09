@@ -9,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   updateUser: vi.fn(),
-  updateUserPassword: vi.fn(),
+  changeUserPassword: vi.fn(),
   deleteUser: vi.fn(),
   clearUsernameCooldown: vi.fn()
 }));
@@ -35,7 +35,7 @@ describe('createAdminUserManagementAPI', () => {
     mocks.assignRole.mockReset();
     mocks.revokeRole.mockReset();
     mocks.updateUser.mockReset();
-    mocks.updateUserPassword.mockReset();
+    mocks.changeUserPassword.mockReset();
     mocks.deleteUser.mockReset();
     mocks.clearUsernameCooldown.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -45,7 +45,7 @@ describe('createAdminUserManagementAPI', () => {
       assignRole: mocks.assignRole,
       revokeRole: mocks.revokeRole,
       updateUser: mocks.updateUser,
-      updateUserPassword: mocks.updateUserPassword,
+      changeUserPassword: mocks.changeUserPassword,
       deleteUser: mocks.deleteUser,
       clearUsernameCooldown: mocks.clearUsernameCooldown
     });
@@ -279,7 +279,8 @@ describe('createAdminUserManagementAPI', () => {
       {
         userId: 'user-1',
         login: 'renamed',
-        displayName: 'Renamed User'
+        displayName: 'Renamed User',
+        updateMask: { paths: ['display_name', 'login'] }
       },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -304,7 +305,7 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('sets a user password with auth headers', async () => {
-    mocks.updateUserPassword.mockResolvedValue({
+    mocks.changeUserPassword.mockResolvedValue({
       member: {
         user: {
           id: 'user-1',
@@ -326,14 +327,14 @@ describe('createAdminUserManagementAPI', () => {
       bearerToken: 'token'
     });
 
-    await expect(api.updateUserPassword('user-1', 'newpassword456')).resolves.toMatchObject({
+    await expect(api.changeUserPassword('user-1', 'newpassword456')).resolves.toMatchObject({
       id: 'user-1',
       login: 'alice',
       displayName: 'Alice',
       roles: ['admin']
     });
 
-    expect(mocks.updateUserPassword).toHaveBeenCalledWith(
+    expect(mocks.changeUserPassword).toHaveBeenCalledWith(
       { userId: 'user-1', password: 'newpassword456' },
       { headers: { Authorization: 'Bearer token' } }
     );

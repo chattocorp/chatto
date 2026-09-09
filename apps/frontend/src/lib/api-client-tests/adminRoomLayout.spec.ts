@@ -204,7 +204,7 @@ describe('createAdminRoomLayoutAPI', () => {
       callOptions
     );
     expect(mocks.updateRoomGroup).toHaveBeenCalledWith(
-      { groupId: 'g2', name: 'Renamed', description: undefined },
+      { groupId: 'g2', name: 'Renamed', description: undefined, updateMask: { paths: ['name'] } },
       callOptions
     );
     expect(mocks.deleteRoomGroup).toHaveBeenCalledWith({ groupId: 'g2' }, callOptions);
@@ -243,7 +243,7 @@ describe('createAdminRoomLayoutAPI', () => {
       callOptions
     );
     expect(mocks.updateSidebarLink).toHaveBeenCalledWith(
-      { linkId: 'docs', label: 'Docs', url: '/help' },
+      { linkId: 'docs', label: 'Docs', url: '/help', updateMask: { paths: ['label', 'url'] } },
       callOptions
     );
     expect(mocks.deleteSidebarLink).toHaveBeenCalledWith({ linkId: 'docs' }, callOptions);

@@ -77,9 +77,9 @@ const (
 	// RoomServiceDeletePinnedMessageProcedure is the fully-qualified name of the RoomService's
 	// DeletePinnedMessage RPC.
 	RoomServiceDeletePinnedMessageProcedure = "/chatto.api.v1.RoomService/DeletePinnedMessage"
-	// RoomServiceUpdateTypingIndicatorProcedure is the fully-qualified name of the RoomService's
-	// UpdateTypingIndicator RPC.
-	RoomServiceUpdateTypingIndicatorProcedure = "/chatto.api.v1.RoomService/UpdateTypingIndicator"
+	// RoomServiceRefreshTypingIndicatorProcedure is the fully-qualified name of the RoomService's
+	// RefreshTypingIndicator RPC.
+	RoomServiceRefreshTypingIndicatorProcedure = "/chatto.api.v1.RoomService/RefreshTypingIndicator"
 	// RoomServiceGetRoomEventsProcedure is the fully-qualified name of the RoomService's GetRoomEvents
 	// RPC.
 	RoomServiceGetRoomEventsProcedure = "/chatto.api.v1.RoomService/GetRoomEvents"
@@ -167,7 +167,7 @@ type RoomServiceClient interface {
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
-	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
+	RefreshTypingIndicator(context.Context, *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Reads also require
 	// message.read or message.read-interactions. The server returns only related
@@ -314,10 +314,10 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(roomServiceMethods.ByName("DeletePinnedMessage")),
 			connect.WithClientOptions(opts...),
 		),
-		updateTypingIndicator: connect.NewClient[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse](
+		refreshTypingIndicator: connect.NewClient[v1.RefreshTypingIndicatorRequest, v1.RefreshTypingIndicatorResponse](
 			httpClient,
-			baseURL+RoomServiceUpdateTypingIndicatorProcedure,
-			connect.WithSchema(roomServiceMethods.ByName("UpdateTypingIndicator")),
+			baseURL+RoomServiceRefreshTypingIndicatorProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("RefreshTypingIndicator")),
 			connect.WithClientOptions(opts...),
 		),
 		getRoomEvents: connect.NewClient[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse](
@@ -355,30 +355,30 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // roomServiceClient implements RoomServiceClient.
 type roomServiceClient struct {
-	createRoom            *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
-	updateRoom            *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
-	archiveRoom           *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
-	unarchiveRoom         *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
-	joinRoom              *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
-	joinRoomGroup         *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
-	startDM               *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
-	leaveRoom             *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
-	listMembers           *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
-	getMember             *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
-	batchGetMembers       *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
-	addMember             *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
-	removeMember          *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
-	listBans              *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
-	listRoomAttachments   *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
-	listPinnedMessages    *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
-	createPinnedMessage   *connect.Client[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse]
-	deletePinnedMessage   *connect.Client[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse]
-	updateTypingIndicator *connect.Client[v1.UpdateTypingIndicatorRequest, v1.UpdateTypingIndicatorResponse]
-	getRoomEvents         *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
-	getRoomEventsAround   *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
-	markRoomAsRead        *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
-	banMember             *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
-	unbanMember           *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
+	createRoom             *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
+	updateRoom             *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
+	archiveRoom            *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
+	unarchiveRoom          *connect.Client[v1.UnarchiveRoomRequest, v1.UnarchiveRoomResponse]
+	joinRoom               *connect.Client[v1.JoinRoomRequest, v1.JoinRoomResponse]
+	joinRoomGroup          *connect.Client[v1.JoinRoomGroupRequest, v1.JoinRoomGroupResponse]
+	startDM                *connect.Client[v1.StartDMRequest, v1.StartDMResponse]
+	leaveRoom              *connect.Client[v1.LeaveRoomRequest, v1.LeaveRoomResponse]
+	listMembers            *connect.Client[v1.ListRoomMembersRequest, v1.ListRoomMembersResponse]
+	getMember              *connect.Client[v1.GetRoomMemberRequest, v1.GetRoomMemberResponse]
+	batchGetMembers        *connect.Client[v1.BatchGetRoomMembersRequest, v1.BatchGetRoomMembersResponse]
+	addMember              *connect.Client[v1.AddMemberRequest, v1.AddMemberResponse]
+	removeMember           *connect.Client[v1.RemoveMemberRequest, v1.RemoveMemberResponse]
+	listBans               *connect.Client[v1.ListBansRequest, v1.ListBansResponse]
+	listRoomAttachments    *connect.Client[v1.ListRoomAttachmentsRequest, v1.ListRoomAttachmentsResponse]
+	listPinnedMessages     *connect.Client[v1.ListPinnedMessagesRequest, v1.ListPinnedMessagesResponse]
+	createPinnedMessage    *connect.Client[v1.CreatePinnedMessageRequest, v1.CreatePinnedMessageResponse]
+	deletePinnedMessage    *connect.Client[v1.DeletePinnedMessageRequest, v1.DeletePinnedMessageResponse]
+	refreshTypingIndicator *connect.Client[v1.RefreshTypingIndicatorRequest, v1.RefreshTypingIndicatorResponse]
+	getRoomEvents          *connect.Client[v1.GetRoomEventsRequest, v1.GetRoomEventsResponse]
+	getRoomEventsAround    *connect.Client[v1.GetRoomEventsAroundRequest, v1.GetRoomEventsAroundResponse]
+	markRoomAsRead         *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
+	banMember              *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
+	unbanMember            *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
 }
 
 // CreateRoom calls chatto.api.v1.RoomService.CreateRoom.
@@ -471,9 +471,9 @@ func (c *roomServiceClient) DeletePinnedMessage(ctx context.Context, req *connec
 	return c.deletePinnedMessage.CallUnary(ctx, req)
 }
 
-// UpdateTypingIndicator calls chatto.api.v1.RoomService.UpdateTypingIndicator.
-func (c *roomServiceClient) UpdateTypingIndicator(ctx context.Context, req *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error) {
-	return c.updateTypingIndicator.CallUnary(ctx, req)
+// RefreshTypingIndicator calls chatto.api.v1.RoomService.RefreshTypingIndicator.
+func (c *roomServiceClient) RefreshTypingIndicator(ctx context.Context, req *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error) {
+	return c.refreshTypingIndicator.CallUnary(ctx, req)
 }
 
 // GetRoomEvents calls chatto.api.v1.RoomService.GetRoomEvents.
@@ -573,7 +573,7 @@ type RoomServiceHandler interface {
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
-	UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error)
+	RefreshTypingIndicator(context.Context, *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Reads also require
 	// message.read or message.read-interactions. The server returns only related
@@ -716,10 +716,10 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(roomServiceMethods.ByName("DeletePinnedMessage")),
 		connect.WithHandlerOptions(opts...),
 	)
-	roomServiceUpdateTypingIndicatorHandler := connect.NewUnaryHandler(
-		RoomServiceUpdateTypingIndicatorProcedure,
-		svc.UpdateTypingIndicator,
-		connect.WithSchema(roomServiceMethods.ByName("UpdateTypingIndicator")),
+	roomServiceRefreshTypingIndicatorHandler := connect.NewUnaryHandler(
+		RoomServiceRefreshTypingIndicatorProcedure,
+		svc.RefreshTypingIndicator,
+		connect.WithSchema(roomServiceMethods.ByName("RefreshTypingIndicator")),
 		connect.WithHandlerOptions(opts...),
 	)
 	roomServiceGetRoomEventsHandler := connect.NewUnaryHandler(
@@ -790,8 +790,8 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 			roomServiceCreatePinnedMessageHandler.ServeHTTP(w, r)
 		case RoomServiceDeletePinnedMessageProcedure:
 			roomServiceDeletePinnedMessageHandler.ServeHTTP(w, r)
-		case RoomServiceUpdateTypingIndicatorProcedure:
-			roomServiceUpdateTypingIndicatorHandler.ServeHTTP(w, r)
+		case RoomServiceRefreshTypingIndicatorProcedure:
+			roomServiceRefreshTypingIndicatorHandler.ServeHTTP(w, r)
 		case RoomServiceGetRoomEventsProcedure:
 			roomServiceGetRoomEventsHandler.ServeHTTP(w, r)
 		case RoomServiceGetRoomEventsAroundProcedure:
@@ -883,8 +883,8 @@ func (UnimplementedRoomServiceHandler) DeletePinnedMessage(context.Context, *con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.DeletePinnedMessage is not implemented"))
 }
 
-func (UnimplementedRoomServiceHandler) UpdateTypingIndicator(context.Context, *connect.Request[v1.UpdateTypingIndicatorRequest]) (*connect.Response[v1.UpdateTypingIndicatorResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.UpdateTypingIndicator is not implemented"))
+func (UnimplementedRoomServiceHandler) RefreshTypingIndicator(context.Context, *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.RefreshTypingIndicator is not implemented"))
 }
 
 func (UnimplementedRoomServiceHandler) GetRoomEvents(context.Context, *connect.Request[v1.GetRoomEventsRequest]) (*connect.Response[v1.GetRoomEventsResponse], error) {

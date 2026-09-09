@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import type { TimelineEventView } from '$lib/render/timelineEvents';
 import { MessageService } from '@chatto/api-types/api/v1/messages_connect';
@@ -74,11 +75,12 @@ export function createMessageAPI(config: MessageAPIConfig) {
           { headers: headers() }
         );
 
-        const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
+        const users = await timelineUsersForMessages(
+          config,
+          response.message ? [response.message] : []
+        );
         return {
-          event: response.message
-            ? messageToTimelineEvent(response.message, users)
-            : null
+          event: response.message ? messageToTimelineEvent(response.message, users) : null
         };
       } catch (err) {
         return handleAuthError(config, err);
@@ -102,15 +104,19 @@ export function createMessageAPI(config: MessageAPIConfig) {
         if (input.alsoSendToChannel !== undefined) {
           request.alsoSendToChannel = input.alsoSendToChannel;
         }
-        const response = await client.updateMessage(request, {
-          headers: headers()
-        });
-        const users = await timelineUsersForMessages(config, response.message ? [response.message] : []);
+        const response = await client.updateMessage(
+          { ...request, updateMask: updateMask(request, ['body', 'alsoSendToChannel']) },
+          {
+            headers: headers()
+          }
+        );
+        const users = await timelineUsersForMessages(
+          config,
+          response.message ? [response.message] : []
+        );
         return {
           updated: true,
-          event: response.message
-            ? messageToTimelineEvent(response.message, users)
-            : null
+          event: response.message ? messageToTimelineEvent(response.message, users) : null
         };
       } catch (err) {
         return handleAuthError(config, err);

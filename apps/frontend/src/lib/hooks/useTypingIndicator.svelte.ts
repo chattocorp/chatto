@@ -143,7 +143,7 @@ export function createTypingIndicator(getConfig: () => TypingIndicatorConfig) {
       try {
         await serverScope.connection
           .getAPI(createRoomCommandAPI)
-          .updateTypingIndicator(configRoomId, configThreadRootEventId);
+          .refreshTypingIndicator(configRoomId, configThreadRootEventId);
       } catch (err) {
         console.debug('Failed to send typing indicator:', err);
       }

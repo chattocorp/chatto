@@ -14,7 +14,7 @@ When a user is composing a message, others see a small typing indicator — the 
   indicator also permits `message.read-interactions` with a relationship to
   that thread. Room membership is also required.
 - Current clients refresh typing state through ConnectRPC
-  `RoomService.UpdateTypingIndicator`.
+  `RoomService.RefreshTypingIndicator`.
 - Receiving clients show the indicator (avatar + animated dots) for a short duration after the last typing event.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.

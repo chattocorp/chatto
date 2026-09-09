@@ -22,7 +22,7 @@ const mocks = vi.hoisted(() => ({
   getMember: vi.fn(),
   updateUser: vi.fn(),
   clearUsernameCooldown: vi.fn(),
-  updateUserPassword: vi.fn(),
+  changeUserPassword: vi.fn(),
   assignRole: vi.fn(),
   revokeRole: vi.fn(),
   uploadAvatar: vi.fn(),
@@ -48,7 +48,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
             getMember: mocks.getMember,
             updateUser: mocks.updateUser,
             clearUsernameCooldown: mocks.clearUsernameCooldown,
-            updateUserPassword: mocks.updateUserPassword,
+            changeUserPassword: mocks.changeUserPassword,
             assignRole: mocks.assignRole,
             revokeRole: mocks.revokeRole,
             uploadAvatar: mocks.uploadAvatar,
@@ -188,7 +188,7 @@ describe('server member detail queries', () => {
       } satisfies AdminManagedUser)
     );
     mocks.clearUsernameCooldown.mockResolvedValue(true);
-    mocks.updateUserPassword.mockImplementation((userId: string) =>
+    mocks.changeUserPassword.mockImplementation((userId: string) =>
       Promise.resolve(member(userId))
     );
     mocks.assignRole.mockImplementation((userId: string) =>
@@ -360,7 +360,7 @@ describe('server member detail queries', () => {
     buttonByText(rendered.container, 'Set Password').click();
     await settle();
 
-    expect(mocks.updateUserPassword).toHaveBeenCalledWith('alice', 'new-password');
+    expect(mocks.changeUserPassword).toHaveBeenCalledWith('alice', 'new-password');
   });
 
   it('updates roles and invalidates the related permission snapshots', async () => {

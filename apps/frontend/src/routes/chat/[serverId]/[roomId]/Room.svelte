@@ -373,7 +373,7 @@
   });
 
   usePresenceChange((userId, status) => {
-    roomMembersStore.updatePresence(userId, status);
+    roomMembersStore.setPresence(userId, status);
   });
 
   // Header action visibility — flat derivations keep the template clean

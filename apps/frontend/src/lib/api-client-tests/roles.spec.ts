@@ -267,7 +267,8 @@ describe('createRoleAPI', () => {
         name: 'helpdesk',
         displayName: 'Support',
         description: 'Support queue',
-        pingable: false
+        pingable: false,
+        updateMask: { paths: ['display_name', 'description', 'pingable'] }
       },
       { headers: { Authorization: 'Bearer token' } }
     );

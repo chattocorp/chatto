@@ -20,6 +20,15 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 [ADR-084](../adr/ADR-084-separate-internal-protobufs-by-storage-contract.md), and
 [ADR-085](../adr/ADR-085-agent-integration-through-mcp.md).
 
+`MyAccountService.SetCustomStatus` replaces the complete custom status through
+the existing core status command. All public resource `Update*` requests use
+field masks under [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md).
+The Connect interceptor removes unselected values before protobuf validation;
+direct handlers use the same normalization and validation. Selected absent
+values reset, subject to domain rules. The core receives sparse selected inputs
+and owns authorization and concurrency. Self-service profile fields and their
+login cooldown fact append in one atomic batch of existing EVT events.
+
 ## Transport boundaries
 
 | Surface | Mount | Contract | Access boundary |
@@ -238,8 +247,9 @@ enabled state, creation time, and the latest recorded failure per endpoint.
 `BotWebhookFailure` represents a recorded failure; `latest_failure` is absent
 when no failure is retained. Success and skip statuses are not exposed.
 Names and signing secrets are fixed; creation returns a signing secret once.
-Update accepts optional enabled, URL, and Authorization fields. Omitted fields
-keep their current values; an empty Authorization value removes the header.
+Update selects enabled, URL, and Authorization fields with an update mask.
+Unselected fields keep their current values. Selected absent or empty
+Authorization removes the header; a selected URL must remain valid.
 Destination edits preserve creation time and cancel queued deliveries. Revocation removes one endpoint permanently.
 Later successes do not clear a recorded failure. The delivery worker sends
 JSON HTTP POST requests to external destinations; it mounts no new route.

@@ -9,7 +9,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ## Behavior
 
-- Current clients refresh their own presence through `MyAccountService.UpdatePresence` on the ConnectRPC API.
+- Current clients refresh their own presence through `MyAccountService.SetPresence` on the ConnectRPC API.
 - The client starts in Online mode unless the user previously chose another mode. Users can choose Online, Away, Do Not Disturb, or "Look offline".
 - The client does not use input activity or tab visibility to change the selected mode. It does not set Away automatically.
 - Users can set Do Not Disturb for their current live server presence. While DND is active, new notifications are still recorded for that user, but notification sounds and web push are suppressed (see FDR-012). Presence state is not persisted as server-side user/account state.
@@ -36,7 +36,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 3. User-level live status with heartbeat-driven deduplication
 
-**Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes. Current clients write `ONLINE`, `AWAY`, or `DO_NOT_DISTURB` through `MyAccountService.UpdatePresence`; `OFFLINE` is not an accepted update value. The live record carries whether the status was manually selected so reports that are not manually selected cannot clear explicit Away/DND.
+**Decision:** Presence is stored in `MEMORY_CACHE` as `presence.{userId}`. A per-process PresenceHub watches these keys and emits live events only when the user-level status changes. Current clients write `ONLINE`, `AWAY`, or `DO_NOT_DISTURB` through `MyAccountService.SetPresence`; `OFFLINE` is not an accepted update value. The live record carries whether the status was manually selected so reports that are not manually selected cannot clear explicit Away/DND.
 **Why:** Presence is a current-state hint, not durable account history, but a non-manual report must not replace an explicit availability choice. Closing a tab does not actively write Offline, so another open tab can keep presence alive after the manual TTL expires.
 **Tradeoff:** "Look offline" remains client-local: another active browser/device can still keep the user visible because the invisible client deliberately does not tell the server about that privacy choice.
 

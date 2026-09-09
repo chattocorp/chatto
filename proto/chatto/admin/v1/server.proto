@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.admin.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/common.proto";
 import "chatto/api/v1/server.proto";
@@ -44,6 +45,11 @@ message UpdateServerConfigRequest {
   // Optional welcome message shown on the login page. Set to empty string to
   // clear.
   optional string welcome_message = 4 [(buf.validate.field).string.max_len = 10000];
+  // Editable fields to apply or reset: server_name, description, motd, welcome_message.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 5;
 }
 
 // Result of updating runtime-editable server profile settings.
@@ -129,9 +135,15 @@ message GetServerSecurityConfigResponse {
 
 // Request to update the server blocked-username list.
 message UpdateBlockedUsernamesRequest {
-  // Blocked usernames. Empty entries are ignored and entries are normalized by
-  // the server.
+  // Complete replacement list. Select blocked_usernames in update_mask and
+  // omit this field or send [] to clear the list. Empty entries are ignored
+  // and entries are normalized by the server.
   repeated string blocked_usernames = 1 [(buf.validate.field).repeated = {max_items: 1000}];
+  // Editable fields to apply or reset: blocked_usernames.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 2;
 }
 
 // Result of updating the server blocked-username list.
@@ -192,6 +204,11 @@ message UpdateNeighborRequest {
   string neighbor_id = 1 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
   string origin = 2 [(buf.validate.field).string = {min_len: 1, max_len: 2048}];
   string revision = 3 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
+  // Editable fields to apply or reset: origin.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 5;
 }
 
 // Updated Neighbor.

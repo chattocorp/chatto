@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient } from './connect.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
 import { CredentialLastUsedState, type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
@@ -74,7 +75,12 @@ export function createBotAPI(config: BotAPIConfig) {
       patch: { enabled?: boolean; url?: string; authorization?: string }
     ) {
       return client.updateBotOutboundWebhook(
-        { botUserId, webhookId, ...patch },
+        {
+          botUserId,
+          webhookId,
+          ...patch,
+          updateMask: updateMask(patch, ['enabled', 'url', 'authorization'])
+        },
         { headers: headers() }
       );
     },

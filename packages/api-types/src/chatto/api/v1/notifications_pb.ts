@@ -1898,8 +1898,9 @@ export class NotificationPolicyServiceUpdateNotificationPolicyRequest extends Me
   overrides?: NotificationDeliveryModes;
 
   /**
-   * Fields to set or clear, relative to overrides. The mask must contain at
-   * least one supported delivery-mode field.
+   * Fields to set or clear, relative to overrides. Omit to infer populated
+   * overrides; * selects all supported fields. An explicit empty mask is
+   * invalid. Unselected override values are ignored.
    *
    * @generated from field: google.protobuf.FieldMask update_mask = 3;
    */

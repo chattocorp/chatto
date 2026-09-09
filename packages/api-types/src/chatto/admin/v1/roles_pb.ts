@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Role } from "../../api/v1/roles_pb.js";
 import { User } from "../../api/v1/users_pb.js";
 
@@ -401,6 +401,16 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
    */
   pingable?: boolean;
 
+  /**
+   * Editable fields to apply or reset: display_name, description, pingable.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 5;
+   */
+  updateMask?: FieldMask;
+
   constructor(data?: PartialMessage<UpdateRoleRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -413,6 +423,7 @@ export class UpdateRoleRequest extends Message<UpdateRoleRequest> {
     { no: 2, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "pingable", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoleRequest {

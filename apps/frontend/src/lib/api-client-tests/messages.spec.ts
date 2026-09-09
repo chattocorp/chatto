@@ -325,7 +325,8 @@ describe('createMessageAPI', () => {
         roomId: 'room-1',
         eventId: 'event-1',
         body: 'edited',
-        alsoSendToChannel: false
+        alsoSendToChannel: false,
+        updateMask: { paths: ['body', 'also_send_to_channel'] }
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
@@ -355,7 +356,8 @@ describe('createMessageAPI', () => {
       {
         roomId: 'room-1',
         eventId: 'event-1',
-        alsoSendToChannel: true
+        alsoSendToChannel: true,
+        updateMask: { paths: ['also_send_to_channel'] }
       },
       { headers: undefined }
     );

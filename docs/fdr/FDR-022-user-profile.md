@@ -1,13 +1,27 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
 A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, bio, and avatar changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
+
+`MyAccountService.UpdateProfile` and `UpdateSettings` use update masks as defined
+in [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md). Unselected fields
+stay unchanged. A selected field without a value resets to its default or
+absence: bio and timezone can be cleared, but login and display name must be
+non-empty. An omitted mask selects populated fields; an explicit empty mask is
+invalid. The bundled client sends explicit masks.
+
+Self-service profile edits validate all selected fields before writing them.
+The profile facts and any login cooldown fact commit in one atomic batch. A
+failed login change cannot leave a new display name or bio behind. A conflict
+at append returns to the caller instead of replaying the batch.
+`SetCustomStatus` replaces the complete status. Emoji and text are required;
+omitted expiry removes any previous expiry. `DeleteCustomStatus` clears it.
 
 - **Display name** — freely editable by a human or bot account. Shown in messages, member lists, mention autocomplete, etc.
 - **Login (username)** — editable by a human or bot account with a 30-day cooldown between changes. A user with `user.manage-accounts` bypasses the cooldown for their own login. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Bot logins must end in `_bot`. Each successful change that does not use the bypass records a timestamp; subsequent changes within the window are rejected with a clear error message.
@@ -35,7 +49,7 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 2. Login uniqueness is enforced with projection catch-up and OCC
 
-**Decision:** Login changes wait for the user projection to catch up, check its derived normalised login-digest index, and append the encrypted login-change event with optimistic concurrency over the user subject family. If another writer wins first, the operation retries against the updated projection. Projection apply decrypts the login transiently to update the digest index; user reads decrypt it again only while hydrating the response.
+**Decision:** Login changes wait for the user projection to catch up, check its derived normalised login-digest index, and append the encrypted login-change event with optimistic concurrency over the user subject family. Self-service profile updates return an append conflict to the caller; existing admin commands can retry against the updated projection. Projection apply decrypts the login transiently to update the digest index; user reads decrypt it again only while hydrating the response.
 **Why:** User profile state now lives in the event-sourced user aggregate, and new durable login-change facts carry encrypted PII. Projection catch-up plus OCC keeps uniqueness race-safe without reintroducing a separate login KV as source of truth.
 **Tradeoff:** The write path depends on projection readiness and may retry under contention. In exchange, the durable event stream remains append-only and the login index stays derived state.
 

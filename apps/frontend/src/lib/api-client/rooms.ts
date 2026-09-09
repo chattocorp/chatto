@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import {
   authHeaders,
   Code,
@@ -8,10 +9,7 @@ import {
 } from './connect.js';
 import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
-import type {
-  Room,
-  RoomBan as APIRoomBan
-} from '@chatto/api-types/api/v1/rooms_pb';
+import type { Room, RoomBan as APIRoomBan } from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
 import {
   normalizeRoomName,
@@ -146,7 +144,14 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
             description: input.description === undefined ? undefined : (input.description ?? ''),
             universal: input.universal,
             slowModeSeconds: input.slowModeSeconds,
-            threadingMode: input.threadingMode
+            threadingMode: input.threadingMode,
+            updateMask: updateMask(input, [
+              'name',
+              'description',
+              'universal',
+              'slowModeSeconds',
+              'threadingMode'
+            ])
           },
           { headers: headers() }
         );
@@ -254,12 +259,12 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       }
     },
 
-    async updateTypingIndicator(
+    async refreshTypingIndicator(
       roomId: string,
       threadRootEventId?: string | null
     ): Promise<boolean> {
       try {
-        const response = await rooms.updateTypingIndicator(
+        const response = await rooms.refreshTypingIndicator(
           {
             roomId,
             threadRootEventId: threadRootEventId ?? ''

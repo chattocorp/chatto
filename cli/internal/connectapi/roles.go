@@ -130,6 +130,10 @@ func (s *roleService) UpdateRole(ctx context.Context, req *connect.Request[admin
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 	role, err := s.api.core.AdminUpdateServerRole(ctx, caller.UserID, core.AdminRoleUpdateInput{
 		Name:        req.Msg.GetName(),
 		DisplayName: req.Msg.DisplayName,
@@ -218,7 +222,7 @@ func (s *roleService) apiRoleUsers(ctx context.Context, users []core.RoleUserSum
 			Login:          user.Login,
 			DisplayName:    user.DisplayName,
 			Deleted:        user.Deleted,
-			IsBot:    user.IsBot,
+			IsBot:          user.IsBot,
 			PresenceStatus: corePresenceStatusToAPI(presence),
 			CustomStatus:   coreCustomStatusToAPI(user.CustomStatus),
 		})

@@ -402,6 +402,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Resource update RPCs now share an update-mask contract. Select a field to set
+  or reset it; unselected fields stay unchanged. JSON clients can clear fields
+  with `null` plus `updateMask`. Empty updates are rejected. Self-service profile
+  edits commit together, so a failed login change cannot leave other edits behind.
+- Integrations must replace the old update commands with `SetCustomStatus`,
+  `ChangePassword`, `ChangeUserPassword`, `SetPresence`, and
+  `RefreshTypingIndicator`. `SetCustomStatus` replaces the complete status;
+  omitted expiry means no expiry. See the
+  [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
+
 - Integrations can discover archived rooms with `RoomDirectoryService.ListRooms`
   by selecting active, archived, or all rooms. The default remains active rooms,
   and normal room visibility rules apply.

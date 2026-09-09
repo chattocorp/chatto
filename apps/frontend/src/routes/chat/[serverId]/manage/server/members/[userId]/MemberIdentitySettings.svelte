@@ -23,10 +23,10 @@
       displayName?: string;
     }) => Promise<AdminManagedUser | null>;
     clearUsernameCooldown: () => Promise<boolean>;
-    updatePassword: (password: string) => Promise<AdminMember | null>;
+    changePassword: (password: string) => Promise<AdminMember | null>;
   };
 
-  let { member, isSelf, updateIdentity, clearUsernameCooldown, updatePassword }: Props = $props();
+  let { member, isSelf, updateIdentity, clearUsernameCooldown, changePassword }: Props = $props();
 
   const serverScope = useServerScope();
   const userSettings = $derived(
@@ -147,7 +147,7 @@
     settingPassword = true;
     passwordError = null;
     try {
-      if (await updatePassword(adminPassword)) {
+      if (await changePassword(adminPassword)) {
         adminPassword = '';
         adminConfirmPassword = '';
         toast.success(m('admin.members.password_set'));

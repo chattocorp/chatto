@@ -202,7 +202,7 @@
   const passwordMutation = createMutation(
     () => ({
       mutationFn: ({ api, userId: targetUserId, password }: PasswordMutationVariables) =>
-        api.updateUserPassword(targetUserId, password),
+        api.changeUserPassword(targetUserId, password),
       onSuccess: (updated, target) => {
         if (!isCurrentTarget(target)) return;
         updateCachedMember(target, () => updated);
@@ -248,7 +248,7 @@
     return cleared && isCurrentTarget(target);
   }
 
-  async function updatePassword(password: string): Promise<AdminMember | null> {
+  async function changePassword(password: string): Promise<AdminMember | null> {
     const target = mutationScope();
     if (!target) return null;
     const updated = await passwordMutation.mutateAsync({ ...target, password });
@@ -373,7 +373,7 @@
                 {isSelf}
                 {updateIdentity}
                 {clearUsernameCooldown}
-                {updatePassword}
+                {changePassword}
               />
             {/if}
 

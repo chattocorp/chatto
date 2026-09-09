@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.admin.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
@@ -75,6 +76,11 @@ message UpdateRoleRequest {
   optional string description = 3 [(buf.validate.field).string.max_len = 500];
   // Whether messages may notify users assigned to this role, when changing it.
   optional bool pingable = 4;
+  // Editable fields to apply or reset: display_name, description, pingable.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 5;
 }
 
 // Result of updating a role.

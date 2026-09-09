@@ -15,12 +15,12 @@ export function createPresenceAPI(config: PresenceAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
   const headers = () => authHeaders(config);
   return {
-    async updatePresence(
+    async setPresence(
       status: PresenceStatus,
       userSelected = false,
     ): Promise<PresenceStatus> {
       try {
-        const response = await client.updatePresence(
+        const response = await client.setPresence(
           { status, userSelected },
           { headers: headers() },
         );

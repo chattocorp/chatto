@@ -1,3 +1,4 @@
+import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient } from './connect.js';
 import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
@@ -155,12 +156,15 @@ export function createAdminUserManagementAPI(config: AdminUserManagementAPIConfi
     },
 
     async updateUser(input: AdminUpdateUserInput): Promise<AdminManagedUser> {
-      const response = await client.updateUser(input, { headers: headers() });
+      const response = await client.updateUser(
+        { ...input, updateMask: updateMask(input, ['displayName', 'login']) },
+        { headers: headers() }
+      );
       return adminManagedUser(response.user);
     },
 
-    async updateUserPassword(userId: string, password: string): Promise<AdminMember> {
-      const response = await client.updateUserPassword(
+    async changeUserPassword(userId: string, password: string): Promise<AdminMember> {
+      const response = await client.changeUserPassword(
         { userId, password },
         { headers: headers() }
       );

@@ -349,8 +349,9 @@ message NotificationPolicyServiceUpdateNotificationPolicyRequest {
   // Sparse override values. Fields selected by update_mask but absent here are
   // cleared to Inherit.
   NotificationDeliveryModes overrides = 2;
-  // Fields to set or clear, relative to overrides. The mask must contain at
-  // least one supported delivery-mode field.
+  // Fields to set or clear, relative to overrides. Omit to infer populated
+  // overrides; * selects all supported fields. An explicit empty mask is
+  // invalid. Unselected override values are ignored.
   google.protobuf.FieldMask update_mask = 3;
 }
 

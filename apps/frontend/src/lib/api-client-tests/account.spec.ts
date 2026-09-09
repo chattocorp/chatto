@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   updateProfile: vi.fn(),
-  updatePassword: vi.fn(),
+  changePassword: vi.fn(),
   updateSettings: vi.fn(),
   requestAccountDeletion: vi.fn(),
   deleteMyAccount: vi.fn()
@@ -29,14 +29,14 @@ describe('createAccountAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.updateProfile.mockReset();
-    mocks.updatePassword.mockReset();
+    mocks.changePassword.mockReset();
     mocks.updateSettings.mockReset();
     mocks.requestAccountDeletion.mockReset();
     mocks.deleteMyAccount.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       updateProfile: mocks.updateProfile,
-      updatePassword: mocks.updatePassword,
+      changePassword: mocks.changePassword,
       updateSettings: mocks.updateSettings,
       requestAccountDeletion: mocks.requestAccountDeletion,
       deleteMyAccount: mocks.deleteMyAccount
@@ -71,7 +71,11 @@ describe('createAccountAPI', () => {
       useBinaryFormat: true
     });
     expect(mocks.updateProfile).toHaveBeenCalledWith(
-      { displayName: 'Alice Two', login: 'alice2' },
+      {
+        displayName: 'Alice Two',
+        login: 'alice2',
+        updateMask: { paths: ['display_name', 'login'] }
+      },
       { headers: { Authorization: 'Bearer token' } }
     );
   });
@@ -106,14 +110,15 @@ describe('createAccountAPI', () => {
       {
         timezone: 'Europe/Berlin',
         timeFormat: TimeFormat.TIME_FORMAT_24_HOUR,
-        shareTimezone: true
+        shareTimezone: true,
+        updateMask: { paths: ['timezone', 'time_format', 'share_timezone'] }
       },
       { headers: undefined }
     );
   });
 
   it('sets a password with bearer auth', async () => {
-    mocks.updatePassword.mockResolvedValue({});
+    mocks.changePassword.mockResolvedValue({});
 
     const api = createAccountAPI({
       baseUrl: '/api/connect',
@@ -121,10 +126,10 @@ describe('createAccountAPI', () => {
     });
 
     await expect(
-      api.updatePassword({ password: 'newpassword456', currentPassword: 'oldpassword123' })
+      api.changePassword({ password: 'newpassword456', currentPassword: 'oldpassword123' })
     ).resolves.toBeUndefined();
 
-    expect(mocks.updatePassword).toHaveBeenCalledWith(
+    expect(mocks.changePassword).toHaveBeenCalledWith(
       { password: 'newpassword456', currentPassword: 'oldpassword123' },
       { headers: { Authorization: 'Bearer token' } }
     );
@@ -152,7 +157,8 @@ describe('createAccountAPI', () => {
       {
         timezone: '',
         timeFormat: undefined,
-        shareTimezone: undefined
+        shareTimezone: undefined,
+        updateMask: { paths: ['timezone'] }
       },
       { headers: undefined }
     );

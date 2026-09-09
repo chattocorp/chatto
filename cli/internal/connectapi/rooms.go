@@ -52,6 +52,10 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 
 	var threadingMode *evtv1.RoomThreadingMode
 	if req.Msg.ThreadingMode != nil {
@@ -245,7 +249,7 @@ func (s *roomService) ListBans(ctx context.Context, req *connect.Request[apiv1.L
 	}), nil
 }
 
-func (s *roomService) UpdateTypingIndicator(ctx context.Context, req *connect.Request[apiv1.UpdateTypingIndicatorRequest]) (*connect.Response[apiv1.UpdateTypingIndicatorResponse], error) {
+func (s *roomService) RefreshTypingIndicator(ctx context.Context, req *connect.Request[apiv1.RefreshTypingIndicatorRequest]) (*connect.Response[apiv1.RefreshTypingIndicatorResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -262,7 +266,7 @@ func (s *roomService) UpdateTypingIndicator(ctx context.Context, req *connect.Re
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateTypingIndicatorResponse{Updated: true}), nil
+	return connect.NewResponse(&apiv1.RefreshTypingIndicatorResponse{Updated: true}), nil
 }
 
 func (s *roomService) BanMember(ctx context.Context, req *connect.Request[apiv1.BanMemberRequest]) (*connect.Response[apiv1.BanMemberResponse], error) {

@@ -64,11 +64,13 @@ export class CustomUserStatus extends Message<CustomUserStatus> {
 }
 
 /**
- * Request to update or replace the current user's custom status.
+ * Request to replace the current user's complete custom status. Emoji and text
+ * are required. Omitted expires_at removes any previous expiry. Use
+ * DeleteCustomStatus to clear the status.
  *
- * @generated from message chatto.api.v1.UpdateCustomStatusRequest
+ * @generated from message chatto.api.v1.SetCustomStatusRequest
  */
-export class UpdateCustomStatusRequest extends Message<UpdateCustomStatusRequest> {
+export class SetCustomStatusRequest extends Message<SetCustomStatusRequest> {
   /**
    * Short emoji marker displayed with the status.
    *
@@ -90,42 +92,42 @@ export class UpdateCustomStatusRequest extends Message<UpdateCustomStatusRequest
    */
   expiresAt?: Timestamp;
 
-  constructor(data?: PartialMessage<UpdateCustomStatusRequest>) {
+  constructor(data?: PartialMessage<SetCustomStatusRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateCustomStatusRequest";
+  static readonly typeName = "chatto.api.v1.SetCustomStatusRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "text", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "expires_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateCustomStatusRequest {
-    return new UpdateCustomStatusRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetCustomStatusRequest {
+    return new SetCustomStatusRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateCustomStatusRequest {
-    return new UpdateCustomStatusRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetCustomStatusRequest {
+    return new SetCustomStatusRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateCustomStatusRequest {
-    return new UpdateCustomStatusRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetCustomStatusRequest {
+    return new SetCustomStatusRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdateCustomStatusRequest | PlainMessage<UpdateCustomStatusRequest> | undefined, b: UpdateCustomStatusRequest | PlainMessage<UpdateCustomStatusRequest> | undefined): boolean {
-    return proto3.util.equals(UpdateCustomStatusRequest, a, b);
+  static equals(a: SetCustomStatusRequest | PlainMessage<SetCustomStatusRequest> | undefined, b: SetCustomStatusRequest | PlainMessage<SetCustomStatusRequest> | undefined): boolean {
+    return proto3.util.equals(SetCustomStatusRequest, a, b);
   }
 }
 
 /**
- * Result of updating the current user's custom status.
+ * Result of setting the current user's complete custom status.
  *
- * @generated from message chatto.api.v1.UpdateCustomStatusResponse
+ * @generated from message chatto.api.v1.SetCustomStatusResponse
  */
-export class UpdateCustomStatusResponse extends Message<UpdateCustomStatusResponse> {
+export class SetCustomStatusResponse extends Message<SetCustomStatusResponse> {
   /**
    * Stored custom status after validation and normalization.
    *
@@ -133,31 +135,31 @@ export class UpdateCustomStatusResponse extends Message<UpdateCustomStatusRespon
    */
   status?: CustomUserStatus;
 
-  constructor(data?: PartialMessage<UpdateCustomStatusResponse>) {
+  constructor(data?: PartialMessage<SetCustomStatusResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.UpdateCustomStatusResponse";
+  static readonly typeName = "chatto.api.v1.SetCustomStatusResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "status", kind: "message", T: CustomUserStatus },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateCustomStatusResponse {
-    return new UpdateCustomStatusResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetCustomStatusResponse {
+    return new SetCustomStatusResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateCustomStatusResponse {
-    return new UpdateCustomStatusResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetCustomStatusResponse {
+    return new SetCustomStatusResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateCustomStatusResponse {
-    return new UpdateCustomStatusResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetCustomStatusResponse {
+    return new SetCustomStatusResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: UpdateCustomStatusResponse | PlainMessage<UpdateCustomStatusResponse> | undefined, b: UpdateCustomStatusResponse | PlainMessage<UpdateCustomStatusResponse> | undefined): boolean {
-    return proto3.util.equals(UpdateCustomStatusResponse, a, b);
+  static equals(a: SetCustomStatusResponse | PlainMessage<SetCustomStatusResponse> | undefined, b: SetCustomStatusResponse | PlainMessage<SetCustomStatusResponse> | undefined): boolean {
+    return proto3.util.equals(SetCustomStatusResponse, a, b);
   }
 }
 

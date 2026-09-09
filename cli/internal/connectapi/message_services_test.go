@@ -1442,32 +1442,32 @@ func TestMessageServiceDeleteAttachmentAndLinkPreviewAuthorOnly(t *testing.T) {
 	}
 }
 
-func TestRoomServiceUpdateTypingIndicatorRequiresMembershipOnly(t *testing.T) {
+func TestRoomServiceRefreshTypingIndicatorRequiresMembershipOnly(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-typing")
-	req := connect.NewRequest(&apiv1.UpdateTypingIndicatorRequest{RoomId: room.Id})
+	req := connect.NewRequest(&apiv1.RefreshTypingIndicatorRequest{RoomId: room.Id})
 
-	if _, err := env.rooms.UpdateTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdateTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	if _, err := env.rooms.RefreshTypingIndicator(env.ctx, req); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated RefreshTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
 	outsider, err := env.core.CreateUser(env.ctx, core.SystemActorID, "message-typing-outsider", "Message Typing Outsider", "password")
 	if err != nil {
 		t.Fatalf("CreateUser outsider: %v", err)
 	}
-	if _, err := env.rooms.UpdateTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("outsider UpdateTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	if _, err := env.rooms.RefreshTypingIndicator(withCaller(env.ctx, outsider), req); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("outsider RefreshTypingIndicator code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
 	}
 
 	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessagePost); err != nil {
 		t.Fatalf("DenyRoomPermission post: %v", err)
 	}
-	resp, err := env.rooms.UpdateTypingIndicator(withCaller(env.ctx, env.viewer), req)
+	resp, err := env.rooms.RefreshTypingIndicator(withCaller(env.ctx, env.viewer), req)
 	if err != nil {
-		t.Fatalf("member UpdateTypingIndicator with post denied: %v", err)
+		t.Fatalf("member RefreshTypingIndicator with post denied: %v", err)
 	}
 	if !resp.Msg.Updated {
-		t.Fatal("UpdateTypingIndicator Updated = false, want true")
+		t.Fatal("RefreshTypingIndicator Updated = false, want true")
 	}
 }
 

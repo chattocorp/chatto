@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
@@ -11,11 +12,12 @@ import "chatto/api/v1/viewer.proto";
 import "google/protobuf/descriptor.proto";
 
 // Request to update the authenticated user's profile. Human and bot accounts
-// use this same self-service operation. At least one field must be present.
+// use this same self-service operation. update_mask selects fields to apply
+// or reset. Fields outside the mask stay unchanged.
 message UpdateProfileRequest {
-  // New display name, when changing it. Empty clears the explicit display
-  // name. The server also rejects control and confusing invisible characters.
-  optional string display_name = 1 [(buf.validate.field).string.max_len = 32];
+  // New non-empty display name. The server also rejects control and
+  // confusing invisible characters.
+  optional string display_name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
   // New login identifier, when changing it. The server accepts ASCII letters,
   // digits, period, underscore, and hyphen, starting with a letter or digit.
   optional string login = 2 [(buf.validate.field).string = {
@@ -24,6 +26,11 @@ message UpdateProfileRequest {
   }];
   // New Markdown biography, when changing it. Empty clears the bio.
   optional string bio = 3 [(buf.validate.field).string.max_len = 1000];
+  // Editable fields to apply or reset: display_name, login, bio.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 4;
 }
 
 // Result of a profile update.
@@ -33,7 +40,7 @@ message UpdateProfileResponse {
 }
 
 // Request to update or add the authenticated user's password.
-message UpdatePasswordRequest {
+message ChangePasswordRequest {
   // New password. The server applies the same password policy as registration
   // and password reset.
   string password = 1 [(buf.validate.field).string = {
@@ -46,20 +53,25 @@ message UpdatePasswordRequest {
 }
 
 // Result of updating or adding the authenticated account password.
-message UpdatePasswordResponse {
+message ChangePasswordResponse {
   // Current authenticated user profile after the password update.
   User user = 1;
 }
 
-// Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. An empty timezone clears the explicit timezone.
+// Request to patch the authenticated user's display preferences. update_mask
+// selects fields to apply or reset. Resetting timezone clears the override.
 message UpdateSettingsRequest {
   // IANA timezone override. Empty clears the override.
   optional string timezone = 1;
-  // Preferred time format.
-  optional TimeFormat time_format = 2;
+  // Preferred time format. UNSPECIFIED restores the automatic format.
+  optional TimeFormat time_format = 2 [(buf.validate.field).enum.defined_only = true];
   // Whether the stored time zone may appear on the user's public profile.
   optional bool share_timezone = 3;
+  // Editable fields to apply or reset: timezone, time_format, share_timezone.
+  // Omit to infer populated fields; * selects all editable fields. An explicit
+  // empty mask is invalid. Unselected values are ignored. Selected absent values
+  // reset the field to its default, subject to field validation.
+  google.protobuf.FieldMask update_mask = 4;
 }
 
 // Result of updating display preferences.
@@ -97,7 +109,7 @@ service MyAccountService {
   // Updates the authenticated user's login, display name, and/or bio.
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Updates or adds the authenticated user's password.
-  rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
   // Lists configured external identity providers and identities linked to the
@@ -112,10 +124,10 @@ service MyAccountService {
   // Updates the current user's live presence status. This state is transient:
   // clients should refresh it periodically while visible, and should stop
   // calling this RPC when the user chooses to appear offline.
-  rpc UpdatePresence(UpdatePresenceRequest) returns (UpdatePresenceResponse);
-  // Updates or replaces the current user's custom status. Emoji and text are
-  // required, and expires_at must be omitted or in the future.
-  rpc UpdateCustomStatus(UpdateCustomStatusRequest) returns (UpdateCustomStatusResponse);
+  rpc SetPresence(SetPresenceRequest) returns (SetPresenceResponse);
+  // Sets the current user's complete custom status. Emoji and text are required.
+  // Omit expires_at for no expiry, or supply a future time.
+  rpc SetCustomStatus(SetCustomStatusRequest) returns (SetCustomStatusResponse);
   // Deletes the current user's custom status. The call is idempotent and returns
   // the resulting empty status state.
   rpc DeleteCustomStatus(DeleteCustomStatusRequest) returns (DeleteCustomStatusResponse) {

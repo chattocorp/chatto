@@ -23,7 +23,7 @@ enum PresenceStatus {
 }
 
 // Request to update the current user's live presence status.
-message UpdatePresenceRequest {
+message SetPresenceRequest {
   // Live status to store for the authenticated user. Offline is rejected.
   PresenceStatus status = 1 [(buf.validate.field).enum = {
     defined_only: true
@@ -36,7 +36,7 @@ message UpdatePresenceRequest {
 }
 
 // Result of updating live presence.
-message UpdatePresenceResponse {
+message SetPresenceResponse {
   // Reportable status accepted and stored by the server.
   PresenceStatus status = 1;
 }

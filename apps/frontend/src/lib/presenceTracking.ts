@@ -5,7 +5,7 @@ import { presencePreference, type PresenceMode } from '$lib/state/presencePrefer
 const PRESENCE_REFRESH_MS = 30_000;
 const PRESENCE_MODE_STORAGE_KEY = 'chatto.presence.mode';
 
-export type PresenceReporter = Pick<PresenceAPI, 'updatePresence'>;
+export type PresenceReporter = Pick<PresenceAPI, 'setPresence'>;
 
 let initialized = false;
 let applyModeFromUI: ((mode: PresenceMode) => void) | null = null;
@@ -115,7 +115,7 @@ export function initPresenceTracking(
 		const requestSeq = ++lastRequestSeq;
 		for (const reporter of getReporters()) {
 			reporter
-				.updatePresence(presenceStatusToAPIStatus(status), true)
+				.setPresence(presenceStatusToAPIStatus(status), true)
 				.then((accepted) => {
 					if (requestSeq !== lastRequestSeq || currentMode === 'invisible') return;
 					const acceptedStatus = apiStatusToPresenceStatus(accepted);

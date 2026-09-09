@@ -48,7 +48,7 @@ function fixture(
         return Response.json({
           user: { user: { isBot: !!options.botAuthor } },
         });
-      if (path.endsWith("UpdateTypingIndicator")) {
+      if (path.endsWith("RefreshTypingIndicator")) {
         typing.push(JSON.parse(String(init?.body)));
         return Response.json(
           { updated: !options.typingFailure },

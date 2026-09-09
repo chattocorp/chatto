@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
@@ -151,7 +151,8 @@ export class CreateMessageResponse extends Message<CreateMessageResponse> {
 }
 
 /**
- * Request to patch a message.
+ * Request to patch a message. update_mask selects fields to apply or reset.
+ * Fields outside the mask stay unchanged.
  *
  * @generated from message chatto.api.v1.UpdateMessageRequest
  */
@@ -171,7 +172,7 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
   eventId = "";
 
   /**
-   * New message body text. Omit to preserve the current body.
+   * New message body text. Select body in update_mask to change it.
    *
    * @generated from field: optional string body = 3;
    */
@@ -179,11 +180,21 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
 
   /**
    * For thread replies, whether a channel echo should exist after saving.
-   * Omit to preserve the current echo state.
+   * Select also_send_to_channel in update_mask to change it.
    *
    * @generated from field: optional bool also_send_to_channel = 4;
    */
   alsoSendToChannel?: boolean;
+
+  /**
+   * Editable fields to apply or reset: body, also_send_to_channel.
+   * Omit to infer populated fields; * selects all editable fields. An explicit
+   * empty mask is invalid. Unselected values are ignored. Selected absent values
+   * reset the field to its default, subject to field validation.
+   *
+   * @generated from field: google.protobuf.FieldMask update_mask = 5;
+   */
+  updateMask?: FieldMask;
 
   constructor(data?: PartialMessage<UpdateMessageRequest>) {
     super();
@@ -197,6 +208,7 @@ export class UpdateMessageRequest extends Message<UpdateMessageRequest> {
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "body", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateMessageRequest {

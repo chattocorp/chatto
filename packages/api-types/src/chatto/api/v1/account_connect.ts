@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdatePasswordRequest, UpdatePasswordResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
-import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js";
-import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
+import { SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
+import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, SetCustomStatusRequest, SetCustomStatusResponse } from "./user_status_pb.js";
 
 /**
  * Self-service account, profile, display preference, presence,
@@ -33,12 +33,12 @@ export const MyAccountService = {
     /**
      * Updates or adds the authenticated user's password.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePassword
+     * @generated from rpc chatto.api.v1.MyAccountService.ChangePassword
      */
-    updatePassword: {
-      name: "UpdatePassword",
-      I: UpdatePasswordRequest,
-      O: UpdatePasswordResponse,
+    changePassword: {
+      name: "ChangePassword",
+      I: ChangePasswordRequest,
+      O: ChangePasswordResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -93,24 +93,24 @@ export const MyAccountService = {
      * clients should refresh it periodically while visible, and should stop
      * calling this RPC when the user chooses to appear offline.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdatePresence
+     * @generated from rpc chatto.api.v1.MyAccountService.SetPresence
      */
-    updatePresence: {
-      name: "UpdatePresence",
-      I: UpdatePresenceRequest,
-      O: UpdatePresenceResponse,
+    setPresence: {
+      name: "SetPresence",
+      I: SetPresenceRequest,
+      O: SetPresenceResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Updates or replaces the current user's custom status. Emoji and text are
-     * required, and expires_at must be omitted or in the future.
+     * Sets the current user's complete custom status. Emoji and text are required.
+     * Omit expires_at for no expiry, or supply a future time.
      *
-     * @generated from rpc chatto.api.v1.MyAccountService.UpdateCustomStatus
+     * @generated from rpc chatto.api.v1.MyAccountService.SetCustomStatus
      */
-    updateCustomStatus: {
-      name: "UpdateCustomStatus",
-      I: UpdateCustomStatusRequest,
-      O: UpdateCustomStatusResponse,
+    setCustomStatus: {
+      name: "SetCustomStatus",
+      I: SetCustomStatusRequest,
+      O: SetCustomStatusResponse,
       kind: MethodKind.Unary,
     },
     /**

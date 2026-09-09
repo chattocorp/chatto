@@ -100,6 +100,10 @@ func (s *serverService) UpdateServerConfig(ctx context.Context, req *connect.Req
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 
 	cfg, err := s.api.core.UpdateServerConfig(ctx, caller.UserID, core.ServerConfigUpdateInput{
 		ServerName:     req.Msg.ServerName,
@@ -212,6 +216,10 @@ func (s *serverService) UpdateBlockedUsernames(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
+	if err != nil {
+		return nil, err
+	}
 
 	blockedUsernames, err := s.api.core.UpdateBlockedUsernames(ctx, caller.UserID, req.Msg.GetBlockedUsernames())
 	if err != nil {
@@ -261,6 +269,10 @@ func (s *serverService) CreateNeighbor(ctx context.Context, req *connect.Request
 
 func (s *serverService) UpdateNeighbor(ctx context.Context, req *connect.Request[adminv1.UpdateNeighborRequest]) (*connect.Response[adminv1.UpdateNeighborResponse], error) {
 	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	req.Msg, err = normalizeUpdateMask(req.Msg)
 	if err != nil {
 		return nil, err
 	}

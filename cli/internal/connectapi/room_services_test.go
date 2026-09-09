@@ -1515,13 +1515,13 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	ctx := withCaller(env.ctx, env.viewer)
 	expiresAt := timestamppb.New(time.Now().Add(time.Hour).UTC())
 
-	setResp, err := env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	setResp, err := env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji:     "🌿",
 		Text:      "In focus mode",
 		ExpiresAt: expiresAt,
 	}))
 	if err != nil {
-		t.Fatalf("UpdateCustomStatus: %v", err)
+		t.Fatalf("SetCustomStatus: %v", err)
 	}
 	if got := setResp.Msg.GetStatus(); got.GetEmoji() != "🌿" || got.GetText() != "In focus mode" {
 		t.Fatalf("status = %+v, want focus status", got)
@@ -1538,20 +1538,44 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 		t.Fatalf("stored CustomStatus = %+v, want set status", stored.GetCustomStatus())
 	}
 
-	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	_, err = env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji: "🌿",
 		Text:  "   ",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UpdateCustomStatus blank text error = %v, want InvalidArgument", err)
+		t.Fatalf("SetCustomStatus blank text error = %v, want InvalidArgument", err)
 	}
 
-	_, err = env.account.UpdateCustomStatus(ctx, connect.NewRequest(&apiv1.UpdateCustomStatusRequest{
+	_, err = env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
 		Emoji: "e",
 		Text:  "Invalid emoji",
 	}))
 	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UpdateCustomStatus invalid emoji error = %v, want InvalidArgument", err)
+		t.Fatalf("SetCustomStatus invalid emoji error = %v, want InvalidArgument", err)
+	}
+
+	for _, request := range []*apiv1.SetCustomStatusRequest{{}, {Emoji: "🌿"}, {Text: "Incomplete"}} {
+		_, err := env.account.SetCustomStatus(ctx, connect.NewRequest(request))
+		requireConnectCode(t, err, connect.CodeInvalidArgument)
+	}
+	_, err = env.account.SetCustomStatus(env.ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{}))
+	requireConnectCode(t, err, connect.CodeUnauthenticated)
+
+	replaced, err := env.account.SetCustomStatus(ctx, connect.NewRequest(&apiv1.SetCustomStatusRequest{
+		Emoji: "☕", Text: "On a break",
+	}))
+	if err != nil {
+		t.Fatalf("SetCustomStatus replacement: %v", err)
+	}
+	if got := replaced.Msg.GetStatus(); got.GetEmoji() != "☕" || got.GetText() != "On a break" || got.GetExpiresAt() != nil {
+		t.Fatalf("replacement must replace text and emoji and remove expiry: %+v", got)
+	}
+	stored, err = env.core.GetUser(ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.GetCustomStatus().GetExpiresAt() != nil || stored.GetCustomStatus().GetText() != "On a break" {
+		t.Fatal("replacement was not stored")
 	}
 
 	clearResp, err := env.account.DeleteCustomStatus(ctx, connect.NewRequest(&apiv1.DeleteCustomStatusRequest{}))
@@ -2616,36 +2640,36 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	}
 }
 
-func TestMyAccountServiceUpdatePresence(t *testing.T) {
+func TestMyAccountServiceSetPresence(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 
-	if _, err := env.account.UpdatePresence(env.ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	if _, err := env.account.SetPresence(env.ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 	})); connect.CodeOf(err) != connect.CodeUnauthenticated {
-		t.Fatalf("unauthenticated UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+		t.Fatalf("unauthenticated SetPresence code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
 	}
 
-	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	if _, err := env.account.SetPresence(ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("unspecified UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("unspecified SetPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
-	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	if _, err := env.account.SetPresence(ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_OFFLINE,
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("offline UpdatePresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
+		t.Fatalf("offline SetPresence code = %v, want %v", connect.CodeOf(err), connect.CodeInvalidArgument)
 	}
 
-	resp, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	resp, err := env.account.SetPresence(ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status:       apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB,
 		UserSelected: true,
 	}))
 	if err != nil {
-		t.Fatalf("UpdatePresence: %v", err)
+		t.Fatalf("SetPresence: %v", err)
 	}
 	if resp.Msg.Status != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
-		t.Fatalf("UpdatePresence status = %v, want DO_NOT_DISTURB", resp.Msg.Status)
+		t.Fatalf("SetPresence status = %v, want DO_NOT_DISTURB", resp.Msg.Status)
 	}
 
 	stored, err := env.core.GetUserPresence(env.ctx, env.viewer.Id)
@@ -2656,11 +2680,11 @@ func TestMyAccountServiceUpdatePresence(t *testing.T) {
 		t.Fatalf("stored presence = %q, want %q", stored, core.PresenceStatusDoNotDisturb)
 	}
 
-	autoResp, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	autoResp, err := env.account.SetPresence(ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status: apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 	}))
 	if err != nil {
-		t.Fatalf("automatic online UpdatePresence: %v", err)
+		t.Fatalf("automatic online SetPresence: %v", err)
 	}
 	if autoResp.Msg.Status != apiv1.PresenceStatus_PRESENCE_STATUS_DO_NOT_DISTURB {
 		t.Fatalf("automatic online response status = %v, want DO_NOT_DISTURB", autoResp.Msg.Status)
@@ -2673,11 +2697,11 @@ func TestMyAccountServiceUpdatePresence(t *testing.T) {
 		t.Fatalf("automatic online stored presence = %q, want %q", stored, core.PresenceStatusDoNotDisturb)
 	}
 
-	if _, err := env.account.UpdatePresence(ctx, connect.NewRequest(&apiv1.UpdatePresenceRequest{
+	if _, err := env.account.SetPresence(ctx, connect.NewRequest(&apiv1.SetPresenceRequest{
 		Status:       apiv1.PresenceStatus_PRESENCE_STATUS_ONLINE,
 		UserSelected: true,
 	})); err != nil {
-		t.Fatalf("explicit online UpdatePresence: %v", err)
+		t.Fatalf("explicit online SetPresence: %v", err)
 	}
 	stored, err = env.core.GetUserPresence(env.ctx, env.viewer.Id)
 	if err != nil {
