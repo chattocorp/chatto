@@ -159,9 +159,10 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Adds a user as an explicit member of a channel room. The caller must be
-     * allowed to manage the room. Direct-message and universal rooms cannot be
-     * managed this way.
+     * Adds a user as an explicit member of a channel room. Requires room.manage,
+     * or ownership of the target bot or bot.manage. A target bot must have
+     * effective room.join, bounded by its owner's permissions. Does not change
+     * permission grants. Direct-message, universal and archived rooms are excluded.
      *
      * @generated from rpc chatto.api.v1.RoomService.AddMember
      */
@@ -172,9 +173,10 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Removes a user from a channel room's explicit members. The caller must be
-     * allowed to manage the room. Direct-message and universal rooms cannot be
-     * managed this way.
+     * Removes a user from a channel room's explicit members. Requires room.manage,
+     * or ownership of the target bot or bot.manage. Bot managers can remove bots
+     * after room.join is lost and from archived rooms. Does not change permission
+     * grants. Direct-message and universal rooms cannot be managed this way.
      *
      * @generated from rpc chatto.api.v1.RoomService.RemoveMember
      */

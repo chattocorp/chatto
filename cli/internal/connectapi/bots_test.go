@@ -3,6 +3,8 @@ package connectapi
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
@@ -204,4 +206,38 @@ func TestBotServiceRejectsInvalidSuffixAndOwnerCeiling(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("over-ceiling code = %v, want failed precondition", connect.CodeOf(err))
 	}
+}
+
+func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	bot, err := env.core.CreateBot(env.ctx, env.viewer.Id, "room_api_bot", "Room API Bot")
+	require.NoError(t, err)
+	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "bot-room-api", "")
+	require.NoError(t, err)
+	add := connect.NewRequest(&apiv1.AddMemberRequest{RoomId: room.Id, UserId: bot.User.Id})
+	_, err = env.rooms.AddMember(ctx, add)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
+		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateAllow))
+	added, err := env.rooms.AddMember(ctx, add)
+	require.NoError(t, err)
+	require.NotNil(t, added.Msg.Member)
+	matrix, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: bot.User.Id}))
+	require.NoError(t, err)
+	var membership *adminv1.BotRoomMembership
+	for _, scope := range matrix.Msg.Matrix.Scopes {
+		if scope.Id == "room:"+room.Id {
+			membership = scope.BotMembership
+		}
+	}
+	require.NotNil(t, membership)
+	require.True(t, membership.Joined)
+	require.True(t, membership.CanLeave)
+	require.False(t, membership.CanJoin)
+	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
+		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateNone))
+	removed, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))
+	require.NoError(t, err)
+	require.True(t, removed.Msg.Removed)
 }

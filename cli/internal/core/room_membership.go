@@ -151,6 +151,14 @@ func (c *ChattoCore) JoinRoom(ctx context.Context, actorID string, kind RoomKind
 // history remain compatible. A separate moderation event records the manager
 // action for audit.
 func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (*evtv1.RoomMembership, error) {
+	return c.addMember(ctx, actorID, kind, roomID, targetUserID, nil)
+}
+
+// addMember rechecks command authorization after each room aggregate catch-up.
+func (c *ChattoCore) addMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (*evtv1.RoomMembership, error) {
+	if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
+		return nil, err
+	}
 	if kind == KindDM {
 		return nil, invalidArgument("DM room participants cannot be managed through RoomService")
 	}
@@ -161,7 +169,7 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 	if room.GetUniversal() {
 		return nil, invalidArgument("universal room membership cannot be managed explicitly")
 	}
-	if room.GetArchived() {
+	if authorize == nil && room.GetArchived() {
 		return nil, ErrRoomArchived
 	}
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
@@ -184,6 +192,9 @@ func (c *ChattoCore) AddMember(ctx context.Context, actorID string, kind RoomKin
 			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
 				return nil, fmt.Errorf("wait for room directory projection before member add: %w", err)
 			}
+		}
+		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
+			return nil, err
 		}
 		if c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return membership, nil
@@ -288,6 +299,14 @@ func (c *ChattoCore) LeaveRoom(ctx context.Context, actorID string, kind RoomKin
 // The public membership transition remains a UserLeftRoomEvent with the target
 // user as actor. A separate moderation event records who performed the removal.
 func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string) (bool, error) {
+	return c.removeMember(ctx, actorID, kind, roomID, targetUserID, nil)
+}
+
+// removeMember rechecks command authorization after each room aggregate catch-up.
+func (c *ChattoCore) removeMember(ctx context.Context, actorID string, kind RoomKind, roomID, targetUserID string, authorize func() error) (bool, error) {
+	if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
+		return false, err
+	}
 	if kind == KindDM {
 		return false, invalidArgument("DM room participants cannot be managed through RoomService")
 	}
@@ -298,7 +317,7 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 	if room.GetUniversal() {
 		return false, invalidArgument("universal room membership cannot be managed explicitly")
 	}
-	if room.GetArchived() {
+	if authorize == nil && room.GetArchived() {
 		return false, ErrRoomArchived
 	}
 	if _, err := c.GetUser(ctx, targetUserID); err != nil {
@@ -315,6 +334,9 @@ func (c *ChattoCore) RemoveMember(ctx context.Context, actorID string, kind Room
 			if err := c.waitForRoomLeaveTail(ctx, filter, expectedSeq); err != nil {
 				return false, fmt.Errorf("wait for room directory projection before member remove: %w", err)
 			}
+		}
+		if err := c.authorizeAtStableInputs(ctx, authorize); err != nil {
+			return false, err
 		}
 		if !c.roomModel.hasExplicitRoomMembership(roomID, targetUserID) {
 			return false, nil

@@ -9,6 +9,7 @@ rendering to `SubjectPermissionsMatrix`.
   import { onDestroy } from 'svelte';
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -92,8 +93,46 @@ rendering to `SubjectPermissionsMatrix`.
     return { tier: 'server' };
   }
 
+  // Fence mutation feedback by server session and bot identity. Reconcile after
+  // both success and failure because a failed response can follow a committed write.
+  async function handleMembershipChange(scope: MatrixScope, joined: boolean) {
+    if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.botMembership) return;
+    if (joined ? !scope.botMembership.canJoin : !scope.botMembership.canLeave) return;
+    const generation = ++mutationGeneration;
+    const serverId = serverScope.serverId;
+    const activeConnection = serverScope.connection;
+    const activeUserId = data.userId;
+    const context = JSON.stringify([serverId, activeConnection.queryScope, activeUserId]);
+    const queryKey = adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId);
+    updatingKey = `${scope.id}::$membership`;
+    mutationContext = context;
+    mutationError = null;
+    const current = () =>
+      mutationGeneration === generation &&
+      serverScope.isCurrent() &&
+      context === activeMutationContext;
+    try {
+      await queryClient.cancelQueries({ queryKey, exact: true });
+      const api = activeConnection.getAPI(createRoomCommandAPI);
+      const input = { roomId: scope.id.slice('room:'.length), userId: activeUserId };
+      if (joined) await api.addMember(input);
+      else await api.removeMember(input);
+      if (current()) toast.success(m('common.saved'));
+    } catch {
+      if (current()) {
+        const message = m(joined ? 'room.join.failed' : 'room.leave.failed');
+        mutationError = { context, message };
+        toast.error(message);
+      }
+    } finally {
+      if (serverScope.isCurrent()) await queryClient.invalidateQueries({ queryKey, exact: true });
+      if (mutationGeneration === generation) updatingKey = null;
+    }
+  }
+
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data || visibleUpdatingKey) return;
+    const refreshMembership = data.scopes.some((scope) => scope.botMembership);
     const generation = ++mutationGeneration;
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
@@ -142,10 +181,9 @@ rendering to `SubjectPermissionsMatrix`.
     void queryClient.invalidateQueries({
       queryKey,
       exact: true,
-      // The binary matrix derives inheritance from direct decisions, so its
-      // mutation response is enough to update the active view. Mark it stale
-      // for the next mount without replacing the whole visible matrix now.
-      refetchType: decisionMode === 'binary' ? 'none' : 'active'
+      // Binary permissions derive inheritance locally. Bot membership actions
+      // also depend on effective permissions, so refresh those from the server.
+      refetchType: decisionMode === 'binary' && !refreshMembership ? 'none' : 'active'
     });
     if (!serverScope.isCurrent()) return;
     if (mutationGeneration === generation) updatingKey = null;
@@ -170,7 +208,9 @@ rendering to `SubjectPermissionsMatrix`.
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
     {subjectKind}
-    readOnly={decisionMode === 'tri-state' && visibleUpdatingKey !== null}
+    readOnly={visibleUpdatingKey !== null &&
+      (decisionMode === 'tri-state' || visibleUpdatingKey.endsWith('::$membership'))}
+    onMembershipChange={ownerCapped ? handleMembershipChange : undefined}
     {decisionMode}
   />
 {/if}

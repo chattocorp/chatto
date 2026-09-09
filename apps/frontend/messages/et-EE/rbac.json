@@ -27,6 +27,12 @@
       "pingable_description": "Pingitavad rollid ilmuvad @ automaatse täitmise funktsioonis ja teavitavad määratud ruumi liikmeid."
     },
     "permissions": {
+      "membership": {
+        "description": "Ruumis osalemine ei anna sõnumiõigusi.",
+        "join": "Lisa bot ruumi #{room}",
+        "leave": "Eemalda bot ruumist #{room}",
+        "unavailable": "Bot ei saa selle ruumiga liituda. Kontrolli selle room.join õigust ja ruumi piiranguid."
+      },
       "loading": "Lubade laadimine...",
       "no_data": "Andmed puuduvad.",
       "no_roles": "Selles ulatuses ei kohaldata ühtegi rolli.",

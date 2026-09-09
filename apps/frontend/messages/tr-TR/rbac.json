@@ -27,6 +27,12 @@
       "pingable_description": "Pinglenebilir roller @ otomatik tamamlamada görünür ve atanan oda üyelerine bilgi verir."
     },
     "permissions": {
+      "membership": {
+        "description": "Oda üyeliği mesaj izinleri vermez.",
+        "join": "Botu #{room} odasına ekle",
+        "leave": "Botu #{room} odasından çıkar",
+        "unavailable": "Bot bu odaya katılamaz. room.join iznini ve oda kısıtlamalarını kontrol et."
+      },
       "loading": "İzinler yükleniyor...",
       "no_data": "Veri yok.",
       "no_roles": "Bu kapsamda uygulanabilir rol yok.",

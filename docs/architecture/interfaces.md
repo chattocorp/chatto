@@ -90,6 +90,14 @@ Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot
 or either human owner.
 
+`RoomService.AddMember` and `RemoveMember` accept bot owners and human bot
+managers without `room.manage`. Adding a bot requires its effective `room.join`,
+including its owner's permission ceiling. Removal does not require join
+permission and permits bot managers to remove membership from archived rooms.
+Both operations recheck authorization within room aggregate OCC retries and
+reuse the existing membership and audit events. Bot permission matrix room
+scopes expose current membership and available actions separately from grants.
+
 Matrix room metadata is limited to rooms visible to both the bot owner and the
 managing caller; group metadata follows the room directory's complete group
 layout so empty groups remain configurable. Each bot API key authenticates the

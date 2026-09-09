@@ -27,6 +27,12 @@
       "pingable_description": "Pingējamās lomas tiek parādītas @ automātiskajā pabeigšanā un informē piešķirtos telpas dalībniekus."
     },
     "permissions": {
+      "membership": {
+        "description": "Dalība istabā nepiešķir ziņojumu atļaujas.",
+        "join": "Pievienot botu istabai #{room}",
+        "leave": "Noņemt botu no istabas #{room}",
+        "unavailable": "Bots nevar pievienoties šai istabai. Pārbaudi tā room.join atļauju un istabas ierobežojumus."
+      },
       "loading": "Notiek atļauju ielāde...",
       "no_data": "Nav pieejami dati.",
       "no_roles": "Šajā jomā nav piemērojamas lomas.",

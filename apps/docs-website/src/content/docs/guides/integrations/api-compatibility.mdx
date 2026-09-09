@@ -163,6 +163,17 @@ provide a relationship-list API. Older replicas do not know the narrow
 permission and deny this mode when `message.read` is absent. Complete the
 replica rollout before you depend on narrow-read availability.
 
+Bot owners and human users with `bot.manage` can use `RoomService.AddMember`
+and `RemoveMember` for their bots without `room.manage`. Adding a bot requires
+its effective `room.join`, limited by its owner's permissions. This check also
+applies when a room manager adds the bot. Existing integrations that relied on
+`room.manage` alone must configure the bot's join grant. Removal does not
+require `room.join`. Both actions preserve configured permissions.
+
+The user permission matrix adds optional bot membership state to room scopes.
+Older clients can ignore this field. The current frontend hides the Joined row
+when a server omits it. Existing membership events need no migration.
+
 Chatto 0.5 also denies `RoomService.StartDM` to bot callers. This rule applies
 when the requested DM already exists. A human must start the DM, after which
 the bot can interact through its normal permissions. A bot integration that

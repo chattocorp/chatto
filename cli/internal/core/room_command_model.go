@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -221,20 +222,80 @@ func (s *RoomCommandModel) LeaveRoom(ctx context.Context, input RoomIDInput) err
 	return s.core.LeaveRoom(ctx, input.ActorID, kind, input.ActorID, input.RoomID)
 }
 
+// AddMember permits room managers and bot managers to add a member. A bot
+// must have effective room.join authority, including its owner's ceiling.
 func (s *RoomCommandModel) AddMember(ctx context.Context, input RoomUserInput) (*evtv1.RoomMembership, error) {
-	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
+	if err := requireAuthenticatedActor(input.ActorID); err != nil {
+		return nil, err
+	}
+	kind, err := s.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
-	return s.core.AddMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
+	return s.core.addMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, func() error {
+		return s.authorizeMembershipChange(ctx, input, true)
+	})
 }
 
+// RemoveMember lets bot managers remove their bots even after join authority
+// is lost. Membership changes never change permission grants.
 func (s *RoomCommandModel) RemoveMember(ctx context.Context, input RoomUserInput) (bool, error) {
-	kind, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID)
+	if err := requireAuthenticatedActor(input.ActorID); err != nil {
+		return false, err
+	}
+	kind, err := s.resolveRoomKind(ctx, input.RoomID)
 	if err != nil {
 		return false, err
 	}
-	return s.core.RemoveMember(ctx, input.ActorID, kind, input.RoomID, input.UserID)
+	return s.core.removeMember(ctx, input.ActorID, kind, input.RoomID, input.UserID, func() error {
+		return s.authorizeMembershipChange(ctx, input, false)
+	})
+}
+
+// authorizeMembershipChange runs inside the room OCC retry with stable
+// ownership and permission inputs. Bot management does not imply room.manage.
+func (s *RoomCommandModel) authorizeMembershipChange(ctx context.Context, input RoomUserInput, joining bool) error {
+	user, err := s.core.GetUser(ctx, input.UserID)
+	if err != nil {
+		// Preserve the room-manager gate before disclosing a missing target.
+		if _, gateErr := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID); gateErr != nil {
+			return gateErr
+		}
+		return err
+	}
+	botManager := false
+	if user.GetIsBot() {
+		_, err = s.core.requireBotManager(ctx, input.ActorID, input.UserID)
+		if err != nil && !errors.Is(err, ErrPermissionDenied) && !errors.Is(err, ErrHumanAccountRequired) {
+			return err
+		}
+		botManager = err == nil
+	}
+	if !botManager {
+		if _, err := s.authorizeRoomManage(ctx, input.ActorID, input.RoomID); err != nil {
+			return err
+		}
+	}
+	room, err := s.core.FindRoomByID(ctx, input.RoomID)
+	if err != nil {
+		return err
+	}
+	if KindOfRoom(room) != KindChannel || room.GetUniversal() {
+		return invalidArgument("direct-message and universal room membership cannot be managed explicitly")
+	}
+	if room.GetArchived() && (joining || !botManager) {
+		return ErrRoomArchived
+	}
+	if joining && user.GetIsBot() {
+		allowed, err := s.core.CanJoinRoomAt(ctx, input.UserID, KindChannel, input.RoomID)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrPermissionDenied
+		}
+	}
+	return nil
 }
 
 func (s *RoomCommandModel) StartDM(ctx context.Context, input RoomStartDMInput) (*evtv1.Room, bool, error) {

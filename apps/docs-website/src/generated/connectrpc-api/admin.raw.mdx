@@ -2470,6 +2470,23 @@ An OAuth client that completed at least one successful user authorization.
 
 
 
+<a id="chatto-admin-v1-BotRoomMembership"></a>
+
+### BotRoomMembership
+
+A bot's current room membership and available membership actions.
+Joining requires effective room.join, bounded by the bot owner's permissions.
+Leaving does not require room.join. Neither action changes permission grants.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `joined` | `bool` | Whether the bot is currently an effective member of the room. |
+| `automatic` | `bool` | Whether membership follows the universal room's join eligibility. |
+| `can_join` | `bool` | Whether the caller can add the bot now. |
+| `can_leave` | `bool` | Whether the caller can remove the bot now. |
+
+
+
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -2529,6 +2546,7 @@ Matrix column scope.
 | `label` | `string` | Human-readable label. |
 | `kind` | [`PermissionScopeKind`](#chatto-admin-v1-PermissionScopeKind) | Scope tier. |
 | `parent_group_id` | `string` | Parent group ID for room scopes. |
+| `bot_membership` | [`BotRoomMembership`](#chatto-admin-v1-BotRoomMembership) | Present only for channel-room scopes in a bot's user permission matrix. |
 
 
 

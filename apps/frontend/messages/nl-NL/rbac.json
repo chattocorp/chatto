@@ -27,6 +27,12 @@
       "pingable_description": "Pingbare rollen verschijnen in @ autocomplete en stellen toegewezen kamerleden op de hoogte."
     },
     "permissions": {
+      "membership": {
+        "description": "Lidmaatschap van een ruimte geeft geen berichtrechten.",
+        "join": "Bot toevoegen aan #{room}",
+        "leave": "Bot verwijderen uit #{room}",
+        "unavailable": "De bot kan niet deelnemen aan deze ruimte. Controleer de machtiging room.join en de ruimtebeperkingen."
+      },
       "loading": "Rechten laden...",
       "no_data": "Geen gegevens beschikbaar.",
       "no_roles": "Er zijn geen rollen van toepassing binnen dit bereik.",

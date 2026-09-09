@@ -133,13 +133,15 @@ type RoomServiceClient interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Adds a user as an explicit member of a channel room. Requires room.manage,
+	// or ownership of the target bot or bot.manage. A target bot must have
+	// effective room.join, bounded by its owner's permissions. Does not change
+	// permission grants. Direct-message, universal and archived rooms are excluded.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
-	// Removes a user from a channel room's explicit members. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Removes a user from a channel room's explicit members. Requires room.manage,
+	// or ownership of the target bot or bot.manage. Bot managers can remove bots
+	// after room.join is lost and from archived rooms. Does not change permission
+	// grants. Direct-message and universal rooms cannot be managed this way.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
@@ -536,13 +538,15 @@ type RoomServiceHandler interface {
 	// room.manage holders may read channel-room members; DMs remain
 	// membership-only.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Adds a user as an explicit member of a channel room. Requires room.manage,
+	// or ownership of the target bot or bot.manage. A target bot must have
+	// effective room.join, bounded by its owner's permissions. Does not change
+	// permission grants. Direct-message, universal and archived rooms are excluded.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
-	// Removes a user from a channel room's explicit members. The caller must be
-	// allowed to manage the room. Direct-message and universal rooms cannot be
-	// managed this way.
+	// Removes a user from a channel room's explicit members. Requires room.manage,
+	// or ownership of the target bot or bot.manage. Bot managers can remove bots
+	// after room.join is lost and from archived rooms. Does not change permission
+	// grants. Direct-message and universal rooms cannot be managed this way.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.

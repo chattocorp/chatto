@@ -27,6 +27,12 @@
       "pingable_description": "Pingeblaj roloj aperas en @ aŭtokompleto kaj sciigas asignitajn ĉambrajn membrojn."
     },
     "permissions": {
+      "membership": {
+        "description": "Membreco en ĉambro ne donas permesojn pri mesaĝoj.",
+        "join": "Aldoni roboton al #{room}",
+        "leave": "Forigi roboton el #{room}",
+        "unavailable": "La roboto ne povas aliĝi al ĉi tiu ĉambro. Kontrolu ĝian permeson room.join kaj la limigojn de la ĉambro."
+      },
       "loading": "Ŝarĝante permesojn...",
       "no_data": "Neniuj datumoj haveblaj.",
       "no_roles": "Neniuj roloj aplikeblaj ĉe ĉi tiu amplekso.",

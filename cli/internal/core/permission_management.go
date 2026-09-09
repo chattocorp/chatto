@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -61,11 +62,26 @@ type TierRoles struct {
 	Roles                 []TierRole
 }
 
+// BotRoomMembership describes membership independently of permission grants.
+// Automatic membership cannot be changed through explicit membership actions.
+type BotRoomMembership struct {
+	// Joined includes effective universal membership.
+	Joined bool
+	// Automatic membership follows join eligibility in universal rooms.
+	Automatic bool
+	// CanJoin includes the owner's ceiling, room bans, and room lifecycle.
+	CanJoin bool
+	// CanLeave does not require room.join and includes archived rooms.
+	CanLeave bool
+}
+
 type PermissionMatrixScope struct {
 	ID            string
 	Label         string
 	Kind          MatrixScopeKind
 	ParentGroupID string
+	// BotMembership is present only for room scopes in a bot matrix.
+	BotMembership *BotRoomMembership
 }
 
 type PermissionMatrixCell struct {
@@ -701,6 +717,32 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 	}
 	if err != nil {
 		return nil, err
+	}
+	if bot {
+		for i := range scopes {
+			if scopes[i].Kind != MatrixScopeRoom {
+				continue
+			}
+			roomID := strings.TrimPrefix(scopes[i].ID, "room:")
+			room, err := c.GetRoom(ctx, KindChannel, roomID)
+			if err != nil {
+				return nil, err
+			}
+			joined, err := c.RoomMembershipExists(ctx, KindChannel, userID, roomID)
+			if err != nil {
+				return nil, err
+			}
+			canJoin, err := c.CanJoinRoomAt(ctx, userID, KindChannel, roomID)
+			if err != nil {
+				return nil, err
+			}
+			scopes[i].BotMembership = &BotRoomMembership{
+				Joined:    joined,
+				Automatic: room.GetUniversal(),
+				CanJoin:   !joined && !room.GetUniversal() && !room.GetArchived() && canJoin,
+				CanLeave:  joined && !room.GetUniversal(),
+			}
+		}
 	}
 	cells := make([]PermissionMatrixCell, 0, len(applicable)*len(scopes))
 	for _, permStr := range applicable {

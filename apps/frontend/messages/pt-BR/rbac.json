@@ -27,6 +27,12 @@
       "pingable_description": "As funções pingáveis aparecem no preenchimento automático @ e notificam os membros atribuídos à sala."
     },
     "permissions": {
+      "membership": {
+        "description": "Participar de uma sala não concede permissões de mensagens.",
+        "join": "Adicionar bot a #{room}",
+        "leave": "Remover bot de #{room}",
+        "unavailable": "O bot não pode entrar nesta sala. Verifique a permissão room.join e as restrições da sala."
+      },
       "loading": "Carregando permissões...",
       "no_data": "Nenhum dado disponível.",
       "no_roles": "Nenhuma função aplicável neste escopo.",

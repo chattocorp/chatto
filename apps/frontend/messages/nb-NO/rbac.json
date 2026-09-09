@@ -27,6 +27,12 @@
       "pingable_description": "Pingbare roller vises i @ autofullføring og varsler tildelte rommedlemmer."
     },
     "permissions": {
+      "membership": {
+        "description": "Medlemskap i et rom gir ikke meldingstillatelser.",
+        "join": "Legg til bot i #{room}",
+        "leave": "Fjern bot fra #{room}",
+        "unavailable": "Boten kan ikke bli med i dette rommet. Kontroller tillatelsen room.join og rommets begrensninger."
+      },
       "loading": "Laster inn tillatelser...",
       "no_data": "Ingen data tilgjengelig.",
       "no_roles": "Ingen roller gjelder i dette omfanget.",

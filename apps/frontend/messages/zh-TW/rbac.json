@@ -27,6 +27,12 @@
       "pingable_description": "可提及的角色會顯示在 @ 自動完成中，並通知已指派此角色的聊天室成員。"
     },
     "permissions": {
+      "membership": {
+        "description": "加入聊天室不會授予訊息權限。",
+        "join": "將機器人加入 #{room}",
+        "leave": "將機器人移出 #{room}",
+        "unavailable": "機器人無法加入此聊天室。請檢查其 room.join 權限及聊天室限制。"
+      },
       "loading": "正在載入權限...",
       "no_data": "沒有可用資料。",
       "no_roles": "此範圍沒有適用的角色。",

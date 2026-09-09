@@ -27,6 +27,12 @@
       "pingable_description": "Pingable roles appear in @ autocomplete and notify assigned room members."
     },
     "permissions": {
+      "membership": {
+        "description": "Room membership does not grant message permissions.",
+        "join": "Add bot to #{room}",
+        "leave": "Remove bot from #{room}",
+        "unavailable": "The bot cannot join this room. Check its room.join permission and room restrictions."
+      },
       "loading": "Loading permissions...",
       "no_data": "No data available.",
       "no_roles": "No roles applicable at this scope.",

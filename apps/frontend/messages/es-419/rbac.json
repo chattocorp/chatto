@@ -27,6 +27,12 @@
       "pingable_description": "Los roles a los que se puede hacer ping aparecen en @ autocompletar y notifican a los miembros de la sala asignados."
     },
     "permissions": {
+      "membership": {
+        "description": "Pertenecer a una sala no concede permisos sobre los mensajes.",
+        "join": "Añadir el bot a #{room}",
+        "leave": "Quitar el bot de #{room}",
+        "unavailable": "El bot no puede unirse a esta sala. Comprueba su permiso room.join y las restricciones de la sala."
+      },
       "loading": "Cargando permisos...",
       "no_data": "No hay datos disponibles.",
       "no_roles": "No hay roles aplicables en este ámbito.",

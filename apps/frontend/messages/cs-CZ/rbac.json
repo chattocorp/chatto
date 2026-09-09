@@ -27,6 +27,12 @@
       "pingable_description": "Pingovatelné role se zobrazují v @ autocomplete a informují přiřazené členy místnosti."
     },
     "permissions": {
+      "membership": {
+        "description": "Členství v místnosti neuděluje oprávnění ke zprávám.",
+        "join": "Přidat bota do #{room}",
+        "leave": "Odebrat bota z #{room}",
+        "unavailable": "Bot se nemůže připojit k této místnosti. Zkontroluj jeho oprávnění room.join a omezení místnosti."
+      },
       "loading": "Načítání oprávnění...",
       "no_data": "Nejsou k dispozici žádné údaje.",
       "no_roles": "V tomto rozsahu nelze použít žádné role.",
