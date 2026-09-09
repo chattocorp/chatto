@@ -69,10 +69,13 @@ type PermissionMatrixScope struct {
 }
 
 type PermissionMatrixCell struct {
-	Permission     string
-	ScopeID        string
-	Override       MatrixDecision
-	Effective      MatrixDecision
+	Permission string
+	ScopeID    string
+	Override   MatrixDecision
+	Effective  MatrixDecision
+	// AllowPermitted reports the bot owner's RBAC entitlement at this scope.
+	// It does not include the acting human's session activation or edit authority.
+	// Nil means that the cell does not use a bot owner ceiling.
 	AllowPermitted *bool
 }
 
@@ -734,13 +737,13 @@ func (c *ChattoCore) botOwnerAllowsAtMatrixScope(ctx context.Context, ownerID st
 	)
 	switch scope.Kind {
 	case MatrixScopeServer:
-		decision, err = c.PermResolver().Resolve(ctx, ownerID, KindChannel, "", perm)
+		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", "", perm)
 	case MatrixScopeDM:
-		decision, err = c.PermResolver().Resolve(ctx, ownerID, KindDM, "", perm)
+		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindDM, "", "", perm)
 	case MatrixScopeGroup:
-		decision, err = c.PermResolver().ResolveGroup(ctx, ownerID, KindChannel, scopeRefID(scope.ID, "group:"), perm)
+		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, "", scopeRefID(scope.ID, "group:"), perm)
 	case MatrixScopeRoom:
-		decision, err = c.PermResolver().Resolve(ctx, ownerID, KindChannel, scopeRefID(scope.ID, "room:"), perm)
+		decision, err = c.PermResolver().resolveEntitlement(ctx, ownerID, KindChannel, scopeRefID(scope.ID, "room:"), "", perm)
 	default:
 		return false, fmt.Errorf("%w: unknown scope kind %q", ErrInvalidArgument, scope.Kind)
 	}

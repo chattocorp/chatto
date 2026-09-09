@@ -10,7 +10,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 
 | # | Feature | Status | Last reviewed |
 |---|---------|--------|---------------|
-| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-04 |
+| [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-09-09 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-09-04 |
 | [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-09-04 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-08-25 |
@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-30 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-09-01 |
-| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-05 |
+| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-09 |
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-04 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |
@@ -55,4 +55,4 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-043](FDR-043-model-context-protocol-integration.md) | Model Context Protocol Integration | Experimental | 2026-08-30 |
 | [FDR-044](FDR-044-my-threads.md) | My Threads | Active | 2026-09-04 |
 | [FDR-045](FDR-045-realtime-event-stream.md) | Realtime Event Stream | Experimental | 2026-09-05 |
-| [FDR-046](FDR-046-privileged-mode.md) | Privileged Mode | Active | 2026-09-03 |
+| [FDR-046](FDR-046-privileged-mode.md) | Privileged Mode | Active | 2026-09-09 |

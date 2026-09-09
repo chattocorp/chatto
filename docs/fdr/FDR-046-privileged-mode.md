@@ -1,7 +1,7 @@
 # FDR-046: Privileged Mode
 
 **Status:** Active
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
@@ -34,7 +34,10 @@ server session when they need them.
   expiry does not add a second event because the deadline is already durable.
 - Each connected server has independent state.
 - Bot API keys keep their current direct permission behavior. Bots do not use
-  privileged mode.
+  privileged mode. Their owner ceiling uses current RBAC entitlement, independent
+  of human session activation. Granting an elevation-required permission to a
+  bot requires the acting human to have it active at the target scope. Clearing
+  a grant does not require activation of that permission.
 - The admin entry point remains visible to entitled users while the mode is
   inactive. Protected capabilities and actions remain unavailable.
 - The Moderation link and page require effective server-wide

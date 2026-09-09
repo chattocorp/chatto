@@ -52,7 +52,12 @@ The initial elevation-required set includes message moderation, room creation
 and management, role and user administration, server management, invite and
 bot administration, audit access, and owner-only system diagnostics. Normal
 message use and editing or deleting your own messages do not require the mode.
-Bot API keys do not use privileged mode.
+Bot API keys do not use privileged mode. Bot permissions are limited by their
+explicit grants and their owner's current RBAC entitlement. Human session
+activation does not change this ceiling or the bot's displayed permissions.
+Granting an elevation-required permission to a bot requires you to have that
+permission active at the target scope. Removing a grant does not require
+activation of that permission.
 
 The event log records each successful activation and explicit deactivation.
 An activation entry includes its deadline, which also records when automatic
