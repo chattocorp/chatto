@@ -114,6 +114,10 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 	if err != nil || decision != DecisionAllow {
 		return decision, err
 	}
+	// A bot subject has no human session to arm, including during inspection.
+	if isBot, _, exists := r.core.userModel.isBotAndOwner(userID); exists && isBot {
+		return decision, nil
+	}
 	metadata, known := GetPermissionMetadata(perm)
 	if !known || !metadata.RequiresPrivilegedMode {
 		return decision, nil
@@ -135,6 +139,14 @@ func privilegedModeAllows(ctx context.Context, userID string, now time.Time) boo
 		return false
 	}
 	return now.Before(credential.PrivilegedModeExpiresAt)
+}
+
+// resolveEntitlement reads assigned authority in a consistent content view,
+// without applying the inspecting human's session activation state.
+func (r *PermissionResolver) resolveEntitlement(ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission) (DecisionKind, error) {
+	return r.resolveInContentView(ctx, func(readCtx context.Context) (DecisionKind, error) {
+		return r.resolveEntitlementWithGroup(readCtx, userID, kind, roomID, groupID, perm)
+	})
 }
 
 // resolveEntitlementWithGroup resolves durable RBAC entitlement without the
@@ -199,7 +211,7 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 	if delegated != DecisionAllow {
 		return DecisionDeny, nil
 	}
-	ownerDecision, err := r.resolveWithGroup(ctx, ownerUserID, kind, roomID, groupID, perm)
+	ownerDecision, err := r.resolveEntitlementWithGroup(ctx, ownerUserID, kind, roomID, groupID, perm)
 	if err != nil {
 		return DecisionNone, err
 	}

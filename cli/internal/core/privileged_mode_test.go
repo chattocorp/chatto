@@ -215,3 +215,168 @@ func TestChattoCore_CookiePrivilegedModeRejectsRevokedSession(t *testing.T) {
 		t.Fatalf("SetCookiePrivilegedMode error = %v, want ErrCookieSessionNotFound", err)
 	}
 }
+
+// Bot inspection must report the same authority as unattended API requests.
+func TestBotPermissionsIndependentOfInspectorPrivilegedMode(t *testing.T) {
+	for _, ownerRole := range []string{RoleOwner, RoleAdmin} {
+		t.Run(ownerRole, func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			owner, err := c.CreateUser(ctx, SystemActorID, "ceiling-owner", "Owner", "password123")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, owner.Id, ownerRole); err != nil {
+				t.Fatal(err)
+			}
+			// Make the named role's entitlement explicit instead of relying on defaults.
+			if err := c.GrantServerPermission(ctx, SystemActorID, RoleAdmin, PermMessageManage); err != nil {
+				t.Fatal(err)
+			}
+			group, err := c.CreateRoomGroup(ctx, SystemActorID, "Automation", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "automation", "")
+			if err != nil {
+				t.Fatal(err)
+			}
+			scopes := []struct {
+				name                      string
+				target                    PermissionTargetScope
+				kind                      RoomKind
+				roomID, groupID, matrixID string
+			}{
+				{"server", PermissionTargetScope{Kind: MatrixScopeServer}, KindChannel, "", "", "server"},
+				{"group", PermissionTargetScope{Kind: MatrixScopeGroup, ID: group.Id}, KindChannel, "", group.Id, "group:" + group.Id},
+				{"room", PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.Id}, KindChannel, room.Id, "", "room:" + room.Id},
+				{"dm", PermissionTargetScope{Kind: MatrixScopeDM}, KindDM, "", "", "dm"},
+			}
+			for _, scope := range scopes {
+				t.Run(scope.name, func(t *testing.T) {
+					bot, err := c.CreateBot(ctx, owner.Id, scope.name+"_bot", "Bot")
+					if err != nil {
+						t.Fatal(err)
+					}
+					contexts := []struct {
+						name       string
+						credential authctx.RuntimeCredential
+					}{
+						{"inactive", authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: owner.Id}},
+						{"active", authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: owner.Id, PrivilegedModeExpiresAt: time.Now().Add(time.Minute)}},
+						{"expired", authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: owner.Id, PrivilegedModeExpiresAt: time.Now().Add(-time.Minute)}},
+						{"unrelated", authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: "other", PrivilegedModeExpiresAt: time.Now().Add(time.Minute)}},
+						{"bot", authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBotAPIKey, UserID: bot.User.Id}},
+					}
+					check := func(want DecisionKind) {
+						t.Helper()
+						for _, session := range contexts {
+							readCtx := authctx.WithCredential(ctx, session.credential)
+							var got DecisionKind
+							var err error
+							if scope.groupID != "" {
+								got, err = c.PermResolver().ResolveGroup(readCtx, bot.User.Id, scope.kind, scope.groupID, PermMessageManage)
+							} else {
+								got, err = c.PermResolver().Resolve(readCtx, bot.User.Id, scope.kind, scope.roomID, PermMessageManage)
+							}
+							if err != nil || got != want {
+								t.Fatalf("%s resolve = %s, %v; want %s", session.name, got, err, want)
+							}
+							// Room inspection also exercises inherited group grants.
+							explainRoom := scope.roomID
+							if scope.groupID != "" {
+								explainRoom = room.Id
+							}
+							exp, err := c.PermResolver().ExplainRoomPermission(readCtx, bot.User.Id, scope.kind, explainRoom, PermMessageManage)
+							if err != nil || exp.State != want {
+								t.Fatalf("%s explanation = %s, %v; want %s", session.name, exp.State, err, want)
+							}
+						}
+					}
+					check(DecisionDeny)
+					if err := c.SetUserPermissionState(ctx, owner.Id, bot.User.Id, scope.target, PermMessageManage, PermissionStateAllow); err != nil {
+						t.Fatal(err)
+					}
+					check(DecisionAllow)
+					for _, session := range contexts[:3] {
+						matrix, err := c.GetUserPermissionMatrixIncludingDM(authctx.WithCredential(ctx, session.credential), owner.Id, bot.User.Id, true)
+						if err != nil {
+							t.Fatal(err)
+						}
+						found := false
+						for _, cell := range matrix.Cells {
+							if cell.ScopeID == scope.matrixID && cell.Permission == string(PermMessageManage) {
+								found = true
+								if cell.Effective != MatrixDecisionAllow || cell.AllowPermitted == nil || !*cell.AllowPermitted {
+									t.Fatalf("%s matrix cell = %+v", session.name, cell)
+								}
+							}
+						}
+						if !found {
+							t.Fatalf("missing matrix cell %s", scope.matrixID)
+						}
+					}
+					if err := c.RevokeServerRole(ctx, SystemActorID, owner.Id, ownerRole); err != nil {
+						t.Fatal(err)
+					}
+					if err := c.DenyUserPermission(ctx, SystemActorID, owner.Id, PermMessageManage); err != nil {
+						t.Fatal(err)
+					}
+					check(DecisionDeny)
+					if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, owner.Id, ownerRole); err != nil {
+						t.Fatal(err)
+					}
+					if err := c.ClearUserPermissionState(ctx, SystemActorID, owner.Id, PermMessageManage); err != nil {
+						t.Fatal(err)
+					}
+				})
+			}
+		})
+	}
+}
+
+func TestBotElevatedGrantRequiresActiveActorAuthority(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "grant-owner", "Owner", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.AssignOwnerRole(ctx, owner.Id); err != nil {
+		t.Fatal(err)
+	}
+	manager, err := c.CreateUser(ctx, SystemActorID, "grant-manager", "Manager", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermBotManage); err != nil {
+		t.Fatal(err)
+	}
+	bot, err := c.CreateBot(ctx, owner.Id, "grant_bot", "Bot")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope := PermissionTargetScope{Kind: MatrixScopeServer}
+	session := func(userID string, active bool) context.Context {
+		deadline := time.Time{}
+		if active {
+			deadline = time.Now().Add(time.Minute)
+		}
+		return authctx.WithCredential(ctx, authctx.RuntimeCredential{Handle: "test-session", Kind: authctx.RuntimeCredentialKindBearerToken, UserID: userID, PrivilegedModeExpiresAt: deadline})
+	}
+	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("unarmed grant: %v", err)
+	}
+	if err := c.SetUserPermissionState(session(manager.Id, true), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("manager without target permission: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.Id, PermRoomCreate); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetUserPermissionState(session(manager.Id, true), manager.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateAllow); err != nil {
+		t.Fatalf("armed manager with unarmed owner: %v", err)
+	}
+	if err := c.SetUserPermissionState(session(owner.Id, false), owner.Id, bot.User.Id, scope, PermRoomCreate, PermissionStateNone); err != nil {
+		t.Fatalf("unarmed removal: %v", err)
+	}
+}

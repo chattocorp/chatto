@@ -44,11 +44,21 @@ move the integration to it, and revoke the affected key.
 
 Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
 matrix exposes a simple enabled/disabled allowlist. A configured permission is
-effective only while the owner currently has sufficient effective authority at
+effective only while the owner has sufficient RBAC entitlement at
 that scope; a lock marks one currently blocked by this owner ceiling. The matrix
 lists only rooms visible to both the bot owner and the person managing it,
 while retaining the directory's complete group layout so permissions such as
 `room.create` remain configurable for an empty group.
+
+The owner ceiling and the bot's displayed permissions do not depend on any
+human session's privileged mode. Bots can use their effective permissions
+while their owner is signed out or has privileged mode inactive. If the owner
+loses a required RBAC permission, the bot also loses that effective permission.
+
+Before granting an elevation-required permission, activate privileged mode.
+You must have that permission active at the target scope, even when you manage
+another user's bot. Removing a grant uses the normal bot management checks and
+does not require activation of that permission.
 
 Channel-room membership alone does not expose messages to a bot. Grant
 `message.read` for broad room access. Grant `message.read-interactions` when

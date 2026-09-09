@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-08
+**Last reviewed:** 2026-09-09
 
 ## Overview
 
@@ -111,8 +111,12 @@ exercise more authority than its human owner currently possesses.
   message permissions.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
-  both the bot's allowlist and its owner's current effective permissions allow
-  it at that scope.
+  both the bot's allowlist and its owner's current RBAC entitlement allow
+  it at that scope. The owner ceiling does not depend on privileged mode in
+  any human session. Bot permission inspection uses the same rule.
+- Granting an elevation-required permission requires the acting human to have
+  that permission active at the target scope. Clearing a grant uses the normal
+  bot management checks and does not require activation of that permission.
 - Bot permission mutations accept only allow or clear; explicit denials are
   rejected. The editor therefore presents each applicable permission as
   enabled or disabled instead of exposing RBAC's general three-state control.
