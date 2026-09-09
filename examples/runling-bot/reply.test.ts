@@ -22,9 +22,10 @@ function fixture(
     postStatus?: number;
     modelFailure?: boolean;
     typingFailure?: boolean;
-    duplicateSend?: boolean;
+    duplicateFinal?: boolean;
     noSend?: boolean;
     failAfterSend?: boolean;
+    duringComposition?: () => Promise<void>;
   } = {},
 ) {
   const posts: object[] = [];
@@ -89,17 +90,21 @@ function fixture(
       contexts.push(context.thread);
       if (options.noSend) return;
       if (options.modelFailure) throw new Error("Model unavailable");
-      if (options.duplicateSend) {
-        await Promise.allSettled([
-          context.sender.send("First reply"),
-          context.sender.send("Second reply"),
+      await options.duringComposition?.();
+      if (options.duplicateFinal) {
+        await Promise.all([
+          context.sender.sendFinal("First reply"),
+          context.sender.sendFinal("Second reply"),
         ]);
         return;
       }
-      await context.sender.send(
+      if (options.failAfterSend) {
+        await context.sender.sendFinal("Final answer");
+        throw new Error("Late model failure");
+      }
+      await context.sender.sendFinal(
         "Hello from Runling! I received your webhook and replied through the Chatto API.",
       );
-      if (options.failAfterSend) throw new Error("Late model failure");
     },
   );
   return { workflow, posts, contexts, typing };
@@ -227,9 +232,9 @@ test("typing failures do not prevent a reply", async () => {
   assert.equal(posts.length, 1);
 });
 
-test("duplicate tool calls share one HTTP attempt even when it fails", async () => {
+test("repeated final delivery shares one POST even when it fails", async () => {
   for (const postStatus of [200, 503]) {
-    const { workflow, posts } = fixture({ duplicateSend: true, postStatus });
+    const { workflow, posts } = fixture({ duplicateFinal: true, postStatus });
     assert.equal(
       (await runWorkflow(workflow, { input })).ok,
       postStatus === 200,
@@ -284,13 +289,16 @@ test("notifies an existing DM thread when the agent finishes without sending", a
   ]);
 });
 
-test("does not send an error message after a reply attempt", async () => {
-  for (const options of [{ failAfterSend: true }, { postStatus: 503 }]) {
-    const { workflow, posts } = fixture(options);
-    assert.equal((await runWorkflow(workflow, { input })).ok, false);
-    assert.equal(posts.length, 1);
-    assert.match((posts[0] as { body: string }).body, /^Hello from Runling/);
-  }
+test("does not notify after a final answer or failed POST", async () => {
+  const partial = fixture({ failAfterSend: true });
+  assert.equal((await runWorkflow(partial.workflow, { input })).ok, false);
+  assert.deepEqual(
+    partial.posts.map((post) => (post as { body: string }).body),
+    ["Final answer"],
+  );
+  const failed = fixture({ postStatus: 503 });
+  assert.equal((await runWorkflow(failed.workflow, { input })).ok, false);
+  assert.equal(failed.posts.length, 1);
 });
 
 test("does not retry a failed error notification", async () => {
@@ -298,3 +306,22 @@ test("does not retry a failed error notification", async () => {
   assert.equal((await runWorkflow(workflow, { input })).ok, false);
   assert.equal(posts.length, 1);
 });
+
+for (const fails of [false, true]) {
+  test(`typing continues during composition and stops on failure=${fails}`, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const { workflow, posts, typing } = fixture({
+      duringComposition: async () => {
+        assert.equal(posts.length, 0);
+        t.mock.timers.tick(3000);
+        assert.equal(typing.length, 2);
+        if (fails) throw new Error("Model disconnected");
+      },
+    });
+    assert.equal((await runWorkflow(workflow, { input })).ok, !fails);
+    const stoppedAt = typing.length;
+    t.mock.timers.tick(30_000);
+    assert.equal(typing.length, stoppedAt);
+    assert.equal(posts.length, 1);
+  });
+}

@@ -209,7 +209,7 @@ export function createReplyWorkflow(
         ),
       );
 
-      // Both the agent and the error fallback use this single reply attempt.
+      // Each run owns one final-answer or error-notification attempt.
       const sender = createReplySender((text, stepName) =>
         r.step(stepName, async () => {
           const result = await rpc<{ message?: { id?: string } }>(
@@ -225,7 +225,6 @@ export function createReplyWorkflow(
           const id = result.message?.id;
           if (!id) throw new Error("Chatto did not return a reply ID");
 
-          stopTyping();
           return id;
         }),
       );
@@ -243,7 +242,7 @@ export function createReplyWorkflow(
         );
 
         if (!sender.id) {
-          throw new Error("The agent did not send a chat reply");
+          throw new Error("The agent did not send a final answer");
         }
       } catch (error) {
         // Notify the user if possible, but keep the run marked as failed.

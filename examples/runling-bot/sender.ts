@@ -1,36 +1,36 @@
 const ERROR_REPLY = "Sorry, I couldn't generate a reply. Please try again.";
 
-/** One delivery's reply attempt, shared by the agent and the error fallback. */
+/** One final answer or error notification per webhook run. */
 export interface ReplySender {
-  /** Confirmed Chatto message ID; absent until the HTTP request succeeds. */
+  /** Confirmed final-answer ID; error notifications do not complete delivery. */
   readonly id: string | undefined;
 
-  /** Repeated calls share the first attempt, including a failed attempt. */
-  send(text: string): Promise<string>;
+  /** Send the final answer. Repeated calls share the first POST attempt. */
+  sendFinal(text: string): Promise<string>;
 
-  /** Best-effort error notification, only if no reply attempt was started. */
+  /** Send a fixed error only if no answer or notification POST was attempted. */
   notifyFailure(): Promise<void>;
 }
 
-/** Prevent duplicate POSTs within a run, including after ambiguous HTTP failures. */
+/** Share one POST attempt, including failures whose delivery may be uncertain. */
 export function createReplySender(
   post: (text: string, stepName: string) => Promise<string>,
 ): ReplySender {
   let id: string | undefined;
   let attempt: Promise<string> | undefined;
 
-  function send(text: string, stepName: string): Promise<string> {
-    if (!text.trim()) {
-      return Promise.reject(new Error("The reply must not be empty"));
-    }
+  function send(text: string, finalAnswer: boolean): Promise<string> {
+    const body = text.trim();
+    if (!body) return Promise.reject(new Error("The reply must not be empty"));
 
-    // Store the promise before starting the POST, so concurrent calls share it.
-    // Keep failed attempts too: Chatto may have accepted the message even if
-    // its response did not reach us. A second POST could send a duplicate.
+    // Store the attempt before starting I/O. Never retry an uncertain POST.
     return (attempt ??= Promise.resolve().then(async () => {
-      id = await post(text, stepName);
-
-      return id;
+      const messageId = await post(
+        body,
+        finalAnswer ? "Send final answer" : "Send error reply",
+      );
+      if (finalAnswer) id = messageId;
+      return messageId;
     }));
   }
 
@@ -38,19 +38,13 @@ export function createReplySender(
     get id() {
       return id;
     },
-
-    send: (text) => send(text, "Send reply to Chatto"),
-
+    sendFinal: (text) => send(text, true),
     async notifyFailure() {
-      // The fallback is safe only when no message send has been attempted.
-      if (attempt) {
-        return;
-      }
-
+      if (attempt) return;
       try {
-        await send(ERROR_REPLY, "Send error reply");
+        await send(ERROR_REPLY, false);
       } catch {
-        // Preserve the original failure; the send step records this one.
+        // Preserve the original failure. Notifications are best effort.
       }
     },
   };

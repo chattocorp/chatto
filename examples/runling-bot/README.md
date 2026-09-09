@@ -71,23 +71,39 @@ For Chatto questions, the system prompt requires the agent to fetch
 `https://docs.chatto.run/`, follow relevant documentation links, and cite the
 source pages. Fetched content is reference data, not instructions. If the docs
 are unavailable or incomplete, the bot must say so instead of inventing an
-answer. It uses
-`send_reply` to post the exact chat text through the API. The room and reply
-thread are fixed by the workflow. Outcome reporting becomes available after
-the send attempt and is internal bookkeeping. A missing report after a
-successful send does not fail delivery. Repeated tool calls share one HTTP
-attempt, including a failed attempt; this protection applies within one run
-only. The workflow disposes the agent session after it finishes. A separate **Start typing** step sends a typing
-indicator in that thread. The indicator refreshes every three seconds during
-context loading and composition. Refreshes stop on success or failure; the
-indicator then expires through Chatto’s normal typing timeout. Typing errors
-do not fail delivery. Model turns have a
-two-minute timeout. Missing model credentials and model errors fail the run. If context loading or
-composition fails before any reply POST, a separate **Send error reply** step
-sends a fixed failure message to the same thread. It contains no raw error
-text. The run remains failed in Runling. No fallback is sent after a reply POST
-was attempted, because its delivery can be uncertain. Error notifications are
-best effort and are not retried.
+answer.
+
+The workflow posts one final answer per delivery. Intermediate assistant text,
+thinking, tool calls, and tool results are not posted to Chatto. Runling's
+local history remains available for diagnostics. The typing indicator shows
+that the bot is working.
+
+The agent finishes with Runling's `report_outcome` tool, which stays available
+throughout the run, including recovery prompts. `outcome` is the status:
+`completed`, `blocked`, or `failed`; it must not contain answer text. The
+workflow posts the full answer from `details`, or `summary` when `details` is
+empty. The report must contain the complete answer without relying on earlier
+assistant text.
+
+The room and reply thread are fixed by the workflow. The sender allows one
+HTTP POST attempt per run, shared by final-answer delivery and the error
+notification. A failed or uncertain POST is never retried. This protection
+applies within one run only. The workflow waits for delivery and disposes the
+agent session on exit. Success requires a completed Runling outcome and
+confirmed final-answer delivery. The workflow's `replyId` identifies that
+answer. Valid blocked or failed reports are posted but keep the run failed.
+A missing report is a failure even if the agent produced intermediate text.
+
+A separate **Start typing** step sends a typing indicator in that thread. The
+indicator refreshes every three seconds through context loading, composition,
+and delivery. Refreshes stop on success or failure; the indicator then expires
+through Chatto's normal typing timeout. Typing errors do not fail delivery.
+Model runs have a two-minute timeout. Missing model credentials and model
+errors fail the run. If context loading or composition fails before a reply
+POST, a **Send error reply** step sends a fixed failure message. It contains
+no raw error text. The run remains failed in Runling. A previous POST attempt
+suppresses this notification because delivery can be uncertain. Error
+notifications are best effort and are not retried.
 
 The current message and any requested thread context are sent to OpenRouter.
 Credentials are not included in prompts or tool results. Agent text is omitted
@@ -112,20 +128,22 @@ mise test-runling-bot
 ```
 
 The tests cover new and existing threads, bot identity, bot-message loops, and
-failed reply requests. They make no network or model calls. The end-to-end test injects a fixed
-answer while testing real webhook delivery and Chatto API calls.
+failed reply requests. They make no network or model calls. Agent integration
+tests use the real Runling and Pi runtime with synthetic provider responses.
+They check the outbound prompt and tools, report validation, recovery, and
+suppression of intermediate text. The end-to-end test injects a fixed answer
+while testing real webhook delivery and Chatto API calls.
 
 ## Code layout
 
 - `reply.ts` defines the webhook schema, inline Chatto API calls, thread loading,
   and workflow steps.
-- `agent.ts` defines the chat prompt and tools. It reads delivery status from
-  the workflow's sender.
-- `sender.ts` owns the single reply attempt and error fallback for each run.
+- `agent.ts` defines the chat prompt, read-only tools, and final-report delivery.
+- `sender.ts` owns the single delivery attempt and error fallback for each run.
 - `typing.ts` owns best-effort typing refreshes and shutdown.
 - `web-fetch.ts` contains the public-network fetch protections.
 
-Helper tests cover sender and typing lifecycles. Agent tests cover tool order
-and delivery status. Workflow tests cover authentication, thread context,
-replies, and error notifications. The browser integration test covers real
+Helper tests cover sender and typing lifecycles. Agent tests cover event
+filtering, outcome reports, recovery prompts, and delivery status. Workflow
+tests cover authentication, thread context, replies, and error notifications. The browser integration test covers real
 webhook delivery and API calls without a paid model request.
