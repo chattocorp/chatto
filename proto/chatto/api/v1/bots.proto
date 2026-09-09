@@ -6,7 +6,6 @@ import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
-import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
 // A managed bot account. Raw API keys are returned only when Chatto issues

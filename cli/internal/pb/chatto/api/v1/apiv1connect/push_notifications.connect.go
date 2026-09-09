@@ -50,15 +50,15 @@ type PushNotificationServiceClient interface {
 	//
 	// The server must have Web Push configured. Clients normally call this after
 	// the browser grants notification permission and returns a PushSubscription.
-	Subscribe(context.Context, *connect.Request[v1.SubscribePushRequest]) (*connect.Response[v1.SubscribePushResponse], error)
+	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest]) (*connect.Response[v1.SubscribeResponse], error)
 	// Removes the caller's browser push subscription by endpoint.
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
-	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
+	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribeRequest]) (*connect.Response[v1.UnsubscribeResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
 	// unavailable error without exposing the push provider's response body.
-	SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error)
+	SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error)
 }
 
 // NewPushNotificationServiceClient constructs a client for the
@@ -72,20 +72,20 @@ func NewPushNotificationServiceClient(httpClient connect.HTTPClient, baseURL str
 	baseURL = strings.TrimRight(baseURL, "/")
 	pushNotificationServiceMethods := v1.File_chatto_api_v1_push_notifications_proto.Services().ByName("PushNotificationService").Methods()
 	return &pushNotificationServiceClient{
-		subscribe: connect.NewClient[v1.SubscribePushRequest, v1.SubscribePushResponse](
+		subscribe: connect.NewClient[v1.SubscribeRequest, v1.SubscribeResponse](
 			httpClient,
 			baseURL+PushNotificationServiceSubscribeProcedure,
 			connect.WithSchema(pushNotificationServiceMethods.ByName("Subscribe")),
 			connect.WithClientOptions(opts...),
 		),
-		unsubscribe: connect.NewClient[v1.UnsubscribePushRequest, v1.UnsubscribePushResponse](
+		unsubscribe: connect.NewClient[v1.UnsubscribeRequest, v1.UnsubscribeResponse](
 			httpClient,
 			baseURL+PushNotificationServiceUnsubscribeProcedure,
 			connect.WithSchema(pushNotificationServiceMethods.ByName("Unsubscribe")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
-		sendTestNotification: connect.NewClient[v1.SendTestPushNotificationRequest, v1.SendTestPushNotificationResponse](
+		sendTestNotification: connect.NewClient[v1.SendTestNotificationRequest, v1.SendTestNotificationResponse](
 			httpClient,
 			baseURL+PushNotificationServiceSendTestNotificationProcedure,
 			connect.WithSchema(pushNotificationServiceMethods.ByName("SendTestNotification")),
@@ -96,23 +96,23 @@ func NewPushNotificationServiceClient(httpClient connect.HTTPClient, baseURL str
 
 // pushNotificationServiceClient implements PushNotificationServiceClient.
 type pushNotificationServiceClient struct {
-	subscribe            *connect.Client[v1.SubscribePushRequest, v1.SubscribePushResponse]
-	unsubscribe          *connect.Client[v1.UnsubscribePushRequest, v1.UnsubscribePushResponse]
-	sendTestNotification *connect.Client[v1.SendTestPushNotificationRequest, v1.SendTestPushNotificationResponse]
+	subscribe            *connect.Client[v1.SubscribeRequest, v1.SubscribeResponse]
+	unsubscribe          *connect.Client[v1.UnsubscribeRequest, v1.UnsubscribeResponse]
+	sendTestNotification *connect.Client[v1.SendTestNotificationRequest, v1.SendTestNotificationResponse]
 }
 
 // Subscribe calls chatto.api.v1.PushNotificationService.Subscribe.
-func (c *pushNotificationServiceClient) Subscribe(ctx context.Context, req *connect.Request[v1.SubscribePushRequest]) (*connect.Response[v1.SubscribePushResponse], error) {
+func (c *pushNotificationServiceClient) Subscribe(ctx context.Context, req *connect.Request[v1.SubscribeRequest]) (*connect.Response[v1.SubscribeResponse], error) {
 	return c.subscribe.CallUnary(ctx, req)
 }
 
 // Unsubscribe calls chatto.api.v1.PushNotificationService.Unsubscribe.
-func (c *pushNotificationServiceClient) Unsubscribe(ctx context.Context, req *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error) {
+func (c *pushNotificationServiceClient) Unsubscribe(ctx context.Context, req *connect.Request[v1.UnsubscribeRequest]) (*connect.Response[v1.UnsubscribeResponse], error) {
 	return c.unsubscribe.CallUnary(ctx, req)
 }
 
 // SendTestNotification calls chatto.api.v1.PushNotificationService.SendTestNotification.
-func (c *pushNotificationServiceClient) SendTestNotification(ctx context.Context, req *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error) {
+func (c *pushNotificationServiceClient) SendTestNotification(ctx context.Context, req *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error) {
 	return c.sendTestNotification.CallUnary(ctx, req)
 }
 
@@ -123,15 +123,15 @@ type PushNotificationServiceHandler interface {
 	//
 	// The server must have Web Push configured. Clients normally call this after
 	// the browser grants notification permission and returns a PushSubscription.
-	Subscribe(context.Context, *connect.Request[v1.SubscribePushRequest]) (*connect.Response[v1.SubscribePushResponse], error)
+	Subscribe(context.Context, *connect.Request[v1.SubscribeRequest]) (*connect.Response[v1.SubscribeResponse], error)
 	// Removes the caller's browser push subscription by endpoint.
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
-	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
+	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribeRequest]) (*connect.Response[v1.UnsubscribeResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
 	// unavailable error without exposing the push provider's response body.
-	SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error)
+	SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error)
 }
 
 // NewPushNotificationServiceHandler builds an HTTP handler from the service implementation. It
@@ -177,14 +177,14 @@ func NewPushNotificationServiceHandler(svc PushNotificationServiceHandler, opts 
 // UnimplementedPushNotificationServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedPushNotificationServiceHandler struct{}
 
-func (UnimplementedPushNotificationServiceHandler) Subscribe(context.Context, *connect.Request[v1.SubscribePushRequest]) (*connect.Response[v1.SubscribePushResponse], error) {
+func (UnimplementedPushNotificationServiceHandler) Subscribe(context.Context, *connect.Request[v1.SubscribeRequest]) (*connect.Response[v1.SubscribeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PushNotificationService.Subscribe is not implemented"))
 }
 
-func (UnimplementedPushNotificationServiceHandler) Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error) {
+func (UnimplementedPushNotificationServiceHandler) Unsubscribe(context.Context, *connect.Request[v1.UnsubscribeRequest]) (*connect.Response[v1.UnsubscribeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PushNotificationService.Unsubscribe is not implemented"))
 }
 
-func (UnimplementedPushNotificationServiceHandler) SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error) {
+func (UnimplementedPushNotificationServiceHandler) SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PushNotificationService.SendTestNotification is not implemented"))
 }

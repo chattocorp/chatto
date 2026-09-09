@@ -13,7 +13,7 @@ type pushNotificationService struct {
 	api *API
 }
 
-func (s *pushNotificationService) SendTestNotification(ctx context.Context, _ *connect.Request[apiv1.SendTestPushNotificationRequest]) (*connect.Response[apiv1.SendTestPushNotificationResponse], error) {
+func (s *pushNotificationService) SendTestNotification(ctx context.Context, _ *connect.Request[apiv1.SendTestNotificationRequest]) (*connect.Response[apiv1.SendTestNotificationResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -31,10 +31,10 @@ func (s *pushNotificationService) SendTestNotification(ctx context.Context, _ *c
 	if err := s.api.core.OnPushTestRequested(ctx, caller.UserID); err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("push notification could not be delivered"))
 	}
-	return connect.NewResponse(&apiv1.SendTestPushNotificationResponse{Sent: true}), nil
+	return connect.NewResponse(&apiv1.SendTestNotificationResponse{Sent: true}), nil
 }
 
-func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribePushRequest]) (*connect.Response[apiv1.SubscribePushResponse], error) {
+func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribeRequest]) (*connect.Response[apiv1.SubscribeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -58,10 +58,10 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
+	return connect.NewResponse(&apiv1.SubscribeResponse{Subscribed: true}), nil
 }
 
-func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribePushRequest]) (*connect.Response[apiv1.UnsubscribePushResponse], error) {
+func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribeRequest]) (*connect.Response[apiv1.UnsubscribeResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -71,5 +71,5 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UnsubscribePushResponse{Unsubscribed: true}), nil
+	return connect.NewResponse(&apiv1.UnsubscribeResponse{Unsubscribed: true}), nil
 }

@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.discovery.v1;
 
 import "chatto/api/v1/server.proto";
-import "google/protobuf/descriptor.proto";
 
 // Request for public server metadata.
 message GetServerRequest {}

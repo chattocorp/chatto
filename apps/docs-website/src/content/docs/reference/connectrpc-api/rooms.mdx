@@ -317,9 +317,9 @@ list a channel room; other nonmembers need both room.list and room.join.
 POST /api/connect/chatto.api.v1.RoomService/ListMembers
 ```
 
-<a id="chatto-api-v1-ListRoomMembersRequest"></a>
+<a id="chatto-api-v1-ListMembersRequest"></a>
 
-#### Input: ListRoomMembersRequest
+#### Input: ListMembersRequest
 
 Request for members of one room.
 
@@ -330,9 +330,9 @@ Request for members of one room.
 | `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 250 results when absent or limit is zero. |
 
 
-<a id="chatto-api-v1-ListRoomMembersResponse"></a>
+<a id="chatto-api-v1-ListMembersResponse"></a>
 
-#### Result: ListRoomMembersResponse
+#### Result: ListMembersResponse
 
 Room member page.
 
@@ -355,9 +355,9 @@ bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
 POST /api/connect/chatto.api.v1.RoomService/GetMember
 ```
 
-<a id="chatto-api-v1-GetRoomMemberRequest"></a>
+<a id="chatto-api-v1-GetMemberRequest"></a>
 
-#### Input: GetRoomMemberRequest
+#### Input: GetMemberRequest
 
 Request one member of one room by stable user ID.
 
@@ -367,9 +367,9 @@ Request one member of one room by stable user ID.
 | `user_id` | `string` | Required target user ID. |
 
 
-<a id="chatto-api-v1-GetRoomMemberResponse"></a>
+<a id="chatto-api-v1-GetMemberResponse"></a>
 
-#### Result: GetRoomMemberResponse
+#### Result: GetMemberResponse
 
 Room member response.
 
@@ -389,9 +389,9 @@ authorization as GetMember; omits unknown accounts and nonmembers.
 POST /api/connect/chatto.api.v1.RoomService/BatchGetMembers
 ```
 
-<a id="chatto-api-v1-BatchGetRoomMembersRequest"></a>
+<a id="chatto-api-v1-BatchGetMembersRequest"></a>
 
-#### Input: BatchGetRoomMembersRequest
+#### Input: BatchGetMembersRequest
 
 Request room member rows for a set of stable user IDs.
 
@@ -401,9 +401,9 @@ Request room member rows for a set of stable user IDs.
 | `user_ids` | `repeated string` | Required target user IDs. Unknown IDs and users that are not members of the room are omitted from the response. |
 
 
-<a id="chatto-api-v1-BatchGetRoomMembersResponse"></a>
+<a id="chatto-api-v1-BatchGetMembersResponse"></a>
 
-#### Result: BatchGetRoomMembersResponse
+#### Result: BatchGetMembersResponse
 
 Batch room member response.
 

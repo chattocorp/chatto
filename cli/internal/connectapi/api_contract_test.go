@@ -381,16 +381,16 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 		t.Fatalf("too-many BatchGetUsers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: []string{""}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-id BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{UserIds: []string{"user"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{UserIds: []string{"user"}})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("empty-room BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+	if _, err := rooms.BatchGetMembers(context.Background(), connect.NewRequest(&apiv1.BatchGetMembersRequest{RoomId: "room", UserIds: tooManyUserIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetRoomMembers code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 

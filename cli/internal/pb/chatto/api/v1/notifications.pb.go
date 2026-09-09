@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/descriptorpb"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -2393,7 +2392,7 @@ var File_chatto_api_v1_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\b\n" +
+	"!chatto/api/v1/notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/rooms.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8a\b\n" +
 	"\x19NotificationDeliveryModes\x12U\n" +
 	"\x0fdirect_messages\x18\x01 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x00R\x0edirectMessages\x88\x01\x01\x12U\n" +
 	"\x0fdirect_mentions\x18\x02 \x01(\x0e2'.chatto.api.v1.NotificationDeliveryModeH\x01R\x0edirectMentions\x88\x01\x01\x12F\n" +

@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.auth.v1;
 
 import "buf/validate/validate.proto";
-import "google/protobuf/descriptor.proto";
 
 // Public capability-authenticated cleanup for browser push subscriptions.
 service PushSubscriptionCleanupService {

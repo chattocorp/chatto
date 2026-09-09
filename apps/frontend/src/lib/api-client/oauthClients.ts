@@ -1,7 +1,7 @@
 import { AdminOAuthClientService } from '@chatto/api-types/admin/v1/oauth_clients_connect';
 import {
-  OAuthClientPolicy,
-  OAuthClientSource,
+  OauthClientPolicy,
+  OauthClientSource,
   type OAuthClient as APIOAuthClient
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
 import { authHeaders, createChattoClient } from './connect.js';
@@ -72,22 +72,22 @@ export function mapOAuthClient(client: APIOAuthClient): OAuthClient {
   };
 }
 
-function sourceName(source: OAuthClientSource): OAuthClientSourceName {
-  if (source === OAuthClientSource.OAUTH_CLIENT_SOURCE_CIMD) return 'cimd';
-  if (source === OAuthClientSource.OAUTH_CLIENT_SOURCE_BUILT_IN) return 'built-in';
+function sourceName(source: OauthClientSource): OAuthClientSourceName {
+  if (source === OauthClientSource.CIMD) return 'cimd';
+  if (source === OauthClientSource.BUILT_IN) return 'built-in';
   return 'unknown';
 }
 
-function policyName(policy: OAuthClientPolicy): OAuthClientPolicyName {
-  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_DEFAULT) return 'default';
-  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_TRUSTED) return 'trusted';
-  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_BLOCKED) return 'blocked';
+function policyName(policy: OauthClientPolicy): OAuthClientPolicyName {
+  if (policy === OauthClientPolicy.DEFAULT) return 'default';
+  if (policy === OauthClientPolicy.TRUSTED) return 'trusted';
+  if (policy === OauthClientPolicy.BLOCKED) return 'blocked';
   return 'unknown';
 }
 
-function apiPolicy(policy: EditableOAuthClientPolicyName): OAuthClientPolicy {
-  if (policy === 'default') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_DEFAULT;
-  if (policy === 'trusted') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_TRUSTED;
-  if (policy === 'blocked') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_BLOCKED;
+function apiPolicy(policy: EditableOAuthClientPolicyName): OauthClientPolicy {
+  if (policy === 'default') return OauthClientPolicy.DEFAULT;
+  if (policy === 'trusted') return OauthClientPolicy.TRUSTED;
+  if (policy === 'blocked') return OauthClientPolicy.BLOCKED;
   throw new Error('Unsupported OAuth client policy.');
 }

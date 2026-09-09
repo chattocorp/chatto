@@ -9,7 +9,6 @@ package discoveryv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/descriptorpb"
 	v1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	reflect "reflect"
 	sync "sync"
@@ -203,7 +202,7 @@ var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\n" +
-	" chatto/discovery/v1/server.proto\x12\x13chatto.discovery.v1\x1a\x1achatto/api/v1/server.proto\x1a google/protobuf/descriptor.proto\"\x12\n" +
+	" chatto/discovery/v1/server.proto\x12\x13chatto.discovery.v1\x1a\x1achatto/api/v1/server.proto\"\x12\n" +
 	"\x10GetServerRequest\"\x83\x01\n" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +

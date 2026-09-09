@@ -274,6 +274,9 @@ jobs:
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"
           git fetch --no-tags --depth=1 origin "${base_ref}:refs/remotes/origin/${base_ref}"
 
+      - name: Lint Chatto protobufs
+        run: mise lint-proto
+
       - name: Check storage, internal, and Operator protobuf breaking changes
         run: |
           base_ref="${GITHUB_BASE_REF:-${GITHUB_REF_NAME}}"

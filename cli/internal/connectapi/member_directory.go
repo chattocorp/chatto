@@ -158,7 +158,7 @@ func (s *userService) DeleteAvatar(ctx context.Context, req *connect.Request[api
 	return connect.NewResponse(&apiv1.DeleteAvatarResponse{User: responseUser}), nil
 }
 
-func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListRoomMembersRequest]) (*connect.Response[apiv1.ListRoomMembersResponse], error) {
+func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv1.ListMembersRequest]) (*connect.Response[apiv1.ListMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -209,13 +209,13 @@ func (s *roomService) ListMembers(ctx context.Context, req *connect.Request[apiv
 		out = append(out, apiMember)
 	}
 
-	return connect.NewResponse(&apiv1.ListRoomMembersResponse{
+	return connect.NewResponse(&apiv1.ListMembersResponse{
 		Members: out,
 		Page:    apiPageInfo(totalCount, hasMore),
 	}), nil
 }
 
-func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetRoomMemberRequest]) (*connect.Response[apiv1.GetRoomMemberResponse], error) {
+func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.GetMemberRequest]) (*connect.Response[apiv1.GetMemberResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -233,10 +233,10 @@ func (s *roomService) GetMember(ctx context.Context, req *connect.Request[apiv1.
 	if err != nil {
 		return nil, err
 	}
-	return connect.NewResponse(&apiv1.GetRoomMemberResponse{Member: member}), nil
+	return connect.NewResponse(&apiv1.GetMemberResponse{Member: member}), nil
 }
 
-func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetRoomMembersRequest]) (*connect.Response[apiv1.BatchGetRoomMembersResponse], error) {
+func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[apiv1.BatchGetMembersRequest]) (*connect.Response[apiv1.BatchGetMembersResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -269,7 +269,7 @@ func (s *roomService) BatchGetMembers(ctx context.Context, req *connect.Request[
 		}
 		members = append(members, member)
 	}
-	return connect.NewResponse(&apiv1.BatchGetRoomMembersResponse{Members: members}), nil
+	return connect.NewResponse(&apiv1.BatchGetMembersResponse{Members: members}), nil
 }
 
 func serverMember(ctx context.Context, api *API, userID string) (*apiv1.DirectoryMember, error) {

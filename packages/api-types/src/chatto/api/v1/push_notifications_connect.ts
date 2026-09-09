@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SendTestPushNotificationRequest, SendTestPushNotificationResponse, SubscribePushRequest, SubscribePushResponse, UnsubscribePushRequest, UnsubscribePushResponse } from "./push_notifications_pb.js";
+import { SendTestNotificationRequest, SendTestNotificationResponse, SubscribeRequest, SubscribeResponse, UnsubscribeRequest, UnsubscribeResponse } from "./push_notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -24,8 +24,8 @@ export const PushNotificationService = {
      */
     subscribe: {
       name: "Subscribe",
-      I: SubscribePushRequest,
-      O: SubscribePushResponse,
+      I: SubscribeRequest,
+      O: SubscribeResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -37,8 +37,8 @@ export const PushNotificationService = {
      */
     unsubscribe: {
       name: "Unsubscribe",
-      I: UnsubscribePushRequest,
-      O: UnsubscribePushResponse,
+      I: UnsubscribeRequest,
+      O: UnsubscribeResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },
@@ -51,8 +51,8 @@ export const PushNotificationService = {
      */
     sendTestNotification: {
       name: "SendTestNotification",
-      I: SendTestPushNotificationRequest,
-      O: SendTestPushNotificationResponse,
+      I: SendTestNotificationRequest,
+      O: SendTestNotificationResponse,
       kind: MethodKind.Unary,
     },
   }

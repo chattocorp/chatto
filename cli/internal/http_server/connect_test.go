@@ -681,7 +681,7 @@ func TestConnectPushSubscriptionCapabilityCleanupIsPublic(t *testing.T) {
 	}
 
 	pushClient := apiv1connect.NewPushNotificationServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
-	_, err = pushClient.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{}))
+	_, err = pushClient.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribeRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("unauthenticated Subscribe code = %v, want unauthenticated", connect.CodeOf(err))
 	}

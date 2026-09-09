@@ -10,7 +10,6 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
-	_ "google.golang.org/protobuf/types/descriptorpb"
 	fieldmaskpb "google.golang.org/protobuf/types/known/fieldmaskpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
@@ -2276,7 +2275,7 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x02\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x02\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +

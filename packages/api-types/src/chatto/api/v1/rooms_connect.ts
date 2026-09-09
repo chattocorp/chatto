@@ -5,7 +5,7 @@
 
 import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
-import { BatchGetRoomMembersRequest, BatchGetRoomMembersResponse, GetRoomMemberRequest, GetRoomMemberResponse, ListRoomMembersRequest, ListRoomMembersResponse } from "./member_directory_pb.js";
+import { BatchGetMembersRequest, BatchGetMembersResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
 import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 
@@ -128,8 +128,8 @@ export const RoomService = {
      */
     listMembers: {
       name: "ListMembers",
-      I: ListRoomMembersRequest,
-      O: ListRoomMembersResponse,
+      I: ListMembersRequest,
+      O: ListMembersResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -142,8 +142,8 @@ export const RoomService = {
      */
     getMember: {
       name: "GetMember",
-      I: GetRoomMemberRequest,
-      O: GetRoomMemberResponse,
+      I: GetMemberRequest,
+      O: GetMemberResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -154,8 +154,8 @@ export const RoomService = {
      */
     batchGetMembers: {
       name: "BatchGetMembers",
-      I: BatchGetRoomMembersRequest,
-      O: BatchGetRoomMembersResponse,
+      I: BatchGetMembersRequest,
+      O: BatchGetMembersResponse,
       kind: MethodKind.Unary,
     },
     /**
