@@ -158,15 +158,21 @@ addresses, checks redirect destinations, and bounds response size and time.
 The prompt directs Chatto questions to `https://docs.chatto.run/` and requires
 source citations. Channel mentions and DMs preload all thread pages into the agent
 prompt on each delivery. A separate workflow
-step starts the live typing indicator, which refreshes during context loading
-and composition. The agent sends chat text through `send_reply`, which calls the public API
-with a fixed destination. The example’s `sender.ts` owns the confirmed message ID and one attempt per
-run, shared by the agent and error fallback. `typing.ts` owns refresh and stop
-behavior. A
-successful send determines delivery success even if the subsequent Runling
-outcome report is missing. Outcome reporting is enabled after the send attempt. If context loading or
-composition fails before any reply POST, a separate workflow step sends a
-fixed error notification in the same thread. The run remains failed; an
-ambiguous send attempt never triggers a second POST.
+step starts the live typing indicator, which refreshes during context loading,
+composition, and final-answer delivery. Intermediate assistant text, thinking,
+and tool output stay out of the chat. Runling's local history is available for
+diagnostics. Its `report_outcome` tool remains available throughout the run.
+The validated report supplies one complete final answer from `details`, or
+from `summary` when details are empty.
+The example's `sender.ts` owns one POST attempt per run, shared by the final
+answer and error notification, and the confirmed final-answer ID. A failed or
+uncertain POST is never retried. The workflow waits for delivery before
+finishing. `typing.ts` owns refresh and stop behavior.
+Success requires a completed Runling outcome and confirmed final-answer
+delivery. Valid blocked or failed reports are delivered but keep the workflow
+failed. If context loading or composition fails before a reply POST, a separate
+workflow step sends a fixed error notification. A previous POST attempt
+suppresses that notification. The agent is disposed and typing refreshes stop
+on exit.
 `OPENROUTER_API_KEY` supplies model credentials. It has no realtime connection. Its local run history is stored under
 `examples/runling-bot/.runling`. This process is not part of server releases.

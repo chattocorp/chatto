@@ -8,13 +8,18 @@ The prompt contains the complete current thread. Use it to answer the latest mes
 
 For Chatto questions, fetch https://docs.chatto.run/ and follow relevant documentation links before answering. Cite the specific source pages. Use web_fetch for other current public information when useful. State when sources are unavailable or insufficient. Do not send credentials or private conversation text to websites.
 
-Answer by calling send_reply with the exact message for the user, not a description of your answer. Use native tool calls; text that resembles code does not execute tools. Send one reply, then call report_outcome for internal bookkeeping. If sending fails, report failed. Only the available tools can perform actions. Do not repeat the @test_bot mention.`;
+Only your final report is posted to Chatto. Intermediate assistant text is not shown to the user. Put the complete answer in the final report; do not rely on earlier text. Finish with a native report_outcome tool call. Its fields have distinct purposes:
+- outcome is a status, never the answer text. Use exactly "completed" when you have answered the user, "blocked" when you need external input or access, or "failed" when you could not complete the task.
+- summary is a required, nonempty, single-line answer or concise result, at most 500 characters.
+- details is optional and contains the full user-facing answer in Markdown, at most 20000 characters. Omit it when summary already contains the complete answer.
+For a greeting, a valid final call is {"outcome":"completed","summary":"Hello!"}.
+The workflow posts details, or summary when details is absent, to the user. Do not put internal bookkeeping in either field. Use native tool calls; text that resembles code does not execute tools. Only the available tools can perform actions. Do not repeat the @test_bot mention.`;
 
 /** Context is restricted by the workflow to the webhook's current thread. */
 export interface ReplyContext {
   message: string;
 
-  /** The workflow owns the single reply attempt and its result. */
+  /** The workflow owns the single final-answer or error-notification attempt. */
   sender: ReplySender;
 
   /** Fresh complete history supplied automatically for mentions and DMs. */
@@ -23,7 +28,7 @@ export interface ReplyContext {
   readThread: () => Promise<Array<{ role: "bot" | "human"; body: string }>>;
 }
 
-/** Let the agent send a reply; a successful HTTP send determines success. */
+/** Post only the validated final Runling report to the current thread. */
 export async function generateReply(
   r: Runling,
   context: ReplyContext,
@@ -36,40 +41,9 @@ export async function generateReply(
     // Replace Pi's coding-agent identity for this chat session. Appending role
     // instructions leaves conflicting defaults in place for lightweight models.
     pi.on("before_agent_start", async () => {
-      pi.setActiveTools(["read_thread", "web_fetch", "send_reply"]);
       return {
         systemPrompt: SYSTEM_PROMPT,
       };
-    });
-
-    pi.registerTool({
-      name: "send_reply",
-      label: "Send reply to Chatto",
-      description:
-        "Send the exact user-facing chat message now. This is the only way to answer the user. The destination is fixed to the triggering message's thread. Call once, then report_outcome.",
-      parameters: Type.Object({ text: Type.String({ minLength: 1 }) }),
-      async execute(_id, { text }) {
-        if (!text.trim()) {
-          throw new Error("The reply must not be empty");
-        }
-
-        try {
-          await context.sender.send(text.trim());
-        } finally {
-          // After the single send attempt, only internal reporting remains.
-          pi.setActiveTools(["report_outcome"]);
-        }
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: "Reply sent. Finish with report_outcome; do not send again.",
-            },
-          ],
-          details: {},
-        };
-      },
     });
 
     pi.registerTool({
@@ -91,10 +65,22 @@ export async function generateReply(
   // Runling reports agent text to its logger by default. Keep chat content out
   // of process logs; the local Runling run history still contains workflow data.
   return r.log.withDestination("silent", async () => {
+    let reported = false;
     const agent = await r.agent({
       model: "openrouter/google/gemini-2.5-flash-lite",
       thinkingLevel: "off",
-      tools: ["read_thread", "web_fetch", "send_reply"],
+      tools: ["read_thread", "web_fetch"],
+      onEvent(event) {
+        // runOutcome also returns a synthetic failed result when reporting is
+        // missing. Only a successful report tool call supplies a user answer.
+        if (
+          event.type === "tool_execution_end" &&
+          event.toolName === "report_outcome" &&
+          !event.isError
+        ) {
+          reported = true;
+        }
+      },
       // Keep local coding tools and project instructions out of this chat agent.
       resources: {
         extensions: false,
@@ -108,7 +94,7 @@ export async function generateReply(
 
     try {
       const prompt =
-        "Read the conversation below. For Chatto questions, fetch the relevant docs first. Then CALL send_reply with your answer to the current message. Do not finish until you have called send_reply.\n\n" +
+        "Read the conversation below. For Chatto questions, fetch the relevant docs first. Call report_outcome with your complete answer to the current message. Only this final report is shown to the user.\n\n" +
         JSON.stringify({
           thread: context.thread,
           currentMessage: context.message,
@@ -116,15 +102,12 @@ export async function generateReply(
 
       const signal = AbortSignal.timeout(120_000);
 
-      try {
-        await agent.runOutcome(prompt, { signal });
-      } catch (error) {
-        // Delivery is already complete even if subsequent model bookkeeping fails.
-        if (!context.sender.id) throw error;
-      }
+      const result = await agent.runOutcome(prompt, { signal });
+      if (!reported) throw new Error("The agent did not report an outcome");
 
-      if (!context.sender.id) {
-        throw new Error("The agent did not send a chat reply");
+      await context.sender.sendFinal(result.details?.trim() || result.summary);
+      if (result.outcome !== "completed") {
+        throw new Error(`The agent reported ${result.outcome}`);
       }
     } finally {
       agent.dispose();

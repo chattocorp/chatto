@@ -50,7 +50,7 @@ test.describe('Runling webhook bot', () => {
           if (!context.thread?.some(message => message.body === context.message)) {
             throw new Error('Mention context did not include the current message');
           }
-          await context.sender.send(${JSON.stringify(replyBody)});
+          await context.sender.sendFinal(${JSON.stringify(replyBody)});
         })
       } } });
     `
@@ -159,7 +159,7 @@ test.describe('Runling webhook bot', () => {
         roomId: string,
         rootId: string,
         sourceId: string,
-        expectedBody = replyBody
+        expectedBodies = [replyBody]
       ) {
         await expect
           .poll(
@@ -169,6 +169,7 @@ test.describe('Runling webhook bot', () => {
                 'chatto.api.v1.ThreadService/GetThreadEvents',
                 { roomId, threadRootEventId: rootId, limit: 20 }
               );
+              const replies: Array<{ body?: string; root?: string }> = [];
               for (const event of timeline.page?.events ?? []) {
                 const result = await connectPost<{
                   message?: {
@@ -179,14 +180,17 @@ test.describe('Runling webhook bot', () => {
                   };
                 }>(page, 'chatto.api.v1.MessageService/GetMessage', { roomId, eventId: event.id });
                 if (result.message?.actorId === botId && result.message.inReplyTo === sourceId) {
-                  return { body: result.message.body, root: result.message.threadRootEventId };
+                  replies.push({
+                    body: result.message.body,
+                    root: result.message.threadRootEventId
+                  });
                 }
               }
-              return null;
+              return replies;
             },
             { timeout: 15_000 }
           )
-          .toEqual({ body: expectedBody, root: rootId });
+          .toEqual(expectedBodies.map((body) => ({ body, root: rootId })));
       }
       const rootId = await postMessageViaConnect(page, roomId, '@test_bot Hello Runling');
       await expectReply(roomId, rootId, rootId);
@@ -213,12 +217,9 @@ test.describe('Runling webhook bot', () => {
         'Trigger test model failure',
         dmId
       );
-      await expectReply(
-        dm.room.id,
-        dmId,
-        failedId,
+      await expectReply(dm.room.id, dmId, failedId, [
         "Sorry, I couldn't generate a reply. Please try again."
-      );
+      ]);
     } finally {
       if (bot.exitCode === null && bot.signalCode === null) bot.kill('SIGTERM');
       const timer = setTimeout(() => bot.kill('SIGKILL'), 5_000);
