@@ -40,7 +40,6 @@ export type ThreadFollowState = {
 };
 
 export type ThreadFollowResult = {
-  following: boolean;
   state: ThreadFollowState | null;
 };
 
@@ -120,7 +119,6 @@ export function createThreadAPI(config: ConnectAPIConfig) {
           headers: headers()
         });
         return {
-          following: response.following,
           state: response.state ? mapThreadFollowState(response.state) : null
         };
       } catch (err) {
@@ -137,7 +135,6 @@ export function createThreadAPI(config: ConnectAPIConfig) {
           headers: headers()
         });
         return {
-          following: response.following,
           state: response.state ? mapThreadFollowState(response.state) : null
         };
       } catch (err) {

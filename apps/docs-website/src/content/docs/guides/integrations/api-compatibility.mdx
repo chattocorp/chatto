@@ -395,3 +395,11 @@ was already absent, and `LeaveCall.left` reports whether a leave fact was
 recorded. Counts also remain. Empty responses do not change authorization,
 error codes, idempotency, or stored data. Capability cleanup still does not
 reveal whether a matching subscription existed.
+
+## Thread follow responses in 0.5
+
+`ThreadService.FollowThread` and `ThreadService.UnfollowThread` no longer return
+the top-level `following` field. Read `state.following` instead. The `state`
+message contains the room ID, thread root event ID, and current follow state.
+Regenerate clients from the 0.5 protobuf definitions. Requests, authorization,
+and stored follow state are unchanged.

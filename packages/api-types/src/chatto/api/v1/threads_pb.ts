@@ -123,13 +123,6 @@ export class FollowThreadRequest extends Message<FollowThreadRequest> {
  */
 export class FollowThreadResponse extends Message<FollowThreadResponse> {
   /**
-   * True when the current user follows the thread after the operation.
-   *
-   * @generated from field: bool following = 1;
-   */
-  following = false;
-
-  /**
    * Current follow state after the operation.
    *
    * @generated from field: chatto.api.v1.ThreadFollowState state = 2;
@@ -144,7 +137,6 @@ export class FollowThreadResponse extends Message<FollowThreadResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.FollowThreadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "state", kind: "message", T: ThreadFollowState },
   ]);
 
@@ -221,13 +213,6 @@ export class UnfollowThreadRequest extends Message<UnfollowThreadRequest> {
  */
 export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
   /**
-   * True when the current user follows the thread after the operation.
-   *
-   * @generated from field: bool following = 1;
-   */
-  following = false;
-
-  /**
    * Current follow state after the operation.
    *
    * @generated from field: chatto.api.v1.ThreadFollowState state = 2;
@@ -242,7 +227,6 @@ export class UnfollowThreadResponse extends Message<UnfollowThreadResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UnfollowThreadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "following", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 2, name: "state", kind: "message", T: ThreadFollowState },
   ]);
 

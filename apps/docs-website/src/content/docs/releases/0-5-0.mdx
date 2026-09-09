@@ -402,6 +402,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Thread follow and unfollow responses now expose follow state only in `state`.
+  Read `state.following` instead of the removed top-level `following` field. See
+  the [migration guide](/guides/integrations/api-compatibility/#thread-follow-responses-in-05).
+
 - Commands that only reported success now return named empty responses (`{}` in
   JSON). Clients must use RPC completion and Connect errors instead of the
   removed success fields. Actual change indicators and counts remain. See the
