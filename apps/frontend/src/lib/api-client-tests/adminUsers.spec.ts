@@ -293,7 +293,7 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('clears username cooldown without auth headers when no token is available', async () => {
-    mocks.clearUsernameCooldown.mockResolvedValue({ cleared: true });
+    mocks.clearUsernameCooldown.mockResolvedValue({});
     const api = createAdminUserManagementAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.clearUsernameCooldown('user-1')).resolves.toBe(true);
@@ -341,7 +341,7 @@ describe('createAdminUserManagementAPI', () => {
   });
 
   it('deletes a user with auth headers', async () => {
-    mocks.deleteUser.mockResolvedValue({ deleted: true });
+    mocks.deleteUser.mockResolvedValue({});
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'

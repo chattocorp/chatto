@@ -89,11 +89,9 @@ func (x *DeleteSubscriptionRequest) GetCleanupToken() string {
 }
 
 // Response from capability-authenticated subscription cleanup.
+// Success does not reveal whether a matching subscription existed.
 type DeleteSubscriptionResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the idempotent cleanup request completed. It does not reveal
-	// whether a matching subscription existed.
-	Completed     bool `protobuf:"varint,1,opt,name=completed,proto3" json:"completed,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -128,13 +126,6 @@ func (*DeleteSubscriptionResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_auth_v1_push_subscription_cleanup_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *DeleteSubscriptionResponse) GetCompleted() bool {
-	if x != nil {
-		return x.Completed
-	}
-	return false
-}
-
 var File_chatto_auth_v1_push_subscription_cleanup_proto protoreflect.FileDescriptor
 
 const file_chatto_auth_v1_push_subscription_cleanup_proto_rawDesc = "" +
@@ -146,9 +137,8 @@ const file_chatto_auth_v1_push_subscription_cleanup_proto_rawDesc = "" +
 	"\x04auth\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12/\n" +
 	"\rcleanup_token\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10 \x18\x80\x01R\fcleanupToken\":\n" +
-	"\x1aDeleteSubscriptionResponse\x12\x1c\n" +
-	"\tcompleted\x18\x01 \x01(\bR\tcompleted2\x92\x01\n" +
+	"\xbaH\ar\x05\x10 \x18\x80\x01R\fcleanupToken\"-\n" +
+	"\x1aDeleteSubscriptionResponseJ\x04\b\x01\x10\x02R\tcompleted2\x92\x01\n" +
 	"\x1ePushSubscriptionCleanupService\x12p\n" +
 	"\x12DeleteSubscription\x12).chatto.auth.v1.DeleteSubscriptionRequest\x1a*.chatto.auth.v1.DeleteSubscriptionResponse\"\x03\x90\x02\x02B\xbf\x01\n" +
 	"\x12com.chatto.auth.v1B\x1cPushSubscriptionCleanupProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/auth/v1;authv1\xa2\x02\x03CAX\xaa\x02\x0eChatto.Auth.V1\xca\x02\x0eChatto\\Auth\\V1\xe2\x02\x1aChatto\\Auth\\V1\\GPBMetadata\xea\x02\x10Chatto::Auth::V1b\x06proto3"

@@ -416,13 +416,6 @@ export class CancelExternalIdentityFlowRequest extends Message<CancelExternalIde
  * @generated from message chatto.auth.v1.CancelExternalIdentityFlowResponse
  */
 export class CancelExternalIdentityFlowResponse extends Message<CancelExternalIdentityFlowResponse> {
-  /**
-   * True when a pending flow was removed or already absent.
-   *
-   * @generated from field: bool cancelled = 1;
-   */
-  cancelled = false;
-
   constructor(data?: PartialMessage<CancelExternalIdentityFlowResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -431,7 +424,6 @@ export class CancelExternalIdentityFlowResponse extends Message<CancelExternalId
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.auth.v1.CancelExternalIdentityFlowResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "cancelled", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CancelExternalIdentityFlowResponse {

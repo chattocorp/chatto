@@ -204,8 +204,8 @@ message ClearUsernameCooldownRequest {
 
 // Result of clearing a user's username-change cooldown.
 message ClearUsernameCooldownResponse {
-  // True when the request completed.
-  bool cleared = 1;
+  reserved 1;
+  reserved "cleared";
 }
 
 // Request to delete a user account as a server-admin action.
@@ -219,8 +219,8 @@ message DeleteUserRequest {
 
 // Result of deleting a user account.
 message DeleteUserResponse {
-  // True when the user was deleted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Server-admin user management commands and member-detail reads.

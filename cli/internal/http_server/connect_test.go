@@ -664,7 +664,7 @@ func TestConnectPushSubscriptionCapabilityCleanupIsPublic(t *testing.T) {
 		t.Fatalf("SavePushSubscriptionWithCleanupToken: %v", err)
 	}
 
-	cleanupClient := authv1connect.NewPushSubscriptionCleanupServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	cleanupClient := authv1connect.NewPushSubscriptionCleanupServiceClient(ts.Client(), ts.URL+connectAPIPrefix, connect.WithProtoJSON())
 	cleanup, err := cleanupClient.DeleteSubscription(ctx, connect.NewRequest(&authv1.DeleteSubscriptionRequest{
 		Endpoint:     endpoint,
 		Auth:         auth,
@@ -673,8 +673,8 @@ func TestConnectPushSubscriptionCapabilityCleanupIsPublic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unauthenticated DeleteSubscription: %v", err)
 	}
-	if !cleanup.Msg.GetCompleted() {
-		t.Fatal("DeleteSubscription completed = false, want true")
+	if data, err := protojson.Marshal(cleanup.Msg); err != nil || string(data) != "{}" {
+		t.Fatalf("DeleteSubscription JSON = %s, err = %v; want {}", data, err)
 	}
 	if owned, err := s.core.PushSubscriptionOwnedByUser(ctx, user.GetId(), endpoint); err != nil || owned {
 		t.Fatalf("subscription ownership after cleanup = %t, err = %v", owned, err)

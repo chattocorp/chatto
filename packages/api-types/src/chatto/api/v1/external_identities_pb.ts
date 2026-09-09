@@ -375,13 +375,6 @@ export class DisconnectExternalIdentityRequest extends Message<DisconnectExterna
  * @generated from message chatto.api.v1.DisconnectExternalIdentityResponse
  */
 export class DisconnectExternalIdentityResponse extends Message<DisconnectExternalIdentityResponse> {
-  /**
-   * True when the identity was disconnected.
-   *
-   * @generated from field: bool disconnected = 1;
-   */
-  disconnected = false;
-
   constructor(data?: PartialMessage<DisconnectExternalIdentityResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -390,7 +383,6 @@ export class DisconnectExternalIdentityResponse extends Message<DisconnectExtern
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.DisconnectExternalIdentityResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "disconnected", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DisconnectExternalIdentityResponse {

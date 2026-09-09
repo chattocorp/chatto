@@ -67,18 +67,11 @@ export class DeleteSubscriptionRequest extends Message<DeleteSubscriptionRequest
 
 /**
  * Response from capability-authenticated subscription cleanup.
+ * Success does not reveal whether a matching subscription existed.
  *
  * @generated from message chatto.auth.v1.DeleteSubscriptionResponse
  */
 export class DeleteSubscriptionResponse extends Message<DeleteSubscriptionResponse> {
-  /**
-   * True when the idempotent cleanup request completed. It does not reveal
-   * whether a matching subscription existed.
-   *
-   * @generated from field: bool completed = 1;
-   */
-  completed = false;
-
   constructor(data?: PartialMessage<DeleteSubscriptionResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -87,7 +80,6 @@ export class DeleteSubscriptionResponse extends Message<DeleteSubscriptionRespon
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.auth.v1.DeleteSubscriptionResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "completed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeleteSubscriptionResponse {

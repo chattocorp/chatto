@@ -87,12 +87,12 @@ async function createRoleViaConnect(
 }
 
 async function deleteRoleViaConnect(page: Page, name: string): Promise<void> {
-  const data = await connectPost<{ deleted?: boolean }>(
+  const data = await connectPost<Record<string, never>>(
     page,
     'chatto.admin.v1.AdminRoleService/DeleteRole',
     { name }
   );
-  expect(data.deleted).toBe(true);
+  expect(data).toEqual({});
 }
 
 async function getRoleViaConnect(

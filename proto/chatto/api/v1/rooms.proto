@@ -201,8 +201,8 @@ message LeaveRoomRequest {
 
 // Result of leaving a room.
 message LeaveRoomResponse {
-  // True when the current user is no longer an explicit member after the call.
-  bool left = 1;
+  reserved 1;
+  reserved "left";
 }
 
 // Request to add a user to a channel room.
@@ -250,8 +250,8 @@ message BanMemberRequest {
 
 // Result of banning a room member.
 message BanMemberResponse {
-  // True when the ban operation completed.
-  bool banned = 1;
+  reserved 1;
+  reserved "banned";
 }
 
 // Request to remove a channel room ban.
@@ -269,8 +269,8 @@ message UnbanMemberRequest {
 
 // Result of removing a room ban.
 message UnbanMemberResponse {
-  // True when the unban operation completed.
-  bool unbanned = 1;
+  reserved 1;
+  reserved "unbanned";
 }
 
 // Active channel room ban with optional hydrated room and user references.
@@ -401,8 +401,8 @@ message RefreshTypingIndicatorRequest {
 
 // Result of refreshing a typing indicator.
 message RefreshTypingIndicatorResponse {
-  // True when the typing indicator was accepted for publish.
-  bool updated = 1;
+  reserved 1;
+  reserved "updated";
 }
 
 // Manages room-scoped operations for the current user.

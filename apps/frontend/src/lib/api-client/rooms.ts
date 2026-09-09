@@ -199,8 +199,8 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async leaveRoom(roomId: string): Promise<boolean> {
       try {
-        const response = await rooms.leaveRoom({ roomId }, { headers: headers() });
-        return response.left;
+        await rooms.leaveRoom({ roomId }, { headers: headers() });
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -264,14 +264,14 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       threadRootEventId?: string | null
     ): Promise<boolean> {
       try {
-        const response = await rooms.refreshTypingIndicator(
+        await rooms.refreshTypingIndicator(
           {
             roomId,
             threadRootEventId: threadRootEventId ?? ''
           },
           { headers: headers() }
         );
-        return response.updated;
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -284,7 +284,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
       expiresAt?: string | null;
     }): Promise<boolean> {
       try {
-        const response = await rooms.banMember(
+        await rooms.banMember(
           {
             roomId: input.roomId,
             userId: input.userId,
@@ -293,7 +293,7 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
           },
           { headers: headers() }
         );
-        return response.banned;
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -301,10 +301,10 @@ export function createRoomCommandAPI(config: ConnectAPIConfig) {
 
     async unbanMember(input: { roomId: string; userId: string; reason: string }): Promise<boolean> {
       try {
-        const response = await rooms.unbanMember(input, {
+        await rooms.unbanMember(input, {
           headers: headers()
         });
-        return response.unbanned;
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }

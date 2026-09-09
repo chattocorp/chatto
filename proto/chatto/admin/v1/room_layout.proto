@@ -148,8 +148,8 @@ message DeleteRoomGroupRequest {
 
 // Result of deleting a room group.
 message DeleteRoomGroupResponse {
-  // True when the room group was deleted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to replace the global room group order.
@@ -289,8 +289,8 @@ message DeleteSidebarLinkRequest {
 
 // Result of deleting a sidebar link.
 message DeleteSidebarLinkResponse {
-  // True when the sidebar link was deleted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to move a sidebar link to another room group.

@@ -206,7 +206,7 @@ test.describe('Cross-instance dots', () => {
       (url) =>
         url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}/${remoteRootEventId}`
     );
-    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '# general', exact: true })).toBeVisible();
     await roomPage.expectThreadPaneVisible();
     await roomPage.expectTextInThreadPane(remoteReplyBody);
 
@@ -271,7 +271,7 @@ test.describe('Cross-instance dots', () => {
     await page.waitForURL(
       (url) => url.pathname === `/chat/${remoteHostSegment}/${remoteGeneralRoomId}`
     );
-    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '# general', exact: true })).toBeVisible();
 
     const mainRoomTimeline = page.locator('[data-testid="messages-container"]').first();
     await expect(mainRoomTimeline.locator('[role="article"]')).not.toHaveCount(0);
@@ -320,7 +320,7 @@ test.describe('Cross-instance dots', () => {
 
       // Should land on the thread URL (/chat/-/{spaceId}/{roomId}/{threadId}).
       await page.waitForURL(routes.patterns.anyThread);
-      await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: '# general', exact: true })).toBeVisible();
       await roomPage.expectThreadPaneVisible();
     });
   });

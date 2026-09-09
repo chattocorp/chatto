@@ -120,9 +120,7 @@ func (x *SubscribeRequest) GetCleanupToken() string {
 
 // Response from storing a browser push subscription.
 type SubscribeResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the subscription was stored.
-	Subscribed    bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -155,13 +153,6 @@ func (x *SubscribeResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use SubscribeResponse.ProtoReflect.Descriptor instead.
 func (*SubscribeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{1}
-}
-
-func (x *SubscribeResponse) GetSubscribed() bool {
-	if x != nil {
-		return x.Subscribed
-	}
-	return false
 }
 
 // Request to remove a browser push subscription.
@@ -212,9 +203,7 @@ func (x *UnsubscribeRequest) GetEndpoint() string {
 
 // Response from removing a browser push subscription.
 type UnsubscribeResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Unsubscribed  bool `protobuf:"varint,1,opt,name=unsubscribed,proto3" json:"unsubscribed,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -247,13 +236,6 @@ func (x *UnsubscribeResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UnsubscribeResponse.ProtoReflect.Descriptor instead.
 func (*UnsubscribeResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{3}
-}
-
-func (x *UnsubscribeResponse) GetUnsubscribed() bool {
-	if x != nil {
-		return x.Unsubscribed
-	}
-	return false
 }
 
 // Request to test the current user's registered browser push subscriptions.
@@ -295,9 +277,7 @@ func (*SendTestNotificationRequest) Descriptor() ([]byte, []int) {
 
 // Result of sending a test Web Push notification.
 type SendTestNotificationResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the push provider accepted the notification.
-	Sent          bool `protobuf:"varint,1,opt,name=sent,proto3" json:"sent,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -332,13 +312,6 @@ func (*SendTestNotificationResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *SendTestNotificationResponse) GetSent() bool {
-	if x != nil {
-		return x.Sent
-	}
-	return false
-}
-
 var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
@@ -358,19 +331,15 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"clientHost\x12/\n" +
 	"\rcleanup_token\x18\x06 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10 \x18\x80\x01R\fcleanupTokenB\r\n" +
-	"\v_user_agent\"3\n" +
-	"\x11SubscribeResponse\x12\x1e\n" +
-	"\n" +
-	"subscribed\x18\x01 \x01(\bR\n" +
+	"\v_user_agent\"%\n" +
+	"\x11SubscribeResponseJ\x04\b\x01\x10\x02R\n" +
 	"subscribed\"<\n" +
 	"\x12UnsubscribeRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"9\n" +
-	"\x13UnsubscribeResponse\x12\"\n" +
-	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed\"\x1d\n" +
-	"\x1bSendTestNotificationRequest\"2\n" +
-	"\x1cSendTestNotificationResponse\x12\x12\n" +
-	"\x04sent\x18\x01 \x01(\bR\x04sent2\xb5\x02\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\")\n" +
+	"\x13UnsubscribeResponseJ\x04\b\x01\x10\x02R\funsubscribed\"\x1d\n" +
+	"\x1bSendTestNotificationRequest\"*\n" +
+	"\x1cSendTestNotificationResponseJ\x04\b\x01\x10\x02R\x04sent2\xb5\x02\n" +
 	"\x17PushNotificationService\x12N\n" +
 	"\tSubscribe\x12\x1f.chatto.api.v1.SubscribeRequest\x1a .chatto.api.v1.SubscribeResponse\x12Y\n" +
 	"\vUnsubscribe\x12!.chatto.api.v1.UnsubscribeRequest\x1a\".chatto.api.v1.UnsubscribeResponse\"\x03\x90\x02\x02\x12o\n" +

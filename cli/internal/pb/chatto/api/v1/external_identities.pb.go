@@ -430,9 +430,7 @@ func (x *DisconnectExternalIdentityRequest) GetCurrentPassword() string {
 
 // Result of disconnecting a provider identity.
 type DisconnectExternalIdentityResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the identity was disconnected.
-	Disconnected  bool `protobuf:"varint,1,opt,name=disconnected,proto3" json:"disconnected,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -467,13 +465,6 @@ func (*DisconnectExternalIdentityResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_external_identities_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *DisconnectExternalIdentityResponse) GetDisconnected() bool {
-	if x != nil {
-		return x.Disconnected
-	}
-	return false
-}
-
 var File_chatto_api_v1_external_identities_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
@@ -503,9 +494,8 @@ const file_chatto_api_v1_external_identities_proto_rawDesc = "" +
 	"\tstart_url\x18\x01 \x01(\tR\bstartUrl\"z\n" +
 	"!DisconnectExternalIdentityRequest\x12*\n" +
 	"\fsubject_hash\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\vsubjectHash\x12)\n" +
-	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"H\n" +
-	"\"DisconnectExternalIdentityResponse\x12\"\n" +
-	"\fdisconnected\x18\x01 \x01(\bR\fdisconnectedB\xb3\x01\n" +
+	"\x10current_password\x18\x02 \x01(\tR\x0fcurrentPassword\"8\n" +
+	"\"DisconnectExternalIdentityResponseJ\x04\b\x01\x10\x02R\fdisconnectedB\xb3\x01\n" +
 	"\x11com.chatto.api.v1B\x17ExternalIdentitiesProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (

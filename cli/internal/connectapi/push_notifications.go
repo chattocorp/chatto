@@ -31,7 +31,7 @@ func (s *pushNotificationService) SendTestNotification(ctx context.Context, _ *c
 	if err := s.api.core.OnPushTestRequested(ctx, caller.UserID); err != nil {
 		return nil, connect.NewError(connect.CodeUnavailable, errors.New("push notification could not be delivered"))
 	}
-	return connect.NewResponse(&apiv1.SendTestNotificationResponse{Sent: true}), nil
+	return connect.NewResponse(&apiv1.SendTestNotificationResponse{}), nil
 }
 
 func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Request[apiv1.SubscribeRequest]) (*connect.Response[apiv1.SubscribeResponse], error) {
@@ -58,7 +58,7 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribeResponse{Subscribed: true}), nil
+	return connect.NewResponse(&apiv1.SubscribeResponse{}), nil
 }
 
 func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribeRequest]) (*connect.Response[apiv1.UnsubscribeResponse], error) {
@@ -71,5 +71,5 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.UnsubscribeResponse{Unsubscribed: true}), nil
+	return connect.NewResponse(&apiv1.UnsubscribeResponse{}), nil
 }

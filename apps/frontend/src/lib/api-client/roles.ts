@@ -141,11 +141,11 @@ export function createRoleAPI(config: RoleAPIConfig) {
     },
 
     async deleteRole(name: string): Promise<boolean> {
-      const response = await adminClient.deleteRole(
+      await adminClient.deleteRole(
         { name },
         { headers: headers() },
       );
-      return response.deleted;
+      return true;
     },
   };
 }

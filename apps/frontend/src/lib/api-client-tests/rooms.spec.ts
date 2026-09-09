@@ -254,7 +254,7 @@ describe('createRoomCommandAPI', () => {
   it('uses Connect room and directory membership commands', async () => {
     mocks.joinRoom.mockResolvedValue({ room: { id: 'room-1', name: 'general' } });
     mocks.startDM.mockResolvedValue({ room: { id: 'dm-1', name: '' } });
-    mocks.leaveRoom.mockResolvedValue({ left: true });
+    mocks.leaveRoom.mockResolvedValue({});
     mocks.addMember.mockResolvedValue({
       member: {
         user: {
@@ -308,7 +308,7 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('updates typing indicators through RoomService', async () => {
-    mocks.refreshTypingIndicator.mockResolvedValue({ updated: true });
+    mocks.refreshTypingIndicator.mockResolvedValue({});
 
     const api = createRoomCommandAPI({
       baseUrl: 'https://remote.example.test/api/connect',
@@ -324,8 +324,8 @@ describe('createRoomCommandAPI', () => {
   });
 
   it('sends ban and unban commands through RoomService', async () => {
-    mocks.banMember.mockResolvedValue({ banned: true });
-    mocks.unbanMember.mockResolvedValue({ unbanned: true });
+    mocks.banMember.mockResolvedValue({});
+    mocks.unbanMember.mockResolvedValue({});
 
     const api = createRoomCommandAPI({
       baseUrl: 'https://remote.example.test/api/connect',

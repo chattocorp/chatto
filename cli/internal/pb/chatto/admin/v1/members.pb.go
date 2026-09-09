@@ -1040,9 +1040,7 @@ func (x *ClearUsernameCooldownRequest) GetUserId() string {
 
 // Result of clearing a user's username-change cooldown.
 type ClearUsernameCooldownResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the request completed.
-	Cleared       bool `protobuf:"varint,1,opt,name=cleared,proto3" json:"cleared,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1075,13 +1073,6 @@ func (x *ClearUsernameCooldownResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use ClearUsernameCooldownResponse.ProtoReflect.Descriptor instead.
 func (*ClearUsernameCooldownResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{16}
-}
-
-func (x *ClearUsernameCooldownResponse) GetCleared() bool {
-	if x != nil {
-		return x.Cleared
-	}
-	return false
 }
 
 // Request to delete a user account as a server-admin action.
@@ -1132,9 +1123,7 @@ func (x *DeleteUserRequest) GetUserId() string {
 
 // Result of deleting a user account.
 type DeleteUserResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the user was deleted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1167,13 +1156,6 @@ func (x *DeleteUserResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteUserResponse.ProtoReflect.Descriptor instead.
 func (*DeleteUserResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_members_proto_rawDescGZIP(), []int{18}
-}
-
-func (x *DeleteUserResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 var File_chatto_admin_v1_members_proto protoreflect.FileDescriptor
@@ -1247,13 +1229,11 @@ const file_chatto_admin_v1_members_proto_rawDesc = "" +
 	"\x1aChangeUserPasswordResponse\x124\n" +
 	"\x06member\x18\x01 \x01(\v2\x1c.chatto.admin.v1.AdminMemberR\x06member\"@\n" +
 	"\x1cClearUsernameCooldownRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"9\n" +
-	"\x1dClearUsernameCooldownResponse\x12\x18\n" +
-	"\acleared\x18\x01 \x01(\bR\acleared\"M\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\".\n" +
+	"\x1dClearUsernameCooldownResponseJ\x04\b\x01\x10\x02R\acleared\"M\n" +
 	"\x11DeleteUserRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userIdJ\x04\b\x02\x10\x03R\x10current_password\".\n" +
-	"\x12DeleteUserResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xe9\x06\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userIdJ\x04\b\x02\x10\x03R\x10current_password\"#\n" +
+	"\x12DeleteUserResponseJ\x04\b\x01\x10\x02R\adeleted2\xe9\x06\n" +
 	"\x10AdminUserService\x12X\n" +
 	"\vListMembers\x12#.chatto.admin.v1.ListMembersRequest\x1a$.chatto.admin.v1.ListMembersResponse\x12R\n" +
 	"\tGetMember\x12!.chatto.admin.v1.GetMemberRequest\x1a\".chatto.admin.v1.GetMemberResponse\x12d\n" +

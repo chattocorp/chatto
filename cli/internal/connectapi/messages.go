@@ -102,7 +102,7 @@ func (s *messageService) DeleteMessage(ctx context.Context, req *connect.Request
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteMessageResponse{Deleted: true}), nil
+	return connect.NewResponse(&apiv1.DeleteMessageResponse{}), nil
 }
 
 func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Request[apiv1.DeleteAttachmentRequest]) (*connect.Response[apiv1.DeleteAttachmentResponse], error) {
@@ -119,7 +119,7 @@ func (s *messageService) DeleteAttachment(ctx context.Context, req *connect.Requ
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteAttachmentResponse{Deleted: true}), nil
+	return connect.NewResponse(&apiv1.DeleteAttachmentResponse{}), nil
 }
 
 func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Request[apiv1.DeleteLinkPreviewRequest]) (*connect.Response[apiv1.DeleteLinkPreviewResponse], error) {
@@ -136,7 +136,7 @@ func (s *messageService) DeleteLinkPreview(ctx context.Context, req *connect.Req
 	}); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{Deleted: true}), nil
+	return connect.NewResponse(&apiv1.DeleteLinkPreviewResponse{}), nil
 }
 
 func (s *messageService) hydratePostedEvent(ctx context.Context, viewerID string, kind core.RoomKind, event *evtv1.Event) (*apiv1.RoomTimelineEvent, error) {

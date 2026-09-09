@@ -15,5 +15,5 @@ func (s *pushSubscriptionCleanupService) DeleteSubscription(ctx context.Context,
 	if err := s.api.core.DeletePushSubscriptionByCapability(ctx, req.Msg.GetEndpoint(), req.Msg.GetAuth(), req.Msg.GetCleanupToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&authv1.DeleteSubscriptionResponse{Completed: true}), nil
+	return connect.NewResponse(&authv1.DeleteSubscriptionResponse{}), nil
 }

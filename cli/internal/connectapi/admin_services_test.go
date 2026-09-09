@@ -374,9 +374,7 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DisconnectExternalIdentity: %v", err)
 	}
-	if !disconnected.Msg.GetDisconnected() {
-		t.Fatalf("DisconnectExternalIdentity disconnected = false")
-	}
+	requireEmptyResponse(t, disconnected.Msg)
 	found, err := env.core.GetUserByExternalIdentity(env.ctx, "discord-main", "abc123")
 	if err != nil {
 		t.Fatalf("GetUserByExternalIdentity after disconnect: %v", err)
@@ -1035,9 +1033,7 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("DeleteRole: %v", err)
 	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("DeleteRole Deleted = false, want true")
-	}
+	requireEmptyResponse(t, deleteResp.Msg)
 	if _, err := env.roles.DeleteRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.DeleteRoleRequest{Name: "triage"})); err != nil {
 		t.Fatalf("DeleteRole triage: %v", err)
 	}

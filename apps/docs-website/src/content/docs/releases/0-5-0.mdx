@@ -402,6 +402,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Commands that only reported success now return named empty responses (`{}` in
+  JSON). Clients must use RPC completion and Connect errors instead of the
+  removed success fields. Actual change indicators and counts remain. See the
+  [response migration guide](/guides/integrations/api-compatibility/#empty-command-responses-in-05).
 - Public protobuf request and response types now match their RPC names. OAuth
   admin enum types use `OauthClientSource` and `OauthClientPolicy`. Regenerate
   clients and update type references; RPC paths and JSON values are unchanged.

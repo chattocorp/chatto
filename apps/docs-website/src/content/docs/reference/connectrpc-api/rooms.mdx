@@ -301,10 +301,6 @@ Request to leave a room as the current user.
 
 Result of leaving a room.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `left` | `bool` | True when the current user is no longer an explicit member after the call. |
-
 
 <a id="chatto-api-v1-RoomService-ListMembers"></a>
 
@@ -695,10 +691,6 @@ Request to refresh the current user's live-only typing indicator.
 
 Result of refreshing a typing indicator.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `updated` | `bool` | True when the typing indicator was accepted for publish. |
-
 
 <a id="chatto-api-v1-RoomService-GetRoomEvents"></a>
 
@@ -858,10 +850,6 @@ Request to ban a member from a channel room.
 
 Result of banning a room member.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `banned` | `bool` | True when the ban operation completed. |
-
 
 <a id="chatto-api-v1-RoomService-UnbanMember"></a>
 
@@ -892,7 +880,3 @@ Request to remove a channel room ban.
 #### Result: UnbanMemberResponse
 
 Result of removing a room ban.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `unbanned` | `bool` | True when the unban operation completed. |

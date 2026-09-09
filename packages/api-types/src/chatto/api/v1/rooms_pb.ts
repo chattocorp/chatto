@@ -931,13 +931,6 @@ export class LeaveRoomRequest extends Message<LeaveRoomRequest> {
  * @generated from message chatto.api.v1.LeaveRoomResponse
  */
 export class LeaveRoomResponse extends Message<LeaveRoomResponse> {
-  /**
-   * True when the current user is no longer an explicit member after the call.
-   *
-   * @generated from field: bool left = 1;
-   */
-  left = false;
-
   constructor(data?: PartialMessage<LeaveRoomResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -946,7 +939,6 @@ export class LeaveRoomResponse extends Message<LeaveRoomResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.LeaveRoomResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "left", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): LeaveRoomResponse {
@@ -1217,13 +1209,6 @@ export class BanMemberRequest extends Message<BanMemberRequest> {
  * @generated from message chatto.api.v1.BanMemberResponse
  */
 export class BanMemberResponse extends Message<BanMemberResponse> {
-  /**
-   * True when the ban operation completed.
-   *
-   * @generated from field: bool banned = 1;
-   */
-  banned = false;
-
   constructor(data?: PartialMessage<BanMemberResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1232,7 +1217,6 @@ export class BanMemberResponse extends Message<BanMemberResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BanMemberResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "banned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BanMemberResponse {
@@ -1315,13 +1299,6 @@ export class UnbanMemberRequest extends Message<UnbanMemberRequest> {
  * @generated from message chatto.api.v1.UnbanMemberResponse
  */
 export class UnbanMemberResponse extends Message<UnbanMemberResponse> {
-  /**
-   * True when the unban operation completed.
-   *
-   * @generated from field: bool unbanned = 1;
-   */
-  unbanned = false;
-
   constructor(data?: PartialMessage<UnbanMemberResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1330,7 +1307,6 @@ export class UnbanMemberResponse extends Message<UnbanMemberResponse> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.UnbanMemberResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "unbanned", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnbanMemberResponse {
@@ -2051,13 +2027,6 @@ export class RefreshTypingIndicatorRequest extends Message<RefreshTypingIndicato
  * @generated from message chatto.api.v1.RefreshTypingIndicatorResponse
  */
 export class RefreshTypingIndicatorResponse extends Message<RefreshTypingIndicatorResponse> {
-  /**
-   * True when the typing indicator was accepted for publish.
-   *
-   * @generated from field: bool updated = 1;
-   */
-  updated = false;
-
   constructor(data?: PartialMessage<RefreshTypingIndicatorResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -2066,7 +2035,6 @@ export class RefreshTypingIndicatorResponse extends Message<RefreshTypingIndicat
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.RefreshTypingIndicatorResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "updated", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RefreshTypingIndicatorResponse {

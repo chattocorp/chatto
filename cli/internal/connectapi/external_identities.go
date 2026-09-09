@@ -160,7 +160,7 @@ func (s *externalIdentityAuthService) CancelExternalIdentityFlow(ctx context.Con
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&authv1.CancelExternalIdentityFlowResponse{Cancelled: true}), nil
+	return connect.NewResponse(&authv1.CancelExternalIdentityFlowResponse{}), nil
 }
 
 func (s *accountService) ListExternalIdentities(ctx context.Context, _ *connect.Request[apiv1.ListExternalIdentitiesRequest]) (*connect.Response[apiv1.ListExternalIdentitiesResponse], error) {
@@ -214,7 +214,7 @@ func (s *accountService) DisconnectExternalIdentity(ctx context.Context, req *co
 	if err := s.api.core.DisconnectExternalIdentity(ctx, caller.UserID, req.Msg.GetSubjectHash()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{Disconnected: true}), nil
+	return connect.NewResponse(&apiv1.DisconnectExternalIdentityResponse{}), nil
 }
 
 func apiPendingExternalIdentity(flow *core.PendingExternalIdentityFlow) *authv1.PendingExternalIdentity {

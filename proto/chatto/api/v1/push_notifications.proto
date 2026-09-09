@@ -68,8 +68,8 @@ message SubscribeRequest {
 
 // Response from storing a browser push subscription.
 message SubscribeResponse {
-  // True when the subscription was stored.
-  bool subscribed = 1;
+  reserved 1;
+  reserved "subscribed";
 }
 
 // Request to remove a browser push subscription.
@@ -83,8 +83,8 @@ message UnsubscribeRequest {
 
 // Response from removing a browser push subscription.
 message UnsubscribeResponse {
-  // True when the request completed.
-  bool unsubscribed = 1;
+  reserved 1;
+  reserved "unsubscribed";
 }
 
 // Request to test the current user's registered browser push subscriptions.
@@ -92,6 +92,6 @@ message SendTestNotificationRequest {}
 
 // Result of sending a test Web Push notification.
 message SendTestNotificationResponse {
-  // True when the push provider accepted the notification.
-  bool sent = 1;
+  reserved 1;
+  reserved "sent";
 }

@@ -87,14 +87,13 @@ export function createAccountAPI(config: AccountAPIConfig) {
     },
 
     async deleteMyAccount(confirmationToken: string): Promise<boolean> {
-      return (
-        await client.deleteMyAccount(
-          { confirmationToken },
-          {
-            headers: headers()
-          }
-        )
-      ).deleted;
+      await client.deleteMyAccount(
+        { confirmationToken },
+        {
+          headers: headers()
+        }
+      );
+      return true;
     }
   };
 }

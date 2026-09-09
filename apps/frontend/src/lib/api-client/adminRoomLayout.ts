@@ -163,8 +163,8 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
 
     async deleteRoomGroup(groupId: string): Promise<boolean> {
       try {
-        const response = await layout.deleteRoomGroup({ groupId }, { headers: headers() });
-        return response.deleted;
+        await layout.deleteRoomGroup({ groupId }, { headers: headers() });
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -284,8 +284,8 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
 
     async deleteSidebarLink(linkId: string): Promise<boolean> {
       try {
-        const response = await layout.deleteSidebarLink({ linkId }, { headers: headers() });
-        return response.deleted;
+        await layout.deleteSidebarLink({ linkId }, { headers: headers() });
+        return true;
       } catch (err) {
         return handleAuthError(config, err);
       }

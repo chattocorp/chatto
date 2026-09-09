@@ -484,10 +484,6 @@ Request to leave a room as the current user.
 
 Result of leaving a room.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `left` | `bool` | True when the current user is no longer an explicit member after the call. |
-
 
 <a id="chatto-api-v1-RoomService-ListMembers"></a>
 
@@ -878,10 +874,6 @@ Request to refresh the current user's live-only typing indicator.
 
 Result of refreshing a typing indicator.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `updated` | `bool` | True when the typing indicator was accepted for publish. |
-
 
 <a id="chatto-api-v1-RoomService-GetRoomEvents"></a>
 
@@ -1041,10 +1033,6 @@ Request to ban a member from a channel room.
 
 Result of banning a room member.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `banned` | `bool` | True when the ban operation completed. |
-
 
 <a id="chatto-api-v1-RoomService-UnbanMember"></a>
 
@@ -1075,10 +1063,6 @@ Request to remove a channel room ban.
 #### Result: UnbanMemberResponse
 
 Result of removing a room ban.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `unbanned` | `bool` | True when the unban operation completed. |
 
 
 <a id="chatto-api-v1-RoomDirectoryService"></a>
@@ -1603,10 +1587,6 @@ Request to disconnect a linked provider identity from the authenticated user.
 
 Result of disconnecting a provider identity.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `disconnected` | `bool` | True when the identity was disconnected. |
-
 
 <a id="chatto-api-v1-MyAccountService-SetPresence"></a>
 
@@ -1766,10 +1746,6 @@ Request to permanently delete the authenticated account.
 #### Result: DeleteMyAccountResponse
 
 Result of deleting the authenticated account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the account was deleted. |
 
 
 <a id="chatto-api-v1-AssetUploadService"></a>
@@ -2743,10 +2719,6 @@ Request to retract a message.
 
 Result of retracting a message.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the delete/retract request was accepted. |
-
 
 <a id="chatto-api-v1-MessageService-DeleteAttachment"></a>
 
@@ -2777,10 +2749,6 @@ Request to remove one attachment from a message.
 
 Result of removing one attachment from a message.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the attachment removal was accepted. |
-
 
 <a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
 
@@ -2810,10 +2778,6 @@ Request to remove the accepted link preview from a message.
 #### Result: DeleteLinkPreviewResponse
 
 Result of removing a link preview from a message.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when the link preview removal was accepted. |
 
 
 <a id="chatto-api-v1-MessageService-GetMessage"></a>
@@ -3382,10 +3346,6 @@ Request to store a PushSubscription returned by the browser Push API.
 
 Response from storing a browser push subscription.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `subscribed` | `bool` | True when the subscription was stored. |
-
 
 <a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
 
@@ -3416,10 +3376,6 @@ Request to remove a browser push subscription.
 
 Response from removing a browser push subscription.
 
-| Field | Type | Description |
-| --- | --- | --- |
-| `unsubscribed` | `bool` | True when the request completed. |
-
 
 <a id="chatto-api-v1-PushNotificationService-SendTestNotification"></a>
 
@@ -3445,10 +3401,6 @@ Request to test the current user's registered browser push subscriptions.
 #### Result: SendTestNotificationResponse
 
 Result of sending a test Web Push notification.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `sent` | `bool` | True when the push provider accepted the notification. |
 
 
 <a id="chatto-api-v1-ServerService"></a>

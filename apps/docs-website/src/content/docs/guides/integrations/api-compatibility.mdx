@@ -365,3 +365,33 @@ The JSON enum values, such as `OAUTH_CLIENT_POLICY_TRUSTED`, are unchanged.
 Regenerate clients and update type references. RPC paths, request and response
 fields, field numbers, and enum numbers are unchanged. Existing JSON requests
 still work. These naming changes do not change stored data.
+
+## Empty command responses in 0.5
+
+The commands below now return their named response message with no fields.
+A successful JSON response is `{}`. Stop reading the old success flag: a
+resolved RPC means success, and a failed RPC returns a Connect error.
+Regenerate clients from the 0.5 protobuf definitions.
+
+| Service | RPCs | Removed response field |
+| --- | --- | --- |
+| `MyAccountService` | `DeleteMyAccount` | `deleted` |
+| `MyAccountService` | `DisconnectExternalIdentity` | `disconnected` |
+| `MessageService` | `DeleteMessage`, `DeleteAttachment`, `DeleteLinkPreview` | `deleted` |
+| `RoomService` | `LeaveRoom` | `left` |
+| `RoomService` | `RefreshTypingIndicator` | `updated` |
+| `RoomService` | `BanMember` / `UnbanMember` | `banned` / `unbanned` |
+| `PushNotificationService` | `Subscribe` / `Unsubscribe` | `subscribed` / `unsubscribed` |
+| `PushNotificationService` | `SendTestNotification` | `sent` |
+| `AdminUserService` | `DeleteUser` / `ClearUsernameCooldown` | `deleted` / `cleared` |
+| `AdminRoleService` | `DeleteRole` | `deleted` |
+| `AdminRoomLayoutService` | `DeleteRoomGroup`, `DeleteSidebarLink` | `deleted` |
+| `ExternalIdentityAuthService` | `CancelExternalIdentityFlow` | `cancelled` |
+| `PushSubscriptionCleanupService` | `DeleteSubscription` | `completed` |
+
+Fields that report an actual change or state remain. For example,
+`DeleteNotificationOccurrence.deleted` distinguishes deletion from an item that
+was already absent, and `LeaveCall.left` reports whether a leave fact was
+recorded. Counts also remain. Empty responses do not change authorization,
+error codes, idempotency, or stored data. Capability cleanup still does not
+reveal whether a matching subscription existed.

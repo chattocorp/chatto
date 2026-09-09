@@ -876,9 +876,7 @@ func (x *DeleteRoomGroupRequest) GetGroupId() string {
 
 // Result of deleting a room group.
 type DeleteRoomGroupResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the room group was deleted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -911,13 +909,6 @@ func (x *DeleteRoomGroupResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteRoomGroupResponse.ProtoReflect.Descriptor instead.
 func (*DeleteRoomGroupResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *DeleteRoomGroupResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to replace the global room group order.
@@ -1709,9 +1700,7 @@ func (x *DeleteSidebarLinkRequest) GetLinkId() string {
 
 // Result of deleting a sidebar link.
 type DeleteSidebarLinkResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the sidebar link was deleted.
-	Deleted       bool `protobuf:"varint,1,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1744,13 +1733,6 @@ func (x *DeleteSidebarLinkResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DeleteSidebarLinkResponse.ProtoReflect.Descriptor instead.
 func (*DeleteSidebarLinkResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_room_layout_proto_rawDescGZIP(), []int{30}
-}
-
-func (x *DeleteSidebarLinkResponse) GetDeleted() bool {
-	if x != nil {
-		return x.Deleted
-	}
-	return false
 }
 
 // Request to move a sidebar link to another room group.
@@ -1904,9 +1886,8 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x17UpdateRoomGroupResponse\x12;\n" +
 	"\x05group\x18\x01 \x01(\v2%.chatto.admin.v1.AdminRoomLayoutGroupR\x05group\"<\n" +
 	"\x16DeleteRoomGroupRequest\x12\"\n" +
-	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"3\n" +
-	"\x17DeleteRoomGroupResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"Y\n" +
+	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"(\n" +
+	"\x17DeleteRoomGroupResponseJ\x04\b\x01\x10\x02R\adeleted\"Y\n" +
 	"\x18ReorderRoomGroupsRequest\x12=\n" +
 	"\x11ordered_group_ids\x18\x01 \x03(\tB\x11\xbaH\x0e\x92\x01\v\b\x01\x10\xe8\a\"\x04r\x02\x10\x01R\x0forderedGroupIds\"Z\n" +
 	"\x19ReorderRoomGroupsResponse\x12=\n" +
@@ -1952,9 +1933,8 @@ const file_chatto_admin_v1_room_layout_proto_rawDesc = "" +
 	"\x19UpdateSidebarLinkResponse\x12=\n" +
 	"\fsidebar_link\x18\x01 \x01(\v2\x1a.chatto.api.v1.SidebarLinkR\vsidebarLink\"<\n" +
 	"\x18DeleteSidebarLinkRequest\x12 \n" +
-	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\"5\n" +
-	"\x19DeleteSidebarLinkResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"e\n" +
+	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\"*\n" +
+	"\x19DeleteSidebarLinkResponseJ\x04\b\x01\x10\x02R\adeleted\"e\n" +
 	"\x1dMoveSidebarLinkToGroupRequest\x12 \n" +
 	"\alink_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06linkId\x12\"\n" +
 	"\bgroup_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"_\n" +

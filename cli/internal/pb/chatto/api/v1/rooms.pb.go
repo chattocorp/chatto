@@ -1064,9 +1064,7 @@ func (x *LeaveRoomRequest) GetRoomId() string {
 
 // Result of leaving a room.
 type LeaveRoomResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the current user is no longer an explicit member after the call.
-	Left          bool `protobuf:"varint,1,opt,name=left,proto3" json:"left,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1099,13 +1097,6 @@ func (x *LeaveRoomResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use LeaveRoomResponse.ProtoReflect.Descriptor instead.
 func (*LeaveRoomResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *LeaveRoomResponse) GetLeft() bool {
-	if x != nil {
-		return x.Left
-	}
-	return false
 }
 
 // Request to add a user to a channel room.
@@ -1385,9 +1376,7 @@ func (x *BanMemberRequest) GetExpiresAt() *timestamppb.Timestamp {
 
 // Result of banning a room member.
 type BanMemberResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the ban operation completed.
-	Banned        bool `protobuf:"varint,1,opt,name=banned,proto3" json:"banned,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1420,13 +1409,6 @@ func (x *BanMemberResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use BanMemberResponse.ProtoReflect.Descriptor instead.
 func (*BanMemberResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{23}
-}
-
-func (x *BanMemberResponse) GetBanned() bool {
-	if x != nil {
-		return x.Banned
-	}
-	return false
 }
 
 // Request to remove a channel room ban.
@@ -1495,9 +1477,7 @@ func (x *UnbanMemberRequest) GetReason() string {
 
 // Result of removing a room ban.
 type UnbanMemberResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the unban operation completed.
-	Unbanned      bool `protobuf:"varint,1,opt,name=unbanned,proto3" json:"unbanned,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1530,13 +1510,6 @@ func (x *UnbanMemberResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UnbanMemberResponse.ProtoReflect.Descriptor instead.
 func (*UnbanMemberResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{25}
-}
-
-func (x *UnbanMemberResponse) GetUnbanned() bool {
-	if x != nil {
-		return x.Unbanned
-	}
-	return false
 }
 
 // Active channel room ban with optional hydrated room and user references.
@@ -2321,9 +2294,7 @@ func (x *RefreshTypingIndicatorRequest) GetThreadRootEventId() string {
 
 // Result of refreshing a typing indicator.
 type RefreshTypingIndicatorResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the typing indicator was accepted for publish.
-	Updated       bool `protobuf:"varint,1,opt,name=updated,proto3" json:"updated,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2356,13 +2327,6 @@ func (x *RefreshTypingIndicatorResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use RefreshTypingIndicatorResponse.ProtoReflect.Descriptor instead.
 func (*RefreshTypingIndicatorResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_rooms_proto_rawDescGZIP(), []int{39}
-}
-
-func (x *RefreshTypingIndicatorResponse) GetUpdated() bool {
-	if x != nil {
-		return x.Updated
-	}
-	return false
 }
 
 var File_chatto_api_v1_rooms_proto protoreflect.FileDescriptor
@@ -2430,9 +2394,8 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x0fStartDMResponse\x12'\n" +
 	"\x04room\x18\x01 \x01(\v2\x13.chatto.api.v1.RoomR\x04room\"4\n" +
 	"\x10LeaveRoomRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
-	"\x11LeaveRoomResponse\x12\x12\n" +
-	"\x04left\x18\x01 \x01(\bR\x04left\"V\n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"\x1f\n" +
+	"\x11LeaveRoomResponseJ\x04\b\x01\x10\x02R\x04left\"V\n" +
 	"\x10AddMemberRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"K\n" +
@@ -2449,16 +2412,14 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\x06reason\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\x129\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"+\n" +
-	"\x11BanMemberResponse\x12\x16\n" +
-	"\x06banned\x18\x01 \x01(\bR\x06banned\"|\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"!\n" +
+	"\x11BanMemberResponseJ\x04\b\x01\x10\x02R\x06banned\"|\n" +
 	"\x12UnbanMemberRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12 \n" +
 	"\auser_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12\"\n" +
 	"\x06reason\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\"1\n" +
-	"\x13UnbanMemberResponse\x12\x1a\n" +
-	"\bunbanned\x18\x01 \x01(\bR\bunbanned\"\x97\x03\n" +
+	"\xbaH\ar\x05\x10\x01\x18\xe8\aR\x06reason\"%\n" +
+	"\x13UnbanMemberResponseJ\x04\b\x01\x10\x02R\bunbanned\"\x97\x03\n" +
 	"\aRoomBan\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12'\n" +
@@ -2507,9 +2468,8 @@ const file_chatto_api_v1_rooms_proto_rawDesc = "" +
 	"\adeleted\x18\x01 \x01(\bR\adeleted\"r\n" +
 	"\x1dRefreshTypingIndicatorRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12/\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\":\n" +
-	"\x1eRefreshTypingIndicatorResponse\x12\x18\n" +
-	"\aupdated\x18\x01 \x01(\bR\aupdated*N\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\"/\n" +
+	"\x1eRefreshTypingIndicatorResponseJ\x04\b\x01\x10\x02R\aupdated*N\n" +
 	"\bRoomKind\x12\x19\n" +
 	"\x15ROOM_KIND_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11ROOM_KIND_CHANNEL\x10\x01\x12\x10\n" +

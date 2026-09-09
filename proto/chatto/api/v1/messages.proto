@@ -114,8 +114,8 @@ message DeleteMessageRequest {
 
 // Result of retracting a message.
 message DeleteMessageResponse {
-  // True when the delete/retract request was accepted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to remove one attachment from a message.
@@ -130,8 +130,8 @@ message DeleteAttachmentRequest {
 
 // Result of removing one attachment from a message.
 message DeleteAttachmentResponse {
-  // True when the attachment removal was accepted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to remove the accepted link preview from a message.
@@ -146,8 +146,8 @@ message DeleteLinkPreviewRequest {
 
 // Result of removing a link preview from a message.
 message DeleteLinkPreviewResponse {
-  // True when the link preview removal was accepted.
-  bool deleted = 1;
+  reserved 1;
+  reserved "deleted";
 }
 
 // Request to read one visible message.

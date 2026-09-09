@@ -89,8 +89,8 @@ message CancelExternalIdentityFlowRequest {
 
 // Result of cancelling a pending external identity flow.
 message CancelExternalIdentityFlowResponse {
-  // True when a pending flow was removed or already absent.
-  bool cancelled = 1;
+  reserved 1;
+  reserved "cancelled";
 }
 
 // Request to confirm a pending provider link using the flow capability token.

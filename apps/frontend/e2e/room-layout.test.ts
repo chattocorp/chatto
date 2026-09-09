@@ -207,12 +207,12 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (desiredSet.has(g.id)) continue;
     const fresh = refreshedRooms.get(g.id) ?? [];
     if (fresh.length > 0) continue;
-    const response = await connectPost<{ deleted?: boolean }>(
+    const response = await connectPost<Record<string, never>>(
       page,
       'chatto.admin.v1.AdminRoomLayoutService/DeleteRoomGroup',
       { groupId: g.id }
     );
-    expect(response.deleted).toBe(true);
+    expect(response).toEqual({});
   }
 
   // Finally, force the layout's group order to match the input.

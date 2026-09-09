@@ -154,7 +154,7 @@ func (s *roleService) DeleteRole(ctx context.Context, req *connect.Request[admin
 	if err := s.api.core.AdminDeleteServerRole(ctx, caller.UserID, req.Msg.GetName()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.DeleteRoleResponse{Deleted: true}), nil
+	return connect.NewResponse(&adminv1.DeleteRoleResponse{}), nil
 }
 
 func (s *roleService) ReorderRoles(ctx context.Context, req *connect.Request[adminv1.ReorderRolesRequest]) (*connect.Response[adminv1.ReorderRolesResponse], error) {

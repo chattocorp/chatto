@@ -245,7 +245,7 @@ describe('createRoleAPI', () => {
     mocks.updateRole.mockResolvedValue({
       role: { ...apiRole, role: { ...apiRole.role, displayName: 'Support' } }
     });
-    mocks.deleteRole.mockResolvedValue({ deleted: true });
+    mocks.deleteRole.mockResolvedValue({});
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
 
     await expect(api.createRole(role)).resolves.toEqual(role);
