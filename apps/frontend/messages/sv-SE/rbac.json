@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Medlemskap i ett rum ger inga meddelandebehörigheter.",
-        "join": "Lägg till bot i #{room}",
-        "leave": "Ta bort bot från #{room}",
-        "unavailable": "Boten kan inte gå med i rummet. Kontrollera behörigheten room.join och rummets begränsningar."
+        "join": "Lägg till konto i #{room}",
+        "leave": "Ta bort konto från #{room}",
+        "unavailable": "Du kan inte ändra detta medlemskap."
       },
       "loading": "Läser in behörigheter...",
       "no_data": "Ingen data tillgänglig.",

@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Dalība istabā nepiešķir ziņojumu atļaujas.",
-        "join": "Pievienot botu istabai #{room}",
-        "leave": "Noņemt botu no istabas #{room}",
-        "unavailable": "Bots nevar pievienoties šai istabai. Pārbaudi tā room.join atļauju un istabas ierobežojumus."
+        "join": "Pievienot kontu istabai #{room}",
+        "leave": "Noņemt kontu no istabas #{room}",
+        "unavailable": "Tu nevari mainīt šo dalību."
       },
       "loading": "Notiek atļauju ielāde...",
       "no_data": "Nav pieejami dati.",

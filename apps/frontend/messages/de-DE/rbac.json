@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Die Raummitgliedschaft erteilt keine Nachrichtenberechtigungen.",
-        "join": "Bot zu #{room} hinzufügen",
-        "leave": "Bot aus #{room} entfernen",
-        "unavailable": "Der Bot kann diesem Raum nicht beitreten. Prüfe seine Berechtigung room.join und die Raumbeschränkungen."
+        "join": "Account zu #{room} hinzufügen",
+        "leave": "Account aus #{room} entfernen",
+        "unavailable": "Du kannst diese Mitgliedschaft nicht ändern."
       },
       "loading": "Berechtigungen werden geladen...",
       "no_data": "Keine Daten verfügbar.",

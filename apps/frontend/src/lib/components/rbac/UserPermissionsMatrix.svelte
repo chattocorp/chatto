@@ -9,6 +9,7 @@ rendering to `SubjectPermissionsMatrix`.
   import { onDestroy } from 'svelte';
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { loadAccountMemberships } from './accountMemberships';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { createPermissionAPI } from '$lib/api-client/permissions';
   import { toast } from '$lib/ui/toast';
@@ -49,12 +50,17 @@ rendering to `SubjectPermissionsMatrix`.
       const serverId = serverScope.serverId;
       const activeConnection = serverScope.connection;
       const activeUserId = userId;
+      const isBot = ownerCapped;
+      const canManageAccounts = serverScope.store.permissions.canAdminManageAccounts;
       return {
         queryKey: adminQueryKeys.userPermissions(serverId, activeConnection, activeUserId),
-        queryFn: ({ signal }) =>
-          activeConnection
+        queryFn: async ({ signal }) => {
+          const matrix = await activeConnection
             .getAPI(createPermissionAPI)
-            .getUserPermissionMatrix(activeUserId, { signal })
+            .getUserPermissionMatrix(activeUserId, { signal });
+          if (!matrix) return null;
+          return loadAccountMemberships(activeConnection, matrix, isBot, canManageAccounts, signal);
+        }
       };
     },
     () => queryClient
@@ -93,11 +99,11 @@ rendering to `SubjectPermissionsMatrix`.
     return { tier: 'server' };
   }
 
-  // Fence mutation feedback by server session and bot identity. Reconcile after
+  // Fence mutation feedback by server session and account identity. Reconcile after
   // both success and failure because a failed response can follow a committed write.
   async function handleMembershipChange(scope: MatrixScope, joined: boolean) {
-    if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.botMembership) return;
-    if (joined ? !scope.botMembership.canJoin : !scope.botMembership.canLeave) return;
+    if (!data || visibleUpdatingKey || scope.kind !== 'ROOM' || !scope.membership) return;
+    if (joined ? !scope.membership.canJoin : !scope.membership.canLeave) return;
     const generation = ++mutationGeneration;
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
@@ -132,7 +138,7 @@ rendering to `SubjectPermissionsMatrix`.
 
   async function handleCycle(scope: MatrixScope, permission: string, next: CellState) {
     if (!data || visibleUpdatingKey) return;
-    const refreshMembership = data.scopes.some((scope) => scope.botMembership);
+    const refreshMembership = data.scopes.some((scope) => scope.membership);
     const generation = ++mutationGeneration;
     const serverId = serverScope.serverId;
     const activeConnection = serverScope.connection;
@@ -210,7 +216,7 @@ rendering to `SubjectPermissionsMatrix`.
     {subjectKind}
     readOnly={visibleUpdatingKey !== null &&
       (decisionMode === 'tri-state' || visibleUpdatingKey.endsWith('::$membership'))}
-    onMembershipChange={ownerCapped ? handleMembershipChange : undefined}
+    onMembershipChange={handleMembershipChange}
     {decisionMode}
   />
 {/if}

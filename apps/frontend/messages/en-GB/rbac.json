@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Room membership does not grant message permissions.",
-        "join": "Add bot to #{room}",
-        "leave": "Remove bot from #{room}",
-        "unavailable": "The bot cannot join this room. Check its room.join permission and room restrictions."
+        "join": "Add account to #{room}",
+        "leave": "Remove account from #{room}",
+        "unavailable": "You cannot change this membership."
       },
       "loading": "Loading permissions...",
       "no_data": "No data available.",

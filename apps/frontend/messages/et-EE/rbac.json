@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Ruumis osalemine ei anna sõnumiõigusi.",
-        "join": "Lisa bot ruumi #{room}",
-        "leave": "Eemalda bot ruumist #{room}",
-        "unavailable": "Bot ei saa selle ruumiga liituda. Kontrolli selle room.join õigust ja ruumi piiranguid."
+        "join": "Lisa konto ruumi #{room}",
+        "leave": "Eemalda konto ruumist #{room}",
+        "unavailable": "Sa ei saa seda liikmesust muuta."
       },
       "loading": "Lubade laadimine...",
       "no_data": "Andmed puuduvad.",

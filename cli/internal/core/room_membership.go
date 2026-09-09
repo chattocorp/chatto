@@ -747,11 +747,65 @@ func (c *ChattoCore) ListRoomMemberIDsForList(ctx context.Context, actorID, room
 	return c.listRoomMemberIDsForRead(ctx, actorID, roomID, true)
 }
 
-// ListRoomMemberReferencesForLookup authorizes singular and batch member
-// hydration. Existing members and channel-room managers may hydrate rows; DMs
-// retain their membership-only privacy boundary.
+// ListRoomMemberReferencesForLookup authorizes member hydration for room members
+// and channel-room managers. DMs require membership.
 func (c *ChattoCore) ListRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string) ([]*evtv1.User, error) {
 	return c.listRoomMemberReferencesForRead(ctx, actorID, roomID, false)
+}
+
+// GetRoomMemberReferencesForLookup reads only the requested accounts. Channel
+// membership may be read by room members, room managers, account managers, and
+// managers of the requested bot. Bot ownership never exposes other members.
+// DMs retain their membership-only privacy boundary.
+func (c *ChattoCore) GetRoomMemberReferencesForLookup(ctx context.Context, actorID, roomID string, userIDs []string) ([]*evtv1.User, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		if !errors.Is(err, ErrNotRoomMember) {
+			return nil, err
+		}
+		room, err = c.FindRoomByID(ctx, roomID)
+		if err != nil {
+			return nil, err
+		}
+		kind = KindOfRoom(room)
+		if kind == KindDM {
+			return nil, ErrNotRoomMember
+		}
+		roomManager, err := c.hasRoomPermission(ctx, kind, roomID, actorID, PermRoomManage)
+		if err != nil {
+			return nil, err
+		}
+		accountManager, err := c.CanManageUserAccounts(ctx, actorID)
+		if err != nil {
+			return nil, err
+		}
+		if !roomManager && !accountManager {
+			for _, userID := range userIDs {
+				if _, err := c.requireBotManager(ctx, actorID, userID); err != nil {
+					if errors.Is(err, ErrNotFound) || errors.Is(err, ErrHumanAccountRequired) {
+						return nil, ErrPermissionDenied
+					}
+					return nil, err
+				}
+			}
+		}
+	}
+	memberIDs := make([]string, 0, len(userIDs))
+	seen := make(map[string]bool, len(userIDs))
+	for _, userID := range userIDs {
+		if seen[userID] {
+			continue
+		}
+		seen[userID] = true
+		joined, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if joined {
+			memberIDs = append(memberIDs, userID)
+		}
+	}
+	return c.userReferencesForIDs(ctx, memberIDs)
 }
 
 func (c *ChattoCore) listRoomMemberReferencesForRead(ctx context.Context, actorID, roomID string, allowDiscoverableNonmember bool) ([]*evtv1.User, error) {

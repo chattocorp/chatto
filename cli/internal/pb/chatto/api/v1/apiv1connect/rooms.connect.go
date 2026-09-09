@@ -125,23 +125,24 @@ type RoomServiceClient interface {
 	// Lists effective room members. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
-	// Gets one explicit member of a room. Existing members and room.manage
-	// holders may read channel-room members; DMs remain membership-only. Returns
-	// NOT_FOUND when the target is unknown or not a room member.
+	// Gets one effective member, including automatic universal membership.
+	// Channel-room members, room.manage holders, and user.manage-accounts holders
+	// may read members. Bot owners and bot.manage holders may read their target
+	// bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
 	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
-	// Gets explicit room member rows for multiple users. Existing members and
-	// room.manage holders may read channel-room members; DMs remain
-	// membership-only.
+	// Gets effective member rows for the requested accounts. Uses the same
+	// authorization as GetMember; omits unknown accounts and nonmembers.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. Requires room.manage,
-	// or ownership of the target bot or bot.manage. A target bot must have
-	// effective room.join, bounded by its owner's permissions. Does not change
-	// permission grants. Direct-message, universal and archived rooms are excluded.
+	// Adds an account as an explicit channel-room member. room.manage for this
+	// room or user.manage-accounts overrides the target's missing room.join.
+	// Bot owners and bot.manage holders may also add bots, but without either
+	// override the bot needs effective room.join, bounded by its owner's authority.
+	// Preserves permission grants. Bans, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
-	// Removes a user from a channel room's explicit members. Requires room.manage,
-	// or ownership of the target bot or bot.manage. Bot managers can remove bots
-	// after room.join is lost and from archived rooms. Does not change permission
-	// grants. Direct-message and universal rooms cannot be managed this way.
+	// Removes an explicit channel-room member. Requires room.manage for this room,
+	// user.manage-accounts, ownership of the target bot, or bot.manage.
+	// Removal is allowed after room.join is lost and from archived rooms.
+	// Preserves permission grants. Universal and DM membership cannot be edited.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.
@@ -530,23 +531,24 @@ type RoomServiceHandler interface {
 	// Lists effective room members. Existing members and room.manage holders may
 	// list a channel room; other nonmembers need both room.list and room.join.
 	ListMembers(context.Context, *connect.Request[v1.ListRoomMembersRequest]) (*connect.Response[v1.ListRoomMembersResponse], error)
-	// Gets one explicit member of a room. Existing members and room.manage
-	// holders may read channel-room members; DMs remain membership-only. Returns
-	// NOT_FOUND when the target is unknown or not a room member.
+	// Gets one effective member, including automatic universal membership.
+	// Channel-room members, room.manage holders, and user.manage-accounts holders
+	// may read members. Bot owners and bot.manage holders may read their target
+	// bots only. DMs require caller membership. Returns NOT_FOUND for nonmembers.
 	GetMember(context.Context, *connect.Request[v1.GetRoomMemberRequest]) (*connect.Response[v1.GetRoomMemberResponse], error)
-	// Gets explicit room member rows for multiple users. Existing members and
-	// room.manage holders may read channel-room members; DMs remain
-	// membership-only.
+	// Gets effective member rows for the requested accounts. Uses the same
+	// authorization as GetMember; omits unknown accounts and nonmembers.
 	BatchGetMembers(context.Context, *connect.Request[v1.BatchGetRoomMembersRequest]) (*connect.Response[v1.BatchGetRoomMembersResponse], error)
-	// Adds a user as an explicit member of a channel room. Requires room.manage,
-	// or ownership of the target bot or bot.manage. A target bot must have
-	// effective room.join, bounded by its owner's permissions. Does not change
-	// permission grants. Direct-message, universal and archived rooms are excluded.
+	// Adds an account as an explicit channel-room member. room.manage for this
+	// room or user.manage-accounts overrides the target's missing room.join.
+	// Bot owners and bot.manage holders may also add bots, but without either
+	// override the bot needs effective room.join, bounded by its owner's authority.
+	// Preserves permission grants. Bans, archived, universal, and DM rooms prevent adding.
 	AddMember(context.Context, *connect.Request[v1.AddMemberRequest]) (*connect.Response[v1.AddMemberResponse], error)
-	// Removes a user from a channel room's explicit members. Requires room.manage,
-	// or ownership of the target bot or bot.manage. Bot managers can remove bots
-	// after room.join is lost and from archived rooms. Does not change permission
-	// grants. Direct-message and universal rooms cannot be managed this way.
+	// Removes an explicit channel-room member. Requires room.manage for this room,
+	// user.manage-accounts, ownership of the target bot, or bot.manage.
+	// Removal is allowed after room.join is lost and from archived rooms.
+	// Preserves permission grants. Universal and DM membership cannot be edited.
 	RemoveMember(context.Context, *connect.Request[v1.RemoveMemberRequest]) (*connect.Response[v1.RemoveMemberResponse], error)
 	// Lists active channel room bans. The caller must be allowed to moderate room
 	// membership bans.

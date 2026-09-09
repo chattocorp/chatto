@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Oda üyeliği mesaj izinleri vermez.",
-        "join": "Botu #{room} odasına ekle",
-        "leave": "Botu #{room} odasından çıkar",
-        "unavailable": "Bot bu odaya katılamaz. room.join iznini ve oda kısıtlamalarını kontrol et."
+        "join": "Hesabı #{room} odasına ekle",
+        "leave": "Hesabı #{room} odasından çıkar",
+        "unavailable": "Bu üyeliği değiştiremezsin."
       },
       "loading": "İzinler yükleniyor...",
       "no_data": "Veri yok.",

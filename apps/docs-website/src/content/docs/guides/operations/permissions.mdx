@@ -16,6 +16,25 @@ The main rules are:
 - **More specific settings replace broader ones for the same user or role.** A channel uses Room, Room group, then Server. A DM uses Direct messages, then Server.
 - **`everyone` provides the default.** A user or role can override an `everyone` deny, but its allow must be at least as specific as the deny.
 
+## Manage account room membership
+
+Open a human or bot account's permission matrix. Use the **Joined** row at the
+top to add or remove that account from a channel room. Each change saves
+immediately and leaves configured permission grants unchanged.
+
+You need `user.manage-accounts` or `room.manage` for the room to manage human
+membership. Either permission lets you add an account even when that account
+has no `room.join` permission for the room. For example, a manager of room R
+can add user U to R while U cannot join R without help.
+
+Bot owners and users with `bot.manage` can also manage their bots. Without an
+account or room management override, the bot needs effective `room.join`,
+including its owner's permission ceiling. See [Bot accounts](/guides/integrations/bot-accounts/).
+
+Bans and archived rooms prevent adding accounts. You can remove an account
+after it loses `room.join`, including from archived rooms. Universal membership
+is automatic. The row does not manage DMs or grant message permissions.
+
 ## Built-in roles
 
 Every Chatto server starts with four system roles. You cannot delete them.

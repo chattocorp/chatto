@@ -215,6 +215,10 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	require.NoError(t, err)
 	room, err := env.core.CreateRoom(env.ctx, core.SystemActorID, core.KindChannel, "", "bot-room-api", "")
 	require.NoError(t, err)
+	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))
+	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err), "owner can inspect its bot before joining")
+	_, err = env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: env.viewer.Id}))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "bot ownership must not authorize human lookups")
 	add := connect.NewRequest(&apiv1.AddMemberRequest{RoomId: room.Id, UserId: bot.User.Id})
 	_, err = env.rooms.AddMember(ctx, add)
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
@@ -223,18 +227,14 @@ func TestBotOwnerMembershipThroughRoomAPI(t *testing.T) {
 	added, err := env.rooms.AddMember(ctx, add)
 	require.NoError(t, err)
 	require.NotNil(t, added.Msg.Member)
-	matrix, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: bot.User.Id}))
+	member, err := env.rooms.GetMember(ctx, connect.NewRequest(&apiv1.GetRoomMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))
 	require.NoError(t, err)
-	var membership *adminv1.BotRoomMembership
-	for _, scope := range matrix.Msg.Matrix.Scopes {
-		if scope.Id == "room:"+room.Id {
-			membership = scope.BotMembership
-		}
-	}
-	require.NotNil(t, membership)
-	require.True(t, membership.Joined)
-	require.True(t, membership.CanLeave)
-	require.False(t, membership.CanJoin)
+	require.Equal(t, bot.User.Id, member.Msg.Member.User.Id)
+	batch, err := env.rooms.BatchGetMembers(ctx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{bot.User.Id, bot.User.Id}}))
+	require.NoError(t, err)
+	require.Len(t, batch.Msg.Members, 1)
+	_, err = env.rooms.BatchGetMembers(ctx, connect.NewRequest(&apiv1.BatchGetRoomMembersRequest{RoomId: room.Id, UserIds: []string{bot.User.Id, env.viewer.Id}}))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "mixed lookups cannot expose other accounts")
 	require.NoError(t, env.core.SetUserPermissionState(env.ctx, env.viewer.Id, bot.User.Id,
 		core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.Id}, core.PermRoomJoin, core.PermissionStateNone))
 	removed, err := env.rooms.RemoveMember(ctx, connect.NewRequest(&apiv1.RemoveMemberRequest{RoomId: room.Id, UserId: bot.User.Id}))

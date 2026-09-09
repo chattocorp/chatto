@@ -51,20 +51,11 @@ export type TierRoles = {
   roles: TierRole[];
 };
 
-/** Effective bot membership and actions, independent of permission grants. */
-export type BotRoomMembership = {
-  joined: boolean;
-  automatic: boolean;
-  canJoin: boolean;
-  canLeave: boolean;
-};
-
 export type MatrixScope = {
   id: string;
   label: string;
   kind: MatrixScopeKind;
   parentGroupId: string;
-  botMembership?: BotRoomMembership;
 };
 
 export type MatrixCell = {
@@ -268,17 +259,7 @@ function matrixScope(scope: APIPermissionMatrixScope): MatrixScope {
     id: scope.id,
     label: scope.label,
     kind: scopeKind(scope.kind),
-    parentGroupId: scope.parentGroupId,
-    ...(scope.botMembership
-      ? {
-          botMembership: {
-            joined: scope.botMembership.joined,
-            automatic: scope.botMembership.automatic,
-            canJoin: scope.botMembership.canJoin,
-            canLeave: scope.botMembership.canLeave
-          }
-        }
-      : {})
+    parentGroupId: scope.parentGroupId
   };
 }
 

@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "加入聊天室不會授予訊息權限。",
-        "join": "將機器人加入 #{room}",
-        "leave": "將機器人移出 #{room}",
-        "unavailable": "機器人無法加入此聊天室。請檢查其 room.join 權限及聊天室限制。"
+        "join": "將帳號加入 #{room}",
+        "leave": "將帳號移出 #{room}",
+        "unavailable": "你無法變更此成員資格。"
       },
       "loading": "正在載入權限...",
       "no_data": "沒有可用資料。",

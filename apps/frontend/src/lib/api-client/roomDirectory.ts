@@ -125,9 +125,15 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
-    async batchGetRooms(roomIds: string[]): Promise<DirectoryRoomDetails[]> {
+    async batchGetRooms(
+      roomIds: string[],
+      options: { signal?: AbortSignal } = {}
+    ): Promise<DirectoryRoomDetails[]> {
       try {
-        const response = await directory.batchGetRooms({ roomIds }, { headers: headers() });
+        const response = await directory.batchGetRooms(
+          { roomIds },
+          { headers: headers(), signal: options.signal }
+        );
         return response.rooms.flatMap((entry) => {
           const mapped = mapDirectoryRoomDetails(entry);
           return mapped ? [mapped] : [];

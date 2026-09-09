@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "L’appartenenza a una stanza non concede permessi sui messaggi.",
-        "join": "Aggiungi il bot a #{room}",
-        "leave": "Rimuovi il bot da #{room}",
-        "unavailable": "Il bot non può entrare in questa stanza. Controlla il suo permesso room.join e le restrizioni della stanza."
+        "join": "Aggiungi l’account a #{room}",
+        "leave": "Rimuovi l’account da #{room}",
+        "unavailable": "Non puoi modificare questa appartenenza."
       },
       "loading": "Caricamento permessi...",
       "no_data": "Nessun dato disponibile.",

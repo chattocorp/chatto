@@ -361,21 +361,11 @@ func apiPermissionEntryScope(scope core.PermissionMatrixScope) *adminv1.Permissi
 func apiPermissionMatrixScopes(scopes []core.PermissionMatrixScope) []*adminv1.PermissionMatrixScope {
 	out := make([]*adminv1.PermissionMatrixScope, 0, len(scopes))
 	for _, scope := range scopes {
-		var membership *adminv1.BotRoomMembership
-		if scope.BotMembership != nil {
-			membership = &adminv1.BotRoomMembership{
-				Joined:    scope.BotMembership.Joined,
-				Automatic: scope.BotMembership.Automatic,
-				CanJoin:   scope.BotMembership.CanJoin,
-				CanLeave:  scope.BotMembership.CanLeave,
-			}
-		}
 		out = append(out, &adminv1.PermissionMatrixScope{
 			Id:            scope.ID,
 			Label:         scope.Label,
 			Kind:          apiPermissionScopeKind(scope.Kind),
 			ParentGroupId: scope.ParentGroupID,
-			BotMembership: membership,
 		})
 	}
 	return out

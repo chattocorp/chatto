@@ -17,7 +17,13 @@ its permission row and scope column. The surrounding pane owns vertical
 scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
-  import type { BotRoomMembership } from '$lib/api-client/permissions';
+  /** Client view of membership, loaded through the room APIs. */
+  export type AccountRoomMembership = {
+    joined: boolean;
+    automatic: boolean;
+    canJoin: boolean;
+    canLeave: boolean;
+  };
   import Panel from '$lib/ui/Panel.svelte';
   import { MatrixTable } from '$lib/ui/matrix';
   import { Hint } from '$lib/ui';
@@ -39,7 +45,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     label: string;
     kind: MatrixScopeKind;
     parentGroupId: string;
-    botMembership?: BotRoomMembership;
+    membership?: AccountRoomMembership;
   };
   export type MatrixCellData = {
     permission: string;
@@ -79,7 +85,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     readOnly?: boolean;
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
-    /** Enables the bot-only membership row, separate from permission cells. */
+    /** Enables the account membership row, separate from permission cells. */
     onMembershipChange?: (scope: MatrixScope, joined: boolean) => void;
   } = $props();
 
@@ -132,7 +138,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   });
   const membershipRow = '$membership';
   const showMembership = $derived(
-    Boolean(onMembershipChange) && data.scopes.some((s) => s.botMembership)
+    Boolean(onMembershipChange) && data.scopes.some((s) => s.membership)
   );
   const rows = $derived(
     showMembership ? [membershipRow, ...filteredPermissions] : filteredPermissions
@@ -248,7 +254,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       })}
       isCellInteractive={(permission, scope) =>
         permission === membershipRow
-          ? Boolean(scope.botMembership)
+          ? Boolean(scope.membership)
           : Boolean(cellFor(scope.id, permission))}
       spacerTestId="permission-matrix-spacer"
     >
@@ -289,8 +295,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       {#snippet cell(permission, scope)}
         {@const permissionId = permission}
         {@const cell = cellFor(scope.id, permission)}
-        {#if permission === membershipRow && scope.botMembership}
-          {@const membership = scope.botMembership}
+        {#if permission === membershipRow && scope.membership}
+          {@const membership = scope.membership}
           {@const action = m(
             membership.joined
               ? 'rbac.permissions.membership.leave'

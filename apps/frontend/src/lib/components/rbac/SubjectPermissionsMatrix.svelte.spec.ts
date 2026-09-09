@@ -355,7 +355,7 @@ it('puts bot membership first and keeps it separate from filtered permission row
     label: 'work',
     kind: 'ROOM' as const,
     parentGroupId: 'general',
-    botMembership: { joined: false, automatic: false, canJoin: true, canLeave: false }
+    membership: { joined: false, automatic: false, canJoin: true, canLeave: false }
   };
   const { container } = render(SubjectPermissionsMatrix, {
     props: {
@@ -377,7 +377,7 @@ it('puts bot membership first and keeps it separate from filtered permission row
     container.querySelector('td[data-scope="server"][data-permission="$membership"] button')
   ).toBeNull();
   const button = container.querySelector(
-    'button[aria-label="Add bot to #work"]'
+    'button[aria-label="Add account to #work"]'
   ) as HTMLButtonElement;
   expect(button.disabled).toBe(false);
   button.click();
@@ -388,7 +388,7 @@ it('puts bot membership first and keeps it separate from filtered permission row
   filter.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
   expect(container.querySelectorAll('[data-testid="permission-name"]')).toHaveLength(1);
-  expect(container.querySelector('button[aria-label="Add bot to #work"]')).not.toBeNull();
+  expect(container.querySelector('button[aria-label="Add account to #work"]')).not.toBeNull();
 });
 
 it.each([
@@ -402,7 +402,7 @@ it.each([
     label: 'work',
     kind: 'ROOM' as const,
     parentGroupId: '',
-    botMembership: membership
+    membership: membership
   };
   const { container } = render(SubjectPermissionsMatrix, {
     props: {

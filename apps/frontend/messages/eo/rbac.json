@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Membreco en ĉambro ne donas permesojn pri mesaĝoj.",
-        "join": "Aldoni roboton al #{room}",
-        "leave": "Forigi roboton el #{room}",
-        "unavailable": "La roboto ne povas aliĝi al ĉi tiu ĉambro. Kontrolu ĝian permeson room.join kaj la limigojn de la ĉambro."
+        "join": "Aldoni konton al #{room}",
+        "leave": "Forigi konton el #{room}",
+        "unavailable": "Vi ne povas ŝanĝi ĉi tiun membrecon."
       },
       "loading": "Ŝarĝante permesojn...",
       "no_data": "Neniuj datumoj haveblaj.",

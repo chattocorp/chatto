@@ -543,8 +543,6 @@ type PermissionMatrixScope struct {
 	Kind PermissionScopeKind `protobuf:"varint,3,opt,name=kind,proto3,enum=chatto.admin.v1.PermissionScopeKind" json:"kind,omitempty"`
 	// Parent group ID for room scopes.
 	ParentGroupId string `protobuf:"bytes,4,opt,name=parent_group_id,json=parentGroupId,proto3" json:"parent_group_id,omitempty"`
-	// Present only for channel-room scopes in a bot's user permission matrix.
-	BotMembership *BotRoomMembership `protobuf:"bytes,5,opt,name=bot_membership,json=botMembership,proto3" json:"bot_membership,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -607,88 +605,6 @@ func (x *PermissionMatrixScope) GetParentGroupId() string {
 	return ""
 }
 
-func (x *PermissionMatrixScope) GetBotMembership() *BotRoomMembership {
-	if x != nil {
-		return x.BotMembership
-	}
-	return nil
-}
-
-// A bot's current room membership and available membership actions.
-// Joining requires effective room.join, bounded by the bot owner's permissions.
-// Leaving does not require room.join. Neither action changes permission grants.
-type BotRoomMembership struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Whether the bot is currently an effective member of the room.
-	Joined bool `protobuf:"varint,1,opt,name=joined,proto3" json:"joined,omitempty"`
-	// Whether membership follows the universal room's join eligibility.
-	Automatic bool `protobuf:"varint,2,opt,name=automatic,proto3" json:"automatic,omitempty"`
-	// Whether the caller can add the bot now.
-	CanJoin bool `protobuf:"varint,3,opt,name=can_join,json=canJoin,proto3" json:"can_join,omitempty"`
-	// Whether the caller can remove the bot now.
-	CanLeave      bool `protobuf:"varint,4,opt,name=can_leave,json=canLeave,proto3" json:"can_leave,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *BotRoomMembership) Reset() {
-	*x = BotRoomMembership{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *BotRoomMembership) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*BotRoomMembership) ProtoMessage() {}
-
-func (x *BotRoomMembership) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use BotRoomMembership.ProtoReflect.Descriptor instead.
-func (*BotRoomMembership) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *BotRoomMembership) GetJoined() bool {
-	if x != nil {
-		return x.Joined
-	}
-	return false
-}
-
-func (x *BotRoomMembership) GetAutomatic() bool {
-	if x != nil {
-		return x.Automatic
-	}
-	return false
-}
-
-func (x *BotRoomMembership) GetCanJoin() bool {
-	if x != nil {
-		return x.CanJoin
-	}
-	return false
-}
-
-func (x *BotRoomMembership) GetCanLeave() bool {
-	if x != nil {
-		return x.CanLeave
-	}
-	return false
-}
-
 // Matrix cell for one permission and scope.
 type PermissionMatrixCell struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -709,7 +625,7 @@ type PermissionMatrixCell struct {
 
 func (x *PermissionMatrixCell) Reset() {
 	*x = PermissionMatrixCell{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -721,7 +637,7 @@ func (x *PermissionMatrixCell) String() string {
 func (*PermissionMatrixCell) ProtoMessage() {}
 
 func (x *PermissionMatrixCell) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[8]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -734,7 +650,7 @@ func (x *PermissionMatrixCell) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionMatrixCell.ProtoReflect.Descriptor instead.
 func (*PermissionMatrixCell) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{8}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *PermissionMatrixCell) GetPermission() string {
@@ -789,7 +705,7 @@ type RolePermissionMatrix struct {
 
 func (x *RolePermissionMatrix) Reset() {
 	*x = RolePermissionMatrix{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -801,7 +717,7 @@ func (x *RolePermissionMatrix) String() string {
 func (*RolePermissionMatrix) ProtoMessage() {}
 
 func (x *RolePermissionMatrix) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[9]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -814,7 +730,7 @@ func (x *RolePermissionMatrix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RolePermissionMatrix.ProtoReflect.Descriptor instead.
 func (*RolePermissionMatrix) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{9}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RolePermissionMatrix) GetRoleName() string {
@@ -859,7 +775,7 @@ type GetRolePermissionMatrixRequest struct {
 
 func (x *GetRolePermissionMatrixRequest) Reset() {
 	*x = GetRolePermissionMatrixRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +787,7 @@ func (x *GetRolePermissionMatrixRequest) String() string {
 func (*GetRolePermissionMatrixRequest) ProtoMessage() {}
 
 func (x *GetRolePermissionMatrixRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[10]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +800,7 @@ func (x *GetRolePermissionMatrixRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePermissionMatrixRequest.ProtoReflect.Descriptor instead.
 func (*GetRolePermissionMatrixRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{10}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetRolePermissionMatrixRequest) GetRoleName() string {
@@ -912,7 +828,7 @@ type GetRolePermissionMatrixResponse struct {
 
 func (x *GetRolePermissionMatrixResponse) Reset() {
 	*x = GetRolePermissionMatrixResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -924,7 +840,7 @@ func (x *GetRolePermissionMatrixResponse) String() string {
 func (*GetRolePermissionMatrixResponse) ProtoMessage() {}
 
 func (x *GetRolePermissionMatrixResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[11]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -937,7 +853,7 @@ func (x *GetRolePermissionMatrixResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRolePermissionMatrixResponse.ProtoReflect.Descriptor instead.
 func (*GetRolePermissionMatrixResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{11}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetRolePermissionMatrixResponse) GetMatrix() *RolePermissionMatrix {
@@ -964,7 +880,7 @@ type UserPermissionMatrix struct {
 
 func (x *UserPermissionMatrix) Reset() {
 	*x = UserPermissionMatrix{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -976,7 +892,7 @@ func (x *UserPermissionMatrix) String() string {
 func (*UserPermissionMatrix) ProtoMessage() {}
 
 func (x *UserPermissionMatrix) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[12]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -989,7 +905,7 @@ func (x *UserPermissionMatrix) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UserPermissionMatrix.ProtoReflect.Descriptor instead.
 func (*UserPermissionMatrix) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{12}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UserPermissionMatrix) GetUserId() string {
@@ -1040,7 +956,7 @@ type ScopedPermissionDecision struct {
 
 func (x *ScopedPermissionDecision) Reset() {
 	*x = ScopedPermissionDecision{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1052,7 +968,7 @@ func (x *ScopedPermissionDecision) String() string {
 func (*ScopedPermissionDecision) ProtoMessage() {}
 
 func (x *ScopedPermissionDecision) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[13]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1065,7 +981,7 @@ func (x *ScopedPermissionDecision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScopedPermissionDecision.ProtoReflect.Descriptor instead.
 func (*ScopedPermissionDecision) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{13}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ScopedPermissionDecision) GetPermission() string {
@@ -1111,7 +1027,7 @@ type PermissionDecisionUpdate struct {
 
 func (x *PermissionDecisionUpdate) Reset() {
 	*x = PermissionDecisionUpdate{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[14]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1123,7 +1039,7 @@ func (x *PermissionDecisionUpdate) String() string {
 func (*PermissionDecisionUpdate) ProtoMessage() {}
 
 func (x *PermissionDecisionUpdate) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[14]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1136,7 +1052,7 @@ func (x *PermissionDecisionUpdate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionDecisionUpdate.ProtoReflect.Descriptor instead.
 func (*PermissionDecisionUpdate) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{14}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *PermissionDecisionUpdate) GetPermission() string {
@@ -1173,7 +1089,7 @@ type ListRolePermissionDecisionsRequest struct {
 
 func (x *ListRolePermissionDecisionsRequest) Reset() {
 	*x = ListRolePermissionDecisionsRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[15]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1185,7 +1101,7 @@ func (x *ListRolePermissionDecisionsRequest) String() string {
 func (*ListRolePermissionDecisionsRequest) ProtoMessage() {}
 
 func (x *ListRolePermissionDecisionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[15]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1198,7 +1114,7 @@ func (x *ListRolePermissionDecisionsRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListRolePermissionDecisionsRequest.ProtoReflect.Descriptor instead.
 func (*ListRolePermissionDecisionsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{15}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListRolePermissionDecisionsRequest) GetRoleName() string {
@@ -1228,7 +1144,7 @@ type ListRolePermissionDecisionsResponse struct {
 
 func (x *ListRolePermissionDecisionsResponse) Reset() {
 	*x = ListRolePermissionDecisionsResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[16]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1240,7 +1156,7 @@ func (x *ListRolePermissionDecisionsResponse) String() string {
 func (*ListRolePermissionDecisionsResponse) ProtoMessage() {}
 
 func (x *ListRolePermissionDecisionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[16]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1253,7 +1169,7 @@ func (x *ListRolePermissionDecisionsResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ListRolePermissionDecisionsResponse.ProtoReflect.Descriptor instead.
 func (*ListRolePermissionDecisionsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{16}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListRolePermissionDecisionsResponse) GetRoleName() string {
@@ -1283,7 +1199,7 @@ type ListUserPermissionDecisionsRequest struct {
 
 func (x *ListUserPermissionDecisionsRequest) Reset() {
 	*x = ListUserPermissionDecisionsRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[17]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1295,7 +1211,7 @@ func (x *ListUserPermissionDecisionsRequest) String() string {
 func (*ListUserPermissionDecisionsRequest) ProtoMessage() {}
 
 func (x *ListUserPermissionDecisionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[17]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1308,7 +1224,7 @@ func (x *ListUserPermissionDecisionsRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListUserPermissionDecisionsRequest.ProtoReflect.Descriptor instead.
 func (*ListUserPermissionDecisionsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{17}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListUserPermissionDecisionsRequest) GetUserId() string {
@@ -1338,7 +1254,7 @@ type ListUserPermissionDecisionsResponse struct {
 
 func (x *ListUserPermissionDecisionsResponse) Reset() {
 	*x = ListUserPermissionDecisionsResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[18]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1350,7 +1266,7 @@ func (x *ListUserPermissionDecisionsResponse) String() string {
 func (*ListUserPermissionDecisionsResponse) ProtoMessage() {}
 
 func (x *ListUserPermissionDecisionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[18]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1363,7 +1279,7 @@ func (x *ListUserPermissionDecisionsResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use ListUserPermissionDecisionsResponse.ProtoReflect.Descriptor instead.
 func (*ListUserPermissionDecisionsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{18}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListUserPermissionDecisionsResponse) GetUserId() string {
@@ -1397,7 +1313,7 @@ type PermissionTraceEntry struct {
 
 func (x *PermissionTraceEntry) Reset() {
 	*x = PermissionTraceEntry{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[19]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1409,7 +1325,7 @@ func (x *PermissionTraceEntry) String() string {
 func (*PermissionTraceEntry) ProtoMessage() {}
 
 func (x *PermissionTraceEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[19]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1422,7 +1338,7 @@ func (x *PermissionTraceEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionTraceEntry.ProtoReflect.Descriptor instead.
 func (*PermissionTraceEntry) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{19}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PermissionTraceEntry) GetLevel() PermissionDecisionLevel {
@@ -1475,7 +1391,7 @@ type PermissionExplanation struct {
 
 func (x *PermissionExplanation) Reset() {
 	*x = PermissionExplanation{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[20]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1487,7 +1403,7 @@ func (x *PermissionExplanation) String() string {
 func (*PermissionExplanation) ProtoMessage() {}
 
 func (x *PermissionExplanation) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[20]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1500,7 +1416,7 @@ func (x *PermissionExplanation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermissionExplanation.ProtoReflect.Descriptor instead.
 func (*PermissionExplanation) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{20}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *PermissionExplanation) GetPermission() string {
@@ -1562,7 +1478,7 @@ type ExplainPermissionsRequest struct {
 
 func (x *ExplainPermissionsRequest) Reset() {
 	*x = ExplainPermissionsRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[21]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1574,7 +1490,7 @@ func (x *ExplainPermissionsRequest) String() string {
 func (*ExplainPermissionsRequest) ProtoMessage() {}
 
 func (x *ExplainPermissionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[21]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1587,7 +1503,7 @@ func (x *ExplainPermissionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainPermissionsRequest.ProtoReflect.Descriptor instead.
 func (*ExplainPermissionsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{21}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ExplainPermissionsRequest) GetUserId() string {
@@ -1622,7 +1538,7 @@ type ExplainPermissionsResponse struct {
 
 func (x *ExplainPermissionsResponse) Reset() {
 	*x = ExplainPermissionsResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[22]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1634,7 +1550,7 @@ func (x *ExplainPermissionsResponse) String() string {
 func (*ExplainPermissionsResponse) ProtoMessage() {}
 
 func (x *ExplainPermissionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[22]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1647,7 +1563,7 @@ func (x *ExplainPermissionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainPermissionsResponse.ProtoReflect.Descriptor instead.
 func (*ExplainPermissionsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{22}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ExplainPermissionsResponse) GetExplanations() []*PermissionExplanation {
@@ -1671,7 +1587,7 @@ type GetUserPermissionMatrixRequest struct {
 
 func (x *GetUserPermissionMatrixRequest) Reset() {
 	*x = GetUserPermissionMatrixRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[23]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1683,7 +1599,7 @@ func (x *GetUserPermissionMatrixRequest) String() string {
 func (*GetUserPermissionMatrixRequest) ProtoMessage() {}
 
 func (x *GetUserPermissionMatrixRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[23]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1696,7 +1612,7 @@ func (x *GetUserPermissionMatrixRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserPermissionMatrixRequest.ProtoReflect.Descriptor instead.
 func (*GetUserPermissionMatrixRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{23}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GetUserPermissionMatrixRequest) GetUserId() string {
@@ -1724,7 +1640,7 @@ type GetUserPermissionMatrixResponse struct {
 
 func (x *GetUserPermissionMatrixResponse) Reset() {
 	*x = GetUserPermissionMatrixResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[24]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1736,7 +1652,7 @@ func (x *GetUserPermissionMatrixResponse) String() string {
 func (*GetUserPermissionMatrixResponse) ProtoMessage() {}
 
 func (x *GetUserPermissionMatrixResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[24]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1749,7 +1665,7 @@ func (x *GetUserPermissionMatrixResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetUserPermissionMatrixResponse.ProtoReflect.Descriptor instead.
 func (*GetUserPermissionMatrixResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{24}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GetUserPermissionMatrixResponse) GetMatrix() *UserPermissionMatrix {
@@ -1776,7 +1692,7 @@ type SetRolePermissionRequest struct {
 
 func (x *SetRolePermissionRequest) Reset() {
 	*x = SetRolePermissionRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[25]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1788,7 +1704,7 @@ func (x *SetRolePermissionRequest) String() string {
 func (*SetRolePermissionRequest) ProtoMessage() {}
 
 func (x *SetRolePermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[25]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1801,7 +1717,7 @@ func (x *SetRolePermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRolePermissionRequest.ProtoReflect.Descriptor instead.
 func (*SetRolePermissionRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{25}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SetRolePermissionRequest) GetRoleName() string {
@@ -1843,7 +1759,7 @@ type SetRolePermissionResponse struct {
 
 func (x *SetRolePermissionResponse) Reset() {
 	*x = SetRolePermissionResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[26]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1855,7 +1771,7 @@ func (x *SetRolePermissionResponse) String() string {
 func (*SetRolePermissionResponse) ProtoMessage() {}
 
 func (x *SetRolePermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[26]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1868,7 +1784,7 @@ func (x *SetRolePermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetRolePermissionResponse.ProtoReflect.Descriptor instead.
 func (*SetRolePermissionResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{26}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *SetRolePermissionResponse) GetDecision() *PermissionDecisionUpdate {
@@ -1895,7 +1811,7 @@ type SetUserPermissionRequest struct {
 
 func (x *SetUserPermissionRequest) Reset() {
 	*x = SetUserPermissionRequest{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[27]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1907,7 +1823,7 @@ func (x *SetUserPermissionRequest) String() string {
 func (*SetUserPermissionRequest) ProtoMessage() {}
 
 func (x *SetUserPermissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[27]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1920,7 +1836,7 @@ func (x *SetUserPermissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPermissionRequest.ProtoReflect.Descriptor instead.
 func (*SetUserPermissionRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{27}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *SetUserPermissionRequest) GetUserId() string {
@@ -1962,7 +1878,7 @@ type SetUserPermissionResponse struct {
 
 func (x *SetUserPermissionResponse) Reset() {
 	*x = SetUserPermissionResponse{}
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[28]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1974,7 +1890,7 @@ func (x *SetUserPermissionResponse) String() string {
 func (*SetUserPermissionResponse) ProtoMessage() {}
 
 func (x *SetUserPermissionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[28]
+	mi := &file_chatto_admin_v1_permissions_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1987,7 +1903,7 @@ func (x *SetUserPermissionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetUserPermissionResponse.ProtoReflect.Descriptor instead.
 func (*SetUserPermissionResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{28}
+	return file_chatto_admin_v1_permissions_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *SetUserPermissionResponse) GetDecision() *PermissionDecisionUpdate {
@@ -2019,18 +1935,12 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\"GetRolePermissionTierMatrixRequest\x126\n" +
 	"\x05scope\x18\x01 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"Y\n" +
 	"#GetRolePermissionTierMatrixResponse\x122\n" +
-	"\x06matrix\x18\x01 \x01(\v2\x1a.chatto.admin.v1.TierRolesR\x06matrix\"\xea\x01\n" +
+	"\x06matrix\x18\x01 \x01(\v2\x1a.chatto.admin.v1.TierRolesR\x06matrix\"\x9f\x01\n" +
 	"\x15PermissionMatrixScope\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x128\n" +
 	"\x04kind\x18\x03 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindR\x04kind\x12&\n" +
-	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\x12I\n" +
-	"\x0ebot_membership\x18\x05 \x01(\v2\".chatto.admin.v1.BotRoomMembershipR\rbotMembership\"\x81\x01\n" +
-	"\x11BotRoomMembership\x12\x16\n" +
-	"\x06joined\x18\x01 \x01(\bR\x06joined\x12\x1c\n" +
-	"\tautomatic\x18\x02 \x01(\bR\tautomatic\x12\x19\n" +
-	"\bcan_join\x18\x03 \x01(\bR\acanJoin\x12\x1b\n" +
-	"\tcan_leave\x18\x04 \x01(\bR\bcanLeave\"\x97\x02\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\x97\x02\n" +
 	"\x14PermissionMatrixCell\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -2167,7 +2077,7 @@ func file_chatto_admin_v1_permissions_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_admin_v1_permissions_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_chatto_admin_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_chatto_admin_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 28)
 var file_chatto_admin_v1_permissions_proto_goTypes = []any{
 	(PermissionDecision)(0),                     // 0: chatto.admin.v1.PermissionDecision
 	(PermissionScopeKind)(0),                    // 1: chatto.admin.v1.PermissionScopeKind
@@ -2179,88 +2089,86 @@ var file_chatto_admin_v1_permissions_proto_goTypes = []any{
 	(*GetRolePermissionTierMatrixRequest)(nil),  // 7: chatto.admin.v1.GetRolePermissionTierMatrixRequest
 	(*GetRolePermissionTierMatrixResponse)(nil), // 8: chatto.admin.v1.GetRolePermissionTierMatrixResponse
 	(*PermissionMatrixScope)(nil),               // 9: chatto.admin.v1.PermissionMatrixScope
-	(*BotRoomMembership)(nil),                   // 10: chatto.admin.v1.BotRoomMembership
-	(*PermissionMatrixCell)(nil),                // 11: chatto.admin.v1.PermissionMatrixCell
-	(*RolePermissionMatrix)(nil),                // 12: chatto.admin.v1.RolePermissionMatrix
-	(*GetRolePermissionMatrixRequest)(nil),      // 13: chatto.admin.v1.GetRolePermissionMatrixRequest
-	(*GetRolePermissionMatrixResponse)(nil),     // 14: chatto.admin.v1.GetRolePermissionMatrixResponse
-	(*UserPermissionMatrix)(nil),                // 15: chatto.admin.v1.UserPermissionMatrix
-	(*ScopedPermissionDecision)(nil),            // 16: chatto.admin.v1.ScopedPermissionDecision
-	(*PermissionDecisionUpdate)(nil),            // 17: chatto.admin.v1.PermissionDecisionUpdate
-	(*ListRolePermissionDecisionsRequest)(nil),  // 18: chatto.admin.v1.ListRolePermissionDecisionsRequest
-	(*ListRolePermissionDecisionsResponse)(nil), // 19: chatto.admin.v1.ListRolePermissionDecisionsResponse
-	(*ListUserPermissionDecisionsRequest)(nil),  // 20: chatto.admin.v1.ListUserPermissionDecisionsRequest
-	(*ListUserPermissionDecisionsResponse)(nil), // 21: chatto.admin.v1.ListUserPermissionDecisionsResponse
-	(*PermissionTraceEntry)(nil),                // 22: chatto.admin.v1.PermissionTraceEntry
-	(*PermissionExplanation)(nil),               // 23: chatto.admin.v1.PermissionExplanation
-	(*ExplainPermissionsRequest)(nil),           // 24: chatto.admin.v1.ExplainPermissionsRequest
-	(*ExplainPermissionsResponse)(nil),          // 25: chatto.admin.v1.ExplainPermissionsResponse
-	(*GetUserPermissionMatrixRequest)(nil),      // 26: chatto.admin.v1.GetUserPermissionMatrixRequest
-	(*GetUserPermissionMatrixResponse)(nil),     // 27: chatto.admin.v1.GetUserPermissionMatrixResponse
-	(*SetRolePermissionRequest)(nil),            // 28: chatto.admin.v1.SetRolePermissionRequest
-	(*SetRolePermissionResponse)(nil),           // 29: chatto.admin.v1.SetRolePermissionResponse
-	(*SetUserPermissionRequest)(nil),            // 30: chatto.admin.v1.SetUserPermissionRequest
-	(*SetUserPermissionResponse)(nil),           // 31: chatto.admin.v1.SetUserPermissionResponse
-	(*v1.Role)(nil),                             // 32: chatto.api.v1.Role
+	(*PermissionMatrixCell)(nil),                // 10: chatto.admin.v1.PermissionMatrixCell
+	(*RolePermissionMatrix)(nil),                // 11: chatto.admin.v1.RolePermissionMatrix
+	(*GetRolePermissionMatrixRequest)(nil),      // 12: chatto.admin.v1.GetRolePermissionMatrixRequest
+	(*GetRolePermissionMatrixResponse)(nil),     // 13: chatto.admin.v1.GetRolePermissionMatrixResponse
+	(*UserPermissionMatrix)(nil),                // 14: chatto.admin.v1.UserPermissionMatrix
+	(*ScopedPermissionDecision)(nil),            // 15: chatto.admin.v1.ScopedPermissionDecision
+	(*PermissionDecisionUpdate)(nil),            // 16: chatto.admin.v1.PermissionDecisionUpdate
+	(*ListRolePermissionDecisionsRequest)(nil),  // 17: chatto.admin.v1.ListRolePermissionDecisionsRequest
+	(*ListRolePermissionDecisionsResponse)(nil), // 18: chatto.admin.v1.ListRolePermissionDecisionsResponse
+	(*ListUserPermissionDecisionsRequest)(nil),  // 19: chatto.admin.v1.ListUserPermissionDecisionsRequest
+	(*ListUserPermissionDecisionsResponse)(nil), // 20: chatto.admin.v1.ListUserPermissionDecisionsResponse
+	(*PermissionTraceEntry)(nil),                // 21: chatto.admin.v1.PermissionTraceEntry
+	(*PermissionExplanation)(nil),               // 22: chatto.admin.v1.PermissionExplanation
+	(*ExplainPermissionsRequest)(nil),           // 23: chatto.admin.v1.ExplainPermissionsRequest
+	(*ExplainPermissionsResponse)(nil),          // 24: chatto.admin.v1.ExplainPermissionsResponse
+	(*GetUserPermissionMatrixRequest)(nil),      // 25: chatto.admin.v1.GetUserPermissionMatrixRequest
+	(*GetUserPermissionMatrixResponse)(nil),     // 26: chatto.admin.v1.GetUserPermissionMatrixResponse
+	(*SetRolePermissionRequest)(nil),            // 27: chatto.admin.v1.SetRolePermissionRequest
+	(*SetRolePermissionResponse)(nil),           // 28: chatto.admin.v1.SetRolePermissionResponse
+	(*SetUserPermissionRequest)(nil),            // 29: chatto.admin.v1.SetUserPermissionRequest
+	(*SetUserPermissionResponse)(nil),           // 30: chatto.admin.v1.SetUserPermissionResponse
+	(*v1.Role)(nil),                             // 31: chatto.api.v1.Role
 }
 var file_chatto_admin_v1_permissions_proto_depIdxs = []int32{
 	1,  // 0: chatto.admin.v1.PermissionScope.kind:type_name -> chatto.admin.v1.PermissionScopeKind
 	4,  // 1: chatto.admin.v1.TierRole.override:type_name -> chatto.admin.v1.TierPermissions
-	32, // 2: chatto.admin.v1.TierRole.role:type_name -> chatto.api.v1.Role
+	31, // 2: chatto.admin.v1.TierRole.role:type_name -> chatto.api.v1.Role
 	5,  // 3: chatto.admin.v1.TierRoles.roles:type_name -> chatto.admin.v1.TierRole
 	3,  // 4: chatto.admin.v1.GetRolePermissionTierMatrixRequest.scope:type_name -> chatto.admin.v1.PermissionScope
 	6,  // 5: chatto.admin.v1.GetRolePermissionTierMatrixResponse.matrix:type_name -> chatto.admin.v1.TierRoles
 	1,  // 6: chatto.admin.v1.PermissionMatrixScope.kind:type_name -> chatto.admin.v1.PermissionScopeKind
-	10, // 7: chatto.admin.v1.PermissionMatrixScope.bot_membership:type_name -> chatto.admin.v1.BotRoomMembership
-	0,  // 8: chatto.admin.v1.PermissionMatrixCell.override:type_name -> chatto.admin.v1.PermissionDecision
-	0,  // 9: chatto.admin.v1.PermissionMatrixCell.effective:type_name -> chatto.admin.v1.PermissionDecision
-	9,  // 10: chatto.admin.v1.RolePermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
-	11, // 11: chatto.admin.v1.RolePermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
-	12, // 12: chatto.admin.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.RolePermissionMatrix
-	9,  // 13: chatto.admin.v1.UserPermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
-	11, // 14: chatto.admin.v1.UserPermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
-	3,  // 15: chatto.admin.v1.ScopedPermissionDecision.scope:type_name -> chatto.admin.v1.PermissionScope
-	0,  // 16: chatto.admin.v1.ScopedPermissionDecision.override:type_name -> chatto.admin.v1.PermissionDecision
-	0,  // 17: chatto.admin.v1.ScopedPermissionDecision.effective:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 18: chatto.admin.v1.PermissionDecisionUpdate.scope:type_name -> chatto.admin.v1.PermissionScope
-	0,  // 19: chatto.admin.v1.PermissionDecisionUpdate.decision:type_name -> chatto.admin.v1.PermissionDecision
-	16, // 20: chatto.admin.v1.ListRolePermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
-	16, // 21: chatto.admin.v1.ListUserPermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
-	2,  // 22: chatto.admin.v1.PermissionTraceEntry.level:type_name -> chatto.admin.v1.PermissionDecisionLevel
-	0,  // 23: chatto.admin.v1.PermissionTraceEntry.decision:type_name -> chatto.admin.v1.PermissionDecision
-	0,  // 24: chatto.admin.v1.PermissionExplanation.state:type_name -> chatto.admin.v1.PermissionDecision
-	2,  // 25: chatto.admin.v1.PermissionExplanation.decided_at:type_name -> chatto.admin.v1.PermissionDecisionLevel
-	22, // 26: chatto.admin.v1.PermissionExplanation.trace:type_name -> chatto.admin.v1.PermissionTraceEntry
-	3,  // 27: chatto.admin.v1.ExplainPermissionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	23, // 28: chatto.admin.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.admin.v1.PermissionExplanation
-	15, // 29: chatto.admin.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.UserPermissionMatrix
-	0,  // 30: chatto.admin.v1.SetRolePermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 31: chatto.admin.v1.SetRolePermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	17, // 32: chatto.admin.v1.SetRolePermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
-	0,  // 33: chatto.admin.v1.SetUserPermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 34: chatto.admin.v1.SetUserPermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	17, // 35: chatto.admin.v1.SetUserPermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
-	7,  // 36: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:input_type -> chatto.admin.v1.GetRolePermissionTierMatrixRequest
-	13, // 37: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:input_type -> chatto.admin.v1.GetRolePermissionMatrixRequest
-	18, // 38: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:input_type -> chatto.admin.v1.ListRolePermissionDecisionsRequest
-	26, // 39: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:input_type -> chatto.admin.v1.GetUserPermissionMatrixRequest
-	20, // 40: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:input_type -> chatto.admin.v1.ListUserPermissionDecisionsRequest
-	24, // 41: chatto.admin.v1.AdminPermissionService.ExplainPermissions:input_type -> chatto.admin.v1.ExplainPermissionsRequest
-	28, // 42: chatto.admin.v1.AdminPermissionService.SetRolePermission:input_type -> chatto.admin.v1.SetRolePermissionRequest
-	30, // 43: chatto.admin.v1.AdminPermissionService.SetUserPermission:input_type -> chatto.admin.v1.SetUserPermissionRequest
-	8,  // 44: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:output_type -> chatto.admin.v1.GetRolePermissionTierMatrixResponse
-	14, // 45: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:output_type -> chatto.admin.v1.GetRolePermissionMatrixResponse
-	19, // 46: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:output_type -> chatto.admin.v1.ListRolePermissionDecisionsResponse
-	27, // 47: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:output_type -> chatto.admin.v1.GetUserPermissionMatrixResponse
-	21, // 48: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:output_type -> chatto.admin.v1.ListUserPermissionDecisionsResponse
-	25, // 49: chatto.admin.v1.AdminPermissionService.ExplainPermissions:output_type -> chatto.admin.v1.ExplainPermissionsResponse
-	29, // 50: chatto.admin.v1.AdminPermissionService.SetRolePermission:output_type -> chatto.admin.v1.SetRolePermissionResponse
-	31, // 51: chatto.admin.v1.AdminPermissionService.SetUserPermission:output_type -> chatto.admin.v1.SetUserPermissionResponse
-	44, // [44:52] is the sub-list for method output_type
-	36, // [36:44] is the sub-list for method input_type
-	36, // [36:36] is the sub-list for extension type_name
-	36, // [36:36] is the sub-list for extension extendee
-	0,  // [0:36] is the sub-list for field type_name
+	0,  // 7: chatto.admin.v1.PermissionMatrixCell.override:type_name -> chatto.admin.v1.PermissionDecision
+	0,  // 8: chatto.admin.v1.PermissionMatrixCell.effective:type_name -> chatto.admin.v1.PermissionDecision
+	9,  // 9: chatto.admin.v1.RolePermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
+	10, // 10: chatto.admin.v1.RolePermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
+	11, // 11: chatto.admin.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.RolePermissionMatrix
+	9,  // 12: chatto.admin.v1.UserPermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
+	10, // 13: chatto.admin.v1.UserPermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
+	3,  // 14: chatto.admin.v1.ScopedPermissionDecision.scope:type_name -> chatto.admin.v1.PermissionScope
+	0,  // 15: chatto.admin.v1.ScopedPermissionDecision.override:type_name -> chatto.admin.v1.PermissionDecision
+	0,  // 16: chatto.admin.v1.ScopedPermissionDecision.effective:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 17: chatto.admin.v1.PermissionDecisionUpdate.scope:type_name -> chatto.admin.v1.PermissionScope
+	0,  // 18: chatto.admin.v1.PermissionDecisionUpdate.decision:type_name -> chatto.admin.v1.PermissionDecision
+	15, // 19: chatto.admin.v1.ListRolePermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
+	15, // 20: chatto.admin.v1.ListUserPermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
+	2,  // 21: chatto.admin.v1.PermissionTraceEntry.level:type_name -> chatto.admin.v1.PermissionDecisionLevel
+	0,  // 22: chatto.admin.v1.PermissionTraceEntry.decision:type_name -> chatto.admin.v1.PermissionDecision
+	0,  // 23: chatto.admin.v1.PermissionExplanation.state:type_name -> chatto.admin.v1.PermissionDecision
+	2,  // 24: chatto.admin.v1.PermissionExplanation.decided_at:type_name -> chatto.admin.v1.PermissionDecisionLevel
+	21, // 25: chatto.admin.v1.PermissionExplanation.trace:type_name -> chatto.admin.v1.PermissionTraceEntry
+	3,  // 26: chatto.admin.v1.ExplainPermissionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	22, // 27: chatto.admin.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.admin.v1.PermissionExplanation
+	14, // 28: chatto.admin.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.UserPermissionMatrix
+	0,  // 29: chatto.admin.v1.SetRolePermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 30: chatto.admin.v1.SetRolePermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	16, // 31: chatto.admin.v1.SetRolePermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
+	0,  // 32: chatto.admin.v1.SetUserPermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 33: chatto.admin.v1.SetUserPermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	16, // 34: chatto.admin.v1.SetUserPermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
+	7,  // 35: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:input_type -> chatto.admin.v1.GetRolePermissionTierMatrixRequest
+	12, // 36: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:input_type -> chatto.admin.v1.GetRolePermissionMatrixRequest
+	17, // 37: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:input_type -> chatto.admin.v1.ListRolePermissionDecisionsRequest
+	25, // 38: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:input_type -> chatto.admin.v1.GetUserPermissionMatrixRequest
+	19, // 39: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:input_type -> chatto.admin.v1.ListUserPermissionDecisionsRequest
+	23, // 40: chatto.admin.v1.AdminPermissionService.ExplainPermissions:input_type -> chatto.admin.v1.ExplainPermissionsRequest
+	27, // 41: chatto.admin.v1.AdminPermissionService.SetRolePermission:input_type -> chatto.admin.v1.SetRolePermissionRequest
+	29, // 42: chatto.admin.v1.AdminPermissionService.SetUserPermission:input_type -> chatto.admin.v1.SetUserPermissionRequest
+	8,  // 43: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:output_type -> chatto.admin.v1.GetRolePermissionTierMatrixResponse
+	13, // 44: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:output_type -> chatto.admin.v1.GetRolePermissionMatrixResponse
+	18, // 45: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:output_type -> chatto.admin.v1.ListRolePermissionDecisionsResponse
+	26, // 46: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:output_type -> chatto.admin.v1.GetUserPermissionMatrixResponse
+	20, // 47: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:output_type -> chatto.admin.v1.ListUserPermissionDecisionsResponse
+	24, // 48: chatto.admin.v1.AdminPermissionService.ExplainPermissions:output_type -> chatto.admin.v1.ExplainPermissionsResponse
+	28, // 49: chatto.admin.v1.AdminPermissionService.SetRolePermission:output_type -> chatto.admin.v1.SetRolePermissionResponse
+	30, // 50: chatto.admin.v1.AdminPermissionService.SetUserPermission:output_type -> chatto.admin.v1.SetUserPermissionResponse
+	43, // [43:51] is the sub-list for method output_type
+	35, // [35:43] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_permissions_proto_init() }
@@ -2268,14 +2176,14 @@ func file_chatto_admin_v1_permissions_proto_init() {
 	if File_chatto_admin_v1_permissions_proto != nil {
 		return
 	}
-	file_chatto_admin_v1_permissions_proto_msgTypes[8].OneofWrappers = []any{}
+	file_chatto_admin_v1_permissions_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_admin_v1_permissions_proto_rawDesc), len(file_chatto_admin_v1_permissions_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   29,
+			NumMessages:   28,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

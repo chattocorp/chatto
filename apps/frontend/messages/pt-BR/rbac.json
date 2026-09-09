@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Participar de uma sala não concede permissões de mensagens.",
-        "join": "Adicionar bot a #{room}",
-        "leave": "Remover bot de #{room}",
-        "unavailable": "O bot não pode entrar nesta sala. Verifique a permissão room.join e as restrições da sala."
+        "join": "Adicionar conta a #{room}",
+        "leave": "Remover conta de #{room}",
+        "unavailable": "Você não pode alterar esta participação."
       },
       "loading": "Carregando permissões...",
       "no_data": "Nenhum dado disponível.",

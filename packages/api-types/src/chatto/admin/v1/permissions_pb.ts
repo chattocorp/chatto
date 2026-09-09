@@ -477,13 +477,6 @@ export class PermissionMatrixScope extends Message<PermissionMatrixScope> {
    */
   parentGroupId = "";
 
-  /**
-   * Present only for channel-room scopes in a bot's user permission matrix.
-   *
-   * @generated from field: chatto.admin.v1.BotRoomMembership bot_membership = 5;
-   */
-  botMembership?: BotRoomMembership;
-
   constructor(data?: PartialMessage<PermissionMatrixScope>) {
     super();
     proto3.util.initPartial(data, this);
@@ -496,7 +489,6 @@ export class PermissionMatrixScope extends Message<PermissionMatrixScope> {
     { no: 2, name: "label", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "kind", kind: "enum", T: proto3.getEnumType(PermissionScopeKind) },
     { no: 4, name: "parent_group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 5, name: "bot_membership", kind: "message", T: BotRoomMembership },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixScope {
@@ -513,73 +505,6 @@ export class PermissionMatrixScope extends Message<PermissionMatrixScope> {
 
   static equals(a: PermissionMatrixScope | PlainMessage<PermissionMatrixScope> | undefined, b: PermissionMatrixScope | PlainMessage<PermissionMatrixScope> | undefined): boolean {
     return proto3.util.equals(PermissionMatrixScope, a, b);
-  }
-}
-
-/**
- * A bot's current room membership and available membership actions.
- * Joining requires effective room.join, bounded by the bot owner's permissions.
- * Leaving does not require room.join. Neither action changes permission grants.
- *
- * @generated from message chatto.admin.v1.BotRoomMembership
- */
-export class BotRoomMembership extends Message<BotRoomMembership> {
-  /**
-   * Whether the bot is currently an effective member of the room.
-   *
-   * @generated from field: bool joined = 1;
-   */
-  joined = false;
-
-  /**
-   * Whether membership follows the universal room's join eligibility.
-   *
-   * @generated from field: bool automatic = 2;
-   */
-  automatic = false;
-
-  /**
-   * Whether the caller can add the bot now.
-   *
-   * @generated from field: bool can_join = 3;
-   */
-  canJoin = false;
-
-  /**
-   * Whether the caller can remove the bot now.
-   *
-   * @generated from field: bool can_leave = 4;
-   */
-  canLeave = false;
-
-  constructor(data?: PartialMessage<BotRoomMembership>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.BotRoomMembership";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "joined", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "automatic", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 3, name: "can_join", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 4, name: "can_leave", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BotRoomMembership {
-    return new BotRoomMembership().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BotRoomMembership {
-    return new BotRoomMembership().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BotRoomMembership {
-    return new BotRoomMembership().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: BotRoomMembership | PlainMessage<BotRoomMembership> | undefined, b: BotRoomMembership | PlainMessage<BotRoomMembership> | undefined): boolean {
-    return proto3.util.equals(BotRoomMembership, a, b);
   }
 }
 

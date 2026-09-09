@@ -92,22 +92,6 @@ message PermissionMatrixScope {
   PermissionScopeKind kind = 3;
   // Parent group ID for room scopes.
   string parent_group_id = 4;
-  // Present only for channel-room scopes in a bot's user permission matrix.
-  BotRoomMembership bot_membership = 5;
-}
-
-// A bot's current room membership and available membership actions.
-// Joining requires effective room.join, bounded by the bot owner's permissions.
-// Leaving does not require room.join. Neither action changes permission grants.
-message BotRoomMembership {
-  // Whether the bot is currently an effective member of the room.
-  bool joined = 1;
-  // Whether membership follows the universal room's join eligibility.
-  bool automatic = 2;
-  // Whether the caller can add the bot now.
-  bool can_join = 3;
-  // Whether the caller can remove the bot now.
-  bool can_leave = 4;
 }
 
 // Matrix cell for one permission and scope.

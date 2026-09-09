@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "加入聊天室不会授予消息权限。",
-        "join": "将机器人加入 #{room}",
-        "leave": "将机器人移出 #{room}",
-        "unavailable": "机器人无法加入此聊天室。请检查其 room.join 权限及聊天室限制。"
+        "join": "将账户加入 #{room}",
+        "leave": "将账户移出 #{room}",
+        "unavailable": "你无法更改此成员资格。"
       },
       "loading": "正在加载权限...",
       "no_data": "暂无数据。",

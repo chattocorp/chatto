@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "L’appartenance à un salon n’accorde pas de permissions sur les messages.",
-        "join": "Ajouter le bot à #{room}",
-        "leave": "Retirer le bot de #{room}",
-        "unavailable": "Le bot ne peut pas rejoindre ce salon. Vérifie sa permission room.join et les restrictions du salon."
+        "join": "Ajouter le compte à #{room}",
+        "leave": "Retirer le compte de #{room}",
+        "unavailable": "Tu ne peux pas modifier cette appartenance."
       },
       "loading": "Chargement des autorisations...",
       "no_data": "Aucune donnée disponible.",

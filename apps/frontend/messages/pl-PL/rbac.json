@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Członkostwo w pokoju nie nadaje uprawnień do wiadomości.",
-        "join": "Dodaj bota do #{room}",
-        "leave": "Usuń bota z #{room}",
-        "unavailable": "Bot nie może dołączyć do tego pokoju. Sprawdź jego uprawnienie room.join i ograniczenia pokoju."
+        "join": "Dodaj konto do #{room}",
+        "leave": "Usuń konto z #{room}",
+        "unavailable": "Nie możesz zmienić tego członkostwa."
       },
       "loading": "Ładowanie uprawnień...",
       "no_data": "Brak dostępnych danych.",

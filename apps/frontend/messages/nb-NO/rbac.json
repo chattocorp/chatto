@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Medlemskap i et rom gir ikke meldingstillatelser.",
-        "join": "Legg til bot i #{room}",
-        "leave": "Fjern bot fra #{room}",
-        "unavailable": "Boten kan ikke bli med i dette rommet. Kontroller tillatelsen room.join og rommets begrensninger."
+        "join": "Legg til konto i #{room}",
+        "leave": "Fjern konto fra #{room}",
+        "unavailable": "Du kan ikke endre dette medlemskapet."
       },
       "loading": "Laster inn tillatelser...",
       "no_data": "Ingen data tilgjengelig.",

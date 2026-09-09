@@ -29,9 +29,9 @@
     "permissions": {
       "membership": {
         "description": "Lidmaatschap van een ruimte geeft geen berichtrechten.",
-        "join": "Bot toevoegen aan #{room}",
-        "leave": "Bot verwijderen uit #{room}",
-        "unavailable": "De bot kan niet deelnemen aan deze ruimte. Controleer de machtiging room.join en de ruimtebeperkingen."
+        "join": "Account toevoegen aan #{room}",
+        "leave": "Account verwijderen uit #{room}",
+        "unavailable": "Je kunt dit lidmaatschap niet wijzigen."
       },
       "loading": "Rechten laden...",
       "no_data": "Geen gegevens beschikbaar.",
