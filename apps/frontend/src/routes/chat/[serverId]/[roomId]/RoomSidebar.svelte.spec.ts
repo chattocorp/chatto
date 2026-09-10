@@ -589,7 +589,7 @@ describe('RoomSidebar', () => {
     expect(memberList?.getAttribute('aria-busy')).toBe('true');
     expect(memberList?.querySelector('.skeleton')).toBeNull();
     expect(memberList?.textContent).not.toContain('No members found.');
-    expect(q(container, 'h1')?.querySelector('.skeleton')).toBeNull();
+    expect(q(container, 'h1')?.textContent).toBe('Members');
   });
 
   it('shows the exact total count and eagerly loads all member pages', async () => {

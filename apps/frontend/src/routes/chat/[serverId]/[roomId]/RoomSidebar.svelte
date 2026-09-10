@@ -110,9 +110,17 @@ calls, and similar room-specific panels can plug into the same shell. See the
   const members = $derived(membersStore.filteredMembers);
   const allMembers = $derived(membersStore.members);
   const memberCount = $derived(membersStore.totalCount);
+  const membersPending = $derived(
+    !membersStore.hasFirstPage &&
+      (loading || membersStore.isInitialLoading || membersStore.loadError === null)
+  );
   const title = $derived.by(() => {
     if (activeProfileUserId) return m('chat.profile.title');
-    if (activePanel === 'members') return m('room.sidebar.members_title', { count: memberCount });
+    if (activePanel === 'members') {
+      return membersPending
+        ? m('room.sidebar.members')
+        : m('room.sidebar.members_title', { count: memberCount });
+    }
     if (activePanel === 'search') return m('search.in_room');
     if (activePanel === 'files') return m('room.sidebar.files');
     if (activePanel === 'pins') return m('room.sidebar.pins');
@@ -460,9 +468,9 @@ calls, and similar room-specific panels can plug into the same shell. See the
       >
         <nav
           aria-label={m('room.sidebar.members')}
-          aria-busy={(loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
+          aria-busy={membersPending}
         >
-          {#if !((loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage)}
+          {#if !membersPending}
             {#if members.length === 0}
               <div class="px-2 py-8 text-center text-sm text-muted">
                 {m('room.sidebar.no_members')}
