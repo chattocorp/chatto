@@ -225,7 +225,7 @@
 
   <div
     data-testid="composer-input-surface"
-    class="@container relative flex min-h-12 min-w-0 items-end gap-1 composer-surface px-2.5 py-1.5"
+    class="@container relative flex min-w-0 items-end gap-1 chat-input-surface px-2.5 py-1.5"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
