@@ -955,9 +955,6 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FollowThread: %v", err)
 	}
-	if !followResp.Msg.Following {
-		t.Fatalf("FollowThread following = false, want true")
-	}
 	if state := followResp.Msg.GetState(); state.GetRoomId() != room.Id || state.GetThreadRootEventId() != root.Id || !state.GetFollowing() {
 		t.Fatalf("FollowThread state = %+v, want current followed thread", state)
 	}
@@ -975,9 +972,6 @@ func TestThreadServiceRequiresMembershipAndTogglesFollowState(t *testing.T) {
 	}))
 	if err != nil {
 		t.Fatalf("UnfollowThread: %v", err)
-	}
-	if unfollowResp.Msg.Following {
-		t.Fatalf("UnfollowThread following = true, want false")
 	}
 	if state := unfollowResp.Msg.GetState(); state.GetRoomId() != room.Id || state.GetThreadRootEventId() != root.Id || state.GetFollowing() {
 		t.Fatalf("UnfollowThread state = %+v, want current unfollowed thread", state)

@@ -206,7 +206,6 @@ describe('createThreadAPI', () => {
 
   it('follows a thread with bearer auth', async () => {
     mocks.followThread.mockResolvedValue({
-      following: true,
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: true }
     });
 
@@ -234,14 +233,12 @@ describe('createThreadAPI', () => {
       }
     );
     expect(result).toEqual({
-      following: true,
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: true }
     });
   });
 
   it('unfollows a thread without auth headers when no token is available', async () => {
     mocks.unfollowThread.mockResolvedValue({
-      following: false,
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: false }
     });
 
@@ -264,7 +261,6 @@ describe('createThreadAPI', () => {
       }
     );
     expect(result).toEqual({
-      following: false,
       state: { roomId: 'room-1', threadRootEventId: 'root-1', following: false }
     });
   });

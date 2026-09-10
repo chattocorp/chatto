@@ -44,8 +44,7 @@ func (s *threadService) FollowThread(ctx context.Context, req *connect.Request[a
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.FollowThreadResponse{
-		Following: true,
-		State:     threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, true),
+		State: threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, true),
 	}), nil
 }
 
@@ -58,8 +57,7 @@ func (s *threadService) UnfollowThread(ctx context.Context, req *connect.Request
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.UnfollowThreadResponse{
-		Following: false,
-		State:     threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, false),
+		State: threadFollowState(req.Msg.RoomId, req.Msg.ThreadRootEventId, false),
 	}), nil
 }
 

@@ -144,8 +144,6 @@ func (x *FollowThreadRequest) GetThreadRootEventId() string {
 // Result of following a thread.
 type FollowThreadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the current user follows the thread after the operation.
-	Following bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
 	// Current follow state after the operation.
 	State         *ThreadFollowState `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -180,13 +178,6 @@ func (x *FollowThreadResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use FollowThreadResponse.ProtoReflect.Descriptor instead.
 func (*FollowThreadResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{2}
-}
-
-func (x *FollowThreadResponse) GetFollowing() bool {
-	if x != nil {
-		return x.Following
-	}
-	return false
 }
 
 func (x *FollowThreadResponse) GetState() *ThreadFollowState {
@@ -254,8 +245,6 @@ func (x *UnfollowThreadRequest) GetThreadRootEventId() string {
 // Result of unfollowing a thread.
 type UnfollowThreadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the current user follows the thread after the operation.
-	Following bool `protobuf:"varint,1,opt,name=following,proto3" json:"following,omitempty"`
 	// Current follow state after the operation.
 	State         *ThreadFollowState `protobuf:"bytes,2,opt,name=state,proto3" json:"state,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -290,13 +279,6 @@ func (x *UnfollowThreadResponse) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UnfollowThreadResponse.ProtoReflect.Descriptor instead.
 func (*UnfollowThreadResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_threads_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *UnfollowThreadResponse) GetFollowing() bool {
-	if x != nil {
-		return x.Following
-	}
-	return false
 }
 
 func (x *UnfollowThreadResponse) GetState() *ThreadFollowState {
@@ -521,16 +503,14 @@ const file_chatto_api_v1_threads_proto_rawDesc = "" +
 	"\tfollowing\x18\x03 \x01(\bR\tfollowing\"q\n" +
 	"\x13FollowThreadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"l\n" +
-	"\x14FollowThreadResponse\x12\x1c\n" +
-	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
-	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"s\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"_\n" +
+	"\x14FollowThreadResponse\x126\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05stateJ\x04\b\x01\x10\x02R\tfollowing\"s\n" +
 	"\x15UnfollowThreadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
-	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"n\n" +
-	"\x16UnfollowThreadResponse\x12\x1c\n" +
-	"\tfollowing\x18\x01 \x01(\bR\tfollowing\x126\n" +
-	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05state\"\x98\x03\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"a\n" +
+	"\x16UnfollowThreadResponse\x126\n" +
+	"\x05state\x18\x02 \x01(\v2 .chatto.api.v1.ThreadFollowStateR\x05stateJ\x04\b\x01\x10\x02R\tfollowing\"\x98\x03\n" +
 	"\x0eFollowedThread\x129\n" +
 	"\froot_message\x18\x04 \x01(\v2\x16.chatto.api.v1.MessageR\vrootMessage\x12.\n" +
 	"\x04room\x18\b \x01(\v2\x1a.chatto.api.v1.RoomSummaryR\x04room\x124\n" +

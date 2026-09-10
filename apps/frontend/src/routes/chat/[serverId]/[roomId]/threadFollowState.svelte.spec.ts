@@ -1,4 +1,5 @@
 import { flushSync } from 'svelte';
+import type { ThreadFollowResult } from '$lib/api-client/threads';
 import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
 import { ThreadFollowState, type ThreadFollowSnapshot } from './threadFollowState.svelte';
@@ -26,8 +27,8 @@ function setup(
     following: false
   }
 ) {
-  const followRequest = deferred<{ following: boolean }>();
-  const unfollowRequest = deferred<{ following: boolean }>();
+  const followRequest = deferred<ThreadFollowResult>();
+  const unfollowRequest = deferred<ThreadFollowResult>();
   const api = {
     followThread: vi.fn(() => followRequest.promise),
     unfollowThread: vi.fn(() => unfollowRequest.promise)
@@ -83,12 +84,23 @@ describe('ThreadFollowState', () => {
       threadRootEventId: 'thread-1'
     });
 
-    followRequest.resolve({ following: true });
+    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
     await request;
 
     expect(state.following).toBe(true);
     expect(state.pending).toBe(false);
     expect(commit).toHaveBeenCalledWith({ roomId: 'room-1', threadRootEventId: 'thread-1' }, true);
+  });
+
+  it('rolls back when the response has no follow state', async () => {
+    const { followRequest, rollback, commit, state } = setup();
+    const request = state.toggle();
+    followRequest.resolve({ state: null });
+    await request;
+    expect(state.following).toBe(false);
+    expect(state.pending).toBe(false);
+    expect(rollback).toHaveBeenCalledOnce();
+    expect(commit).not.toHaveBeenCalled();
   });
 
   it('rolls an optimistic update back when the request fails', async () => {
@@ -133,7 +145,7 @@ describe('ThreadFollowState', () => {
     expect(state.following).toBe(false);
     expect(api.unfollowThread).toHaveBeenCalledOnce();
 
-    unfollowRequest.resolve({ following: false });
+    unfollowRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: false } });
     await request;
     expect(state.following).toBe(false);
     expect(state.pending).toBe(false);
@@ -143,7 +155,7 @@ describe('ThreadFollowState', () => {
     const { followRequest, setSnapshot, state } = setup();
 
     const request = state.toggle();
-    followRequest.resolve({ following: true });
+    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
     await request;
 
     setSnapshot({
@@ -182,7 +194,7 @@ describe('ThreadFollowState', () => {
     expect(state.pending).toBe(false);
     expect(rollback).toHaveBeenCalledOnce();
 
-    followRequest.resolve({ following: true });
+    followRequest.resolve({ state: { roomId: 'room-1', threadRootEventId: 'thread-1', following: true } });
     await request;
 
     expect(state.following).toBe(true);

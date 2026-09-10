@@ -39,10 +39,11 @@ export class ThreadFollowState {
       const api = this.#options.getConnection().getAPI(createThreadAPI);
       const result = await (wasFollowing ? api.unfollowThread : api.followThread)(target);
       if (requestId !== this.#request.id) return;
+      if (!result.state) throw new Error('Thread follow response has no state');
       this.#request.optimistic = undefined;
       this.pending = false;
-      this.following = result.following;
-      this.#options.commit?.(target, result.following);
+      this.following = result.state.following;
+      this.#options.commit?.(target, result.state.following);
     } catch {
       if (requestId !== this.#request.id) return;
       this.pending = false;
