@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-09-09
+**Last reviewed:** 2026-09-10
 
 ## Overview
 
@@ -59,8 +59,10 @@ archive and unarchive facts change it. The room keeps its event history and
 members; active-room discovery filters on `archived: false`.
 `RoomDirectoryService.ListRooms` accepts an explicit archive filter for clients
 that need the archive. The room-kind scope and archive filter both apply.
-The list retains its complete navigation-snapshot response; it does not
-introduce a page limit that would truncate existing callers' room lists.
+Integrations read the directory in bounded pages, ordered by room ID. Counts
+include only visible rooms that match the filters. Clients that need a complete
+list collect all pages before replacing local state. Ordered room groups and
+realtime navigation snapshots remain complete.
 **Why:** Archive's purpose is "stop showing this room everywhere, but don't lose the history". A full archived-rooms-elsewhere migration would mean different code paths for archived rooms, divergent reads, and a hard road back to active state. A flag is enough.
 **Tradeoff:** Every "show me rooms" query needs to remember to filter on `archived`. Centralised in the resolver layer.
 

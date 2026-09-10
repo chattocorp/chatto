@@ -96,6 +96,40 @@ describe('createRealtimeResourceAPI', () => {
     expect(mocks.listUsers).not.toHaveBeenCalled();
   });
 
+  it('collects every room page before replacing the directory and retains the cursor', async () => {
+    mocks.listRooms
+      .mockResolvedValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
+      .mockResolvedValueOnce({ rooms: [{ room: { id: 'b' } }], page: { hasMore: false } });
+    const api = createRealtimeResourceAPI({ baseUrl: 'https://chat.example.test/api/connect', bearerToken: 'token' });
+    const [update] = await api.read('rooms', 'cursor');
+    expect(update.replace).toBe(true);
+    expect(update.resource.case).toBe('rooms');
+    if (update.resource.case !== 'rooms') throw new Error('expected rooms');
+    expect(update.resource.value.rooms.map((entry) => entry.room?.id)).toEqual(['a', 'b']);
+    expect(mocks.listRooms.mock.calls.map(([request]) => request.page)).toEqual([
+      { limit: 100, offset: 0 }, { limit: 100, offset: 1 }
+    ]);
+    for (const [, options] of mocks.listRooms.mock.calls) {
+      expect(options.headers.get('Chatto-Realtime-Minimum-Cursor')).toBe('cursor');
+    }
+  });
+
+  it('rejects a failed later room page instead of returning a partial replacement', async () => {
+    const error = new Error('second page failed');
+    mocks.listRooms
+      .mockResolvedValueOnce({ rooms: [{ room: { id: 'a' } }], page: { hasMore: true } })
+      .mockRejectedValueOnce(error);
+    const api = createRealtimeResourceAPI({ baseUrl: 'https://chat.example.test/api/connect', bearerToken: null });
+    await expect(api.read('rooms')).rejects.toBe(error);
+  });
+
+  it('rejects an empty continuation instead of looping', async () => {
+    mocks.listRooms.mockResolvedValue({ rooms: [], page: { hasMore: true } });
+    const api = createRealtimeResourceAPI({ baseUrl: 'https://chat.example.test/api/connect', bearerToken: null });
+    await expect(api.read('rooms')).rejects.toThrow('empty continuation');
+    expect(mocks.listRooms).toHaveBeenCalledTimes(1);
+  });
+
   it('hydrates only requested users in bounded merge batches', async () => {
     const api = createRealtimeResourceAPI({
       baseUrl: 'https://chat.example.test/api/connect',

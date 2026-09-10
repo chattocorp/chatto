@@ -19,8 +19,8 @@ export const RoomDirectoryService = {
      * archive_filter to discover archived rooms or include both states. Channel
      * rooms require membership or room.list. DM membership exposes room and
      * participant metadata. Message-derived DM state also requires current
-     * read permission. Accessible empty DMs are included. Results are returned as a finite
-     * navigation snapshot.
+     * read permission. Accessible empty DMs are included. Returns up to 100 rooms
+     * ordered by ID ascending; the default page size is 50.
      *
      * @generated from rpc chatto.api.v1.RoomDirectoryService.ListRooms
      */

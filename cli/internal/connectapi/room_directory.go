@@ -24,18 +24,19 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 		return nil, connectError(err)
 	}
 
-	rooms, err := s.api.core.RoomDirectoryReads().ListRooms(ctx, caller.UserID, core.RoomDirectoryListOptions{
+	limit, offset := apiPagination(req.Msg.GetPage(), 50, 100)
+	page, err := s.api.core.RoomDirectoryReads().ListRoomsPage(ctx, caller.UserID, core.RoomDirectoryListOptions{
 		IncludeChannels: roomDirectoryScopeIncludesChannels(req.Msg.GetScope()),
 		IncludeDMs:      roomDirectoryScopeIncludesDMs(req.Msg.GetScope()),
 		IncludeEmptyDMs: true,
 		ArchiveFilter:   archiveFilter,
-	})
+	}, limit, offset)
 	if err != nil {
 		return nil, connectError(err)
 	}
 
-	apiRooms := make([]*apiv1.RoomWithViewerState, 0, len(rooms))
-	for _, room := range rooms {
+	apiRooms := make([]*apiv1.RoomWithViewerState, 0, len(page.Rooms))
+	for _, room := range page.Rooms {
 		apiRoom, err := s.api.apiRoomWithViewerState(ctx, caller.UserID, room)
 		if err != nil {
 			return nil, connectError(err)
@@ -43,7 +44,7 @@ func (s *roomDirectoryService) ListRooms(ctx context.Context, req *connect.Reque
 		apiRooms = append(apiRooms, apiRoom)
 	}
 
-	return connect.NewResponse(&apiv1.ListRoomsResponse{Rooms: apiRooms}), nil
+	return connect.NewResponse(&apiv1.ListRoomsResponse{Rooms: apiRooms, Page: apiPageInfo(page.TotalCount, page.HasMore)}), nil
 }
 
 func coreRoomArchiveFilter(filter apiv1.RoomArchiveFilter) (core.RoomArchiveFilter, error) {

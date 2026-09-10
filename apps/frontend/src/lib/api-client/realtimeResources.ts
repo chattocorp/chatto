@@ -1,3 +1,4 @@
+import { listAllDirectoryRooms } from './roomPages';
 import {
   authHeaders,
   createChattoClient,
@@ -11,8 +12,8 @@ import { UserService } from '@chatto/api-types/api/v1/user_service_connect';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
 import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
 import type { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import type {
-  ListRoomGroupsResponse,
+import {
+  type ListRoomGroupsResponse,
   ListRoomsResponse
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
@@ -98,7 +99,10 @@ export function createRealtimeResourceAPI(config: ConnectAPIConfig) {
         return [new RealtimeResourceUpdate({ resource: { case: 'viewer', value: response } })];
       }
       case 'rooms': {
-        const response = await rooms.listRooms({}, options(minimumCursor));
+        const entries = await listAllDirectoryRooms((page) =>
+          rooms.listRooms({ page }, options(minimumCursor))
+        );
+        const response = new ListRoomsResponse({ rooms: entries });
         return [new RealtimeResourceUpdate({ resource: { case: 'rooms', value: response } })];
       }
       case 'roomGroups': {

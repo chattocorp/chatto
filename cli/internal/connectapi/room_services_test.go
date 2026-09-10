@@ -2773,6 +2773,9 @@ func TestRoomDirectoryServiceArchiveFilters(t *testing.T) {
 				if err != nil {
 					t.Fatalf("ListRooms: %v", err)
 				}
+				if response.Msg.GetPage().GetTotalCount() != int64(len(response.Msg.Rooms)) || response.Msg.GetPage().GetHasMore() {
+					t.Fatal("count must describe the visible, filtered result")
+				}
 				rooms := directoryRoomsByID(response.Msg.GetRooms())
 				for id, want := range map[string]bool{
 					active.Id:     filter.active && scope.channels,

@@ -111,7 +111,8 @@ or either human owner.
 `RoomDirectoryService.ListRooms` intersects the room-kind scope with an archive
 filter. The default returns active rooms; callers can select archived rooms or
 both states. The read uses the existing room catalog, visibility checks, and
-canonical room response. Archive discovery does not change membership or
+canonical room response. It filters room identities before pagination, orders
+them by ID, and hydrates viewer state only for the selected page. Archive discovery does not change membership or
 permissions. Room-group and realtime navigation snapshots keep their default
 active-room scope.
 

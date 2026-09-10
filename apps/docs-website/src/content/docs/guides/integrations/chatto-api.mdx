@@ -231,3 +231,18 @@ format, and time-zone sharing preference. Human and bot credentials both work.
 The response contains the same `settings` resource as `UpdateSettings` and
 `GetViewer`. Unsaved settings return defaults; the read does not save them.
 Use `GetViewer` when you also need the combined account and capability response.
+
+## Page Through the Room Directory
+
+Call `RoomDirectoryService.ListRooms` with `page`, for example
+`{"page":{"limit":100,"offset":0}}`. The default is 50 rooms; the maximum
+is 100. Rooms are ordered by ID ascending. `scope` and `archiveFilter` apply
+before pagination and before `page.totalCount` is calculated.
+
+When `page.hasMore` is true, increase the request offset by the number of rooms
+returned and request the next page. Keep the filters unchanged. Pages are live
+reads, so changes between requests can shift offsets. When rebuilding local
+state, collect all pages before replacing the directory and discard partial
+results if a request fails. For realtime recovery, send the same minimum cursor
+on every page. `ListRoomGroups` remains the complete ordered navigation layout;
+realtime room snapshots also remain complete.

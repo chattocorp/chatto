@@ -1,3 +1,4 @@
+import { listAllDirectoryRooms } from './roomPages';
 import {
   authHeaders,
   Code,
@@ -103,11 +104,11 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryRoomSummary[]> {
       try {
-        const response = await directory.listRooms(
-          { scope },
+        const rooms = await listAllDirectoryRooms((page) => directory.listRooms(
+          { scope, page },
           { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        return response.rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
+        ));
+        return rooms.flatMap((entry) => mapDirectoryRoom(entry) ?? []);
       } catch (err) {
         return handleAuthError(config, err);
       }
