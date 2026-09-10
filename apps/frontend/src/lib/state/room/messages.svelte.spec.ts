@@ -697,6 +697,30 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('retries a failed initial latest read at the next route boundary', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('retried-latest')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.setRoom('room-1');
+    await settle();
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['retried-latest']);
+    expect(store.isInitialLoading).toBe(false);
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+    store.dispose();
+  });
+
   it('restores the latest window after leaving a completed historical jump', async () => {
     const getRoomEvents = vi
       .fn<RoomTimelineAPI['getRoomEvents']>()
@@ -760,6 +784,7 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(getRoomEvents).toHaveBeenCalledTimes(3);
     expect(store.rootEvents.map((event) => event.id)).toEqual(['restored-latest']);
     expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
     store.dispose();
   });
 
