@@ -12,6 +12,7 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
+	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
 func setupInput(login string) ServerSetupInput {
@@ -200,5 +201,43 @@ func TestServerSetupLegacyHistoryStaysClosed(t *testing.T) {
 	}
 	if required, err := c.SetupRequired(ctx); err != nil || required {
 		t.Fatalf("legacy server reopened setup: %v %v", required, err)
+	}
+}
+
+// setupTrafficStream inserts an unrelated durable write after each Info read,
+// making a whole-stream OCC decision stale on every attempt.
+type setupTrafficStream struct {
+	jetstream.Stream
+	afterInfo func() error
+}
+
+func (s setupTrafficStream) Info(ctx context.Context, opts ...jetstream.StreamInfoOpt) (*jetstream.StreamInfo, error) {
+	info, err := s.Stream.Info(ctx, opts...)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.afterInfo(); err != nil {
+		return nil, err
+	}
+	return info, nil
+}
+
+func TestServerSetupUpgradeDoesNotContendWithChatTraffic(t *testing.T) {
+	c, _ := newTestCore(t)
+	ctx := testContext(t)
+	seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.storage.serverEvtStream.DeleteMsg(ctx, seq); err != nil {
+		t.Fatal(err)
+	}
+	c.storage.serverEvtStream = setupTrafficStream{Stream: c.storage.serverEvtStream, afterInfo: func() error {
+		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerNameChanged{ServerNameChanged: &evtv1.ServerNameChangedEvent{Name: "Traffic"}}})
+		_, err := c.EventPublisher.Append(ctx, evtstream.ConfigSubjectAggregate(ConfigSubjectServer).SubjectFor(event), event)
+		return err
+	}}
+	if err := c.initializeServerSetup(ctx); err != nil {
+		t.Fatalf("upgrade competed with unrelated traffic: %v", err)
 	}
 }

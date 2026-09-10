@@ -32,13 +32,10 @@ type ServerSetupInput struct {
 
 // initializeServerSetup runs before any boot defaults are written. Only a truly
 // empty history may offer setup. Existing histories, including purged histories,
-// are permanently closed. Whole-EVT OCC makes this safe across starting replicas.
+// are permanently closed. Empty histories use whole-EVT OCC; existing histories
+// use setup-only OCC so normal chat traffic cannot prevent an upgrade.
 func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 	for attempt := 0; attempt < 10; attempt++ {
-		tail, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.EventSubjectFilter())
-		if err != nil {
-			return err
-		}
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.SetupAggregate().AllEventsFilter())
 		if err != nil {
 			return err
@@ -51,7 +48,7 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 			return err
 		}
 		event := newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerInitialized{ServerInitialized: &evtv1.ServerInitializedEvent{}}})
-		fresh := tail == 0 && info.State.LastSeq == 0
+		fresh := info.State.LastSeq == 0
 		if fresh {
 			// Old deployments can predate EVT. A legacy stream is evidence of
 			// an existing installation even when the new EVT stream is empty.
@@ -65,7 +62,11 @@ func (c *ChattoCore) initializeServerSetup(ctx context.Context) error {
 		if fresh {
 			event = newEvent(SystemActorID, &evtv1.Event{Event: &evtv1.Event_ServerSetupOffered{ServerSetupOffered: &evtv1.ServerSetupOfferedEvent{}}})
 		}
-		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, HasOCC: true, ExpectedSeq: tail, FilterSubject: evtstream.EventSubjectFilter()}})
+		filter := evtstream.SetupAggregate().AllEventsFilter()
+		if fresh {
+			filter = evtstream.EventSubjectFilter()
+		}
+		_, err = c.EventPublisher.AppendBatch(ctx, []evtstream.BatchEntry{{Subject: evtstream.SetupAggregate().SubjectFor(event), Event: event, HasOCC: true, ExpectedSeq: 0, FilterSubject: filter}})
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}
