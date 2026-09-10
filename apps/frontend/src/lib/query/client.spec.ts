@@ -113,15 +113,11 @@ describe('server query cache', () => {
       ],
       pageParams: [0]
     });
-    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'role', 'moderator'], {
-      role: { name: 'moderator' },
-      users: [
+    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'role-members', 'moderator'], {
+      pages: [{ users: [
         { id: 'removed', login: 'removed', displayName: 'Removed User' },
         { id: 'retained', login: 'retained', displayName: 'Retained User' }
-      ],
-      roles: [],
-      viewerCanManageRoles: true,
-      viewerCanAssignRoles: true
+      ], totalCount: 2, hasMore: false }], pageParams: [0]
     });
 
     removeRegisteredAdminUserQueries('one', 'removed');
@@ -182,15 +178,15 @@ describe('server query cache', () => {
       ]
     });
     expect(
-      queryClient.getQueryData<{ users: Array<{ id: string }> }>([
+      queryClient.getQueryData<{ pages: Array<{ users: Array<{ id: string }> }> }>([
         'server',
         'one',
         'session',
         'scope',
         'admin',
-        'role',
+        'role-members',
         'moderator'
-      ])?.users
+      ])?.pages[0].users
     ).toEqual([{ id: 'retained', login: 'retained', displayName: 'Retained User' }]);
   });
 

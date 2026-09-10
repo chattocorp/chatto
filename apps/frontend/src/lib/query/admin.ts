@@ -55,6 +55,9 @@ export const adminQueryKeys = {
   userPermissions(serverId: string, connection: AdminQueryConnection, userId: string) {
     return [...userPermissionsRoot(serverId, connection), userId] as const;
   },
+  roleMembers(serverId: string, connection: AdminQueryConnection, roleName: string) {
+    return [...adminRoot(serverId, connection), 'role-members', roleName] as const;
+  },
   roleCatalog(serverId: string, connection: AdminQueryConnection) {
     return [...adminRoot(serverId, connection), 'roles'] as const;
   },

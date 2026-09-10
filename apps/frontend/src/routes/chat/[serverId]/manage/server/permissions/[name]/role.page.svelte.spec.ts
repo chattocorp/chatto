@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
-import type { RoleDetails, ServerRole } from '$lib/api-client/roles';
+import type { RoleDetails, RoleMemberPage, ServerRole } from '$lib/api-client/roles';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     getRole: vi.fn(),
+    listMembers: vi.fn(),
     updateRole: vi.fn(),
     deleteRole: vi.fn(),
     goto: vi.fn()
@@ -41,6 +42,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
       queryScope: 'role-page-test',
       getAPI: () => ({
         getRole: mocks.getRole,
+        listMembers: mocks.listMembers,
         updateRole: mocks.updateRole,
         deleteRole: mocks.deleteRole
       })
@@ -102,7 +104,6 @@ function details(name: string, displayName: string, description: string): RoleDe
   return {
     roles: [],
     role: role(name, displayName, description),
-    users: [{ id: `${name}-user`, login: `${name}-user`, displayName: `${displayName} User` }],
     viewerCanManageRoles: true,
     viewerCanAssignRoles: true
   };
@@ -120,6 +121,43 @@ describe('role management page identity', () => {
     queryClient.clear();
     vi.clearAllMocks();
     activeRoleName = 'role-a';
+    mocks.listMembers.mockImplementation((name: string) => Promise.resolve({
+      users: [{ id: `${name}-user`, login: `${name}-user`, displayName: `${name === 'role-a' ? 'Role A' : 'Role B'} User`, isBot: false }],
+      totalCount: 1, hasMore: false
+    }));
+  });
+
+  it('loads member pages separately and fences a late page after a role switch', async () => {
+    mocks.getRole.mockImplementation((name: string) => Promise.resolve(details(name, name, '')));
+    const late = deferred<RoleMemberPage>();
+    mocks.listMembers.mockImplementation((name: string, page: { offset: number }) => {
+      if (name === 'role-a' && page.offset === 1) return late.promise;
+      return Promise.resolve({
+        users: [{ id: name, login: name, displayName: `${name} member`, isBot: false }],
+        totalCount: name === 'role-a' ? 2 : 1, hasMore: name === 'role-a'
+      });
+    });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.textContent).toContain('role-a member'));
+    (Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Load next test page') as HTMLButtonElement).click();
+    await vi.waitFor(() => expect(mocks.listMembers).toHaveBeenCalledWith(
+      'role-a', { limit: 20, offset: 1 }, expect.objectContaining({ signal: expect.any(AbortSignal) })
+    ));
+    activeRoleName = 'role-b';
+    flushSync();
+    await vi.waitFor(() => expect(container.textContent).toContain('role-b member'));
+    late.resolve({ users: [{ id: 'late', login: 'late', displayName: 'Late A member', isBot: false }], totalCount: 2, hasMore: false });
+    await settle();
+    expect(container.textContent).not.toContain('Late A member');
+    expect(container.textContent).not.toContain('role-a member');
+  });
+
+  it('does not request or render a roster without assignment authority', async () => {
+    mocks.getRole.mockResolvedValue({ ...details('role-a', 'Role A', ''), viewerCanAssignRoles: false });
+    const { container } = render(RolePage);
+    await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
+    expect(mocks.listMembers).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="role-users"]')).toBeNull();
   });
 
   it('does not let a delayed role response overwrite a reused route', async () => {

@@ -6,6 +6,7 @@ import "google/protobuf/field_mask.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/roles.proto";
 import "chatto/api/v1/users.proto";
+import "chatto/api/v1/pagination.proto";
 
 // Role metadata plus administrative permission state.
 message AdminRole {
@@ -40,12 +41,30 @@ message GetRoleRequest {
 message GetRoleResponse {
   // Requested role.
   AdminRole role = 1;
-  // Explicit users with this role. Empty unless the caller may assign roles.
-  repeated chatto.api.v1.User users = 2;
+  reserved 2;
+  reserved "users";
   // Whether the caller may create/update/delete role definitions.
   bool viewer_can_manage_roles = 3;
   // Whether the caller may assign/revoke roles and view role rosters.
   bool viewer_can_assign_roles = 4;
+}
+
+// Request a page of explicit role members.
+message AdminRoleServiceListMembersRequest {
+  // Stable role name.
+  string name = 1 [(buf.validate.field).string.min_len = 1];
+  // Defaults to 20 members; capped at 100. Offset counts explicit assignments.
+  chatto.api.v1.PageRequest page = 2;
+}
+
+// Explicit members sorted by user ID. Each page is a live read; assignment
+// changes between requests can shift offsets. The implicit everyone role has
+// no explicit members. Revoked assignments are excluded.
+message AdminRoleServiceListMembersResponse {
+  // Canonical public user records for the selected assignments.
+  repeated chatto.api.v1.User members = 1;
+  // Total explicit assignment count and whether another page exists.
+  chatto.api.v1.PageInfo page = 2;
 }
 
 // Request to create a role.
@@ -127,9 +146,11 @@ service AdminRoleService {
   // effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
   rpc ListRoles(ListRolesRequest) returns (ListRolesResponse);
   // Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-  // role does not exist. Requires an authenticated user; the assigned-user
-  // roster is empty unless the caller may assign roles.
+  // role does not exist. Requires an authenticated user.
   rpc GetRole(GetRoleRequest) returns (GetRoleResponse);
+  // Lists explicit role members. Requires role.assign, without requiring
+  // admin.view-users. Returns NOT_FOUND when the role does not exist.
+  rpc ListMembers(AdminRoleServiceListMembersRequest) returns (AdminRoleServiceListMembersResponse);
   // Creates a custom role. Requires role.manage.
   rpc CreateRole(CreateRoleRequest) returns (CreateRoleResponse);
   // Updates role metadata. Requires role.manage.

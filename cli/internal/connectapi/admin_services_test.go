@@ -988,9 +988,14 @@ func TestAdminRoleServiceManagesRoles(t *testing.T) {
 	if !getResp.Msg.GetViewerCanManageRoles() || !getResp.Msg.GetViewerCanAssignRoles() {
 		t.Fatalf("GetRole capabilities manage=%v assign=%v, want true/true", getResp.Msg.GetViewerCanManageRoles(), getResp.Msg.GetViewerCanAssignRoles())
 	}
-	if len(getResp.Msg.GetUsers()) != 1 || getResp.Msg.GetUsers()[0].GetId() != member.Id {
-		t.Fatalf("GetRole users = %+v, want member %s", getResp.Msg.GetUsers(), member.Id)
+	membersResp, err := env.roles.ListMembers(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "helpdesk"}))
+	if err != nil {
+		t.Fatal(err)
 	}
+	if len(membersResp.Msg.Members) != 1 || membersResp.Msg.Members[0].Id != member.Id {
+		t.Fatal("expected explicit member")
+	}
+
 	if _, err := env.roles.GetRole(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.GetRoleRequest{Name: "missing-role"})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("missing GetRole code = %v, want not found", connect.CodeOf(err))
 	}

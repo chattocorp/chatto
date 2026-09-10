@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-09
+**Last reviewed:** 2026-09-10
 
 ## Overview
 
@@ -27,6 +27,12 @@ including management overrides. Membership does not grant message permissions.
 See [FDR-038](FDR-038-bot-accounts.md).
 
 ## Behavior
+
+- Role details and assigned members are separate reads. Member lists load in
+  bounded pages so large roles do not require every user profile at once.
+  Roster access requires `role.assign`, not access to the full administrative
+  user directory. Only explicit assignments appear; `everyone` has no roster.
+  Pages reflect current assignments, so concurrent changes can shift offsets.
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.

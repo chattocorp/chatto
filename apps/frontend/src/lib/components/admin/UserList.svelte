@@ -26,13 +26,24 @@ and supplies an optional row-navigation callback.
     loading = false,
     clickable = true,
     emptyMessage = m('admin.users.empty'),
-    onUserClick
+    onUserClick,
+    totalCount = users.length,
+    hasMore = false,
+    loadingMore = false,
+    onLoadMore,
+    loadMoreRoot
   }: {
     users: User[];
     loading?: boolean;
     clickable?: boolean;
     emptyMessage?: string;
     onUserClick?: (user: User) => void;
+    /** Total matching users, including pages not yet loaded. */
+    totalCount?: number;
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    onLoadMore?: () => void | Promise<void>;
+    loadMoreRoot?: HTMLElement;
   } = $props();
 
   const serverScope = useServerScope();
@@ -59,6 +70,10 @@ and supplies an optional row-navigation callback.
     items={users}
     columns={4}
     {emptyMessage}
+    {hasMore}
+    {loadingMore}
+    {onLoadMore}
+    {loadMoreRoot}
     onRowClick={clickable ? handleRowClick : undefined}
   >
     {#snippet header()}
@@ -85,5 +100,5 @@ and supplies an optional row-navigation callback.
     {/snippet}
   </DataTable>
 
-  <div class="px-5 py-3 text-sm text-muted">{m('admin.users.total', { count: users.length })}</div>
+  <div class="px-5 py-3 text-sm text-muted">{m('admin.members.showing', { shown: users.length, total: totalCount })}</div>
 {/if}

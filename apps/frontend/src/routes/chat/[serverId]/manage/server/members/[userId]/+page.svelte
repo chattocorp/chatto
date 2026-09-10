@@ -163,7 +163,7 @@
 
   function invalidateRole(target: MemberMutationScope, roleName: string): void {
     void queryClient.invalidateQueries({
-      queryKey: adminQueryKeys.role(target.serverId, target.connection, roleName),
+      queryKey: adminQueryKeys.roleMembers(target.serverId, target.connection, roleName),
       exact: true
     });
   }

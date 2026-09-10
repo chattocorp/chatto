@@ -32,6 +32,7 @@ export type RoleUser = {
   id: string;
   login: string;
   displayName: string;
+  isBot: boolean;
 };
 
 export type RoleCatalog = {
@@ -42,7 +43,12 @@ export type RoleCatalog = {
 
 export type RoleDetails = RoleCatalog & {
   role: ServerRole | null;
+};
+
+export type RoleMemberPage = {
   users: RoleUser[];
+  totalCount: number;
+  hasMore: boolean;
 };
 
 export type CreateRoleInput = {
@@ -117,9 +123,24 @@ export function createRoleAPI(config: RoleAPIConfig) {
       return {
         roles: [],
         role: response.role ? serverRoleFromAdmin(response.role) : null,
-        users: response.users.map(roleUser),
         viewerCanManageRoles: response.viewerCanManageRoles,
         viewerCanAssignRoles: response.viewerCanAssignRoles,
+      };
+    },
+
+    async listMembers(
+      name: string,
+      page: { limit: number; offset: number },
+      options: { signal?: AbortSignal } = {},
+    ): Promise<RoleMemberPage> {
+      const response = await adminClient.listMembers(
+        { name, page },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) },
+      );
+      return {
+        users: response.members.map(roleUser),
+        totalCount: Number(response.page?.totalCount ?? 0),
+        hasMore: response.page?.hasMore ?? false,
       };
     },
 
@@ -192,5 +213,6 @@ function roleUser(user: APIUser): RoleUser {
     id: user.id,
     login: user.login,
     displayName: user.displayName,
+    isBot: user.isBot,
   };
 }
