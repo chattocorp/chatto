@@ -69,6 +69,21 @@ describe('createRoomDirectoryAPI', () => {
     });
   });
 
+  it('collects all directory pages with the same scope and abort signal', async () => {
+    mocks.listRooms
+      .mockResolvedValueOnce({ rooms: [{ room: { id: 'a', name: 'A' } }], page: { hasMore: true } })
+      .mockResolvedValueOnce({ rooms: [{ room: { id: 'b', name: 'B' } }], page: { hasMore: false } });
+    const api = createRoomDirectoryAPI({ baseUrl: 'https://remote.example.com/api/connect', bearerToken: null });
+    const signal = new AbortController().signal;
+    const rooms = await api.listRooms(RoomDirectoryScope.ALL, { signal });
+    expect(rooms.map((room) => room.id)).toEqual(['a', 'b']);
+    expect(mocks.listRooms.mock.calls.map(([request]) => request)).toEqual([
+      { scope: RoomDirectoryScope.ALL, page: { limit: 100, offset: 0 } },
+      { scope: RoomDirectoryScope.ALL, page: { limit: 100, offset: 1 } }
+    ]);
+    for (const [, options] of mocks.listRooms.mock.calls) expect(options.signal).toBe(signal);
+  });
+
   it('lists rooms for a scope with bearer auth and maps room state', async () => {
     mocks.listRooms.mockResolvedValue({
       rooms: [
@@ -118,7 +133,7 @@ describe('createRoomDirectoryAPI', () => {
       useBinaryFormat: true
     });
     expect(mocks.listRooms).toHaveBeenCalledWith(
-      { scope: RoomDirectoryScope.DMS },
+      { scope: RoomDirectoryScope.DMS, page: { limit: 100, offset: 0 } },
       { headers: { Authorization: 'Bearer token' }, signal }
     );
     expect(rooms).toEqual([
@@ -493,7 +508,7 @@ describe('createRoomDirectoryAPI', () => {
 
     await expect(api.listRooms(RoomDirectoryScope.CHANNELS)).rejects.toBe(err);
     expect(mocks.listRooms).toHaveBeenCalledWith(
-      { scope: RoomDirectoryScope.CHANNELS },
+      { scope: RoomDirectoryScope.CHANNELS, page: { limit: 100, offset: 0 } },
       { headers: undefined }
     );
     expect(mocks.handleAuthenticationRequired).toHaveBeenCalledWith('remote');

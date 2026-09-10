@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/permissions.proto";
+import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -114,12 +115,17 @@ message ListRoomsRequest {
   // Archive state to include. Defaults to ACTIVE. Combined with scope; this
   // filter does not grant access to hidden rooms.
   RoomArchiveFilter archive_filter = 2 [(buf.validate.field).enum.defined_only = true];
+  // Defaults to 50 rooms, capped at 100. Rooms are ordered by ID ascending.
+  PageRequest page = 3;
 }
 
-// Finite snapshot of rooms visible to the current user.
+// One live page of rooms visible to the current user. Changes between requests
+// can shift offsets. Follow page.has_more to read the complete directory.
 message ListRoomsResponse {
   // Visible rooms matching both the room-kind scope and archive filter.
   repeated RoomWithViewerState rooms = 1;
+  // Count after visibility, scope, and archive filters, before pagination.
+  PageInfo page = 2;
 }
 
 // Request for ordered room groups visible to the current user.
@@ -208,8 +214,8 @@ service RoomDirectoryService {
   // archive_filter to discover archived rooms or include both states. Channel
   // rooms require membership or room.list. DM membership exposes room and
   // participant metadata. Message-derived DM state also requires current
-  // read permission. Accessible empty DMs are included. Results are returned as a finite
-  // navigation snapshot.
+  // read permission. Accessible empty DMs are included. Returns up to 100 rooms
+  // ordered by ID ascending; the default page size is 50.
   rpc ListRooms(ListRoomsRequest) returns (ListRoomsResponse);
   // Lists ordered channel room groups and sidebar items visible to the current
   // user as a finite navigation snapshot. Hidden room entries are omitted.

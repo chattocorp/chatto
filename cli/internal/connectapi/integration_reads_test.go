@@ -144,6 +144,9 @@ func TestIntegrationReadsThroughJSON(t *testing.T) {
 		body   any
 		status int
 	}{
+		{"RoomDirectoryService/ListRooms", map[string]any{"page": map[string]any{"limit": 1}}, 200},
+		{"RoomDirectoryService/ListRooms", map[string]any{"page": map[string]any{"limit": 501}}, 400},
+		{"RoomDirectoryService/ListRooms", map[string]any{"page": map[string]any{"offset": -1}}, 400},
 		{"MessageService/ListReactionUsers", map[string]any{"roomId": room.Id, "messageEventId": root.Id, "emoji": "heart"}, 200},
 		{"ThreadService/ListThreadParticipants", map[string]any{"roomId": room.Id, "threadRootEventId": root.Id}, 200},
 		{"RoomService/GetRoomReadState", map[string]any{"roomId": room.Id}, 200},

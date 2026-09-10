@@ -117,6 +117,90 @@ func (s *RoomDirectoryReadModel) ListRooms(ctx context.Context, actorID string, 
 	return rooms, nil
 }
 
+// RoomDirectoryPage contains a visible room page and its filtered count.
+type RoomDirectoryPage struct {
+	Rooms      []*DirectoryRoom
+	TotalCount int
+	HasMore    bool
+}
+
+// ListRoomsPage filters and orders room identities before hydrating the page.
+// Complete internal snapshots continue to use ListRooms.
+func (s *RoomDirectoryReadModel) ListRoomsPage(ctx context.Context, actorID string, opts RoomDirectoryListOptions, limit, offset int) (*RoomDirectoryPage, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if opts.ArchiveFilter < RoomArchiveActive || opts.ArchiveFilter > RoomArchiveAll {
+		return nil, invalidArgument("unknown room archive filter")
+	}
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	var candidates []*evtv1.Room
+	if opts.IncludeChannels {
+		rooms, err := s.core.ListRooms(ctx, KindChannel)
+		if err != nil {
+			return nil, err
+		}
+		for _, room := range rooms {
+			if !opts.ArchiveFilter.matches(room.GetArchived()) {
+				continue
+			}
+			visible, err := s.core.CanSeeRoom(ctx, actorID, KindChannel, room.Id)
+			if err != nil {
+				return nil, err
+			}
+			if visible {
+				candidates = append(candidates, room)
+			}
+		}
+	}
+	if opts.IncludeDMs {
+		rooms, err := s.core.ListMemberRooms(ctx, KindDM, actorID, MemberRoomListOptions{})
+		if err != nil {
+			return nil, err
+		}
+		for _, room := range rooms {
+			if !opts.ArchiveFilter.matches(room.GetArchived()) {
+				continue
+			}
+			if !opts.IncludeEmptyDMs {
+				canAccess, err := s.core.CanAccessRoomMessages(ctx, actorID, KindDM, room.Id)
+				if err != nil {
+					return nil, err
+				}
+				if canAccess {
+					at, err := s.core.GetRoomLastMessageAt(ctx, KindDM, room.Id)
+					if err != nil {
+						return nil, err
+					}
+					if at.IsZero() {
+						continue
+					}
+				}
+			}
+			candidates = append(candidates, room)
+		}
+	}
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].Id < candidates[j].Id })
+	selected, total, more := paginateCoreSlice(candidates, limit, offset)
+	result := &RoomDirectoryPage{Rooms: make([]*DirectoryRoom, 0, len(selected)), TotalCount: total, HasMore: more}
+	for _, room := range selected {
+		entry, err := s.directoryRoom(ctx, actorID, room)
+		if err != nil {
+			return nil, err
+		}
+		result.Rooms = append(result.Rooms, entry)
+	}
+	return result, nil
+}
+
 func (s *RoomDirectoryReadModel) ListRoomGroups(ctx context.Context, actorID string, opts RoomDirectoryGroupOptions) ([]*DirectoryRoomGroup, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err

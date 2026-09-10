@@ -436,6 +436,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   omitted expiry means no expiry. See the
   [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
 
+- **API migration:** `RoomDirectoryService.ListRooms` now returns pages of 50
+  rooms by default, capped at 100, ordered by room ID. Follow `page.hasMore`
+  and advance the request offset to read the full directory. The bundled client
+  fetches all pages before replacing local state. Room-group and realtime
+  navigation snapshots remain complete.
+
 - Integrations can discover archived rooms with `RoomDirectoryService.ListRooms`
   by selecting active, archived, or all rooms. The default remains active rooms,
   and normal room visibility rules apply.

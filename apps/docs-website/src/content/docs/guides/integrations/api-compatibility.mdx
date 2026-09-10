@@ -78,8 +78,13 @@ Chatto 0.5 adds `archive_filter` to `RoomDirectoryService.ListRooms`. Omit it or
 select `ROOM_ARCHIVE_FILTER_ACTIVE` to keep the active-room list. Select
 `ROOM_ARCHIVE_FILTER_ARCHIVED` for the archive or `ROOM_ARCHIVE_FILTER_ALL` for
 both states. The filter combines with `scope` and preserves room visibility.
-Responses remain complete room snapshots. Existing clients keep their default
-results. Servers without this field do not provide the archive-filter contract;
+`ListRooms` now returns a page, with 50 rooms by default and at most 100.
+Read `page.hasMore` and advance the request's `page.offset` by the number of returned rooms
+until no more pages remain. Results are ordered by room ID ascending, after
+visibility and archive filtering. Clients that assume one response is the
+complete directory must migrate. Pages are live reads; changes can shift offsets.
+`ListRoomGroups` and realtime room snapshots remain complete navigation data.
+Servers without `archive_filter` do not provide the archive-filter contract;
 clients must use a supporting server release for archive discovery.
 
 The 0.5 authentication boundary also replaces sliding human bearer tokens with

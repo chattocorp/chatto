@@ -7,6 +7,7 @@ import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialM
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PermissionGrant } from "./permissions_pb.js";
 import { Room } from "./rooms_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Room kinds to include in directory responses.
@@ -473,6 +474,13 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
    */
   archiveFilter = RoomArchiveFilter.UNSPECIFIED;
 
+  /**
+   * Defaults to 50 rooms, capped at 100. Rooms are ordered by ID ascending.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 3;
+   */
+  page?: PageRequest;
+
   constructor(data?: PartialMessage<ListRoomsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -483,6 +491,7 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "scope", kind: "enum", T: proto3.getEnumType(RoomDirectoryScope) },
     { no: 2, name: "archive_filter", kind: "enum", T: proto3.getEnumType(RoomArchiveFilter) },
+    { no: 3, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomsRequest {
@@ -503,7 +512,8 @@ export class ListRoomsRequest extends Message<ListRoomsRequest> {
 }
 
 /**
- * Finite snapshot of rooms visible to the current user.
+ * One live page of rooms visible to the current user. Changes between requests
+ * can shift offsets. Follow page.has_more to read the complete directory.
  *
  * @generated from message chatto.api.v1.ListRoomsResponse
  */
@@ -515,6 +525,13 @@ export class ListRoomsResponse extends Message<ListRoomsResponse> {
    */
   rooms: RoomWithViewerState[] = [];
 
+  /**
+   * Count after visibility, scope, and archive filters, before pagination.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
   constructor(data?: PartialMessage<ListRoomsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -524,6 +541,7 @@ export class ListRoomsResponse extends Message<ListRoomsResponse> {
   static readonly typeName = "chatto.api.v1.ListRoomsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "rooms", kind: "message", T: RoomWithViewerState, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListRoomsResponse {
