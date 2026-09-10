@@ -189,6 +189,21 @@ Commands that only acknowledge success return a named empty response (`{}` in JS
 
 Successful unary JSON calls return the protobuf response message as JSON. Field names use protobuf JSON casing, such as `publicProfile` and `directRegistrationEnabled`.
 
+Use the [ProtoJSON mapping](https://protobuf.dev/programming-guides/json/) when you read or write JSON directly:
+
+| Protobuf type | JSON representation |
+| --- | --- |
+| 64-bit integer | Decimal string, such as `"123"`. |
+| 32-bit integer | Number, such as `123`. |
+| `google.protobuf.Timestamp` | RFC 3339 string, such as `"2026-09-10T12:00:00Z"`. |
+| Enum | Symbolic protobuf name; unknown numeric values can appear as numbers. |
+| `bytes` | Base64 string. |
+| `google.protobuf.FieldMask` | Comma-separated paths in lower camel case, such as `"displayName,avatarAssetId"`. |
+
+For example, `PageInfo.total_count` appears as `"totalCount": "123"`. Do not convert arbitrary 64-bit values to JavaScript `Number`; use `BigInt` or keep the decimal string to preserve precision.
+
+Default values without explicit presence are normally omitted. A present `optional` field can contain its default value, including `false`. JSON `null` means unset on input; it does not by itself request a stored-field reset. Update endpoints use `updateMask` to select fields to set or reset. Follow the endpoint documentation for reset behavior.
+
 ProtoJSON integrations that need to tolerate future additive oneof variants must configure their decoder to ignore unknown fields. In particular, Notifications 2.0 may add new `NotificationSignal` variants; strict generated JSON clients must be regenerated before receiving such a variant. Binary protobuf is recommended when forward-compatible unknown-field retention is required.
 
 Successful binary protobuf calls return the serialized protobuf response message with `Content-Type: application/proto`.
