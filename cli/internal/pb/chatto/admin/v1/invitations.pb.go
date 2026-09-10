@@ -194,8 +194,9 @@ func (x *InviteLink) GetRevokedAt() *timestamppb.Timestamp {
 
 // Requests a page of invite links, newest first.
 type ListInviteLinksRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Page          *v1.PageRequest        `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
+	Page          *v1.PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

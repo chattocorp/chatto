@@ -115,6 +115,8 @@ func (p *RoomBanProjection) ActiveBan(roomID, userID string, now time.Time) (Roo
 	return ban, true
 }
 
+// ActiveBans returns active bans by creation time descending, then event ID
+// ascending so equal timestamps do not change offset page boundaries.
 func (p *RoomBanProjection) ActiveBans(now time.Time) []RoomBan {
 	p.RLock()
 	defer p.RUnlock()
@@ -127,11 +129,15 @@ func (p *RoomBanProjection) ActiveBans(now time.Time) []RoomBan {
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].EventID < out[j].EventID
+		}
 		return out[i].CreatedAt.After(out[j].CreatedAt)
 	})
 	return out
 }
 
+// ActiveRoomBans uses the same stable order as ActiveBans within one room.
 func (p *RoomBanProjection) ActiveRoomBans(roomID string, now time.Time) []RoomBan {
 	p.RLock()
 	defer p.RUnlock()
@@ -142,6 +148,9 @@ func (p *RoomBanProjection) ActiveRoomBans(roomID string, now time.Time) []RoomB
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].EventID < out[j].EventID
+		}
 		return out[i].CreatedAt.After(out[j].CreatedAt)
 	})
 	return out

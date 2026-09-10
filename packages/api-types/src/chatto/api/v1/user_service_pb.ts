@@ -12,6 +12,8 @@ import { User } from "./users_pb.js";
 
 /**
  * Request for users visible to the authenticated user.
+ * Results use creation time, oldest first. Users without a creation time
+ * appear last, ordered by case-insensitive login.
  *
  * @generated from message chatto.api.v1.ListUsersRequest
  */
@@ -24,7 +26,7 @@ export class ListUsersRequest extends Message<ListUsersRequest> {
   search = "";
 
   /**
-   * Page request. Defaults to 20 results when absent or limit is zero.
+   * Defaults to 20 results when absent or limit is zero. Maximum: 500.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 4;
    */

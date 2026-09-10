@@ -1130,7 +1130,7 @@ func (x *NotificationOccurrence) GetAttentionLevel() NotificationAttentionLevel 
 // Request for one page of notification occurrences.
 type ListNotificationOccurrencesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Page request. Defaults to 50 results when absent or limit is zero.
+	// Defaults to 50 results when absent or limit is zero. Maximum: 100.
 	Page          *PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

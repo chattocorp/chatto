@@ -45,7 +45,7 @@ Request for a page of followed threads for the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 | `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
 
 
@@ -162,7 +162,7 @@ newer replies without repeating the root message.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `limit` | `int32` | Maximum events. Values at or below zero use 50; values above 500 use 500. |
 | `cursor.before` | `string` | Return thread events older than this opaque cursor. |
 | `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
 
@@ -207,7 +207,7 @@ thread context.
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 | `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
+| `limit` | `int32` | Maximum events around the anchor. Values at or below zero use 50; values above 500 use 500. |
 
 
 <a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>

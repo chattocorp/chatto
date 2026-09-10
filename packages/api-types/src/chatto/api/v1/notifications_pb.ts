@@ -885,7 +885,7 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
  */
 export class ListNotificationOccurrencesRequest extends Message<ListNotificationOccurrencesRequest> {
   /**
-   * Page request. Defaults to 50 results when absent or limit is zero.
+   * Defaults to 50 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 1;
    */

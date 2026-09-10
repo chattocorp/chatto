@@ -90,7 +90,7 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
   search = "";
 
   /**
-   * Page request. Defaults to 250 results when absent or limit is zero.
+   * Defaults to 250 results when absent or limit is zero. Maximum: 500.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 5;
    */
@@ -133,7 +133,7 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
  */
 export class ListMembersResponse extends Message<ListMembersResponse> {
   /**
-   * Members in the requested page.
+   * Members by case-insensitive display name, then login, in ascending order.
    *
    * @generated from field: repeated chatto.api.v1.DirectoryMember members = 1;
    */

@@ -129,11 +129,13 @@ func (x *AdminMember) GetUser() *v1.User {
 }
 
 // Request server-admin member rows.
+// Results use creation time, oldest first. Users without a creation time
+// appear last, ordered by case-insensitive login.
 type ListMembersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Case-insensitive login/display-name search term. Empty disables search.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
-	// Page request. Defaults to 20 results when absent or limit is zero.
+	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
 	Page          *v1.PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

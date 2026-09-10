@@ -506,7 +506,7 @@ Request for members of one room.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room whose effective members should be listed. Existing members and room.manage holders may list a channel room; other nonmembers need both room.list and room.join. |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 250 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 250 results when absent or limit is zero. Maximum: 500. |
 
 
 <a id="chatto-api-v1-ListMembersResponse"></a>
@@ -517,7 +517,7 @@ Room member page.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members in the requested page. |
+| `members` | repeated [`DirectoryMember`](#chatto-api-v1-DirectoryMember) | Members by case-insensitive display name, then login, in ascending order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
@@ -684,7 +684,7 @@ Request to list active room bans.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Optional channel room filter. Empty lists active bans across all rooms. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-api-v1-ListBansResponse"></a>
@@ -695,7 +695,7 @@ Active room bans visible to the current moderator.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `bans` | repeated [`RoomBan`](#chatto-api-v1-RoomBan) | Active bans, newest first. |
+| `bans` | repeated [`RoomBan`](#chatto-api-v1-RoomBan) | Active bans by creation time, newest first; equal times use ban event ID in ascending order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
@@ -723,7 +723,7 @@ Request for room-scoped attachment list pages.
 | --- | --- | --- |
 | `room_id` | `string` | Required room ID. |
 | `thumbnail` | [`ImageTransformOptions`](#chatto-api-v1-ImageTransformOptions) | Thumbnail URL options. Defaults are applied when absent. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-api-v1-ListRoomAttachmentsResponse"></a>
@@ -760,7 +760,7 @@ Request to list a channel room's current pinned messages.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required channel room ID. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults are applied when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-api-v1-ListPinnedMessagesResponse"></a>
@@ -901,7 +901,7 @@ end_cursor to page toward newer events.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room whose timeline should be loaded. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `limit` | `int32` | Maximum events. Values at or below zero use 50; values above 500 use 500. |
 | `cursor.before` | `string` | Return events older than this opaque cursor. |
 | `cursor.after` | `string` | Return events newer than this opaque cursor. |
 
@@ -944,7 +944,7 @@ context around it.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room whose timeline should be loaded. |
 | `event_id` | `string` | Required. Anchor event ID that should appear in the returned page. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
+| `limit` | `int32` | Maximum events around the anchor. Values at or below zero use 50; values above 500 use 500. |
 
 
 <a id="chatto-api-v1-GetRoomEventsAroundResponse"></a>
@@ -2157,7 +2157,7 @@ bot.manage or user.manage-accounts see every bot.
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `string` | Optional case-insensitive login or display-name search. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-api-v1-ListBotsResponse"></a>
@@ -2168,7 +2168,7 @@ Page of visible bots.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots. |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots by case-insensitive login, then user ID, in ascending order. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
 
 
@@ -3152,7 +3152,7 @@ Request for one page of notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
@@ -3524,7 +3524,7 @@ Request for a page of followed threads for the current user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 | `include_direct_message_threads` | `bool` | Include followed direct-message threads. Defaults to false so older clients retain the channel-only result shape. |
 
 
@@ -3641,7 +3641,7 @@ newer replies without repeating the root message.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum number of events to return. The server may clamp very large limits. |
+| `limit` | `int32` | Maximum events. Values at or below zero use 50; values above 500 use 500. |
 | `cursor.before` | `string` | Return thread events older than this opaque cursor. |
 | `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
 
@@ -3686,7 +3686,7 @@ thread context.
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 | `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum number of events to return around the anchor. |
+| `limit` | `int32` | Maximum events around the anchor. Values at or below zero use 50; values above 500 use 500. |
 
 
 <a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
@@ -3760,11 +3760,13 @@ POST /api/connect/chatto.api.v1.UserService/ListUsers
 #### Input: ListUsersRequest
 
 Request for users visible to the authenticated user.
+Results use creation time, oldest first. Users without a creation time
+appear last, ordered by case-insensitive login.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `string` | Optional case-insensitive search against login and display name. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 20 results when absent or limit is zero. Maximum: 500. |
 
 
 <a id="chatto-api-v1-ListUsersResponse"></a>
@@ -4233,11 +4235,12 @@ Offset-based page metadata returned by list RPCs.
 ### PageRequest
 
 Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
+for simple list browsing. Pages are live reads, not a fixed snapshot. Changes
+between requests can shift offsets.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
+| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum. Valid values above that maximum are capped. This shared shape rejects values above 500 or below zero. Zero uses the RPC default. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
 
 
@@ -4777,7 +4780,7 @@ window.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
+| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in chronological display order, oldest first. |
 | `start_cursor` | `string` | Opaque cursor for the first event in the page. |
 | `end_cursor` | `string` | Opaque cursor for the last event in the page. |
 | `has_older` | `bool` | True when older events are available before start_cursor. |

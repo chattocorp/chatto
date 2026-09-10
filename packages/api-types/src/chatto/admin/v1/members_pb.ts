@@ -104,6 +104,8 @@ export class AdminMember extends Message<AdminMember> {
 
 /**
  * Request server-admin member rows.
+ * Results use creation time, oldest first. Users without a creation time
+ * appear last, ordered by case-insensitive login.
  *
  * @generated from message chatto.admin.v1.ListMembersRequest
  */
@@ -116,7 +118,7 @@ export class ListMembersRequest extends Message<ListMembersRequest> {
   search = "";
 
   /**
-   * Page request. Defaults to 20 results when absent or limit is zero.
+   * Defaults to 20 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 4;
    */

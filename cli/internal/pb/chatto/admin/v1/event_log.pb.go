@@ -99,7 +99,7 @@ func (x *AdminEventLogFilter) GetCreatedAtTo() *timestamppb.Timestamp {
 // Request to list durable EVT entries newest-first.
 type ListEventsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Maximum entries to return. The server clamps this to its diagnostic limit.
+	// Maximum entries. Zero uses 50; values above 200 use 200.
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Exclusive sequence cursor. Returned entries are older than this sequence.
 	Before *string `protobuf:"bytes,2,opt,name=before,proto3,oneof" json:"before,omitempty"`

@@ -146,6 +146,8 @@ export class InviteLink extends Message<InviteLink> {
  */
 export class ListInviteLinksRequest extends Message<ListInviteLinksRequest> {
   /**
+   * Defaults to 20 results when absent or limit is zero. Maximum: 100.
+   *
    * @generated from field: chatto.api.v1.PageRequest page = 1;
    */
   page?: PageRequest;

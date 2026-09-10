@@ -77,13 +77,13 @@ message BotIncomingWebhook {
 message ListBotsRequest {
   // Optional case-insensitive login or display-name search.
   string search = 1 [(buf.validate.field).string.max_len = 100];
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Defaults to 20 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 2;
 }
 
 // Page of visible bots.
 message ListBotsResponse {
-  // Visible bots.
+  // Visible bots by case-insensitive login, then user ID, in ascending order.
   repeated Bot bots = 1;
   // Page metadata.
   PageInfo page = 2;

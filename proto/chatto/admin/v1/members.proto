@@ -37,13 +37,15 @@ message AdminMember {
 }
 
 // Request server-admin member rows.
+// Results use creation time, oldest first. Users without a creation time
+// appear last, ordered by case-insensitive login.
 message ListMembersRequest {
   reserved 2, 3;
   reserved "limit", "offset";
 
   // Case-insensitive login/display-name search term. Empty disables search.
   string search = 1;
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Defaults to 20 results when absent or limit is zero. Maximum: 100.
   chatto.api.v1.PageRequest page = 4;
 }
 

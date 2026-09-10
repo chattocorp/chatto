@@ -23,11 +23,13 @@ const (
 )
 
 // Offset-based page request for list RPCs whose result order is stable enough
-// for simple list browsing.
+// for simple list browsing. Pages are live reads, not a fixed snapshot. Changes
+// between requests can shift offsets.
 type PageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Maximum number of items to request. Each RPC defines its default and
-	// effective maximum; this shared request shape accepts values up to 500.
+	// effective maximum. Valid values above that maximum are capped. This shared
+	// shape rejects values above 500 or below zero. Zero uses the RPC default.
 	Limit int32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Zero-based number of matching items to skip.
 	Offset        int32 `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`

@@ -457,3 +457,16 @@ Handle these codes as request failures, not server failures. Wait until the
 cooldown ends before trying the username change again. Correct an unknown
 permission identifier before retrying. No client regeneration or data migration
 is required.
+
+## Pagination contracts in 0.5
+
+Each paginated RPC documents its default limit, maximum limit, and result
+order. For offset lists, an absent page or a zero limit selects the default.
+Valid limits above the RPC maximum are capped; shared `PageRequest` values
+above 500 or below zero return `INVALID_ARGUMENT`.
+
+`RoomService.ListBans` sorts by creation time, newest first, then by ban event
+ID in ascending order. Bans with equal timestamps now keep the same order
+between reads. Offset pages remain live reads: additions, removals, or expiry
+between requests can still shift offsets. No client regeneration or data
+migration is required.

@@ -1453,7 +1453,7 @@ export class ListBansRequest extends Message<ListBansRequest> {
   roomId = "";
 
   /**
-   * Page request. Defaults are applied when absent or limit is zero.
+   * Defaults to 50 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 2;
    */
@@ -1495,7 +1495,8 @@ export class ListBansRequest extends Message<ListBansRequest> {
  */
 export class ListBansResponse extends Message<ListBansResponse> {
   /**
-   * Active bans, newest first.
+   * Active bans by creation time, newest first; equal times use ban event ID
+   * in ascending order.
    *
    * @generated from field: repeated chatto.api.v1.RoomBan bans = 1;
    */
@@ -1558,7 +1559,7 @@ export class ListRoomAttachmentsRequest extends Message<ListRoomAttachmentsReque
   thumbnail?: ImageTransformOptions;
 
   /**
-   * Page request. Defaults are applied when absent or limit is zero.
+   * Defaults to 50 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 5;
    */
@@ -1698,7 +1699,7 @@ export class ListPinnedMessagesRequest extends Message<ListPinnedMessagesRequest
   roomId = "";
 
   /**
-   * Page request. Defaults are applied when absent or limit is zero.
+   * Defaults to 50 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 2;
    */

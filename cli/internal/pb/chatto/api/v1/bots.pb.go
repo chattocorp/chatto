@@ -345,7 +345,7 @@ type ListBotsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional case-insensitive login or display-name search.
 	Search string `protobuf:"bytes,1,opt,name=search,proto3" json:"search,omitempty"`
-	// Page request. Defaults to 20 results when absent or limit is zero.
+	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
 	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -398,7 +398,7 @@ func (x *ListBotsRequest) GetPage() *PageRequest {
 // Page of visible bots.
 type ListBotsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Visible bots.
+	// Visible bots by case-insensitive login, then user ID, in ascending order.
 	Bots []*Bot `protobuf:"bytes,1,rep,name=bots,proto3" json:"bots,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`

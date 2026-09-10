@@ -77,7 +77,7 @@ Request to list durable EVT entries newest-first.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum entries to return. The server clamps this to its diagnostic limit. |
+| `limit` | `int32` | Maximum entries. Zero uses 50; values above 200 use 200. |
 | `before` | `optional string` | Exclusive sequence cursor. Returned entries are older than this sequence. |
 | `filter` | [`AdminEventLogFilter`](#chatto-admin-v1-AdminEventLogFilter) | Optional filter. Filtered scans inspect a bounded window per request. |
 
@@ -185,7 +185,7 @@ Requests a page of invite links, newest first.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `chatto.api.v1.PageRequest` | No field description provided. |
+| `page` | `chatto.api.v1.PageRequest` | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-admin-v1-ListInviteLinksResponse"></a>
@@ -526,11 +526,13 @@ POST /api/connect/chatto.admin.v1.AdminUserService/ListMembers
 #### Input: ListMembersRequest
 
 Request server-admin member rows.
+Results use creation time, oldest first. Users without a creation time
+appear last, ordered by case-insensitive login.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `search` | `string` | Case-insensitive login/display-name search term. Empty disables search. |
-| `page` | `chatto.api.v1.PageRequest` | Page request. Defaults to 20 results when absent or limit is zero. |
+| `page` | `chatto.api.v1.PageRequest` | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-admin-v1-ListMembersResponse"></a>
@@ -840,10 +842,11 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
 #### Input: ListOAuthClientsRequest
 
 Lists OAuth clients with recorded authorizations using offset pagination.
+Results use first authorization order, oldest first.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `page` | `chatto.api.v1.PageRequest` | Requested offset and page size. |
+| `page` | `chatto.api.v1.PageRequest` | Defaults to 20 results when absent or limit is zero. Maximum: 100. |
 
 
 <a id="chatto-admin-v1-ListOAuthClientsResponse"></a>

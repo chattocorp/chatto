@@ -255,9 +255,10 @@ func (x *OAuthClient) GetAuthorizedUserCount() uint32 {
 }
 
 // Lists OAuth clients with recorded authorizations using offset pagination.
+// Results use first authorization order, oldest first.
 type ListOAuthClientsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Requested offset and page size.
+	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
 	Page          *v1.PageRequest `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

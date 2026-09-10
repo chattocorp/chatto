@@ -30,7 +30,7 @@ message ListMembersRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Optional case-insensitive search against login and display name.
   string search = 2 [(buf.validate.field).string.max_len = 100];
-  // Page request. Defaults to 250 results when absent or limit is zero.
+  // Defaults to 250 results when absent or limit is zero. Maximum: 500.
   PageRequest page = 5;
 }
 
@@ -39,7 +39,7 @@ message ListMembersResponse {
   reserved 2, 3;
   reserved "total_count", "has_more";
 
-  // Members in the requested page.
+  // Members by case-insensitive display name, then login, in ascending order.
   repeated DirectoryMember members = 1;
   // Page metadata.
   PageInfo page = 4;

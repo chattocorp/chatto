@@ -415,7 +415,7 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
  */
 export class RoomTimelinePage extends Message<RoomTimelinePage> {
   /**
-   * Events in display order.
+   * Events in chronological display order, oldest first.
    *
    * @generated from field: repeated chatto.api.v1.RoomTimelineEvent events = 1;
    */
@@ -507,7 +507,7 @@ export class GetRoomEventsRequest extends Message<GetRoomEventsRequest> {
   roomId = "";
 
   /**
-   * Maximum number of events to return. The server may clamp very large limits.
+   * Maximum events. Values at or below zero use 50; values above 500 use 500.
    *
    * @generated from field: int32 limit = 2;
    */
@@ -632,7 +632,8 @@ export class GetRoomEventsAroundRequest extends Message<GetRoomEventsAroundReque
   eventId = "";
 
   /**
-   * Maximum number of events to return around the anchor.
+   * Maximum events around the anchor. Values at or below zero use 50;
+   * values above 500 use 500.
    *
    * @generated from field: int32 limit = 3;
    */
@@ -743,7 +744,7 @@ export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
   threadRootEventId = "";
 
   /**
-   * Maximum number of events to return. The server may clamp very large limits.
+   * Maximum events. Values at or below zero use 50; values above 500 use 500.
    *
    * @generated from field: int32 limit = 3;
    */
@@ -877,7 +878,8 @@ export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundR
   eventId = "";
 
   /**
-   * Maximum number of events to return around the anchor.
+   * Maximum events around the anchor. Values at or below zero use 50;
+   * values above 500 use 500.
    *
    * @generated from field: int32 limit = 4;
    */
