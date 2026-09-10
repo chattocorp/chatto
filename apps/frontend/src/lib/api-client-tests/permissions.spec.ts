@@ -112,6 +112,7 @@ describe('createPermissionAPI', () => {
 
   it('maps role matrix enum values to frontend strings', async () => {
     mocks.getRolePermissionMatrix.mockResolvedValue({
+      page: { totalCount: 2n, hasMore: false },
       matrix: {
         roleName: 'admin',
         applicablePermissions: ['message.post'],
@@ -148,6 +149,7 @@ describe('createPermissionAPI', () => {
       { headers: undefined }
     );
     expect(result).toEqual({
+      page: { totalCount: 2, hasMore: false },
       roleName: 'admin',
       applicablePermissions: ['message.post'],
       scopes: [
@@ -167,6 +169,7 @@ describe('createPermissionAPI', () => {
 
   it('rejects unknown permission matrix scope kinds', async () => {
     mocks.getRolePermissionMatrix.mockResolvedValue({
+      page: { totalCount: 2n, hasMore: false },
       matrix: {
         roleName: 'admin',
         applicablePermissions: [],
@@ -183,7 +186,9 @@ describe('createPermissionAPI', () => {
 
   it('loads role permission decisions as scoped entries', async () => {
     mocks.listRolePermissionDecisions.mockResolvedValue({
+      page: { totalCount: 2n, hasMore: false },
       roleName: 'admin',
+      scopes: [],
       decisions: [
         {
           permission: 'message.post',
@@ -208,7 +213,9 @@ describe('createPermissionAPI', () => {
       { headers: { Authorization: 'Bearer token' } }
     );
     expect(result).toEqual({
+      page: { totalCount: 2, hasMore: false },
       roleName: 'admin',
+      scopes: [],
       decisions: [
         {
           permission: 'message.post',
@@ -228,6 +235,7 @@ describe('createPermissionAPI', () => {
 
   it('loads user matrices and maps missing decisions to NONE', async () => {
     mocks.getUserPermissionMatrix.mockResolvedValue({
+      page: { totalCount: 2n, hasMore: false },
       matrix: {
         userId: 'U1',
         applicablePermissions: ['room.create'],
@@ -250,6 +258,7 @@ describe('createPermissionAPI', () => {
     const result = await api.getUserPermissionMatrix('U1');
 
     expect(result).toEqual({
+      page: { totalCount: 2, hasMore: false },
       userId: 'U1',
       applicablePermissions: ['room.create'],
       scopes: [{ id: 'group:G1', label: 'Lobby', kind: 'GROUP', parentGroupId: '' }],
@@ -267,7 +276,9 @@ describe('createPermissionAPI', () => {
 
   it('loads user permission decisions as scoped entries', async () => {
     mocks.listUserPermissionDecisions.mockResolvedValue({
+      page: { totalCount: 2n, hasMore: false },
       userId: 'U1',
+      scopes: [],
       decisions: [
         {
           permission: 'room.create',
@@ -286,7 +297,9 @@ describe('createPermissionAPI', () => {
       { headers: undefined }
     );
     expect(result).toEqual({
+      page: { totalCount: 2, hasMore: false },
       userId: 'U1',
+      scopes: [],
       decisions: [
         {
           permission: 'room.create',
@@ -359,4 +372,24 @@ describe('createPermissionAPI', () => {
       { headers: { Authorization: 'Bearer token' } }
     );
   });
+
+it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
+  mocks.listRolePermissionDecisions.mockResolvedValue({
+    roleName: 'moderator', decisions: [],
+    scopes: [{ kind: PermissionScopeKind.ROOM, id: 'room-1' }],
+    page: { totalCount: 1n, hasMore: false }
+  });
+  const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+  const signal = new AbortController().signal;
+  const result = await api.listRolePermissionDecisions('moderator', {
+    signal, page: { limit: 10, offset: 0 }, scope: { tier: 'room', roomId: 'room-1' }
+  });
+  expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith({
+    roleName: 'moderator', includeDirectMessageScope: true,
+    page: { limit: 10, offset: 0 }, scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
+  }, { headers: { Authorization: 'Bearer token' }, signal });
+  expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
+  expect(result.page).toEqual({ totalCount: 1, hasMore: false });
+});
+
 });

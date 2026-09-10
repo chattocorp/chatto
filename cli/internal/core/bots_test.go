@@ -1264,6 +1264,16 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("GetUserPermissionMatrix: %v", err)
 	}
+	filtered, err := c.GetUserPermissionMatrixIncludingDM(ctx, owner.GetId(), bot.User.GetId(), false, PermissionScopeQuery{
+		Scope: &PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(filtered.Scopes) != 0 || len(filtered.Cells) != 0 || filtered.Page.TotalCount != 0 || filtered.Page.HasMore {
+		t.Fatal("hidden bot room leaked through scope filter or counts")
+	}
+
 	groupFound := false
 	for _, scope := range matrix.Scopes {
 		if scope.ID == "group:"+group.GetId() && scope.Label == group.GetName() {

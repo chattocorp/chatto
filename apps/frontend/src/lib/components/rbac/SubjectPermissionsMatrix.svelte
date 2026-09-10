@@ -71,9 +71,16 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow = false,
     readOnly = false,
     decisionMode = 'tri-state',
-    onMembershipChange
+    onMembershipChange,
+    hasMore = false,
+    loadingMore = false,
+    onLoadMore
   }: {
     data: MatrixData;
+    /** Load scope columns as the horizontal edge becomes visible. */
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    onLoadMore?: () => unknown;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
     updatingKey?: string | null;
     onCycle: (scope: MatrixScope, permission: string, next: CellState) => void;
@@ -238,6 +245,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     {/snippet}
     <MatrixTable
       {rows}
+      {hasMore}
+      {loadingMore}
+      {onLoadMore}
       columns={matrixScopes}
       getRowKey={(permission) => permission}
       getColumnKey={(scope) => scope.id}

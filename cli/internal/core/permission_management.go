@@ -80,6 +80,8 @@ type PermissionMatrixCell struct {
 }
 
 type RolePermissionMatrix struct {
+	Page PermissionScopePage
+
 	RoleName              string
 	ApplicablePermissions []string
 	Scopes                []PermissionMatrixScope
@@ -87,6 +89,8 @@ type RolePermissionMatrix struct {
 }
 
 type UserPermissionMatrix struct {
+	Page PermissionScopePage
+
 	UserID                string
 	ApplicablePermissions []string
 	Scopes                []PermissionMatrixScope
@@ -175,18 +179,22 @@ func (c *ChattoCore) GetRolePermissionMatrix(ctx context.Context, actorID, roleN
 	return c.GetRolePermissionMatrixIncludingDM(ctx, actorID, roleName, false)
 }
 
-func (c *ChattoCore) GetRolePermissionMatrixIncludingDM(ctx context.Context, actorID, roleName string, includeDM bool) (*RolePermissionMatrix, error) {
+// GetRolePermissionMatrixIncludingDM returns a bounded scope page after authorization.
+// An omitted query uses 20 scopes. IncludeDM adds the direct-message scope.
+func (c *ChattoCore) GetRolePermissionMatrixIncludingDM(ctx context.Context, actorID, roleName string, includeDM bool, pages ...PermissionScopeQuery) (*RolePermissionMatrix, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildRolePermissionMatrix(ctx, roleName, includeDM)
+	return c.buildRolePermissionMatrix(ctx, roleName, includeDM, firstPermissionScopeQuery(pages))
 }
 
 func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userID string) (*UserPermissionMatrix, error) {
 	return c.GetUserPermissionMatrixIncludingDM(ctx, actorID, userID, false)
 }
 
-func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, actorID, userID string, includeDM bool) (*UserPermissionMatrix, error) {
+// GetUserPermissionMatrixIncludingDM returns a bounded scope page after authorization.
+// An omitted query uses 20 scopes. IncludeDM adds the direct-message scope.
+func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, actorID, userID string, includeDM bool, pages ...PermissionScopeQuery) (*UserPermissionMatrix, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
 	}
@@ -202,7 +210,7 @@ func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, act
 	} else if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildUserPermissionMatrix(ctx, actorID, user, includeDM)
+	return c.buildUserPermissionMatrix(ctx, actorID, user, includeDM, firstPermissionScopeQuery(pages))
 }
 
 func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleName string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
@@ -593,7 +601,7 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 	return out, nil
 }
 
-func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName string, includeDM bool) (*RolePermissionMatrix, error) {
+func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName string, includeDM bool, query PermissionScopeQuery) (*RolePermissionMatrix, error) {
 	role, err := c.GetServerRole(ctx, roleName)
 	if err != nil {
 		return nil, fmt.Errorf("load role: %w", err)
@@ -603,7 +611,12 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 	}
 
 	applicable := matrixApplicablePermissions()
-	scopes, err := c.buildMatrixScopes(ctx, includeDM)
+	scopes, err := c.buildMatrixScopes(ctx, includeDM || query.includesDM())
+	if err != nil {
+		return nil, err
+	}
+
+	scopes, page, err := selectPermissionScopes(scopes, query)
 	if err != nil {
 		return nil, err
 	}
@@ -648,6 +661,16 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 			roomGrants[roomID] = g
 			roomDenials[roomID] = d
 			roomToGroup[roomID] = scope.ParentGroupID
+			// The parent may be outside the requested page. Its rules still apply.
+			if groupID := scope.ParentGroupID; groupID != "" {
+				if _, loaded := groupGrants[groupID]; !loaded {
+					g, d, err := c.GetGroupRolePermissions(ctx, groupID, roleName)
+					if err != nil {
+						return nil, fmt.Errorf("load parent group permissions: %w", err)
+					}
+					groupGrants[groupID], groupDenials[groupID] = g, d
+				}
+			}
 		}
 	}
 
@@ -671,13 +694,14 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 
 	return &RolePermissionMatrix{
 		RoleName:              roleName,
+		Page:                  page,
 		ApplicablePermissions: applicable,
 		Scopes:                scopes,
 		Cells:                 cells,
 	}, nil
 }
 
-func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *evtv1.User, includeDM bool) (*UserPermissionMatrix, error) {
+func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *evtv1.User, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
 	userID := user.GetId()
 	applicable := matrixApplicablePermissions()
 	bot := user.GetIsBot()
@@ -695,13 +719,18 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 		err    error
 	)
 	if bot {
-		scopes, err = c.buildBotMatrixScopes(ctx, user.GetBotOwnerUserId(), actorID, includeDM)
+		scopes, err = c.buildBotMatrixScopes(ctx, user.GetBotOwnerUserId(), actorID, includeDM || query.includesDM())
 	} else {
-		scopes, err = c.buildMatrixScopes(ctx, includeDM)
+		scopes, err = c.buildMatrixScopes(ctx, includeDM || query.includesDM())
 	}
 	if err != nil {
 		return nil, err
 	}
+	scopes, page, err := selectPermissionScopes(scopes, query)
+	if err != nil {
+		return nil, err
+	}
+
 	cells := make([]PermissionMatrixCell, 0, len(applicable)*len(scopes))
 	for _, permStr := range applicable {
 		perm := Permission(permStr)
@@ -724,6 +753,7 @@ func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID stri
 	}
 	return &UserPermissionMatrix{
 		UserID:                userID,
+		Page:                  page,
 		ApplicablePermissions: applicable,
 		Scopes:                scopes,
 		Cells:                 cells,

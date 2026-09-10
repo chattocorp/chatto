@@ -7,7 +7,12 @@ import { ExplainPermissionsRequest, ExplainPermissionsResponse, GetRolePermissio
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides permission matrix reads and admin permission writes.
+ * Provides permission reads and admin permission writes.
+ * Matrix and decision pages use the same scope order: SERVER, DM, GROUP, ROOM,
+ * then ascending resource ID within each kind. Only requested scopes are evaluated.
+ * Pages are live reads; layout or visibility changes can shift offsets. Keep the
+ * same filters on each request and advance by the number of returned scopes.
+ * A scope filter of DM selects DM even when include_direct_message_scope is false.
  *
  * @generated from service chatto.admin.v1.AdminPermissionService
  */
@@ -28,7 +33,7 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one role's full permission matrix. Requires role.manage. Returns
+     * Gets one page of a role's permission matrix. Requires role.manage. Returns
      * NOT_FOUND when the role does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix
@@ -52,7 +57,7 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one user's full permission matrix. Human targets require
+     * Gets one page of a user's permission matrix. Human targets require
      * user.manage-permissions; bot targets require ownership or bot.manage.
      * Returns NOT_FOUND when the user does not exist.
      *

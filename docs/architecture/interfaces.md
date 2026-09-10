@@ -94,6 +94,12 @@ another account. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
+`AdminPermissionService` uses the same scope pagination for role/user matrix
+and decision reads. The core selects at most 100 scopes before cell evaluation
+and loads parent-group rules independently of the page. Scope enumeration still
+scans the directory. Bot reads filter room visibility before pagination and
+counts. See [permission scope selection](../../cli/internal/core/permission_scope_page.go).
+
 `AdminRoleService` separates role details from explicit membership pages.
 `ListMembers` gates each request with `role.assign`; it selects assignment IDs
 before bounded user-profile hydration. It does not require `admin.view-users`.

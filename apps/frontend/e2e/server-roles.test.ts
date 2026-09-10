@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
+import { GetRolePermissionMatrixRequest } from '@chatto/api-types/admin/v1/permissions_pb';
 import { AdminRoleServiceListMembersRequest } from '@chatto/api-types/admin/v1/roles_pb';
 import {
   activatePrivilegedMode,
@@ -138,6 +139,32 @@ async function denyPermission(
 }
 
 test.describe('Server Roles Management', () => {
+  test('permission matrix loads scope pages at the horizontal edge', async ({ serverRolesPage }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    const groupId = await getDefaultRoomGroupId(page);
+    for (let i = 0; i < 24; i++) await createRoomViaConnect(page, `paged-permissions-${i}`, groupId);
+    const offsets: number[] = [];
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.stack ?? error.message));
+    page.on('request', request => {
+      if (request.url().endsWith('/chatto.admin.v1.AdminPermissionService/GetRolePermissionMatrix')) {
+        const body = request.postDataBuffer();
+        if (body) offsets.push(GetRolePermissionMatrixRequest.fromBinary(body).page?.offset ?? 0);
+      }
+    });
+    await page.setViewportSize({ width: 1000, height: 800 });
+    await page.goto(routes.serverAdminPermission('moderator'));
+    await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
+    const viewport = page.locator('.data-table-viewport').filter({ has: page.locator('th[data-scope]') });
+    await expect(viewport.locator('th[data-scope]')).toHaveCount(20);
+    await viewport.hover();
+    await page.mouse.wheel(3000, 0);
+    await expect.poll(() => offsets.includes(20)).toBe(true);
+    await expect.poll(() => viewport.locator('th[data-scope]').count()).toBeGreaterThan(20);
+    expect(errors).toEqual([]);
+  });
+
   test('role member roster loads the next page when scrolled', async ({ serverRolesPage }) => {
     const { page } = serverRolesPage;
     const server = await usePrimaryServerViaAPI(page);

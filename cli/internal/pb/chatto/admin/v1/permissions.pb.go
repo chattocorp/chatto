@@ -688,7 +688,7 @@ func (x *PermissionMatrixCell) GetAllowPermitted() bool {
 	return false
 }
 
-// Permission matrix for one role across all scopes.
+// Permission matrix for one role for one page of scopes.
 type RolePermissionMatrix struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Role name.
@@ -769,8 +769,13 @@ type GetRolePermissionMatrixRequest struct {
 	// Include the direct-message scope column. Defaults to false so an older
 	// client does not receive a scope kind that it cannot interpret.
 	IncludeDirectMessageScope bool `protobuf:"varint,2,opt,name=include_direct_message_scope,json=includeDirectMessageScope,proto3" json:"include_direct_message_scope,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
+	Page *v1.PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+	// SERVER and DM require an empty ID; GROUP and ROOM require an ID.
+	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRolePermissionMatrixRequest) Reset() {
@@ -817,11 +822,27 @@ func (x *GetRolePermissionMatrixRequest) GetIncludeDirectMessageScope() bool {
 	return false
 }
 
+func (x *GetRolePermissionMatrixRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *GetRolePermissionMatrixRequest) GetScope() *PermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
 // Response containing one role's permission matrix.
 type GetRolePermissionMatrixResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested matrix.
-	Matrix        *RolePermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	Matrix *RolePermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	// Total matching scopes and whether another scope page exists.
+	Page          *v1.PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -863,7 +884,14 @@ func (x *GetRolePermissionMatrixResponse) GetMatrix() *RolePermissionMatrix {
 	return nil
 }
 
-// Permission matrix for one user across all scopes.
+func (x *GetRolePermissionMatrixResponse) GetPage() *v1.PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Permission matrix for one user for one page of scopes.
 type UserPermissionMatrix struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User ID.
@@ -1083,8 +1111,13 @@ type ListRolePermissionDecisionsRequest struct {
 	RoleName string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	// Include direct-message decisions. Defaults to false for older clients.
 	IncludeDirectMessageScope bool `protobuf:"varint,2,opt,name=include_direct_message_scope,json=includeDirectMessageScope,proto3" json:"include_direct_message_scope,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
+	Page *v1.PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+	// SERVER and DM require an empty ID; GROUP and ROOM require an ID.
+	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListRolePermissionDecisionsRequest) Reset() {
@@ -1131,13 +1164,31 @@ func (x *ListRolePermissionDecisionsRequest) GetIncludeDirectMessageScope() bool
 	return false
 }
 
+func (x *ListRolePermissionDecisionsRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListRolePermissionDecisionsRequest) GetScope() *PermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
 // Resource-oriented permission decisions for one role.
 type ListRolePermissionDecisionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable role name.
 	RoleName string `protobuf:"bytes,1,opt,name=role_name,json=roleName,proto3" json:"role_name,omitempty"`
 	// Permission decisions keyed by permission and typed scope.
-	Decisions     []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	Decisions []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	// Total matching scopes and whether another scope page exists.
+	Page *v1.PageInfo `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Scopes in this page, including scopes with no applicable decisions.
+	Scopes        []*PermissionScope `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1186,6 +1237,20 @@ func (x *ListRolePermissionDecisionsResponse) GetDecisions() []*ScopedPermission
 	return nil
 }
 
+func (x *ListRolePermissionDecisionsResponse) GetPage() *v1.PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListRolePermissionDecisionsResponse) GetScopes() []*PermissionScope {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
 // Request explicit/effective permission decisions for one user.
 type ListUserPermissionDecisionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1193,8 +1258,13 @@ type ListUserPermissionDecisionsRequest struct {
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Include direct-message decisions. Defaults to false for older clients.
 	IncludeDirectMessageScope bool `protobuf:"varint,2,opt,name=include_direct_message_scope,json=includeDirectMessageScope,proto3" json:"include_direct_message_scope,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
+	Page *v1.PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+	// SERVER and DM require an empty ID; GROUP and ROOM require an ID.
+	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListUserPermissionDecisionsRequest) Reset() {
@@ -1241,13 +1311,31 @@ func (x *ListUserPermissionDecisionsRequest) GetIncludeDirectMessageScope() bool
 	return false
 }
 
+func (x *ListUserPermissionDecisionsRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListUserPermissionDecisionsRequest) GetScope() *PermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
 // Resource-oriented permission decisions for one user.
 type ListUserPermissionDecisionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User ID.
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Permission decisions keyed by permission and typed scope.
-	Decisions     []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	Decisions []*ScopedPermissionDecision `protobuf:"bytes,2,rep,name=decisions,proto3" json:"decisions,omitempty"`
+	// Total matching scopes and whether another scope page exists.
+	Page *v1.PageInfo `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Scopes in this page, including scopes with no applicable decisions.
+	Scopes        []*PermissionScope `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1292,6 +1380,20 @@ func (x *ListUserPermissionDecisionsResponse) GetUserId() string {
 func (x *ListUserPermissionDecisionsResponse) GetDecisions() []*ScopedPermissionDecision {
 	if x != nil {
 		return x.Decisions
+	}
+	return nil
+}
+
+func (x *ListUserPermissionDecisionsResponse) GetPage() *v1.PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListUserPermissionDecisionsResponse) GetScopes() []*PermissionScope {
+	if x != nil {
+		return x.Scopes
 	}
 	return nil
 }
@@ -1581,8 +1683,13 @@ type GetUserPermissionMatrixRequest struct {
 	// Include the direct-message scope column. Defaults to false so an older
 	// client does not receive a scope kind that it cannot interpret.
 	IncludeDirectMessageScope bool `protobuf:"varint,2,opt,name=include_direct_message_scope,json=includeDirectMessageScope,proto3" json:"include_direct_message_scope,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Scope page. Default 20 scopes, maximum 100. Offsets count scopes, not decisions.
+	Page *v1.PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	// Optional exact scope filter. Missing or inaccessible scopes produce an empty page.
+	// SERVER and DM require an empty ID; GROUP and ROOM require an ID.
+	Scope         *PermissionScope `protobuf:"bytes,4,opt,name=scope,proto3" json:"scope,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetUserPermissionMatrixRequest) Reset() {
@@ -1629,11 +1736,27 @@ func (x *GetUserPermissionMatrixRequest) GetIncludeDirectMessageScope() bool {
 	return false
 }
 
+func (x *GetUserPermissionMatrixRequest) GetPage() *v1.PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *GetUserPermissionMatrixRequest) GetScope() *PermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
 // Response containing one user's permission matrix.
 type GetUserPermissionMatrixResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested matrix.
-	Matrix        *UserPermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	Matrix *UserPermissionMatrix `protobuf:"bytes,1,opt,name=matrix,proto3" json:"matrix,omitempty"`
+	// Total matching scopes and whether another scope page exists.
+	Page          *v1.PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1671,6 +1794,13 @@ func (*GetUserPermissionMatrixResponse) Descriptor() ([]byte, []int) {
 func (x *GetUserPermissionMatrixResponse) GetMatrix() *UserPermissionMatrix {
 	if x != nil {
 		return x.Matrix
+	}
+	return nil
+}
+
+func (x *GetUserPermissionMatrixResponse) GetPage() *v1.PageInfo {
+	if x != nil {
+		return x.Page
 	}
 	return nil
 }
@@ -1917,7 +2047,7 @@ var File_chatto_admin_v1_permissions_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\n" +
-	"!chatto/admin/v1/permissions.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\"e\n" +
+	"!chatto/admin/v1/permissions.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x19chatto/api/v1/roles.proto\x1a\x1echatto/api/v1/pagination.proto\"e\n" +
 	"\x0fPermissionScope\x12B\n" +
 	"\x04kind\x18\x01 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\"b\n" +
@@ -1954,12 +2084,15 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x125\n" +
 	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12>\n" +
 	"\x06scopes\x18\x03 \x03(\v2&.chatto.admin.v1.PermissionMatrixScopeR\x06scopes\x12;\n" +
-	"\x05cells\x18\x04 \x03(\v2%.chatto.admin.v1.PermissionMatrixCellR\x05cells\"\x87\x01\n" +
+	"\x05cells\x18\x04 \x03(\v2%.chatto.admin.v1.PermissionMatrixCellR\x05cells\"\xef\x01\n" +
 	"\x1eGetRolePermissionMatrixRequest\x12$\n" +
 	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12?\n" +
-	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\"`\n" +
+	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x126\n" +
+	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\x8d\x01\n" +
 	"\x1fGetRolePermissionMatrixResponse\x12=\n" +
-	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.RolePermissionMatrixR\x06matrix\"\xe3\x01\n" +
+	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.RolePermissionMatrixR\x06matrix\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xe3\x01\n" +
 	"\x14UserPermissionMatrix\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x125\n" +
 	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12>\n" +
@@ -1977,19 +2110,27 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"permission\x18\x01 \x01(\tR\n" +
 	"permission\x126\n" +
 	"\x05scope\x18\x02 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\x12?\n" +
-	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\"\x8b\x01\n" +
+	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\"\xf3\x01\n" +
 	"\"ListRolePermissionDecisionsRequest\x12$\n" +
 	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12?\n" +
-	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\"\x8b\x01\n" +
+	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x126\n" +
+	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\xf2\x01\n" +
 	"#ListRolePermissionDecisionsResponse\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x12G\n" +
-	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\"\x87\x01\n" +
+	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\x12+\n" +
+	"\x04page\x18\x03 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x128\n" +
+	"\x06scopes\x18\x04 \x03(\v2 .chatto.admin.v1.PermissionScopeR\x06scopes\"\xef\x01\n" +
 	"\"ListUserPermissionDecisionsRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12?\n" +
-	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\"\x87\x01\n" +
+	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x126\n" +
+	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\xee\x01\n" +
 	"#ListUserPermissionDecisionsResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12G\n" +
-	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\"\xce\x01\n" +
+	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\x12+\n" +
+	"\x04page\x18\x03 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\x128\n" +
+	"\x06scopes\x18\x04 \x03(\v2 .chatto.admin.v1.PermissionScopeR\x06scopes\"\xce\x01\n" +
 	"\x14PermissionTraceEntry\x12>\n" +
 	"\x05level\x18\x01 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\x05level\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12?\n" +
@@ -2010,12 +2151,15 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x126\n" +
 	"\x05scope\x18\x03 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"h\n" +
 	"\x1aExplainPermissionsResponse\x12J\n" +
-	"\fexplanations\x18\x01 \x03(\v2&.chatto.admin.v1.PermissionExplanationR\fexplanations\"\x83\x01\n" +
+	"\fexplanations\x18\x01 \x03(\v2&.chatto.admin.v1.PermissionExplanationR\fexplanations\"\xeb\x01\n" +
 	"\x1eGetUserPermissionMatrixRequest\x12 \n" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12?\n" +
-	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\"`\n" +
+	"\x1cinclude_direct_message_scope\x18\x02 \x01(\bR\x19includeDirectMessageScope\x12.\n" +
+	"\x04page\x18\x03 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\x126\n" +
+	"\x05scope\x18\x04 \x01(\v2 .chatto.admin.v1.PermissionScopeR\x05scope\"\x8d\x01\n" +
 	"\x1fGetUserPermissionMatrixResponse\x12=\n" +
-	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.UserPermissionMatrixR\x06matrix\"\xee\x01\n" +
+	"\x06matrix\x18\x01 \x01(\v2%.chatto.admin.v1.UserPermissionMatrixR\x06matrix\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xee\x01\n" +
 	"\x18SetRolePermissionRequest\x12$\n" +
 	"\trole_name\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\broleName\x12'\n" +
 	"\n" +
@@ -2111,6 +2255,8 @@ var file_chatto_admin_v1_permissions_proto_goTypes = []any{
 	(*SetUserPermissionRequest)(nil),            // 29: chatto.admin.v1.SetUserPermissionRequest
 	(*SetUserPermissionResponse)(nil),           // 30: chatto.admin.v1.SetUserPermissionResponse
 	(*v1.Role)(nil),                             // 31: chatto.api.v1.Role
+	(*v1.PageRequest)(nil),                      // 32: chatto.api.v1.PageRequest
+	(*v1.PageInfo)(nil),                         // 33: chatto.api.v1.PageInfo
 }
 var file_chatto_admin_v1_permissions_proto_depIdxs = []int32{
 	1,  // 0: chatto.admin.v1.PermissionScope.kind:type_name -> chatto.admin.v1.PermissionScopeKind
@@ -2124,51 +2270,65 @@ var file_chatto_admin_v1_permissions_proto_depIdxs = []int32{
 	0,  // 8: chatto.admin.v1.PermissionMatrixCell.effective:type_name -> chatto.admin.v1.PermissionDecision
 	9,  // 9: chatto.admin.v1.RolePermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
 	10, // 10: chatto.admin.v1.RolePermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
-	11, // 11: chatto.admin.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.RolePermissionMatrix
-	9,  // 12: chatto.admin.v1.UserPermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
-	10, // 13: chatto.admin.v1.UserPermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
-	3,  // 14: chatto.admin.v1.ScopedPermissionDecision.scope:type_name -> chatto.admin.v1.PermissionScope
-	0,  // 15: chatto.admin.v1.ScopedPermissionDecision.override:type_name -> chatto.admin.v1.PermissionDecision
-	0,  // 16: chatto.admin.v1.ScopedPermissionDecision.effective:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 17: chatto.admin.v1.PermissionDecisionUpdate.scope:type_name -> chatto.admin.v1.PermissionScope
-	0,  // 18: chatto.admin.v1.PermissionDecisionUpdate.decision:type_name -> chatto.admin.v1.PermissionDecision
-	15, // 19: chatto.admin.v1.ListRolePermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
-	15, // 20: chatto.admin.v1.ListUserPermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
-	2,  // 21: chatto.admin.v1.PermissionTraceEntry.level:type_name -> chatto.admin.v1.PermissionDecisionLevel
-	0,  // 22: chatto.admin.v1.PermissionTraceEntry.decision:type_name -> chatto.admin.v1.PermissionDecision
-	0,  // 23: chatto.admin.v1.PermissionExplanation.state:type_name -> chatto.admin.v1.PermissionDecision
-	2,  // 24: chatto.admin.v1.PermissionExplanation.decided_at:type_name -> chatto.admin.v1.PermissionDecisionLevel
-	21, // 25: chatto.admin.v1.PermissionExplanation.trace:type_name -> chatto.admin.v1.PermissionTraceEntry
-	3,  // 26: chatto.admin.v1.ExplainPermissionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	22, // 27: chatto.admin.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.admin.v1.PermissionExplanation
-	14, // 28: chatto.admin.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.UserPermissionMatrix
-	0,  // 29: chatto.admin.v1.SetRolePermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 30: chatto.admin.v1.SetRolePermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	16, // 31: chatto.admin.v1.SetRolePermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
-	0,  // 32: chatto.admin.v1.SetUserPermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
-	3,  // 33: chatto.admin.v1.SetUserPermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
-	16, // 34: chatto.admin.v1.SetUserPermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
-	7,  // 35: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:input_type -> chatto.admin.v1.GetRolePermissionTierMatrixRequest
-	12, // 36: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:input_type -> chatto.admin.v1.GetRolePermissionMatrixRequest
-	17, // 37: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:input_type -> chatto.admin.v1.ListRolePermissionDecisionsRequest
-	25, // 38: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:input_type -> chatto.admin.v1.GetUserPermissionMatrixRequest
-	19, // 39: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:input_type -> chatto.admin.v1.ListUserPermissionDecisionsRequest
-	23, // 40: chatto.admin.v1.AdminPermissionService.ExplainPermissions:input_type -> chatto.admin.v1.ExplainPermissionsRequest
-	27, // 41: chatto.admin.v1.AdminPermissionService.SetRolePermission:input_type -> chatto.admin.v1.SetRolePermissionRequest
-	29, // 42: chatto.admin.v1.AdminPermissionService.SetUserPermission:input_type -> chatto.admin.v1.SetUserPermissionRequest
-	8,  // 43: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:output_type -> chatto.admin.v1.GetRolePermissionTierMatrixResponse
-	13, // 44: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:output_type -> chatto.admin.v1.GetRolePermissionMatrixResponse
-	18, // 45: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:output_type -> chatto.admin.v1.ListRolePermissionDecisionsResponse
-	26, // 46: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:output_type -> chatto.admin.v1.GetUserPermissionMatrixResponse
-	20, // 47: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:output_type -> chatto.admin.v1.ListUserPermissionDecisionsResponse
-	24, // 48: chatto.admin.v1.AdminPermissionService.ExplainPermissions:output_type -> chatto.admin.v1.ExplainPermissionsResponse
-	28, // 49: chatto.admin.v1.AdminPermissionService.SetRolePermission:output_type -> chatto.admin.v1.SetRolePermissionResponse
-	30, // 50: chatto.admin.v1.AdminPermissionService.SetUserPermission:output_type -> chatto.admin.v1.SetUserPermissionResponse
-	43, // [43:51] is the sub-list for method output_type
-	35, // [35:43] is the sub-list for method input_type
-	35, // [35:35] is the sub-list for extension type_name
-	35, // [35:35] is the sub-list for extension extendee
-	0,  // [0:35] is the sub-list for field type_name
+	32, // 11: chatto.admin.v1.GetRolePermissionMatrixRequest.page:type_name -> chatto.api.v1.PageRequest
+	3,  // 12: chatto.admin.v1.GetRolePermissionMatrixRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	11, // 13: chatto.admin.v1.GetRolePermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.RolePermissionMatrix
+	33, // 14: chatto.admin.v1.GetRolePermissionMatrixResponse.page:type_name -> chatto.api.v1.PageInfo
+	9,  // 15: chatto.admin.v1.UserPermissionMatrix.scopes:type_name -> chatto.admin.v1.PermissionMatrixScope
+	10, // 16: chatto.admin.v1.UserPermissionMatrix.cells:type_name -> chatto.admin.v1.PermissionMatrixCell
+	3,  // 17: chatto.admin.v1.ScopedPermissionDecision.scope:type_name -> chatto.admin.v1.PermissionScope
+	0,  // 18: chatto.admin.v1.ScopedPermissionDecision.override:type_name -> chatto.admin.v1.PermissionDecision
+	0,  // 19: chatto.admin.v1.ScopedPermissionDecision.effective:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 20: chatto.admin.v1.PermissionDecisionUpdate.scope:type_name -> chatto.admin.v1.PermissionScope
+	0,  // 21: chatto.admin.v1.PermissionDecisionUpdate.decision:type_name -> chatto.admin.v1.PermissionDecision
+	32, // 22: chatto.admin.v1.ListRolePermissionDecisionsRequest.page:type_name -> chatto.api.v1.PageRequest
+	3,  // 23: chatto.admin.v1.ListRolePermissionDecisionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	15, // 24: chatto.admin.v1.ListRolePermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
+	33, // 25: chatto.admin.v1.ListRolePermissionDecisionsResponse.page:type_name -> chatto.api.v1.PageInfo
+	3,  // 26: chatto.admin.v1.ListRolePermissionDecisionsResponse.scopes:type_name -> chatto.admin.v1.PermissionScope
+	32, // 27: chatto.admin.v1.ListUserPermissionDecisionsRequest.page:type_name -> chatto.api.v1.PageRequest
+	3,  // 28: chatto.admin.v1.ListUserPermissionDecisionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	15, // 29: chatto.admin.v1.ListUserPermissionDecisionsResponse.decisions:type_name -> chatto.admin.v1.ScopedPermissionDecision
+	33, // 30: chatto.admin.v1.ListUserPermissionDecisionsResponse.page:type_name -> chatto.api.v1.PageInfo
+	3,  // 31: chatto.admin.v1.ListUserPermissionDecisionsResponse.scopes:type_name -> chatto.admin.v1.PermissionScope
+	2,  // 32: chatto.admin.v1.PermissionTraceEntry.level:type_name -> chatto.admin.v1.PermissionDecisionLevel
+	0,  // 33: chatto.admin.v1.PermissionTraceEntry.decision:type_name -> chatto.admin.v1.PermissionDecision
+	0,  // 34: chatto.admin.v1.PermissionExplanation.state:type_name -> chatto.admin.v1.PermissionDecision
+	2,  // 35: chatto.admin.v1.PermissionExplanation.decided_at:type_name -> chatto.admin.v1.PermissionDecisionLevel
+	21, // 36: chatto.admin.v1.PermissionExplanation.trace:type_name -> chatto.admin.v1.PermissionTraceEntry
+	3,  // 37: chatto.admin.v1.ExplainPermissionsRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	22, // 38: chatto.admin.v1.ExplainPermissionsResponse.explanations:type_name -> chatto.admin.v1.PermissionExplanation
+	32, // 39: chatto.admin.v1.GetUserPermissionMatrixRequest.page:type_name -> chatto.api.v1.PageRequest
+	3,  // 40: chatto.admin.v1.GetUserPermissionMatrixRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	14, // 41: chatto.admin.v1.GetUserPermissionMatrixResponse.matrix:type_name -> chatto.admin.v1.UserPermissionMatrix
+	33, // 42: chatto.admin.v1.GetUserPermissionMatrixResponse.page:type_name -> chatto.api.v1.PageInfo
+	0,  // 43: chatto.admin.v1.SetRolePermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 44: chatto.admin.v1.SetRolePermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	16, // 45: chatto.admin.v1.SetRolePermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
+	0,  // 46: chatto.admin.v1.SetUserPermissionRequest.decision:type_name -> chatto.admin.v1.PermissionDecision
+	3,  // 47: chatto.admin.v1.SetUserPermissionRequest.scope:type_name -> chatto.admin.v1.PermissionScope
+	16, // 48: chatto.admin.v1.SetUserPermissionResponse.decision:type_name -> chatto.admin.v1.PermissionDecisionUpdate
+	7,  // 49: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:input_type -> chatto.admin.v1.GetRolePermissionTierMatrixRequest
+	12, // 50: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:input_type -> chatto.admin.v1.GetRolePermissionMatrixRequest
+	17, // 51: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:input_type -> chatto.admin.v1.ListRolePermissionDecisionsRequest
+	25, // 52: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:input_type -> chatto.admin.v1.GetUserPermissionMatrixRequest
+	19, // 53: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:input_type -> chatto.admin.v1.ListUserPermissionDecisionsRequest
+	23, // 54: chatto.admin.v1.AdminPermissionService.ExplainPermissions:input_type -> chatto.admin.v1.ExplainPermissionsRequest
+	27, // 55: chatto.admin.v1.AdminPermissionService.SetRolePermission:input_type -> chatto.admin.v1.SetRolePermissionRequest
+	29, // 56: chatto.admin.v1.AdminPermissionService.SetUserPermission:input_type -> chatto.admin.v1.SetUserPermissionRequest
+	8,  // 57: chatto.admin.v1.AdminPermissionService.GetRolePermissionTierMatrix:output_type -> chatto.admin.v1.GetRolePermissionTierMatrixResponse
+	13, // 58: chatto.admin.v1.AdminPermissionService.GetRolePermissionMatrix:output_type -> chatto.admin.v1.GetRolePermissionMatrixResponse
+	18, // 59: chatto.admin.v1.AdminPermissionService.ListRolePermissionDecisions:output_type -> chatto.admin.v1.ListRolePermissionDecisionsResponse
+	26, // 60: chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix:output_type -> chatto.admin.v1.GetUserPermissionMatrixResponse
+	20, // 61: chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions:output_type -> chatto.admin.v1.ListUserPermissionDecisionsResponse
+	24, // 62: chatto.admin.v1.AdminPermissionService.ExplainPermissions:output_type -> chatto.admin.v1.ExplainPermissionsResponse
+	28, // 63: chatto.admin.v1.AdminPermissionService.SetRolePermission:output_type -> chatto.admin.v1.SetRolePermissionResponse
+	30, // 64: chatto.admin.v1.AdminPermissionService.SetUserPermission:output_type -> chatto.admin.v1.SetUserPermissionResponse
+	57, // [57:65] is the sub-list for method output_type
+	49, // [49:57] is the sub-list for method input_type
+	49, // [49:49] is the sub-list for extension type_name
+	49, // [49:49] is the sub-list for extension extendee
+	0,  // [0:49] is the sub-list for field type_name
 }
 
 func init() { file_chatto_admin_v1_permissions_proto_init() }
