@@ -48,6 +48,7 @@ export function removeDeletedRoleQueries(
 ): void {
   const roleKey = adminQueryKeys.rolePermissions(serverId, connection, roleName);
   const roleDetailsKey = adminQueryKeys.role(serverId, connection, roleName);
+  void queryClient.cancelQueries({ queryKey: roleKey, exact: true });
   queryClient.setQueryData(roleKey, null);
   queryClient.setQueryData(roleDetailsKey, null);
   queryClient.removeQueries({ queryKey: roleKey, exact: true });

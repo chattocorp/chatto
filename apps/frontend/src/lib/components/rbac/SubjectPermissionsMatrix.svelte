@@ -71,9 +71,16 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow = false,
     readOnly = false,
     decisionMode = 'tri-state',
-    onMembershipChange
+    onMembershipChange,
+    hasMore = false,
+    loadingMore = false,
+    onLoadMore
   }: {
     data: MatrixData;
+    /** Load scope columns as the horizontal edge becomes visible. */
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    onLoadMore?: () => unknown;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
     updatingKey?: string | null;
     onCycle: (scope: MatrixScope, permission: string, next: CellState) => void;
@@ -92,8 +99,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   // ----- Column layout ----------------------------------------------------
 
   // Order columns: server first, then each group followed by its rooms.
-  // Backend returns server, then all groups, then all rooms — we re-order
-  // here so rooms nest visually under their parent group.
+  // The API uses this order too, so new pages append columns. Keep grouping
+  // here for local fixtures and callers that supply an unordered matrix.
   const orderedScopes = $derived.by<MatrixScope[]>(() => {
     const server = data.scopes.filter((s) => s.kind === 'SERVER');
     const dm = data.scopes.filter((s) => s.kind === 'DM');
@@ -238,6 +245,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     {/snippet}
     <MatrixTable
       {rows}
+      {hasMore}
+      {loadingMore}
+      {onLoadMore}
       columns={matrixScopes}
       getRowKey={(permission) => permission}
       getColumnKey={(scope) => scope.id}

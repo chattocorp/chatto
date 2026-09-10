@@ -8,6 +8,8 @@ cell content with snippets.
 -->
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
+  import { m } from '$lib/i18n/messages';
   import DataTable from '$lib/ui/DataTable.svelte';
   import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
@@ -36,8 +38,15 @@ cell content with snippets.
     rowHeaderWidth = '14rem',
     columnHeaderHeight = '12rem',
     spacerTestId = 'matrix-spacer',
-    compact = false
+    compact = false,
+    hasMore = false,
+    loadingMore = false,
+    onLoadMore
   }: {
+    /** Incrementally load columns when their horizontal edge is visible. */
+    hasMore?: boolean;
+    loadingMore?: boolean;
+    onLoadMore?: () => unknown;
     rows: TRow[];
     columns: TColumn[];
     getRowKey: (row: TRow) => string;
@@ -65,6 +74,24 @@ cell content with snippets.
     /** Reduce padding around the standard 40-pixel cell controls. */
     compact?: boolean;
   } = $props();
+
+  const columnSentinel: Attachment<HTMLTableCellElement> = (element) => {
+    if (!hasMore || loadingMore || !onLoadMore) return;
+    const callback = onLoadMore;
+    const root = element.closest('.data-table-viewport');
+    if (!root) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          observer.disconnect();
+          callback();
+        }
+      },
+      { root, rootMargin: '0px 160px 0px 160px' }
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  };
 
   type Coordinate = { row: string; column: string };
   let hoveredCell = $state<Coordinate | null>(null);
@@ -144,7 +171,15 @@ cell content with snippets.
       </th>
     {/each}
     {@render trailingHeader?.()}
-    <th class="w-full bg-background p-0" aria-hidden="true"></th>
+    <th class="w-full bg-background p-0" aria-hidden={!loadingMore} {@attach columnSentinel}>
+      {#if loadingMore}
+        <span
+          role="status"
+          aria-label={m('ui.data_table.loading_more')}
+          class="iconify icon-[uil--spinner-alt] animate-spin text-muted"
+        ></span>
+      {/if}
+    </th>
   {/snippet}
   {#snippet row(row)}
     <th

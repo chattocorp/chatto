@@ -74,6 +74,34 @@ when `has_message_history` is explicitly false. A new client connected to an
 older server sees no empty DM rows, and it must treat an absent history value
 on a returned DM as unknown rather than false.
 
+Chatto 0.5 bounds `AdminPermissionService.GetRolePermissionMatrix`,
+`GetUserPermissionMatrix`, `ListRolePermissionDecisions`, and
+`ListUserPermissionDecisions` by scope. All four accept `page` and an optional
+exact typed `scope` filter. Omitted pages now return at most 20 scopes, with a
+maximum of 100. An older client that assumes a complete response will show an
+incomplete configuration. Regenerate clients and consume all required pages.
+
+For example, request a role's first scope page with:
+
+```json
+{"roleName":"moderator","page":{"limit":20,"offset":0},"includeDirectMessageScope":true}
+```
+
+Read scope counts from response `page`. Advance `offset` by the number of
+returned scopes, not by the number of decisions. Matrix scopes are in
+`matrix.scopes`; decision-list scopes are in `scopes`, including scopes without
+applicable decisions. Repeat with the same filters while `page.hasMore` is true.
+Order is server, direct messages, then each group followed by its rooms. Groups
+and rooms within each group use ascending resource IDs. Pages are live reads; concurrent changes can shift offsets.
+Deduplicate by scope and permission when combining pages.
+
+To inspect only one room, add
+`"scope":{"kind":"PERMISSION_SCOPE_KIND_ROOM","id":"<room-id>"}`.
+An exact DM filter selects direct messages without the include flag. Missing or
+inaccessible scopes return an empty page. Inherited decisions still use broader
+scopes outside the page. Authorization is unchanged; bot room visibility applies
+before scope counts. Stored permissions and upgrade data are unchanged.
+
 Chatto 0.5 removes `AdminRoleService.GetRoleResponse.users`. Read explicit
 assignments through `AdminRoleService.ListMembers` instead. It returns canonical
 `User` records in `members`, with `PageInfo` in `page`. Pass `name` and a

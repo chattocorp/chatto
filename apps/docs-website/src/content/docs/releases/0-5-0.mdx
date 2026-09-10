@@ -436,6 +436,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   omitted expiry means no expiry. See the
   [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
 
+- **API migration:** Role and user permission matrix/decision reads now return
+  scope pages: 20 scopes by default, capped at 100. Consume `page` metadata or
+  request one typed `scope`. Offsets count scopes, not decisions. The editors
+  load columns as you scroll. Stored permission rules are unchanged. See
+  [API Compatibility](/guides/integrations/api-compatibility/).
 - **API migration:** Role details no longer embed all assigned users. Replace
   reads of `AdminRoleService.GetRoleResponse.users` with paginated
   `AdminRoleService.ListMembers` calls. The default page contains 20 users;

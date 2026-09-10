@@ -72,12 +72,22 @@ export type MatrixData = {
   cells: MatrixCell[];
 };
 
+/** Scope counts, rather than permission-cell counts. */
+export type PermissionScopePage = { totalCount: number; hasMore: boolean };
+export type PermissionReadOptions = {
+  signal?: AbortSignal;
+  page?: { limit?: number; offset?: number };
+  scope?: PermissionScope;
+};
+
 export type RolePermissionMatrix = MatrixData & {
   roleName: string;
+  page: PermissionScopePage;
 };
 
 export type UserPermissionMatrix = MatrixData & {
   userId: string;
+  page: PermissionScopePage;
 };
 
 export type PermissionDecisionEntry = {
@@ -96,11 +106,15 @@ export type PermissionDecisionUpdate = {
 export type RolePermissionDecisions = {
   roleName: string;
   decisions: PermissionDecisionEntry[];
+  scopes: PermissionScope[];
+  page: PermissionScopePage;
 };
 
 export type UserPermissionDecisions = {
   userId: string;
   decisions: PermissionDecisionEntry[];
+  scopes: PermissionScope[];
+  page: PermissionScopePage;
 };
 
 export function createPermissionAPI(config: PermissionAPIConfig) {
@@ -126,45 +140,79 @@ export function createPermissionAPI(config: PermissionAPIConfig) {
 
     async getRolePermissionMatrix(
       roleName: string,
-      options: { signal?: AbortSignal } = {}
+      options: PermissionReadOptions = {}
     ): Promise<RolePermissionMatrix | null> {
       const response = await client.getRolePermissionMatrix(
-        { roleName, includeDirectMessageScope: true },
+        {
+          roleName,
+          includeDirectMessageScope: true,
+          page: options.page,
+          scope: options.scope ? apiScope(options.scope) : undefined
+        },
         { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
-      return response.matrix ? rolePermissionMatrix(response.matrix) : null;
+      return response.matrix
+        ? { ...rolePermissionMatrix(response.matrix), page: scopePage(response.page) }
+        : null;
     },
 
-    async listRolePermissionDecisions(roleName: string): Promise<RolePermissionDecisions> {
+    async listRolePermissionDecisions(
+      roleName: string,
+      options: PermissionReadOptions = {}
+    ): Promise<RolePermissionDecisions> {
       const response = await client.listRolePermissionDecisions(
-        { roleName, includeDirectMessageScope: true },
-        { headers: headers() }
+        {
+          roleName,
+          includeDirectMessageScope: true,
+          page: options.page,
+          scope: options.scope ? apiScope(options.scope) : undefined
+        },
+        { headers: headers(), signal: options.signal }
       );
       return {
         roleName: response.roleName,
-        decisions: response.decisions.map(permissionDecisionEntry)
+        decisions: response.decisions.map(permissionDecisionEntry),
+        scopes: response.scopes.map(permissionScope),
+        page: scopePage(response.page)
       };
     },
 
     async getUserPermissionMatrix(
       userId: string,
-      options: { signal?: AbortSignal } = {}
+      options: PermissionReadOptions = {}
     ): Promise<UserPermissionMatrix | null> {
       const response = await client.getUserPermissionMatrix(
-        { userId, includeDirectMessageScope: true },
+        {
+          userId,
+          includeDirectMessageScope: true,
+          page: options.page,
+          scope: options.scope ? apiScope(options.scope) : undefined
+        },
         { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
       );
-      return response.matrix ? userPermissionMatrix(response.matrix) : null;
+      return response.matrix
+        ? { ...userPermissionMatrix(response.matrix), page: scopePage(response.page) }
+        : null;
     },
 
-    async listUserPermissionDecisions(userId: string): Promise<UserPermissionDecisions> {
+    async listUserPermissionDecisions(
+      userId: string,
+      options: PermissionReadOptions = {}
+    ): Promise<UserPermissionDecisions> {
       const response = await client.listUserPermissionDecisions(
-        { userId, includeDirectMessageScope: true },
-        { headers: headers() }
+        {
+          userId,
+          includeDirectMessageScope: true,
+          page: options.page,
+          scope: options.scope ? apiScope(options.scope) : undefined
+        },
+        { headers: headers(), signal: options.signal }
       );
       return {
         userId: response.userId,
-        decisions: response.decisions.map(permissionDecisionEntry)
+        decisions: response.decisions.map(permissionDecisionEntry),
+        scopes: response.scopes.map(permissionScope),
+        page: scopePage(response.page)
       };
     },
 
@@ -236,7 +284,7 @@ function tierRole(role: APITierRole): TierRole {
   };
 }
 
-function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMatrix {
+function rolePermissionMatrix(matrix: APIRolePermissionMatrix): Omit<RolePermissionMatrix, 'page'> {
   return {
     roleName: matrix.roleName,
     applicablePermissions: [...matrix.applicablePermissions],
@@ -245,7 +293,7 @@ function rolePermissionMatrix(matrix: APIRolePermissionMatrix): RolePermissionMa
   };
 }
 
-function userPermissionMatrix(matrix: APIUserPermissionMatrix): UserPermissionMatrix {
+function userPermissionMatrix(matrix: APIUserPermissionMatrix): Omit<UserPermissionMatrix, 'page'> {
   return {
     userId: matrix.userId,
     applicablePermissions: [...matrix.applicablePermissions],
@@ -356,4 +404,11 @@ function apiTierMatrixScope(input: { roomId?: string | null; groupId?: string | 
     return { kind: PermissionScopeKind.GROUP, id: input.groupId };
   }
   return { kind: PermissionScopeKind.SERVER, id: '' };
+}
+
+function scopePage(
+  page: { totalCount: bigint; hasMore: boolean } | undefined
+): PermissionScopePage {
+  if (!page) throw new Error('permission response did not include scope page metadata');
+  return { totalCount: Number(page.totalCount), hasMore: page.hasMore };
 }

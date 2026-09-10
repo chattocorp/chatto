@@ -40,6 +40,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 function matrix(subject: { roleName: string } | { userId: string }) {
   return {
     ...subject,
+    page: { totalCount: 1, hasMore: false },
     applicablePermissions: ['message.post', 'room.manage'],
     scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
     cells: [
@@ -92,6 +93,7 @@ beforeEach(() => {
     if (userId === 'bot-a') {
       return Promise.resolve({
         userId,
+        page: { totalCount: 1, hasMore: false },
         applicablePermissions: ['message.post'],
         scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
         cells: [
@@ -118,6 +120,7 @@ describe('subject permission loaders', () => {
     let resolveRefresh: ((value: ReturnType<typeof matrix>) => void) | undefined;
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     const originalTable = rendered.container.querySelector('table');
     const originalCell = rendered.container.querySelector(
       'td[data-scope="server"][data-permission="message.post"]'
@@ -161,6 +164,7 @@ describe('subject permission loaders', () => {
     );
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     cellButton(rendered.container, 'message.post').click();
     await rendered.rerender({ roleName: 'role-b' });
@@ -201,6 +205,7 @@ describe('subject permission loaders', () => {
     );
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     cellButton(rendered.container, 'message.post').click();
     await rendered.rerender({ userId: 'user-b' });
@@ -231,6 +236,7 @@ describe('subject permission loaders', () => {
   it('scrubs a mounted user matrix without refetching after realtime user removal', async () => {
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     expect(rendered.container.querySelector('table')).not.toBeNull();
 
     removeRegisteredAdminUserQueries('origin', 'user-a');
@@ -247,6 +253,7 @@ describe('subject permission loaders', () => {
     );
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     rendered.container.style.height = '80px';
     rendered.container.style.overflowY = 'auto';
     rendered.container.scrollTop = 60;
@@ -273,6 +280,7 @@ describe('subject permission loaders', () => {
       props: { userId: 'user-a', decisionMode: 'binary' }
     });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     const originalTable = rendered.container.querySelector('table');
     const originalTarget = cellButton(rendered.container, 'message.post');
     const originalOther = cellButton(rendered.container, 'room.manage');
@@ -306,6 +314,7 @@ describe('subject permission loaders', () => {
   it('keeps a ceiling-blocked inherited room inert without writing a denial', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-inheritance',
+      page: { totalCount: 1, hasMore: false },
       applicablePermissions: ['message.post'],
       scopes: [
         { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
@@ -352,6 +361,7 @@ describe('subject permission loaders', () => {
 
     room.click();
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
     expect(rendered.container.querySelector('table')).toBe(table);
@@ -367,6 +377,7 @@ describe('subject permission loaders', () => {
   it('shows a bot narrow permission as enabled when message.read includes it', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-read',
+      page: { totalCount: 1, hasMore: false },
       applicablePermissions: ['message.read', 'message.read-interactions'],
       scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
       cells: [
@@ -390,6 +401,7 @@ describe('subject permission loaders', () => {
       props: { userId: 'bot-read', decisionMode: 'binary', ownerCapped: true }
     });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     const child = scopedCellButton(rendered.container, 'server', 'message.read-interactions');
     expect(child.title).toContain('Included by message.read');
@@ -404,6 +416,7 @@ describe('subject permission loaders', () => {
     );
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     cellButton(rendered.container, 'message.post').click();
     await settle();
@@ -423,9 +436,13 @@ describe('subject permission loaders', () => {
   it('invalidates cached user matrices after a role permission changes', async () => {
     const connection = { queryScope: 'permission-loader-test' };
     const userPermissionKey = adminQueryKeys.userPermissions('origin', connection, 'user-a');
-    queryClient.setQueryData(userPermissionKey, matrix({ userId: 'user-a' }));
+    queryClient.setQueryData(userPermissionKey, {
+      pages: [matrix({ userId: 'user-a' })],
+      pageParams: [0]
+    });
     const rendered = render(RolePermissionsMatrix, { props: { roleName: 'role-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     cellButton(rendered.container, 'message.post').click();
 
@@ -441,6 +458,7 @@ describe('subject permission loaders', () => {
     );
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     cellButton(rendered.container, 'message.post').click();
     await settle();
@@ -462,6 +480,7 @@ describe('subject permission loaders', () => {
       props: { userId: 'bot-a', subjectKind: 'bot', ownerCapped: true }
     });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
 
     const button = cellButton(rendered.container, 'message.post');
     expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
@@ -623,6 +642,7 @@ describe('account membership mutations', () => {
     await expect.poll(() => document.querySelector('dialog[open]')).toBeNull();
     await rendered.rerender({ userId: 'membership-bot' });
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     expect(document.querySelector('dialog[open]')).toBeNull();
     expect(permissionMocks.addMember).not.toHaveBeenCalled();
   });
@@ -649,8 +669,9 @@ describe('account membership mutations', () => {
     await expect
       .poll(
         () =>
-          queryClient.getQueryData<{ scopes: { membership?: { canJoin: boolean } }[] }>(key)
-            ?.scopes[0]?.membership?.canJoin
+          queryClient.getQueryData<{
+            pages: { scopes: { membership?: { canJoin: boolean } }[] }[];
+          }>(key)?.pages[0]?.scopes[0]?.membership?.canJoin
       )
       .toBe(false);
     await confirmMembership();
@@ -729,6 +750,7 @@ describe('account membership mutations', () => {
       .toBe(true);
     rejectJoin!(new Error('stale failure'));
     await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
     expect(rendered.container.textContent).not.toContain('Failed to join room');
     expect(
       rendered.container.querySelector<HTMLButtonElement>(
@@ -737,3 +759,41 @@ describe('account membership mutations', () => {
     ).toBe(false);
   });
 });
+
+it.each(['role', 'user'] as const)(
+  'fences a delayed next scope page after %s navigation',
+  async (kind) => {
+    const read =
+      kind === 'role'
+        ? permissionMocks.getRolePermissionMatrix
+        : permissionMocks.getUserPermissionMatrix;
+    const subject = (id: string) => (kind === 'role' ? { roleName: id } : { userId: id });
+    let resolveNext!: (value: ReturnType<typeof matrix>) => void;
+    read.mockImplementation((id: string, options: { page: { offset: number } }) => {
+      if (id === 'first' && options.page.offset > 0)
+        return new Promise((resolve) => {
+          resolveNext = resolve;
+        });
+      return Promise.resolve({
+        ...matrix(subject(id)),
+        page: { totalCount: id === 'first' ? 2 : 1, hasMore: id === 'first' }
+      });
+    });
+    const rendered =
+      kind === 'role'
+        ? render(RolePermissionsMatrix, { props: { roleName: 'first' } })
+        : render(UserPermissionsMatrix, { props: { userId: 'first' } });
+    await vi.waitFor(() => expect(resolveNext).toBeTypeOf('function'));
+    const signal = read.mock.calls.find(
+      ([id, options]) => id === 'first' && options.page.offset === 1
+    )?.[1].signal as AbortSignal;
+    await rendered.rerender(kind === 'role' ? { roleName: 'second' } : { userId: 'second' });
+    await vi.waitFor(() => expect(signal.aborted).toBe(true));
+    const late = matrix(subject('first'));
+    late.scopes = [{ id: 'room:late', label: 'Late scope', kind: 'ROOM', parentGroupId: '' }];
+    resolveNext(late);
+    await settle();
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
+    expect(rendered.container.querySelector('[data-scope="room:late"]')).toBeNull();
+  }
+);

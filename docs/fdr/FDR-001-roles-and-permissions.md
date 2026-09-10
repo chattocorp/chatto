@@ -28,6 +28,12 @@ See [FDR-038](FDR-038-bot-accounts.md).
 
 ## Behavior
 
+- Role and account permission reads use bounded scope pages or an exact scope
+  filter. Each scope includes its applicable decisions, with inheritance from
+  broader scopes even when those scopes are outside the page. The editors load
+  more columns at the horizontal scroll edge. This bounds each calculation
+  while allowing large servers to expose their full configuration.
+
 - Role details and assigned members are separate reads. Member lists load in
   bounded pages so large roles do not require every user profile at once.
   Roster access requires `role.assign`, not access to the full administrative
