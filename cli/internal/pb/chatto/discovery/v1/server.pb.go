@@ -66,7 +66,9 @@ type GetServerResponse struct {
 	// Public server profile and branding.
 	Profile *v1.ServerPublicProfile `protobuf:"bytes,1,opt,name=profile,proto3" json:"profile,omitempty"`
 	// Login and registration options.
-	Login         *v1.ServerLogin `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	Login *v1.ServerLogin `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Whether first-run setup is available before normal registration.
+	SetupRequired bool `protobuf:"varint,3,opt,name=setup_required,json=setupRequired,proto3" json:"setup_required,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -113,6 +115,13 @@ func (x *GetServerResponse) GetLogin() *v1.ServerLogin {
 		return x.Login
 	}
 	return nil
+}
+
+func (x *GetServerResponse) GetSetupRequired() bool {
+	if x != nil {
+		return x.SetupRequired
+	}
+	return false
 }
 
 // Request for the public Neighbor directory.
@@ -203,10 +212,11 @@ var File_chatto_discovery_v1_server_proto protoreflect.FileDescriptor
 const file_chatto_discovery_v1_server_proto_rawDesc = "" +
 	"\n" +
 	" chatto/discovery/v1/server.proto\x12\x13chatto.discovery.v1\x1a\x1achatto/api/v1/server.proto\"\x12\n" +
-	"\x10GetServerRequest\"\x83\x01\n" +
+	"\x10GetServerRequest\"\xaa\x01\n" +
 	"\x11GetServerResponse\x12<\n" +
 	"\aprofile\x18\x01 \x01(\v2\".chatto.api.v1.ServerPublicProfileR\aprofile\x120\n" +
-	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\"\x16\n" +
+	"\x05login\x18\x02 \x01(\v2\x1a.chatto.api.v1.ServerLoginR\x05login\x12%\n" +
+	"\x0esetup_required\x18\x03 \x01(\bR\rsetupRequired\"\x16\n" +
 	"\x14ListNeighborsRequest\"B\n" +
 	"\x15ListNeighborsResponse\x12\x18\n" +
 	"\aorigins\x18\x01 \x03(\tR\aoriginsJ\x04\b\x02\x10\x03R\tneighbors2\xe6\x01\n" +

@@ -129,6 +129,7 @@ func (a *API) Handlers() []Handler {
 	adminOAuthClientPath, adminOAuthClientHandler := adminv1connect.NewAdminOAuthClientServiceHandler(&adminOAuthClientService{api: a}, options...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(&adminUserManagementService{api: a}, options...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(&serverService{api: a}, uploadOptions...)
+	setupPath, setupHandler := authv1connect.NewServerSetupServiceHandler(&serverSetupService{api: a}, options...)
 	serverDiscoveryPath, serverDiscoveryHandler := discoveryv1connect.NewServerDiscoveryServiceHandler(&serverDiscoveryService{api: a}, options...)
 	serverPath, serverHandler := apiv1connect.NewServerServiceHandler(&serverService{api: a}, options...)
 	userPath, userHandler := apiv1connect.NewUserServiceHandler(&userService{api: a}, options...)
@@ -149,6 +150,7 @@ func (a *API) Handlers() []Handler {
 	threadPath, threadHandler := apiv1connect.NewThreadServiceHandler(&threadService{api: a}, options...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(&voiceCallService{api: a}, options...)
 	handlers := []Handler{
+		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

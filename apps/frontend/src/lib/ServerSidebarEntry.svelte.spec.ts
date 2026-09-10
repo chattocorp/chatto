@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
+import { page } from '$app/state';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -81,6 +82,8 @@ const { mocks } = vi.hoisted(() => {
 
 vi.mock('$app/state', () => ({
   page: {
+    data: { serverInfo: { setupRequired: false } },
+    route: { id: '/setup' },
     params: {
       serverId: 'other-server',
       roomId: undefined
@@ -558,6 +561,21 @@ describe('ServerSidebarEntry', () => {
     await expect
       .element(q(container, '[data-testid="server-compatibility-warning"]'))
       .not.toBeInTheDocument();
+  });
+
+  it('links the pending origin to setup without a sign-in marker', async () => {
+    mocks.isOriginServer.mockReturnValue(true);
+    mocks.store.isAuthenticated = false;
+    page.data.serverInfo = { setupRequired: true } as never;
+    try {
+      const { container } = render(ServerSidebarEntry, { props: { serverId: 'remote' } });
+      const icon = q(container, 'a');
+      await expect.element(icon).toHaveAttribute('href', '/setup');
+      await expect.element(q(container, '[data-testid="server-sign-in-required"]')).not.toBeInTheDocument();
+      expect(mocks.beginOriginReauthentication).not.toHaveBeenCalled();
+    } finally {
+      page.data.serverInfo = { setupRequired: false } as never;
+    }
   });
 
   it('uses the origin sign-in flow for an unauthenticated origin server', async () => {

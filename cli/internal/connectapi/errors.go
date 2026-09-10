@@ -23,6 +23,9 @@ var (
 )
 
 func connectError(err error) error {
+	if errors.Is(err, core.ErrSetupUnavailable) || errors.Is(err, core.ErrSetupRequired) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
+	}
 	if err == nil {
 		return nil
 	}

@@ -61,6 +61,13 @@ export class GetServerResponse extends Message<GetServerResponse> {
    */
   login?: ServerLogin;
 
+  /**
+   * Whether first-run setup is available before normal registration.
+   *
+   * @generated from field: bool setup_required = 3;
+   */
+  setupRequired = false;
+
   constructor(data?: PartialMessage<GetServerResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -71,6 +78,7 @@ export class GetServerResponse extends Message<GetServerResponse> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "profile", kind: "message", T: ServerPublicProfile },
     { no: 2, name: "login", kind: "message", T: ServerLogin },
+    { no: 3, name: "setup_required", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetServerResponse {

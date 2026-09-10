@@ -620,7 +620,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Accepts email only, creates a registration code, and sends it by email.
 	// The user exchanges the code via POST /auth/register/verify-code, then
 	// completes account creation via POST /auth/register/complete.
-	auth.POST("register", func(c *gin.Context) {
+	auth.POST("register", s.requireServerSetupComplete, func(c *gin.Context) {
 		// Check if registration is enabled
 		if !s.config.Auth.DirectRegistrationOrDefault() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
@@ -720,7 +720,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 	// Registration code verification endpoint (step 2)
 	// Validates the emailed six-digit code and returns a short-lived completion token.
-	auth.POST("register/verify-code", func(c *gin.Context) {
+	auth.POST("register/verify-code", s.requireServerSetupComplete, func(c *gin.Context) {
 		if !s.config.Auth.DirectRegistrationOrDefault() {
 			c.JSON(http.StatusForbidden, gin.H{"error": "Registration is disabled"})
 			return
@@ -904,8 +904,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		c.JSON(http.StatusOK, response)
 	}
-	auth.POST("register/complete", requireJSONAuthenticationRequest, completeRegistration)
-	auth.POST("browser/register/complete", s.requireBrowserAuthenticationRequest, completeRegistration)
+	auth.POST("register/complete", s.requireServerSetupComplete, requireJSONAuthenticationRequest, completeRegistration)
+	auth.POST("browser/register/complete", s.requireServerSetupComplete, s.requireBrowserAuthenticationRequest, completeRegistration)
 
 	// Authenticated email verification code request.
 	auth.POST("verify-email/request-code", func(c *gin.Context) {
@@ -1170,4 +1170,18 @@ func isValidInternalRedirect(redirect string) bool {
 		}
 	}
 	return true
+}
+
+// requireServerSetupComplete rejects registration before sending mail, consuming
+// a registration token, or creating a user. Core repeats this gate inside OCC.
+func (s *HTTPServer) requireServerSetupComplete(c *gin.Context) {
+	required, err := s.core.SetupRequired(c.Request.Context())
+	if err != nil {
+		log.Error("Failed to read server setup state", "error", err)
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "Server setup state is unavailable"})
+		return
+	}
+	if required {
+		c.AbortWithStatusJSON(http.StatusConflict, gin.H{"error": "Complete first-run setup before creating accounts"})
+	}
 }

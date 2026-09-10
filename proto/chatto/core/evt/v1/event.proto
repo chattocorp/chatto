@@ -4,6 +4,7 @@ package chatto.core.evt.v1;
 
 import "google/protobuf/timestamp.proto";
 import "chatto/core/evt/v1/auth_events.proto";
+import "chatto/core/evt/v1/setup_events.proto";
 import "chatto/core/evt/v1/authorization_events.proto";
 import "chatto/core/evt/v1/asset_events.proto";
 import "chatto/core/evt/v1/message_events.proto";
@@ -62,6 +63,8 @@ message Event {
 
   // The concrete event payload.
   oneof event {
+    ServerSetupOfferedEvent server_setup_offered = 950;
+    ServerInitializedEvent server_initialized = 951;
     // =================================================================
     // PERSISTED VARIANTS (< 1000) — stored in JetStream.
     // Changing field numbers or message structure below affects stored

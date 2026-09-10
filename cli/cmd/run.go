@@ -241,6 +241,11 @@ func runServer(configPath string) {
 
 	// Run dev startup hook (auto-bootstrap in dev builds, no-op in prod)
 	devStartupHook(ctx, chattoCore, cfg)
+	if err := chattoCore.CompleteBootstrappedSetup(ctx); err != nil {
+		log.Error("Failed to complete bootstrapped setup", "error", err)
+		exitCode = 1
+		return
+	}
 
 	unitRegistrations := runtimeUnitRegistrations()
 	if err := runtimeunit.ValidateRegistrations(unitRegistrations); err != nil {

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ func (c *ChattoCore) CreateUser(ctx context.Context, actorID string, login, disp
 }
 
 type userCreationOptions struct {
+	setup         *ServerSetupInput // Only the first-run command may supply completion facts.
 	verifiedEmail string
 	external      *PendingExternalIdentityFlow
 	invitationID  string
@@ -48,6 +50,15 @@ type userCreationOptions struct {
 }
 
 func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*evtv1.User, error) {
+	if options.setup == nil && (options.verifiedEmail != "" || options.external != nil) {
+		required, err := c.SetupRequired(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if required {
+			return nil, ErrSetupRequired
+		}
+	}
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
 	isBot := options.isBot
@@ -276,7 +287,27 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		entries = append(entries, evtstream.BatchEntry{Subject: agg.SubjectFor(externalEvent), Event: externalEvent})
 	}
 
+	if options.setup != nil {
+		entries = append(entries, setupCompletionEntries(userID, options.setup)...)
+		// An ambiguous publish acknowledgement can still mean the batch committed.
+		// Retain these keys once setup attempts a publish; deleting them could
+		// destroy the only owner's credentials and profile after successful setup.
+		cleanupEncryptionKey = false
+	}
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		if options.setup != nil {
+			if err := c.requireSetupAvailable(ctx); err != nil {
+				return err
+			}
+		} else if options.verifiedEmail != "" || options.external != nil {
+			required, err := c.SetupRequired(ctx)
+			if err != nil {
+				return err
+			}
+			if required {
+				return ErrSetupRequired
+			}
+		}
 		if options.authorize != nil {
 			if err := options.authorize(); err != nil {
 				return err
@@ -317,6 +348,10 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		return nil
 	})
 	if err != nil {
+		if options.setup != nil && errors.Is(err, ErrSetupUnavailable) {
+			// A rejected OCC recheck is a definite non-commit for this user.
+			cleanupEncryptionKey = true
+		}
 		return nil, err
 	}
 	cleanupEncryptionKey = false

@@ -31,11 +31,19 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 	if err != nil {
 		return nil, err
 	}
+	setupRequired := false
+	if s.api.core != nil {
+		setupRequired, err = s.api.core.SetupRequired(ctx)
+		if err != nil {
+			return nil, connectInternalError(err)
+		}
+	}
 	directLoginEnabled := s.api.config.Auth.DirectLoginOrDefault()
 	response := &discoveryv1.GetServerResponse{
-		Profile: profile,
+		Profile:       profile,
+		SetupRequired: setupRequired,
 		Login: &apiv1.ServerLogin{
-			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
+			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault() && !setupRequired,
 			DirectLoginEnabled:        &directLoginEnabled,
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",

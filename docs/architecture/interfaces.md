@@ -52,7 +52,7 @@ login cooldown fact append in one atomic batch of existing EVT events.
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
 Authenticated services are wrapped with `connectrpc.com/authn` before protobuf
 decoding and validation. `ExternalIdentityAuthService`,
-`PushSubscriptionCleanupService`, `ServerDiscoveryService`, and reflection are
+`PushSubscriptionCleanupService`, `ServerSetupService`, `ServerDiscoveryService`, and reflection are
 public; all other public-listener services require an authenticated user. The Operator API uses
 `connectapi.API.OperatorHandlers` and is mounted only on the configured Unix
 socket.
@@ -269,3 +269,15 @@ endpoint. Pages contain complete records in recording order, oldest first.
 The cursor is encrypted and bound to the viewer, endpoint, and LOG incarnation.
 Page size defaults to 20 and is limited to 100. A captured tail excludes later
 appends from the current pagination session. Expired records are omitted.
+
+## First-run setup
+
+`chatto.auth.v1.ServerSetupService.CompleteSetup` is public only while the core
+setup operation permits the claim. `ServerDiscoveryService.GetServer` returns
+`setup_required`. The command creates a local owner and settings without an
+email flow. It returns no credential; the client uses normal login afterward.
+Account validation errors include `Chatto-Error-Field` response metadata with
+`login`, `display_name`, or `password`. Clients use it to place the error below
+the affected field. Errors without this metadata apply to the form.
+The `[core] skip_setup_wizard` flag suppresses the command and discovery state.
+See [FDR-047](../fdr/FDR-047-first-run-setup.md).

@@ -133,6 +133,7 @@ export default defineConfig({
               label: "chatto.auth.v1",
               items: [
                 "reference/connectrpc-api/external-identity-auth",
+                "reference/connectrpc-api/server-setup",
                 "reference/connectrpc-api/push-subscription-cleanup",
               ],
             },

@@ -52,7 +52,16 @@ The quickest and easiest way to give Chatto a try is to just download the execut
    chatto run
    ```
 
-4. **Open your browser** to [http://localhost:4000](http://localhost:4000) (or whatever port you configured in the configuration file.)
+4. **Complete setup** at [http://localhost:4000](http://localhost:4000), or the address you configured.
+
+   Choose a server name, an optional description, and your owner account's
+   username, display name, and password. Then sign in with that account.
+   Email delivery is not required for setup. Keep access to the new server
+   restricted until you finish: the first visitor can create its owner.
+
+   Existing servers do not show the wizard. For an automated installation, set
+   `skip_setup_wizard = true` in `[core]` and create accounts with the local
+   operator API. This flag does not reset completed setup.
 
 </Steps>
 

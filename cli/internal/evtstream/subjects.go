@@ -23,6 +23,7 @@ const (
 
 // Aggregate type segments. Stable identifiers; once written, never renamed.
 const (
+	AggregateSetup         = "setup"
 	AggregateRoom          = "room"
 	AggregateConfig        = "config"
 	AggregateGroup         = "group"
@@ -249,6 +250,10 @@ func EventTypeOf(e *evtv1.Event) string {
 		return ""
 	}
 	switch e.GetEvent().(type) {
+	case *evtv1.Event_ServerSetupOffered:
+		return EventServerSetupOffered
+	case *evtv1.Event_ServerInitialized:
+		return EventServerInitialized
 	case *evtv1.Event_BotOutboundWebhookConfigured:
 		return "bot_outbound_webhook_configured"
 	case *evtv1.Event_BotOutboundWebhookRevoked:
@@ -832,3 +837,12 @@ func stripLivePrefix(subject string) string {
 	}
 	return subject
 }
+
+// Setup event tokens and singleton are durable storage contracts.
+const (
+	EventServerSetupOffered = "server_setup_offered"
+	EventServerInitialized  = "server_initialized"
+)
+
+// SetupAggregate owns first-run eligibility and permanent completion.
+func SetupAggregate() Aggregate { return Aggregate{Type: AggregateSetup, ID: "server"} }

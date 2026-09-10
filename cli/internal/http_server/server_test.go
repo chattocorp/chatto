@@ -373,7 +373,7 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 	ctx := testContext(t)
 
 	// Create ChattoCore
-	coreConfig := config.CoreConfig{}
+	coreConfig := config.CoreConfig{SkipSetupWizard: true}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
@@ -469,7 +469,7 @@ func setupTestHTTPServerWithMailerAuthConfig(t *testing.T, authConfig config.Aut
 	ctx := testContext(t)
 
 	// Create ChattoCore
-	coreConfig := config.CoreConfig{EmailOTP: authConfig.EmailOTP}
+	coreConfig := config.CoreConfig{SkipSetupWizard: true, EmailOTP: authConfig.EmailOTP}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
@@ -2718,7 +2718,7 @@ func setupTestHTTPServerWithRegistrationDisabled(t *testing.T) (*httptest.Server
 
 	ctx := testContext(t)
 
-	coreConfig := config.CoreConfig{}
+	coreConfig := config.CoreConfig{SkipSetupWizard: true}
 	chattoCore, err := core.NewChattoCore(ctx, nc, coreConfig)
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)

@@ -367,6 +367,9 @@ func NewChattoCore(ctx context.Context, nc *nats.Conn, cfg config.CoreConfig) (*
 	}
 
 	core := assembleCore(nc, cfg, infra, projections, logger)
+	if err := core.initializeServerSetup(ctx); err != nil {
+		return nil, fmt.Errorf("initialize server setup: %w", err)
+	}
 
 	// ensureChannelRoomsAreInAGroup is deferred to core.Run() — it
 	// needs the projectors to be live so its CreateRoomGroup /

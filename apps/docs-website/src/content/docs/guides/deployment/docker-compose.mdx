@@ -66,7 +66,12 @@ hostname.
    All services use the `unless-stopped` restart policy, so Docker restarts
    them after a failure or host reboot unless you stopped them manually.
 
-   Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
+   Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to complete the first-run wizard. Choose a
+   server name and create a local owner account, then sign in. Email delivery is
+   not required. Restrict access until setup is complete: the first visitor can
+   create the owner. For automated provisioning, set
+   `CHATTO_CORE_SKIP_SETUP_WIZARD=true` and use the local operator API instead.
+   Existing servers skip the wizard automatically.
 
 </Steps>
 

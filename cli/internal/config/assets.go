@@ -135,6 +135,8 @@ type AssetsConfig struct {
 
 // CoreConfig contains settings for the Chatto core service.
 type CoreConfig struct {
+	// SkipSetupWizard suppresses first-run setup without changing its durable state.
+	SkipSetupWizard             bool              `toml:"skip_setup_wizard,commented" env:"CHATTO_CORE_SKIP_SETUP_WIZARD" comment:"Disable the first-run web setup wizard. Does not reset server initialization. Default: false."`
 	Log                         LogConfig         `toml:"log,commented" comment:"Retained operational log."`
 	BotWebhooks                 BotWebhooksConfig `toml:"bot_webhooks,commented" comment:"Outbound bot webhook delivery policy."`
 	SecretKey                   string            `toml:"secret_key" env:"CHATTO_CORE_SECRET_KEY" comment:"Server-wide secret for deriving HMAC verifiers for bearer tokens, account-flow credentials, and invite links, and for sealing public cursors. NEVER SHARE THIS!\nIf it changes, existing bearer tokens, invite links, public cursors, and pending registration, verification, password reset, account deletion, and OAuth authorization-code credentials become invalid. Projection snapshots also become unreadable and are rebuilt from EVT."`

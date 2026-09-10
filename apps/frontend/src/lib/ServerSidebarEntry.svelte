@@ -49,7 +49,14 @@
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
   // server named in the current URL segment.
-  const isActiveServer = $derived(page.params.serverId === serverSegment);
+  // Setup belongs to the origin server, while the client remains multi-server.
+  const setupRequired = $derived(
+    serverRegistry.isOriginServer(serverId) && page.data.serverInfo?.setupRequired === true
+  );
+  const isActiveServer = $derived(
+    page.params.serverId === serverSegment ||
+      (setupRequired && page.route.id === '/setup')
+  );
 
   const privateDataLoaded = $derived(stores.projection?.viewer != null);
   const loaded = $derived(!stores.isAuthenticated || privateDataLoaded);
@@ -65,8 +72,8 @@
     };
   });
   const needsReauth = $derived(registeredServer?.reauthRequiredAt != null);
-  const needsSignIn = $derived(!stores.isAuthenticated);
-  const signInRequired = $derived(needsSignIn || needsReauth);
+  const needsSignIn = $derived(!setupRequired && !stores.isAuthenticated);
+  const signInRequired = $derived(!setupRequired && (needsSignIn || needsReauth));
   const compatibility = $derived(stores.serverInfo.compatibility);
   const compatibilityMessage = $derived.by(() => {
     switch (compatibility.reason) {
@@ -210,7 +217,7 @@
 <!-- One icon per connected server. -->
 <ServerIcon
   server={iconServer}
-  href={resolve('/chat/[serverId]', { serverId: serverSegment })}
+  href={setupRequired ? resolve('/setup') : resolve('/chat/[serverId]', { serverId: serverSegment })}
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}

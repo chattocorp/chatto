@@ -1,0 +1,27 @@
+syntax = "proto3";
+package chatto.auth.v1;
+
+// Settings and local owner credentials for a new server.
+message CompleteSetupRequest {
+  // Required server display name.
+  string server_name = 1;
+  // Optional public server description.
+  string description = 2;
+  // Required owner login. Normal username rules apply.
+  string login = 3;
+  // Required owner display name.
+  string display_name = 4;
+  // Required local password. Normal password rules apply.
+  string password = 5;
+}
+
+// Setup has completed. Sign in with the owner credentials through normal login.
+message CompleteSetupResponse {}
+
+// Creates the first owner on a new server. No session or setup secret is required.
+service ServerSetupService {
+  // Public while setup is available. Atomically creates the owner and server
+  // settings, then permanently closes setup. Concurrent or later submissions
+  // fail with FAILED_PRECONDITION. A lost response can be recovered by signing in.
+  rpc CompleteSetup(CompleteSetupRequest) returns (CompleteSetupResponse);
+}

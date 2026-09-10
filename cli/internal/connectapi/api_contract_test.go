@@ -47,6 +47,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.BotServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
+		"/" + authv1connect.ServerSetupServiceName + "/",
 		"/" + authv1connect.PushSubscriptionCleanupServiceName + "/",
 		"/" + adminv1connect.AdminDiagnosticsServiceName + "/",
 		"/" + adminv1connect.AdminEventLogServiceName + "/",
@@ -109,6 +110,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 	}
 
 	want := map[string]AuthPolicy{
+		"/" + authv1connect.ServerSetupServiceName + "/":             AuthPolicyPublic,
 		"/" + apiv1connect.MyAccountServiceName + "/":                AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetUploadServiceName + "/":              AuthPolicyAuthenticatedUser,

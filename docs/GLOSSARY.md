@@ -54,6 +54,10 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 ## Product
 
+**First-run setup** — Web flow that gives a new server a name and a local owner
+account. Completion is permanent. Existing servers do not enter this flow.
+See [FDR-047](fdr/FDR-047-first-run-setup.md).
+
 User-facing concepts. If a user might say the word, it goes here.
 
 **Server** — Top-level Chatto deployment: one process, one NATS account, one membership boundary. Formerly called *Instance* in the codebase. See [ADR-029](adr/ADR-029-instance-to-server-rename.md).

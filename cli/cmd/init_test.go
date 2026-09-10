@@ -52,6 +52,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if got := cfg.Auth.EmailOTP.ThrottlingEnabledOrDefault(); got != true {
 		t.Fatalf("generated email OTP throttling enabled = %v, want true", got)
 	}
+	if cfg.Core.SkipSetupWizard {
+		t.Fatal("generated config must enable first-run setup")
+	}
 	if cfg.SMTP.Enabled {
 		t.Fatal("generated SMTP config should be disabled by default")
 	}

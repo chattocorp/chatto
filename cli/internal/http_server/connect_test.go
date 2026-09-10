@@ -301,8 +301,8 @@ func TestConnectServerDiscoveryServiceGetServer(t *testing.T) {
 		if msg.GetProfile().GetVersion() != "1.2.3" {
 			t.Fatalf("profile version = %q, want 1.2.3", msg.GetProfile().GetVersion())
 		}
-		if !msg.GetLogin().GetDirectRegistrationEnabled() {
-			t.Fatal("DirectRegistrationEnabled = false, want true")
+		if !msg.GetSetupRequired() || msg.GetLogin().GetDirectRegistrationEnabled() {
+			t.Fatal("fresh server must offer setup before normal registration")
 		}
 		if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
 			t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())

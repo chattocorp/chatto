@@ -53,6 +53,17 @@ describe('root layout load', () => {
     mocks.probeOrigin.mockResolvedValue(undefined);
   });
 
+  it.each(['/setup', '/chat/servers', '/chat/remote/overview'])(
+    'keeps %s available while the origin needs setup', async (path) => {
+      const pending = { ...serverInfo, setupRequired: true };
+      mocks.getPublicServerInfo.mockResolvedValue(pending);
+      mocks.loadCurrentUser.mockResolvedValue(null);
+      await expect(load({ url: new URL(path, 'https://chat.example.test') } as never))
+        .resolves.toMatchObject({ serverInfo: pending, user: null });
+      expect(mocks.probeOrigin).toHaveBeenCalledWith(false, undefined, pending);
+    }
+  );
+
   it('initialises and settles the registry before child routes load', async () => {
     const result = await load({ url: new URL('https://chat.example.test/chat/-') } as never);
 

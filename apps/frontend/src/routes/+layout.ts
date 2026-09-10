@@ -1,4 +1,5 @@
 import '$lib/apiClientHooks';
+import { redirect } from '@sveltejs/kit';
 import { loadCurrentUser } from '$lib/auth/loadAuth';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
@@ -24,6 +25,10 @@ export const load: LayoutLoad = async ({ url }) => {
   // segment and make authentication decisions before components render.
   await serverRegistry.probeOrigin(user !== null, undefined, serverInfo ?? undefined);
   if (!user) serverRegistry.settleOriginUnauthenticated();
+
+  if (serverInfo?.setupRequired && (url.pathname === '/' || url.pathname === '/login' || url.pathname.startsWith('/register'))) {
+    redirect(302, '/setup');
+  }
 
   return {
     serverInfo,
