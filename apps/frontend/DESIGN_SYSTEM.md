@@ -469,5 +469,8 @@ Its critical styles are inline so it does not wait for application assets. It
 uses the background and emphasized-surface theme tokens, with matching light
 and dark fallbacks before CSS loads, and stays static with reduced motion. A
 faint, centred CHATTO wordmark uses a fixed system font to prevent size changes
-when application fonts load. The app removes the shell when its layout mounts.
-Automatic form focus does not stop the reveal.
+when application fonts load. When the app layout mounts, the shell fades and
+scales out while the page sections appear below it. The app removes the shell
+when this transition ends. Keyboard or pointer input ends all startup
+animations and shows the complete page immediately. Automatic form focus does
+not stop the reveal. Reduced motion removes the shell without a transition.
