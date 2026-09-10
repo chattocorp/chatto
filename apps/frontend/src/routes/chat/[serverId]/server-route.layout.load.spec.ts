@@ -39,10 +39,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 import { load } from './+layout';
 
-function routeLoad(user: { id: string } | null = { id: 'viewer-1' }) {
+function routeLoad(user: { id: string } | null = { id: 'viewer-1' }, setupRequired = false) {
   return load({
     params: { serverId: '-' },
-    parent: async () => ({ user }),
+    parent: async () => ({ user, serverInfo: { setupRequired } }),
     url: new URL('https://chat.example.test/chat/-/overview')
   } as never);
 }
@@ -61,6 +61,17 @@ describe('server route layout load', () => {
     mocks.store.currentUser.loading = false;
     mocks.store.currentUser.user = { id: 'viewer-1' };
     mocks.store.currentUser.load.mockResolvedValue(undefined);
+  });
+
+  it('opens setup for the origin before requiring authentication', async () => {
+    await expect(routeLoad(null, true)).rejects.toMatchObject({ status: 302, location: '/setup' });
+    expect(mocks.saveReturnUrl).not.toHaveBeenCalled();
+  });
+
+  it('allows an authenticated remote server while origin setup is pending', async () => {
+    mocks.origin = false;
+    mocks.serverId = 'remote';
+    await expect(routeLoad(null, true)).resolves.toMatchObject({ serverSegment: '-' });
   });
 
   it('redirects an unresolved server before the layout component mounts', async () => {

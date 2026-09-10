@@ -21,14 +21,14 @@ export const load: LayoutLoad = async ({ url }) => {
     originHasBackend ? loadCurrentUser() : null
   ]);
 
-  if (serverInfo?.setupRequired && (url.pathname === '/' || url.pathname === '/login' || url.pathname.startsWith('/register'))) {
-    redirect(302, '/setup');
-  }
-
   // Child route loads need a settled origin registry to resolve the "-" URL
   // segment and make authentication decisions before components render.
   await serverRegistry.probeOrigin(user !== null, undefined, serverInfo ?? undefined);
   if (!user) serverRegistry.settleOriginUnauthenticated();
+
+  if (serverInfo?.setupRequired && (url.pathname === '/' || url.pathname === '/login' || url.pathname.startsWith('/register'))) {
+    redirect(302, '/setup');
+  }
 
   return {
     serverInfo,

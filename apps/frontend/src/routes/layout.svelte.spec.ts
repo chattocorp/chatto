@@ -1,4 +1,5 @@
 import { tick } from 'svelte';
+import { page } from '$app/state';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q, testSnippet } from '$lib/test-utils';
@@ -180,6 +181,18 @@ describe('root layout mobile sidebar animation', () => {
     document.documentElement.dir = 'ltr';
     installMobileMatchMedia();
     resetSidebar();
+  });
+
+  it('keeps the app header and server navigation available during setup', async () => {
+    page.route.id = '/setup';
+    try {
+      const view = renderLayout();
+      await expect.element(view.getByRole('button', { name: 'Toggle sidebar' })).toBeVisible();
+      await view.getByRole('button', { name: 'Toggle sidebar' }).click();
+      await expect.element(view.getByRole('link', { name: 'Add Server' })).toBeVisible();
+    } finally {
+      page.route.id = '/';
+    }
   });
 
   it('keeps the left edge free for normal app controls', async () => {

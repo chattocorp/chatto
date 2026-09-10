@@ -11,11 +11,15 @@ function redirectToLogin(url: URL): never {
 }
 
 export const load: LayoutLoad = async ({ params, parent, url }) => {
-  const { user } = await parent();
+  const { user, serverInfo } = await parent();
   const serverId = segmentToServerId(params.serverId);
   const serverStore = serverId ? serverRegistry.tryGetStore(serverId) : undefined;
 
   if (!serverId || !serverStore) redirectToLogin(url);
+
+  if (serverRegistry.isOriginServer(serverId) && serverInfo?.setupRequired) {
+    redirect(302, resolve('/setup'));
+  }
 
   let reauthRequired = serverRegistry.getServer(serverId)?.reauthRequiredAt != null;
   if (!reauthRequired && !serverRegistry.isOriginServer(serverId)) {

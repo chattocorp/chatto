@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,6 +49,12 @@ func TestServerSetupPublicAPI(t *testing.T) {
 				return
 			}
 			requireConnectCode(t, err, connect.CodeInvalidArgument)
+
+			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "founder_bot", DisplayName: "Founder", Password: "correct-password"}))
+			var validationError *connect.Error
+			if !errors.As(err, &validationError) || validationError.Meta().Get("Chatto-Error-Field") != "login" {
+				t.Fatalf("expected login field error, got %v", err)
+			}
 			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{ServerName: "API community", Login: "founder", DisplayName: "Founder", Password: "correct-password"}))
 			if err != nil {
 				t.Fatal(err)
@@ -64,6 +71,30 @@ func TestServerSetupPublicAPI(t *testing.T) {
 			}
 			_, err = client.CompleteSetup(ctx, connect.NewRequest(&authv1.CompleteSetupRequest{}))
 			requireConnectCode(t, err, connect.CodeFailedPrecondition)
+		})
+	}
+}
+
+func TestSetupErrorFields(t *testing.T) {
+	for _, tt := range []struct {
+		err   error
+		field string
+	}{
+		{core.ErrHumanLoginReservedForBot, "login"},
+		{core.ErrUsernameBlocked, "login"},
+		{core.ErrLoginAlreadyTaken, "login"},
+		{core.ErrDisplayNameInvalidStart, "display_name"},
+		{core.ErrPasswordTooLong, "password"},
+		{core.ErrSetupUnavailable, ""},
+	} {
+		t.Run(tt.err.Error(), func(t *testing.T) {
+			var mapped *connect.Error
+			if !errors.As(setupConnectError(tt.err), &mapped) {
+				t.Fatal("expected Connect error")
+			}
+			if got := mapped.Meta().Get("Chatto-Error-Field"); got != tt.field {
+				t.Fatalf("field = %q, want %q", got, tt.field)
+			}
 		})
 	}
 }

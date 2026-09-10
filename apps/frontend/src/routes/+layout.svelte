@@ -36,7 +36,6 @@
   useVisualViewport();
   usePinchZoomPrevention();
 
-  const isSetup = $derived(page.route.id === '/setup');
   const activeServerId = $derived(getActiveServer());
   const activeRoomId = $derived(chatRoomIdFromRoute(page.route.id, page.params.roomId));
 
@@ -87,16 +86,12 @@
   use:sidebarSwipe
   class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
 >
-  {#if !isSetup}<AppHeader />{/if}
+  <AppHeader />
 
   <Frame class="relative flex-col">
-    {#if isSetup}
+    <MobileSidebarChrome>
       {@render children?.()}
-    {:else}
-      <MobileSidebarChrome>
-        {@render children?.()}
-      </MobileSidebarChrome>
-    {/if}
+    </MobileSidebarChrome>
   </Frame>
 </div>
 
