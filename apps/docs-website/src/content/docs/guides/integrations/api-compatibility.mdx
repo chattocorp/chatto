@@ -415,3 +415,23 @@ marker. Regenerate protobuf clients. The previous timestamp keeps field number
 A stale thread read request reports the retained newer marker as `last_read_at`.
 The previous timestamp is absent on the first read. Stored markers and the
 advance-only write behavior are unchanged.
+
+## Sidebar item references in 0.5
+
+`AdminRoomLayoutService.MoveSidebarItem` and `ReorderSidebarItemsInGroup` use
+explicit item references. Replace the old `kind` and `id` pair with exactly one
+non-empty `roomId` or `sidebarLinkId` in JSON:
+
+```json
+{ "roomId": "room-123" }
+```
+
+```json
+{ "sidebarLinkId": "link-456" }
+```
+
+This applies to `item`, each entry in `items`, and the optional `before`
+reference. Omit `before` to move an item to the end; do not send an empty object.
+Regenerate protobuf clients and remove uses of `AdminRoomLayoutItemKind`.
+The old field names and numbers are reserved. Stored sidebar entries and
+move/reorder authorization are unchanged.

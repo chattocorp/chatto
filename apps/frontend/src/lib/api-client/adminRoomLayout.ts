@@ -2,7 +2,6 @@ import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient, handleAuthError } from './connect.js';
 import { AdminRoomLayoutService } from '@chatto/api-types/admin/v1/room_layout_connect';
 import {
-  AdminRoomLayoutItemKind,
   type AdminRoomLayoutGroup as APIAdminRoomLayoutGroup,
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
@@ -213,13 +212,7 @@ export function createAdminRoomLayoutAPI(config: AdminRoomLayoutAPIConfig) {
         const response = await layout.reorderSidebarItemsInGroup(
           {
             groupId: input.groupId,
-            items: input.items.map((item) => ({
-              id: item.id,
-              kind:
-                item.kind === 'room'
-                  ? AdminRoomLayoutItemKind.ROOM
-                  : AdminRoomLayoutItemKind.SIDEBAR_LINK
-            }))
+            items: input.items.map(adminRoomLayoutItemInput)
           },
           { headers: headers() }
         );
@@ -317,8 +310,9 @@ function mapAdminRoomLayoutGroup(group: APIAdminRoomLayoutGroup): AdminRoomGroup
 
 function adminRoomLayoutItemInput(item: AdminRoomLayoutItemMutationInput) {
   return {
-    id: item.id,
-    kind: item.kind === 'room' ? AdminRoomLayoutItemKind.ROOM : AdminRoomLayoutItemKind.SIDEBAR_LINK
+    item: item.kind === 'room'
+      ? { case: 'roomId' as const, value: item.id }
+      : { case: 'sidebarLinkId' as const, value: item.id }
   };
 }
 

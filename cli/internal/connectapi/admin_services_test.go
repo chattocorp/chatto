@@ -1778,13 +1778,11 @@ func TestAdminRoomLayoutServiceRelativePlacements(t *testing.T) {
 
 	moveResp, err := env.adminLayout.MoveSidebarItem(ctx, connect.NewRequest(&adminv1.MoveSidebarItemRequest{
 		Item: &adminv1.AdminRoomLayoutItemInput{
-			Kind: adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK,
-			Id:   linkResp.Msg.GetSidebarLink().GetId(),
+			Item: &adminv1.AdminRoomLayoutItemInput_SidebarLinkId{SidebarLinkId: linkResp.Msg.GetSidebarLink().GetId()},
 		},
 		GroupId: secondGroupID,
 		Before: &adminv1.AdminRoomLayoutItemInput{
-			Kind: adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM,
-			Id:   room.GetId(),
+			Item: &adminv1.AdminRoomLayoutItemInput_RoomId{RoomId: room.GetId()},
 		},
 	}))
 	if err != nil {
@@ -1805,5 +1803,42 @@ func TestAdminRoomLayoutServiceRelativePlacements(t *testing.T) {
 	groups := groupMoveResp.Msg.GetGroups()
 	if len(groups) < 2 || groups[0].GetId() != secondGroupID || groups[1].GetId() != firstGroupID {
 		t.Fatalf("moved room groups = %+v, want second group before first", groups)
+	}
+}
+
+// Check the public JSON boundary before any layout mutation can run.
+func TestSidebarItemJSONRejectsInvalidReferences(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	mux := http.NewServeMux()
+	for _, handler := range env.api.Handlers() {
+		mux.Handle(handler.ServicePath, handler.Handler)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.ServeHTTP(w, r.WithContext(withCaller(r.Context(), env.viewer)))
+	}))
+	t.Cleanup(server.Close)
+	for _, body := range []string{
+		`{"groupId":"group","item":{}}`,
+		`{"groupId":"group","item":{"roomId":""}}`,
+		`{"groupId":"group","item":{"sidebarLinkId":""}}`,
+		`{"groupId":"group","item":{"roomId":"room","sidebarLinkId":"link"}}`,
+		`{"groupId":"group","item":{"roomId":"room"},"before":{}}`,
+	} {
+		t.Run(body, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, server.URL+"/chatto.admin.v1.AdminRoomLayoutService/MoveSidebarItem", strings.NewReader(body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Connect-Protocol-Version", "1")
+			resp, err := server.Client().Do(req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != http.StatusBadRequest {
+				t.Fatalf("status = %d, want 400", resp.StatusCode)
+			}
+		})
 	}
 }

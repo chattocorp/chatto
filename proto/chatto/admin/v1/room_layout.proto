@@ -77,25 +77,18 @@ message ListRoomGroupsResponse {
   repeated AdminRoomLayoutGroup groups = 1;
 }
 
-// Sidebar item kind used in reorder requests.
-enum AdminRoomLayoutItemKind {
-  // The item kind was not specified.
-  ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED = 0;
-  // Channel room entry.
-  ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM = 1;
-  // Sidebar link entry.
-  ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK = 2;
-}
-
-// One item reference in a sidebar order replacement.
+// One room or sidebar link reference in a move or order replacement.
 message AdminRoomLayoutItemInput {
-  // Item kind.
-  AdminRoomLayoutItemKind kind = 1 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-  // Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK.
-  string id = 2 [(buf.validate.field).string.min_len = 1];
+  reserved 1, 2;
+  reserved "kind", "id";
+
+  oneof item {
+    option (buf.validate.oneof).required = true;
+    // Channel room ID.
+    string room_id = 3 [(buf.validate.field).string.min_len = 1];
+    // Sidebar link ID.
+    string sidebar_link_id = 4 [(buf.validate.field).string.min_len = 1];
+  }
 }
 
 // Request to create a room group.

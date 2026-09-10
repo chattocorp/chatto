@@ -402,6 +402,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- Sidebar move and reorder requests now use an explicit room or sidebar-link
+  ID instead of a kind/ID pair. See the [migration guide](/guides/integrations/api-compatibility/#sidebar-item-references-in-05).
+
 - Room and thread read commands now return the same timestamp fields:
   `last_read_at` and `previous_last_read_at`. Thread clients must replace
   `previous_read_at`. See the [migration guide](/guides/integrations/api-compatibility/#read-marker-responses-in-05).
