@@ -38,6 +38,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
   } from '$lib/state/userProfiles.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import { ScrollFader } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
@@ -143,7 +144,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   let banError = $state<string | null>(null);
   const memberSearchDebounce = useDebounce();
   const presenceGroupingDebounce = useDebounce();
-  let memberSearchInput = $state<HTMLInputElement | null>(null);
   let groupedOnlineState = $state.raw(new Map<string, boolean>());
   let observedLiveOnlineState = new Map<string, boolean>();
   let groupedMembersSnapshot: RoomMember[] | null = null;
@@ -348,7 +348,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
   function clearMemberSearch() {
     memberSearchDebounce.cancel();
     void membersStore.setSearch('');
-    memberSearchInput?.focus();
   }
 
   async function toggleCallFullscreen(): Promise<void> {
@@ -425,40 +424,6 @@ calls, and similar room-specific panels can plug into the same shell. See the
     <RoomSidebarProfile userId={activeProfileUserId} />
   {:else if activePanel === 'members'}
     <div class="flex min-h-0 flex-1 flex-col">
-      <div class="shrink-0 bg-background p-2" data-testid="room-member-search-block">
-        <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
-        <div class="relative">
-          <span
-            class="iconify pointer-events-none absolute start-2 top-1/2 icon-[uil--search] h-4 w-4 -translate-y-1/2 text-muted"
-            aria-hidden="true"
-          ></span>
-          <input
-            bind:this={memberSearchInput}
-            id="room-member-search"
-            type="search"
-            value={membersStore.searchInput}
-            oninput={scheduleMemberSearch}
-            placeholder={m('room.sidebar.search_members_placeholder')}
-            class={[
-              'search-cancel-hidden h-10 w-full rounded-md bg-surface py-1 ps-8 text-sm transition-colors outline-none placeholder:text-muted',
-              membersStore.searchInput ? 'pe-12' : 'pe-2'
-            ]}
-          />
-          {#if membersStore.searchInput}
-            <button
-              type="button"
-              class="absolute end-1 top-1/2 pane-header-icon-button -translate-y-1/2"
-              aria-label={m('room.sidebar.clear_member_search')}
-              title={m('room.sidebar.clear_member_search')}
-              onclick={clearMemberSearch}
-            >
-              <span class="iconify icon-[uil--times] pane-header-icon-glyph" aria-hidden="true"
-              ></span>
-            </button>
-          {/if}
-        </div>
-      </div>
-
       <ScrollFader
         top
         bottom
@@ -491,6 +456,18 @@ calls, and similar room-specific panels can plug into the same shell. See the
           {/if}
         </nav>
       </ScrollFader>
+
+      <div class="shrink-0 bg-background p-2" data-testid="room-member-search-block">
+        <ChatSearchInput
+          id="room-member-search"
+          label={m('room.sidebar.search_members')}
+          placeholder={m('room.sidebar.search_members_placeholder')}
+          clearLabel={m('room.sidebar.clear_member_search')}
+          bind:value={membersStore.searchInput}
+          oninput={scheduleMemberSearch}
+          onclear={clearMemberSearch}
+        />
+      </div>
 
       {#if popoverMember && popoverAnchorRect}
         <UserContextMenu
