@@ -179,6 +179,75 @@
         });
       })();
     </script>
+    <!-- Critical startup styles must work before the application CSS downloads. -->
+    <style>
+      #app-loading {
+        /* Match the theme tokens even before the application stylesheet arrives. */
+        --loading-background: #f3f4f6;
+        --loading-highlight: #dadde2;
+        --loading-text: #4b5563;
+        display: grid;
+        place-items: center;
+        position: fixed;
+        inset: 0;
+        overflow: hidden;
+        pointer-events: none;
+        background: var(--color-background, var(--loading-background));
+      }
+      :root[data-theme='dark'] #app-loading {
+        --loading-background: #171717;
+        --loading-highlight: #404040;
+        --loading-text: #d4d4d4;
+      }
+      #app-loading > span {
+        position: relative;
+        color: var(--color-text, var(--loading-text));
+        /* Keep metrics stable when application CSS and web fonts arrive. */
+        box-sizing: border-box;
+        font: 600 20px / 1 system-ui, sans-serif;
+        letter-spacing: 0.45em;
+        padding-inline-start: 0.45em;
+        opacity: 0.28;
+      }
+      #app-loading::before {
+        content: '';
+        position: absolute;
+        inset: -25%;
+        background:
+          radial-gradient(
+            ellipse at 35% 40%,
+            color-mix(
+              in srgb,
+              var(--color-surface-emphasized, var(--loading-highlight)) 75%,
+              transparent
+            ),
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at 65% 60%,
+            color-mix(
+              in srgb,
+              var(--color-surface-emphasized, var(--loading-highlight)) 55%,
+              transparent
+            ),
+            transparent 50%
+          );
+        animation: app-loading-drift 2.6s ease-in-out infinite alternate;
+      }
+      @keyframes app-loading-drift {
+        from {
+          transform: translate(-12%, -6%) scale(0.95);
+        }
+        to {
+          transform: translate(12%, 6%) scale(1.05);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-loading::before {
+          animation: none;
+        }
+      }
+    </style>
     <!-- OG_META_PLACEHOLDER -->
     <meta
       name="viewport"
@@ -192,6 +261,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon" />
   </head>
   <body>
+    <div id="app-loading" aria-hidden="true"><span dir="ltr">CHATTO</span></div>
     <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

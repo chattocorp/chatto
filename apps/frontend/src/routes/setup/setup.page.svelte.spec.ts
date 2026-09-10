@@ -22,27 +22,12 @@ function renderSetup() {
 describe('first-run wizard', () => {
   beforeEach(() => { vi.clearAllMocks(); mocks.discovery.mockResolvedValue({ setupRequired: true }); });
 
-  it('shows the complete form without decorative animation when reduced motion is enabled', async () => {
-    const original = window.matchMedia.bind(window);
-    const media = vi.spyOn(window, 'matchMedia').mockImplementation((query) => {
-      const result = original(query);
-      if (query === '(prefers-reduced-motion: reduce)') {
-        Object.defineProperty(result, 'matches', { value: true });
-      }
-      return result;
-    });
-    try {
-      const view = renderSetup();
-      await expect.element(view.getByLabelText('Server name')).toBeVisible();
-      await expect.element(view.getByLabelText('Username', { exact: true })).toBeVisible();
-      expect(view.container.querySelectorAll('form')).toHaveLength(1);
-      for (const part of view.container.querySelectorAll('[data-setup-reveal]')) {
-        expect(part.getAnimations()).toHaveLength(0);
-      }
-      expect(view.container.querySelector('svg')).toBeNull();
-    } finally {
-      media.mockRestore();
-    }
+  it('shows the complete form without starting a page-local animation', async () => {
+    const view = renderSetup();
+    await expect.element(view.getByLabelText('Server name')).toBeVisible();
+    await expect.element(view.getByLabelText('Username', { exact: true })).toBeVisible();
+    expect(view.container.querySelectorAll('form')).toHaveLength(1);
+    expect(view.container.getAnimations({ subtree: true })).toHaveLength(0);
   });
 
   it('keeps the draft after validation failure and submits all fields together', async () => {

@@ -16,7 +16,10 @@
 
 <ScrollFader top bottom bind:scrollEl={scrollContainer}>
   <!-- A zero-length basis keeps tall children bounded inside the min-height content wrapper. -->
-  <div class={['w-full max-w-5xl p-6', fillHeight && 'flex min-h-0 flex-1 basis-0 flex-col']}>
+  <div
+    data-page-reveal
+    class={['w-full max-w-5xl p-6', fillHeight && 'flex min-h-0 flex-1 basis-0 flex-col']}
+  >
     {@render children()}
   </div>
 </ScrollFader>

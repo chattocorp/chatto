@@ -450,3 +450,24 @@ style blocks are expected in a few specialized areas: media overlays, rich-text
 editing, viewport/safe-area chrome, and content whose geometry comes from
 external media. Keep those exceptions local and document why the semantic
 system does not apply.
+
+## Initial Page Reveal
+
+The app layout reveals the first page with a short, staggered fade and scale.
+It runs once per full page load. Route changes and later content updates do not
+start it again. Reduced motion skips the reveal; keyboard or pointer input stops it.
+
+Shared pane and authentication components mark sections with `data-page-reveal`.
+Use this attribute to split a custom page into smaller reveal sections. The
+layout animates separate sections, never a parent and its children together.
+Keep content visible in its base styles. Do not add a second entrance animation
+to a page.
+
+Before the initial route is ready, the HTML shell shows soft, blurry neutral
+blobs that drift across the viewport.
+Its critical styles are inline so it does not wait for application assets. It
+uses the background and emphasized-surface theme tokens, with matching light
+and dark fallbacks before CSS loads, and stays static with reduced motion. A
+faint, centred CHATTO wordmark uses a fixed system font to prevent size changes
+when application fonts load. The app removes the shell when its layout mounts.
+Automatic form focus does not stop the reveal.
