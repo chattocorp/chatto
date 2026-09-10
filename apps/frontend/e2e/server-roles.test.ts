@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { test } from './setup';
+import { AdminRoleServiceListMembersRequest } from '@chatto/api-types/admin/v1/roles_pb';
 import {
   activatePrivilegedMode,
   createAndLoginTestUser,
@@ -137,6 +138,45 @@ async function denyPermission(
 }
 
 test.describe('Server Roles Management', () => {
+  test('role member roster loads the next page when scrolled', async ({ serverRolesPage }) => {
+    const { page } = serverRolesPage;
+    const server = await usePrimaryServerViaAPI(page);
+    const roleName = generateRoleName('roster');
+    await connectPost(page, 'chatto.admin.v1.AdminRoleService/CreateRole', {
+      name: roleName, displayName: 'Paged roster'
+    });
+    for (let i = 0; i < 21; i++) {
+      const user = await createSecondTestUser(page);
+      await connectPost(page, 'chatto.admin.v1.AdminUserService/AssignRole', {
+        userId: user.id!, roleName
+      });
+    }
+    const memberRequests: number[] = [];
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('request', request => {
+      if (request.url().endsWith('/chatto.admin.v1.AdminRoleService/ListMembers')) {
+        const body = request.postDataBuffer();
+        if (body) memberRequests.push(AdminRoleServiceListMembersRequest.fromBinary(body).page?.offset ?? 0);
+      }
+    });
+    await serverRolesPage.gotoEditRole(server.id, roleName);
+    const rosterHeading = page.getByRole('heading', { name: 'Users with this Role' });
+    await rosterHeading.scrollIntoViewIfNeeded();
+    // Real wheel interaction reaches the trailing table sentinel.
+    await rosterHeading.hover();
+    await page.mouse.wheel(0, 3000);
+    await page.getByText('Showing 20 of 21 member(s)', { exact: true }).or(page.getByText('Showing 21 of 21 member(s)', { exact: true })).waitFor();
+    const table = page.locator('table').last();
+    await table.hover();
+    await page.mouse.wheel(0, 3000);
+    await expect(page.getByText('Showing 21 of 21 member(s)', { exact: true })).toBeVisible();
+    await expect(table.locator('tbody tr')).toHaveCount(21);
+    expect(memberRequests).toContain(0);
+    expect(memberRequests).toContain(20);
+    expect(errors).toEqual([]);
+  });
+
   test.describe('Roles List Page', () => {
     test('server admin can view roles list', async ({ serverRolesPage }) => {
       const { page } = serverRolesPage;

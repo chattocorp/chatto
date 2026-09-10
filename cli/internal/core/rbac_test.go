@@ -2774,7 +2774,7 @@ func TestChattoCore_AdminRoleManagementAuthorization(t *testing.T) {
 	}
 }
 
-func TestChattoCore_ServerRoleDetailsRostersRequireAssign(t *testing.T) {
+func TestChattoCore_ServerRoleMembersRequireAssign(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -2804,8 +2804,11 @@ func TestChattoCore_ServerRoleDetailsRostersRequireAssign(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetServerRoleDetails regular: %v", err)
 	}
-	if regularDetails.ViewerCanAssignRoles || len(regularDetails.Users) != 0 {
-		t.Fatalf("regular details canAssign=%v users=%d, want false/0", regularDetails.ViewerCanAssignRoles, len(regularDetails.Users))
+	if regularDetails.ViewerCanAssignRoles {
+		t.Fatal("regular ViewerCanAssignRoles = true, want false")
+	}
+	if _, err := core.ListServerRoleMembers(ctx, regular.Id, "support", 20, 0); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("regular role members: %v, want permission denied", err)
 	}
 
 	adminDetails, err := core.GetServerRoleDetails(ctx, admin.Id, "support")
@@ -2815,8 +2818,12 @@ func TestChattoCore_ServerRoleDetailsRostersRequireAssign(t *testing.T) {
 	if !adminDetails.ViewerCanAssignRoles {
 		t.Fatal("admin ViewerCanAssignRoles = false, want true")
 	}
-	if len(adminDetails.Users) != 1 || adminDetails.Users[0].ID != member.Id {
-		t.Fatalf("admin role users = %+v, want member %s", adminDetails.Users, member.Id)
+	members, err := core.ListServerRoleMembers(ctx, admin.Id, "support", 20, 0)
+	if err != nil {
+		t.Fatalf("ListServerRoleMembers admin: %v", err)
+	}
+	if len(members.UserIDs) != 1 || members.UserIDs[0] != member.Id || members.TotalCount != 1 || members.HasMore {
+		t.Fatalf("admin role members = %+v, want one member", members)
 	}
 }
 

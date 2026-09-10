@@ -74,6 +74,16 @@ when `has_message_history` is explicitly false. A new client connected to an
 older server sees no empty DM rows, and it must treat an absent history value
 on a returned DM as unknown rather than false.
 
+Chatto 0.5 removes `AdminRoleService.GetRoleResponse.users`. Read explicit
+assignments through `AdminRoleService.ListMembers` instead. It returns canonical
+`User` records in `members`, with `PageInfo` in `page`. Pass `name` and a
+`PageRequest`; the default is 20 members and the maximum is 100. Results use
+ascending user ID order. Advance the offset until `page.hasMore` is false;
+concurrent assignment changes can shift offsets. The implicit `everyone` role
+returns an empty page. Each request requires `role.assign`, without
+`admin.view-users`. Older clients must migrate their roster reads; clients that
+use the new RPC need the updated server. Stored data is unchanged.
+
 Chatto 0.5 adds `archive_filter` to `RoomDirectoryService.ListRooms`. Omit it or
 select `ROOM_ARCHIVE_FILTER_ACTIVE` to keep the active-room list. Select
 `ROOM_ARCHIVE_FILTER_ARCHIVED` for the archive or `ROOM_ARCHIVE_FILTER_ALL` for

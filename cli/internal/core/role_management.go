@@ -3,18 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
-
-	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
-
-type RoleUserSummary struct {
-	ID           string
-	Login        string
-	DisplayName  string
-	Deleted      bool
-	IsBot  bool
-	CustomStatus *evtv1.CustomUserStatus
-}
 
 type RoleCatalog struct {
 	Roles                []RoleWithPermissions
@@ -24,7 +13,6 @@ type RoleCatalog struct {
 
 type RoleDetails struct {
 	Role                 *RoleWithPermissions
-	Users                []RoleUserSummary
 	ViewerCanManageRoles bool
 	ViewerCanAssignRoles bool
 }
@@ -89,13 +77,6 @@ func (c *ChattoCore) GetServerRoleDetails(ctx context.Context, actorID, roleName
 		Role:                 role,
 		ViewerCanManageRoles: canManage,
 		ViewerCanAssignRoles: canAssign,
-	}
-	if canAssign {
-		users, err := c.serverRoleUsers(ctx, roleName)
-		if err != nil {
-			return nil, err
-		}
-		details.Users = users
 	}
 	return details, nil
 }
@@ -170,25 +151,46 @@ func (c *ChattoCore) requireCanManageAdminRoles(ctx context.Context, actorID str
 	return nil
 }
 
-func (c *ChattoCore) serverRoleUsers(ctx context.Context, roleName string) ([]RoleUserSummary, error) {
-	userIDs, err := c.GetRoleUsers(ctx, roleName)
+// RoleMemberPage selects assignments before any user or profile hydration.
+// IDs are sorted, but separate requests do not share a fixed snapshot.
+type RoleMemberPage struct {
+	UserIDs    []string
+	TotalCount int
+	HasMore    bool
+}
+
+// ListServerRoleMembers gates every page with role.assign. The implicit
+// everyone role has no explicit assignments. Limits default to 20 and cap at 100.
+func (c *ChattoCore) ListServerRoleMembers(ctx context.Context, actorID, roleName string, limit, offset int) (*RoleMemberPage, error) {
+	if actorID == "" {
+		return nil, ErrNotAuthenticated
+	}
+	allowed, err := c.CanAssignRoles(ctx, actorID)
 	if err != nil {
 		return nil, err
 	}
-	users := make([]RoleUserSummary, 0, len(userIDs))
-	for _, userID := range userIDs {
-		user, err := c.GetUser(ctx, userID)
-		if err != nil {
-			continue
-		}
-		users = append(users, RoleUserSummary{
-			ID:           user.GetId(),
-			Login:        user.GetLogin(),
-			DisplayName:  user.GetDisplayName(),
-			Deleted:      user.GetDeleted(),
-			IsBot:  user.GetIsBot(),
-			CustomStatus: user.GetCustomStatus(),
-		})
+	if !allowed {
+		return nil, ErrPermissionDenied
 	}
-	return users, nil
+	if roleName == "" || limit < 0 || offset < 0 {
+		return nil, fmt.Errorf("%w: invalid role member page", ErrInvalidArgument)
+	}
+	if limit == 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	ids, err := c.GetRoleUsers(ctx, roleName)
+	if err != nil {
+		return nil, err
+	}
+	result := &RoleMemberPage{TotalCount: len(ids)}
+	if offset >= len(ids) {
+		return result, nil
+	}
+	end := offset + min(limit, len(ids)-offset)
+	result.UserIDs = ids[offset:end]
+	result.HasMore = end < len(ids)
+	return result, nil
 }

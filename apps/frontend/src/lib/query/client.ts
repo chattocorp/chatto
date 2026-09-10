@@ -1,7 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { QueryClient, type InfiniteData, type QueryKey } from '@tanstack/svelte-query';
 import type { RoomBanList } from '$lib/api-client/rooms';
-import type { RoleDetails } from '$lib/api-client/roles';
 import { registerServerQueryCache } from './cacheRegistry';
 
 const SERVER_QUERY_STALE_TIME_MS = 30_000;
@@ -69,10 +68,11 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
     key[1] === serverId &&
     key[4] === 'admin' &&
     (key[5] === 'members' ||
+      key[5] === 'role-members' ||
       (key[5] === 'member' && key[6] === userId) ||
       (key[5] === 'user-permissions' && key[6] === userId));
   const isMemberListQuery = (key: QueryKey): boolean =>
-    isAdminUserQuery(key) && key[5] === 'members';
+    isAdminUserQuery(key) && (key[5] === 'members' || key[5] === 'role-members');
   const isDeletedUserSnapshot = (key: QueryKey): boolean =>
     isAdminUserQuery(key) && (key[5] === 'member' || key[5] === 'user-permissions');
 
@@ -102,6 +102,8 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
         : data
   );
 
+  // Cancel older pages before scrubbing; a late response must not restore PII.
+  void queryClient.cancelQueries({ predicate: (query) => isMemberListQuery(query.queryKey) });
   queryClient.setQueriesData<{
     pages: Array<{ users: Array<{ id: string }> }>;
     pageParams: unknown[];
@@ -121,18 +123,6 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
             }))
           }
         : data
-  );
-  queryClient.setQueriesData<RoleDetails>(
-    {
-      predicate: (query) => {
-        const key = query.queryKey;
-        return (
-          key[0] === 'server' && key[1] === serverId && key[4] === 'admin' && key[5] === 'role'
-        );
-      }
-    },
-    (details) =>
-      details ? { ...details, users: details.users.filter((user) => user.id !== userId) } : details
   );
   queryClient.setQueriesData(
     {

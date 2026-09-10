@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Role } from "../../api/v1/roles_pb.js";
+import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 import { User } from "../../api/v1/users_pb.js";
 
 /**
@@ -210,13 +211,6 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   role?: AdminRole;
 
   /**
-   * Explicit users with this role. Empty unless the caller may assign roles.
-   *
-   * @generated from field: repeated chatto.api.v1.User users = 2;
-   */
-  users: User[] = [];
-
-  /**
    * Whether the caller may create/update/delete role definitions.
    *
    * @generated from field: bool viewer_can_manage_roles = 3;
@@ -239,7 +233,6 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
   static readonly typeName = "chatto.admin.v1.GetRoleResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "role", kind: "message", T: AdminRole },
-    { no: 2, name: "users", kind: "message", T: User, repeated: true },
     { no: 3, name: "viewer_can_manage_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 4, name: "viewer_can_assign_roles", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
@@ -258,6 +251,106 @@ export class GetRoleResponse extends Message<GetRoleResponse> {
 
   static equals(a: GetRoleResponse | PlainMessage<GetRoleResponse> | undefined, b: GetRoleResponse | PlainMessage<GetRoleResponse> | undefined): boolean {
     return proto3.util.equals(GetRoleResponse, a, b);
+  }
+}
+
+/**
+ * Request a page of explicit role members.
+ *
+ * @generated from message chatto.admin.v1.AdminRoleServiceListMembersRequest
+ */
+export class AdminRoleServiceListMembersRequest extends Message<AdminRoleServiceListMembersRequest> {
+  /**
+   * Stable role name.
+   *
+   * @generated from field: string name = 1;
+   */
+  name = "";
+
+  /**
+   * Defaults to 20 members; capped at 100. Offset counts explicit assignments.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 2;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<AdminRoleServiceListMembersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminRoleServiceListMembersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRoleServiceListMembersRequest {
+    return new AdminRoleServiceListMembersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminRoleServiceListMembersRequest {
+    return new AdminRoleServiceListMembersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminRoleServiceListMembersRequest {
+    return new AdminRoleServiceListMembersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminRoleServiceListMembersRequest | PlainMessage<AdminRoleServiceListMembersRequest> | undefined, b: AdminRoleServiceListMembersRequest | PlainMessage<AdminRoleServiceListMembersRequest> | undefined): boolean {
+    return proto3.util.equals(AdminRoleServiceListMembersRequest, a, b);
+  }
+}
+
+/**
+ * Explicit members sorted by user ID. Each page is a live read; assignment
+ * changes between requests can shift offsets. The implicit everyone role has
+ * no explicit members. Revoked assignments are excluded.
+ *
+ * @generated from message chatto.admin.v1.AdminRoleServiceListMembersResponse
+ */
+export class AdminRoleServiceListMembersResponse extends Message<AdminRoleServiceListMembersResponse> {
+  /**
+   * Canonical public user records for the selected assignments.
+   *
+   * @generated from field: repeated chatto.api.v1.User members = 1;
+   */
+  members: User[] = [];
+
+  /**
+   * Total explicit assignment count and whether another page exists.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<AdminRoleServiceListMembersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.admin.v1.AdminRoleServiceListMembersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "members", kind: "message", T: User, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminRoleServiceListMembersResponse {
+    return new AdminRoleServiceListMembersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AdminRoleServiceListMembersResponse {
+    return new AdminRoleServiceListMembersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AdminRoleServiceListMembersResponse {
+    return new AdminRoleServiceListMembersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AdminRoleServiceListMembersResponse | PlainMessage<AdminRoleServiceListMembersResponse> | undefined, b: AdminRoleServiceListMembersResponse | PlainMessage<AdminRoleServiceListMembersResponse> | undefined): boolean {
+    return proto3.util.equals(AdminRoleServiceListMembersResponse, a, b);
   }
 }
 

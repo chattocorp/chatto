@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleResponse, GetRoleRequest, GetRoleResponse, ListRolesRequest, ListRolesResponse, ReorderRolesRequest, ReorderRolesResponse, UpdateRoleRequest, UpdateRoleResponse } from "./roles_pb.js";
+import { AdminRoleServiceListMembersRequest, AdminRoleServiceListMembersResponse, CreateRoleRequest, CreateRoleResponse, DeleteRoleRequest, DeleteRoleResponse, GetRoleRequest, GetRoleResponse, ListRolesRequest, ListRolesResponse, ReorderRolesRequest, ReorderRolesResponse, UpdateRoleRequest, UpdateRoleResponse } from "./roles_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -30,8 +30,7 @@ export const AdminRoleService = {
     },
     /**
      * Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-     * role does not exist. Requires an authenticated user; the assigned-user
-     * roster is empty unless the caller may assign roles.
+     * role does not exist. Requires an authenticated user.
      *
      * @generated from rpc chatto.admin.v1.AdminRoleService.GetRole
      */
@@ -39,6 +38,18 @@ export const AdminRoleService = {
       name: "GetRole",
       I: GetRoleRequest,
       O: GetRoleResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists explicit role members. Requires role.assign, without requiring
+     * admin.view-users. Returns NOT_FOUND when the role does not exist.
+     *
+     * @generated from rpc chatto.admin.v1.AdminRoleService.ListMembers
+     */
+    listMembers: {
+      name: "ListMembers",
+      I: AdminRoleServiceListMembersRequest,
+      O: AdminRoleServiceListMembersResponse,
       kind: MethodKind.Unary,
     },
     /**

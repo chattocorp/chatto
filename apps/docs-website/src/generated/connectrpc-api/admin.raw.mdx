@@ -341,8 +341,7 @@ Finite role catalog snapshot plus viewer role-management capabilities.
 ### GetRole
 
 Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-role does not exist. Requires an authenticated user; the assigned-user
-roster is empty unless the caller may assign roles.
+role does not exist. Requires an authenticated user.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminRoleService/GetRole
@@ -368,9 +367,45 @@ One role plus role-management metadata.
 | Field | Type | Description |
 | --- | --- | --- |
 | `role` | [`AdminRole`](#chatto-admin-v1-AdminRole) | Requested role. |
-| `users` | `repeated chatto.api.v1.User` | Explicit users with this role. Empty unless the caller may assign roles. |
 | `viewer_can_manage_roles` | `bool` | Whether the caller may create/update/delete role definitions. |
 | `viewer_can_assign_roles` | `bool` | Whether the caller may assign/revoke roles and view role rosters. |
+
+
+<a id="chatto-admin-v1-AdminRoleService-ListMembers"></a>
+
+### ListMembers
+
+Lists explicit role members. Requires role.assign, without requiring
+admin.view-users. Returns NOT_FOUND when the role does not exist.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminRoleService/ListMembers
+```
+
+<a id="chatto-admin-v1-AdminRoleServiceListMembersRequest"></a>
+
+#### Input: AdminRoleServiceListMembersRequest
+
+Request a page of explicit role members.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `name` | `string` | Stable role name. |
+| `page` | `chatto.api.v1.PageRequest` | Defaults to 20 members; capped at 100. Offset counts explicit assignments. |
+
+
+<a id="chatto-admin-v1-AdminRoleServiceListMembersResponse"></a>
+
+#### Result: AdminRoleServiceListMembersResponse
+
+Explicit members sorted by user ID. Each page is a live read; assignment
+changes between requests can shift offsets. The implicit everyone role has
+no explicit members. Revoked assignments are excluded.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `members` | `repeated chatto.api.v1.User` | Canonical public user records for the selected assignments. |
+| `page` | `chatto.api.v1.PageInfo` | Total explicit assignment count and whether another page exists. |
 
 
 <a id="chatto-admin-v1-AdminRoleService-CreateRole"></a>

@@ -113,16 +113,22 @@ describe('server query cache', () => {
       ],
       pageParams: [0]
     });
-    queryClient.setQueryData(['server', 'one', 'session', 'scope', 'admin', 'role', 'moderator'], {
-      role: { name: 'moderator' },
-      users: [
-        { id: 'removed', login: 'removed', displayName: 'Removed User' },
-        { id: 'retained', login: 'retained', displayName: 'Retained User' }
-      ],
-      roles: [],
-      viewerCanManageRoles: true,
-      viewerCanAssignRoles: true
-    });
+    queryClient.setQueryData(
+      ['server', 'one', 'session', 'scope', 'admin', 'role-members', 'moderator'],
+      {
+        pages: [
+          {
+            users: [
+              { id: 'removed', login: 'removed', displayName: 'Removed User' },
+              { id: 'retained', login: 'retained', displayName: 'Retained User' }
+            ],
+            totalCount: 2,
+            hasMore: false
+          }
+        ],
+        pageParams: [0]
+      }
+    );
 
     removeRegisteredAdminUserQueries('one', 'removed');
 
@@ -182,16 +188,40 @@ describe('server query cache', () => {
       ]
     });
     expect(
-      queryClient.getQueryData<{ users: Array<{ id: string }> }>([
+      queryClient.getQueryData<{ pages: Array<{ users: Array<{ id: string }> }> }>([
         'server',
         'one',
         'session',
         'scope',
         'admin',
-        'role',
+        'role-members',
         'moderator'
-      ])?.users
+      ])?.pages[0].users
     ).toEqual([{ id: 'retained', login: 'retained', displayName: 'Retained User' }]);
+  });
+
+  it('fences a late role-member page after deleted-user cleanup', async () => {
+    const key = ['server', 'one', 'session', 'scope', 'admin', 'role-members', 'moderator'];
+    const data = { pages: [{ users: [{ id: 'removed' }, { id: 'retained' }] }], pageParams: [0] };
+    queryClient.setQueryData(key, data);
+    let finish!: (value: typeof data) => void;
+    const oldRead = queryClient
+      .fetchQuery({
+        queryKey: key,
+        staleTime: 0,
+        queryFn: () =>
+          new Promise<typeof data>((resolve) => {
+            finish = resolve;
+          })
+      })
+      .catch(() => undefined);
+    removeRegisteredAdminUserQueries('one', 'removed');
+    finish(data);
+    await oldRead;
+    expect(queryClient.getQueryData(key)).toEqual({
+      pages: [{ users: [{ id: 'retained' }] }],
+      pageParams: [0]
+    });
   });
 
   it('invalidates room details across sessions and purges removed permission snapshots', () => {

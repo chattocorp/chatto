@@ -39,6 +39,9 @@ const (
 	// AdminRoleServiceGetRoleProcedure is the fully-qualified name of the AdminRoleService's GetRole
 	// RPC.
 	AdminRoleServiceGetRoleProcedure = "/chatto.admin.v1.AdminRoleService/GetRole"
+	// AdminRoleServiceListMembersProcedure is the fully-qualified name of the AdminRoleService's
+	// ListMembers RPC.
+	AdminRoleServiceListMembersProcedure = "/chatto.admin.v1.AdminRoleService/ListMembers"
 	// AdminRoleServiceCreateRoleProcedure is the fully-qualified name of the AdminRoleService's
 	// CreateRole RPC.
 	AdminRoleServiceCreateRoleProcedure = "/chatto.admin.v1.AdminRoleService/CreateRole"
@@ -61,9 +64,11 @@ type AdminRoleServiceClient interface {
 	// effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
 	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-	// role does not exist. Requires an authenticated user; the assigned-user
-	// roster is empty unless the caller may assign roles.
+	// role does not exist. Requires an authenticated user.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
+	// Lists explicit role members. Requires role.assign, without requiring
+	// admin.view-users. Returns NOT_FOUND when the role does not exist.
+	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
 	// Creates a custom role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
@@ -97,6 +102,12 @@ func NewAdminRoleServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(adminRoleServiceMethods.ByName("GetRole")),
 			connect.WithClientOptions(opts...),
 		),
+		listMembers: connect.NewClient[v1.AdminRoleServiceListMembersRequest, v1.AdminRoleServiceListMembersResponse](
+			httpClient,
+			baseURL+AdminRoleServiceListMembersProcedure,
+			connect.WithSchema(adminRoleServiceMethods.ByName("ListMembers")),
+			connect.WithClientOptions(opts...),
+		),
 		createRole: connect.NewClient[v1.CreateRoleRequest, v1.CreateRoleResponse](
 			httpClient,
 			baseURL+AdminRoleServiceCreateRoleProcedure,
@@ -128,6 +139,7 @@ func NewAdminRoleServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type adminRoleServiceClient struct {
 	listRoles    *connect.Client[v1.ListRolesRequest, v1.ListRolesResponse]
 	getRole      *connect.Client[v1.GetRoleRequest, v1.GetRoleResponse]
+	listMembers  *connect.Client[v1.AdminRoleServiceListMembersRequest, v1.AdminRoleServiceListMembersResponse]
 	createRole   *connect.Client[v1.CreateRoleRequest, v1.CreateRoleResponse]
 	updateRole   *connect.Client[v1.UpdateRoleRequest, v1.UpdateRoleResponse]
 	deleteRole   *connect.Client[v1.DeleteRoleRequest, v1.DeleteRoleResponse]
@@ -142,6 +154,11 @@ func (c *adminRoleServiceClient) ListRoles(ctx context.Context, req *connect.Req
 // GetRole calls chatto.admin.v1.AdminRoleService.GetRole.
 func (c *adminRoleServiceClient) GetRole(ctx context.Context, req *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error) {
 	return c.getRole.CallUnary(ctx, req)
+}
+
+// ListMembers calls chatto.admin.v1.AdminRoleService.ListMembers.
+func (c *adminRoleServiceClient) ListMembers(ctx context.Context, req *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error) {
+	return c.listMembers.CallUnary(ctx, req)
 }
 
 // CreateRole calls chatto.admin.v1.AdminRoleService.CreateRole.
@@ -172,9 +189,11 @@ type AdminRoleServiceHandler interface {
 	// effects; use chatto.api.v1.RoleService for lightweight catalog rendering.
 	ListRoles(context.Context, *connect.Request[v1.ListRolesRequest]) (*connect.Response[v1.ListRolesResponse], error)
 	// Gets one role plus admin detail metadata. Returns NOT_FOUND when the
-	// role does not exist. Requires an authenticated user; the assigned-user
-	// roster is empty unless the caller may assign roles.
+	// role does not exist. Requires an authenticated user.
 	GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error)
+	// Lists explicit role members. Requires role.assign, without requiring
+	// admin.view-users. Returns NOT_FOUND when the role does not exist.
+	ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error)
 	// Creates a custom role. Requires role.manage.
 	CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error)
 	// Updates role metadata. Requires role.manage.
@@ -202,6 +221,12 @@ func NewAdminRoleServiceHandler(svc AdminRoleServiceHandler, opts ...connect.Han
 		AdminRoleServiceGetRoleProcedure,
 		svc.GetRole,
 		connect.WithSchema(adminRoleServiceMethods.ByName("GetRole")),
+		connect.WithHandlerOptions(opts...),
+	)
+	adminRoleServiceListMembersHandler := connect.NewUnaryHandler(
+		AdminRoleServiceListMembersProcedure,
+		svc.ListMembers,
+		connect.WithSchema(adminRoleServiceMethods.ByName("ListMembers")),
 		connect.WithHandlerOptions(opts...),
 	)
 	adminRoleServiceCreateRoleHandler := connect.NewUnaryHandler(
@@ -234,6 +259,8 @@ func NewAdminRoleServiceHandler(svc AdminRoleServiceHandler, opts ...connect.Han
 			adminRoleServiceListRolesHandler.ServeHTTP(w, r)
 		case AdminRoleServiceGetRoleProcedure:
 			adminRoleServiceGetRoleHandler.ServeHTTP(w, r)
+		case AdminRoleServiceListMembersProcedure:
+			adminRoleServiceListMembersHandler.ServeHTTP(w, r)
 		case AdminRoleServiceCreateRoleProcedure:
 			adminRoleServiceCreateRoleHandler.ServeHTTP(w, r)
 		case AdminRoleServiceUpdateRoleProcedure:
@@ -257,6 +284,10 @@ func (UnimplementedAdminRoleServiceHandler) ListRoles(context.Context, *connect.
 
 func (UnimplementedAdminRoleServiceHandler) GetRole(context.Context, *connect.Request[v1.GetRoleRequest]) (*connect.Response[v1.GetRoleResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoleService.GetRole is not implemented"))
+}
+
+func (UnimplementedAdminRoleServiceHandler) ListMembers(context.Context, *connect.Request[v1.AdminRoleServiceListMembersRequest]) (*connect.Response[v1.AdminRoleServiceListMembersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminRoleService.ListMembers is not implemented"))
 }
 
 func (UnimplementedAdminRoleServiceHandler) CreateRole(context.Context, *connect.Request[v1.CreateRoleRequest]) (*connect.Response[v1.CreateRoleResponse], error) {

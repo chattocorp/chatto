@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   batchGetRoles: vi.fn(),
   listAdminRoles: vi.fn(),
   getRole: vi.fn(),
+  listMembers: vi.fn(),
   createRole: vi.fn(),
   updateRole: vi.fn(),
   deleteRole: vi.fn()
@@ -35,6 +36,7 @@ describe('createRoleAPI', () => {
     mocks.batchGetRoles.mockReset();
     mocks.listAdminRoles.mockReset();
     mocks.getRole.mockReset();
+    mocks.listMembers.mockReset();
     mocks.createRole.mockReset();
     mocks.updateRole.mockReset();
     mocks.deleteRole.mockReset();
@@ -50,6 +52,7 @@ describe('createRoleAPI', () => {
       return {
         listRoles: mocks.listAdminRoles,
         getRole: mocks.getRole,
+        listMembers: mocks.listMembers,
         createRole: mocks.createRole,
         updateRole: mocks.updateRole,
         deleteRole: mocks.deleteRole
@@ -173,7 +176,7 @@ describe('createRoleAPI', () => {
     });
   });
 
-  it('gets a role with users and no auth headers when no token is available', async () => {
+  it('gets role metadata and no auth headers when no token is available', async () => {
     mocks.getRole.mockResolvedValue({
       role: {
         role: {
@@ -187,7 +190,6 @@ describe('createRoleAPI', () => {
         permissions: [],
         permissionDenials: []
       },
-      users: [{ id: 'user-1', login: 'alice', displayName: 'Alice' }],
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
     });
@@ -212,10 +214,22 @@ describe('createRoleAPI', () => {
         position: 10,
         pingable: false
       },
-      users: [{ id: 'user-1', login: 'alice', displayName: 'Alice' }],
       viewerCanManageRoles: true,
       viewerCanAssignRoles: true
     });
+  });
+
+  it('loads an explicit role member page with authentication and cancellation', async () => {
+    const user = { id: 'user-1', login: 'alice', displayName: 'Alice', isBot: true };
+    mocks.listMembers.mockResolvedValue({ members: [user], page: { totalCount: 31n, hasMore: true } });
+    const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const signal = new AbortController().signal;
+    expect(await api.listMembers('helpdesk', { limit: 20, offset: 20 }, { signal }))
+      .toEqual({ users: [user], totalCount: 31, hasMore: true });
+    expect(mocks.listMembers).toHaveBeenCalledWith(
+      { name: 'helpdesk', page: { limit: 20, offset: 20 } },
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
   });
 
   it('creates updates and deletes roles with auth headers', async () => {

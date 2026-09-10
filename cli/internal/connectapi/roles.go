@@ -101,7 +101,6 @@ func (s *roleService) GetRole(ctx context.Context, req *connect.Request[adminv1.
 	}
 	return connect.NewResponse(&adminv1.GetRoleResponse{
 		Role:                 adminAPIRole(details.Role),
-		Users:                s.apiRoleUsers(ctx, details.Users),
 		ViewerCanManageRoles: details.ViewerCanManageRoles,
 		ViewerCanAssignRoles: details.ViewerCanAssignRoles,
 	}), nil
@@ -210,22 +209,18 @@ func adminAPIRole(role *core.RoleWithPermissions) *adminv1.AdminRole {
 	}
 }
 
-func (s *roleService) apiRoleUsers(ctx context.Context, users []core.RoleUserSummary) []*apiv1.User {
-	out := make([]*apiv1.User, 0, len(users))
-	for _, user := range users {
-		presence, err := s.api.core.GetUserPresence(ctx, user.ID)
-		if err != nil {
-			presence = core.PresenceStatusOffline
-		}
-		out = append(out, &apiv1.User{
-			Id:             user.ID,
-			Login:          user.Login,
-			DisplayName:    user.DisplayName,
-			Deleted:        user.Deleted,
-			IsBot:          user.IsBot,
-			PresenceStatus: corePresenceStatusToAPI(presence),
-			CustomStatus:   coreCustomStatusToAPI(user.CustomStatus),
-		})
+func (s *roleService) ListMembers(ctx context.Context, req *connect.Request[adminv1.AdminRoleServiceListMembersRequest]) (*connect.Response[adminv1.AdminRoleServiceListMembersResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return out
+	page, err := s.api.core.ListServerRoleMembers(ctx, caller.UserID, req.Msg.GetName(), int(req.Msg.GetPage().GetLimit()), int(req.Msg.GetPage().GetOffset()))
+	if err != nil {
+		return nil, connectError(err)
+	}
+	members, err := (&roleMemberAssembler{api: s.api}).assemble(ctx, page.UserIDs)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&adminv1.AdminRoleServiceListMembersResponse{Members: members, Page: apiPageInfo(page.TotalCount, page.HasMore)}), nil
 }

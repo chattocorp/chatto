@@ -94,6 +94,12 @@ another account. These operations validate stable request-time authorization
 inputs, use OCC on the target user aggregate, and then return the ready user
 projection.
 
+`AdminRoleService` separates role details from explicit membership pages.
+`ListMembers` gates each request with `role.assign`; it selects assignment IDs
+before bounded user-profile hydration. It does not require `admin.view-users`.
+See [role operations](../../cli/internal/core/role_management.go) and the
+[role member assembler](../../cli/internal/connectapi/role_member_assembler.go).
+
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named
 incoming webhooks for each bot. Bot

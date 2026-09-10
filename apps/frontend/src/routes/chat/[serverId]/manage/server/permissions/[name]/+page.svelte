@@ -2,16 +2,11 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
-  import { createMutation, createQuery } from '@tanstack/svelte-query';
+  import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    createRoleAPI,
-    type RoleDetails,
-    type RoleUser,
-    type UpdateRoleInput
-  } from '$lib/api-client/roles';
+  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { UserList } from '$lib/components/admin';
   import Panel from '$lib/ui/Panel.svelte';
@@ -30,8 +25,6 @@
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';
-
-  type User = RoleUser;
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
@@ -75,9 +68,38 @@
 
   const roleDetails = $derived(roleQuery.data ?? null);
   const role = $derived((roleDetails?.role ?? null) as Role | null);
-  const roleUsers = $derived((roleDetails?.users ?? []) as User[]);
+
   const canManageRoles = $derived(roleDetails?.viewerCanManageRoles ?? false);
   const canAssignRoles = $derived(roleDetails?.viewerCanAssignRoles ?? false);
+  let scrollContainer = $state<HTMLDivElement>();
+  const membersQuery = createInfiniteQuery(
+    () => {
+      const connection = serverScope.connection;
+      const name = roleName;
+      return {
+        queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
+        enabled: canAssignRoles && name !== 'everyone',
+        queryFn: ({ pageParam, signal }) =>
+          connection
+            .getAPI(createRoleAPI)
+            .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, offset) =>
+          lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
+      };
+    },
+    () => queryClient
+  );
+  const roleUsers = $derived.by(() => {
+    const users = (membersQuery.data?.pages ?? []).flatMap((page) => page.users);
+    return [...new Map(users.map((user) => [user.id, user])).values()];
+  });
+  const membersError = $derived(membersQuery.error?.message ?? null);
+  async function loadMoreMembers() {
+    if (membersQuery.hasNextPage && !membersQuery.isFetching && !membersError) {
+      await membersQuery.fetchNextPage();
+    }
+  }
   const loading = $derived(roleQuery.isPending);
   let deleteConfirmRoleName = $state<string | null>(null);
   let metadataRevision = $state(0);
@@ -245,7 +267,7 @@
     showMobileNav
   />
 
-  <PaneContent>
+  <PaneContent bind:scrollContainer>
     <div class="flex flex-col gap-6">
       {#if loading}
         <div class="text-muted">{m('admin.permissions.loading_role')}</div>
@@ -285,28 +307,40 @@
         {/if}
 
         <!-- Users with this role -->
-        <Panel
-          title={m('admin.permissions.users_with_role')}
-          icon="iconify icon-[uil--users-alt]"
-          noPadding
-        >
-          {#if role?.name === 'everyone'}
-            <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
-          {:else}
-            <UserList
-              users={roleUsers}
-              clickable={canAssignRoles}
-              emptyMessage={m('admin.permissions.no_users_with_role')}
-              onUserClick={(user) =>
-                goto(
-                  resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                    serverId: serverSegment,
-                    userId: user.id
-                  })
-                )}
-            />
-          {/if}
-        </Panel>
+        {#if canAssignRoles || role.name === 'everyone'}
+          <Panel
+            title={m('admin.permissions.users_with_role')}
+            icon="iconify icon-[uil--users-alt]"
+            noPadding
+          >
+            {#if role?.name === 'everyone'}
+              <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
+            {:else if canAssignRoles}
+              {#if membersError}
+                <div class="p-5"><FormError error={membersError} /></div>
+              {:else}
+                <UserList
+                  users={roleUsers}
+                  loading={membersQuery.isPending}
+                  totalCount={membersQuery.data?.pages.at(-1)?.totalCount ?? 0}
+                  hasMore={membersQuery.hasNextPage && !membersError}
+                  loadingMore={membersQuery.isFetchingNextPage}
+                  onLoadMore={loadMoreMembers}
+                  loadMoreRoot={scrollContainer}
+                  clickable={canAssignRoles}
+                  emptyMessage={m('admin.permissions.no_users_with_role')}
+                  onUserClick={(user) =>
+                    goto(
+                      resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                        serverId: serverSegment,
+                        userId: user.id
+                      })
+                    )}
+                />
+              {/if}
+            {/if}
+          </Panel>
+        {/if}
       {/if}
     </div>
   </PaneContent>

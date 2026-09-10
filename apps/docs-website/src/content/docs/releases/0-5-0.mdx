@@ -436,6 +436,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   omitted expiry means no expiry. See the
   [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
 
+- **API migration:** Role details no longer embed all assigned users. Replace
+  reads of `AdminRoleService.GetRoleResponse.users` with paginated
+  `AdminRoleService.ListMembers` calls. The default page contains 20 users;
+  the maximum is 100. The existing `role.assign` permission still controls
+  roster access. See [API Compatibility](/guides/integrations/api-compatibility/).
 - **API migration:** `RoomDirectoryService.ListRooms` now returns pages of 50
   rooms by default, capped at 100, ordered by room ID. Follow `page.hasMore`
   and advance the request offset to read the full directory. The bundled client
