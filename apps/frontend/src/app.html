@@ -190,6 +190,7 @@
         place-items: center;
         position: fixed;
         inset: 0;
+        z-index: 100;
         overflow: hidden;
         pointer-events: none;
         background: var(--color-background, var(--loading-background));
@@ -204,7 +205,9 @@
         color: var(--color-text, var(--loading-text));
         /* Keep metrics stable when application CSS and web fonts arrive. */
         box-sizing: border-box;
-        font: 600 20px / 1 system-ui, sans-serif;
+        font:
+          600 20px / 1 system-ui,
+          sans-serif;
         letter-spacing: 0.45em;
         padding-inline-start: 0.45em;
         opacity: 0.28;

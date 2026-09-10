@@ -15,9 +15,26 @@ function revealSections(element: Element): Element[] {
  */
 export const initialPageReveal: Attachment = (element) => {
   // The HTML shell is visible while SvelteKit resolves the initial route.
-  document.getElementById('app-loading')?.remove();
+  const loadingShell = document.getElementById('app-loading');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-  if (reducedMotion.matches) return;
+  if (reducedMotion.matches) {
+    loadingShell?.remove();
+    return;
+  }
+
+  const loadingAnimation = loadingShell?.animate(
+    [
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: 0, transform: 'scale(1.02)' }
+    ],
+    { duration: 540, easing: 'ease-out', fill: 'forwards' }
+  );
+  const removeLoadingShell = () => {
+    if (!loadingShell) return;
+    loadingAnimation?.cancel();
+    loadingShell.remove();
+  };
+  if (loadingAnimation) loadingAnimation.onfinish = removeLoadingShell;
 
   const sections = Array.from(element.children).flatMap(revealSections);
   const stagger = Math.min(90, 270 / Math.max(1, sections.length - 1));
@@ -31,6 +48,8 @@ export const initialPageReveal: Attachment = (element) => {
     )
   );
   const showAll = () => {
+    if (loadingAnimation) loadingAnimation.onfinish = null;
+    removeLoadingShell();
     for (const animation of animations) {
       animation.onfinish = null;
       animation.cancel();
