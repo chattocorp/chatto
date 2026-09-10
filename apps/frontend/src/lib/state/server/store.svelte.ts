@@ -480,7 +480,7 @@ export class ServerStateStore {
     return store;
   }
 
-  /** Restore the canonical latest window when a route selects this room. */
+  /** Load the latest room window at a route boundary when retained data needs it. */
   restoreProjectedRoomWindow(roomId: string): void {
     const messages = this.messagesForRoom(roomId);
     void messages.restoreLatestWindow();
