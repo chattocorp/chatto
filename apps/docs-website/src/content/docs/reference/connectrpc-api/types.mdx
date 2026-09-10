@@ -1684,12 +1684,12 @@ One ordered sidebar item in an admin room group layout.
 
 ### AdminRoomLayoutItemInput
 
-One item reference in a sidebar order replacement.
+One room or sidebar link reference in a move or order replacement.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `kind` | [`AdminRoomLayoutItemKind`](#chatto-admin-v1-AdminRoomLayoutItemKind) | Item kind. |
-| `id` | `string` | Room ID when kind is ROOM, sidebar link ID when kind is SIDEBAR_LINK. |
+| `item.room_id` | `string` | Channel room ID. |
+| `item.sidebar_link_id` | `string` | Sidebar link ID. |
 
 <a id="chatto-admin-v1-Neighbor"></a>
 
@@ -2061,15 +2061,3 @@ Scope tier for permission matrices and write requests.
 | `PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
 | `PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
 | `PERMISSION_SCOPE_KIND_DM` | `4` | Server-wide direct-message tier. |
-
-<a id="chatto-admin-v1-AdminRoomLayoutItemKind"></a>
-
-### AdminRoomLayoutItemKind
-
-Sidebar item kind used in reorder requests.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_UNSPECIFIED` | `0` | The item kind was not specified. |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM` | `1` | Channel room entry. |
-| `ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK` | `2` | Sidebar link entry. |

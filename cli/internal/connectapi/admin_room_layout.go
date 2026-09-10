@@ -351,16 +351,7 @@ func apiAdminRoomLayoutGroup(group *evtv1.RoomGroup, roomsByID map[string]*evtv1
 func adminRoomLayoutItemInputsToCore(items []*adminv1.AdminRoomLayoutItemInput) []*evtv1.SidebarGroupEntry {
 	entries := make([]*evtv1.SidebarGroupEntry, 0, len(items))
 	for _, item := range items {
-		var kind evtv1.SidebarGroupEntry_Kind
-		switch item.GetKind() {
-		case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM:
-			kind = evtv1.SidebarGroupEntry_ROOM
-		case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK:
-			kind = evtv1.SidebarGroupEntry_SIDEBAR_LINK
-		default:
-			kind = evtv1.SidebarGroupEntry_KIND_UNSPECIFIED
-		}
-		entries = append(entries, &evtv1.SidebarGroupEntry{Kind: kind, Id: item.GetId()})
+		entries = append(entries, adminRoomLayoutItemInputToCore(item))
 	}
 	return entries
 }
@@ -369,16 +360,14 @@ func adminRoomLayoutItemInputToCore(item *adminv1.AdminRoomLayoutItemInput) *evt
 	if item == nil {
 		return nil
 	}
-	var kind evtv1.SidebarGroupEntry_Kind
-	switch item.GetKind() {
-	case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM:
-		kind = evtv1.SidebarGroupEntry_ROOM
-	case adminv1.AdminRoomLayoutItemKind_ADMIN_ROOM_LAYOUT_ITEM_KIND_SIDEBAR_LINK:
-		kind = evtv1.SidebarGroupEntry_SIDEBAR_LINK
+	switch target := item.GetItem().(type) {
+	case *adminv1.AdminRoomLayoutItemInput_RoomId:
+		return &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_ROOM, Id: target.RoomId}
+	case *adminv1.AdminRoomLayoutItemInput_SidebarLinkId:
+		return &evtv1.SidebarGroupEntry{Kind: evtv1.SidebarGroupEntry_SIDEBAR_LINK, Id: target.SidebarLinkId}
 	default:
-		kind = evtv1.SidebarGroupEntry_KIND_UNSPECIFIED
+		return &evtv1.SidebarGroupEntry{}
 	}
-	return &evtv1.SidebarGroupEntry{Kind: kind, Id: item.GetId()}
 }
 
 func sidebarLinkFromAdminRoomLayoutGroup(group *evtv1.RoomGroup, linkID string) *evtv1.SidebarLink {

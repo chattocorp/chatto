@@ -1,7 +1,6 @@
 import { Code, ConnectError } from '@connectrpc/connect';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
-import { AdminRoomLayoutItemKind } from '@chatto/api-types/admin/v1/room_layout_pb';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import { RoomThreadingMode } from '$lib/roomThreading';
 
@@ -224,17 +223,17 @@ describe('createAdminRoomLayoutAPI', () => {
       {
         groupId: 'g2',
         items: [
-          { id: 'room-1', kind: AdminRoomLayoutItemKind.ROOM },
-          { id: 'docs', kind: AdminRoomLayoutItemKind.SIDEBAR_LINK }
+          { item: { case: 'roomId', value: 'room-1' } },
+          { item: { case: 'sidebarLinkId', value: 'docs' } }
         ]
       },
       callOptions
     );
     expect(mocks.moveSidebarItem).toHaveBeenCalledWith(
       {
-        item: { id: 'room-1', kind: AdminRoomLayoutItemKind.ROOM },
+        item: { item: { case: 'roomId', value: 'room-1' } },
         groupId: 'g2',
-        before: { id: 'docs', kind: AdminRoomLayoutItemKind.SIDEBAR_LINK }
+        before: { item: { case: 'sidebarLinkId', value: 'docs' } }
       },
       callOptions
     );

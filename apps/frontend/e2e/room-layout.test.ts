@@ -194,7 +194,7 @@ async function updateRoomLayoutViaAPI(page: Page, groups: RoomGroup[]): Promise<
     if (same) continue;
     await connectPost(page, 'chatto.admin.v1.AdminRoomLayoutService/ReorderSidebarItemsInGroup', {
       groupId: targetId,
-      items: desired.map((id) => ({ kind: 'ADMIN_ROOM_LAYOUT_ITEM_KIND_ROOM', id }))
+      items: desired.map((id) => ({ roomId: id }))
     });
   }
 
