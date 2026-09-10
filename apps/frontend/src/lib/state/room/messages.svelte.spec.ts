@@ -721,6 +721,36 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps a newer latest read active when an older read settles', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const initial = deferred<RoomPage>();
+    const replacement = deferred<RoomPage>();
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockImplementationOnce(() => initial.promise)
+      .mockImplementationOnce(() => replacement.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+
+    store.setRoom('room-1');
+    const replacing = store.jumpToPresent(new JumpToMessageState());
+    initial.resolve(pageFromEvent(threadMessageEvent('stale-latest')));
+    await settle();
+
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+
+    replacement.resolve(pageFromEvent(threadMessageEvent('current-latest')));
+    await expect(replacing).resolves.toBe(true);
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['current-latest']);
+    store.dispose();
+  });
+
   it('restores the latest window after leaving a completed historical jump', async () => {
     const getRoomEvents = vi
       .fn<RoomTimelineAPI['getRoomEvents']>()

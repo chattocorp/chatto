@@ -162,7 +162,7 @@ export class MessagesStore {
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
   #needsLatestWindowRestore = false;
-  #isLoadingLatestWindow = false;
+  #latestWindowLoadId: number | null = null;
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
 
@@ -443,7 +443,7 @@ export class MessagesStore {
   restoreLatestWindow(): Promise<boolean> {
     if (this.scope !== 'room') return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
-    if (this.#isLoadingLatestWindow) return Promise.resolve(false);
+    if (this.#latestWindowLoadId !== null) return Promise.resolve(false);
     if (!this.#needsLatestWindowRestore) return Promise.resolve(false);
     return this.resetAndFetchLatest();
   }
@@ -1174,7 +1174,7 @@ export class MessagesStore {
     this.events = [];
     this.seenIds = new SvelteSet();
     this.#needsLatestWindowRestore = false;
-    this.#isLoadingLatestWindow = false;
+    this.#latestWindowLoadId = null;
     this.previewEvents.clear();
     this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
@@ -1369,12 +1369,12 @@ export class MessagesStore {
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
-    this.#isLoadingLatestWindow = true;
+    this.#latestWindowLoadId = thisLoad;
     this.isInitialLoading = true;
     return this.fetchCurrent(thisLoad).then((loaded) => {
-      if (this.source === source && this.#isLoadingLatestWindow) {
+      if (this.source === source && this.#latestWindowLoadId === thisLoad) {
         this.#needsLatestWindowRestore = !loaded;
-        this.#isLoadingLatestWindow = false;
+        this.#latestWindowLoadId = null;
       }
       return loaded;
     });
