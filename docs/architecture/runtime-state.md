@@ -115,6 +115,10 @@ local index when read-your-writes is required. Create-only membership
 initialization cannot replace a marker concurrently advanced by the user or
 another replica.
 
+The thread read command returns its previous and resulting marker timestamps
+from the successful KV advance decision. A stale anchor returns the retained
+marker time; the response does not need a separate index read.
+
 Token HMAC keys are derived with `[core].secret_key` and the credential purpose as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer access or refresh credentials, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 
 **MEMORY_CACHE keys:**

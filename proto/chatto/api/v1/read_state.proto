@@ -39,6 +39,11 @@ message MarkThreadAsReadRequest {
 
 // Result of marking a message thread as read.
 message MarkThreadAsReadResponse {
+  reserved "previous_read_at";
+
   // Previous thread read timestamp, when one existed.
-  google.protobuf.Timestamp previous_read_at = 1;
+  google.protobuf.Timestamp previous_last_read_at = 1;
+  // Resulting thread read timestamp. A stale request retains the newer marker.
+  // Absent when no marker exists.
+  google.protobuf.Timestamp last_read_at = 2;
 }

@@ -207,9 +207,12 @@ func (x *MarkThreadAsReadRequest) GetUpToEventId() string {
 type MarkThreadAsReadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Previous thread read timestamp, when one existed.
-	PreviousReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=previous_read_at,json=previousReadAt,proto3" json:"previous_read_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	PreviousLastReadAt *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=previous_last_read_at,json=previousLastReadAt,proto3" json:"previous_last_read_at,omitempty"`
+	// Resulting thread read timestamp. A stale request retains the newer marker.
+	// Absent when no marker exists.
+	LastReadAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MarkThreadAsReadResponse) Reset() {
@@ -242,9 +245,16 @@ func (*MarkThreadAsReadResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *MarkThreadAsReadResponse) GetPreviousReadAt() *timestamppb.Timestamp {
+func (x *MarkThreadAsReadResponse) GetPreviousLastReadAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.PreviousReadAt
+		return x.PreviousLastReadAt
+	}
+	return nil
+}
+
+func (x *MarkThreadAsReadResponse) GetLastReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReadAt
 	}
 	return nil
 }
@@ -264,9 +274,11 @@ const file_chatto_api_v1_read_state_proto_rawDesc = "" +
 	"\x17MarkThreadAsReadRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\x12#\n" +
-	"\x0eup_to_event_id\x18\x03 \x01(\tR\vupToEventId\"`\n" +
-	"\x18MarkThreadAsReadResponse\x12D\n" +
-	"\x10previous_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x0epreviousReadAtB\xaa\x01\n" +
+	"\x0eup_to_event_id\x18\x03 \x01(\tR\vupToEventId\"\xb9\x01\n" +
+	"\x18MarkThreadAsReadResponse\x12M\n" +
+	"\x15previous_last_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x12previousLastReadAt\x12<\n" +
+	"\flast_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastReadAtR\x10previous_read_atB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReadStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -292,12 +304,13 @@ var file_chatto_api_v1_read_state_proto_goTypes = []any{
 var file_chatto_api_v1_read_state_proto_depIdxs = []int32{
 	4, // 0: chatto.api.v1.MarkRoomAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
 	4, // 1: chatto.api.v1.MarkRoomAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
-	4, // 2: chatto.api.v1.MarkThreadAsReadResponse.previous_read_at:type_name -> google.protobuf.Timestamp
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 2: chatto.api.v1.MarkThreadAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
+	4, // 3: chatto.api.v1.MarkThreadAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_read_state_proto_init() }

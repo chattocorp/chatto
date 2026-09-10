@@ -110,7 +110,7 @@
   const unread = useUnreadMarker(() => threadRootEventId, {
     markAsRead: markThreadAsRead,
     markerWindowFromReadResult: (result, markedAtMs) =>
-      result.previousReadAt ? { afterTime: result.previousReadAt, beforeTime: markedAtMs } : null,
+      result.previousLastReadAt ? { afterTime: result.previousLastReadAt, beforeTime: markedAtMs } : null,
     getMarkerEvents: () => threadEvents,
     getMarkerSkipActorId: () => currentUser.user?.id ?? null,
     onMarkAsReadError: (error) => console.error('Failed to mark thread as read:', error)

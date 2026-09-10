@@ -77,7 +77,8 @@ describe('createReadStateAPI', () => {
 
   it('marks a thread read without auth headers when no token is available', async () => {
     mocks.markThreadAsRead.mockResolvedValue({
-      previousReadAt: Timestamp.fromDate(new Date('2026-06-01T10:00:00Z'))
+      lastReadAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
+      previousLastReadAt: Timestamp.fromDate(new Date('2026-06-01T10:00:00Z'))
     });
 
     const api = createReadStateAPI({
@@ -100,7 +101,8 @@ describe('createReadStateAPI', () => {
       }
     );
     expect(result).toEqual({
-      previousReadAt: '2026-06-01T10:00:00.000Z'
+      lastReadAt: '2026-06-01T12:00:00.000Z',
+      previousLastReadAt: '2026-06-01T10:00:00.000Z'
     });
   });
 

@@ -797,12 +797,15 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	if err != nil {
 		t.Fatalf("MarkThreadAsRead reply2: %v", err)
 	}
-	if resp.Msg.PreviousReadAt != nil {
-		t.Fatalf("first previous read at = %v, want nil", resp.Msg.PreviousReadAt)
+	if resp.Msg.PreviousLastReadAt != nil {
+		t.Fatalf("first previous read at = %v, want nil", resp.Msg.PreviousLastReadAt)
 	}
 	marker2, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
 	if err != nil {
 		t.Fatalf("GetThreadLastOpened after reply2: %v", err)
+	}
+	if resp.Msg.LastReadAt == nil || !resp.Msg.LastReadAt.AsTime().Equal(marker2) {
+		t.Fatalf("first last_read_at = %v, want %v", resp.Msg.LastReadAt, marker2)
 	}
 	assertAPINotificationStates(t, env, ctx,
 		[]string{futureThreadNotification.Id, otherThreadNotification.Id, roomNotification.Id},
@@ -817,12 +820,15 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	if err != nil {
 		t.Fatalf("MarkThreadAsRead stale reply1: %v", err)
 	}
-	if resp.Msg.PreviousReadAt == nil {
+	if resp.Msg.PreviousLastReadAt == nil {
 		t.Fatalf("second previous read at = nil, want previous marker")
 	}
 	markerAfter, err := env.core.GetThreadLastOpened(env.ctx, core.KindChannel, reader.Id, room.Id, root.Id)
 	if err != nil {
 		t.Fatalf("GetThreadLastOpened after stale reply1: %v", err)
+	}
+	if resp.Msg.LastReadAt == nil || !resp.Msg.LastReadAt.AsTime().Equal(marker2) || !resp.Msg.PreviousLastReadAt.AsTime().Equal(marker2) {
+		t.Fatalf("stale response = %+v, want previous and current %v", resp.Msg, marker2)
 	}
 	if !markerAfter.Equal(marker2) {
 		t.Fatalf("thread marker regressed from %v to %v", marker2, markerAfter)
@@ -861,6 +867,15 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	if !markerAfterMissing.Equal(marker2) {
 		t.Fatalf("thread marker changed after missing anchor from %v to %v", marker2, markerAfterMissing)
 	}
+	// An omitted anchor advances to the latest reply and reports the retained pair.
+	resp, err = env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{RoomId: room.Id, ThreadRootEventId: root.Id}))
+	if err != nil {
+		t.Fatalf("MarkThreadAsRead latest: %v", err)
+	}
+	if resp.Msg.LastReadAt == nil || !resp.Msg.LastReadAt.AsTime().Equal(reply3.CreatedAt.AsTime()) || !resp.Msg.PreviousLastReadAt.AsTime().Equal(marker2) {
+		t.Fatalf("latest response = %+v, want previous %v and current %v", resp.Msg, marker2, reply3.CreatedAt)
+	}
+
 }
 
 func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *evtv1.Event, threadRootID string, reason notificationTestSignalKind) *notificationv1.NotificationOccurrence {

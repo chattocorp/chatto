@@ -201,7 +201,7 @@ describe('ThreadPane', () => {
     mocks.appState.isPresent = true;
     mocks.unreadMarkerEventId = null;
     mocks.markThreadAsRead.mockResolvedValue({
-      previousReadAt: null,
+      previousLastReadAt: null,
       lastReadAt: '2026-07-04T13:00:00Z'
     });
     mocks.followThread.mockResolvedValue({

@@ -403,3 +403,15 @@ the top-level `following` field. Read `state.following` instead. The `state`
 message contains the room ID, thread root event ID, and current follow state.
 Regenerate clients from the 0.5 protobuf definitions. Requests, authorization,
 and stored follow state are unchanged.
+
+## Read-marker responses in 0.5
+
+`MarkRoomAsRead` and `MarkThreadAsRead` both return `last_read_at` and
+`previous_last_read_at`. For thread responses, replace `previousReadAt` with
+`previousLastReadAt` in JSON clients and use `lastReadAt` for the resulting
+marker. Regenerate protobuf clients. The previous timestamp keeps field number
+1; the new resulting timestamp uses field number 2.
+
+A stale thread read request reports the retained newer marker as `last_read_at`.
+The previous timestamp is absent on the first read. Stored markers and the
+advance-only write behavior are unchanged.
