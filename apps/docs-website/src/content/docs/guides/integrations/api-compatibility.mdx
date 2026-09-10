@@ -445,3 +445,15 @@ The request and response types are now `CreateCallTokenRequest` and
 The old route is removed. Request fields, token contents, authorization, and
 error behavior are unchanged. The name now matches the credential-creation
 operation `CreateCallMediaPublisherToken`.
+
+## Corrected error codes in 0.5
+
+`MyAccountService.UpdateProfile` returns `FAILED_PRECONDITION` when a username
+change is blocked by the 30-day cooldown. `AdminPermissionService.SetRolePermission`
+and `SetUserPermission` return `INVALID_ARGUMENT` for an unknown permission
+identifier. These cases previously returned `INTERNAL`.
+
+Handle these codes as request failures, not server failures. Wait until the
+cooldown ends before trying the username change again. Correct an unknown
+permission identifier before retrying. No client regeneration or data migration
+is required.

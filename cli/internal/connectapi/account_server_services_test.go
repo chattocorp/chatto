@@ -278,6 +278,11 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	if firstLoginChange.IsZero() {
 		t.Fatal("first profile login change did not start the cooldown")
 	}
+	if _, err := env.account.UpdateProfile(ctx, connect.NewRequest(&apiv1.UpdateProfileRequest{
+		Login: stringPtr("connect-profile-blocked"),
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("UpdateProfile during cooldown code = %v, want failed precondition (err=%v)", connect.CodeOf(err), err)
+	}
 	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.Id, core.PermUserManageAccounts); err != nil {
 		t.Fatalf("GrantUserPermission user.manage-accounts: %v", err)
 	}

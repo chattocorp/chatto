@@ -198,7 +198,8 @@ Failed calls return Connect errors with stable codes. Common codes include:
 - `unauthenticated` - the call needs a signed-in user or bearer token.
 - `permission_denied` - the user is authenticated but lacks the required permission.
 - `not_found` - a singular lookup target does not exist.
-- `invalid_argument` - the request message failed validation.
+- `invalid_argument` - the request message failed validation, including an unknown permission identifier.
+- `failed_precondition` - the operation is blocked by current state, such as the username-change cooldown.
 - `unimplemented` - the serving version does not understand a requested resource variant.
 
 Generated clients expose those codes through their Connect client error helpers. Plain HTTP tools receive a Connect error response with an HTTP status mapped from the Connect code.

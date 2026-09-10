@@ -94,6 +94,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrSidebarLinkLabelEmpty) ||
 		errors.Is(err, core.ErrSidebarLinkURLInvalid) ||
 		errors.Is(err, core.ErrInvalidRoleName) ||
+		errors.Is(err, core.ErrInvalidPermission) ||
 		errors.Is(err, core.ErrInvitationInvalid) ||
 		errors.Is(err, core.ErrInvalidArgument) {
 		return connect.NewError(connect.CodeInvalidArgument, err)
@@ -132,6 +133,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrLimitExceeded) ||
 		errors.Is(err, core.ErrFreshAuthRequired) ||
 		errors.Is(err, core.ErrPasswordAlreadySet) ||
+		errors.Is(err, core.ErrLoginChangeCooldown) ||
 		errors.Is(err, core.ErrAdminCannotSetOwnPassword) ||
 		errors.Is(err, core.ErrCannotLeaveDMConversation) ||
 		errors.Is(err, core.ErrCannotLeaveUniversalRoom) ||
