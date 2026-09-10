@@ -4,6 +4,7 @@ package chatto.api.v1;
 
 import "buf/validate/validate.proto";
 import "chatto/api/v1/message_types.proto";
+import "chatto/api/v1/pagination.proto";
 
 // Request to add the current user's reaction to a message.
 //
@@ -52,4 +53,25 @@ message RemoveReactionResponse {
   // Updated aggregate reaction state for this emoji. Empty when no reactions for
   // the emoji remain.
   MessageReaction reaction = 2;
+}
+
+// Request all users with one emoji reaction on a message. Echo IDs resolve to
+// the original message. Users are ordered by user ID ascending.
+message ListReactionUsersRequest {
+  // Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Message or channel echo ID.
+  string message_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Emoji shortcode, such as "thumbsup".
+  string emoji = 3 [(buf.validate.field).string.min_len = 1];
+  // Defaults to 50 results. Maximum: 100. Zero uses the default.
+  PageRequest page = 4;
+}
+
+// Complete reaction membership is available by paging this collection.
+message ListReactionUsersResponse {
+  // User IDs in this page. Use UserService.BatchGetUsers for profiles.
+  repeated string user_ids = 1;
+  // Count and continuation for the matching reaction users.
+  PageInfo page = 2;
 }

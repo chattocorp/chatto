@@ -20,6 +20,45 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Creates messages in room and thread timelines.
 
+<a id="chatto-api-v1-MessageService-ListReactionUsers"></a>
+
+### ListReactionUsers
+
+Lists all users with the requested reaction. Requires room membership and
+permission to read the message. A missing reaction returns an empty page;
+a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/ListReactionUsers
+```
+
+<a id="chatto-api-v1-ListReactionUsersRequest"></a>
+
+#### Input: ListReactionUsersRequest
+
+Request all users with one emoji reaction on a message. Echo IDs resolve to
+the original message. Users are ordered by user ID ascending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message. |
+| `message_event_id` | `string` | Message or channel echo ID. |
+| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
+
+
+<a id="chatto-api-v1-ListReactionUsersResponse"></a>
+
+#### Result: ListReactionUsersResponse
+
+Complete reaction membership is available by paging this collection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Count and continuation for the matching reaction users. |
+
+
 <a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
 
 ### FetchLinkPreview

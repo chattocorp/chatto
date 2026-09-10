@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
+import { BatchGetRoomReadStatesRequest, BatchGetRoomReadStatesResponse, GetRoomReadStateRequest, GetRoomReadStateResponse, MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { AddMemberRequest, AddMemberResponse, ArchiveRoomRequest, ArchiveRoomResponse, BanMemberRequest, BanMemberResponse, CreatePinnedMessageRequest, CreatePinnedMessageResponse, CreateRoomRequest, CreateRoomResponse, DeletePinnedMessageRequest, DeletePinnedMessageResponse, JoinRoomGroupRequest, JoinRoomGroupResponse, JoinRoomRequest, JoinRoomResponse, LeaveRoomRequest, LeaveRoomResponse, ListBansRequest, ListBansResponse, ListPinnedMessagesRequest, ListPinnedMessagesResponse, ListRoomAttachmentsRequest, ListRoomAttachmentsResponse, RefreshTypingIndicatorRequest, RefreshTypingIndicatorResponse, RemoveMemberRequest, RemoveMemberResponse, StartDMRequest, StartDMResponse, UnarchiveRoomRequest, UnarchiveRoomResponse, UnbanMemberRequest, UnbanMemberResponse, UpdateRoomRequest, UpdateRoomResponse } from "./rooms_pb.js";
 import { BatchGetMembersRequest, BatchGetMembersResponse, GetMemberRequest, GetMemberResponse, ListMembersRequest, ListMembersResponse } from "./member_directory_pb.js";
 import { GetRoomEventsAroundRequest, GetRoomEventsAroundResponse, GetRoomEventsRequest, GetRoomEventsResponse } from "./room_timeline_pb.js";
-import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.js";
 
 /**
  * Manages room-scoped operations for the current user.
@@ -23,6 +23,31 @@ import { MarkRoomAsReadRequest, MarkRoomAsReadResponse } from "./read_state_pb.j
 export const RoomService = {
   typeName: "chatto.api.v1.RoomService",
   methods: {
+    /**
+     * Reads the current viewer's stored marker without changing it. Requires the
+     * same membership and read access as MarkRoomAsRead. Missing resources
+     * return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.GetRoomReadState
+     */
+    getRoomReadState: {
+      name: "GetRoomReadState",
+      I: GetRoomReadStateRequest,
+      O: GetRoomReadStateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads up to 100 states under the same authorization as GetRoomReadState.
+     * Missing and inaccessible resources are omitted; duplicates use first-seen order.
+     *
+     * @generated from rpc chatto.api.v1.RoomService.BatchGetRoomReadStates
+     */
+    batchGetRoomReadStates: {
+      name: "BatchGetRoomReadStates",
+      I: BatchGetRoomReadStatesRequest,
+      O: BatchGetRoomReadStatesResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Creates a new channel room in a room group. The caller must be allowed to
      * create rooms in the target group.

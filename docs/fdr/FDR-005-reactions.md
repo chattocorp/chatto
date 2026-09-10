@@ -1,13 +1,17 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-10
 
 ## Overview
 
 Users can react to a message with emoji. Reactions are aggregated into pills shown below the message body, displaying the emoji, a count, and whether the current user has reacted. Multiple users can react with the same emoji on the same message; clicking a pill toggles the current user's vote.
 
 ## Behavior
+
+- Integrations can read all user IDs for a message reaction in bounded pages.
+  The five-user preview does not limit this list. The list requires the same
+  access as the message and accepts channel echoes as aliases.
 
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.

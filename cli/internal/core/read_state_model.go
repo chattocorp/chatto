@@ -30,7 +30,7 @@ func (c *ChattoCore) ReadState() *ReadStateModel {
 	return c.readStateModel
 }
 
-// ReadStateModel owns user-facing read marker mutations. Lower-level marker
+// ReadStateModel owns user-facing read marker reads and mutations. Lower-level marker
 // helpers stay available for trusted/internal callers, while this model keeps
 // public API authorization and anchor semantics in one place.
 type ReadStateModel struct {
@@ -236,4 +236,54 @@ func (s *ReadStateModel) threadReadAnchor(ctx context.Context, kind RoomKind, ro
 		return "", invalidArgument("up_to_event_id must identify a message in the thread")
 	}
 	return event.Id, nil
+}
+
+// ReadMarker is a stored position, independent of notification attention.
+// A nil result means that no non-empty marker has been stored.
+type ReadMarker struct {
+	EventID    string
+	LastReadAt time.Time
+}
+
+// GetRoomReadMarker reads only; it never performs lazy marker initialization.
+func (s *ReadStateModel) GetRoomReadMarker(ctx context.Context, actorID, roomID string) (*ReadMarker, error) {
+	_, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	id, _, err := s.core.PeekLastReadEventID(ctx, actorID, roomID)
+	if err != nil {
+		return nil, err
+	}
+	return s.readMarker(ctx, kind, roomID, id)
+}
+
+// GetThreadReadMarker reads only after checking access to the thread root.
+func (s *ReadStateModel) GetThreadReadMarker(ctx context.Context, actorID, roomID, rootID string) (*ReadMarker, error) {
+	_, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, rootID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.core.requireThreadRoot(ctx, kind, roomID, rootID); err != nil {
+		return nil, err
+	}
+	entry, exists, err := s.index.threadMarker(ctx, actorID, roomID, rootID)
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, nil
+	}
+	return s.readMarker(ctx, kind, roomID, string(entry.value))
+}
+
+func (s *ReadStateModel) readMarker(ctx context.Context, kind RoomKind, roomID, eventID string) (*ReadMarker, error) {
+	if eventID == "" {
+		return nil, nil
+	}
+	at, err := s.core.GetEventTimestamp(ctx, kind, roomID, eventID)
+	if err != nil {
+		return nil, err
+	}
+	return &ReadMarker{EventID: eventID, LastReadAt: at}, nil
 }

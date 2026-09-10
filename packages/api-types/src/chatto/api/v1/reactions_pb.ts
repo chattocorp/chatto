@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
 import { MessageReaction } from "./message_types_pb.js";
+import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Request to add the current user's reaction to a message.
@@ -229,5 +230,120 @@ export class RemoveReactionResponse extends Message<RemoveReactionResponse> {
 
   static equals(a: RemoveReactionResponse | PlainMessage<RemoveReactionResponse> | undefined, b: RemoveReactionResponse | PlainMessage<RemoveReactionResponse> | undefined): boolean {
     return proto3.util.equals(RemoveReactionResponse, a, b);
+  }
+}
+
+/**
+ * Request all users with one emoji reaction on a message. Echo IDs resolve to
+ * the original message. Users are ordered by user ID ascending.
+ *
+ * @generated from message chatto.api.v1.ListReactionUsersRequest
+ */
+export class ListReactionUsersRequest extends Message<ListReactionUsersRequest> {
+  /**
+   * Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Message or channel echo ID.
+   *
+   * @generated from field: string message_event_id = 2;
+   */
+  messageEventId = "";
+
+  /**
+   * Emoji shortcode, such as "thumbsup".
+   *
+   * @generated from field: string emoji = 3;
+   */
+  emoji = "";
+
+  /**
+   * Defaults to 50 results. Maximum: 100. Zero uses the default.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 4;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListReactionUsersRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListReactionUsersRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListReactionUsersRequest {
+    return new ListReactionUsersRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListReactionUsersRequest {
+    return new ListReactionUsersRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListReactionUsersRequest {
+    return new ListReactionUsersRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListReactionUsersRequest | PlainMessage<ListReactionUsersRequest> | undefined, b: ListReactionUsersRequest | PlainMessage<ListReactionUsersRequest> | undefined): boolean {
+    return proto3.util.equals(ListReactionUsersRequest, a, b);
+  }
+}
+
+/**
+ * Complete reaction membership is available by paging this collection.
+ *
+ * @generated from message chatto.api.v1.ListReactionUsersResponse
+ */
+export class ListReactionUsersResponse extends Message<ListReactionUsersResponse> {
+  /**
+   * User IDs in this page. Use UserService.BatchGetUsers for profiles.
+   *
+   * @generated from field: repeated string user_ids = 1;
+   */
+  userIds: string[] = [];
+
+  /**
+   * Count and continuation for the matching reaction users.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListReactionUsersResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListReactionUsersResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListReactionUsersResponse {
+    return new ListReactionUsersResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListReactionUsersResponse {
+    return new ListReactionUsersResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListReactionUsersResponse {
+    return new ListReactionUsersResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListReactionUsersResponse | PlainMessage<ListReactionUsersResponse> | undefined, b: ListReactionUsersResponse | PlainMessage<ListReactionUsersResponse> | undefined): boolean {
+    return proto3.util.equals(ListReactionUsersResponse, a, b);
   }
 }

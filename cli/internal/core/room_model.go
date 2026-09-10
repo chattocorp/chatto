@@ -418,3 +418,11 @@ func (m *RoomModel) appendTimelineEventually(ctx context.Context, pub *evtstream
 	}
 	return pos, nil
 }
+
+// threadParticipantIDs waits for current thread state before reading the full set.
+func (m *RoomModel) threadParticipantIDs(ctx context.Context, rootID string) ([]string, error) {
+	if err := m.threads.Projector().WaitForCurrent(ctx); err != nil {
+		return nil, err
+	}
+	return m.threads.Projection().ParticipantIDs(rootID), nil
+}

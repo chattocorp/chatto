@@ -207,6 +207,11 @@ message BatchGetMessagesResponse {
 
 // Creates messages in room and thread timelines.
 service MessageService {
+  // Lists all users with the requested reaction. Requires room membership and
+  // permission to read the message. A missing reaction returns an empty page;
+  // a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+  rpc ListReactionUsers(ListReactionUsersRequest) returns (ListReactionUsersResponse);
+
   // Fetches and caches metadata for a composer URL. Authentication is required
   // to avoid exposing the preview fetcher as an unauthenticated network proxy.
   // Successful responses include a short-lived token accepted by CreateMessage.

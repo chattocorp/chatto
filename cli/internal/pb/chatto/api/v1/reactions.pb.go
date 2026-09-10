@@ -273,11 +273,140 @@ func (x *RemoveReactionResponse) GetReaction() *MessageReaction {
 	return nil
 }
 
+// Request all users with one emoji reaction on a message. Echo IDs resolve to
+// the original message. Users are ordered by user ID ascending.
+type ListReactionUsersRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room containing the message.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Message or channel echo ID.
+	MessageEventId string `protobuf:"bytes,2,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// Emoji shortcode, such as "thumbsup".
+	Emoji string `protobuf:"bytes,3,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	// Defaults to 50 results. Maximum: 100. Zero uses the default.
+	Page          *PageRequest `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReactionUsersRequest) Reset() {
+	*x = ListReactionUsersRequest{}
+	mi := &file_chatto_api_v1_reactions_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReactionUsersRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReactionUsersRequest) ProtoMessage() {}
+
+func (x *ListReactionUsersRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_reactions_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReactionUsersRequest.ProtoReflect.Descriptor instead.
+func (*ListReactionUsersRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_reactions_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListReactionUsersRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ListReactionUsersRequest) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *ListReactionUsersRequest) GetEmoji() string {
+	if x != nil {
+		return x.Emoji
+	}
+	return ""
+}
+
+func (x *ListReactionUsersRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Complete reaction membership is available by paging this collection.
+type ListReactionUsersResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// User IDs in this page. Use UserService.BatchGetUsers for profiles.
+	UserIds []string `protobuf:"bytes,1,rep,name=user_ids,json=userIds,proto3" json:"user_ids,omitempty"`
+	// Count and continuation for the matching reaction users.
+	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListReactionUsersResponse) Reset() {
+	*x = ListReactionUsersResponse{}
+	mi := &file_chatto_api_v1_reactions_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListReactionUsersResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListReactionUsersResponse) ProtoMessage() {}
+
+func (x *ListReactionUsersResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_reactions_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListReactionUsersResponse.ProtoReflect.Descriptor instead.
+func (*ListReactionUsersResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_reactions_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListReactionUsersResponse) GetUserIds() []string {
+	if x != nil {
+		return x.UserIds
+	}
+	return nil
+}
+
+func (x *ListReactionUsersResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
 var File_chatto_api_v1_reactions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_reactions_proto_rawDesc = "" +
 	"\n" +
-	"\x1dchatto/api/v1/reactions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\"\x88\x01\n" +
+	"\x1dchatto/api/v1/reactions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1echatto/api/v1/pagination.proto\"\x88\x01\n" +
 	"\x12AddReactionRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x121\n" +
 	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12\x1d\n" +
@@ -291,7 +420,15 @@ const file_chatto_api_v1_reactions_proto_rawDesc = "" +
 	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\"n\n" +
 	"\x16RemoveReactionResponse\x12\x18\n" +
 	"\aremoved\x18\x01 \x01(\bR\aremoved\x12:\n" +
-	"\breaction\x18\x02 \x01(\v2\x1e.chatto.api.v1.MessageReactionR\breactionB\xaa\x01\n" +
+	"\breaction\x18\x02 \x01(\v2\x1e.chatto.api.v1.MessageReactionR\breaction\"\xbe\x01\n" +
+	"\x18ListReactionUsersRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x121\n" +
+	"\x10message_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0emessageEventId\x12\x1d\n" +
+	"\x05emoji\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05emoji\x12.\n" +
+	"\x04page\x18\x04 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"c\n" +
+	"\x19ListReactionUsersResponse\x12\x19\n" +
+	"\buser_ids\x18\x01 \x03(\tR\auserIds\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04pageB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReactionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -306,22 +443,28 @@ func file_chatto_api_v1_reactions_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_reactions_proto_rawDescData
 }
 
-var file_chatto_api_v1_reactions_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_reactions_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_reactions_proto_goTypes = []any{
-	(*AddReactionRequest)(nil),     // 0: chatto.api.v1.AddReactionRequest
-	(*AddReactionResponse)(nil),    // 1: chatto.api.v1.AddReactionResponse
-	(*RemoveReactionRequest)(nil),  // 2: chatto.api.v1.RemoveReactionRequest
-	(*RemoveReactionResponse)(nil), // 3: chatto.api.v1.RemoveReactionResponse
-	(*MessageReaction)(nil),        // 4: chatto.api.v1.MessageReaction
+	(*AddReactionRequest)(nil),        // 0: chatto.api.v1.AddReactionRequest
+	(*AddReactionResponse)(nil),       // 1: chatto.api.v1.AddReactionResponse
+	(*RemoveReactionRequest)(nil),     // 2: chatto.api.v1.RemoveReactionRequest
+	(*RemoveReactionResponse)(nil),    // 3: chatto.api.v1.RemoveReactionResponse
+	(*ListReactionUsersRequest)(nil),  // 4: chatto.api.v1.ListReactionUsersRequest
+	(*ListReactionUsersResponse)(nil), // 5: chatto.api.v1.ListReactionUsersResponse
+	(*MessageReaction)(nil),           // 6: chatto.api.v1.MessageReaction
+	(*PageRequest)(nil),               // 7: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                  // 8: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_reactions_proto_depIdxs = []int32{
-	4, // 0: chatto.api.v1.AddReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
-	4, // 1: chatto.api.v1.RemoveReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	6, // 0: chatto.api.v1.AddReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
+	6, // 1: chatto.api.v1.RemoveReactionResponse.reaction:type_name -> chatto.api.v1.MessageReaction
+	7, // 2: chatto.api.v1.ListReactionUsersRequest.page:type_name -> chatto.api.v1.PageRequest
+	8, // 3: chatto.api.v1.ListReactionUsersResponse.page:type_name -> chatto.api.v1.PageInfo
+	4, // [4:4] is the sub-list for method output_type
+	4, // [4:4] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_reactions_proto_init() }
@@ -330,13 +473,14 @@ func file_chatto_api_v1_reactions_proto_init() {
 		return
 	}
 	file_chatto_api_v1_message_types_proto_init()
+	file_chatto_api_v1_pagination_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_reactions_proto_rawDesc), len(file_chatto_api_v1_reactions_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

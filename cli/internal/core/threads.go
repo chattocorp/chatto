@@ -26,18 +26,22 @@ type ThreadMetadata struct {
 	LastReplyAt        *time.Time
 	LatestReplyEventID string
 	ParticipantIDs     []string
+	// ParticipantCount counts all current reply authors, beyond the preview limit.
+	ParticipantCount int
 }
 
 // FollowedThread represents a thread the user is following, enriched with metadata for display.
 type FollowedThread struct {
-	SpaceID            string
-	RoomID             string
-	ThreadRootEventID  string
-	Exists             bool
-	ReplyCount         int
-	LastReplyAt        *time.Time
-	ActivityAt         *time.Time
-	ParticipantIDs     []string
+	SpaceID           string
+	RoomID            string
+	ThreadRootEventID string
+	Exists            bool
+	ReplyCount        int
+	LastReplyAt       *time.Time
+	ActivityAt        *time.Time
+	ParticipantIDs    []string
+	// ParticipantCount counts all current reply authors, beyond the preview limit.
+	ParticipantCount   int
 	LatestReplyEventID string
 	HasUnreadReplies   bool
 }
@@ -50,7 +54,7 @@ type FollowedThreadsPage struct {
 	HasMore    bool
 }
 
-// maxThreadParticipants is the maximum number of participant IDs tracked per thread.
+// maxThreadParticipants bounds the display preview; the full author set is retained.
 const maxThreadParticipants = 50
 
 // GetThreadEvents returns the root message followed by every reply
@@ -796,6 +800,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 			ActivityAt:         activityAt,
 			LatestReplyEventID: metadata.LatestReplyEventID,
 			ParticipantIDs:     metadata.ParticipantIDs,
+			ParticipantCount:   metadata.ParticipantCount,
 		})
 	}
 

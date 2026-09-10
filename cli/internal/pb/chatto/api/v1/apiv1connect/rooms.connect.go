@@ -33,6 +33,12 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// RoomServiceGetRoomReadStateProcedure is the fully-qualified name of the RoomService's
+	// GetRoomReadState RPC.
+	RoomServiceGetRoomReadStateProcedure = "/chatto.api.v1.RoomService/GetRoomReadState"
+	// RoomServiceBatchGetRoomReadStatesProcedure is the fully-qualified name of the RoomService's
+	// BatchGetRoomReadStates RPC.
+	RoomServiceBatchGetRoomReadStatesProcedure = "/chatto.api.v1.RoomService/BatchGetRoomReadStates"
 	// RoomServiceCreateRoomProcedure is the fully-qualified name of the RoomService's CreateRoom RPC.
 	RoomServiceCreateRoomProcedure = "/chatto.api.v1.RoomService/CreateRoom"
 	// RoomServiceUpdateRoomProcedure is the fully-qualified name of the RoomService's UpdateRoom RPC.
@@ -97,6 +103,13 @@ const (
 
 // RoomServiceClient is a client for the chatto.api.v1.RoomService service.
 type RoomServiceClient interface {
+	// Reads the current viewer's stored marker without changing it. Requires the
+	// same membership and read access as MarkRoomAsRead. Missing resources
+	// return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+	GetRoomReadState(context.Context, *connect.Request[v1.GetRoomReadStateRequest]) (*connect.Response[v1.GetRoomReadStateResponse], error)
+	// Reads up to 100 states under the same authorization as GetRoomReadState.
+	// Missing and inaccessible resources are omitted; duplicates use first-seen order.
+	BatchGetRoomReadStates(context.Context, *connect.Request[v1.BatchGetRoomReadStatesRequest]) (*connect.Response[v1.BatchGetRoomReadStatesResponse], error)
 	// Creates a new channel room in a room group. The caller must be allowed to
 	// create rooms in the target group.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
@@ -206,6 +219,18 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 	baseURL = strings.TrimRight(baseURL, "/")
 	roomServiceMethods := v1.File_chatto_api_v1_rooms_proto.Services().ByName("RoomService").Methods()
 	return &roomServiceClient{
+		getRoomReadState: connect.NewClient[v1.GetRoomReadStateRequest, v1.GetRoomReadStateResponse](
+			httpClient,
+			baseURL+RoomServiceGetRoomReadStateProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("GetRoomReadState")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetRoomReadStates: connect.NewClient[v1.BatchGetRoomReadStatesRequest, v1.BatchGetRoomReadStatesResponse](
+			httpClient,
+			baseURL+RoomServiceBatchGetRoomReadStatesProcedure,
+			connect.WithSchema(roomServiceMethods.ByName("BatchGetRoomReadStates")),
+			connect.WithClientOptions(opts...),
+		),
 		createRoom: connect.NewClient[v1.CreateRoomRequest, v1.CreateRoomResponse](
 			httpClient,
 			baseURL+RoomServiceCreateRoomProcedure,
@@ -355,6 +380,8 @@ func NewRoomServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 
 // roomServiceClient implements RoomServiceClient.
 type roomServiceClient struct {
+	getRoomReadState       *connect.Client[v1.GetRoomReadStateRequest, v1.GetRoomReadStateResponse]
+	batchGetRoomReadStates *connect.Client[v1.BatchGetRoomReadStatesRequest, v1.BatchGetRoomReadStatesResponse]
 	createRoom             *connect.Client[v1.CreateRoomRequest, v1.CreateRoomResponse]
 	updateRoom             *connect.Client[v1.UpdateRoomRequest, v1.UpdateRoomResponse]
 	archiveRoom            *connect.Client[v1.ArchiveRoomRequest, v1.ArchiveRoomResponse]
@@ -379,6 +406,16 @@ type roomServiceClient struct {
 	markRoomAsRead         *connect.Client[v1.MarkRoomAsReadRequest, v1.MarkRoomAsReadResponse]
 	banMember              *connect.Client[v1.BanMemberRequest, v1.BanMemberResponse]
 	unbanMember            *connect.Client[v1.UnbanMemberRequest, v1.UnbanMemberResponse]
+}
+
+// GetRoomReadState calls chatto.api.v1.RoomService.GetRoomReadState.
+func (c *roomServiceClient) GetRoomReadState(ctx context.Context, req *connect.Request[v1.GetRoomReadStateRequest]) (*connect.Response[v1.GetRoomReadStateResponse], error) {
+	return c.getRoomReadState.CallUnary(ctx, req)
+}
+
+// BatchGetRoomReadStates calls chatto.api.v1.RoomService.BatchGetRoomReadStates.
+func (c *roomServiceClient) BatchGetRoomReadStates(ctx context.Context, req *connect.Request[v1.BatchGetRoomReadStatesRequest]) (*connect.Response[v1.BatchGetRoomReadStatesResponse], error) {
+	return c.batchGetRoomReadStates.CallUnary(ctx, req)
 }
 
 // CreateRoom calls chatto.api.v1.RoomService.CreateRoom.
@@ -503,6 +540,13 @@ func (c *roomServiceClient) UnbanMember(ctx context.Context, req *connect.Reques
 
 // RoomServiceHandler is an implementation of the chatto.api.v1.RoomService service.
 type RoomServiceHandler interface {
+	// Reads the current viewer's stored marker without changing it. Requires the
+	// same membership and read access as MarkRoomAsRead. Missing resources
+	// return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+	GetRoomReadState(context.Context, *connect.Request[v1.GetRoomReadStateRequest]) (*connect.Response[v1.GetRoomReadStateResponse], error)
+	// Reads up to 100 states under the same authorization as GetRoomReadState.
+	// Missing and inaccessible resources are omitted; duplicates use first-seen order.
+	BatchGetRoomReadStates(context.Context, *connect.Request[v1.BatchGetRoomReadStatesRequest]) (*connect.Response[v1.BatchGetRoomReadStatesResponse], error)
 	// Creates a new channel room in a room group. The caller must be allowed to
 	// create rooms in the target group.
 	CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error)
@@ -608,6 +652,18 @@ type RoomServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	roomServiceMethods := v1.File_chatto_api_v1_rooms_proto.Services().ByName("RoomService").Methods()
+	roomServiceGetRoomReadStateHandler := connect.NewUnaryHandler(
+		RoomServiceGetRoomReadStateProcedure,
+		svc.GetRoomReadState,
+		connect.WithSchema(roomServiceMethods.ByName("GetRoomReadState")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomServiceBatchGetRoomReadStatesHandler := connect.NewUnaryHandler(
+		RoomServiceBatchGetRoomReadStatesProcedure,
+		svc.BatchGetRoomReadStates,
+		connect.WithSchema(roomServiceMethods.ByName("BatchGetRoomReadStates")),
+		connect.WithHandlerOptions(opts...),
+	)
 	roomServiceCreateRoomHandler := connect.NewUnaryHandler(
 		RoomServiceCreateRoomProcedure,
 		svc.CreateRoom,
@@ -754,6 +810,10 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 	)
 	return "/chatto.api.v1.RoomService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case RoomServiceGetRoomReadStateProcedure:
+			roomServiceGetRoomReadStateHandler.ServeHTTP(w, r)
+		case RoomServiceBatchGetRoomReadStatesProcedure:
+			roomServiceBatchGetRoomReadStatesHandler.ServeHTTP(w, r)
 		case RoomServiceCreateRoomProcedure:
 			roomServiceCreateRoomHandler.ServeHTTP(w, r)
 		case RoomServiceUpdateRoomProcedure:
@@ -810,6 +870,14 @@ func NewRoomServiceHandler(svc RoomServiceHandler, opts ...connect.HandlerOption
 
 // UnimplementedRoomServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedRoomServiceHandler struct{}
+
+func (UnimplementedRoomServiceHandler) GetRoomReadState(context.Context, *connect.Request[v1.GetRoomReadStateRequest]) (*connect.Response[v1.GetRoomReadStateResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.GetRoomReadState is not implemented"))
+}
+
+func (UnimplementedRoomServiceHandler) BatchGetRoomReadStates(context.Context, *connect.Request[v1.BatchGetRoomReadStatesRequest]) (*connect.Response[v1.BatchGetRoomReadStatesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.BatchGetRoomReadStates is not implemented"))
+}
 
 func (UnimplementedRoomServiceHandler) CreateRoom(context.Context, *connect.Request[v1.CreateRoomRequest]) (*connect.Response[v1.CreateRoomResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomService.CreateRoom is not implemented"))

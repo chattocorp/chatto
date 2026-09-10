@@ -66,6 +66,12 @@ socket.
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
+`MessageService` and `ThreadService` expose complete, paginated reaction-user
+and reply-author references in addition to bounded message previews.
+`RoomService` and `ThreadService` expose caller-owned read markers through
+singular and bounded batch reads. These reads use existing message-read
+authorization and do not initialize or advance markers.
+
 `AdminInviteLinkService` requires `user.invite`. Its resource includes the
 full, deterministically reconstructed invite link so authorised operators can
 copy it again; raw bearer tokens are not stored in `EVT`. Opening

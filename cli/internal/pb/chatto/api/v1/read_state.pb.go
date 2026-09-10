@@ -259,6 +259,613 @@ func (x *MarkThreadAsReadResponse) GetLastReadAt() *timestamppb.Timestamp {
 	return nil
 }
 
+// Current stored read position. Its event can later be retracted. The timestamp
+// is absent if the event can no longer be resolved. This is not Badge attention.
+type ReadMarker struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Last-read event ID, to locate the boundary in a timeline.
+	LastReadEventId string `protobuf:"bytes,1,opt,name=last_read_event_id,json=lastReadEventId,proto3" json:"last_read_event_id,omitempty"`
+	// Creation time of the last-read event, when available.
+	LastReadAt    *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=last_read_at,json=lastReadAt,proto3" json:"last_read_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReadMarker) Reset() {
+	*x = ReadMarker{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReadMarker) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReadMarker) ProtoMessage() {}
+
+func (x *ReadMarker) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReadMarker.ProtoReflect.Descriptor instead.
+func (*ReadMarker) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ReadMarker) GetLastReadEventId() string {
+	if x != nil {
+		return x.LastReadEventId
+	}
+	return ""
+}
+
+func (x *ReadMarker) GetLastReadAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.LastReadAt
+	}
+	return nil
+}
+
+// Current viewer's stored room read state.
+type RoomReadState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Absent when no non-empty marker has been stored. Reading never initializes it.
+	Marker        *ReadMarker `protobuf:"bytes,2,opt,name=marker,proto3" json:"marker,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RoomReadState) Reset() {
+	*x = RoomReadState{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RoomReadState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RoomReadState) ProtoMessage() {}
+
+func (x *RoomReadState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RoomReadState.ProtoReflect.Descriptor instead.
+func (*RoomReadState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *RoomReadState) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *RoomReadState) GetMarker() *ReadMarker {
+	if x != nil {
+		return x.Marker
+	}
+	return nil
+}
+
+// Current viewer's stored thread read state.
+type ThreadReadState struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	// Absent when no non-empty marker has been stored. Reading never advances it.
+	Marker        *ReadMarker `protobuf:"bytes,3,opt,name=marker,proto3" json:"marker,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ThreadReadState) Reset() {
+	*x = ThreadReadState{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadReadState) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadReadState) ProtoMessage() {}
+
+func (x *ThreadReadState) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadReadState.ProtoReflect.Descriptor instead.
+func (*ThreadReadState) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ThreadReadState) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadReadState) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+func (x *ThreadReadState) GetMarker() *ReadMarker {
+	if x != nil {
+		return x.Marker
+	}
+	return nil
+}
+
+// Request current room read state without changing it.
+type GetRoomReadStateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID.
+	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomReadStateRequest) Reset() {
+	*x = GetRoomReadStateRequest{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomReadStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomReadStateRequest) ProtoMessage() {}
+
+func (x *GetRoomReadStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomReadStateRequest.ProtoReflect.Descriptor instead.
+func (*GetRoomReadStateRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetRoomReadStateRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+// Current room read state, including an absent marker when none is stored.
+type GetRoomReadStateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State for the requested room and viewer.
+	State         *RoomReadState `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetRoomReadStateResponse) Reset() {
+	*x = GetRoomReadStateResponse{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetRoomReadStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetRoomReadStateResponse) ProtoMessage() {}
+
+func (x *GetRoomReadStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetRoomReadStateResponse.ProtoReflect.Descriptor instead.
+func (*GetRoomReadStateResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetRoomReadStateResponse) GetState() *RoomReadState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+// Request room read states. Duplicates are removed in first-seen order.
+type BatchGetRoomReadStatesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Up to 100 room IDs. Missing or inaccessible rooms are omitted.
+	RoomIds       []string `protobuf:"bytes,1,rep,name=room_ids,json=roomIds,proto3" json:"room_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetRoomReadStatesRequest) Reset() {
+	*x = BatchGetRoomReadStatesRequest{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetRoomReadStatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetRoomReadStatesRequest) ProtoMessage() {}
+
+func (x *BatchGetRoomReadStatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetRoomReadStatesRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetRoomReadStatesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *BatchGetRoomReadStatesRequest) GetRoomIds() []string {
+	if x != nil {
+		return x.RoomIds
+	}
+	return nil
+}
+
+// Accessible room read states in first-seen request order.
+type BatchGetRoomReadStatesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// States for the current viewer. An absent marker does not omit the state.
+	States        []*RoomReadState `protobuf:"bytes,1,rep,name=states,proto3" json:"states,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetRoomReadStatesResponse) Reset() {
+	*x = BatchGetRoomReadStatesResponse{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetRoomReadStatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetRoomReadStatesResponse) ProtoMessage() {}
+
+func (x *BatchGetRoomReadStatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetRoomReadStatesResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetRoomReadStatesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *BatchGetRoomReadStatesResponse) GetStates() []*RoomReadState {
+	if x != nil {
+		return x.States
+	}
+	return nil
+}
+
+// Request current thread read state without changing it.
+type GetThreadReadStateRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *GetThreadReadStateRequest) Reset() {
+	*x = GetThreadReadStateRequest{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadReadStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadReadStateRequest) ProtoMessage() {}
+
+func (x *GetThreadReadStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadReadStateRequest.ProtoReflect.Descriptor instead.
+func (*GetThreadReadStateRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *GetThreadReadStateRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *GetThreadReadStateRequest) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
+// Current thread read state.
+type GetThreadReadStateResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// State for the requested thread and viewer.
+	State         *ThreadReadState `protobuf:"bytes,1,opt,name=state,proto3" json:"state,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetThreadReadStateResponse) Reset() {
+	*x = GetThreadReadStateResponse{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThreadReadStateResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThreadReadStateResponse) ProtoMessage() {}
+
+func (x *GetThreadReadStateResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThreadReadStateResponse.ProtoReflect.Descriptor instead.
+func (*GetThreadReadStateResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *GetThreadReadStateResponse) GetState() *ThreadReadState {
+	if x != nil {
+		return x.State
+	}
+	return nil
+}
+
+// Request thread read states. Duplicates are removed in first-seen order.
+type BatchGetThreadReadStatesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Up to 100 room/thread targets. Missing or inaccessible targets are omitted.
+	Targets       []*ThreadReadStateTarget `protobuf:"bytes,1,rep,name=targets,proto3" json:"targets,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetThreadReadStatesRequest) Reset() {
+	*x = BatchGetThreadReadStatesRequest{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetThreadReadStatesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetThreadReadStatesRequest) ProtoMessage() {}
+
+func (x *BatchGetThreadReadStatesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetThreadReadStatesRequest.ProtoReflect.Descriptor instead.
+func (*BatchGetThreadReadStatesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *BatchGetThreadReadStatesRequest) GetTargets() []*ThreadReadStateTarget {
+	if x != nil {
+		return x.Targets
+	}
+	return nil
+}
+
+// Accessible thread read states in first-seen request order.
+type BatchGetThreadReadStatesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// States for the current viewer. An absent marker does not omit the state.
+	States        []*ThreadReadState `protobuf:"bytes,1,rep,name=states,proto3" json:"states,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BatchGetThreadReadStatesResponse) Reset() {
+	*x = BatchGetThreadReadStatesResponse{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BatchGetThreadReadStatesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BatchGetThreadReadStatesResponse) ProtoMessage() {}
+
+func (x *BatchGetThreadReadStatesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BatchGetThreadReadStatesResponse.ProtoReflect.Descriptor instead.
+func (*BatchGetThreadReadStatesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *BatchGetThreadReadStatesResponse) GetStates() []*ThreadReadState {
+	if x != nil {
+		return x.States
+	}
+	return nil
+}
+
+// Room and root identity for one thread read state.
+type ThreadReadStateTarget struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Room ID.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Root message ID.
+	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ThreadReadStateTarget) Reset() {
+	*x = ThreadReadStateTarget{}
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ThreadReadStateTarget) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ThreadReadStateTarget) ProtoMessage() {}
+
+func (x *ThreadReadStateTarget) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_read_state_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ThreadReadStateTarget.ProtoReflect.Descriptor instead.
+func (*ThreadReadStateTarget) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_read_state_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *ThreadReadStateTarget) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *ThreadReadStateTarget) GetThreadRootEventId() string {
+	if x != nil {
+		return x.ThreadRootEventId
+	}
+	return ""
+}
+
 var File_chatto_api_v1_read_state_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_read_state_proto_rawDesc = "" +
@@ -278,7 +885,41 @@ const file_chatto_api_v1_read_state_proto_rawDesc = "" +
 	"\x18MarkThreadAsReadResponse\x12M\n" +
 	"\x15previous_last_read_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x12previousLastReadAt\x12<\n" +
 	"\flast_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"lastReadAtR\x10previous_read_atB\xaa\x01\n" +
+	"lastReadAtR\x10previous_read_at\"w\n" +
+	"\n" +
+	"ReadMarker\x12+\n" +
+	"\x12last_read_event_id\x18\x01 \x01(\tR\x0flastReadEventId\x12<\n" +
+	"\flast_read_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"lastReadAt\"[\n" +
+	"\rRoomReadState\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x121\n" +
+	"\x06marker\x18\x02 \x01(\v2\x19.chatto.api.v1.ReadMarkerR\x06marker\"\x8e\x01\n" +
+	"\x0fThreadReadState\x12\x17\n" +
+	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12/\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tR\x11threadRootEventId\x121\n" +
+	"\x06marker\x18\x03 \x01(\v2\x19.chatto.api.v1.ReadMarkerR\x06marker\";\n" +
+	"\x17GetRoomReadStateRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"N\n" +
+	"\x18GetRoomReadStateResponse\x122\n" +
+	"\x05state\x18\x01 \x01(\v2\x1c.chatto.api.v1.RoomReadStateR\x05state\"L\n" +
+	"\x1dBatchGetRoomReadStatesRequest\x12+\n" +
+	"\broom_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\aroomIds\"V\n" +
+	"\x1eBatchGetRoomReadStatesResponse\x124\n" +
+	"\x06states\x18\x01 \x03(\v2\x1c.chatto.api.v1.RoomReadStateR\x06states\"w\n" +
+	"\x19GetThreadReadStateRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventId\"R\n" +
+	"\x1aGetThreadReadStateResponse\x124\n" +
+	"\x05state\x18\x01 \x01(\v2\x1e.chatto.api.v1.ThreadReadStateR\x05state\"m\n" +
+	"\x1fBatchGetThreadReadStatesRequest\x12J\n" +
+	"\atargets\x18\x01 \x03(\v2$.chatto.api.v1.ThreadReadStateTargetB\n" +
+	"\xbaH\a\x92\x01\x04\b\x01\x10dR\atargets\"Z\n" +
+	" BatchGetThreadReadStatesResponse\x126\n" +
+	"\x06states\x18\x01 \x03(\v2\x1e.chatto.api.v1.ThreadReadStateR\x06states\"s\n" +
+	"\x15ThreadReadStateTarget\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x128\n" +
+	"\x14thread_root_event_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x11threadRootEventIdB\xaa\x01\n" +
 	"\x11com.chatto.api.v1B\x0eReadStateProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -293,24 +934,44 @@ func file_chatto_api_v1_read_state_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_read_state_proto_rawDescData
 }
 
-var file_chatto_api_v1_read_state_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_chatto_api_v1_read_state_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_chatto_api_v1_read_state_proto_goTypes = []any{
-	(*MarkRoomAsReadRequest)(nil),    // 0: chatto.api.v1.MarkRoomAsReadRequest
-	(*MarkRoomAsReadResponse)(nil),   // 1: chatto.api.v1.MarkRoomAsReadResponse
-	(*MarkThreadAsReadRequest)(nil),  // 2: chatto.api.v1.MarkThreadAsReadRequest
-	(*MarkThreadAsReadResponse)(nil), // 3: chatto.api.v1.MarkThreadAsReadResponse
-	(*timestamppb.Timestamp)(nil),    // 4: google.protobuf.Timestamp
+	(*MarkRoomAsReadRequest)(nil),            // 0: chatto.api.v1.MarkRoomAsReadRequest
+	(*MarkRoomAsReadResponse)(nil),           // 1: chatto.api.v1.MarkRoomAsReadResponse
+	(*MarkThreadAsReadRequest)(nil),          // 2: chatto.api.v1.MarkThreadAsReadRequest
+	(*MarkThreadAsReadResponse)(nil),         // 3: chatto.api.v1.MarkThreadAsReadResponse
+	(*ReadMarker)(nil),                       // 4: chatto.api.v1.ReadMarker
+	(*RoomReadState)(nil),                    // 5: chatto.api.v1.RoomReadState
+	(*ThreadReadState)(nil),                  // 6: chatto.api.v1.ThreadReadState
+	(*GetRoomReadStateRequest)(nil),          // 7: chatto.api.v1.GetRoomReadStateRequest
+	(*GetRoomReadStateResponse)(nil),         // 8: chatto.api.v1.GetRoomReadStateResponse
+	(*BatchGetRoomReadStatesRequest)(nil),    // 9: chatto.api.v1.BatchGetRoomReadStatesRequest
+	(*BatchGetRoomReadStatesResponse)(nil),   // 10: chatto.api.v1.BatchGetRoomReadStatesResponse
+	(*GetThreadReadStateRequest)(nil),        // 11: chatto.api.v1.GetThreadReadStateRequest
+	(*GetThreadReadStateResponse)(nil),       // 12: chatto.api.v1.GetThreadReadStateResponse
+	(*BatchGetThreadReadStatesRequest)(nil),  // 13: chatto.api.v1.BatchGetThreadReadStatesRequest
+	(*BatchGetThreadReadStatesResponse)(nil), // 14: chatto.api.v1.BatchGetThreadReadStatesResponse
+	(*ThreadReadStateTarget)(nil),            // 15: chatto.api.v1.ThreadReadStateTarget
+	(*timestamppb.Timestamp)(nil),            // 16: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_read_state_proto_depIdxs = []int32{
-	4, // 0: chatto.api.v1.MarkRoomAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
-	4, // 1: chatto.api.v1.MarkRoomAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
-	4, // 2: chatto.api.v1.MarkThreadAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
-	4, // 3: chatto.api.v1.MarkThreadAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	16, // 0: chatto.api.v1.MarkRoomAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
+	16, // 1: chatto.api.v1.MarkRoomAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
+	16, // 2: chatto.api.v1.MarkThreadAsReadResponse.previous_last_read_at:type_name -> google.protobuf.Timestamp
+	16, // 3: chatto.api.v1.MarkThreadAsReadResponse.last_read_at:type_name -> google.protobuf.Timestamp
+	16, // 4: chatto.api.v1.ReadMarker.last_read_at:type_name -> google.protobuf.Timestamp
+	4,  // 5: chatto.api.v1.RoomReadState.marker:type_name -> chatto.api.v1.ReadMarker
+	4,  // 6: chatto.api.v1.ThreadReadState.marker:type_name -> chatto.api.v1.ReadMarker
+	5,  // 7: chatto.api.v1.GetRoomReadStateResponse.state:type_name -> chatto.api.v1.RoomReadState
+	5,  // 8: chatto.api.v1.BatchGetRoomReadStatesResponse.states:type_name -> chatto.api.v1.RoomReadState
+	6,  // 9: chatto.api.v1.GetThreadReadStateResponse.state:type_name -> chatto.api.v1.ThreadReadState
+	15, // 10: chatto.api.v1.BatchGetThreadReadStatesRequest.targets:type_name -> chatto.api.v1.ThreadReadStateTarget
+	6,  // 11: chatto.api.v1.BatchGetThreadReadStatesResponse.states:type_name -> chatto.api.v1.ThreadReadState
+	12, // [12:12] is the sub-list for method output_type
+	12, // [12:12] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_read_state_proto_init() }
@@ -324,7 +985,7 @@ func file_chatto_api_v1_read_state_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_read_state_proto_rawDesc), len(file_chatto_api_v1_read_state_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

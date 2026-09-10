@@ -200,3 +200,26 @@ support inline timestamps.
     description="Trusted local automation over the operator socket."
   />
 </CardGrid>
+
+## Read Complete Relationships and Read Positions
+
+Use `MessageService.ListReactionUsers` to list all user IDs for one emoji on a
+message. Use `ThreadService.ListThreadParticipants` to list distinct authors
+of current thread replies. The root author appears only if they also replied.
+Retracted replies and erased authors do not contribute to the participant list.
+Both calls return IDs in ascending order, with 50 items by default and at most
+100 per page. Use `UserService.BatchGetUsers` when you also need user profiles.
+Message previews remain bounded; their preview IDs are not complete lists.
+Pages are live reads, so concurrent changes can shift offsets.
+
+Use `RoomService.GetRoomReadState` or `ThreadService.GetThreadReadState` to
+read your stored position. Their `BatchGetRoomReadStates` and
+`BatchGetThreadReadStates` counterparts accept at most 100 targets. Batches
+remove duplicates in first-seen order and omit missing or inaccessible targets.
+All these calls require the same access as the corresponding read-marker update.
+
+A returned state without `marker` means no non-empty position is stored. The
+read does not initialize a position or mark anything as read. When a marker
+exists, it contains `lastReadEventId` and, when available, the referenced event's
+`lastReadAt` timestamp. This timestamp is the event time, not the time you read
+it. Stored read positions are separate from notification attention.

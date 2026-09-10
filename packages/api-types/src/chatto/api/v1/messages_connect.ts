@@ -3,10 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FetchLinkPreviewRequest, FetchLinkPreviewResponse } from "./link_previews_pb.js";
+import { AddReactionRequest, AddReactionResponse, ListReactionUsersRequest, ListReactionUsersResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { FetchLinkPreviewRequest, FetchLinkPreviewResponse } from "./link_previews_pb.js";
 import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
-import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 
 /**
  * Creates messages in room and thread timelines.
@@ -16,6 +16,19 @@ import { AddReactionRequest, AddReactionResponse, RemoveReactionRequest, RemoveR
 export const MessageService = {
   typeName: "chatto.api.v1.MessageService",
   methods: {
+    /**
+     * Lists all users with the requested reaction. Requires room membership and
+     * permission to read the message. A missing reaction returns an empty page;
+     * a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.ListReactionUsers
+     */
+    listReactionUsers: {
+      name: "ListReactionUsers",
+      I: ListReactionUsersRequest,
+      O: ListReactionUsersResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Fetches and caches metadata for a composer URL. Authentication is required
      * to avoid exposing the preview fetcher as an unauthenticated network proxy.

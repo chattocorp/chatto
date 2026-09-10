@@ -47,3 +47,83 @@ message MarkThreadAsReadResponse {
   // Absent when no marker exists.
   google.protobuf.Timestamp last_read_at = 2;
 }
+
+// Current stored read position. Its event can later be retracted. The timestamp
+// is absent if the event can no longer be resolved. This is not Badge attention.
+message ReadMarker {
+  // Last-read event ID, to locate the boundary in a timeline.
+  string last_read_event_id = 1;
+  // Creation time of the last-read event, when available.
+  google.protobuf.Timestamp last_read_at = 2;
+}
+
+// Current viewer's stored room read state.
+message RoomReadState {
+  // Room ID.
+  string room_id = 1;
+  // Absent when no non-empty marker has been stored. Reading never initializes it.
+  ReadMarker marker = 2;
+}
+
+// Current viewer's stored thread read state.
+message ThreadReadState {
+  // Room ID.
+  string room_id = 1;
+  // Root message ID.
+  string thread_root_event_id = 2;
+  // Absent when no non-empty marker has been stored. Reading never advances it.
+  ReadMarker marker = 3;
+}
+
+// Request current room read state without changing it.
+message GetRoomReadStateRequest {
+  // Room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+// Current room read state, including an absent marker when none is stored.
+message GetRoomReadStateResponse {
+  // State for the requested room and viewer.
+  RoomReadState state = 1;
+}
+// Request room read states. Duplicates are removed in first-seen order.
+message BatchGetRoomReadStatesRequest {
+  // Up to 100 room IDs. Missing or inaccessible rooms are omitted.
+  repeated string room_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1, max_items: 100, items: {string: {min_len: 1}}
+  }];
+}
+// Accessible room read states in first-seen request order.
+message BatchGetRoomReadStatesResponse {
+  // States for the current viewer. An absent marker does not omit the state.
+  repeated RoomReadState states = 1;
+}
+// Request current thread read state without changing it.
+message GetThreadReadStateRequest {
+  // Room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Root message ID.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+// Current thread read state.
+message GetThreadReadStateResponse {
+  // State for the requested thread and viewer.
+  ThreadReadState state = 1;
+}
+// Request thread read states. Duplicates are removed in first-seen order.
+message BatchGetThreadReadStatesRequest {
+  // Up to 100 room/thread targets. Missing or inaccessible targets are omitted.
+  repeated ThreadReadStateTarget targets = 1 [(buf.validate.field).repeated = {min_items: 1, max_items: 100}];
+}
+// Accessible thread read states in first-seen request order.
+message BatchGetThreadReadStatesResponse {
+  // States for the current viewer. An absent marker does not omit the state.
+  repeated ThreadReadState states = 1;
+}
+
+// Room and root identity for one thread read state.
+message ThreadReadStateTarget {
+  // Room ID.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Root message ID.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+}
