@@ -59,6 +59,14 @@ func TestConnectJSONIntegrationSmoke(t *testing.T) {
 	require.Equal(t, "/oauth/authorize", object(discovery["login"])["authorizeUrl"])
 	require.Equal(t, "unauthenticated", call("", viewer, "{}", 401)["code"])
 	require.Equal(t, "unauthenticated", call("invalid-credential", viewer, "{}", 401)["code"])
+	require.Equal(t, "unauthenticated", call("", account+"GetSettings", "{}", 401)["code"])
+	defaults := object(call(token, account+"GetSettings", "{}", 200)["settings"])
+	require.Equal(t, "TIME_FORMAT_AUTO", defaults["timeFormat"])
+	require.Equal(t, false, defaults["shareTimezone"])
+	require.NotContains(t, defaults, "timezone")
+	stored, err := s.core.GetUserSettings(ctx, owner.GetId())
+	require.NoError(t, err)
+	require.Nil(t, stored, "reading defaults must not save preferences")
 	current := call(token, viewer, "{}", 200)
 	require.Equal(t, owner.GetId(), object(object(current["user"])["profile"])["id"])
 
@@ -72,14 +80,17 @@ func TestConnectJSONIntegrationSmoke(t *testing.T) {
 		require.NotEmpty(t, key)
 		authenticated := call(key, viewer, "{}", 200)
 		require.Equal(t, user["id"], object(object(authenticated["user"])["profile"])["id"])
+		require.Equal(t, defaults, call(key, account+"GetSettings", "{}", 200)["settings"])
 	}
 
 	// A comma-separated camelCase FieldMask can reset null/false while
 	// preserving an unselected value. Verify through a separate public read.
-	call(token, account+"UpdateSettings", `{"timezone":"Europe/Berlin","shareTimezone":true,"timeFormat":"TIME_FORMAT_24_HOUR","updateMask":"timezone,shareTimezone,timeFormat"}`, 200)
+	updated := call(token, account+"UpdateSettings", `{"timezone":"Europe/Berlin","shareTimezone":true,"timeFormat":"TIME_FORMAT_24_HOUR","updateMask":"timezone,shareTimezone,timeFormat"}`, 200)
+	require.Equal(t, updated["settings"], call(token, account+"GetSettings", "{}", 200)["settings"])
 	call(token, account+"UpdateSettings", `{"timezone":null,"shareTimezone":false,"updateMask":"timezone,shareTimezone"}`, 200)
 	current = call(token, viewer, "{}", 200)
 	settings := object(object(current["user"])["settings"])
+	require.Equal(t, settings, call(token, account+"GetSettings", "{}", 200)["settings"])
 	require.NotContains(t, settings, "timezone")
 	require.Equal(t, false, settings["shareTimezone"])
 	require.Equal(t, "TIME_FORMAT_24_HOUR", settings["timeFormat"])

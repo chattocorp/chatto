@@ -69,6 +69,18 @@ func (s *accountService) ChangePassword(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&apiv1.ChangePasswordResponse{User: responseUser}), nil
 }
 
+func (s *accountService) GetSettings(ctx context.Context, _ *connect.Request[apiv1.GetSettingsRequest]) (*connect.Response[apiv1.GetSettingsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := s.api.core.GetUserSettings(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetSettingsResponse{Settings: coreUserSettingsToAPI(settings)}), nil
+}
+
 func (s *accountService) UpdateSettings(ctx context.Context, req *connect.Request[apiv1.UpdateSettingsRequest]) (*connect.Response[apiv1.UpdateSettingsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

@@ -223,3 +223,11 @@ read does not initialize a position or mark anything as read. When a marker
 exists, it contains `lastReadEventId` and, when available, the referenced event's
 `lastReadAt` timestamp. This timestamp is the event time, not the time you read
 it. Stored read positions are separate from notification attention.
+
+## Read Your Display Settings
+
+Call `MyAccountService.GetSettings` with `{}` to read your time zone, time
+format, and time-zone sharing preference. Human and bot credentials both work.
+The response contains the same `settings` resource as `UpdateSettings` and
+`GetViewer`. Unsaved settings return defaults; the read does not save them.
+Use `GetViewer` when you also need the combined account and capability response.

@@ -92,6 +92,36 @@ Result of updating or adding the authenticated account password.
 | `user` | [`User`](/reference/connectrpc-api/types/#chatto-api-v1-User) | Current authenticated user profile after the password update. |
 
 
+<a id="chatto-api-v1-MyAccountService-GetSettings"></a>
+
+### GetSettings
+
+Reads the authenticated user's display preferences without changing them.
+Returns default settings when none have been saved.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/GetSettings
+```
+
+<a id="chatto-api-v1-GetSettingsRequest"></a>
+
+#### Input: GetSettingsRequest
+
+Request the authenticated user's display preferences. Human and bot accounts
+use the same operation; no target account ID is accepted.
+
+
+<a id="chatto-api-v1-GetSettingsResponse"></a>
+
+#### Result: GetSettingsResponse
+
+Current display preferences, with defaults for settings not yet saved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `settings` | [`UserSettings`](/reference/connectrpc-api/types/#chatto-api-v1-UserSettings) | The same settings resource returned by UpdateSettings and GetViewer. |
+
+
 <a id="chatto-api-v1-MyAccountService-UpdateSettings"></a>
 
 ### UpdateSettings

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChangePasswordRequest, ChangePasswordResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
@@ -39,6 +39,18 @@ export const MyAccountService = {
       name: "ChangePassword",
       I: ChangePasswordRequest,
       O: ChangePasswordResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads the authenticated user's display preferences without changing them.
+     * Returns default settings when none have been saved.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.GetSettings
+     */
+    getSettings: {
+      name: "GetSettings",
+      I: GetSettingsRequest,
+      O: GetSettingsResponse,
       kind: MethodKind.Unary,
     },
     /**
