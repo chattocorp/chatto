@@ -15,6 +15,7 @@ const serverId = 'server-1';
 const tierKey = adminQueryKeys.permissionTiers(serverId, connection);
 const catalogKey = adminQueryKeys.roleCatalog(serverId, connection);
 const roleKey = adminQueryKeys.rolePermissions(serverId, connection, 'moderator');
+const membersKey = adminQueryKeys.roleMembers(serverId, connection, 'moderator');
 const roleDetailsKey = adminQueryKeys.role(serverId, connection, 'moderator');
 const userKey = adminQueryKeys.userPermissions(serverId, connection, 'user-1');
 const roomKey = adminQueryKeys.room(serverId, connection, 'room-1');
@@ -28,6 +29,7 @@ beforeEach(() => {
   queryClient.setQueryData(catalogKey, { roles: [] });
   queryClient.setQueryData(roleKey, { roleName: 'moderator' });
   queryClient.setQueryData(roleDetailsKey, { role: { name: 'moderator' } });
+  queryClient.setQueryData(membersKey, { pages: [{ users: [{ id: 'user-1' }] }], pageParams: [0] });
   queryClient.setQueryData(userKey, { userId: 'user-1' });
   queryClient.setQueryData(roomKey, { id: 'room-1', name: 'general' });
   queryClient.setQueryData(groupKey, { group: { id: 'group-1', name: 'Lobby' } });
@@ -80,6 +82,7 @@ describe('admin role query invalidation', () => {
 
     expect(queryClient.getQueryData(roleKey)).toBeUndefined();
     expect(queryClient.getQueryData(roleDetailsKey)).toBeUndefined();
+    expect(queryClient.getQueryData(membersKey)).toBeUndefined();
     expect(queryClient.getQueryState(tierKey)?.isInvalidated).toBe(true);
     expect(queryClient.getQueryState(userKey)?.isInvalidated).toBe(true);
   });

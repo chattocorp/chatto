@@ -121,10 +121,20 @@ describe('role management page identity', () => {
     queryClient.clear();
     vi.clearAllMocks();
     activeRoleName = 'role-a';
-    mocks.listMembers.mockImplementation((name: string) => Promise.resolve({
-      users: [{ id: `${name}-user`, login: `${name}-user`, displayName: `${name === 'role-a' ? 'Role A' : 'Role B'} User`, isBot: false }],
-      totalCount: 1, hasMore: false
-    }));
+    mocks.listMembers.mockImplementation((name: string) =>
+      Promise.resolve({
+        users: [
+          {
+            id: `${name}-user`,
+            login: `${name}-user`,
+            displayName: `${name === 'role-a' ? 'Role A' : 'Role B'} User`,
+            isBot: false
+          }
+        ],
+        totalCount: 1,
+        hasMore: false
+      })
+    );
   });
 
   it('loads member pages separately and fences a late page after a role switch', async () => {
@@ -134,26 +144,42 @@ describe('role management page identity', () => {
       if (name === 'role-a' && page.offset === 1) return late.promise;
       return Promise.resolve({
         users: [{ id: name, login: name, displayName: `${name} member`, isBot: false }],
-        totalCount: name === 'role-a' ? 2 : 1, hasMore: name === 'role-a'
+        totalCount: name === 'role-a' ? 2 : 1,
+        hasMore: name === 'role-a'
       });
     });
     const { container } = render(RolePage);
     await vi.waitFor(() => expect(container.textContent).toContain('role-a member'));
-    (Array.from(container.querySelectorAll('button')).find(button => button.textContent === 'Load next test page') as HTMLButtonElement).click();
-    await vi.waitFor(() => expect(mocks.listMembers).toHaveBeenCalledWith(
-      'role-a', { limit: 20, offset: 1 }, expect.objectContaining({ signal: expect.any(AbortSignal) })
-    ));
+    (
+      Array.from(container.querySelectorAll('button')).find(
+        (button) => button.textContent === 'Load next test page'
+      ) as HTMLButtonElement
+    ).click();
+    await vi.waitFor(() =>
+      expect(mocks.listMembers).toHaveBeenCalledWith(
+        'role-a',
+        { limit: 20, offset: 1 },
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    );
     activeRoleName = 'role-b';
     flushSync();
     await vi.waitFor(() => expect(container.textContent).toContain('role-b member'));
-    late.resolve({ users: [{ id: 'late', login: 'late', displayName: 'Late A member', isBot: false }], totalCount: 2, hasMore: false });
+    late.resolve({
+      users: [{ id: 'late', login: 'late', displayName: 'Late A member', isBot: false }],
+      totalCount: 2,
+      hasMore: false
+    });
     await settle();
     expect(container.textContent).not.toContain('Late A member');
     expect(container.textContent).not.toContain('role-a member');
   });
 
   it('does not request or render a roster without assignment authority', async () => {
-    mocks.getRole.mockResolvedValue({ ...details('role-a', 'Role A', ''), viewerCanAssignRoles: false });
+    mocks.getRole.mockResolvedValue({
+      ...details('role-a', 'Role A', ''),
+      viewerCanAssignRoles: false
+    });
     const { container } = render(RolePage);
     await vi.waitFor(() => expect(container.querySelector('#displayName')).not.toBeNull());
     expect(mocks.listMembers).not.toHaveBeenCalled();

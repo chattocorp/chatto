@@ -145,6 +145,12 @@ type connectAPITestEnv struct {
 
 func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	t.Helper()
+	return newConnectAPITestEnvWithTimeout(t, 30*time.Second)
+}
+
+// Larger fixtures can select a bounded lifecycle that also fits race-enabled runs.
+func newConnectAPITestEnvWithTimeout(t *testing.T, timeout time.Duration) *connectAPITestEnv {
+	t.Helper()
 
 	// Each environment owns its broker and event log. A shared broker reset
 	// can affect another core that still has subscriptions or pending work.
@@ -152,7 +158,7 @@ func newConnectAPITestEnv(t *testing.T) *connectAPITestEnv {
 	// Keep one bounded context for the complete integration-test lifecycle.
 	// Allow a delayed durable-worker acknowledgement without expiring the
 	// shared context before the test can run its later assertions.
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
 
 	c, err := core.NewChattoCore(ctx, nc, config.CoreConfig{

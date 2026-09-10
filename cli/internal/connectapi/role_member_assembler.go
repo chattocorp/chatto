@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )

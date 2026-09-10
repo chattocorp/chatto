@@ -1,17 +1,19 @@
 package connectapi
 
 import (
-	"connectrpc.com/connect"
 	"fmt"
+	"sort"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"sort"
-	"testing"
 )
 
 func TestAdminRoleMembersPaginationAndAuthorization(t *testing.T) {
-	env := newConnectAPITestEnv(t)
+	env := newConnectAPITestEnvWithTimeout(t, 2*time.Minute)
 	request := connect.NewRequest(&adminv1.AdminRoleServiceListMembersRequest{Name: "missing"})
 	if _, err := env.roles.ListMembers(env.ctx, request); connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("anonymous: %v", err)

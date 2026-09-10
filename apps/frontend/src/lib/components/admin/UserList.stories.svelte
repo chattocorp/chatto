@@ -2,7 +2,11 @@
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import UserList from './UserList.svelte';
 
-  const { Story } = defineMeta({ title: 'Admin/UserList', component: UserList, tags: ['autodocs'] });
+  const { Story } = defineMeta({
+    title: 'Admin/UserList',
+    component: UserList,
+    tags: ['autodocs']
+  });
 </script>
 
 <script lang="ts">
@@ -12,8 +16,10 @@
   import Panel from '$lib/ui/Panel.svelte';
 
   provideServerScope({
-    serverId: 'storybook', connection: {} as ServerConnection,
-    store: {} as ServerStateStore, isCurrent: () => true
+    serverId: 'storybook',
+    connection: {} as ServerConnection,
+    store: {} as ServerStateStore,
+    isCurrent: () => true
   });
   const users = [
     { id: 'user-1', login: 'alex', displayName: 'Alex' },

@@ -100,5 +100,7 @@ and supplies an optional row-navigation callback.
     {/snippet}
   </DataTable>
 
-  <div class="px-5 py-3 text-sm text-muted">{m('admin.members.showing', { shown: users.length, total: totalCount })}</div>
+  <div class="px-5 py-3 text-sm text-muted">
+    {m('admin.members.showing', { shown: users.length, total: totalCount })}
+  </div>
 {/if}

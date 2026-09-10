@@ -6,11 +6,7 @@
   import { onDestroy } from 'svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    createRoleAPI,
-    type RoleDetails,
-    type UpdateRoleInput
-  } from '$lib/api-client/roles';
+  import { createRoleAPI, type RoleDetails, type UpdateRoleInput } from '$lib/api-client/roles';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { UserList } from '$lib/components/admin';
   import Panel from '$lib/ui/Panel.svelte';
@@ -29,7 +25,6 @@
   import { registerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import RoleMetadataPanel from './RoleMetadataPanel.svelte';
   import { m } from '$lib/i18n/messages';
-
 
   const serverScope = useServerScope();
   const serverSegment = $derived(serverIdToSegment(serverScope.serverId));
@@ -84,8 +79,10 @@
       return {
         queryKey: adminQueryKeys.roleMembers(serverScope.serverId, connection, name),
         enabled: canAssignRoles && name !== 'everyone',
-        queryFn: ({ pageParam, signal }) => connection.getAPI(createRoleAPI)
-          .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
+        queryFn: ({ pageParam, signal }) =>
+          connection
+            .getAPI(createRoleAPI)
+            .listMembers(name, { limit: 20, offset: pageParam }, { signal }),
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, offset) =>
           lastPage.hasMore && lastPage.users.length > 0 ? offset + lastPage.users.length : undefined
@@ -311,38 +308,38 @@
 
         <!-- Users with this role -->
         {#if canAssignRoles || role.name === 'everyone'}
-        <Panel
-          title={m('admin.permissions.users_with_role')}
-          icon="iconify icon-[uil--users-alt]"
-          noPadding
-        >
-          {#if role?.name === 'everyone'}
-            <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
-          {:else if canAssignRoles}
-            {#if membersError}
-              <div class="p-5"><FormError error={membersError} /></div>
-            {:else}
-            <UserList
-              users={roleUsers}
-              loading={membersQuery.isPending}
-              totalCount={membersQuery.data?.pages.at(-1)?.totalCount ?? 0}
-              hasMore={membersQuery.hasNextPage && !membersError}
-              loadingMore={membersQuery.isFetchingNextPage}
-              onLoadMore={loadMoreMembers}
-              loadMoreRoot={scrollContainer}
-              clickable={canAssignRoles}
-              emptyMessage={m('admin.permissions.no_users_with_role')}
-              onUserClick={(user) =>
-                goto(
-                  resolve('/chat/[serverId]/manage/server/members/[userId]', {
-                    serverId: serverSegment,
-                    userId: user.id
-                  })
-                )}
-            />
+          <Panel
+            title={m('admin.permissions.users_with_role')}
+            icon="iconify icon-[uil--users-alt]"
+            noPadding
+          >
+            {#if role?.name === 'everyone'}
+              <p class="p-5 text-muted">{m('admin.permissions.everyone_implicit')}</p>
+            {:else if canAssignRoles}
+              {#if membersError}
+                <div class="p-5"><FormError error={membersError} /></div>
+              {:else}
+                <UserList
+                  users={roleUsers}
+                  loading={membersQuery.isPending}
+                  totalCount={membersQuery.data?.pages.at(-1)?.totalCount ?? 0}
+                  hasMore={membersQuery.hasNextPage && !membersError}
+                  loadingMore={membersQuery.isFetchingNextPage}
+                  onLoadMore={loadMoreMembers}
+                  loadMoreRoot={scrollContainer}
+                  clickable={canAssignRoles}
+                  emptyMessage={m('admin.permissions.no_users_with_role')}
+                  onUserClick={(user) =>
+                    goto(
+                      resolve('/chat/[serverId]/manage/server/members/[userId]', {
+                        serverId: serverSegment,
+                        userId: user.id
+                      })
+                    )}
+                />
+              {/if}
             {/if}
-          {/if}
-        </Panel>
+          </Panel>
         {/if}
       {/if}
     </div>

@@ -67,7 +67,8 @@ export function removeAdminUserQueries(serverId: string, userId: string): void {
     key[0] === 'server' &&
     key[1] === serverId &&
     key[4] === 'admin' &&
-    (key[5] === 'members' || key[5] === 'role-members' ||
+    (key[5] === 'members' ||
+      key[5] === 'role-members' ||
       (key[5] === 'member' && key[6] === userId) ||
       (key[5] === 'user-permissions' && key[6] === userId));
   const isMemberListQuery = (key: QueryKey): boolean =>
