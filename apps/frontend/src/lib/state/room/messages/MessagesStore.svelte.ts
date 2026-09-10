@@ -162,6 +162,7 @@ export class MessagesStore {
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
   #hasHistoricalWindow = false;
+  #isRestoringHistoricalWindow = false;
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
 
@@ -442,8 +443,18 @@ export class MessagesStore {
   restoreLatestWindow(): Promise<boolean> {
     if (this.scope !== 'room') return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
+    if (this.#isRestoringHistoricalWindow) return Promise.resolve(false);
     if (!this.#hasHistoricalWindow) return Promise.resolve(false);
-    return this.resetAndFetchLatest();
+    const source = this.source;
+    const restoration = this.resetAndFetchLatest();
+    this.#isRestoringHistoricalWindow = true;
+    return restoration.then((restored) => {
+      if (this.source === source && this.#isRestoringHistoricalWindow) {
+        this.#hasHistoricalWindow = !restored;
+        this.#isRestoringHistoricalWindow = false;
+      }
+      return restored;
+    });
   }
 
   /** Restore this retained room's canonical latest projection at a route boundary. */
@@ -1172,6 +1183,7 @@ export class MessagesStore {
     this.events = [];
     this.seenIds = new SvelteSet();
     this.#hasHistoricalWindow = false;
+    this.#isRestoringHistoricalWindow = false;
     this.previewEvents.clear();
     this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
