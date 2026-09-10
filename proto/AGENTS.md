@@ -27,6 +27,10 @@ For public API packages:
   and important field.
 - Explain what a call reads or changes, required IDs, pagination or cursor
   rules, required authorization, and important response behavior.
+- For APIs that require periodic refresh or expire automatically, document the
+  refresh interval, expiry duration, who owns the timer, and how clients stop
+  or clear the state. Include these rules in the public API reference;
+  internal docs and frontend constants are not sufficient.
 - Keep field comments short for generated tables. Put longer behavior notes on
   messages or RPCs.
 - Do not put maintainer workflow text, such as "run codegen", in comments that
