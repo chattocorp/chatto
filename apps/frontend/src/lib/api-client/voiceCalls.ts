@@ -23,8 +23,8 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
       return (await client.joinCall({ roomId }, { headers: headers() })).joined;
     },
 
-    async getCallToken(roomId: string): Promise<VoiceCallToken | null> {
-      const response = await client.getCallToken({ roomId }, { headers: headers() });
+    async createCallToken(roomId: string): Promise<VoiceCallToken | null> {
+      const response = await client.createCallToken({ roomId }, { headers: headers() });
       if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,

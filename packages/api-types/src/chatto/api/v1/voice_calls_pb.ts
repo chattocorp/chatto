@@ -553,9 +553,9 @@ export class JoinCallResponse extends Message<JoinCallResponse> {
 /**
  * Request for a LiveKit token for a room call.
  *
- * @generated from message chatto.api.v1.GetCallTokenRequest
+ * @generated from message chatto.api.v1.CreateCallTokenRequest
  */
-export class GetCallTokenRequest extends Message<GetCallTokenRequest> {
+export class CreateCallTokenRequest extends Message<CreateCallTokenRequest> {
   /**
    * Required. Room whose active call should be joined.
    *
@@ -563,40 +563,40 @@ export class GetCallTokenRequest extends Message<GetCallTokenRequest> {
    */
   roomId = "";
 
-  constructor(data?: PartialMessage<GetCallTokenRequest>) {
+  constructor(data?: PartialMessage<CreateCallTokenRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetCallTokenRequest";
+  static readonly typeName = "chatto.api.v1.CreateCallTokenRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCallTokenRequest {
-    return new GetCallTokenRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallTokenRequest {
+    return new CreateCallTokenRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCallTokenRequest {
-    return new GetCallTokenRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateCallTokenRequest {
+    return new CreateCallTokenRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCallTokenRequest {
-    return new GetCallTokenRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateCallTokenRequest {
+    return new CreateCallTokenRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCallTokenRequest | PlainMessage<GetCallTokenRequest> | undefined, b: GetCallTokenRequest | PlainMessage<GetCallTokenRequest> | undefined): boolean {
-    return proto3.util.equals(GetCallTokenRequest, a, b);
+  static equals(a: CreateCallTokenRequest | PlainMessage<CreateCallTokenRequest> | undefined, b: CreateCallTokenRequest | PlainMessage<CreateCallTokenRequest> | undefined): boolean {
+    return proto3.util.equals(CreateCallTokenRequest, a, b);
   }
 }
 
 /**
  * LiveKit token details for joining a room call.
  *
- * @generated from message chatto.api.v1.GetCallTokenResponse
+ * @generated from message chatto.api.v1.CreateCallTokenResponse
  */
-export class GetCallTokenResponse extends Message<GetCallTokenResponse> {
+export class CreateCallTokenResponse extends Message<CreateCallTokenResponse> {
   /**
    * LiveKit JWT token.
    *
@@ -618,33 +618,33 @@ export class GetCallTokenResponse extends Message<GetCallTokenResponse> {
    */
   callId = "";
 
-  constructor(data?: PartialMessage<GetCallTokenResponse>) {
+  constructor(data?: PartialMessage<CreateCallTokenResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.GetCallTokenResponse";
+  static readonly typeName = "chatto.api.v1.CreateCallTokenResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "e2ee_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetCallTokenResponse {
-    return new GetCallTokenResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallTokenResponse {
+    return new CreateCallTokenResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetCallTokenResponse {
-    return new GetCallTokenResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateCallTokenResponse {
+    return new CreateCallTokenResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetCallTokenResponse {
-    return new GetCallTokenResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateCallTokenResponse {
+    return new CreateCallTokenResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetCallTokenResponse | PlainMessage<GetCallTokenResponse> | undefined, b: GetCallTokenResponse | PlainMessage<GetCallTokenResponse> | undefined): boolean {
-    return proto3.util.equals(GetCallTokenResponse, a, b);
+  static equals(a: CreateCallTokenResponse | PlainMessage<CreateCallTokenResponse> | undefined, b: CreateCallTokenResponse | PlainMessage<CreateCallTokenResponse> | undefined): boolean {
+    return proto3.util.equals(CreateCallTokenResponse, a, b);
   }
 }
 

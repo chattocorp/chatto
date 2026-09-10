@@ -435,3 +435,13 @@ reference. Omit `before` to move an item to the end; do not send an empty object
 Regenerate protobuf clients and remove uses of `AdminRoomLayoutItemKind`.
 The old field names and numbers are reserved. Stored sidebar entries and
 move/reorder authorization are unchanged.
+
+## Call token creation in 0.5
+
+`VoiceCallService.GetCallToken` is now `VoiceCallService.CreateCallToken`.
+The request and response types are now `CreateCallTokenRequest` and
+`CreateCallTokenResponse`. Regenerate clients and update JSON request paths to
+`/api/connect/chatto.api.v1.VoiceCallService/CreateCallToken`.
+The old route is removed. Request fields, token contents, authorization, and
+error behavior are unchanged. The name now matches the credential-creation
+operation `CreateCallMediaPublisherToken`.

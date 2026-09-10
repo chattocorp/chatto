@@ -91,7 +91,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
       })
     ),
     joinCall: vi.fn(() => Promise.resolve(true)),
-    getCallToken: vi.fn(() => Promise.resolve(null)),
+    createCallToken: vi.fn(() => Promise.resolve(null)),
     leaveCall: vi.fn(() => Promise.resolve(true)),
     activatePrivilegedMode: vi.fn(() =>
       Promise.resolve({
@@ -232,7 +232,7 @@ vi.mock('$lib/api-client/memberDirectory', () => ({
 vi.mock('$lib/api-client/voiceCalls', () => ({
   createVoiceCallAPI: vi.fn(() => ({
     joinCall: apiMocks.joinCall,
-    getCallToken: apiMocks.getCallToken,
+    createCallToken: apiMocks.createCallToken,
     leaveCall: apiMocks.leaveCall
   }))
 }));
@@ -517,7 +517,7 @@ beforeEach(() => {
   apiMocks.refreshAssetUrls.mockReset();
   apiMocks.refreshAssetUrls.mockResolvedValue(new Map());
   apiMocks.joinCall.mockResolvedValue(true);
-  apiMocks.getCallToken.mockResolvedValue(null);
+  apiMocks.createCallToken.mockResolvedValue(null);
   apiMocks.leaveCall.mockResolvedValue(true);
   apiMocks.activatePrivilegedMode.mockReset();
   apiMocks.activatePrivilegedMode.mockResolvedValue({
