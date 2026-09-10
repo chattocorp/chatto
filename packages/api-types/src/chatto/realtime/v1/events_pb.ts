@@ -1851,7 +1851,10 @@ export class ServerProfileChangedEvent extends Message<ServerProfileChangedEvent
 }
 
 /**
- * UserTypingEvent reports current typing activity.
+ * UserTypingEvent reports current typing activity for the event actor.
+ * Track each actor separately for each room and thread. Clear the indicator
+ * 6 seconds after the last received typing event, or when that actor posts
+ * a message in the same room or thread. No stop-typing event is sent.
  *
  * @generated from message chatto.realtime.v1.UserTypingEvent
  */

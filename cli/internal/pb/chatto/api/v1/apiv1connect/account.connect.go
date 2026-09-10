@@ -92,8 +92,9 @@ type MyAccountServiceClient interface {
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Updates the current user's live presence status. This state is transient:
-	// clients should refresh it periodically while visible, and should stop
-	// calling this RPC when the user chooses to appear offline.
+	// refresh every 30 seconds while visible. The server expires presence after
+	// 60 seconds without a refresh. Stop calling this RPC to appear offline;
+	// another client for the same account can keep presence active.
 	SetPresence(context.Context, *connect.Request[v1.SetPresenceRequest]) (*connect.Response[v1.SetPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.
@@ -293,8 +294,9 @@ type MyAccountServiceHandler interface {
 	// Disconnects a provider identity from the authenticated account.
 	DisconnectExternalIdentity(context.Context, *connect.Request[v1.DisconnectExternalIdentityRequest]) (*connect.Response[v1.DisconnectExternalIdentityResponse], error)
 	// Updates the current user's live presence status. This state is transient:
-	// clients should refresh it periodically while visible, and should stop
-	// calling this RPC when the user chooses to appear offline.
+	// refresh every 30 seconds while visible. The server expires presence after
+	// 60 seconds without a refresh. Stop calling this RPC to appear offline;
+	// another client for the same account can keep presence active.
 	SetPresence(context.Context, *connect.Request[v1.SetPresenceRequest]) (*connect.Response[v1.SetPresenceResponse], error)
 	// Sets the current user's complete custom status. Emoji and text are required.
 	// Omit expires_at for no expiry, or supply a future time.

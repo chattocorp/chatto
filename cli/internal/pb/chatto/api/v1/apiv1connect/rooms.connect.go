@@ -180,6 +180,9 @@ type RoomServiceClient interface {
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
+	// Send at most once every 2 seconds while typing. After posting a message,
+	// the next typing activity can send immediately. Stop sending when typing
+	// stops; receivers clear the indicator after 6 seconds without an event.
 	RefreshTypingIndicator(context.Context, *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Reads also require
@@ -617,6 +620,9 @@ type RoomServiceHandler interface {
 	DeletePinnedMessage(context.Context, *connect.Request[v1.DeletePinnedMessageRequest]) (*connect.Response[v1.DeletePinnedMessageResponse], error)
 	// Refreshes the current user's live-only typing indicator for a room or
 	// thread. Room membership is required; message posting permission is not.
+	// Send at most once every 2 seconds while typing. After posting a message,
+	// the next typing activity can send immediately. Stop sending when typing
+	// stops; receivers clear the indicator after 6 seconds without an event.
 	RefreshTypingIndicator(context.Context, *connect.Request[v1.RefreshTypingIndicatorRequest]) (*connect.Response[v1.RefreshTypingIndicatorResponse], error)
 	// Returns one page of room timeline events, including related user data
 	// needed to render the page. Room membership is required. Reads also require

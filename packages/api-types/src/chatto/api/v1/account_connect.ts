@@ -102,8 +102,9 @@ export const MyAccountService = {
     },
     /**
      * Updates the current user's live presence status. This state is transient:
-     * clients should refresh it periodically while visible, and should stop
-     * calling this RPC when the user chooses to appear offline.
+     * refresh every 30 seconds while visible. The server expires presence after
+     * 60 seconds without a refresh. Stop calling this RPC to appear offline;
+     * another client for the same account can keep presence active.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.SetPresence
      */

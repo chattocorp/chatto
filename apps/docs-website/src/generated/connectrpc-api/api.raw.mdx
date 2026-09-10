@@ -918,6 +918,9 @@ Result of unpinning a message.
 
 Refreshes the current user's live-only typing indicator for a room or
 thread. Room membership is required; message posting permission is not.
+Send at most once every 2 seconds while typing. After posting a message,
+the next typing activity can send immediately. Stop sending when typing
+stops; receivers clear the indicator after 6 seconds without an event.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/RefreshTypingIndicator
@@ -1693,8 +1696,9 @@ Result of disconnecting a provider identity.
 ### SetPresence
 
 Updates the current user's live presence status. This state is transient:
-clients should refresh it periodically while visible, and should stop
-calling this RPC when the user chooses to appear offline.
+refresh every 30 seconds while visible. The server expires presence after
+60 seconds without a refresh. Stop calling this RPC to appear offline;
+another client for the same account can keep presence active.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/SetPresence
