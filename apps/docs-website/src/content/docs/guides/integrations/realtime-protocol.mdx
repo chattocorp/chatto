@@ -161,6 +161,24 @@ New event variants are additive. You can ignore a variant that you do not use
 and still save the common cursor. If a complete top-level frame cannot be
 decoded, close the socket and keep the preceding cursor.
 
+## Refresh presence and typing
+
+Call `MyAccountService.SetPresence` every 30 seconds while your client is
+visible. The server expires presence after 60 seconds without a refresh.
+To appear offline, stop these calls; you can keep the realtime connection open.
+Another client signed in to the same account can keep presence active.
+
+Call `RoomService.RefreshTypingIndicator` at most once every 2 seconds while
+the user types. Include `threadRootEventId` for a thread; omit it for the room
+timeline. Stop sending when typing stops. After posting a message, the next
+typing activity can send immediately.
+
+On receipt of `UserTypingEvent`, track the event actor separately for each room
+and thread. Clear that indicator 6 seconds after the last received typing event,
+or when the actor posts a message in the same room or thread. The receiving
+client owns this timer. There is no stop-typing event, and missed typing events
+are not replayed.
+
 ## Notification creation hints
 
 `notification_occurrences_changed.created_notification_id` identifies a newly

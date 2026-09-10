@@ -2225,7 +2225,10 @@ func (*ServerProfileChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_realtime_v1_events_proto_rawDescGZIP(), []int{38}
 }
 
-// UserTypingEvent reports current typing activity.
+// UserTypingEvent reports current typing activity for the event actor.
+// Track each actor separately for each room and thread. Clear the indicator
+// 6 seconds after the last received typing event, or when that actor posts
+// a message in the same room or thread. No stop-typing event is sent.
 type UserTypingEvent struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`

@@ -281,6 +281,9 @@ export const RoomService = {
     /**
      * Refreshes the current user's live-only typing indicator for a room or
      * thread. Room membership is required; message posting permission is not.
+     * Send at most once every 2 seconds while typing. After posting a message,
+     * the next typing activity can send immediately. Stop sending when typing
+     * stops; receivers clear the indicator after 6 seconds without an event.
      *
      * @generated from rpc chatto.api.v1.RoomService.RefreshTypingIndicator
      */
