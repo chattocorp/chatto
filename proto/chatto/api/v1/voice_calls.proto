@@ -49,7 +49,7 @@ service VoiceCallService {
   // Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
   // caller is not a room member, and FAILED_PRECONDITION when no call is active
   // or voice and video calls are not configured.
-  rpc GetCallToken(GetCallTokenRequest) returns (GetCallTokenResponse);
+  rpc CreateCallToken(CreateCallTokenRequest) returns (CreateCallTokenResponse);
 
   // Issues a short-lived LiveKit token for a native companion publisher owned
   // by the caller. Companion publishers contribute media to the caller's
@@ -153,13 +153,13 @@ message JoinCallResponse {
 }
 
 // Request for a LiveKit token for a room call.
-message GetCallTokenRequest {
+message CreateCallTokenRequest {
   // Required. Room whose active call should be joined.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
 }
 
 // LiveKit token details for joining a room call.
-message GetCallTokenResponse {
+message CreateCallTokenResponse {
   // LiveKit JWT token.
   string token = 1;
   // Shared E2EE key for this active call.

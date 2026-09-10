@@ -48,7 +48,7 @@ interface LeaveCallResponse {
   left?: boolean;
 }
 
-interface GetCallTokenResponse {
+interface CreateCallTokenResponse {
   token?: string;
   e2eeKey?: string;
   callId?: string;
@@ -90,8 +90,8 @@ async function leaveCallViaConnect(page: Page, roomId: string): Promise<boolean>
   return data.left ?? false;
 }
 
-async function getCallTokenViaConnect(page: Page, roomId: string): Promise<GetCallTokenResponse> {
-  return connectPost<GetCallTokenResponse>(page, 'chatto.api.v1.VoiceCallService/GetCallToken', {
+async function createCallTokenViaConnect(page: Page, roomId: string): Promise<CreateCallTokenResponse> {
+  return connectPost<CreateCallTokenResponse>(page, 'chatto.api.v1.VoiceCallService/CreateCallToken', {
     roomId
   });
 }
@@ -157,7 +157,7 @@ test.describe('Voice calls', () => {
 
     await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
 
-    const token = await getCallTokenViaConnect(page, roomId);
+    const token = await createCallTokenViaConnect(page, roomId);
     expect(token.token).toBeTruthy();
     expect(token.e2eeKey).toBeTruthy();
     expect(token.callId).toBeTruthy();
@@ -182,7 +182,7 @@ test.describe('Voice calls', () => {
     await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
       const response = await connectPostResponse(
         page2,
-        'chatto.api.v1.VoiceCallService/GetCallToken',
+        'chatto.api.v1.VoiceCallService/CreateCallToken',
         { roomId }
       );
       expect(response.ok()).toBe(false);

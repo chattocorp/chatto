@@ -195,9 +195,9 @@ Response from recording a join intent.
 | `joined` | `bool` | True when a join fact was recorded. |
 
 
-<a id="chatto-api-v1-VoiceCallService-GetCallToken"></a>
+<a id="chatto-api-v1-VoiceCallService-CreateCallToken"></a>
 
-### GetCallToken
+### CreateCallToken
 
 Issues a LiveKit token for joining the room's active call.
 
@@ -207,12 +207,12 @@ caller is not a room member, and FAILED_PRECONDITION when no call is active
 or voice and video calls are not configured.
 
 ```http
-POST /api/connect/chatto.api.v1.VoiceCallService/GetCallToken
+POST /api/connect/chatto.api.v1.VoiceCallService/CreateCallToken
 ```
 
-<a id="chatto-api-v1-GetCallTokenRequest"></a>
+<a id="chatto-api-v1-CreateCallTokenRequest"></a>
 
-#### Input: GetCallTokenRequest
+#### Input: CreateCallTokenRequest
 
 Request for a LiveKit token for a room call.
 
@@ -221,9 +221,9 @@ Request for a LiveKit token for a room call.
 | `room_id` | `string` | Required. Room whose active call should be joined. |
 
 
-<a id="chatto-api-v1-GetCallTokenResponse"></a>
+<a id="chatto-api-v1-CreateCallTokenResponse"></a>
 
-#### Result: GetCallTokenResponse
+#### Result: CreateCallTokenResponse
 
 LiveKit token details for joining a room call.
 

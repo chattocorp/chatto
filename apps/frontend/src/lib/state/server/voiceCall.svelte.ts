@@ -395,8 +395,8 @@ export class VoiceCallState {
       await this.#api.joinCall(roomId);
       joinIntentRecorded = true;
 
-      // Get token from server (pure query, no side effects)
-      const tokenResponse = await this.#api.getCallToken(roomId);
+      // Request a credential for the active call.
+      const tokenResponse = await this.#api.createCallToken(roomId);
       if (!tokenResponse) {
         throw new Error('Failed to get voice call token');
       }

@@ -652,7 +652,7 @@ func (x *JoinCallResponse) GetJoined() bool {
 }
 
 // Request for a LiveKit token for a room call.
-type GetCallTokenRequest struct {
+type CreateCallTokenRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Room whose active call should be joined.
 	RoomId        string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
@@ -660,20 +660,20 @@ type GetCallTokenRequest struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetCallTokenRequest) Reset() {
-	*x = GetCallTokenRequest{}
+func (x *CreateCallTokenRequest) Reset() {
+	*x = CreateCallTokenRequest{}
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetCallTokenRequest) String() string {
+func (x *CreateCallTokenRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetCallTokenRequest) ProtoMessage() {}
+func (*CreateCallTokenRequest) ProtoMessage() {}
 
-func (x *GetCallTokenRequest) ProtoReflect() protoreflect.Message {
+func (x *CreateCallTokenRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -685,12 +685,12 @@ func (x *GetCallTokenRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetCallTokenRequest.ProtoReflect.Descriptor instead.
-func (*GetCallTokenRequest) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateCallTokenRequest.ProtoReflect.Descriptor instead.
+func (*CreateCallTokenRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{12}
 }
 
-func (x *GetCallTokenRequest) GetRoomId() string {
+func (x *CreateCallTokenRequest) GetRoomId() string {
 	if x != nil {
 		return x.RoomId
 	}
@@ -698,7 +698,7 @@ func (x *GetCallTokenRequest) GetRoomId() string {
 }
 
 // LiveKit token details for joining a room call.
-type GetCallTokenResponse struct {
+type CreateCallTokenResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// LiveKit JWT token.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
@@ -710,20 +710,20 @@ type GetCallTokenResponse struct {
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *GetCallTokenResponse) Reset() {
-	*x = GetCallTokenResponse{}
+func (x *CreateCallTokenResponse) Reset() {
+	*x = CreateCallTokenResponse{}
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *GetCallTokenResponse) String() string {
+func (x *CreateCallTokenResponse) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*GetCallTokenResponse) ProtoMessage() {}
+func (*CreateCallTokenResponse) ProtoMessage() {}
 
-func (x *GetCallTokenResponse) ProtoReflect() protoreflect.Message {
+func (x *CreateCallTokenResponse) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -735,26 +735,26 @@ func (x *GetCallTokenResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use GetCallTokenResponse.ProtoReflect.Descriptor instead.
-func (*GetCallTokenResponse) Descriptor() ([]byte, []int) {
+// Deprecated: Use CreateCallTokenResponse.ProtoReflect.Descriptor instead.
+func (*CreateCallTokenResponse) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *GetCallTokenResponse) GetToken() string {
+func (x *CreateCallTokenResponse) GetToken() string {
 	if x != nil {
 		return x.Token
 	}
 	return ""
 }
 
-func (x *GetCallTokenResponse) GetE2EeKey() string {
+func (x *CreateCallTokenResponse) GetE2EeKey() string {
 	if x != nil {
 		return x.E2EeKey
 	}
 	return ""
 }
 
-func (x *GetCallTokenResponse) GetCallId() string {
+func (x *CreateCallTokenResponse) GetCallId() string {
 	if x != nil {
 		return x.CallId
 	}
@@ -1005,10 +1005,10 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x0fJoinCallRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"*\n" +
 	"\x10JoinCallResponse\x12\x16\n" +
-	"\x06joined\x18\x01 \x01(\bR\x06joined\"7\n" +
-	"\x13GetCallTokenRequest\x12 \n" +
-	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"`\n" +
-	"\x14GetCallTokenResponse\x12\x14\n" +
+	"\x06joined\x18\x01 \x01(\bR\x06joined\":\n" +
+	"\x16CreateCallTokenRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"c\n" +
+	"\x17CreateCallTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
 	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
 	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x8f\x01\n" +
@@ -1026,14 +1026,14 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x04left\x18\x01 \x01(\bR\x04left*m\n" +
 	"\x16CallMediaPublisherKind\x12)\n" +
 	"%CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED\x10\x00\x12(\n" +
-	"$CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE\x10\x012\xb2\x06\n" +
+	"$CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE\x10\x012\xbb\x06\n" +
 	"\x10VoiceCallService\x12`\n" +
 	"\x0fListActiveCalls\x12%.chatto.api.v1.ListActiveCallsRequest\x1a&.chatto.api.v1.ListActiveCallsResponse\x12Z\n" +
 	"\rGetActiveCall\x12#.chatto.api.v1.GetActiveCallRequest\x1a$.chatto.api.v1.GetActiveCallResponse\x12l\n" +
 	"\x13BatchGetActiveCalls\x12).chatto.api.v1.BatchGetActiveCallsRequest\x1a*.chatto.api.v1.BatchGetActiveCallsResponse\x12o\n" +
 	"\x14ListCallParticipants\x12*.chatto.api.v1.ListCallParticipantsRequest\x1a+.chatto.api.v1.ListCallParticipantsResponse\x12K\n" +
-	"\bJoinCall\x12\x1e.chatto.api.v1.JoinCallRequest\x1a\x1f.chatto.api.v1.JoinCallResponse\x12W\n" +
-	"\fGetCallToken\x12\".chatto.api.v1.GetCallTokenRequest\x1a#.chatto.api.v1.GetCallTokenResponse\x12\x8a\x01\n" +
+	"\bJoinCall\x12\x1e.chatto.api.v1.JoinCallRequest\x1a\x1f.chatto.api.v1.JoinCallResponse\x12`\n" +
+	"\x0fCreateCallToken\x12%.chatto.api.v1.CreateCallTokenRequest\x1a&.chatto.api.v1.CreateCallTokenResponse\x12\x8a\x01\n" +
 	"\x1dCreateCallMediaPublisherToken\x123.chatto.api.v1.CreateCallMediaPublisherTokenRequest\x1a4.chatto.api.v1.CreateCallMediaPublisherTokenResponse\x12N\n" +
 	"\tLeaveCall\x12\x1f.chatto.api.v1.LeaveCallRequest\x1a .chatto.api.v1.LeaveCallResponseB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fVoiceCallsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -1066,8 +1066,8 @@ var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
 	(*CallParticipant)(nil),                       // 10: chatto.api.v1.CallParticipant
 	(*JoinCallRequest)(nil),                       // 11: chatto.api.v1.JoinCallRequest
 	(*JoinCallResponse)(nil),                      // 12: chatto.api.v1.JoinCallResponse
-	(*GetCallTokenRequest)(nil),                   // 13: chatto.api.v1.GetCallTokenRequest
-	(*GetCallTokenResponse)(nil),                  // 14: chatto.api.v1.GetCallTokenResponse
+	(*CreateCallTokenRequest)(nil),                // 13: chatto.api.v1.CreateCallTokenRequest
+	(*CreateCallTokenResponse)(nil),               // 14: chatto.api.v1.CreateCallTokenResponse
 	(*CreateCallMediaPublisherTokenRequest)(nil),  // 15: chatto.api.v1.CreateCallMediaPublisherTokenRequest
 	(*CreateCallMediaPublisherTokenResponse)(nil), // 16: chatto.api.v1.CreateCallMediaPublisherTokenResponse
 	(*LeaveCallRequest)(nil),                      // 17: chatto.api.v1.LeaveCallRequest
@@ -1091,7 +1091,7 @@ var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
 	6,  // 11: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
 	8,  // 12: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
 	11, // 13: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
-	13, // 14: chatto.api.v1.VoiceCallService.GetCallToken:input_type -> chatto.api.v1.GetCallTokenRequest
+	13, // 14: chatto.api.v1.VoiceCallService.CreateCallToken:input_type -> chatto.api.v1.CreateCallTokenRequest
 	15, // 15: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:input_type -> chatto.api.v1.CreateCallMediaPublisherTokenRequest
 	17, // 16: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
 	2,  // 17: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
@@ -1099,7 +1099,7 @@ var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
 	7,  // 19: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
 	9,  // 20: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
 	12, // 21: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
-	14, // 22: chatto.api.v1.VoiceCallService.GetCallToken:output_type -> chatto.api.v1.GetCallTokenResponse
+	14, // 22: chatto.api.v1.VoiceCallService.CreateCallToken:output_type -> chatto.api.v1.CreateCallTokenResponse
 	16, // 23: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:output_type -> chatto.api.v1.CreateCallMediaPublisherTokenResponse
 	18, // 24: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
 	17, // [17:25] is the sub-list for method output_type

@@ -2345,10 +2345,10 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if len(disabledBatch.Msg.GetCalls()) != 0 {
 		t.Fatalf("disabled BatchGetActiveCalls calls = %+v, want none", disabledBatch.Msg.GetCalls())
 	}
-	if _, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
+	if _, err := env.voice.CreateCallToken(ctx, connect.NewRequest(&apiv1.CreateCallTokenRequest{
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("disabled GetCallToken code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("disabled CreateCallToken code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 
 	env.api.config.LiveKit = config.LiveKitConfig{
@@ -2438,14 +2438,14 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		t.Fatalf("participants = %+v, want viewer participant with call metadata", participants)
 	}
 
-	tokenResp, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
+	tokenResp, err := env.voice.CreateCallToken(ctx, connect.NewRequest(&apiv1.CreateCallTokenRequest{
 		RoomId: room.Id,
 	}))
 	if err != nil {
-		t.Fatalf("GetCallToken: %v", err)
+		t.Fatalf("CreateCallToken: %v", err)
 	}
 	if tokenResp.Msg.GetToken() == "" || tokenResp.Msg.GetE2EeKey() == "" || tokenResp.Msg.GetCallId() != participants[0].GetCallId() {
-		t.Fatalf("GetCallToken response = %+v, want token/e2ee key/call id", tokenResp.Msg)
+		t.Fatalf("CreateCallToken response = %+v, want token/e2ee key/call id", tokenResp.Msg)
 	}
 	publisherResp, err := env.voice.CreateCallMediaPublisherToken(ctx, connect.NewRequest(&apiv1.CreateCallMediaPublisherTokenRequest{
 		RoomId: room.Id,
@@ -2481,10 +2481,10 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("GetActiveCall after leave code = %v, want not_found", connect.CodeOf(err))
 	}
-	if _, err := env.voice.GetCallToken(ctx, connect.NewRequest(&apiv1.GetCallTokenRequest{
+	if _, err := env.voice.CreateCallToken(ctx, connect.NewRequest(&apiv1.CreateCallTokenRequest{
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
-		t.Fatalf("GetCallToken after leave code = %v, want failed_precondition", connect.CodeOf(err))
+		t.Fatalf("CreateCallToken after leave code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	if _, err := env.voice.CreateCallMediaPublisherToken(ctx, connect.NewRequest(&apiv1.CreateCallMediaPublisherTokenRequest{
 		RoomId: room.Id,
@@ -2624,10 +2624,10 @@ func TestVoiceCallServiceRoomRemovalClearsCallParticipant(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("GetActiveCall after removal code = %v, want not_found", connect.CodeOf(err))
 	}
-	if _, err := env.voice.GetCallToken(withCaller(env.ctx, target), connect.NewRequest(&apiv1.GetCallTokenRequest{
+	if _, err := env.voice.CreateCallToken(withCaller(env.ctx, target), connect.NewRequest(&apiv1.CreateCallTokenRequest{
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("removed member GetCallToken code = %v, want permission_denied", connect.CodeOf(err))
+		t.Fatalf("removed member CreateCallToken code = %v, want permission_denied", connect.CodeOf(err))
 	}
 }
 

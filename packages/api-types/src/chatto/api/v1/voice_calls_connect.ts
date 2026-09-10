@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, CreateCallMediaPublisherTokenRequest, CreateCallMediaPublisherTokenResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallsRequest, ListActiveCallsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
+import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, CreateCallMediaPublisherTokenRequest, CreateCallMediaPublisherTokenResponse, CreateCallTokenRequest, CreateCallTokenResponse, GetActiveCallRequest, GetActiveCallResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallsRequest, ListActiveCallsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -96,12 +96,12 @@ export const VoiceCallService = {
      * caller is not a room member, and FAILED_PRECONDITION when no call is active
      * or voice and video calls are not configured.
      *
-     * @generated from rpc chatto.api.v1.VoiceCallService.GetCallToken
+     * @generated from rpc chatto.api.v1.VoiceCallService.CreateCallToken
      */
-    getCallToken: {
-      name: "GetCallToken",
-      I: GetCallTokenRequest,
-      O: GetCallTokenResponse,
+    createCallToken: {
+      name: "CreateCallToken",
+      I: CreateCallTokenRequest,
+      O: CreateCallTokenResponse,
       kind: MethodKind.Unary,
     },
     /**

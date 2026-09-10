@@ -402,6 +402,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ### Navigation and notifications
 
+- `VoiceCallService.GetCallToken` is now `CreateCallToken`, matching its purpose
+  of issuing a credential. Update clients and JSON request paths; token behavior
+  is unchanged. See the [migration guide](/guides/integrations/api-compatibility/#call-token-creation-in-05).
+
 - Sidebar move and reorder requests now use an explicit room or sidebar-link
   ID instead of a kind/ID pair. See the [migration guide](/guides/integrations/api-compatibility/#sidebar-item-references-in-05).
 

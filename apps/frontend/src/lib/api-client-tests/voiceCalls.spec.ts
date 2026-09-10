@@ -5,7 +5,7 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   joinCall: vi.fn(),
-  getCallToken: vi.fn(),
+  createCallToken: vi.fn(),
   createCallMediaPublisherToken: vi.fn(),
   leaveCall: vi.fn()
 }));
@@ -27,13 +27,13 @@ describe('createVoiceCallAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.joinCall.mockReset();
-    mocks.getCallToken.mockReset();
+    mocks.createCallToken.mockReset();
     mocks.createCallMediaPublisherToken.mockReset();
     mocks.leaveCall.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       joinCall: mocks.joinCall,
-      getCallToken: mocks.getCallToken,
+      createCallToken: mocks.createCallToken,
       createCallMediaPublisherToken: mocks.createCallMediaPublisherToken,
       leaveCall: mocks.leaveCall
     });
@@ -42,7 +42,7 @@ describe('createVoiceCallAPI', () => {
   it('maps call commands without auth headers', async () => {
     mocks.joinCall.mockResolvedValue({ joined: true });
     mocks.leaveCall.mockResolvedValue({ left: true });
-    mocks.getCallToken.mockResolvedValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
+    mocks.createCallToken.mockResolvedValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
     mocks.createCallMediaPublisherToken.mockResolvedValue({
       token: 'publisher-jwt',
       e2eeKey: 'key',
@@ -52,7 +52,7 @@ describe('createVoiceCallAPI', () => {
     const api = createVoiceCallAPI({ baseUrl: '/api/connect', bearerToken: null });
 
     await expect(api.joinCall('room-1')).resolves.toBe(true);
-    await expect(api.getCallToken('room-1')).resolves.toEqual({
+    await expect(api.createCallToken('room-1')).resolves.toEqual({
       token: 'jwt',
       e2eeKey: 'key',
       callId: 'call-1'
@@ -65,7 +65,7 @@ describe('createVoiceCallAPI', () => {
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
     expect(mocks.joinCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.getCallToken).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
+    expect(mocks.createCallToken).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
     expect(mocks.leaveCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
   });
 });

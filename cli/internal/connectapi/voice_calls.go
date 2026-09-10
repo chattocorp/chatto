@@ -137,7 +137,7 @@ func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[ap
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
 }
 
-func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Request[apiv1.GetCallTokenRequest]) (*connect.Response[apiv1.GetCallTokenResponse], error) {
+func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Request[apiv1.CreateCallTokenRequest]) (*connect.Response[apiv1.CreateCallTokenResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -180,7 +180,7 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.GetCallTokenResponse{
+	return connect.NewResponse(&apiv1.CreateCallTokenResponse{
 		Token:   token.Token,
 		E2EeKey: token.E2EEKey,
 		CallId:  token.CallID,

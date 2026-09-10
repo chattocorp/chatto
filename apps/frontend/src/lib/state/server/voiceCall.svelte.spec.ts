@@ -241,7 +241,7 @@ vi.mock('livekit-client/e2ee-worker?worker', () => ({
 function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCallAPI {
   return {
     joinCall: vi.fn(async () => true),
-    getCallToken: vi.fn(async () => ({
+    createCallToken: vi.fn(async () => ({
       token: 'livekit-token',
       e2eeKey: 'shared-e2ee-key',
       callId: 'call-1'
@@ -411,7 +411,7 @@ describe('VoiceCallState', () => {
     );
 
     expect(client.joinCall).not.toHaveBeenCalled();
-    expect(client.getCallToken).not.toHaveBeenCalled();
+    expect(client.createCallToken).not.toHaveBeenCalled();
     expect(state.isInAnyCall).toBe(false);
     expect(soundMocks.playCallSound).not.toHaveBeenCalled();
   });
@@ -434,7 +434,7 @@ describe('VoiceCallState', () => {
     ]);
 
     expect(client.joinCall).toHaveBeenCalledTimes(1);
-    expect(client.getCallToken).toHaveBeenCalledTimes(1);
+    expect(client.createCallToken).toHaveBeenCalledTimes(1);
     expect(calls.filter((call) => call === 'connect')).toHaveLength(1);
   });
 

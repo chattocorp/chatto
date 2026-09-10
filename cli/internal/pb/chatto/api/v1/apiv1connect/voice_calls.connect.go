@@ -48,9 +48,9 @@ const (
 	// VoiceCallServiceJoinCallProcedure is the fully-qualified name of the VoiceCallService's JoinCall
 	// RPC.
 	VoiceCallServiceJoinCallProcedure = "/chatto.api.v1.VoiceCallService/JoinCall"
-	// VoiceCallServiceGetCallTokenProcedure is the fully-qualified name of the VoiceCallService's
-	// GetCallToken RPC.
-	VoiceCallServiceGetCallTokenProcedure = "/chatto.api.v1.VoiceCallService/GetCallToken"
+	// VoiceCallServiceCreateCallTokenProcedure is the fully-qualified name of the VoiceCallService's
+	// CreateCallToken RPC.
+	VoiceCallServiceCreateCallTokenProcedure = "/chatto.api.v1.VoiceCallService/CreateCallToken"
 	// VoiceCallServiceCreateCallMediaPublisherTokenProcedure is the fully-qualified name of the
 	// VoiceCallService's CreateCallMediaPublisherToken RPC.
 	VoiceCallServiceCreateCallMediaPublisherTokenProcedure = "/chatto.api.v1.VoiceCallService/CreateCallMediaPublisherToken"
@@ -96,7 +96,7 @@ type VoiceCallServiceClient interface {
 	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
 	// or voice and video calls are not configured.
-	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
+	CreateCallToken(context.Context, *connect.Request[v1.CreateCallTokenRequest]) (*connect.Response[v1.CreateCallTokenResponse], error)
 	// Issues a short-lived LiveKit token for a native companion publisher owned
 	// by the caller. Companion publishers contribute media to the caller's
 	// logical participant without becoming call participants themselves.
@@ -152,10 +152,10 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(voiceCallServiceMethods.ByName("JoinCall")),
 			connect.WithClientOptions(opts...),
 		),
-		getCallToken: connect.NewClient[v1.GetCallTokenRequest, v1.GetCallTokenResponse](
+		createCallToken: connect.NewClient[v1.CreateCallTokenRequest, v1.CreateCallTokenResponse](
 			httpClient,
-			baseURL+VoiceCallServiceGetCallTokenProcedure,
-			connect.WithSchema(voiceCallServiceMethods.ByName("GetCallToken")),
+			baseURL+VoiceCallServiceCreateCallTokenProcedure,
+			connect.WithSchema(voiceCallServiceMethods.ByName("CreateCallToken")),
 			connect.WithClientOptions(opts...),
 		),
 		createCallMediaPublisherToken: connect.NewClient[v1.CreateCallMediaPublisherTokenRequest, v1.CreateCallMediaPublisherTokenResponse](
@@ -180,7 +180,7 @@ type voiceCallServiceClient struct {
 	batchGetActiveCalls           *connect.Client[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse]
 	listCallParticipants          *connect.Client[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse]
 	joinCall                      *connect.Client[v1.JoinCallRequest, v1.JoinCallResponse]
-	getCallToken                  *connect.Client[v1.GetCallTokenRequest, v1.GetCallTokenResponse]
+	createCallToken               *connect.Client[v1.CreateCallTokenRequest, v1.CreateCallTokenResponse]
 	createCallMediaPublisherToken *connect.Client[v1.CreateCallMediaPublisherTokenRequest, v1.CreateCallMediaPublisherTokenResponse]
 	leaveCall                     *connect.Client[v1.LeaveCallRequest, v1.LeaveCallResponse]
 }
@@ -210,9 +210,9 @@ func (c *voiceCallServiceClient) JoinCall(ctx context.Context, req *connect.Requ
 	return c.joinCall.CallUnary(ctx, req)
 }
 
-// GetCallToken calls chatto.api.v1.VoiceCallService.GetCallToken.
-func (c *voiceCallServiceClient) GetCallToken(ctx context.Context, req *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error) {
-	return c.getCallToken.CallUnary(ctx, req)
+// CreateCallToken calls chatto.api.v1.VoiceCallService.CreateCallToken.
+func (c *voiceCallServiceClient) CreateCallToken(ctx context.Context, req *connect.Request[v1.CreateCallTokenRequest]) (*connect.Response[v1.CreateCallTokenResponse], error) {
+	return c.createCallToken.CallUnary(ctx, req)
 }
 
 // CreateCallMediaPublisherToken calls chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken.
@@ -262,7 +262,7 @@ type VoiceCallServiceHandler interface {
 	// Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
 	// or voice and video calls are not configured.
-	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
+	CreateCallToken(context.Context, *connect.Request[v1.CreateCallTokenRequest]) (*connect.Response[v1.CreateCallTokenResponse], error)
 	// Issues a short-lived LiveKit token for a native companion publisher owned
 	// by the caller. Companion publishers contribute media to the caller's
 	// logical participant without becoming call participants themselves.
@@ -314,10 +314,10 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 		connect.WithSchema(voiceCallServiceMethods.ByName("JoinCall")),
 		connect.WithHandlerOptions(opts...),
 	)
-	voiceCallServiceGetCallTokenHandler := connect.NewUnaryHandler(
-		VoiceCallServiceGetCallTokenProcedure,
-		svc.GetCallToken,
-		connect.WithSchema(voiceCallServiceMethods.ByName("GetCallToken")),
+	voiceCallServiceCreateCallTokenHandler := connect.NewUnaryHandler(
+		VoiceCallServiceCreateCallTokenProcedure,
+		svc.CreateCallToken,
+		connect.WithSchema(voiceCallServiceMethods.ByName("CreateCallToken")),
 		connect.WithHandlerOptions(opts...),
 	)
 	voiceCallServiceCreateCallMediaPublisherTokenHandler := connect.NewUnaryHandler(
@@ -344,8 +344,8 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 			voiceCallServiceListCallParticipantsHandler.ServeHTTP(w, r)
 		case VoiceCallServiceJoinCallProcedure:
 			voiceCallServiceJoinCallHandler.ServeHTTP(w, r)
-		case VoiceCallServiceGetCallTokenProcedure:
-			voiceCallServiceGetCallTokenHandler.ServeHTTP(w, r)
+		case VoiceCallServiceCreateCallTokenProcedure:
+			voiceCallServiceCreateCallTokenHandler.ServeHTTP(w, r)
 		case VoiceCallServiceCreateCallMediaPublisherTokenProcedure:
 			voiceCallServiceCreateCallMediaPublisherTokenHandler.ServeHTTP(w, r)
 		case VoiceCallServiceLeaveCallProcedure:
@@ -379,8 +379,8 @@ func (UnimplementedVoiceCallServiceHandler) JoinCall(context.Context, *connect.R
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.JoinCall is not implemented"))
 }
 
-func (UnimplementedVoiceCallServiceHandler) GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.GetCallToken is not implemented"))
+func (UnimplementedVoiceCallServiceHandler) CreateCallToken(context.Context, *connect.Request[v1.CreateCallTokenRequest]) (*connect.Response[v1.CreateCallTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.CreateCallToken is not implemented"))
 }
 
 func (UnimplementedVoiceCallServiceHandler) CreateCallMediaPublisherToken(context.Context, *connect.Request[v1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[v1.CreateCallMediaPublisherTokenResponse], error) {

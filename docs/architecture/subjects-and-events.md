@@ -462,7 +462,7 @@ Listing failures increment the shared
 end projected calls only after three consecutive failed elected reconciliation
 cycles. A successful elected pass deletes the counter.
 
-`VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
+`VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `CreateCallToken`, and
 `ListCallParticipants` expose the active call ID to integrations and command
 flows. The bundled frontend receives complete authorized active-call state
 with semantic call events and infers one-shot join, leave, and end presentation
