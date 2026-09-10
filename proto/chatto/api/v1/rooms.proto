@@ -301,13 +301,14 @@ message RoomBan {
 message ListBansRequest {
   // Optional channel room filter. Empty lists active bans across all rooms.
   string room_id = 1;
-  // Page request. Defaults are applied when absent or limit is zero.
+  // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 2;
 }
 
 // Active room bans visible to the current moderator.
 message ListBansResponse {
-  // Active bans, newest first.
+  // Active bans by creation time, newest first; equal times use ban event ID
+  // in ascending order.
   repeated RoomBan bans = 1;
   // Page metadata.
   PageInfo page = 2;
@@ -322,7 +323,7 @@ message ListRoomAttachmentsRequest {
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
   // Thumbnail URL options. Defaults are applied when absent.
   ImageTransformOptions thumbnail = 4;
-  // Page request. Defaults are applied when absent or limit is zero.
+  // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 5;
 }
 
@@ -347,7 +348,7 @@ message PinnedMessage {
 message ListPinnedMessagesRequest {
   // Required channel room ID.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Page request. Defaults are applied when absent or limit is zero.
+  // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 2;
 }
 

@@ -74,7 +74,7 @@ message ListFollowedThreadsRequest {
   reserved 1, 2;
   reserved "limit", "offset";
 
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Defaults to 20 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 3;
   // Include followed direct-message threads. Defaults to false so older
   // clients retain the channel-only result shape.

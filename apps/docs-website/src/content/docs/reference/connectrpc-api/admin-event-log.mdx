@@ -38,7 +38,7 @@ Request to list durable EVT entries newest-first.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum entries to return. The server clamps this to its diagnostic limit. |
+| `limit` | `int32` | Maximum entries. Zero uses 50; values above 200 use 200. |
 | `before` | `optional string` | Exclusive sequence cursor. Returned entries are older than this sequence. |
 | `filter` | [`AdminEventLogFilter`](/reference/connectrpc-api/types/#chatto-admin-v1-AdminEventLogFilter) | Optional filter. Filtered scans inspect a bounded window per request. |
 

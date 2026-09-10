@@ -8,14 +8,16 @@ import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 
 /**
  * Offset-based page request for list RPCs whose result order is stable enough
- * for simple list browsing.
+ * for simple list browsing. Pages are live reads, not a fixed snapshot. Changes
+ * between requests can shift offsets.
  *
  * @generated from message chatto.api.v1.PageRequest
  */
 export class PageRequest extends Message<PageRequest> {
   /**
    * Maximum number of items to request. Each RPC defines its default and
-   * effective maximum; this shared request shape accepts values up to 500.
+   * effective maximum. Valid values above that maximum are capped. This shared
+   * shape rejects values above 500 or below zero. Zero uses the RPC default.
    *
    * @generated from field: int32 limit = 1;
    */

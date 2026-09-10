@@ -328,7 +328,7 @@ export class FollowedThread extends Message<FollowedThread> {
  */
 export class ListFollowedThreadsRequest extends Message<ListFollowedThreadsRequest> {
   /**
-   * Page request. Defaults to 20 results when absent or limit is zero.
+   * Defaults to 20 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 3;
    */

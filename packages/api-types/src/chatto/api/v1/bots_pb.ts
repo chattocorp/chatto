@@ -295,7 +295,7 @@ export class ListBotsRequest extends Message<ListBotsRequest> {
   search = "";
 
   /**
-   * Page request. Defaults to 20 results when absent or limit is zero.
+   * Defaults to 20 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 2;
    */
@@ -337,7 +337,7 @@ export class ListBotsRequest extends Message<ListBotsRequest> {
  */
 export class ListBotsResponse extends Message<ListBotsResponse> {
   /**
-   * Visible bots.
+   * Visible bots by case-insensitive login, then user ID, in ascending order.
    *
    * @generated from field: repeated chatto.api.v1.Bot bots = 1;
    */

@@ -165,7 +165,7 @@ message NotificationOccurrence {
 
 // Request for one page of notification occurrences.
 message ListNotificationOccurrencesRequest {
-  // Page request. Defaults to 50 results when absent or limit is zero.
+  // Defaults to 50 results when absent or limit is zero. Maximum: 100.
   PageRequest page = 1;
 }
 

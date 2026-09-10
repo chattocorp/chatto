@@ -9,13 +9,15 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 
 // Request for users visible to the authenticated user.
+// Results use creation time, oldest first. Users without a creation time
+// appear last, ordered by case-insensitive login.
 message ListUsersRequest {
   reserved 2, 3;
   reserved "limit", "offset";
 
   // Optional case-insensitive search against login and display name.
   string search = 1 [(buf.validate.field).string.max_len = 100];
-  // Page request. Defaults to 20 results when absent or limit is zero.
+  // Defaults to 20 results when absent or limit is zero. Maximum: 500.
   PageRequest page = 4;
 }
 

@@ -1644,7 +1644,7 @@ type ListBansRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional channel room filter. Empty lists active bans across all rooms.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Page request. Defaults are applied when absent or limit is zero.
+	// Defaults to 50 results when absent or limit is zero. Maximum: 100.
 	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1697,7 +1697,8 @@ func (x *ListBansRequest) GetPage() *PageRequest {
 // Active room bans visible to the current moderator.
 type ListBansResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Active bans, newest first.
+	// Active bans by creation time, newest first; equal times use ban event ID
+	// in ascending order.
 	Bans []*RoomBan `protobuf:"bytes,1,rep,name=bans,proto3" json:"bans,omitempty"`
 	// Page metadata.
 	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
@@ -1756,7 +1757,7 @@ type ListRoomAttachmentsRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Thumbnail URL options. Defaults are applied when absent.
 	Thumbnail *ImageTransformOptions `protobuf:"bytes,4,opt,name=thumbnail,proto3" json:"thumbnail,omitempty"`
-	// Page request. Defaults are applied when absent or limit is zero.
+	// Defaults to 50 results when absent or limit is zero. Maximum: 100.
 	Page          *PageRequest `protobuf:"bytes,5,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1919,7 +1920,7 @@ type ListPinnedMessagesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required channel room ID.
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
-	// Page request. Defaults are applied when absent or limit is zero.
+	// Defaults to 50 results when absent or limit is zero. Maximum: 100.
 	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -78,7 +78,7 @@ export class AdminEventLogFilter extends Message<AdminEventLogFilter> {
  */
 export class ListEventsRequest extends Message<ListEventsRequest> {
   /**
-   * Maximum entries to return. The server clamps this to its diagnostic limit.
+   * Maximum entries. Zero uses 50; values above 200 use 200.
    *
    * @generated from field: int32 limit = 1;
    */

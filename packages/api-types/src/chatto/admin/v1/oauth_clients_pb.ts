@@ -191,12 +191,13 @@ export class OAuthClient extends Message<OAuthClient> {
 
 /**
  * Lists OAuth clients with recorded authorizations using offset pagination.
+ * Results use first authorization order, oldest first.
  *
  * @generated from message chatto.admin.v1.ListOAuthClientsRequest
  */
 export class ListOAuthClientsRequest extends Message<ListOAuthClientsRequest> {
   /**
-   * Requested offset and page size.
+   * Defaults to 20 results when absent or limit is zero. Maximum: 100.
    *
    * @generated from field: chatto.api.v1.PageRequest page = 1;
    */

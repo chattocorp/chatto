@@ -19,7 +19,7 @@ message AdminEventLogFilter {
 
 // Request to list durable EVT entries newest-first.
 message ListEventsRequest {
-  // Maximum entries to return. The server clamps this to its diagnostic limit.
+  // Maximum entries. Zero uses 50; values above 200 use 200.
   int32 limit = 1 [(buf.validate.field).int32.gte = 0];
   // Exclusive sequence cursor. Returned entries are older than this sequence.
   optional string before = 2;

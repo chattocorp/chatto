@@ -49,11 +49,12 @@ Offset-based page metadata returned by list RPCs.
 ### PageRequest
 
 Offset-based page request for list RPCs whose result order is stable enough
-for simple list browsing.
+for simple list browsing. Pages are live reads, not a fixed snapshot. Changes
+between requests can shift offsets.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
+| `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum. Valid values above that maximum are capped. This shared shape rejects values above 500 or below zero. Zero uses the RPC default. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
 
 <a id="chatto-api-v1-Role"></a>
@@ -533,7 +534,7 @@ window.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in display order. |
+| `events` | repeated [`RoomTimelineEvent`](#chatto-api-v1-RoomTimelineEvent) | Events in chronological display order, oldest first. |
 | `start_cursor` | `string` | Opaque cursor for the first event in the page. |
 | `end_cursor` | `string` | Opaque cursor for the last event in the page. |
 | `has_older` | `bool` | True when older events are available before start_cursor. |

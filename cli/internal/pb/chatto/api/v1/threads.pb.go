@@ -374,7 +374,7 @@ func (x *FollowedThread) GetDirectMessageParticipantUserIds() []string {
 // Request for a page of followed threads for the current user.
 type ListFollowedThreadsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Page request. Defaults to 20 results when absent or limit is zero.
+	// Defaults to 20 results when absent or limit is zero. Maximum: 100.
 	Page *PageRequest `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	// Include followed direct-message threads. Defaults to false so older
 	// clients retain the channel-only result shape.
