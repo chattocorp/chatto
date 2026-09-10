@@ -3,6 +3,65 @@
 All notable changes to Chatto. Maintained by release-please from the
 conventional-commit messages on `main` — do not edit by hand.
 
+## [0.5.0-alpha.8](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.7...v0.5.0-alpha.8) (2026-09-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* **api:** bound permission reads by scope ([#2346](https://github.com/chattocorp/chatto/issues/2346))
+* **api:** paginate explicit role members ([#2344](https://github.com/chattocorp/chatto/issues/2344))
+* **api:** paginate the room directory ([#2341](https://github.com/chattocorp/chatto/issues/2341))
+* **api:** rename call token creation RPC ([#2335](https://github.com/chattocorp/chatto/issues/2335))
+* **api:** use explicit sidebar item references ([#2334](https://github.com/chattocorp/chatto/issues/2334))
+* **api:** align room and thread read-marker responses ([#2333](https://github.com/chattocorp/chatto/issues/2333))
+* **api:** use canonical thread follow response state ([#2332](https://github.com/chattocorp/chatto/issues/2332))
+* **api:** return empty responses for success-only commands ([#2331](https://github.com/chattocorp/chatto/issues/2331))
+* **api:** align protobuf type names and enforce lint ([#2330](https://github.com/chattocorp/chatto/issues/2330))
+* **api:** standardize resource updates on field masks ([#2329](https://github.com/chattocorp/chatto/issues/2329))
+* **api:** remove legacy notification policy RPCs ([#2327](https://github.com/chattocorp/chatto/issues/2327))
+
+### Features
+
+* **accounts:** manage room membership from permission matrices ([#2323](https://github.com/chattocorp/chatto/issues/2323)) ([49267a4](https://github.com/chattocorp/chatto/commit/49267a47ba0b2bab0f2a467beb337553c8e6b730))
+* add first-run web setup wizard ([#2339](https://github.com/chattocorp/chatto/issues/2339)) ([d88da95](https://github.com/chattocorp/chatto/commit/d88da95b234210ed42ac4f135a9cdc8da52bbce6))
+* **api:** add archive filters to room discovery ([#2328](https://github.com/chattocorp/chatto/issues/2328)) ([4026262](https://github.com/chattocorp/chatto/commit/402626251c7b897326372aef28928dd465c8538e))
+* **api:** add direct account settings read ([#2340](https://github.com/chattocorp/chatto/issues/2340)) ([898cb3d](https://github.com/chattocorp/chatto/commit/898cb3d99d127175beb33f125b61be44a1164053))
+* **api:** bound permission reads by scope ([#2346](https://github.com/chattocorp/chatto/issues/2346)) ([e743042](https://github.com/chattocorp/chatto/commit/e743042c8eaa0e9dfb550d7ef5ce3d1517e28a93))
+* **api:** expose complete relationships and read markers ([#2338](https://github.com/chattocorp/chatto/issues/2338)) ([c91b35a](https://github.com/chattocorp/chatto/commit/c91b35ae906bcaa354dcba7c654f337a20ec6fb2))
+* **api:** paginate explicit role members ([#2344](https://github.com/chattocorp/chatto/issues/2344)) ([c5f1809](https://github.com/chattocorp/chatto/commit/c5f1809b4683b5ed5343342038baf0295069ccc2))
+* **api:** paginate the room directory ([#2341](https://github.com/chattocorp/chatto/issues/2341)) ([581b887](https://github.com/chattocorp/chatto/commit/581b8876eb7bdc3e71e83ad847a2c20577d224f6))
+* **bots:** add outbound webhooks and retained operational logs ([#2312](https://github.com/chattocorp/chatto/issues/2312)) ([450826b](https://github.com/chattocorp/chatto/commit/450826bc228049a9003fd652633e1a67363cf51a))
+* **frontend:** add shared startup and page entrance animations ([#2345](https://github.com/chattocorp/chatto/issues/2345)) ([e252da1](https://github.com/chattocorp/chatto/commit/e252da15a3e47b859fcd3730b64ae7cce5938b19))
+* **webhooks:** support Grafana default payloads and room selection ([#2322](https://github.com/chattocorp/chatto/issues/2322)) ([aab82ec](https://github.com/chattocorp/chatto/commit/aab82ec46d068c39a012240cacd23839a55a738b))
+
+
+### Bug Fixes
+
+* **api:** return actionable errors for cooldowns and invalid permissions ([#2336](https://github.com/chattocorp/chatto/issues/2336)) ([91be5d2](https://github.com/chattocorp/chatto/commit/91be5d27e4e80d14b57b6f72855d97cb92da2d2d))
+* **api:** stabilize ban pagination and document page contracts ([#2337](https://github.com/chattocorp/chatto/issues/2337)) ([f2d2061](https://github.com/chattocorp/chatto/commit/f2d2061e7866bdae83d0bcd25112f6f3e747b2a7))
+* **assets:** increase upload chunks to 10 MiB ([#2313](https://github.com/chattocorp/chatto/issues/2313)) ([76148aa](https://github.com/chattocorp/chatto/commit/76148aa7bdc69a5d0963a3b18ccd59c3db531196))
+* **auth:** decouple bot permission ceilings from privilege arming ([#2321](https://github.com/chattocorp/chatto/issues/2321)) ([f6e1a32](https://github.com/chattocorp/chatto/commit/f6e1a3263c743e3aac704581f3fda78cb7bcb38c))
+* **events:** identify and clean up projection consumers ([#2317](https://github.com/chattocorp/chatto/issues/2317)) ([ab5c834](https://github.com/chattocorp/chatto/commit/ab5c83487cda63c492dcc6cee2e781c5b19fa972))
+* **frontend:** distinguish loading message authors from deleted users ([#2325](https://github.com/chattocorp/chatto/issues/2325)) ([0ce210e](https://github.com/chattocorp/chatto/commit/0ce210e5bf23ef794b1f86dc638c1bddc97519ed))
+* **frontend:** gate moderation on effective ban permission ([#2316](https://github.com/chattocorp/chatto/issues/2316)) ([9f33cbc](https://github.com/chattocorp/chatto/commit/9f33cbc964debf39d1a94f2dd5c3bdb3cd90105e))
+* **frontend:** remove room sidebar skeletons ([#2348](https://github.com/chattocorp/chatto/issues/2348)) ([3831d8e](https://github.com/chattocorp/chatto/commit/3831d8e5ff48621e573b0a8da5e8a7c3220e9388))
+* **frontend:** restore room group header hover behaviour ([#2318](https://github.com/chattocorp/chatto/issues/2318)) ([8fdd8d7](https://github.com/chattocorp/chatto/commit/8fdd8d75cdf0223743a5b69917e4a050b1c36fc6))
+* **frontend:** smooth initial page transition ([#2350](https://github.com/chattocorp/chatto/issues/2350)) ([08dad42](https://github.com/chattocorp/chatto/commit/08dad4226a8ebd0f455fb9833194088617c5c87f))
+* **runling:** deliver one final reply from validated agent outcomes ([#2320](https://github.com/chattocorp/chatto/issues/2320)) ([58ec39b](https://github.com/chattocorp/chatto/commit/58ec39bf33b41ebc543e8e1b7dd1763d4761a937))
+* **tooling:** configure pnpm 11 and use Node LTS ([#2310](https://github.com/chattocorp/chatto/issues/2310)) ([fd127dd](https://github.com/chattocorp/chatto/commit/fd127ddf99aeec70c4c17890a36253a48551f1d7))
+
+
+### Code Refactoring
+
+* **api:** align protobuf type names and enforce lint ([#2330](https://github.com/chattocorp/chatto/issues/2330)) ([55d1b31](https://github.com/chattocorp/chatto/commit/55d1b3174d90fe78e2a9c8f64fecd6559d8049d9))
+* **api:** align room and thread read-marker responses ([#2333](https://github.com/chattocorp/chatto/issues/2333)) ([fd307e6](https://github.com/chattocorp/chatto/commit/fd307e64ab901de57af1b3b6a4149ba668c62b9a))
+* **api:** remove legacy notification policy RPCs ([#2327](https://github.com/chattocorp/chatto/issues/2327)) ([005d614](https://github.com/chattocorp/chatto/commit/005d614e4aec33ccf6b2ad39a3f0e98219894885))
+* **api:** rename call token creation RPC ([#2335](https://github.com/chattocorp/chatto/issues/2335)) ([b776da8](https://github.com/chattocorp/chatto/commit/b776da80b8e39037fac2ae4ac5c31b0ef4fdedb5))
+* **api:** return empty responses for success-only commands ([#2331](https://github.com/chattocorp/chatto/issues/2331)) ([09d2d24](https://github.com/chattocorp/chatto/commit/09d2d2478235d66762335c8fdca1a892f6ce088b))
+* **api:** standardize resource updates on field masks ([#2329](https://github.com/chattocorp/chatto/issues/2329)) ([fbd0607](https://github.com/chattocorp/chatto/commit/fbd060726e1c281be87ee1c8fe842b253645cf0a))
+* **api:** use canonical thread follow response state ([#2332](https://github.com/chattocorp/chatto/issues/2332)) ([3aee7ca](https://github.com/chattocorp/chatto/commit/3aee7ca822f73686117dd3928e936238b598011e))
+* **api:** use explicit sidebar item references ([#2334](https://github.com/chattocorp/chatto/issues/2334)) ([324bd4c](https://github.com/chattocorp/chatto/commit/324bd4c70273966b641ec94f25a2f46367aa2ffc))
+
 ## [0.5.0-alpha.7](https://github.com/chattocorp/chatto/compare/v0.5.0-alpha.6...v0.5.0-alpha.7) (2026-09-05)
 
 
