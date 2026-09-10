@@ -176,9 +176,17 @@ export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> 
   /**
    * Previous thread read timestamp, when one existed.
    *
-   * @generated from field: google.protobuf.Timestamp previous_read_at = 1;
+   * @generated from field: google.protobuf.Timestamp previous_last_read_at = 1;
    */
-  previousReadAt?: Timestamp;
+  previousLastReadAt?: Timestamp;
+
+  /**
+   * Resulting thread read timestamp. A stale request retains the newer marker.
+   * Absent when no marker exists.
+   *
+   * @generated from field: google.protobuf.Timestamp last_read_at = 2;
+   */
+  lastReadAt?: Timestamp;
 
   constructor(data?: PartialMessage<MarkThreadAsReadResponse>) {
     super();
@@ -188,7 +196,8 @@ export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> 
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.MarkThreadAsReadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "previous_read_at", kind: "message", T: Timestamp },
+    { no: 1, name: "previous_last_read_at", kind: "message", T: Timestamp },
+    { no: 2, name: "last_read_at", kind: "message", T: Timestamp },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkThreadAsReadResponse {

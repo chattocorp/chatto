@@ -13,7 +13,8 @@ export type MarkRoomAsReadResult = {
 };
 
 export type MarkThreadAsReadResult = {
-  previousReadAt: string | null;
+  lastReadAt: string | null;
+  previousLastReadAt: string | null;
 };
 
 export function createReadStateAPI(config: ConnectAPIConfig) {
@@ -69,7 +70,8 @@ export function createReadStateAPI(config: ConnectAPIConfig) {
           }
         );
         return {
-          previousReadAt: response.previousReadAt?.toDate().toISOString() ?? null
+          lastReadAt: response.lastReadAt?.toDate().toISOString() ?? null,
+          previousLastReadAt: response.previousLastReadAt?.toDate().toISOString() ?? null
         };
       } catch (err) {
         return handleAuthError(config, err);

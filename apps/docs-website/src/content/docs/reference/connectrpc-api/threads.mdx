@@ -255,4 +255,5 @@ Result of marking a message thread as read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `previous_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+| `previous_last_read_at` | `google.protobuf.Timestamp` | Previous thread read timestamp, when one existed. |
+| `last_read_at` | `google.protobuf.Timestamp` | Resulting thread read timestamp. A stale request retains the newer marker. Absent when no marker exists. |

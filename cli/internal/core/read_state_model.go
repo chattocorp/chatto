@@ -17,7 +17,10 @@ type MarkRoomAsReadResult struct {
 // MarkThreadAsReadResult describes the timestamp response for a thread-level
 // read marker update.
 type MarkThreadAsReadResult struct {
-	PreviousReadAt time.Time
+	// LastReadAt is the retained marker after this operation. Zero means no marker.
+	LastReadAt time.Time
+	// PreviousLastReadAt is the marker observed by the successful advance decision.
+	PreviousLastReadAt time.Time
 }
 
 // ReadState returns the operation-level model for user-facing read marker
@@ -167,7 +170,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		}
 	}
 
-	previousReadAt, err := s.core.SetThreadLastReadEventID(ctx, kind, actorID, room.Id, threadRootEventID, markerEventID)
+	result, err := s.core.advanceThreadLastReadEventID(ctx, kind, actorID, room.Id, threadRootEventID, markerEventID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +180,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		}
 		s.core.NotifyNotificationUnreadStateChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
 	}
-	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
+	return result, nil
 }
 
 func (s *ReadStateModel) roomReadAnchor(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {

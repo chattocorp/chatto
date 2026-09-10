@@ -41,8 +41,11 @@ func (s *threadService) MarkThreadAsRead(ctx context.Context, req *connect.Reque
 	}
 
 	resp := &apiv1.MarkThreadAsReadResponse{}
-	if !result.PreviousReadAt.IsZero() {
-		resp.PreviousReadAt = timestamppb.New(result.PreviousReadAt)
+	if !result.LastReadAt.IsZero() {
+		resp.LastReadAt = timestamppb.New(result.LastReadAt)
+	}
+	if !result.PreviousLastReadAt.IsZero() {
+		resp.PreviousLastReadAt = timestamppb.New(result.PreviousLastReadAt)
 	}
 	return connect.NewResponse(resp), nil
 }
