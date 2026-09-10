@@ -214,6 +214,81 @@ export class ChangePasswordResponse extends Message<ChangePasswordResponse> {
 }
 
 /**
+ * Request the authenticated user's display preferences. Human and bot accounts
+ * use the same operation; no target account ID is accepted.
+ *
+ * @generated from message chatto.api.v1.GetSettingsRequest
+ */
+export class GetSettingsRequest extends Message<GetSettingsRequest> {
+  constructor(data?: PartialMessage<GetSettingsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetSettingsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSettingsRequest {
+    return new GetSettingsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSettingsRequest {
+    return new GetSettingsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSettingsRequest {
+    return new GetSettingsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSettingsRequest | PlainMessage<GetSettingsRequest> | undefined, b: GetSettingsRequest | PlainMessage<GetSettingsRequest> | undefined): boolean {
+    return proto3.util.equals(GetSettingsRequest, a, b);
+  }
+}
+
+/**
+ * Current display preferences, with defaults for settings not yet saved.
+ *
+ * @generated from message chatto.api.v1.GetSettingsResponse
+ */
+export class GetSettingsResponse extends Message<GetSettingsResponse> {
+  /**
+   * The same settings resource returned by UpdateSettings and GetViewer.
+   *
+   * @generated from field: chatto.api.v1.UserSettings settings = 1;
+   */
+  settings?: UserSettings;
+
+  constructor(data?: PartialMessage<GetSettingsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetSettingsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "settings", kind: "message", T: UserSettings },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetSettingsResponse {
+    return new GetSettingsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetSettingsResponse {
+    return new GetSettingsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetSettingsResponse {
+    return new GetSettingsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetSettingsResponse | PlainMessage<GetSettingsResponse> | undefined, b: GetSettingsResponse | PlainMessage<GetSettingsResponse> | undefined): boolean {
+    return proto3.util.equals(GetSettingsResponse, a, b);
+  }
+}
+
+/**
  * Request to patch the authenticated user's display preferences. update_mask
  * selects fields to apply or reset. Resetting timezone clears the override.
  *

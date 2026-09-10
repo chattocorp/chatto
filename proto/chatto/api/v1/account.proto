@@ -57,6 +57,16 @@ message ChangePasswordResponse {
   User user = 1;
 }
 
+// Request the authenticated user's display preferences. Human and bot accounts
+// use the same operation; no target account ID is accepted.
+message GetSettingsRequest {}
+
+// Current display preferences, with defaults for settings not yet saved.
+message GetSettingsResponse {
+  // The same settings resource returned by UpdateSettings and GetViewer.
+  UserSettings settings = 1;
+}
+
 // Request to patch the authenticated user's display preferences. update_mask
 // selects fields to apply or reset. Resetting timezone clears the override.
 message UpdateSettingsRequest {
@@ -109,6 +119,9 @@ service MyAccountService {
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // Reads the authenticated user's display preferences without changing them.
+  // Returns default settings when none have been saved.
+  rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);
   // Updates the authenticated user's display preferences.
   rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
   // Lists configured external identity providers and identities linked to the

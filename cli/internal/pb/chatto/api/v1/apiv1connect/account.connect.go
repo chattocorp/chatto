@@ -39,6 +39,9 @@ const (
 	// MyAccountServiceChangePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// ChangePassword RPC.
 	MyAccountServiceChangePasswordProcedure = "/chatto.api.v1.MyAccountService/ChangePassword"
+	// MyAccountServiceGetSettingsProcedure is the fully-qualified name of the MyAccountService's
+	// GetSettings RPC.
+	MyAccountServiceGetSettingsProcedure = "/chatto.api.v1.MyAccountService/GetSettings"
 	// MyAccountServiceUpdateSettingsProcedure is the fully-qualified name of the MyAccountService's
 	// UpdateSettings RPC.
 	MyAccountServiceUpdateSettingsProcedure = "/chatto.api.v1.MyAccountService/UpdateSettings"
@@ -74,6 +77,9 @@ type MyAccountServiceClient interface {
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// Reads the authenticated user's display preferences without changing them.
+	// Returns default settings when none have been saved.
+	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
@@ -124,6 +130,12 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MyAccountServiceChangePasswordProcedure,
 			connect.WithSchema(myAccountServiceMethods.ByName("ChangePassword")),
+			connect.WithClientOptions(opts...),
+		),
+		getSettings: connect.NewClient[v1.GetSettingsRequest, v1.GetSettingsResponse](
+			httpClient,
+			baseURL+MyAccountServiceGetSettingsProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("GetSettings")),
 			connect.WithClientOptions(opts...),
 		),
 		updateSettings: connect.NewClient[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse](
@@ -188,6 +200,7 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type myAccountServiceClient struct {
 	updateProfile              *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	getSettings                *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
 	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
 	startExternalIdentityLink  *connect.Client[v1.StartExternalIdentityLinkRequest, v1.StartExternalIdentityLinkResponse]
@@ -207,6 +220,11 @@ func (c *myAccountServiceClient) UpdateProfile(ctx context.Context, req *connect
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
 func (c *myAccountServiceClient) ChangePassword(ctx context.Context, req *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return c.changePassword.CallUnary(ctx, req)
+}
+
+// GetSettings calls chatto.api.v1.MyAccountService.GetSettings.
+func (c *myAccountServiceClient) GetSettings(ctx context.Context, req *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error) {
+	return c.getSettings.CallUnary(ctx, req)
 }
 
 // UpdateSettings calls chatto.api.v1.MyAccountService.UpdateSettings.
@@ -260,6 +278,9 @@ type MyAccountServiceHandler interface {
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// Reads the authenticated user's display preferences without changing them.
+	// Returns default settings when none have been saved.
+	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
 	// Updates the authenticated user's display preferences.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
@@ -306,6 +327,12 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceChangePasswordProcedure,
 		svc.ChangePassword,
 		connect.WithSchema(myAccountServiceMethods.ByName("ChangePassword")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceGetSettingsHandler := connect.NewUnaryHandler(
+		MyAccountServiceGetSettingsProcedure,
+		svc.GetSettings,
+		connect.WithSchema(myAccountServiceMethods.ByName("GetSettings")),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceUpdateSettingsHandler := connect.NewUnaryHandler(
@@ -369,6 +396,8 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceUpdateProfileHandler.ServeHTTP(w, r)
 		case MyAccountServiceChangePasswordProcedure:
 			myAccountServiceChangePasswordHandler.ServeHTTP(w, r)
+		case MyAccountServiceGetSettingsProcedure:
+			myAccountServiceGetSettingsHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdateSettingsProcedure:
 			myAccountServiceUpdateSettingsHandler.ServeHTTP(w, r)
 		case MyAccountServiceListExternalIdentitiesProcedure:
@@ -402,6 +431,10 @@ func (UnimplementedMyAccountServiceHandler) UpdateProfile(context.Context, *conn
 
 func (UnimplementedMyAccountServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ChangePassword is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.GetSettings is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
