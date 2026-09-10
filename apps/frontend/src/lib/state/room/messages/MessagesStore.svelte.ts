@@ -161,8 +161,8 @@ export class MessagesStore {
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
-  #needsLatestWindowRestore = false;
-  #latestWindowLoadId: number | null = null;
+  /** True when the retained room window is historical or its latest read failed. */
+  #needsLatestWindow = false;
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
 
@@ -422,7 +422,7 @@ export class MessagesStore {
     this.selectRoom(roomId);
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
-    this.#needsLatestWindowRestore = false;
+    this.#needsLatestWindow = false;
     // Reset already purged the pre-prefix state. Preserve writes ingested
     // after that reset: the snapshot page was captured before those writes
     // and its later arrival must not erase read-your-writes.
@@ -439,12 +439,13 @@ export class MessagesStore {
     if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
   }
 
-  /** Restore a historical room window after crossing a route boundary. */
+  /** Load the latest room window at a route boundary when retained data needs it. */
   restoreLatestWindow(): Promise<boolean> {
     if (this.scope !== 'room') return Promise.resolve(false);
     this.cancelPendingHistoricalJump();
-    if (this.#latestWindowLoadId !== null) return Promise.resolve(false);
-    if (!this.#needsLatestWindowRestore) return Promise.resolve(false);
+    if (this.#pendingAuthoritativeLoadId !== null || !this.#needsLatestWindow) {
+      return Promise.resolve(false);
+    }
     return this.resetAndFetchLatest();
   }
 
@@ -459,7 +460,7 @@ export class MessagesStore {
     for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
     this.events = source.sort(projected);
     this.seenIds = new SvelteSet(projected.map((event) => event.id));
-    this.#needsLatestWindowRestore = false;
+    this.#needsLatestWindow = false;
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = !connection.hasOlder;
@@ -753,7 +754,7 @@ export class MessagesStore {
       }
 
       if (!page.hasNewer) jumpState.hasReachedEnd = true;
-      if (!page.hasNewer) this.#needsLatestWindowRestore = false;
+      if (!page.hasNewer) this.#needsLatestWindow = false;
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
@@ -809,7 +810,7 @@ export class MessagesStore {
       this.oldestCursor = startCursor ?? undefined;
       this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
-      this.#needsLatestWindowRestore = hasNewer;
+      this.#needsLatestWindow = hasNewer;
 
       // Only enter jumped mode when newer messages exist beyond this window.
       jumpState.isJumpedMode = hasNewer;
@@ -1173,8 +1174,7 @@ export class MessagesStore {
   private resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
-    this.#needsLatestWindowRestore = false;
-    this.#latestWindowLoadId = null;
+    this.#needsLatestWindow = false;
     this.previewEvents.clear();
     this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
@@ -1364,20 +1364,15 @@ export class MessagesStore {
     );
   }
 
-  private resetAndFetchLatest(): Promise<boolean> {
+  private async resetAndFetchLatest(): Promise<boolean> {
     const source = this.source;
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
-    this.#latestWindowLoadId = thisLoad;
     this.isInitialLoading = true;
-    return this.fetchCurrent(thisLoad).then((loaded) => {
-      if (this.source === source && this.#latestWindowLoadId === thisLoad) {
-        this.#needsLatestWindowRestore = !loaded;
-        this.#latestWindowLoadId = null;
-      }
-      return loaded;
-    });
+    const loaded = await this.fetchCurrent(thisLoad);
+    if (this.source === source && !this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
+    return loaded;
   }
 
   private async fetchCurrent(

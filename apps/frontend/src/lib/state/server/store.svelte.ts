@@ -480,7 +480,7 @@ export class ServerStateStore {
     return store;
   }
 
-  /** Restore a retained historical window when a route crosses this room's boundary. */
+  /** Load the latest room window at a route boundary when retained data needs it. */
   restoreProjectedRoomWindow(roomId: string): void {
     const messages = this.messagesForRoom(roomId);
     void messages.restoreLatestWindow();
