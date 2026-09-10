@@ -43,6 +43,9 @@ Discovery is also the right place for custom clients to learn public server iden
 | User-authorized client       | OAuth authorization code with PKCE, then a renewable opaque bearer session.                                     |
 | Local recovery automation    | Operator socket, not user auth.                                                                                 |
 
+For client metadata, PKCE, callback validation, and code exchange, follow
+[Authorize a Human User](/guides/integrations/human-oauth/).
+
 Human bearer sessions return a short-lived access token, a rotating refresh
 credential, and both lifetimes. Send only the access token to ConnectRPC and
 realtime. Rotate through `/oauth/token` with `grant_type=refresh_token`, the

@@ -1,0 +1,207 @@
+---
+title: Authorize a Human User
+description: Connect an independent browser client to Chatto with a client metadata document and OAuth authorization code with PKCE.
+---
+
+Use this flow when a person authorizes your app to act as their Chatto account.
+For unattended work, use a [bot account](/guides/integrations/bot-accounts/).
+This example targets the ordinary ConnectRPC API. For an MCP client, use the
+[MCP authorization guide](/guides/integrations/mcp/#authenticate-an-agent-host).
+
+## Publish Your Client Identity
+
+Serve this Client ID Metadata Document (CIMD) at
+`https://client.example.com/oauth/client-metadata.json`:
+
+```json
+{
+  "client_id": "https://client.example.com/oauth/client-metadata.json",
+  "client_name": "Example Chat Client",
+  "client_uri": "https://client.example.com",
+  "application_type": "web",
+  "redirect_uris": ["https://client.example.com/oauth/callback"],
+  "token_endpoint_auth_method": "none",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"]
+}
+```
+
+Replace the example client origin with your own. The document URL is your
+`client_id`; you do not obtain a client secret. The `client_id` inside the
+JSON must exactly match that URL. `client_uri` must share its origin.
+
+Chatto fetches the document without authentication. Serve HTTP 200 with
+`Content-Type: application/json`, at most 5 KiB, over public HTTPS. The URL
+must have a non-root path and no query or fragment. Chatto does not follow
+redirects or fetch private network addresses on a public deployment.
+The callback must exactly match a listed `redirect_uris` entry.
+A server operator can block your client even if its metadata is valid.
+
+Host your app's callback page at that URL. It must load in the same browser tab
+and origin as the page that starts this example. Process the callback before
+loading third-party content; use `Referrer-Policy: no-referrer` and exclude
+callback query strings from access logs and analytics.
+
+## Discover the Server and Start Authorization
+
+The example uses `https://chat.example.com` as the chosen Chatto origin.
+Fetch `/.well-known/oauth-authorization-server` there and check its issuer
+before using its endpoints. Chatto's issuer is its configured public origin;
+if you connected through an alias, choose the canonical origin explicitly.
+
+Save the following as a browser module used by both your sign-in page and
+callback page. Call `beginAuthorization()` from your sign-in button.
+Web Crypto requires a secure browser context.
+
+```js
+const issuer = 'https://chat.example.com';
+const clientId = 'https://client.example.com/oauth/client-metadata.json';
+const redirectUri = 'https://client.example.com/oauth/callback';
+const pendingKey = 'chatto-oauth-pending';
+
+function base64url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
+
+async function discover() {
+  const response = await fetch(`${issuer}/.well-known/oauth-authorization-server`, {
+    credentials: 'omit', redirect: 'error'
+  });
+  if (!response.ok) throw new Error('Chatto discovery failed');
+  const metadata = await response.json();
+  if (metadata.issuer !== issuer ||
+      metadata.client_id_metadata_document_supported !== true ||
+      !metadata.code_challenge_methods_supported?.includes('S256')) {
+    throw new Error('Unsupported authorization server');
+  }
+  for (const key of ['authorization_endpoint', 'token_endpoint']) {
+    const endpoint = new URL(metadata[key]);
+    if (endpoint.origin !== issuer || endpoint.username || endpoint.password) {
+      throw new Error('Unexpected authorization endpoint');
+    }
+  }
+  return metadata;
+}
+
+export async function beginAuthorization() {
+  const metadata = await discover();
+  const state = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+  const challenge = base64url(new Uint8Array(digest));
+  sessionStorage.setItem(pendingKey, JSON.stringify({ state, verifier }));
+  const url = new URL(metadata.authorization_endpoint);
+  url.search = new URLSearchParams({
+    response_type: 'code', client_id: clientId, redirect_uri: redirectUri,
+    code_challenge: challenge, code_challenge_method: 'S256', state
+  }).toString();
+  location.assign(url.href);
+}
+```
+
+The verifier stays in your app; only its SHA-256 challenge goes to the
+authorization endpoint. Generate both values for each attempt as described by
+[PKCE](https://www.rfc-editor.org/rfc/rfc7636.html).
+This example allows one pending attempt per tab; starting again replaces it.
+
+Chatto handles sign-in and consent, then redirects to your callback with
+`code`, `state`, and `iss`, or with an OAuth error. Omit `scope` and
+`resource` for this ordinary API flow, including `scope=openid`: Chatto currently uses
+resource-and-scope grants for MCP, and this flow does not return an ID token.
+
+## Validate the Callback and Exchange the Code
+
+Add this function to the same module. On the callback page, call
+`finishAuthorization()` once and handle a rejected promise as a failed sign-in.
+The issuer check follows [OAuth issuer identification](https://www.rfc-editor.org/rfc/rfc9207.html).
+
+```js
+export async function finishAuthorization() {
+  const callback = new URL(location.href);
+  if (callback.origin + callback.pathname !== redirectUri) {
+    throw new Error('Unexpected callback location');
+  }
+  const raw = sessionStorage.getItem(pendingKey);
+  sessionStorage.removeItem(pendingKey);
+  history.replaceState(null, '', redirectUri);
+  const pending = raw ? JSON.parse(raw) : null;
+  const query = callback.searchParams;
+  if (!pending || query.getAll('state').length !== 1 ||
+      query.get('state') !== pending.state ||
+      query.getAll('iss').length !== 1 || query.get('iss') !== issuer) {
+    throw new Error('Invalid authorization response');
+  }
+  if (query.has('error')) throw new Error('Authorization was not granted');
+  if (query.getAll('code').length !== 1 || !query.get('code')) {
+    throw new Error('Missing authorization code');
+  }
+  const metadata = await discover();
+  const response = await fetch(metadata.token_endpoint, {
+    method: 'POST', credentials: 'omit', redirect: 'error',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'authorization_code', code: query.get('code'),
+      code_verifier: pending.verifier, client_id: clientId,
+      redirect_uri: redirectUri
+    })
+  });
+  if (!response.ok) throw new Error('Code exchange failed; start sign-in again');
+  const session = await response.json();
+  if (session.token_type !== 'Bearer' ||
+      typeof session.access_token !== 'string' || !session.access_token ||
+      typeof session.refresh_token !== 'string' || !session.refresh_token ||
+      !Number.isFinite(session.expires_in) || session.expires_in <= 0 ||
+      !Number.isFinite(session.refresh_token_expires_in) || session.refresh_token_expires_in <= 0) {
+    throw new Error('Invalid token response');
+  }
+  return session;
+}
+```
+
+Use the same `client_id` and exact `redirect_uri` in both requests. The code is
+short-lived and can be exchanged only once. If the exchange fails or its
+response is lost, start a new authorization attempt. Do not log codes,
+verifiers, tokens, or full callback URLs.
+
+Chatto permits browser requests to discovery and the token endpoint without a
+cookie session. Its token response uses ordinary OAuth JSON, with numeric
+`expires_in` and `refresh_token_expires_in` values in seconds; these are not
+ProtoJSON integer fields.
+
+## Call the API and Renew Access
+
+For example, in your callback page's module after importing the functions:
+
+```js
+const session = await finishAuthorization();
+const response = await fetch(
+  'https://chat.example.com/api/connect/chatto.api.v1.MyAccountService/GetSettings',
+  {
+    method: 'POST', credentials: 'omit', redirect: 'error',
+    headers: {
+      Authorization: `Bearer ${session.access_token}`,
+      'Content-Type': 'application/json',
+      'Connect-Protocol-Version': '1'
+    },
+    body: '{}'
+  }
+);
+if (!response.ok) throw new Error('Settings request failed');
+const { settings } = await response.json();
+```
+
+The access token is opaque, not a JWT. The account's current permissions still
+limit API calls. Keep tokens out of URLs and logs, and choose a credential
+storage policy suitable for your app. This example keeps the returned session
+in memory; it does not implement session persistence or automatic renewal.
+
+Before access expires, use the refresh flow described under
+[Authentication Choices](/guides/integrations/chatto-api/#authentication-choices).
+Save each rotated credential pair together and serialize refresh requests.
+An `invalid_grant` response requires a new sign-in.
+
+For a native app, use a metadata document with `application_type: "native"`
+and a registered callback suitable for that app. Literal loopback IP callbacks
+can vary their port; named `localhost` callbacks require their registered port.
+The browser storage and navigation code above is for a web client.
