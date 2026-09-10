@@ -80,8 +80,7 @@ type PermissionMatrixCell struct {
 }
 
 type RolePermissionMatrix struct {
-	Page PermissionScopePage
-
+	Page                  PermissionScopePage
 	RoleName              string
 	ApplicablePermissions []string
 	Scopes                []PermissionMatrixScope
@@ -89,8 +88,7 @@ type RolePermissionMatrix struct {
 }
 
 type UserPermissionMatrix struct {
-	Page PermissionScopePage
-
+	Page                  PermissionScopePage
 	UserID                string
 	ApplicablePermissions []string
 	Scopes                []PermissionMatrixScope
@@ -179,22 +177,30 @@ func (c *ChattoCore) GetRolePermissionMatrix(ctx context.Context, actorID, roleN
 	return c.GetRolePermissionMatrixIncludingDM(ctx, actorID, roleName, false)
 }
 
-// GetRolePermissionMatrixIncludingDM returns a bounded scope page after authorization.
-// An omitted query uses 20 scopes. IncludeDM adds the direct-message scope.
-func (c *ChattoCore) GetRolePermissionMatrixIncludingDM(ctx context.Context, actorID, roleName string, includeDM bool, pages ...PermissionScopeQuery) (*RolePermissionMatrix, error) {
+// GetRolePermissionMatrixIncludingDM returns the first scope page, optionally including DMs.
+func (c *ChattoCore) GetRolePermissionMatrixIncludingDM(ctx context.Context, actorID, roleName string, includeDM bool) (*RolePermissionMatrix, error) {
+	return c.GetRolePermissionMatrixPage(ctx, actorID, roleName, includeDM, PermissionScopeQuery{})
+}
+
+// GetRolePermissionMatrixPage authorizes and evaluates one bounded scope page.
+func (c *ChattoCore) GetRolePermissionMatrixPage(ctx context.Context, actorID, roleName string, includeDM bool, query PermissionScopeQuery) (*RolePermissionMatrix, error) {
 	if err := c.requireCanManageAdminRoles(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildRolePermissionMatrix(ctx, roleName, includeDM, firstPermissionScopeQuery(pages))
+	return c.buildRolePermissionMatrix(ctx, roleName, includeDM, query)
 }
 
 func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userID string) (*UserPermissionMatrix, error) {
 	return c.GetUserPermissionMatrixIncludingDM(ctx, actorID, userID, false)
 }
 
-// GetUserPermissionMatrixIncludingDM returns a bounded scope page after authorization.
-// An omitted query uses 20 scopes. IncludeDM adds the direct-message scope.
-func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, actorID, userID string, includeDM bool, pages ...PermissionScopeQuery) (*UserPermissionMatrix, error) {
+// GetUserPermissionMatrixIncludingDM returns the first scope page, optionally including DMs.
+func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, actorID, userID string, includeDM bool) (*UserPermissionMatrix, error) {
+	return c.GetUserPermissionMatrixPage(ctx, actorID, userID, includeDM, PermissionScopeQuery{})
+}
+
+// GetUserPermissionMatrixPage authorizes and evaluates one bounded scope page.
+func (c *ChattoCore) GetUserPermissionMatrixPage(ctx context.Context, actorID, userID string, includeDM bool, query PermissionScopeQuery) (*UserPermissionMatrix, error) {
 	if actorID == "" {
 		return nil, ErrNotAuthenticated
 	}
@@ -210,7 +216,7 @@ func (c *ChattoCore) GetUserPermissionMatrixIncludingDM(ctx context.Context, act
 	} else if err := c.requireCanManageUserPermissionTarget(ctx, actorID); err != nil {
 		return nil, err
 	}
-	return c.buildUserPermissionMatrix(ctx, actorID, user, includeDM, firstPermissionScopeQuery(pages))
+	return c.buildUserPermissionMatrix(ctx, actorID, user, includeDM, query)
 }
 
 func (c *ChattoCore) SetRolePermissionState(ctx context.Context, actorID, roleName string, scope PermissionTargetScope, perm Permission, state PermissionState) error {

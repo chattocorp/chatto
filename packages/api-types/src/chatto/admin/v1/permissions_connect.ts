@@ -8,8 +8,9 @@ import { MethodKind } from "@bufbuild/protobuf";
 
 /**
  * Provides permission reads and admin permission writes.
- * Matrix and decision pages use the same scope order: SERVER, DM, GROUP, ROOM,
- * then ascending resource ID within each kind. Only requested scopes are evaluated.
+ * Matrix and decision pages use the same scope order: SERVER, DM, then each GROUP
+ * followed by its ROOM scopes. Groups and rooms within each group use ascending
+ * resource IDs. Only requested scopes are evaluated.
  * Pages are live reads; layout or visibility changes can shift offsets. Keep the
  * same filters on each request and advance by the number of returned scopes.
  * A scope filter of DM selects DM even when include_direct_message_scope is false.

@@ -142,7 +142,9 @@ test.describe('Server Roles Management', () => {
   test('permission matrix loads scope pages at the horizontal edge', async ({ serverRolesPage }) => {
     const { page } = serverRolesPage;
     const server = await usePrimaryServerViaAPI(page);
-    const groupId = await getDefaultRoomGroupId(page);
+    const otherGroup = await connectPost<{ group: { id: string } }>(page,
+      'chatto.admin.v1.AdminRoomLayoutService/CreateRoomGroup', { name: 'Other scope group' });
+    const groupId = [await getDefaultRoomGroupId(page), otherGroup.group.id].sort()[0];
     for (let i = 0; i < 24; i++) await createRoomViaConnect(page, `paged-permissions-${i}`, groupId);
     const offsets: number[] = [];
     const errors: string[] = [];
@@ -158,10 +160,13 @@ test.describe('Server Roles Management', () => {
     await expect(page.getByRole('heading', { name: 'Edit Role' })).toBeVisible();
     const viewport = page.locator('.data-table-viewport').filter({ has: page.locator('th[data-scope]') });
     await expect(viewport.locator('th[data-scope]')).toHaveCount(20);
+    const initialColumns = await viewport.locator('th[data-scope]').evaluateAll(heads => heads.map(head => head.getAttribute('data-scope')));
     await viewport.hover();
     await page.mouse.wheel(3000, 0);
     await expect.poll(() => offsets.includes(20)).toBe(true);
     await expect.poll(() => viewport.locator('th[data-scope]').count()).toBeGreaterThan(20);
+    const allColumns = await viewport.locator('th[data-scope]').evaluateAll(heads => heads.map(head => head.getAttribute('data-scope')));
+    expect(allColumns.slice(0, initialColumns.length)).toEqual(initialColumns);
     expect(errors).toEqual([]);
   });
 

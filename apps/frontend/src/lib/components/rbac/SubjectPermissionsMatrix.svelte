@@ -99,8 +99,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   // ----- Column layout ----------------------------------------------------
 
   // Order columns: server first, then each group followed by its rooms.
-  // Backend returns server, then all groups, then all rooms — we re-order
-  // here so rooms nest visually under their parent group.
+  // The API uses this order too, so new pages append columns. Keep grouping
+  // here for local fixtures and callers that supply an unordered matrix.
   const orderedScopes = $derived.by<MatrixScope[]>(() => {
     const server = data.scopes.filter((s) => s.kind === 'SERVER');
     const dm = data.scopes.filter((s) => s.kind === 'DM');

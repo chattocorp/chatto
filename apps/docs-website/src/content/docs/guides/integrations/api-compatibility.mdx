@@ -91,8 +91,8 @@ Read scope counts from response `page`. Advance `offset` by the number of
 returned scopes, not by the number of decisions. Matrix scopes are in
 `matrix.scopes`; decision-list scopes are in `scopes`, including scopes without
 applicable decisions. Repeat with the same filters while `page.hasMore` is true.
-Order is server, direct messages, groups, then rooms, with ascending resource
-IDs within each kind. Pages are live reads; concurrent changes can shift offsets.
+Order is server, direct messages, then each group followed by its rooms. Groups
+and rooms within each group use ascending resource IDs. Pages are live reads; concurrent changes can shift offsets.
 Deduplicate by scope and permission when combining pages.
 
 To inspect only one room, add

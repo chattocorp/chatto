@@ -49,7 +49,7 @@ func (s *permissionService) GetRolePermissionMatrix(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	matrix, err := s.api.core.GetRolePermissionMatrixIncludingDM(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
+	matrix, err := s.api.core.GetRolePermissionMatrixPage(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -65,7 +65,7 @@ func (s *permissionService) ListRolePermissionDecisions(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	matrix, err := s.api.core.GetRolePermissionMatrixIncludingDM(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
+	matrix, err := s.api.core.GetRolePermissionMatrixPage(ctx, caller.UserID, req.Msg.GetRoleName(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -86,7 +86,7 @@ func (s *permissionService) GetUserPermissionMatrix(ctx context.Context, req *co
 	if err != nil {
 		return nil, err
 	}
-	matrix, err := s.api.core.GetUserPermissionMatrixIncludingDM(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
+	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -102,7 +102,7 @@ func (s *permissionService) ListUserPermissionDecisions(ctx context.Context, req
 	if err != nil {
 		return nil, err
 	}
-	matrix, err := s.api.core.GetUserPermissionMatrixIncludingDM(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
+	matrix, err := s.api.core.GetUserPermissionMatrixPage(ctx, caller.UserID, req.Msg.GetUserId(), req.Msg.GetIncludeDirectMessageScope(), query)
 	if err != nil {
 		return nil, connectError(err)
 	}

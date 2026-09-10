@@ -1,12 +1,13 @@
 package connectapi
 
 import (
-	"connectrpc.com/connect"
 	"fmt"
+	"testing"
+
+	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
-	"testing"
 )
 
 func TestPermissionScopePagesAndInheritance(t *testing.T) {
@@ -94,5 +95,4 @@ func TestPermissionScopePagesAndInheritance(t *testing.T) {
 	if connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("revoked reader code=%v", connect.CodeOf(err))
 	}
-
 }

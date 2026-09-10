@@ -688,7 +688,7 @@ func (x *PermissionMatrixCell) GetAllowPermitted() bool {
 	return false
 }
 
-// Permission matrix for one role for one page of scopes.
+// Permission matrix for one role within a scope page.
 type RolePermissionMatrix struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Role name.
@@ -891,7 +891,7 @@ func (x *GetRolePermissionMatrixResponse) GetPage() *v1.PageInfo {
 	return nil
 }
 
-// Permission matrix for one user for one page of scopes.
+// Permission matrix for one user within a scope page.
 type UserPermissionMatrix struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// User ID.

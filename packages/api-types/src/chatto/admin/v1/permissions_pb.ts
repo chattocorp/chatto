@@ -584,7 +584,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
 }
 
 /**
- * Permission matrix for one role for one page of scopes.
+ * Permission matrix for one role within a scope page.
  *
  * @generated from message chatto.admin.v1.RolePermissionMatrix
  */
@@ -765,7 +765,7 @@ export class GetRolePermissionMatrixResponse extends Message<GetRolePermissionMa
 }
 
 /**
- * Permission matrix for one user for one page of scopes.
+ * Permission matrix for one user within a scope page.
  *
  * @generated from message chatto.admin.v1.UserPermissionMatrix
  */

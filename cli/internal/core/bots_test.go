@@ -1264,7 +1264,7 @@ func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryG
 	if err != nil {
 		t.Fatalf("GetUserPermissionMatrix: %v", err)
 	}
-	filtered, err := c.GetUserPermissionMatrixIncludingDM(ctx, owner.GetId(), bot.User.GetId(), false, PermissionScopeQuery{
+	filtered, err := c.GetUserPermissionMatrixPage(ctx, owner.GetId(), bot.User.GetId(), false, PermissionScopeQuery{
 		Scope: &PermissionTargetScope{Kind: MatrixScopeRoom, ID: room.GetId()},
 	})
 	if err != nil {

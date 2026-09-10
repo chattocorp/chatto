@@ -19,18 +19,11 @@ type PermissionScopePage struct {
 	HasMore    bool
 }
 
-func firstPermissionScopeQuery(queries []PermissionScopeQuery) PermissionScopeQuery {
-	if len(queries) == 0 {
-		return PermissionScopeQuery{}
-	}
-	return queries[0]
-}
-
 func (q PermissionScopeQuery) includesDM() bool {
 	return q.Scope != nil && q.Scope.Kind == MatrixScopeDM
 }
 
-// selectPermissionScopes uses stable kind/ID ordering. Enumeration can still
+// selectPermissionScopes uses stable group/room ID ordering. Enumeration can still
 // scale with the directory; permission evaluation and result size are bounded.
 func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQuery) ([]PermissionMatrixScope, PermissionScopePage, error) {
 	if q.Limit < 0 || q.Offset < 0 {
@@ -68,23 +61,36 @@ func selectPermissionScopes(scopes []PermissionMatrixScope, q PermissionScopeQue
 		}
 		scopes = filtered
 	}
+	// Keep each group beside its rooms so appending pages never reorders
+	// already rendered columns in a grouped matrix.
 	rank := func(kind MatrixScopeKind) int {
 		switch kind {
 		case MatrixScopeServer:
 			return 0
 		case MatrixScopeDM:
 			return 1
-		case MatrixScopeGroup:
-			return 2
 		default:
-			return 3
+			return 2
 		}
 	}
-	sort.Slice(scopes, func(i, j int) bool {
-		if scopes[i].Kind != scopes[j].Kind {
-			return rank(scopes[i].Kind) < rank(scopes[j].Kind)
+	groupID := func(scope PermissionMatrixScope) string {
+		if scope.Kind == MatrixScopeGroup {
+			return scopeRefID(scope.ID, "group:")
 		}
-		return scopes[i].ID < scopes[j].ID
+		return scope.ParentGroupID
+	}
+	sort.Slice(scopes, func(i, j int) bool {
+		a, b := scopes[i], scopes[j]
+		if rank(a.Kind) != rank(b.Kind) {
+			return rank(a.Kind) < rank(b.Kind)
+		}
+		if groupID(a) != groupID(b) {
+			return groupID(a) < groupID(b)
+		}
+		if a.Kind != b.Kind {
+			return a.Kind == MatrixScopeGroup
+		}
+		return a.ID < b.ID
 	})
 	page := PermissionScopePage{TotalCount: len(scopes)}
 	if q.Offset >= len(scopes) {
