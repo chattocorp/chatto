@@ -383,7 +383,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       label={m('room.sidebar.resize')}
     />
   {/if}
-  <PaneHeader {title} {loading} skeletonButtons={0}>
+  <PaneHeader {title}>
     {#snippet actions()}
       {#if showMaximizeButton}
         <HeaderIconButton
@@ -458,35 +458,28 @@ calls, and similar room-specific panels can plug into the same shell. See the
         data-testid="room-member-list"
         aria-label={m('room.sidebar.members')}
       >
-        <nav aria-label={m('room.sidebar.members')}>
-          {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
-            <ul role="list" class="px-2">
-              {#each Array(8) as _, i (i)}
-                <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
-                  <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
-                  <div class="min-w-0 flex-1 space-y-1">
-                    <div class="skeleton h-3.5 w-24 rounded"></div>
-                    <div class="skeleton h-3 w-16 rounded"></div>
-                  </div>
-                </li>
+        <nav
+          aria-label={m('room.sidebar.members')}
+          aria-busy={(loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
+        >
+          {#if !((loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage)}
+            {#if members.length === 0}
+              <div class="px-2 py-8 text-center text-sm text-muted">
+                {m('room.sidebar.no_members')}
+              </div>
+            {:else}
+              {#each memberGroups as group (group.id)}
+                <RoomGroupSection
+                  label={group.label}
+                  items={group.items}
+                  item={memberRow}
+                  persistKey={group.persistKey}
+                  defaultCollapsed={group.defaultCollapsed}
+                  testid={group.testid}
+                  separated
+                />
               {/each}
-            </ul>
-          {:else if members.length === 0}
-            <div class="px-2 py-8 text-center text-sm text-muted">
-              {m('room.sidebar.no_members')}
-            </div>
-          {:else}
-            {#each memberGroups as group (group.id)}
-              <RoomGroupSection
-                label={group.label}
-                items={group.items}
-                item={memberRow}
-                persistKey={group.persistKey}
-                defaultCollapsed={group.defaultCollapsed}
-                testid={group.testid}
-                separated
-              />
-            {/each}
+            {/if}
           {/if}
         </nav>
       </ScrollFader>

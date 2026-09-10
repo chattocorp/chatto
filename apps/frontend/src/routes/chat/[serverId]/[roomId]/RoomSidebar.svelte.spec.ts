@@ -575,6 +575,23 @@ describe('RoomSidebar', () => {
     expect(attachmentMocks.listRoomAttachments).not.toHaveBeenCalled();
   });
 
+  it('keeps the member list clear while its first page loads', async () => {
+    memberDirectoryMocks.listRoomMembers.mockReturnValue(new Promise(() => {}));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        roomData: roomData([], 0, false)
+      }
+    });
+
+    await tick();
+    const memberList = q(container, 'nav[aria-label="Members"]');
+    expect(memberList?.getAttribute('aria-busy')).toBe('true');
+    expect(memberList?.querySelector('.skeleton')).toBeNull();
+    expect(memberList?.textContent).not.toContain('No members found.');
+    expect(q(container, 'h1')?.querySelector('.skeleton')).toBeNull();
+  });
+
   it('shows the exact total count and eagerly loads all member pages', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) => member(index + 1));
     const secondPage = Array.from({ length: 42 }, (_, index) => member(index + 101));
@@ -1938,6 +1955,23 @@ describe('RoomSidebar', () => {
       expect(container.textContent).toContain('No files in this room yet.');
     });
     expect(container.querySelector('[aria-label="Members"]')).toBeFalsy();
+  });
+
+  it('keeps the file list clear while its first page loads', async () => {
+    attachmentMocks.listRoomAttachments.mockReturnValue(new Promise(() => {}));
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'files',
+        roomData: roomData([member(1)], 1, false)
+      }
+    });
+
+    await tick();
+    const fileList = q(container, 'nav[aria-label="Files"]');
+    expect(fileList?.getAttribute('aria-busy')).toBe('true');
+    expect(fileList?.querySelector('.skeleton')).toBeNull();
+    expect(fileList?.textContent).not.toContain('No files in this room yet.');
   });
 
   it('keeps the files panel usable when attachment loading fails', async () => {

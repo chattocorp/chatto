@@ -169,45 +169,39 @@ Room-scoped file list for the room sidebar.
   </button>
 {/snippet}
 
-<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.files')}>
-  {#if loading}
-    <ul role="list" class="space-y-1 p-2">
-      {#each Array(8) as _, i (i)}
-        <li class="flex items-center gap-3 rounded-md px-2 py-2">
-          <div class="skeleton h-10 w-10 shrink-0 rounded-md"></div>
-          <div class="min-w-0 flex-1 space-y-1">
-            <div class="skeleton h-3.5 w-32 rounded"></div>
-            <div class="skeleton h-3 w-24 rounded"></div>
-          </div>
-        </li>
-      {/each}
-    </ul>
-  {:else if files.length === 0}
-    <div
-      class="flex min-h-32 flex-1 items-center justify-center px-4 text-center text-sm text-muted"
-    >
-      {m('room.sidebar.no_files')}
-    </div>
-  {:else}
-    {#each fileSections as section, i (section.id)}
-      <RoomGroupSection
-        label={section.label}
-        items={section.items}
-        item={fileRow}
-        persistKey={section.persistKey}
-        testid={section.testid}
-        separated={i > 0}
-      />
-    {/each}
-
-    {#if store.hasMore}
+<nav
+  class="flex min-h-0 flex-1 flex-col overflow-y-auto"
+  aria-label={m('room.sidebar.files')}
+  aria-busy={loading}
+>
+  {#if !loading}
+    {#if files.length === 0}
       <div
-        class="flex justify-center px-3 py-4 text-sm text-muted"
-        data-testid="room-files-load-more-sentinel"
-        {@attach loadMoreWhenVisible}
+        class="flex min-h-32 flex-1 items-center justify-center px-4 text-center text-sm text-muted"
       >
-        {store.isLoadingMore ? m('room.sidebar.loading_files') : ''}
+        {m('room.sidebar.no_files')}
       </div>
+    {:else}
+      {#each fileSections as section, i (section.id)}
+        <RoomGroupSection
+          label={section.label}
+          items={section.items}
+          item={fileRow}
+          persistKey={section.persistKey}
+          testid={section.testid}
+          separated={i > 0}
+        />
+      {/each}
+
+      {#if store.hasMore}
+        <div
+          class="flex justify-center px-3 py-4 text-sm text-muted"
+          data-testid="room-files-load-more-sentinel"
+          {@attach loadMoreWhenVisible}
+        >
+          {store.isLoadingMore ? m('room.sidebar.loading_files') : ''}
+        </div>
+      {/if}
     {/if}
   {/if}
 </nav>
