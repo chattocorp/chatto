@@ -20,6 +20,12 @@ describe('root layout origin loading', () => {
     loadCurrentUser.mockResolvedValue({ id: 'viewer' });
   });
 
+  it.each(['/', '/login', '/register', '/register/complete'])('routes %s to first-run setup', async (path) => {
+    getPublicServerInfo.mockResolvedValue({ name: 'New server', setupRequired: true });
+    loadCurrentUser.mockResolvedValue(null);
+    await expect(load({ url: new URL(path, 'https://chat.example') } as never)).rejects.toMatchObject({ status: 302, location: '/setup' });
+  });
+
   it('loads discovery and viewer state from an HTTP origin', async () => {
     const data = await load({ url: new URL('https://chat.example/welcome') } as never);
 

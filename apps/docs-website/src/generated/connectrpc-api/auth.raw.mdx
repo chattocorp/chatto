@@ -196,6 +196,46 @@ Response from capability-authenticated subscription cleanup.
 Success does not reveal whether a matching subscription existed.
 
 
+<a id="chatto-auth-v1-ServerSetupService"></a>
+
+## ServerSetupService
+
+Creates the first owner on a new server. No session or setup secret is required.
+
+<a id="chatto-auth-v1-ServerSetupService-CompleteSetup"></a>
+
+### CompleteSetup
+
+Public while setup is available. Atomically creates the owner and server
+settings, then permanently closes setup. Concurrent or later submissions
+fail with FAILED_PRECONDITION. A lost response can be recovered by signing in.
+
+```http
+POST /api/connect/chatto.auth.v1.ServerSetupService/CompleteSetup
+```
+
+<a id="chatto-auth-v1-CompleteSetupRequest"></a>
+
+#### Input: CompleteSetupRequest
+
+Settings and local owner credentials for a new server.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `server_name` | `string` | Required server display name. |
+| `description` | `string` | Optional public server description. |
+| `login` | `string` | Required owner login. Normal username rules apply. |
+| `display_name` | `string` | Required owner display name. |
+| `password` | `string` | Required local password. Normal password rules apply. |
+
+
+<a id="chatto-auth-v1-CompleteSetupResponse"></a>
+
+#### Result: CompleteSetupResponse
+
+Setup has completed. Sign in with the owner credentials through normal login.
+
+
 
 ## Supporting Types
 

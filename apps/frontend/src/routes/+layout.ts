@@ -1,4 +1,5 @@
 import '$lib/apiClientHooks';
+import { redirect } from '@sveltejs/kit';
 import { loadCurrentUser } from '$lib/auth/loadAuth';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import { preloadPublicLocaleMessages } from '$lib/i18n/messages';
@@ -19,6 +20,10 @@ export const load: LayoutLoad = async ({ url }) => {
     originHasBackend ? getPublicServerInfo(url.origin).catch(() => null) : null,
     originHasBackend ? loadCurrentUser() : null
   ]);
+
+  if (serverInfo?.setupRequired && (url.pathname === '/' || url.pathname === '/login' || url.pathname.startsWith('/register'))) {
+    redirect(302, '/setup');
+  }
 
   // Child route loads need a settled origin registry to resolve the "-" URL
   // segment and make authentication decisions before components render.

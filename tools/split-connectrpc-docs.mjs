@@ -28,6 +28,7 @@ const categories = [
   {
     title: 'chatto.auth.v1',
     services: [
+      { name: 'ServerSetupService', slug: 'server-setup', title: 'Server Setup', description: 'Public first-run server setup and initial owner creation.' },
       {
         name: 'ExternalIdentityAuthService',
         slug: 'external-identity-auth',

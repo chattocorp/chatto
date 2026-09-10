@@ -52,7 +52,8 @@ func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 
 	// Create ChattoCore
 	cfg := config.CoreConfig{
-		SecretKey: "test-core-secret",
+		SkipSetupWizard: true,
+		SecretKey:       "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},
@@ -331,7 +332,8 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 func TestChattoCore_RunAppliesConfigOwnersToExistingVerifiedUsers(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	cfg := config.CoreConfig{
-		SecretKey: "test-core-secret",
+		SkipSetupWizard: true,
+		SecretKey:       "test-core-secret",
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

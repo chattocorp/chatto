@@ -426,3 +426,40 @@ func TestS3Config_UsePathStyleForEndpoint(t *testing.T) {
 		})
 	}
 }
+
+func TestSkipSetupWizardConfiguration(t *testing.T) {
+	t.Setenv("CHATTO_CORE_SECRET_KEY", strings.Repeat("b", 64))
+	t.Setenv("CHATTO_CORE_ASSETS_SIGNING_SECRET", strings.Repeat("c", 64))
+	if (CoreConfig{}).SkipSetupWizard {
+		t.Fatal("setup must default to enabled")
+	}
+	t.Setenv("CHATTO_WEBSERVER_PORT", "4000")
+	t.Setenv("CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET", strings.Repeat("a", 64))
+	path := filepath.Join(t.TempDir(), "chatto.toml")
+	if err := os.WriteFile(path, []byte("[core]\nskip_setup_wizard = true\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := ReadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Core.SkipSetupWizard {
+		t.Fatal("TOML flag ignored")
+	}
+	t.Setenv("CHATTO_CORE_SKIP_SETUP_WIZARD", "false")
+	cfg, err = ReadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.Core.SkipSetupWizard {
+		t.Fatal("environment override ignored")
+	}
+	t.Setenv("CHATTO_CORE_SKIP_SETUP_WIZARD", "true")
+	cfg, err = ReadConfig(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !cfg.Core.SkipSetupWizard {
+		t.Fatal("true environment override ignored")
+	}
+}

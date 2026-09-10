@@ -510,3 +510,14 @@ name, URL, Authorization value, and signing secret.
 `evt.user.<bot-id>.bot_outbound_webhook_revoked` permanently revokes one endpoint.
 All endpoint commands use the user aggregate OCC boundary.
 Failure recording uses LOG independently of these domain lifecycle events.
+
+## First-run setup
+
+The singleton `evt.setup.server.>` owns `server_setup_offered` and
+`server_initialized`. These facts contain no credentials or PII. Core records
+eligibility before boot defaults only when EVT has never contained events.
+Existing histories receive `server_initialized`. Initial owner creation,
+owner assignment, settings, and completion share one whole-EVT OCC batch.
+The owning core operation reads the latest setup fact directly from EVT;
+no snapshot or separate projection controls eligibility. These facts are not
+public realtime events. EVT backup and restore include them automatically.

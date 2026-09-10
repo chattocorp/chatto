@@ -57,7 +57,7 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
-	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{AuthTokenTTL: tokenTTL})
+	chattoCore, err := core.NewChattoCore(ctx, nc, config.CoreConfig{AuthTokenTTL: tokenTTL, SkipSetupWizard: true})
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}

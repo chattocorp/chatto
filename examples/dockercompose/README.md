@@ -133,7 +133,8 @@ NATS communicate only over the private Compose network.
    ```
 
    Replace `chat.example.com` with your Chatto domain and `admin@example.com`
-   with the email address you will use for the first account.
+   with an email address for an additional verified owner. The first-run wizard
+   creates the initial local owner without email delivery.
 
    The script is the recommended setup path. It writes `.env` and
    `livekit.generated.yaml`, prepares the local backup directory, generates
@@ -149,7 +150,7 @@ NATS communicate only over the private Compose network.
    In most cases, you should only need to change:
 
    - `PUBLIC_URL` - Your domain (e.g., `chat.example.com`)
-   - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. Include the email address you will use for the first account.
+   - `CHATTO_OWNERS_EMAILS` - Comma-separated verified email addresses that should become Chatto owners. This is separate from the local owner created by the first-run wizard.
    - `CHATTO_SMTP_*` - Default transactional email transport for direct email/password registration, email verification, and password reset. Use `CHATTO_EMAIL_*` instead when configuring JMAP.
    - `PUID` and `PGID` - Optional host user/group IDs for files Chatto writes to mounted volumes. Defaults to `1000:1000`.
    - `CHATTO_OPERATOR_API_*` - Enables the private in-container operator socket used by `chatto operator ...`.
@@ -357,7 +358,11 @@ writable by the user selected through `PUID` and `PGID`.
 
 **Registration says email delivery is not configured**: Configure the SMTP `CHATTO_SMTP_*` settings or set `CHATTO_EMAIL_TRANSPORT=jmap` with the required `CHATTO_EMAIL_JMAP_*` values in `.env`. Direct email/password registration sends a code by email.
 
-**The first account is not an owner**: Ensure `CHATTO_OWNERS_EMAILS` contains that account's verified email address. Chatto assigns matching owner roles when the email is verified and on server boot.
+**Initial owner setup**: Open the server URL and complete the wizard before
+allowing other visitors to connect. The first visitor can choose the server name
+and create its owner. Existing installations skip the wizard. For automated
+provisioning, set `CHATTO_CORE_SKIP_SETUP_WIZARD=true` and use the local operator
+API. `CHATTO_OWNERS_EMAILS` can assign additional owners after email verification.
 
 **Caddy not getting certificates**: Ensure your domain's DNS points to your server and ports 80/443 are open.
 

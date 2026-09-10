@@ -13,6 +13,8 @@ export type PublicAuthProvider = {
 };
 
 export type PublicServerInfo = {
+  /** Absent on older servers, where setup is unavailable. */
+  setupRequired?: boolean;
   name: string;
   version: string;
   authorizeUrl: string;
@@ -41,6 +43,7 @@ export async function getPublicServerInfo(
   const profile = mapServerProfile(response.profile);
 
   return {
+    setupRequired: response.setupRequired,
     name: profile.name,
     version: profile.version,
     authorizeUrl: response.login?.authorizeUrl ?? '',

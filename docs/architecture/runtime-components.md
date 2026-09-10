@@ -176,3 +176,12 @@ suppresses that notification. The agent is disposed and typing refreshes stop
 on exit.
 `OPENROUTER_API_KEY` supplies model credentials. It has no realtime connection. Its local run history is stored under
 `examples/runling-bot/.runling`. This process is not part of server releases.
+
+## First-run setup
+
+Core owns first-run setup in `server_setup.go`; it is not a runtime unit.
+Construction records eligibility before RBAC defaults. After development
+bootstrap, startup closes setup when user history exists. The operation uses
+authoritative EVT reads and the existing user creation, RBAC, and configuration
+write models. Successful setup waits for the required projections before the
+browser starts normal login. See [FDR-047](../fdr/FDR-047-first-run-setup.md).
