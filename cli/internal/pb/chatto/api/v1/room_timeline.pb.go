@@ -934,7 +934,8 @@ type GetThreadEventsRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Required. Event ID of the root message for the thread.
 	ThreadRootEventId string `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
-	// Maximum events. Values at or below zero use 50; values above 500 use 500.
+	// Maximum replies. Values at or below zero use 50; values above 500 use 500.
+	// The initial page also includes the root message outside this limit.
 	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Cursor direction for paging.
 	//
@@ -1100,8 +1101,8 @@ type GetThreadEventsAroundRequest struct {
 	// Required. Anchor event ID inside the thread. The event should belong to the
 	// requested thread.
 	EventId string `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	// Maximum events around the anchor. Values at or below zero use 50;
-	// values above 500 use 500.
+	// Maximum replies around the anchor. Values at or below zero use 50;
+	// values above 500 use 500. The root message is included outside this limit.
 	Limit         int32 `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

@@ -744,7 +744,8 @@ export class GetThreadEventsRequest extends Message<GetThreadEventsRequest> {
   threadRootEventId = "";
 
   /**
-   * Maximum events. Values at or below zero use 50; values above 500 use 500.
+   * Maximum replies. Values at or below zero use 50; values above 500 use 500.
+   * The initial page also includes the root message outside this limit.
    *
    * @generated from field: int32 limit = 3;
    */
@@ -878,8 +879,8 @@ export class GetThreadEventsAroundRequest extends Message<GetThreadEventsAroundR
   eventId = "";
 
   /**
-   * Maximum events around the anchor. Values at or below zero use 50;
-   * values above 500 use 500.
+   * Maximum replies around the anchor. Values at or below zero use 50;
+   * values above 500 use 500. The root message is included outside this limit.
    *
    * @generated from field: int32 limit = 4;
    */

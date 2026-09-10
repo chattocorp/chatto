@@ -162,7 +162,7 @@ newer replies without repeating the root message.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
-| `limit` | `int32` | Maximum events. Values at or below zero use 50; values above 500 use 500. |
+| `limit` | `int32` | Maximum replies. Values at or below zero use 50; values above 500 use 500. The initial page also includes the root message outside this limit. |
 | `cursor.before` | `string` | Return thread events older than this opaque cursor. |
 | `cursor.after` | `string` | Return thread events newer than this opaque cursor. |
 
@@ -207,7 +207,7 @@ thread context.
 | `room_id` | `string` | Required. Room containing the thread. |
 | `thread_root_event_id` | `string` | Required. Event ID of the root message for the thread. |
 | `event_id` | `string` | Required. Anchor event ID inside the thread. The event should belong to the requested thread. |
-| `limit` | `int32` | Maximum events around the anchor. Values at or below zero use 50; values above 500 use 500. |
+| `limit` | `int32` | Maximum replies around the anchor. Values at or below zero use 50; values above 500 use 500. The root message is included outside this limit. |
 
 
 <a id="chatto-api-v1-GetThreadEventsAroundResponse"></a>
