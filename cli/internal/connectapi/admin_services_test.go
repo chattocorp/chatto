@@ -1070,6 +1070,13 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 		t.Fatalf("empty-scope tier matrix = %+v, want roles and permissions", emptyScopeTierResp.Msg.GetMatrix())
 	}
 
+	if _, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
+		RoleName:   core.RoleModerator,
+		Permission: "unknown.permission",
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetRolePermission unknown permission code = %v, want invalid argument (err=%v)", connect.CodeOf(err), err)
+	}
 	setResp, err := env.permissions.SetRolePermission(ctx, connect.NewRequest(&adminv1.SetRolePermissionRequest{
 		RoleName:   core.RoleModerator,
 		Permission: string(core.PermMessagePost),
@@ -1194,6 +1201,13 @@ func TestAdminPermissionServiceMatricesAndWrites(t *testing.T) {
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "permission-target", "Permission Target", "password")
 	if err != nil {
 		t.Fatalf("CreateUser target: %v", err)
+	}
+	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+		UserId:     target.Id,
+		Permission: "unknown.permission",
+		Decision:   adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("SetUserPermission unknown permission code = %v, want invalid argument (err=%v)", connect.CodeOf(err), err)
 	}
 	if _, err := env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
 		UserId:     target.Id,
