@@ -295,7 +295,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 				thread.LastReplyAt = timestamppb.New(*metadata.LastReplyAt)
 			}
 			thread.ParticipantPreviewUserIds = firstN(metadata.ParticipantIDs, 5)
-			thread.ParticipantCount = int32(len(metadata.ParticipantIDs))
+			thread.ParticipantCount = int32(metadata.ParticipantCount)
 			h.addUserIDs(thread.ParticipantPreviewUserIds)
 			following, err := h.api.core.IsFollowingThread(ctx, h.kind, h.viewerID, payload.GetRoomId(), event.Id)
 			if err != nil {

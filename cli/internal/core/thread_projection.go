@@ -562,6 +562,7 @@ func (p *ThreadProjection) ThreadMetadata(rootEventID string) *ThreadMetadata {
 		ReplyCount:         summary.replyCount,
 		LatestReplyEventID: summary.latestReplyEventID,
 		ParticipantIDs:     append([]string(nil), summary.participantIDs...),
+		ParticipantCount:   len(summary.participantCounts),
 	}
 	if summary.lastReplyAt != nil {
 		at := *summary.lastReplyAt
@@ -696,4 +697,22 @@ func (p *ThreadProjection) Stats() (threads int, entries int, replies int) {
 		}
 	}
 	return threads, entries, replies
+}
+
+// ParticipantIDs returns the complete current reply-author set, independent of
+// the bounded display preview. Retractions and key shredding update this set.
+func (p *ThreadProjection) ParticipantIDs(rootEventID string) []string {
+	p.RLock()
+	defer p.RUnlock()
+	summary := p.summaryByThread[rootEventID]
+	if summary == nil {
+		return nil
+	}
+	ids := make([]string, 0, len(summary.participantCounts))
+	for id, count := range summary.participantCounts {
+		if count > 0 {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

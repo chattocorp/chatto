@@ -428,3 +428,109 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
     return proto3.util.equals(ListFollowedThreadsResponse, a, b);
   }
 }
+
+/**
+ * Request a complete thread participant collection, ordered by user ID ascending.
+ *
+ * @generated from message chatto.api.v1.ListThreadParticipantsRequest
+ */
+export class ListThreadParticipantsRequest extends Message<ListThreadParticipantsRequest> {
+  /**
+   * Room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message ID.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Defaults to 50 results. Maximum: 100. Zero uses the default.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 3;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListThreadParticipantsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListThreadParticipantsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListThreadParticipantsRequest {
+    return new ListThreadParticipantsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListThreadParticipantsRequest {
+    return new ListThreadParticipantsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListThreadParticipantsRequest {
+    return new ListThreadParticipantsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListThreadParticipantsRequest | PlainMessage<ListThreadParticipantsRequest> | undefined, b: ListThreadParticipantsRequest | PlainMessage<ListThreadParticipantsRequest> | undefined): boolean {
+    return proto3.util.equals(ListThreadParticipantsRequest, a, b);
+  }
+}
+
+/**
+ * A page of distinct reply authors. An empty thread returns an empty page.
+ *
+ * @generated from message chatto.api.v1.ListThreadParticipantsResponse
+ */
+export class ListThreadParticipantsResponse extends Message<ListThreadParticipantsResponse> {
+  /**
+   * User IDs in this page. Use UserService.BatchGetUsers for profiles.
+   *
+   * @generated from field: repeated string user_ids = 1;
+   */
+  userIds: string[] = [];
+
+  /**
+   * Count and continuation for all current participants.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListThreadParticipantsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListThreadParticipantsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "user_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListThreadParticipantsResponse {
+    return new ListThreadParticipantsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListThreadParticipantsResponse {
+    return new ListThreadParticipantsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListThreadParticipantsResponse {
+    return new ListThreadParticipantsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListThreadParticipantsResponse | PlainMessage<ListThreadParticipantsResponse> | undefined, b: ListThreadParticipantsResponse | PlainMessage<ListThreadParticipantsResponse> | undefined): boolean {
+    return proto3.util.equals(ListThreadParticipantsResponse, a, b);
+  }
+}

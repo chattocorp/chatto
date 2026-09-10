@@ -123,7 +123,7 @@ func followedThreadsResponse(ctx context.Context, api *API, viewerID string, pag
 				ReplyCount:                int32(thread.ReplyCount),
 				LastReplyAt:               lastReplyAt,
 				ParticipantPreviewUserIds: participantPreviewUserIDs,
-				ParticipantCount:          int32(len(thread.ParticipantIDs)),
+				ParticipantCount:          int32(thread.ParticipantCount),
 				ViewerState:               apiThreadViewerState(following, thread.HasUnreadReplies),
 			},
 		}, nil

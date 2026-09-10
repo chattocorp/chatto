@@ -457,6 +457,52 @@ surfaces.
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
 
+<a id="chatto-api-v1-ReadMarker"></a>
+
+### ReadMarker
+
+Current stored read position. Its event can later be retracted. The timestamp
+is absent if the event can no longer be resolved. This is not Badge attention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_event_id` | `string` | Last-read event ID, to locate the boundary in a timeline. |
+| `last_read_at` | `google.protobuf.Timestamp` | Creation time of the last-read event, when available. |
+
+<a id="chatto-api-v1-RoomReadState"></a>
+
+### RoomReadState
+
+Current viewer's stored room read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `marker` | [`ReadMarker`](#chatto-api-v1-ReadMarker) | Absent when no non-empty marker has been stored. Reading never initializes it. |
+
+<a id="chatto-api-v1-ThreadReadState"></a>
+
+### ThreadReadState
+
+Current viewer's stored thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+| `marker` | [`ReadMarker`](#chatto-api-v1-ReadMarker) | Absent when no non-empty marker has been stored. Reading never advances it. |
+
+<a id="chatto-api-v1-ThreadReadStateTarget"></a>
+
+### ThreadReadStateTarget
+
+Room and root identity for one thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+
 <a id="chatto-api-v1-RoomMessagePosted"></a>
 
 ### RoomMessagePosted

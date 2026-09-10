@@ -2,6 +2,7 @@ package core
 
 import (
 	"bytes"
+	"fmt"
 	"slices"
 	"strings"
 	"testing"
@@ -625,5 +626,49 @@ func TestThreadProjection_SubjectFilter(t *testing.T) {
 	}
 	if slices.Contains(subjects, evtstream.RoomSubjectFilter()) {
 		t.Errorf("unexpected broad room subject filter %q", evtstream.RoomSubjectFilter())
+	}
+}
+
+func TestThreadParticipantsExceedPreviewAndSurviveRestore(t *testing.T) {
+	p := NewThreadProjection()
+	events := []*evtv1.Event{
+		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
+		postedEvent(postedOpts{envelopeID: "ROOT", eventID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2}),
+		threadCreatedEvent("THREAD", "R1", "ROOT", "AUTHOR", 1),
+	}
+	for i := 0; i < 60; i++ {
+		id := fmt.Sprintf("REPLY-%02d", i)
+		events = append(events, postedEvent(postedOpts{envelopeID: id, eventID: id, roomID: "R1", actorID: fmt.Sprintf("U%02d", i), inThread: "ROOT", at: i + 3}))
+	}
+	applyAll(t, p, events)
+	if got := len(p.ParticipantIDs("ROOT")); got != 60 {
+		t.Fatalf("participants = %d, want 60", got)
+	}
+	if got := p.ThreadMetadata("ROOT"); got.ParticipantCount != 60 || len(got.ParticipantIDs) != 50 {
+		t.Fatalf("metadata count=%d preview=%d", got.ParticipantCount, len(got.ParticipantIDs))
+	}
+	snapshot, err := p.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored := NewThreadProjection()
+	if err := restored.Restore(snapshot); err != nil {
+		t.Fatal(err)
+	}
+	if got := len(restored.ParticipantIDs("ROOT")); got != 60 {
+		t.Fatalf("restored participants = %d, want 60", got)
+	}
+	if err := restored.Apply(retractedEvent("RETRACT", "REPLY-59", "R1", "U59", "removed", 70), 64); err != nil {
+		t.Fatal(err)
+	}
+	if err := restored.Apply(userKeyShreddedSnapshotTestEvent("SHRED", "U58"), 65); err != nil {
+		t.Fatal(err)
+	}
+	ids := restored.ParticipantIDs("ROOT")
+	if len(ids) != 58 || slices.Contains(ids, "U59") || slices.Contains(ids, "U58") || slices.Contains(ids, "AUTHOR") {
+		t.Fatalf("participants after removal = %v", ids)
+	}
+	if restored.ThreadMetadata("ROOT").ParticipantCount != 58 {
+		t.Fatal("participant count did not follow removals")
 	}
 }

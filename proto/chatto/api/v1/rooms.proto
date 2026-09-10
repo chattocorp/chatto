@@ -414,6 +414,14 @@ message RefreshTypingIndicatorResponse {
 // should still be preferred when an operation is not naturally room-scoped or
 // when the resource needs an independent CRUD/batch surface.
 service RoomService {
+  // Reads the current viewer's stored marker without changing it. Requires the
+  // same membership and read access as MarkRoomAsRead. Missing resources
+  // return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+  rpc GetRoomReadState(GetRoomReadStateRequest) returns (GetRoomReadStateResponse);
+  // Reads up to 100 states under the same authorization as GetRoomReadState.
+  // Missing and inaccessible resources are omitted; duplicates use first-seen order.
+  rpc BatchGetRoomReadStates(BatchGetRoomReadStatesRequest) returns (BatchGetRoomReadStatesResponse);
+
   // Creates a new channel room in a room group. The caller must be allowed to
   // create rooms in the target group.
   rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);

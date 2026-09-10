@@ -209,6 +209,73 @@ room read state, attachments, and live typing. Resource-specific services
 should still be preferred when an operation is not naturally room-scoped or
 when the resource needs an independent CRUD/batch surface.
 
+<a id="chatto-api-v1-RoomService-GetRoomReadState"></a>
+
+### GetRoomReadState
+
+Reads the current viewer's stored marker without changing it. Requires the
+same membership and read access as MarkRoomAsRead. Missing resources
+return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomReadState
+```
+
+<a id="chatto-api-v1-GetRoomReadStateRequest"></a>
+
+#### Input: GetRoomReadStateRequest
+
+Request current room read state without changing it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+
+
+<a id="chatto-api-v1-GetRoomReadStateResponse"></a>
+
+#### Result: GetRoomReadStateResponse
+
+Current room read state, including an absent marker when none is stored.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`RoomReadState`](#chatto-api-v1-RoomReadState) | State for the requested room and viewer. |
+
+
+<a id="chatto-api-v1-RoomService-BatchGetRoomReadStates"></a>
+
+### BatchGetRoomReadStates
+
+Reads up to 100 states under the same authorization as GetRoomReadState.
+Missing and inaccessible resources are omitted; duplicates use first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/BatchGetRoomReadStates
+```
+
+<a id="chatto-api-v1-BatchGetRoomReadStatesRequest"></a>
+
+#### Input: BatchGetRoomReadStatesRequest
+
+Request room read states. Duplicates are removed in first-seen order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Up to 100 room IDs. Missing or inaccessible rooms are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetRoomReadStatesResponse"></a>
+
+#### Result: BatchGetRoomReadStatesResponse
+
+Accessible room read states in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`RoomReadState`](#chatto-api-v1-RoomReadState) | States for the current viewer. An absent marker does not omit the state. |
+
+
 <a id="chatto-api-v1-RoomService-CreateRoom"></a>
 
 ### CreateRoom
@@ -2569,6 +2636,45 @@ disappear between page requests while the index advances.
 
 Creates messages in room and thread timelines.
 
+<a id="chatto-api-v1-MessageService-ListReactionUsers"></a>
+
+### ListReactionUsers
+
+Lists all users with the requested reaction. Requires room membership and
+permission to read the message. A missing reaction returns an empty page;
+a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/ListReactionUsers
+```
+
+<a id="chatto-api-v1-ListReactionUsersRequest"></a>
+
+#### Input: ListReactionUsersRequest
+
+Request all users with one emoji reaction on a message. Echo IDs resolve to
+the original message. Users are ordered by user ID ascending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the message. |
+| `message_event_id` | `string` | Message or channel echo ID. |
+| `emoji` | `string` | Emoji shortcode, such as "thumbsup". |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
+
+
+<a id="chatto-api-v1-ListReactionUsersResponse"></a>
+
+#### Result: ListReactionUsersResponse
+
+Complete reaction membership is available by paging this collection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Count and continuation for the matching reaction users. |
+
+
 <a id="chatto-api-v1-MessageService-FetchLinkPreview"></a>
 
 ### FetchLinkPreview
@@ -3498,6 +3604,111 @@ Authenticated server runtime configuration response.
 ## ThreadService
 
 Manages thread follow state for the current user.
+
+<a id="chatto-api-v1-ThreadService-GetThreadReadState"></a>
+
+### GetThreadReadState
+
+Reads the current viewer's stored marker without changing it. Requires the
+same membership and read access as MarkThreadAsRead. Missing resources
+return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadReadState
+```
+
+<a id="chatto-api-v1-GetThreadReadStateRequest"></a>
+
+#### Input: GetThreadReadStateRequest
+
+Request current thread read state without changing it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+
+
+<a id="chatto-api-v1-GetThreadReadStateResponse"></a>
+
+#### Result: GetThreadReadStateResponse
+
+Current thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | State for the requested thread and viewer. |
+
+
+<a id="chatto-api-v1-ThreadService-BatchGetThreadReadStates"></a>
+
+### BatchGetThreadReadStates
+
+Reads up to 100 states under the same authorization as GetThreadReadState.
+Missing and inaccessible resources are omitted; duplicates use first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/BatchGetThreadReadStates
+```
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesRequest"></a>
+
+#### Input: BatchGetThreadReadStatesRequest
+
+Request thread read states. Duplicates are removed in first-seen order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `targets` | repeated [`ThreadReadStateTarget`](#chatto-api-v1-ThreadReadStateTarget) | Up to 100 room/thread targets. Missing or inaccessible targets are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesResponse"></a>
+
+#### Result: BatchGetThreadReadStatesResponse
+
+Accessible thread read states in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`ThreadReadState`](#chatto-api-v1-ThreadReadState) | States for the current viewer. An absent marker does not omit the state. |
+
+
+<a id="chatto-api-v1-ThreadService-ListThreadParticipants"></a>
+
+### ListThreadParticipants
+
+Lists distinct authors of non-retracted replies, excluding erased users.
+The root author is included only if they also replied. Requires the same
+membership and message-read access as GetThreadEvents.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListThreadParticipants
+```
+
+<a id="chatto-api-v1-ListThreadParticipantsRequest"></a>
+
+#### Input: ListThreadParticipantsRequest
+
+Request a complete thread participant collection, ordered by user ID ascending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Root message ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
+
+
+<a id="chatto-api-v1-ListThreadParticipantsResponse"></a>
+
+#### Result: ListThreadParticipantsResponse
+
+A page of distinct reply authors. An empty thread returns an empty page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Count and continuation for all current participants. |
+
 
 <a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
 
@@ -4692,6 +4903,60 @@ surfaces.
 | `user` | [`User`](#chatto-api-v1-User) | Public user fields. |
 | `roles` | `repeated string` | Explicit roles assigned to the user. Member listings include the virtual `everyone` role for parity with Chatto's permission model. |
 | `created_at` | `google.protobuf.Timestamp` | Account creation time when known. |
+
+
+
+<a id="chatto-api-v1-ReadMarker"></a>
+
+### ReadMarker
+
+Current stored read position. Its event can later be retracted. The timestamp
+is absent if the event can no longer be resolved. This is not Badge attention.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `last_read_event_id` | `string` | Last-read event ID, to locate the boundary in a timeline. |
+| `last_read_at` | `google.protobuf.Timestamp` | Creation time of the last-read event, when available. |
+
+
+
+<a id="chatto-api-v1-RoomReadState"></a>
+
+### RoomReadState
+
+Current viewer's stored room read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `marker` | [`ReadMarker`](#chatto-api-v1-ReadMarker) | Absent when no non-empty marker has been stored. Reading never initializes it. |
+
+
+
+<a id="chatto-api-v1-ThreadReadState"></a>
+
+### ThreadReadState
+
+Current viewer's stored thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+| `marker` | [`ReadMarker`](#chatto-api-v1-ReadMarker) | Absent when no non-empty marker has been stored. Reading never advances it. |
+
+
+
+<a id="chatto-api-v1-ThreadReadStateTarget"></a>
+
+### ThreadReadStateTarget
+
+Room and root identity for one thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
 
 
 

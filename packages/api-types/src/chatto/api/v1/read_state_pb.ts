@@ -216,3 +216,544 @@ export class MarkThreadAsReadResponse extends Message<MarkThreadAsReadResponse> 
     return proto3.util.equals(MarkThreadAsReadResponse, a, b);
   }
 }
+
+/**
+ * Current stored read position. Its event can later be retracted. The timestamp
+ * is absent if the event can no longer be resolved. This is not Badge attention.
+ *
+ * @generated from message chatto.api.v1.ReadMarker
+ */
+export class ReadMarker extends Message<ReadMarker> {
+  /**
+   * Last-read event ID, to locate the boundary in a timeline.
+   *
+   * @generated from field: string last_read_event_id = 1;
+   */
+  lastReadEventId = "";
+
+  /**
+   * Creation time of the last-read event, when available.
+   *
+   * @generated from field: google.protobuf.Timestamp last_read_at = 2;
+   */
+  lastReadAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ReadMarker>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReadMarker";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "last_read_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "last_read_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReadMarker {
+    return new ReadMarker().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReadMarker {
+    return new ReadMarker().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReadMarker {
+    return new ReadMarker().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReadMarker | PlainMessage<ReadMarker> | undefined, b: ReadMarker | PlainMessage<ReadMarker> | undefined): boolean {
+    return proto3.util.equals(ReadMarker, a, b);
+  }
+}
+
+/**
+ * Current viewer's stored room read state.
+ *
+ * @generated from message chatto.api.v1.RoomReadState
+ */
+export class RoomReadState extends Message<RoomReadState> {
+  /**
+   * Room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Absent when no non-empty marker has been stored. Reading never initializes it.
+   *
+   * @generated from field: chatto.api.v1.ReadMarker marker = 2;
+   */
+  marker?: ReadMarker;
+
+  constructor(data?: PartialMessage<RoomReadState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomReadState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "marker", kind: "message", T: ReadMarker },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomReadState {
+    return new RoomReadState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomReadState {
+    return new RoomReadState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomReadState {
+    return new RoomReadState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomReadState | PlainMessage<RoomReadState> | undefined, b: RoomReadState | PlainMessage<RoomReadState> | undefined): boolean {
+    return proto3.util.equals(RoomReadState, a, b);
+  }
+}
+
+/**
+ * Current viewer's stored thread read state.
+ *
+ * @generated from message chatto.api.v1.ThreadReadState
+ */
+export class ThreadReadState extends Message<ThreadReadState> {
+  /**
+   * Room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message ID.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Absent when no non-empty marker has been stored. Reading never advances it.
+   *
+   * @generated from field: chatto.api.v1.ReadMarker marker = 3;
+   */
+  marker?: ReadMarker;
+
+  constructor(data?: PartialMessage<ThreadReadState>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadReadState";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "marker", kind: "message", T: ReadMarker },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadReadState {
+    return new ThreadReadState().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadReadState {
+    return new ThreadReadState().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadReadState {
+    return new ThreadReadState().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadReadState | PlainMessage<ThreadReadState> | undefined, b: ThreadReadState | PlainMessage<ThreadReadState> | undefined): boolean {
+    return proto3.util.equals(ThreadReadState, a, b);
+  }
+}
+
+/**
+ * Request current room read state without changing it.
+ *
+ * @generated from message chatto.api.v1.GetRoomReadStateRequest
+ */
+export class GetRoomReadStateRequest extends Message<GetRoomReadStateRequest> {
+  /**
+   * Room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<GetRoomReadStateRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetRoomReadStateRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomReadStateRequest {
+    return new GetRoomReadStateRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomReadStateRequest {
+    return new GetRoomReadStateRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomReadStateRequest {
+    return new GetRoomReadStateRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomReadStateRequest | PlainMessage<GetRoomReadStateRequest> | undefined, b: GetRoomReadStateRequest | PlainMessage<GetRoomReadStateRequest> | undefined): boolean {
+    return proto3.util.equals(GetRoomReadStateRequest, a, b);
+  }
+}
+
+/**
+ * Current room read state, including an absent marker when none is stored.
+ *
+ * @generated from message chatto.api.v1.GetRoomReadStateResponse
+ */
+export class GetRoomReadStateResponse extends Message<GetRoomReadStateResponse> {
+  /**
+   * State for the requested room and viewer.
+   *
+   * @generated from field: chatto.api.v1.RoomReadState state = 1;
+   */
+  state?: RoomReadState;
+
+  constructor(data?: PartialMessage<GetRoomReadStateResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetRoomReadStateResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "state", kind: "message", T: RoomReadState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetRoomReadStateResponse {
+    return new GetRoomReadStateResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetRoomReadStateResponse {
+    return new GetRoomReadStateResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetRoomReadStateResponse {
+    return new GetRoomReadStateResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetRoomReadStateResponse | PlainMessage<GetRoomReadStateResponse> | undefined, b: GetRoomReadStateResponse | PlainMessage<GetRoomReadStateResponse> | undefined): boolean {
+    return proto3.util.equals(GetRoomReadStateResponse, a, b);
+  }
+}
+
+/**
+ * Request room read states. Duplicates are removed in first-seen order.
+ *
+ * @generated from message chatto.api.v1.BatchGetRoomReadStatesRequest
+ */
+export class BatchGetRoomReadStatesRequest extends Message<BatchGetRoomReadStatesRequest> {
+  /**
+   * Up to 100 room IDs. Missing or inaccessible rooms are omitted.
+   *
+   * @generated from field: repeated string room_ids = 1;
+   */
+  roomIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRoomReadStatesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRoomReadStatesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomReadStatesRequest {
+    return new BatchGetRoomReadStatesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomReadStatesRequest {
+    return new BatchGetRoomReadStatesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomReadStatesRequest {
+    return new BatchGetRoomReadStatesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRoomReadStatesRequest | PlainMessage<BatchGetRoomReadStatesRequest> | undefined, b: BatchGetRoomReadStatesRequest | PlainMessage<BatchGetRoomReadStatesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetRoomReadStatesRequest, a, b);
+  }
+}
+
+/**
+ * Accessible room read states in first-seen request order.
+ *
+ * @generated from message chatto.api.v1.BatchGetRoomReadStatesResponse
+ */
+export class BatchGetRoomReadStatesResponse extends Message<BatchGetRoomReadStatesResponse> {
+  /**
+   * States for the current viewer. An absent marker does not omit the state.
+   *
+   * @generated from field: repeated chatto.api.v1.RoomReadState states = 1;
+   */
+  states: RoomReadState[] = [];
+
+  constructor(data?: PartialMessage<BatchGetRoomReadStatesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetRoomReadStatesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "states", kind: "message", T: RoomReadState, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetRoomReadStatesResponse {
+    return new BatchGetRoomReadStatesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetRoomReadStatesResponse {
+    return new BatchGetRoomReadStatesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetRoomReadStatesResponse {
+    return new BatchGetRoomReadStatesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetRoomReadStatesResponse | PlainMessage<BatchGetRoomReadStatesResponse> | undefined, b: BatchGetRoomReadStatesResponse | PlainMessage<BatchGetRoomReadStatesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetRoomReadStatesResponse, a, b);
+  }
+}
+
+/**
+ * Request current thread read state without changing it.
+ *
+ * @generated from message chatto.api.v1.GetThreadReadStateRequest
+ */
+export class GetThreadReadStateRequest extends Message<GetThreadReadStateRequest> {
+  /**
+   * Room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message ID.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<GetThreadReadStateRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadReadStateRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadReadStateRequest {
+    return new GetThreadReadStateRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadReadStateRequest {
+    return new GetThreadReadStateRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadReadStateRequest {
+    return new GetThreadReadStateRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadReadStateRequest | PlainMessage<GetThreadReadStateRequest> | undefined, b: GetThreadReadStateRequest | PlainMessage<GetThreadReadStateRequest> | undefined): boolean {
+    return proto3.util.equals(GetThreadReadStateRequest, a, b);
+  }
+}
+
+/**
+ * Current thread read state.
+ *
+ * @generated from message chatto.api.v1.GetThreadReadStateResponse
+ */
+export class GetThreadReadStateResponse extends Message<GetThreadReadStateResponse> {
+  /**
+   * State for the requested thread and viewer.
+   *
+   * @generated from field: chatto.api.v1.ThreadReadState state = 1;
+   */
+  state?: ThreadReadState;
+
+  constructor(data?: PartialMessage<GetThreadReadStateResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetThreadReadStateResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "state", kind: "message", T: ThreadReadState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetThreadReadStateResponse {
+    return new GetThreadReadStateResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetThreadReadStateResponse {
+    return new GetThreadReadStateResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetThreadReadStateResponse {
+    return new GetThreadReadStateResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetThreadReadStateResponse | PlainMessage<GetThreadReadStateResponse> | undefined, b: GetThreadReadStateResponse | PlainMessage<GetThreadReadStateResponse> | undefined): boolean {
+    return proto3.util.equals(GetThreadReadStateResponse, a, b);
+  }
+}
+
+/**
+ * Request thread read states. Duplicates are removed in first-seen order.
+ *
+ * @generated from message chatto.api.v1.BatchGetThreadReadStatesRequest
+ */
+export class BatchGetThreadReadStatesRequest extends Message<BatchGetThreadReadStatesRequest> {
+  /**
+   * Up to 100 room/thread targets. Missing or inaccessible targets are omitted.
+   *
+   * @generated from field: repeated chatto.api.v1.ThreadReadStateTarget targets = 1;
+   */
+  targets: ThreadReadStateTarget[] = [];
+
+  constructor(data?: PartialMessage<BatchGetThreadReadStatesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetThreadReadStatesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "targets", kind: "message", T: ThreadReadStateTarget, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetThreadReadStatesRequest {
+    return new BatchGetThreadReadStatesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetThreadReadStatesRequest {
+    return new BatchGetThreadReadStatesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetThreadReadStatesRequest {
+    return new BatchGetThreadReadStatesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetThreadReadStatesRequest | PlainMessage<BatchGetThreadReadStatesRequest> | undefined, b: BatchGetThreadReadStatesRequest | PlainMessage<BatchGetThreadReadStatesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetThreadReadStatesRequest, a, b);
+  }
+}
+
+/**
+ * Accessible thread read states in first-seen request order.
+ *
+ * @generated from message chatto.api.v1.BatchGetThreadReadStatesResponse
+ */
+export class BatchGetThreadReadStatesResponse extends Message<BatchGetThreadReadStatesResponse> {
+  /**
+   * States for the current viewer. An absent marker does not omit the state.
+   *
+   * @generated from field: repeated chatto.api.v1.ThreadReadState states = 1;
+   */
+  states: ThreadReadState[] = [];
+
+  constructor(data?: PartialMessage<BatchGetThreadReadStatesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetThreadReadStatesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "states", kind: "message", T: ThreadReadState, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetThreadReadStatesResponse {
+    return new BatchGetThreadReadStatesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetThreadReadStatesResponse {
+    return new BatchGetThreadReadStatesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetThreadReadStatesResponse {
+    return new BatchGetThreadReadStatesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetThreadReadStatesResponse | PlainMessage<BatchGetThreadReadStatesResponse> | undefined, b: BatchGetThreadReadStatesResponse | PlainMessage<BatchGetThreadReadStatesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetThreadReadStatesResponse, a, b);
+  }
+}
+
+/**
+ * Room and root identity for one thread read state.
+ *
+ * @generated from message chatto.api.v1.ThreadReadStateTarget
+ */
+export class ThreadReadStateTarget extends Message<ThreadReadStateTarget> {
+  /**
+   * Room ID.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Root message ID.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<ThreadReadStateTarget>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadReadStateTarget";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadReadStateTarget {
+    return new ThreadReadStateTarget().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadReadStateTarget {
+    return new ThreadReadStateTarget().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadReadStateTarget {
+    return new ThreadReadStateTarget().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadReadStateTarget | PlainMessage<ThreadReadStateTarget> | undefined, b: ThreadReadStateTarget | PlainMessage<ThreadReadStateTarget> | undefined): boolean {
+    return proto3.util.equals(ThreadReadStateTarget, a, b);
+  }
+}

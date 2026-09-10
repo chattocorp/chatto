@@ -97,6 +97,19 @@ message ListFollowedThreadsResponse {
 
 // Manages thread follow state for the current user.
 service ThreadService {
+  // Reads the current viewer's stored marker without changing it. Requires the
+  // same membership and read access as MarkThreadAsRead. Missing resources
+  // return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+  rpc GetThreadReadState(GetThreadReadStateRequest) returns (GetThreadReadStateResponse);
+  // Reads up to 100 states under the same authorization as GetThreadReadState.
+  // Missing and inaccessible resources are omitted; duplicates use first-seen order.
+  rpc BatchGetThreadReadStates(BatchGetThreadReadStatesRequest) returns (BatchGetThreadReadStatesResponse);
+
+  // Lists distinct authors of non-retracted replies, excluding erased users.
+  // The root author is included only if they also replied. Requires the same
+  // membership and message-read access as GetThreadEvents.
+  rpc ListThreadParticipants(ListThreadParticipantsRequest) returns (ListThreadParticipantsResponse);
+
   // Returns followed threads in rooms where the current user is a member.
   // All threads also require message.read or an active relationship with
   // message.read-interactions. Direct-message threads are returned only when
@@ -132,4 +145,22 @@ service ThreadService {
   // the room-level read marker. Room membership plus message.read or an active
   // relationship with message.read-interactions are required.
   rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
+}
+
+// Request a complete thread participant collection, ordered by user ID ascending.
+message ListThreadParticipantsRequest {
+  // Room containing the thread.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Root message ID.
+  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Defaults to 50 results. Maximum: 100. Zero uses the default.
+  PageRequest page = 3;
+}
+
+// A page of distinct reply authors. An empty thread returns an empty page.
+message ListThreadParticipantsResponse {
+  // User IDs in this page. Use UserService.BatchGetUsers for profiles.
+  repeated string user_ids = 1;
+  // Count and continuation for all current participants.
+  PageInfo page = 2;
 }

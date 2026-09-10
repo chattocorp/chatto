@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-10
 
 ## Overview
 
@@ -10,6 +10,14 @@ inside threads. Replies and threads are independent concepts. Channel rooms
 can configure their Threading Mode. DMs always use Enabled behavior.
 
 ## Behavior
+
+- Integrations can read all distinct authors of current thread replies in
+  bounded pages. Retracted replies and erased authors do not contribute. The
+  root author is included only if they also replied. Counts cover the full set.
+- Integrations can read their own stored room and thread read positions, one
+  target at a time or in bounded batches. A read does not mark content as read
+  or initialize a missing position. These positions are separate from
+  notification attention.
 
 - A message in a room can optionally reference another message as the one it's in reply to.
 - DMs support thread creation, replies, follows, unread state, links,

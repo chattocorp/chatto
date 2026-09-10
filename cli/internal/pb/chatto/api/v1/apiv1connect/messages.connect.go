@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// MessageServiceListReactionUsersProcedure is the fully-qualified name of the MessageService's
+	// ListReactionUsers RPC.
+	MessageServiceListReactionUsersProcedure = "/chatto.api.v1.MessageService/ListReactionUsers"
 	// MessageServiceFetchLinkPreviewProcedure is the fully-qualified name of the MessageService's
 	// FetchLinkPreview RPC.
 	MessageServiceFetchLinkPreviewProcedure = "/chatto.api.v1.MessageService/FetchLinkPreview"
@@ -67,6 +70,10 @@ const (
 
 // MessageServiceClient is a client for the chatto.api.v1.MessageService service.
 type MessageServiceClient interface {
+	// Lists all users with the requested reaction. Requires room membership and
+	// permission to read the message. A missing reaction returns an empty page;
+	// a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+	ListReactionUsers(context.Context, *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error)
 	// Fetches and caches metadata for a composer URL. Authentication is required
 	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
 	// Successful responses include a short-lived token accepted by CreateMessage.
@@ -129,6 +136,12 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 	baseURL = strings.TrimRight(baseURL, "/")
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
 	return &messageServiceClient{
+		listReactionUsers: connect.NewClient[v1.ListReactionUsersRequest, v1.ListReactionUsersResponse](
+			httpClient,
+			baseURL+MessageServiceListReactionUsersProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("ListReactionUsers")),
+			connect.WithClientOptions(opts...),
+		),
 		fetchLinkPreview: connect.NewClient[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse](
 			httpClient,
 			baseURL+MessageServiceFetchLinkPreviewProcedure,
@@ -194,6 +207,7 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
+	listReactionUsers *connect.Client[v1.ListReactionUsersRequest, v1.ListReactionUsersResponse]
 	fetchLinkPreview  *connect.Client[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse]
 	createMessage     *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
 	updateMessage     *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
@@ -204,6 +218,11 @@ type messageServiceClient struct {
 	batchGetMessages  *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
 	addReaction       *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
 	removeReaction    *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
+}
+
+// ListReactionUsers calls chatto.api.v1.MessageService.ListReactionUsers.
+func (c *messageServiceClient) ListReactionUsers(ctx context.Context, req *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error) {
+	return c.listReactionUsers.CallUnary(ctx, req)
 }
 
 // FetchLinkPreview calls chatto.api.v1.MessageService.FetchLinkPreview.
@@ -258,6 +277,10 @@ func (c *messageServiceClient) RemoveReaction(ctx context.Context, req *connect.
 
 // MessageServiceHandler is an implementation of the chatto.api.v1.MessageService service.
 type MessageServiceHandler interface {
+	// Lists all users with the requested reaction. Requires room membership and
+	// permission to read the message. A missing reaction returns an empty page;
+	// a missing or hidden message returns NOT_FOUND or PERMISSION_DENIED.
+	ListReactionUsers(context.Context, *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error)
 	// Fetches and caches metadata for a composer URL. Authentication is required
 	// to avoid exposing the preview fetcher as an unauthenticated network proxy.
 	// Successful responses include a short-lived token accepted by CreateMessage.
@@ -316,6 +339,12 @@ type MessageServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	messageServiceMethods := v1.File_chatto_api_v1_messages_proto.Services().ByName("MessageService").Methods()
+	messageServiceListReactionUsersHandler := connect.NewUnaryHandler(
+		MessageServiceListReactionUsersProcedure,
+		svc.ListReactionUsers,
+		connect.WithSchema(messageServiceMethods.ByName("ListReactionUsers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messageServiceFetchLinkPreviewHandler := connect.NewUnaryHandler(
 		MessageServiceFetchLinkPreviewProcedure,
 		svc.FetchLinkPreview,
@@ -378,6 +407,8 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 	)
 	return "/chatto.api.v1.MessageService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case MessageServiceListReactionUsersProcedure:
+			messageServiceListReactionUsersHandler.ServeHTTP(w, r)
 		case MessageServiceFetchLinkPreviewProcedure:
 			messageServiceFetchLinkPreviewHandler.ServeHTTP(w, r)
 		case MessageServiceCreateMessageProcedure:
@@ -406,6 +437,10 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 
 // UnimplementedMessageServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedMessageServiceHandler struct{}
+
+func (UnimplementedMessageServiceHandler) ListReactionUsers(context.Context, *connect.Request[v1.ListReactionUsersRequest]) (*connect.Response[v1.ListReactionUsersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.ListReactionUsers is not implemented"))
+}
 
 func (UnimplementedMessageServiceHandler) FetchLinkPreview(context.Context, *connect.Request[v1.FetchLinkPreviewRequest]) (*connect.Response[v1.FetchLinkPreviewResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.FetchLinkPreview is not implemented"))

@@ -20,6 +20,111 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Manages thread follow state for the current user.
 
+<a id="chatto-api-v1-ThreadService-GetThreadReadState"></a>
+
+### GetThreadReadState
+
+Reads the current viewer's stored marker without changing it. Requires the
+same membership and read access as MarkThreadAsRead. Missing resources
+return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetThreadReadState
+```
+
+<a id="chatto-api-v1-GetThreadReadStateRequest"></a>
+
+#### Input: GetThreadReadStateRequest
+
+Request current thread read state without changing it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+| `thread_root_event_id` | `string` | Root message ID. |
+
+
+<a id="chatto-api-v1-GetThreadReadStateResponse"></a>
+
+#### Result: GetThreadReadStateResponse
+
+Current thread read state.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`ThreadReadState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadReadState) | State for the requested thread and viewer. |
+
+
+<a id="chatto-api-v1-ThreadService-BatchGetThreadReadStates"></a>
+
+### BatchGetThreadReadStates
+
+Reads up to 100 states under the same authorization as GetThreadReadState.
+Missing and inaccessible resources are omitted; duplicates use first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/BatchGetThreadReadStates
+```
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesRequest"></a>
+
+#### Input: BatchGetThreadReadStatesRequest
+
+Request thread read states. Duplicates are removed in first-seen order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `targets` | repeated [`ThreadReadStateTarget`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadReadStateTarget) | Up to 100 room/thread targets. Missing or inaccessible targets are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetThreadReadStatesResponse"></a>
+
+#### Result: BatchGetThreadReadStatesResponse
+
+Accessible thread read states in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`ThreadReadState`](/reference/connectrpc-api/types/#chatto-api-v1-ThreadReadState) | States for the current viewer. An absent marker does not omit the state. |
+
+
+<a id="chatto-api-v1-ThreadService-ListThreadParticipants"></a>
+
+### ListThreadParticipants
+
+Lists distinct authors of non-retracted replies, excluding erased users.
+The root author is included only if they also replied. Requires the same
+membership and message-read access as GetThreadEvents.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListThreadParticipants
+```
+
+<a id="chatto-api-v1-ListThreadParticipantsRequest"></a>
+
+#### Input: ListThreadParticipantsRequest
+
+Request a complete thread participant collection, ordered by user ID ascending.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the thread. |
+| `thread_root_event_id` | `string` | Root message ID. |
+| `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Defaults to 50 results. Maximum: 100. Zero uses the default. |
+
+
+<a id="chatto-api-v1-ListThreadParticipantsResponse"></a>
+
+#### Result: ListThreadParticipantsResponse
+
+A page of distinct reply authors. An empty thread returns an empty page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_ids` | `repeated string` | User IDs in this page. Use UserService.BatchGetUsers for profiles. |
+| `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Count and continuation for all current participants. |
+
+
 <a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
 
 ### ListFollowedThreads

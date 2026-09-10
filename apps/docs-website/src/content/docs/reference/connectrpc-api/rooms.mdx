@@ -26,6 +26,73 @@ room read state, attachments, and live typing. Resource-specific services
 should still be preferred when an operation is not naturally room-scoped or
 when the resource needs an independent CRUD/batch surface.
 
+<a id="chatto-api-v1-RoomService-GetRoomReadState"></a>
+
+### GetRoomReadState
+
+Reads the current viewer's stored marker without changing it. Requires the
+same membership and read access as MarkRoomAsRead. Missing resources
+return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/GetRoomReadState
+```
+
+<a id="chatto-api-v1-GetRoomReadStateRequest"></a>
+
+#### Input: GetRoomReadStateRequest
+
+Request current room read state without changing it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room ID. |
+
+
+<a id="chatto-api-v1-GetRoomReadStateResponse"></a>
+
+#### Result: GetRoomReadStateResponse
+
+Current room read state, including an absent marker when none is stored.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `state` | [`RoomReadState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomReadState) | State for the requested room and viewer. |
+
+
+<a id="chatto-api-v1-RoomService-BatchGetRoomReadStates"></a>
+
+### BatchGetRoomReadStates
+
+Reads up to 100 states under the same authorization as GetRoomReadState.
+Missing and inaccessible resources are omitted; duplicates use first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.RoomService/BatchGetRoomReadStates
+```
+
+<a id="chatto-api-v1-BatchGetRoomReadStatesRequest"></a>
+
+#### Input: BatchGetRoomReadStatesRequest
+
+Request room read states. Duplicates are removed in first-seen order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_ids` | `repeated string` | Up to 100 room IDs. Missing or inaccessible rooms are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetRoomReadStatesResponse"></a>
+
+#### Result: BatchGetRoomReadStatesResponse
+
+Accessible room read states in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `states` | repeated [`RoomReadState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomReadState) | States for the current viewer. An absent marker does not omit the state. |
+
+
 <a id="chatto-api-v1-RoomService-CreateRoom"></a>
 
 ### CreateRoom

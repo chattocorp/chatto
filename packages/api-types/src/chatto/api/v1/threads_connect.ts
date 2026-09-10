@@ -3,10 +3,10 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FollowThreadRequest, FollowThreadResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
+import { BatchGetThreadReadStatesRequest, BatchGetThreadReadStatesResponse, GetThreadReadStateRequest, GetThreadReadStateResponse, MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
+import { FollowThreadRequest, FollowThreadResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, ListThreadParticipantsRequest, ListThreadParticipantsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
 import { GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse } from "./room_timeline_pb.js";
-import { MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_pb.js";
 
 /**
  * Manages thread follow state for the current user.
@@ -16,6 +16,44 @@ import { MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_
 export const ThreadService = {
   typeName: "chatto.api.v1.ThreadService",
   methods: {
+    /**
+     * Reads the current viewer's stored marker without changing it. Requires the
+     * same membership and read access as MarkThreadAsRead. Missing resources
+     * return NOT_FOUND; inaccessible resources return PERMISSION_DENIED.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.GetThreadReadState
+     */
+    getThreadReadState: {
+      name: "GetThreadReadState",
+      I: GetThreadReadStateRequest,
+      O: GetThreadReadStateResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Reads up to 100 states under the same authorization as GetThreadReadState.
+     * Missing and inaccessible resources are omitted; duplicates use first-seen order.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.BatchGetThreadReadStates
+     */
+    batchGetThreadReadStates: {
+      name: "BatchGetThreadReadStates",
+      I: BatchGetThreadReadStatesRequest,
+      O: BatchGetThreadReadStatesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists distinct authors of non-retracted replies, excluding erased users.
+     * The root author is included only if they also replied. Requires the same
+     * membership and message-read access as GetThreadEvents.
+     *
+     * @generated from rpc chatto.api.v1.ThreadService.ListThreadParticipants
+     */
+    listThreadParticipants: {
+      name: "ListThreadParticipants",
+      I: ListThreadParticipantsRequest,
+      O: ListThreadParticipantsResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Returns followed threads in rooms where the current user is a member.
      * All threads also require message.read or an active relationship with
