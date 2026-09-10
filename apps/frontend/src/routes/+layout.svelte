@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { initialPageReveal } from '$lib/attachments/initialPageReveal';
   import { afterNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
@@ -83,6 +84,7 @@
 </svelte:head>
 
 <div
+  {@attach initialPageReveal}
   use:sidebarSwipe
   class="flex h-full w-full flex-col overscroll-y-contain bg-surface pt-[env(safe-area-inset-top,0px)] md:p-3 md:pt-0"
 >

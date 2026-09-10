@@ -40,8 +40,10 @@ unavailable in release builds.
 
 The wizard collects server details and the owner account in one form. Password
 confirmation must match before submission. Account validation errors appear
-below the affected field; connection and setup-state errors apply to the form. A short
-Chatto logo reveal welcomes the operator and respects reduced-motion settings.
+below the affected field; connection and setup-state errors apply to the form. The page uses
+the shared initial-load reveal: sections fade and scale in with a short stagger.
+This runs once per full page load on all pages, respects reduced-motion settings,
+and stops on keyboard or pointer input. Client-side navigation does not replay it.
 The wizard uses the normal app header, frame, and server gutter. Selecting an
 uninitialized origin server opens setup instead of sign-in. Users can still add
 other servers and use their accounts on those servers. Setup does not block

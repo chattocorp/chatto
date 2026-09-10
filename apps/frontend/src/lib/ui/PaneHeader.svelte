@@ -70,6 +70,7 @@ choice).
 </script>
 
 <div
+  data-page-reveal
   class={[
     'flex h-14 shrink-0 items-center justify-between border-b border-border pe-2',
     hasBack ? 'ps-2' : 'ps-4'
