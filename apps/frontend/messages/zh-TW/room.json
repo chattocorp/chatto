@@ -142,6 +142,14 @@
       },
       "show_less": "顯示較少"
     },
+    "typing": {
+      "one": "{name} 正在輸入",
+      "two": "{first} 和 {second} 正在輸入",
+      "many_count": {
+        "other": "{names} 等其他 {count} 人正在輸入",
+        "one": "{names} 等其他 {count} 人正在輸入"
+      }
+    },
     "attachment": {
       "delete_title": "刪除附件",
       "delete_prompt": "確定要刪除此附件嗎？此操作無法復原。",
