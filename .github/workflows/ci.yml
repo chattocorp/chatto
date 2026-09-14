@@ -417,6 +417,10 @@ jobs:
         if: needs.changes.outputs.chatto == 'true'
         run: mise build-frontend
 
+      - name: Verify development data seeding
+        if: needs.changes.outputs.chatto == 'true'
+        run: mise x -- node tools/dev-seed-smoke.mjs
+
       - name: Run Go tests
         if: needs.changes.outputs.chatto == 'true'
         run: cd cli && go test -trimpath -p 1 -tags test_endpoints ./...
