@@ -78,6 +78,7 @@ message ListVerifiedEmailsResponse {
 
 // Request a short-lived verification code for an email address.
 message RequestEmailVerificationRequest {
+  // New address to verify and add to the authenticated user's account.
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
 }
 
@@ -86,7 +87,9 @@ message RequestEmailVerificationResponse {}
 
 // Confirm control of an email address with a verification code.
 message ConfirmEmailVerificationRequest {
+  // Address that received the verification code.
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // Six-digit code that the server sent to the address.
   string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
 }
 
@@ -97,6 +100,7 @@ message ConfirmEmailVerificationResponse {
 
 // Select a verified email for account-directed email.
 message SetPrimaryEmailRequest {
+  // Verified address to select as primary.
   string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
 }
 

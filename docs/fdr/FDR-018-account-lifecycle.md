@@ -27,7 +27,7 @@ This FDR covers human accounts from registration through deletion: signup, email
 - Adding a new email sends a verification code to the new address and opens a
   separate confirmation page. The page uses the same six-digit control as
   direct registration. It keeps the pending address in server-scoped session
-  storage so a page reload does not lose the verification ceremony. Chatto
+  storage so a page reload does not lose the pending verification. Chatto
   adds the email only after the user confirms the code.
 - An address that is already verified cannot start another verification
   ceremony.
@@ -85,7 +85,7 @@ address becomes the primary email, and only an explicit user action changes
 that selection. Account-directed delivery uses the primary email. Every
 verified email continues to count for configured-owner matching, password
 resets, and identity correlation.
-**Why:** People have work and personal addresses, change jobs, or have an alias. Single-email accounts force needless friction during transitions. Multiple-emails also helps the `owners.emails` config — operators can list either an old or new email and the right user gets owner status.
+**Why:** People have work and personal addresses, change jobs, or have an alias. Single-email accounts force needless friction during transitions. Multiple email addresses also help the `owners.emails` config — operators can list either an old or new email and the right user gets owner status.
 **Tradeoff:** The data model and resolvers have to handle a list and a durable
 selection, not a scalar. The primary selection references the original
 verified-email event so it does not duplicate user PII.

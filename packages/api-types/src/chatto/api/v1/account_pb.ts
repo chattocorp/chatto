@@ -349,6 +349,8 @@ export class ListVerifiedEmailsResponse extends Message<ListVerifiedEmailsRespon
  */
 export class RequestEmailVerificationRequest extends Message<RequestEmailVerificationRequest> {
   /**
+   * New address to verify and add to the authenticated user's account.
+   *
    * @generated from field: string email = 1;
    */
   email = "";
@@ -421,11 +423,15 @@ export class RequestEmailVerificationResponse extends Message<RequestEmailVerifi
  */
 export class ConfirmEmailVerificationRequest extends Message<ConfirmEmailVerificationRequest> {
   /**
+   * Address that received the verification code.
+   *
    * @generated from field: string email = 1;
    */
   email = "";
 
   /**
+   * Six-digit code that the server sent to the address.
+   *
    * @generated from field: string code = 2;
    */
   code = "";
@@ -505,6 +511,8 @@ export class ConfirmEmailVerificationResponse extends Message<ConfirmEmailVerifi
  */
 export class SetPrimaryEmailRequest extends Message<SetPrimaryEmailRequest> {
   /**
+   * Verified address to select as primary.
+   *
    * @generated from field: string email = 1;
    */
   email = "";

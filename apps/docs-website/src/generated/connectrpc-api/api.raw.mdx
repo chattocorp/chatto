@@ -1577,7 +1577,7 @@ Request a short-lived verification code for an email address.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `email` | `string` | No field description provided. |
+| `email` | `string` | New address to verify and add to the authenticated user's account. |
 
 
 <a id="chatto-api-v1-RequestEmailVerificationResponse"></a>
@@ -1605,8 +1605,8 @@ Confirm control of an email address with a verification code.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `email` | `string` | No field description provided. |
-| `code` | `string` | No field description provided. |
+| `email` | `string` | Address that received the verification code. |
+| `code` | `string` | Six-digit code that the server sent to the address. |
 
 
 <a id="chatto-api-v1-ConfirmEmailVerificationResponse"></a>
@@ -1638,7 +1638,7 @@ Select a verified email for account-directed email.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `email` | `string` | No field description provided. |
+| `email` | `string` | Verified address to select as primary. |
 
 
 <a id="chatto-api-v1-SetPrimaryEmailResponse"></a>
