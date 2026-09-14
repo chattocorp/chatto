@@ -18,11 +18,6 @@ import (
 // Email Verification Constants and Errors
 // ============================================================================
 
-const (
-	// EmailVerificationCodeTTL is the duration a verification code is valid.
-	EmailVerificationCodeTTL = 15 * time.Minute
-)
-
 var (
 	// ErrTokenNotFound is returned when the verification code doesn't exist or has expired.
 	ErrTokenNotFound = errors.New("verification code not found or expired")
