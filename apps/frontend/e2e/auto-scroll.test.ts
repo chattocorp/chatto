@@ -793,7 +793,7 @@ Line 8: This is the last line of this long message.`;
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    // Create account and enter general room
+    // Prepare history before opening the room.
     const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 20 });
     await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
@@ -833,10 +833,10 @@ Line 8: This is the last line of this long message.`;
     // Verify we're in the second room
     await expect(page.getByRole('heading', { name: `# ${secondRoomName}` })).toBeVisible();
 
-    // Navigate back to general room
+    // Navigate back to the room with history.
     await chatPage.enterRoom(scene.rooms[0].name);
 
-    // Verify we're back in general room
+    // Verify that the original room is active.
     await expect(page.getByRole('heading', { name: `# ${scene.rooms[0].name}` })).toBeVisible();
 
     // Wait for messages to load

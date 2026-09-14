@@ -289,7 +289,7 @@ test.describe('jump to message', () => {
     // "Jump to Present" should be gone
     await expect(page.getByTestId('jump-to-present')).not.toBeVisible();
 
-    // Switch back to general
+    // Return to the seeded room.
     await chatPage.enterRoom(scene.rooms[0].name);
 
     // Should show the latest messages, not the jumped state

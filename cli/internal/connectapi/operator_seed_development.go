@@ -3,8 +3,9 @@
 package connectapi
 
 import (
-	"connectrpc.com/connect"
 	"context"
+
+	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
 	operatorv1 "hmans.de/chatto/internal/pb/chatto/operator/v1"
 	"hmans.de/chatto/internal/pb/chatto/operator/v1/operatorv1connect"
