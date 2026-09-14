@@ -452,8 +452,8 @@ describe('RoomSidebar', () => {
       .element(rendered.getByText('Search is unavailable', { exact: true }))
       .toBeVisible();
     await userEvent.click(rendered.getByRole('button', { name: 'Try Again' }));
-    await expect.element(rendered.getByRole('textbox')).toBeVisible();
-    await expect.element(rendered.getByRole('textbox')).toHaveFocus();
+    await expect.element(rendered.getByRole('searchbox')).toBeVisible();
+    await expect.element(rendered.getByRole('searchbox')).toHaveFocus();
     expect(getStatus).toHaveBeenCalledTimes(2);
   });
 
@@ -1464,7 +1464,7 @@ describe('RoomSidebar', () => {
     expect(memberDirectoryMocks.listRoomMembers).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the member search fixed above a scroll-faded member list', async () => {
+  it('keeps the member search fixed below a scroll-faded member list', async () => {
     const { container } = render(RoomSidebarTestHarness, {
       props: {
         roomData: roomData([], 0, false)
@@ -1479,10 +1479,36 @@ describe('RoomSidebar', () => {
     const memberList = q(container, '[data-testid="room-member-list"]');
     const scrollFader = memberList?.parentElement;
 
-    expect(searchBlock?.nextElementSibling).toBe(scrollFader);
+    expect(scrollFader?.nextElementSibling).toBe(searchBlock);
     expect(searchBlock?.classList).not.toContain('overflow-y-auto');
     expect(memberList?.classList).toContain('overflow-y-auto');
+    expect(q(searchBlock!, 'form')).toHaveClass('chat-input-surface');
     expect(q(memberList!, 'nav[aria-label="Members"]')).toBeTruthy();
+    expect(scrollFader?.querySelector('.bg-gradient-to-b')).toBeTruthy();
+    expect(scrollFader?.querySelector('.bg-gradient-to-t')).toBeTruthy();
+  });
+
+  it('keeps room search fixed below its scroll-faded results', async () => {
+    const searchStore = new MessageSearchStore({
+      getStatus: vi.fn().mockResolvedValue({ state: MessageSearchState.READY, retryAfterMs: null }),
+      searchMessages: vi.fn()
+    });
+    await searchStore.ensureStatus();
+    const { container } = render(RoomSidebarTestHarness, {
+      props: {
+        activePanel: 'search',
+        roomData: roomData([member(1)], 1, false),
+        searchStore
+      }
+    });
+
+    const searchBlock = q(container, '[data-testid="room-search-input-block"]');
+    const scrollFader = searchBlock?.previousElementSibling;
+    const scrollRegion = scrollFader?.querySelector('.overflow-y-auto');
+
+    expect(scrollRegion).toBeTruthy();
+    expect(searchBlock?.classList).not.toContain('overflow-y-auto');
+    expect(q(searchBlock!, 'form')).toHaveClass('chat-input-surface');
     expect(scrollFader?.querySelector('.bg-gradient-to-b')).toBeTruthy();
     expect(scrollFader?.querySelector('.bg-gradient-to-t')).toBeTruthy();
   });
@@ -1515,7 +1541,7 @@ describe('RoomSidebar', () => {
       container,
       'button[aria-label="Clear member search"]'
     ) as HTMLButtonElement;
-    expect(clearButton.className).toContain('pane-header-icon-button');
+    expect(clearButton).toHaveClass('h-8', 'w-8');
     clearButton.click();
     await tick();
 

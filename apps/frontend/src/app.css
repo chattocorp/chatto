@@ -789,6 +789,13 @@
   @apply rounded-xl bg-surface;
 }
 
+/* Chat input rows share one stable height and surface treatment. Keep compact
+ * shelves on composer-surface when they do not contain the primary input.
+ */
+@utility chat-input-surface {
+  @apply min-h-12 rounded-xl bg-surface;
+}
+
 /* Server Gutter item — icon buttons in the leftmost sidebar (the Server Gutter). */
 @utility server-gutter-item {
   @apply shimmer-hover relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-3xl transition-[background-color,color] duration-150;
