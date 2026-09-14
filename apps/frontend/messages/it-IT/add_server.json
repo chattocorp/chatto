@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Scoprire i server consigliati?",
+      "consent_body": "Chatto contatta i server consigliati dai server a cui hai aderito. Questi server possono vedere il tuo indirizzo IP e i dettagli tecnici della connessione. Chatto salva la tua scelta su questo dispositivo.",
+      "consent_action": "Scopri server",
       "recommended_by": "Consigliato da {servers}",
       "more_recommenders_count": {
         "other": "altri {count}"

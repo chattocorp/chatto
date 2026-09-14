@@ -1,5 +1,5 @@
 import { flushSync } from 'svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { Neighbor } from '$lib/api-client/neighbors';
@@ -80,7 +80,20 @@ describe('Neighbor management page', () => {
     mocks.loadServerProfiles.mockResolvedValue([]);
   });
 
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
   it('renders each Neighbor with its public server profile', async () => {
+    const imageFetch = vi.fn(
+      async () =>
+        new Response(new Blob(['image'], { type: 'image/webp' }), {
+          status: 200,
+          headers: { 'Content-Type': 'image/webp' }
+        })
+    );
+    vi.stubGlobal('fetch', imageFetch);
     const current = neighbor('https://dev.preview.chatto.run');
     const publicProfile = profile();
     mocks.list.mockResolvedValue([current]);
@@ -100,7 +113,17 @@ describe('Neighbor management page', () => {
         heading.textContent?.trim().startsWith('Neighbors')
       )
     ).toBe(true);
-    expect(container.querySelector<HTMLImageElement>('img')?.src).toContain('/banner.webp');
+    await vi.waitFor(() => {
+      expect(container.querySelector<HTMLImageElement>('img')?.src).toContain('blob:');
+    });
+    expect(imageFetch).toHaveBeenCalledWith(
+      'https://dev.preview.chatto.run/banner.webp',
+      expect.objectContaining({
+        credentials: 'omit',
+        redirect: 'error',
+        referrerPolicy: 'no-referrer'
+      })
+    );
   });
 
   it.each([

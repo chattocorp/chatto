@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Aanbevolen servers ontdekken?",
+      "consent_body": "Chatto maakt verbinding met servers die worden aanbevolen door servers waaraan je deelneemt. Deze servers kunnen je IP-adres en technische gegevens over de verbinding zien. Chatto slaat je keuze op dit apparaat op.",
+      "consent_action": "Servers ontdekken",
       "recommended_by": "Aanbevolen door {servers}",
       "more_recommenders_count": {
         "other": "nog {count}"

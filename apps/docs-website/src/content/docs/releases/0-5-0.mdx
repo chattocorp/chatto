@@ -118,8 +118,11 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   additional batch can load when a user scrolls near the end. Fixed batch,
   concurrency, timeout, and page-session limits bound browser work. Each result
   identifies the registered servers that supplied the recommendation. Server
-  profile cards use a tapestry layout. Mutuality is a current client
-  observation, not a verified relationship or trust statement.
+  profile cards use a tapestry layout. Before discovery starts, the client
+  explains the network disclosure and asks the user to enable discovery once on
+  the device. Public profile images load only from the advertised server origin,
+  without credentials, referrer data, or redirects. Mutuality is a current
+  client observation, not a verified relationship or trust statement.
 </ReleaseFeatureCard>
 
 <ReleaseFeatureCard

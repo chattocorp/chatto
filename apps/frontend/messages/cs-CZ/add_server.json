@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Chcete vyhledat doporučené servery?",
+      "consent_body": "Chatto kontaktuje servery, které doporučují servery, ke kterým jste se připojili. Tyto servery mohou vidět vaši IP adresu a technické údaje o připojení. Chatto uloží vaši volbu do tohoto zařízení.",
+      "consent_action": "Vyhledat servery",
       "recommended_by": "Doporučují {servers}",
       "more_recommenders_count": {
         "other": "dalších {count}"

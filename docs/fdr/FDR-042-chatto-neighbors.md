@@ -1,7 +1,7 @@
 # FDR-042: Chatto Neighbors
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -21,6 +21,9 @@ recommendation, not a trust or reciprocal relationship.
   or an exact `webserver.allowed_origins` alias.
 - The directory has no ordering contract.
 - Any caller can list the advertised origins through the public discovery API.
+- The Server Directory asks the user for consent before it contacts any
+  advertised server. The client saves this consent on the device and does not
+  ask again on later visits.
 - The Server Directory starts with all servers registered in the client. It
   shows their direct recommendations after it loads each public profile. A
   direct recommendation does not need reciprocal confirmation.
@@ -39,6 +42,10 @@ recommendation, not a trust or reciprocal relationship.
   profile does not load. The administration page keeps an advertised server
   visible so that an administrator can review or remove it. A failed request
   does not hide profiles that loaded successfully.
+- A public profile card accepts a logo or banner only from the advertised
+  server origin. The client loads the image without credentials or referrer
+  data, rejects redirects, and accepts only responses that declare a supported
+  raster image media type.
 - The Server Directory starts one automatic batch of 12 candidate-directory
   requests. After the user scrolls near the end of the results, the client can
   start one more automatic batch of 12. **Load more** starts each later batch.
@@ -102,15 +109,16 @@ observation can change between requests.
 **Decision:** The server validates and stores canonical origins. It does not
 request discovery data, images, or health information from a Neighbor. The
 client requests public discovery data directly from advertised origins when it
-displays the Server Directory or the Neighbor administration page.
+displays the Neighbor administration page. The Server Directory makes these
+requests only after the user gives consent or when the device has saved consent.
 
 **Why:** Passive storage keeps writes deterministic and avoids remote effects
 inside the configuration operation.
 
-**Tradeoff:** Opening the Server Directory or Neighbor administration page sends
-browser requests to advertised servers. The Server Directory omits an offline
-or invalid server. The administration page shows it without a public profile
-so that an administrator can remove it.
+**Tradeoff:** Opening the Neighbor administration page sends browser requests
+to advertised servers. The Server Directory sends them after consent. It omits
+an offline or invalid server. The administration page shows that server without
+a public profile so that an administrator can remove it.
 
 ### 4. Permission inclusion is explicit
 
@@ -215,6 +223,48 @@ Fixed limits make the maximum request effect testable.
 The second automatic batch does not start on a short page that the user does
 not scroll. Discovery order reflects completion and bounded scheduling, not
 quality.
+
+### 12. Server Directory discovery requires consent
+
+**Decision:** The Server Directory does not contact advertised servers until
+the user selects **Discover servers**. Before that action, the client explains
+that each contacted server can see the user's IP address and technical
+connection details. The client saves consent in device-local storage. Direct
+server lookup remains available without Server Directory consent because the
+user supplies its server address in an explicit action. The Neighbor
+administration page does not use this prompt because administrators add the
+remote origins and open the page to inspect and manage them.
+
+**Why:** Opening a page must not expose the user's network information to a
+set of remote systems without a clear choice. Device-local consent avoids a
+repeated prompt after the user understands and enables discovery. The
+administrator workflow already makes the remote systems and the purpose of the
+connections clear.
+
+**Tradeoff:** A user must take one extra action before first use on each device
+or browser profile. Clearing local data makes the client ask again. An
+administrator does not get a separate connection prompt on the management page.
+
+### 13. Public profile images use a restricted source
+
+**Decision:** A public profile card accepts an image only from the advertised
+server origin. The request sends no credentials or referrer data, does not
+follow redirects, and accepts a limited set of declared raster image media
+types.
+
+**Why:** A profile must not make the client contact an unrelated image host or
+send reusable user credentials. Rejecting redirects and active image formats
+keeps the advertised server as the visible network boundary.
+
+**Tradeoff:** Images on a content delivery network, redirected images, and SVG
+images do not display. A remote image response must permit the browser's
+cross-origin request.
+
+## Permissions
+
+- `server.manage-neighbors` permits Neighbor administration. A human session
+  must also have privileged mode active.
+- An effective `server.manage` allow includes `server.manage-neighbors`.
 
 ## Non-goals
 

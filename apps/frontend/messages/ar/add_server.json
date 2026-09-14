@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "هل تريد اكتشاف الخوادم الموصى بها؟",
+      "consent_body": "يتصل Chatto بالخوادم التي توصي بها الخوادم التي انضممت إليها. يمكن لهذه الخوادم رؤية عنوان IP الخاص بك والتفاصيل التقنية للاتصال. يحفظ Chatto اختيارك على هذا الجهاز.",
+      "consent_action": "اكتشاف الخوادم",
       "recommended_by": "موصى به من {servers}",
       "more_recommenders_count": {
         "other": "{count} آخرين"

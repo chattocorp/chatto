@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Upptäcka rekommenderade servrar?",
+      "consent_body": "Chatto kontaktar servrar som rekommenderas av servrar du har gått med i. Dessa servrar kan se din IP-adress och teknisk information om anslutningen. Chatto sparar ditt val på den här enheten.",
+      "consent_action": "Upptäck servrar",
       "recommended_by": "Rekommenderas av {servers}",
       "more_recommenders_count": {
         "other": "{count} till"

@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Ĉu trovi rekomenditajn servilojn?",
+      "consent_body": "Chatto kontaktas servilojn rekomenditajn de serviloj al kiuj vi aliĝis. Tiuj serviloj povas vidi vian IP-adreson kaj teknikajn detalojn pri la konekto. Chatto konservas vian elekton en ĉi tiu aparato.",
+      "consent_action": "Trovi servilojn",
       "recommended_by": "Rekomendita de {servers}",
       "more_recommenders_count": {
         "other": "{count} pliaj"
