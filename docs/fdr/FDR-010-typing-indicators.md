@@ -16,8 +16,8 @@ When a user composes a message, others see avatars, names, and animated dots in 
 - Current clients refresh typing state through ConnectRPC
   `RoomService.RefreshTypingIndicator`.
 - The bundled client shows up to three avatars and two names. Larger groups show the two names and a count of the other people. Missing profiles use the translated unknown-user label and still count toward the group size. A missing display name falls back to the login.
-- The indicator floats at the lower inline-end edge of its pane. Long labels truncate to fit the pane without moving messages. The complete label stays available to assistive technology.
-- A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade and dot animation.
+- The indicator floats at the lower inline-end edge of its pane. The complete block fades and scales between 96% and 100% over 150 ms with easing. Long labels truncate to fit the pane without moving messages. The complete label stays available to assistive technology.
+- A bright dot moves clockwise around a 3×3 grid with a fading trail beside the label. A persistent polite status region announces text changes. Avatars and dots are decorative. Reduced motion disables the fade, scale, and dot animation.
 - The indicator is removed immediately when the user actually posts a message.
 - Room typing and thread typing are tracked separately. The room view only shows indicators for users typing in the room timeline (not in any thread). A thread pane only shows indicators for users typing in that specific thread.
 

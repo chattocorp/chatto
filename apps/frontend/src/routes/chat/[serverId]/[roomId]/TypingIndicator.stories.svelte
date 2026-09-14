@@ -1,6 +1,7 @@
 <script module lang="ts">
   import { defineMeta } from '@storybook/addon-svelte-csf';
   import TypingIndicator from './TypingIndicator.svelte';
+  import { Button } from '$lib/ui/form';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   const { Story } = defineMeta({
@@ -11,7 +12,7 @@
       docs: {
         description: {
           component:
-            'Floating typing indicator for room and thread panes. Shows up to three avatars and two names, then counts the remaining people. Missing profiles use an unknown-user label. The indicator stays inside its pane and does not move messages.'
+            'Floating typing indicator for room and thread panes. Shows up to three avatars and two names, then counts the remaining people. A bright dot moves clockwise around a 3×3 grid with a fading trail and stays still with reduced motion. Missing profiles use an unknown-user label. The indicator stays inside its pane and does not move messages.'
         }
       }
     }
@@ -44,6 +45,19 @@
 
   const members = [alice, bob, carol, dave];
 </script>
+
+<script lang="ts">
+  let typing = $state(false);
+</script>
+
+<Story name="Fade and zoom in and out" asChild>
+  <div class="flex flex-col items-start gap-4">
+    <Button onclick={() => (typing = !typing)}>{typing ? 'Stop typing' : 'Start typing'}</Button>
+    <div class="relative h-24 w-96 max-w-full rounded-lg border border-border bg-background p-2">
+      <TypingIndicator typingUserIds={typing ? ['alice', 'bob'] : []} {members} />
+    </div>
+  </div>
+</Story>
 
 <Story name="Single typer" asChild>
   <div class="relative h-24 w-96 overflow-hidden rounded-lg border border-border bg-background p-2">

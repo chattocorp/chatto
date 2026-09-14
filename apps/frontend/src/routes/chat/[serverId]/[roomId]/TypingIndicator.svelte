@@ -23,10 +23,11 @@ message list layout, and it announces changes politely to screen readers via a
 </script>
 
 <script lang="ts">
-  import { fade } from 'svelte/transition';
+  import { scale } from 'svelte/transition';
+  import { cubicOut } from 'svelte/easing';
+  import { prefersReducedMotion } from 'svelte/motion';
   import { type RoomMember } from '$lib/state/room';
   import { m } from '$lib/i18n/messages';
-  import { expoOutTransition } from '$lib/ui/motion';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
 
   let {
@@ -86,7 +87,12 @@ message list layout, and it announces changes politely to screen readers via a
     <div
       data-testid="typing-indicator"
       class="flex max-w-full min-w-0 items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 shadow-md"
-      transition:fade={expoOutTransition(150)}
+      transition:scale={{
+        duration: prefersReducedMotion.current ? 0 : 150,
+        easing: cubicOut,
+        start: 0.96,
+        opacity: 0
+      }}
     >
       {#each visibleMembers as member (member.id)}
         <span class="shrink-0" aria-hidden="true" data-testid="typing-avatar">
@@ -96,10 +102,17 @@ message list layout, and it announces changes politely to screen readers via a
       {#if label}
         <span class="typing-label ms-0.5 max-w-64 min-w-0 truncate text-muted">{label}</span>
       {/if}
-      <span class="typing-dots inline-flex shrink-0 items-center gap-0.5" aria-hidden="true">
+      <span class="typing-dots grid shrink-0 grid-cols-3 gap-0.5 text-muted" aria-hidden="true">
+        <!-- Clockwise perimeter chase; negative delays start with a complete fading trail. -->
         <span class="typing-dot"></span>
-        <span class="typing-dot [animation-delay:200ms]"></span>
-        <span class="typing-dot [animation-delay:400ms]"></span>
+        <span class="typing-dot [animation-delay:-700ms]"></span>
+        <span class="typing-dot [animation-delay:-600ms]"></span>
+        <span class="typing-dot [animation-delay:-100ms]"></span>
+        <span class="typing-dot opacity-20 [animation:none]"></span>
+        <span class="typing-dot [animation-delay:-500ms]"></span>
+        <span class="typing-dot [animation-delay:-200ms]"></span>
+        <span class="typing-dot [animation-delay:-300ms]"></span>
+        <span class="typing-dot [animation-delay:-400ms]"></span>
       </span>
     </div>
   {/if}
