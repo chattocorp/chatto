@@ -43,8 +43,11 @@ experience.
   process restarts; the completing browser receives a new session.
 - Protected pages reject absent, expired, malformed, forged, and revoked
   sessions. Cross-origin login and logout submissions are rejected.
-- The configured public origin is canonical: requests for another host are
-  rejected, and unsafe browser requests must carry that exact origin.
+- The configured public origin is canonical: requests for another host, port, or
+  scheme receive a temporary redirect (307) before any application handler.
+  The destination uses the configured origin and preserves the path and query.
+  Redirects preserve the method and are not cached. Unsafe browser requests
+  at the canonical origin must still carry that exact origin.
 - Deployments may explicitly trust sanitized `X-Forwarded-Host` and
   `X-Forwarded-Proto` from their sole reverse proxy. The listener must not be
   directly reachable by untrusted clients when that option is enabled.

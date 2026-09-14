@@ -843,7 +843,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	if deps.OIDC != nil {
 		mux.Handle("/", deps.OIDC)
 	}
-	handler := requireCanonicalHost(mux, publicOrigin)
+	handler := redirectToCanonicalOrigin(mux, publicOrigin)
 	if deps.TrustProxyHeaders {
 		handler = useTrustedProxyOrigin(handler)
 	}
@@ -1052,16 +1052,31 @@ func sameOrigin(r *http.Request, expected *url.URL) bool {
 	return err == nil && sameOriginTuple(parsed, requestOrigin)
 }
 
-func requireCanonicalHost(next http.Handler, expected *url.URL) http.Handler {
+// redirectToCanonicalOrigin serves application routes only at the configured
+// public origin. Redirect targets use trusted configuration, never a request
+// host or an absolute request URI. A 307 preserves methods without caching a
+// hostname choice permanently.
+func redirectToCanonicalOrigin(next http.Handler, expected *url.URL) http.Handler {
 	if expected == nil {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestHost, err := url.Parse(expected.Scheme + "://" + r.Host)
-		if err != nil || requestHost.User != nil || requestHost.Path != "" ||
-			requestHost.RawQuery != "" || requestHost.Fragment != "" ||
-			!sameHostPort(requestHost, expected) {
-			http.Error(w, "request host does not match Authling's public URL", http.StatusMisdirectedRequest)
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		requestOrigin, err := url.Parse(scheme + "://" + r.Host)
+		if err != nil || requestOrigin.Host == "" || requestOrigin.User != nil || requestOrigin.Path != "" ||
+			requestOrigin.RawQuery != "" || requestOrigin.Fragment != "" {
+			http.Error(w, "invalid request host", http.StatusBadRequest)
+			return
+		}
+		if !sameOriginTuple(requestOrigin, expected) {
+			target := *expected
+			target.Path, target.RawPath = r.URL.Path, r.URL.RawPath
+			target.RawQuery, target.ForceQuery = r.URL.RawQuery, r.URL.ForceQuery
+			w.Header().Set("Cache-Control", "no-store")
+			http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 			return
 		}
 		next.ServeHTTP(w, r)

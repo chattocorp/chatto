@@ -135,6 +135,10 @@ When the proxy overwrites `X-Forwarded-Host` and `X-Forwarded-Proto`, set
 `http.trust_proxy_headers = true` (or `AUTHLING_HTTP_TRUST_PROXY_HEADERS=true`)
 so canonical-host and same-origin checks use that browser-facing origin. Never
 enable this for a listener directly reachable by untrusted clients.
+Requests through another hostname, port, or scheme redirect to `http.public_url`
+with HTTP 307 before Authling processes them. The redirect preserves the path,
+query, and request method. DNS, certificates, and proxy routes must still allow
+the alias to reach Authling. OIDC clients must use the canonical issuer URL.
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.
