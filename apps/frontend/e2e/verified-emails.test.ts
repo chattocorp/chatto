@@ -39,5 +39,8 @@ test.describe('Verified email settings', () => {
     await expect(newEmailRow).toBeVisible();
     await newEmailRow.getByRole('button', { name: 'Make primary' }).click();
     await expect(page.getByRole('row', { name: `${newEmail} Primary` })).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByRole('row', { name: `${newEmail} Primary` })).toBeVisible();
   });
 });
