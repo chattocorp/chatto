@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Meer kamers in {group} tonen ({count})",
+    "hide_rooms_in_group": "Niet-deelgenomen kamers in {group} verbergen",
+    "more_rooms": "{count} meer",
+    "show_less": "Minder tonen",
     "active_call": "Actief gesprek",
     "call_participants": "{count}-deelnemers in gesprek",
     "go_to_notifications": "Ga naar {count}-meldingen",
