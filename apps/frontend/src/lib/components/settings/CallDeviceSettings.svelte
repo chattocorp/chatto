@@ -100,8 +100,8 @@
     return () => {
       current = false;
       node.pause();
-      node.removeAttribute('src');
-      node.load();
+      // Attachments rerun when available outputs change. Keep Svelte's src
+      // binding intact so a refreshed device list cannot erase this clip.
     };
   }
 </script>
