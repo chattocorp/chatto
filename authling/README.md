@@ -114,6 +114,8 @@ signup at <http://localhost:8080/signup>, login at
 <http://localhost:8080/password-reset>. Signed-in accounts can change their
 verified email address or password, review or revoke other browser sessions,
 and manage authorized OIDC apps from <http://localhost:8080/account>.
+Authling also redirects `/.well-known/change-password` to the signed-in
+password-change page for compatible password managers.
 Mailpit receives SMTP on port 1025 and shows captured messages at
 <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and

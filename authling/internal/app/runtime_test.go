@@ -424,6 +424,57 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 	}
 }
 
+func TestPasswordManagerDiscoveryResumesPasswordChangeAfterLogin(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "password-manager@example.com", "a deliberately uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{
+		Accounts: runtime.Accounts, Authentication: runtime.Authentication, Sessions: runtime.Sessions,
+		PublicURL: cfg.HTTP.PublicURLOrDefault(),
+	})
+
+	discovery := requestHandler(t, handler, http.MethodGet, "/.well-known/change-password", "", nil)
+	if discovery.Code != http.StatusSeeOther || discovery.Header().Get("Location") != "/account/password" {
+		t.Fatalf("discovery status/location = %d %q", discovery.Code, discovery.Header().Get("Location"))
+	}
+
+	protectedPage := requestHandler(t, handler, http.MethodGet, discovery.Header().Get("Location"), "", nil)
+	loginTarget := protectedPage.Header().Get("Location")
+	if protectedPage.Code != http.StatusSeeOther || loginTarget != "/login?return_to=%2Faccount%2Fpassword" {
+		t.Fatalf("protected page status/location = %d %q", protectedPage.Code, loginTarget)
+	}
+
+	loginPage := requestHandler(t, handler, http.MethodGet, loginTarget, "", nil)
+	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `name="return_to" value="/account/password"`) {
+		t.Fatalf("login page status/body = %d %s", loginPage.Code, loginPage.Body.String())
+	}
+
+	login := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+		"email": {"password-manager@example.com"}, "password": {"a deliberately uncommon password"},
+		"return_to": {"/account/password"},
+	}.Encode(), nil)
+	if login.Code != http.StatusSeeOther || login.Header().Get("Location") != "/account/password" || len(login.Result().Cookies()) != 1 {
+		t.Fatalf("login status/location/cookies = %d %q %d", login.Code, login.Header().Get("Location"), len(login.Result().Cookies()))
+	}
+
+	passwordPage := requestHandler(t, handler, http.MethodGet, login.Header().Get("Location"), "", login.Result().Cookies()[0])
+	if passwordPage.Code != http.StatusOK || !strings.Contains(passwordPage.Body.String(), "Change your password") {
+		t.Fatalf("password page status/body = %d %s", passwordPage.Code, passwordPage.Body.String())
+	}
+
+	externalReturn := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+		"email": {"password-manager@example.com"}, "password": {"a deliberately uncommon password"},
+		"return_to": {"https://attacker.example"},
+	}.Encode(), nil)
+	if externalReturn.Code != http.StatusSeeOther || externalReturn.Header().Get("Location") != "/account" {
+		t.Fatalf("external return status/location = %d %q", externalReturn.Code, externalReturn.Header().Get("Location"))
+	}
+}
+
 func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}

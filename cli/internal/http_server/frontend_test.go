@@ -736,6 +736,7 @@ func TestFrontendFallbackDoesNotServeReservedBackendPrefixes(t *testing.T) {
 		"/api/unknown",
 		"/auth/unknown",
 		"/assets/unknown",
+		"/.well-known/resource-that-should-not-exist-whose-status-code-should-not-be-200",
 	}
 	for _, path := range tests {
 		t.Run(path, func(t *testing.T) {
@@ -796,6 +797,7 @@ func TestFrontendFallbackAllowsRoutesWithReservedPrefixNames(t *testing.T) {
 		"/apiary",
 		"/author",
 		"/assets-gallery",
+		"/.well-knownish",
 	}
 	for _, path := range tests {
 		t.Run(path, func(t *testing.T) {

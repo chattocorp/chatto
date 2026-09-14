@@ -282,6 +282,9 @@ projection boundaries, then appends a `PasswordChangedEvent` bound to the exact
 reauthenticated credential. It advances the authentication version, invalidates
 older browser sessions, and creates a replacement session at that exact
 generation. The account ID, verified email, and OIDC `sub` remain unchanged.
+`GET` and `HEAD /.well-known/change-password` return a temporary, non-cacheable
+redirect to this page. A signed-out request carries only this fixed internal
+return target through login. Other submitted return targets are ignored.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,

@@ -197,6 +197,19 @@ The email must be verified by the user before Chatto treats the user as an effec
   Keep at least one owner recovery email controlled by the server operator, not only by an external identity provider account.
 </Aside>
 
+## Password Managers
+
+Chatto publishes `/.well-known/change-password` on each server origin. A
+compatible password manager can use this URL to open **Settings → Account** for
+that server. If you are signed out, Chatto returns you to the account settings
+after sign-in.
+
+A separately hosted Chatto client does not publish this URL because it does not
+own server passwords. If your reverse proxy handles `/.well-known` paths,
+forward `/.well-known/change-password` to Chatto. Keep unknown well-known paths
+as `404` responses. See the
+[W3C change-password URL specification](https://www.w3.org/TR/change-password-url/).
+
 ## Sessions And Logout
 
 Chatto uses opaque runtime credentials, not JWTs. Browser authentication uses an HttpOnly cookie for same-origin flows, including direct external-provider login, and provider redirects never contain bearer credentials. In the final quarter, the bundled browser automatically renews the same session handle through a dedicated route; ordinary validation does not write the session or cookie. Registered cross-origin server connections use Chatto's OAuth PKCE flow to obtain a short-lived access token and rotating refresh credential. The client renews the current session window in the background without reopening OAuth or asking the user to extend the session. A client that is inactive for one complete window must sign in again. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials through the user's auth generation.
