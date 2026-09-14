@@ -91,12 +91,20 @@ type MyAccountServiceClient interface {
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
 	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
-	// Sends a short-lived code to an email address that the authenticated user
-	// wants to add. The server must have transactional email enabled.
+	// Sends a six-digit code to an email address that the authenticated user
+	// wants to add. The code expires after the server-configured email OTP
+	// lifetime. The client can request a new code after expiry. The server must
+	// have transactional email enabled. Returns ALREADY_EXISTS when the address
+	// is already verified for the user, RESOURCE_EXHAUSTED after too many code
+	// requests or attempts, and UNAVAILABLE when email delivery is disabled or
+	// fails.
 	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
-	// Confirms a verification code and adds the address to the account.
+	// Confirms a verification code and adds the address to the account. Returns
+	// INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+	// when another user already controls the address.
 	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
-	// Selects one verified address for future account-directed email.
+	// Selects one verified address for future account-directed email. Returns
+	// NOT_FOUND when the address is not verified for the authenticated user.
 	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.
@@ -351,12 +359,20 @@ type MyAccountServiceHandler interface {
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
 	// Lists the authenticated user's verified email addresses and primary choice.
 	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
-	// Sends a short-lived code to an email address that the authenticated user
-	// wants to add. The server must have transactional email enabled.
+	// Sends a six-digit code to an email address that the authenticated user
+	// wants to add. The code expires after the server-configured email OTP
+	// lifetime. The client can request a new code after expiry. The server must
+	// have transactional email enabled. Returns ALREADY_EXISTS when the address
+	// is already verified for the user, RESOURCE_EXHAUSTED after too many code
+	// requests or attempts, and UNAVAILABLE when email delivery is disabled or
+	// fails.
 	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
-	// Confirms a verification code and adds the address to the account.
+	// Confirms a verification code and adds the address to the account. Returns
+	// INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+	// when another user already controls the address.
 	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
-	// Selects one verified address for future account-directed email.
+	// Selects one verified address for future account-directed email. Returns
+	// NOT_FOUND when the address is not verified for the authenticated user.
 	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.

@@ -54,8 +54,13 @@ export const MyAccountService = {
       idempotency: MethodIdempotency.NoSideEffects,
     },
     /**
-     * Sends a short-lived code to an email address that the authenticated user
-     * wants to add. The server must have transactional email enabled.
+     * Sends a six-digit code to an email address that the authenticated user
+     * wants to add. The code expires after the server-configured email OTP
+     * lifetime. The client can request a new code after expiry. The server must
+     * have transactional email enabled. Returns ALREADY_EXISTS when the address
+     * is already verified for the user, RESOURCE_EXHAUSTED after too many code
+     * requests or attempts, and UNAVAILABLE when email delivery is disabled or
+     * fails.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.RequestEmailVerification
      */
@@ -66,7 +71,9 @@ export const MyAccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Confirms a verification code and adds the address to the account.
+     * Confirms a verification code and adds the address to the account. Returns
+     * INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+     * when another user already controls the address.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.ConfirmEmailVerification
      */
@@ -77,7 +84,8 @@ export const MyAccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Selects one verified address for future account-directed email.
+     * Selects one verified address for future account-directed email. Returns
+     * NOT_FOUND when the address is not verified for the authenticated user.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.SetPrimaryEmail
      */
