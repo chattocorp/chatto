@@ -79,7 +79,8 @@ trap 'stop_from_signal 143' TERM
 trap stop_descendants EXIT
 
 if (( $# == 0 )); then
-	set -- mise run --jobs 4 --output prefix dev-backend ::: dev-frontend ::: dev-livekit ::: dev-mailpit
+	echo "usage: $0 COMMAND [ARGUMENT ...]" >&2
+	exit 2
 fi
 
 # A separate process group remains addressable even if the supervised command

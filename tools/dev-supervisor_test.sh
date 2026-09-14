@@ -9,6 +9,8 @@ supervisor_pid=""
 descendants=""
 all_test_pids=""
 archive_workspace=""
+archive_workspace_alias=""
+conflict_output=""
 
 descendants_of() {
 	local root_pid="$1"
@@ -42,6 +44,12 @@ cleanup() {
 	fi
 	if [[ -n "$archive_workspace" ]]; then
 		rm -rf "$archive_workspace"
+	fi
+	if [[ -n "$archive_workspace_alias" ]]; then
+		rm -f "$archive_workspace_alias"
+	fi
+	if [[ -n "$conflict_output" ]]; then
+		rm -f "$conflict_output"
 	fi
 }
 trap cleanup EXIT
@@ -109,12 +117,17 @@ assert_signal_cleanup INT
 # cannot run its TERM trap.
 archive_workspace="$(mktemp -d)"
 archive_workspace="$(cd "$archive_workspace" && pwd -P)"
+archive_workspace_alias="$archive_workspace-alias"
 mkdir -p "$archive_workspace/tools"
 cp "$repository_root/tools/dev-supervisor.sh" "$archive_workspace/tools/dev-supervisor.sh"
 chmod +x "$archive_workspace/tools/dev-supervisor.sh"
-perl -e '$SIG{HUP} = $SIG{INT} = $SIG{TERM} = "DEFAULT"; exec @ARGV' \
-	"$archive_workspace/tools/dev-supervisor.sh" \
-	bash -c 'trap "" HUP INT TERM; sleep 300 & sleep 300 & wait' &
+ln -s "$archive_workspace" "$archive_workspace_alias"
+(
+	cd "$archive_workspace"
+	exec perl -e '$SIG{HUP} = $SIG{INT} = $SIG{TERM} = "DEFAULT"; exec @ARGV' \
+		"$archive_workspace_alias/tools/dev-supervisor.sh" \
+		bash -c 'trap "" HUP INT TERM; sleep 300 & sleep 300 & wait'
+) &
 supervisor_pid=$!
 all_test_pids+=" $supervisor_pid"
 for _ in {1..100}; do
@@ -148,8 +161,54 @@ if [[ "$still_live" == true ]]; then
 	echo "workspace archive cleanup left the development process tree running" >&2
 	exit 1
 fi
+rm -f "$archive_workspace_alias"
+archive_workspace_alias=""
 rm -rf "$archive_workspace"
 archive_workspace=""
+
+# A process that does not belong to the workspace must block startup without
+# being terminated merely because it owns a development port.
+for port_base in $(seq 42000 10 60000); do
+	if ! lsof -nP -iTCP:"$port_base-$((port_base + 9))" -sTCP:LISTEN 2>/dev/null | grep -q . &&
+		! lsof -nP -iUDP:"$port_base-$((port_base + 9))" 2>/dev/null | grep -q .; then
+		break
+	fi
+done
+perl -MIO::Socket::INET -e '
+	my $port = shift;
+	my $socket = IO::Socket::INET->new(
+		LocalAddr => "127.0.0.1",
+		LocalPort => $port,
+		Proto => "tcp",
+		Listen => 5,
+	) or die "listen on TCP port $port: $!";
+	sleep 300;
+' "$port_base" &
+foreign_listener_pid=$!
+all_test_pids+=" $foreign_listener_pid"
+for _ in {1..100}; do
+	if lsof -nP -a -p "$foreign_listener_pid" -iTCP:"$port_base" -sTCP:LISTEN 2>/dev/null | grep -q .; then
+		break
+	fi
+	sleep 0.01
+done
+conflict_output="$(mktemp)"
+if CONDUCTOR_WORKSPACE_PATH="$repository_root" \
+	"$repository_root/tools/stop-workspace-dev.sh" "$port_base" 2>"$conflict_output"; then
+	echo "workspace cleanup did not report a foreign port listener" >&2
+	exit 1
+fi
+grep -F "TCP port $port_base: PID $foreign_listener_pid" "$conflict_output" >/dev/null
+if ! is_live "$foreign_listener_pid"; then
+	echo "workspace cleanup stopped a foreign port listener" >&2
+	exit 1
+fi
+kill -TERM "$foreign_listener_pid"
+wait "$foreign_listener_pid" 2>/dev/null || true
+rm -f "$conflict_output"
+conflict_output=""
+CONDUCTOR_WORKSPACE_PATH="$repository_root" \
+	"$repository_root/tools/stop-workspace-dev.sh" "$port_base"
 
 natural_exit_directory="$(mktemp -d)"
 grandchild_file="$natural_exit_directory/grandchild.pid"
