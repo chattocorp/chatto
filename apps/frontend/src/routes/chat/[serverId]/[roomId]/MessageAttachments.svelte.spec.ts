@@ -182,6 +182,7 @@ describe('MessageAttachments', () => {
 
     expect(button.getAttribute('style')).toContain('width: 40px');
     expect(button.getAttribute('style')).toContain('aspect-ratio: 40 / 200');
+    expect(button.getBoundingClientRect().height).toBeLessThanOrEqual(202);
     expect(image.className).toContain('object-contain');
     expect(image.className).not.toContain('object-cover');
     expect(image.className).toContain('h-full');

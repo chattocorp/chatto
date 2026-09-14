@@ -503,7 +503,6 @@
         style={display ? imageButtonStyle(display, variant) : undefined}
         class={[
           'embed-frame block min-w-0 cursor-pointer',
-          display && 'h-full w-full',
           !display && 'max-h-32'
         ]}
       >
