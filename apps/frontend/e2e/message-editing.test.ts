@@ -46,9 +46,14 @@ test.describe('Up arrow to edit last message', () => {
     await roomPage.messageInput.focus();
     await roomPage.pressUpArrow();
     await roomPage.expectEditModeActive();
+    await expect(roomPage.composer).toHaveText(originalMessage);
 
     const editedMessage = `Simple up edit saved ${Date.now()}`;
-    await roomPage.messageInput.fill(editedMessage);
+    // Use the editor's keyboard selection. A DOM-only fill selection can be
+    // replaced by TipTap's deferred focus, appending instead of replacing text.
+    await roomPage.messageInput.press('ControlOrMeta+a');
+    await page.keyboard.insertText(editedMessage);
+    await expect(roomPage.composer).toHaveText(editedMessage);
     await expect(page.getByTestId('composer-action-toolbar')).not.toContainText(/to send/i);
 
     await roomPage.messageInput.press('Control+Enter');
