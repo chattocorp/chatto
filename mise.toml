@@ -244,7 +244,7 @@ description = "Add reproducible synthetic data to the running development server
 depends = ["build-dev-cli"]
 dir = "cli"
 run = '''
-exec ./bin/chatto operator seed --operator-socket "${CHATTO_DEV_DATA_ROOT:-./data}/operator.sock" "$@"
+exec ./bin/chatto operator seed --operator-socket "${CHATTO_DEV_DATA_ROOT:-./data}/operator/operator.sock" "$@"
 '''
 
 [tasks.build-e2e-server]
@@ -488,7 +488,7 @@ export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="$authling_url"
 export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="$chatto_url/oauth/client-metadata.json"
 export CHATTO_LIVEKIT_URL="${livekit_url/https:/wss:}"
 export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit"
-export CHATTO_OPERATOR_API_SOCKET_PATH="$data_root/operator.sock"
+export CHATTO_OPERATOR_API_SOCKET_PATH="$data_root/operator/operator.sock"
 export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
 export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
 export CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE="$data_root/bootstrap/test_bot.key"
