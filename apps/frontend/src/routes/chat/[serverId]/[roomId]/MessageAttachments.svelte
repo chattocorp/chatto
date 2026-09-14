@@ -2,7 +2,6 @@
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
-  import { Dialog } from '$lib/ui';
 
   type RawAttachment = MessageAttachmentView;
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -154,15 +153,8 @@
 
   type Attachment = ReturnType<typeof normalizeAttachment>;
 
-  let descriptionAttachmentID = $state<string | null>(null);
-
   const attachments = $derived.by(() =>
     rawAttachments.map((attachment) => normalizeAttachment(attachment))
-  );
-  const descriptionAttachment = $derived(
-    descriptionAttachmentID
-      ? (attachments.find((attachment) => attachment.id === descriptionAttachmentID) ?? null)
-      : null
   );
 
   const MIN_THUMB_SIZE = 24;
@@ -449,11 +441,17 @@
 
   function openDescription(attachment: Attachment, event: Event) {
     event.stopPropagation();
-    descriptionAttachmentID = attachment.id;
-  }
-
-  function closeDescription() {
-    descriptionAttachmentID = null;
+    if (!attachment.description) return;
+    pushState('', {
+      modal: {
+        type: 'attachmentDescription',
+        serverId,
+        roomId,
+        eventId,
+        attachmentId: attachment.id,
+        description: attachment.description
+      }
+    });
   }
 </script>
 
@@ -739,17 +737,4 @@
       {/each}
     </div>
   {/if}
-{/if}
-
-{#if descriptionAttachment?.description}
-  <Dialog
-    visible
-    size="sm"
-    title={m('room.attachment.description_title')}
-    onclose={closeDescription}
-  >
-    <p class="max-w-prose break-words whitespace-pre-wrap text-text" dir="auto">
-      {descriptionAttachment.description}
-    </p>
-  </Dialog>
 {/if}

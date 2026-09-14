@@ -279,7 +279,7 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('shows the description in a modal for viewers without edit permission', async () => {
+  it('routes the description modal without changing the attachment layout', async () => {
     const description = 'A chart with a rising blue line.';
     const { container } = renderAttachment(imageAttachment({ description }));
 
@@ -292,14 +292,24 @@ describe('MessageAttachments', () => {
     expect(info.firstElementChild?.classList.contains('icon-[uil--info-circle]')).toBe(true);
     expect(info.className).toContain('md:focus-visible:opacity-100');
 
+    const attachmentLayout = container.innerHTML;
+
     info.click();
 
     await vi.waitFor(() => {
-      const dialog = container.querySelector<HTMLDialogElement>('dialog');
-      expect(dialog?.open).toBe(true);
-      expect(dialog?.textContent).toContain('Attachment description');
-      expect(dialog?.textContent).toContain(description);
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: {
+          type: 'attachmentDescription',
+          serverId: 'server_1',
+          roomId: 'room_1',
+          eventId: 'event_1',
+          attachmentId: 'att_1',
+          description
+        }
+      });
     });
+    expect(container.querySelector('dialog')).toBeNull();
+    expect(container.innerHTML).toBe(attachmentLayout);
   });
 
   it('stacks description, edit, and delete controls without overlap', () => {
