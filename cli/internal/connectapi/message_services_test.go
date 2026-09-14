@@ -1408,6 +1408,45 @@ func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
 	}
 }
 
+func TestMessageServiceSetAttachmentDescriptionInDM(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "description-dm-participant", "Description DM User", "password")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{participant.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	assetID := env.uploadAttachmentAsset(t, dm.Id, "diagram.png", "image/png", connectAPITestPNG())
+	created, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: dm.Id, AttachmentAssetIds: []string{assetID},
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	request := &apiv1.SetAttachmentDescriptionRequest{
+		RoomId: dm.Id, EventId: created.Msg.GetMessage().GetId(), AttachmentId: assetID, Description: "A diagram",
+	}
+
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, participant), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("DM participant SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.AssignOwnerRole(env.ctx, env.viewer.Id); err != nil {
+		t.Fatalf("AssignOwnerRole: %v", err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.Id, participant.Id, core.PermissionTargetScope{Kind: core.MatrixScopeDM}, core.PermMessageManage, core.PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState: %v", err)
+	}
+	managed, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, participant), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("DM manager SetAttachmentDescription: %v", err)
+	}
+	if got := managed.Msg.GetMessage().GetAttachments()[0].GetDescription(); got != "A diagram" {
+		t.Fatalf("DM attachment description = %q, want %q", got, "A diagram")
+	}
+}
+
 func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-delete-rbac")
