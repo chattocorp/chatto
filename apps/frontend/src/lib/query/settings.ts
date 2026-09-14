@@ -11,6 +11,9 @@ export const settingsQueryKeys = {
   externalIdentities(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'external-identities'] as const;
   },
+  verifiedEmails(serverId: string, connection: SettingsQueryConnection) {
+    return [...settingsRoot(serverId, connection), 'verified-emails'] as const;
+  },
   botsRoot(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'bots'] as const;
   },

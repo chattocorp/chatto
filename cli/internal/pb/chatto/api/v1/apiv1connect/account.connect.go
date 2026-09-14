@@ -39,6 +39,18 @@ const (
 	// MyAccountServiceChangePasswordProcedure is the fully-qualified name of the MyAccountService's
 	// ChangePassword RPC.
 	MyAccountServiceChangePasswordProcedure = "/chatto.api.v1.MyAccountService/ChangePassword"
+	// MyAccountServiceListVerifiedEmailsProcedure is the fully-qualified name of the MyAccountService's
+	// ListVerifiedEmails RPC.
+	MyAccountServiceListVerifiedEmailsProcedure = "/chatto.api.v1.MyAccountService/ListVerifiedEmails"
+	// MyAccountServiceRequestEmailVerificationProcedure is the fully-qualified name of the
+	// MyAccountService's RequestEmailVerification RPC.
+	MyAccountServiceRequestEmailVerificationProcedure = "/chatto.api.v1.MyAccountService/RequestEmailVerification"
+	// MyAccountServiceConfirmEmailVerificationProcedure is the fully-qualified name of the
+	// MyAccountService's ConfirmEmailVerification RPC.
+	MyAccountServiceConfirmEmailVerificationProcedure = "/chatto.api.v1.MyAccountService/ConfirmEmailVerification"
+	// MyAccountServiceSetPrimaryEmailProcedure is the fully-qualified name of the MyAccountService's
+	// SetPrimaryEmail RPC.
+	MyAccountServiceSetPrimaryEmailProcedure = "/chatto.api.v1.MyAccountService/SetPrimaryEmail"
 	// MyAccountServiceGetSettingsProcedure is the fully-qualified name of the MyAccountService's
 	// GetSettings RPC.
 	MyAccountServiceGetSettingsProcedure = "/chatto.api.v1.MyAccountService/GetSettings"
@@ -77,6 +89,15 @@ type MyAccountServiceClient interface {
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// Lists the authenticated user's verified email addresses and primary choice.
+	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
+	// Sends a short-lived code to an email address that the authenticated user
+	// wants to add. The server must have transactional email enabled.
+	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
+	// Confirms a verification code and adds the address to the account.
+	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
+	// Selects one verified address for future account-directed email.
+	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.
 	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
@@ -131,6 +152,31 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			httpClient,
 			baseURL+MyAccountServiceChangePasswordProcedure,
 			connect.WithSchema(myAccountServiceMethods.ByName("ChangePassword")),
+			connect.WithClientOptions(opts...),
+		),
+		listVerifiedEmails: connect.NewClient[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse](
+			httpClient,
+			baseURL+MyAccountServiceListVerifiedEmailsProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("ListVerifiedEmails")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		requestEmailVerification: connect.NewClient[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse](
+			httpClient,
+			baseURL+MyAccountServiceRequestEmailVerificationProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("RequestEmailVerification")),
+			connect.WithClientOptions(opts...),
+		),
+		confirmEmailVerification: connect.NewClient[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse](
+			httpClient,
+			baseURL+MyAccountServiceConfirmEmailVerificationProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("ConfirmEmailVerification")),
+			connect.WithClientOptions(opts...),
+		),
+		setPrimaryEmail: connect.NewClient[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse](
+			httpClient,
+			baseURL+MyAccountServiceSetPrimaryEmailProcedure,
+			connect.WithSchema(myAccountServiceMethods.ByName("SetPrimaryEmail")),
 			connect.WithClientOptions(opts...),
 		),
 		getSettings: connect.NewClient[v1.GetSettingsRequest, v1.GetSettingsResponse](
@@ -201,6 +247,10 @@ func NewMyAccountServiceClient(httpClient connect.HTTPClient, baseURL string, op
 type myAccountServiceClient struct {
 	updateProfile              *connect.Client[v1.UpdateProfileRequest, v1.UpdateProfileResponse]
 	changePassword             *connect.Client[v1.ChangePasswordRequest, v1.ChangePasswordResponse]
+	listVerifiedEmails         *connect.Client[v1.ListVerifiedEmailsRequest, v1.ListVerifiedEmailsResponse]
+	requestEmailVerification   *connect.Client[v1.RequestEmailVerificationRequest, v1.RequestEmailVerificationResponse]
+	confirmEmailVerification   *connect.Client[v1.ConfirmEmailVerificationRequest, v1.ConfirmEmailVerificationResponse]
+	setPrimaryEmail            *connect.Client[v1.SetPrimaryEmailRequest, v1.SetPrimaryEmailResponse]
 	getSettings                *connect.Client[v1.GetSettingsRequest, v1.GetSettingsResponse]
 	updateSettings             *connect.Client[v1.UpdateSettingsRequest, v1.UpdateSettingsResponse]
 	listExternalIdentities     *connect.Client[v1.ListExternalIdentitiesRequest, v1.ListExternalIdentitiesResponse]
@@ -221,6 +271,26 @@ func (c *myAccountServiceClient) UpdateProfile(ctx context.Context, req *connect
 // ChangePassword calls chatto.api.v1.MyAccountService.ChangePassword.
 func (c *myAccountServiceClient) ChangePassword(ctx context.Context, req *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return c.changePassword.CallUnary(ctx, req)
+}
+
+// ListVerifiedEmails calls chatto.api.v1.MyAccountService.ListVerifiedEmails.
+func (c *myAccountServiceClient) ListVerifiedEmails(ctx context.Context, req *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error) {
+	return c.listVerifiedEmails.CallUnary(ctx, req)
+}
+
+// RequestEmailVerification calls chatto.api.v1.MyAccountService.RequestEmailVerification.
+func (c *myAccountServiceClient) RequestEmailVerification(ctx context.Context, req *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error) {
+	return c.requestEmailVerification.CallUnary(ctx, req)
+}
+
+// ConfirmEmailVerification calls chatto.api.v1.MyAccountService.ConfirmEmailVerification.
+func (c *myAccountServiceClient) ConfirmEmailVerification(ctx context.Context, req *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error) {
+	return c.confirmEmailVerification.CallUnary(ctx, req)
+}
+
+// SetPrimaryEmail calls chatto.api.v1.MyAccountService.SetPrimaryEmail.
+func (c *myAccountServiceClient) SetPrimaryEmail(ctx context.Context, req *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error) {
+	return c.setPrimaryEmail.CallUnary(ctx, req)
 }
 
 // GetSettings calls chatto.api.v1.MyAccountService.GetSettings.
@@ -279,6 +349,15 @@ type MyAccountServiceHandler interface {
 	UpdateProfile(context.Context, *connect.Request[v1.UpdateProfileRequest]) (*connect.Response[v1.UpdateProfileResponse], error)
 	// Updates or adds the authenticated user's password.
 	ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error)
+	// Lists the authenticated user's verified email addresses and primary choice.
+	ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error)
+	// Sends a short-lived code to an email address that the authenticated user
+	// wants to add. The server must have transactional email enabled.
+	RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error)
+	// Confirms a verification code and adds the address to the account.
+	ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error)
+	// Selects one verified address for future account-directed email.
+	SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error)
 	// Reads the authenticated user's display preferences without changing them.
 	// Returns default settings when none have been saved.
 	GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error)
@@ -329,6 +408,31 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 		MyAccountServiceChangePasswordProcedure,
 		svc.ChangePassword,
 		connect.WithSchema(myAccountServiceMethods.ByName("ChangePassword")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceListVerifiedEmailsHandler := connect.NewUnaryHandler(
+		MyAccountServiceListVerifiedEmailsProcedure,
+		svc.ListVerifiedEmails,
+		connect.WithSchema(myAccountServiceMethods.ByName("ListVerifiedEmails")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceRequestEmailVerificationHandler := connect.NewUnaryHandler(
+		MyAccountServiceRequestEmailVerificationProcedure,
+		svc.RequestEmailVerification,
+		connect.WithSchema(myAccountServiceMethods.ByName("RequestEmailVerification")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceConfirmEmailVerificationHandler := connect.NewUnaryHandler(
+		MyAccountServiceConfirmEmailVerificationProcedure,
+		svc.ConfirmEmailVerification,
+		connect.WithSchema(myAccountServiceMethods.ByName("ConfirmEmailVerification")),
+		connect.WithHandlerOptions(opts...),
+	)
+	myAccountServiceSetPrimaryEmailHandler := connect.NewUnaryHandler(
+		MyAccountServiceSetPrimaryEmailProcedure,
+		svc.SetPrimaryEmail,
+		connect.WithSchema(myAccountServiceMethods.ByName("SetPrimaryEmail")),
 		connect.WithHandlerOptions(opts...),
 	)
 	myAccountServiceGetSettingsHandler := connect.NewUnaryHandler(
@@ -398,6 +502,14 @@ func NewMyAccountServiceHandler(svc MyAccountServiceHandler, opts ...connect.Han
 			myAccountServiceUpdateProfileHandler.ServeHTTP(w, r)
 		case MyAccountServiceChangePasswordProcedure:
 			myAccountServiceChangePasswordHandler.ServeHTTP(w, r)
+		case MyAccountServiceListVerifiedEmailsProcedure:
+			myAccountServiceListVerifiedEmailsHandler.ServeHTTP(w, r)
+		case MyAccountServiceRequestEmailVerificationProcedure:
+			myAccountServiceRequestEmailVerificationHandler.ServeHTTP(w, r)
+		case MyAccountServiceConfirmEmailVerificationProcedure:
+			myAccountServiceConfirmEmailVerificationHandler.ServeHTTP(w, r)
+		case MyAccountServiceSetPrimaryEmailProcedure:
+			myAccountServiceSetPrimaryEmailHandler.ServeHTTP(w, r)
 		case MyAccountServiceGetSettingsProcedure:
 			myAccountServiceGetSettingsHandler.ServeHTTP(w, r)
 		case MyAccountServiceUpdateSettingsProcedure:
@@ -433,6 +545,22 @@ func (UnimplementedMyAccountServiceHandler) UpdateProfile(context.Context, *conn
 
 func (UnimplementedMyAccountServiceHandler) ChangePassword(context.Context, *connect.Request[v1.ChangePasswordRequest]) (*connect.Response[v1.ChangePasswordResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ChangePassword is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) ListVerifiedEmails(context.Context, *connect.Request[v1.ListVerifiedEmailsRequest]) (*connect.Response[v1.ListVerifiedEmailsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ListVerifiedEmails is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) RequestEmailVerification(context.Context, *connect.Request[v1.RequestEmailVerificationRequest]) (*connect.Response[v1.RequestEmailVerificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.RequestEmailVerification is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) ConfirmEmailVerification(context.Context, *connect.Request[v1.ConfirmEmailVerificationRequest]) (*connect.Response[v1.ConfirmEmailVerificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.ConfirmEmailVerification is not implemented"))
+}
+
+func (UnimplementedMyAccountServiceHandler) SetPrimaryEmail(context.Context, *connect.Request[v1.SetPrimaryEmailRequest]) (*connect.Response[v1.SetPrimaryEmailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MyAccountService.SetPrimaryEmail is not implemented"))
 }
 
 func (UnimplementedMyAccountServiceHandler) GetSettings(context.Context, *connect.Request[v1.GetSettingsRequest]) (*connect.Response[v1.GetSettingsResponse], error) {

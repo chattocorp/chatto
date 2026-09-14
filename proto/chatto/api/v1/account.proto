@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
@@ -55,6 +56,53 @@ message ChangePasswordRequest {
 message ChangePasswordResponse {
   // Current authenticated user profile after the password update.
   User user = 1;
+}
+
+// One email address that the authenticated user has proved they control.
+message VerifiedEmail {
+  // Normalized email address.
+  string email = 1;
+  // Time at which the address was verified.
+  google.protobuf.Timestamp verified_at = 2;
+  // Whether account-directed email is sent to this address.
+  bool primary = 3;
+}
+
+// Request the authenticated user's verified email addresses.
+message ListVerifiedEmailsRequest {}
+
+// Verified email addresses for the authenticated user.
+message ListVerifiedEmailsResponse {
+  repeated VerifiedEmail verified_emails = 1;
+}
+
+// Request a short-lived verification code for an email address.
+message RequestEmailVerificationRequest {
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+}
+
+// Result of requesting an email verification code.
+message RequestEmailVerificationResponse {}
+
+// Confirm control of an email address with a verification code.
+message ConfirmEmailVerificationRequest {
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
+}
+
+// Verified email addresses after a successful confirmation.
+message ConfirmEmailVerificationResponse {
+  repeated VerifiedEmail verified_emails = 1;
+}
+
+// Select a verified email for account-directed email.
+message SetPrimaryEmailRequest {
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+}
+
+// Verified email addresses after the primary address changes.
+message SetPrimaryEmailResponse {
+  repeated VerifiedEmail verified_emails = 1;
 }
 
 // Request the authenticated user's display preferences. Human and bot accounts
@@ -119,6 +167,17 @@ service MyAccountService {
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // Lists the authenticated user's verified email addresses and primary choice.
+  rpc ListVerifiedEmails(ListVerifiedEmailsRequest) returns (ListVerifiedEmailsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Sends a short-lived code to an email address that the authenticated user
+  // wants to add. The server must have transactional email enabled.
+  rpc RequestEmailVerification(RequestEmailVerificationRequest) returns (RequestEmailVerificationResponse);
+  // Confirms a verification code and adds the address to the account.
+  rpc ConfirmEmailVerification(ConfirmEmailVerificationRequest) returns (ConfirmEmailVerificationResponse);
+  // Selects one verified address for future account-directed email.
+  rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (SetPrimaryEmailResponse);
   // Reads the authenticated user's display preferences without changing them.
   // Returns default settings when none have been saved.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);

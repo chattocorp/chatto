@@ -1530,6 +1530,128 @@ Result of updating or adding the authenticated account password.
 | `user` | [`User`](#chatto-api-v1-User) | Current authenticated user profile after the password update. |
 
 
+<a id="chatto-api-v1-MyAccountService-ListVerifiedEmails"></a>
+
+### ListVerifiedEmails
+
+Lists the authenticated user's verified email addresses and primary choice.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ListVerifiedEmails
+```
+
+<a id="chatto-api-v1-ListVerifiedEmailsRequest"></a>
+
+#### Input: ListVerifiedEmailsRequest
+
+Request the authenticated user's verified email addresses.
+
+
+<a id="chatto-api-v1-ListVerifiedEmailsResponse"></a>
+
+#### Result: ListVerifiedEmailsResponse
+
+Verified email addresses for the authenticated user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
+<a id="chatto-api-v1-MyAccountService-RequestEmailVerification"></a>
+
+### RequestEmailVerification
+
+Sends a short-lived code to an email address that the authenticated user
+wants to add. The server must have transactional email enabled.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/RequestEmailVerification
+```
+
+<a id="chatto-api-v1-RequestEmailVerificationRequest"></a>
+
+#### Input: RequestEmailVerificationRequest
+
+Request a short-lived verification code for an email address.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-RequestEmailVerificationResponse"></a>
+
+#### Result: RequestEmailVerificationResponse
+
+Result of requesting an email verification code.
+
+
+<a id="chatto-api-v1-MyAccountService-ConfirmEmailVerification"></a>
+
+### ConfirmEmailVerification
+
+Confirms a verification code and adds the address to the account.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/ConfirmEmailVerification
+```
+
+<a id="chatto-api-v1-ConfirmEmailVerificationRequest"></a>
+
+#### Input: ConfirmEmailVerificationRequest
+
+Confirm control of an email address with a verification code.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | No field description provided. |
+| `code` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-ConfirmEmailVerificationResponse"></a>
+
+#### Result: ConfirmEmailVerificationResponse
+
+Verified email addresses after a successful confirmation.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
+<a id="chatto-api-v1-MyAccountService-SetPrimaryEmail"></a>
+
+### SetPrimaryEmail
+
+Selects one verified address for future account-directed email.
+
+```http
+POST /api/connect/chatto.api.v1.MyAccountService/SetPrimaryEmail
+```
+
+<a id="chatto-api-v1-SetPrimaryEmailRequest"></a>
+
+#### Input: SetPrimaryEmailRequest
+
+Select a verified email for account-directed email.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | No field description provided. |
+
+
+<a id="chatto-api-v1-SetPrimaryEmailResponse"></a>
+
+#### Result: SetPrimaryEmailResponse
+
+Verified email addresses after the primary address changes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `verified_emails` | repeated [`VerifiedEmail`](#chatto-api-v1-VerifiedEmail) | No field description provided. |
+
+
 <a id="chatto-api-v1-MyAccountService-GetSettings"></a>
 
 ### GetSettings
@@ -5426,6 +5548,20 @@ Current authenticated user's public profile plus self-only settings.
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
+
+
+
+<a id="chatto-api-v1-VerifiedEmail"></a>
+
+### VerifiedEmail
+
+One email address that the authenticated user has proved they control.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Normalized email address. |
+| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
+| `primary` | `bool` | Whether account-directed email is sent to this address. |
 
 
 

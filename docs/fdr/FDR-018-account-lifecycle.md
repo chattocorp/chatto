@@ -1,7 +1,7 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-28
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -15,14 +15,29 @@ This FDR covers human accounts from registration through deletion: signup, email
 - Chatto sends a six-digit verification code to an available address. Verifying the code returns a short-lived completion token; it does not create an account.
 - The user then chooses a login and password. The login must pass uniqueness, format, and blocked-username checks, and the email is checked again in case it was claimed while the completion token was outstanding.
 - Successful completion creates the account with the email already verified. There is no partially registered or unverified account state in the direct-registration flow.
-- Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 15 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
+- Registration and verification codes are backed by `RUNTIME_STATE` HMAC-derived records with configurable per-key TTLs (default 30 minutes). Raw code values are never written to `EVT` or backup archives. If email delivery fails, the pending OTP is cancelled so the failed send does not consume resend throttle capacity.
 - If the verified email matches an entry in `owners.emails` in the server config, the new user is auto-assigned the `owner` role when the verified email is attached.
 
 ### Email management
 
 - A human user can have multiple verified email addresses on file. Bot accounts cannot have verified emails.
-- Adding a new email triggers a verification mail to the new address; the email is added in pending state until the code is confirmed.
-- A user can delete one of their verified emails as long as at least one verified email remains.
+- Before Chatto sends a code, Account Settings asks the user to enter the new
+  address twice. The dialog says that Chatto will send a six-digit verification
+  code to this address.
+- Adding a new email sends a verification code to the new address and opens a
+  separate confirmation page. The page uses the same six-digit control as
+  direct registration. It keeps the pending address in server-scoped session
+  storage so a page reload does not lose the verification ceremony. Chatto
+  adds the email only after the user confirms the code.
+- An address that is already verified cannot start another verification
+  ceremony.
+- The first verified email becomes the primary email. Adding another email does
+  not change the primary email. The user can select any verified email as the
+  primary email in Account Settings.
+- Future account-directed email, including email notifications, uses the
+  primary email. Sign-in, password reset, configured-owner matching, and
+  identity correlation continue to accept every verified email.
+- Email removal is not available yet.
 - Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 
 ### Account deletion
@@ -65,11 +80,27 @@ This FDR covers human accounts from registration through deletion: signup, email
 
 ### 2. Multiple verified emails per user
 
-**Decision:** A user can attach multiple verified email addresses. Any of them count for owner-email matching, password resets, and identity correlation.
+**Decision:** A user can attach multiple verified email addresses. The first
+address becomes the primary email, and only an explicit user action changes
+that selection. Account-directed delivery uses the primary email. Every
+verified email continues to count for configured-owner matching, password
+resets, and identity correlation.
 **Why:** People have work and personal addresses, change jobs, or have an alias. Single-email accounts force needless friction during transitions. Multiple-emails also helps the `owners.emails` config — operators can list either an old or new email and the right user gets owner status.
-**Tradeoff:** The data model and resolvers have to handle a list, not a scalar. Minor extra complexity in exchange for real flexibility.
+**Tradeoff:** The data model and resolvers have to handle a list and a durable
+selection, not a scalar. The primary selection references the original
+verified-email event so it does not duplicate user PII.
 
-### 2a. Workflow tokens in runtime state
+### 2a. Confirm new addresses before sending
+
+**Decision:** Account Settings requires two matching entries of a new email
+address before it requests a verification code. The dialog says that Chatto
+will send a verification code to the address.
+**Why:** A second entry catches common typing errors before email leaves the
+server. This reduces failed deliveries and messages sent to unintended
+recipients, which can cause spam reports.
+**Tradeoff:** Adding an email requires one more input step.
+
+### 2b. Workflow tokens in runtime state
 
 **Decision:** Registration and email-verification codes, registration completion tokens, password-reset tokens, and account-deletion confirmation tokens are stored in `RUNTIME_STATE` under HMAC-derived keys with per-key TTLs. The HMAC input is scoped by workflow and keyed by `[core].secret_key`.
 **Why:** These values are raw credentials or credential-adjacent workflow state. They need restart and restore survival, but they are not reconstructable account history and should not become event-log or backup secrets. The audit value is captured separately in safe EVT facts.
@@ -113,7 +144,8 @@ This FDR covers human accounts from registration through deletion: signup, email
 
 ## Permissions
 
-- Self: an authenticated human user can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
+- Self: an authenticated human user can update their own profile (FDR-022),
+  add verified emails, select a primary email, and delete their own account.
 - `user.delete-any` — admin permission to delete other users' accounts.
 - `user.delete-self` — gates a human user's own-account deletion. Granted to `everyone` by default; operators can revoke it to lock down self-deletion. Bots cannot exercise it even if an allow appears in their direct permission matrix.
 

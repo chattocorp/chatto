@@ -46,6 +46,12 @@ export type ChangePasswordInput = {
   currentPassword?: string;
 };
 
+export type VerifiedEmail = {
+  email: string;
+  verifiedAt: string | null;
+  primary: boolean;
+};
+
 export function createAccountAPI(config: AccountAPIConfig) {
   const client = createChattoClient(MyAccountService, config);
   const headers = () => authHeaders(config);
@@ -66,6 +72,28 @@ export function createAccountAPI(config: AccountAPIConfig) {
         { password: input.password, currentPassword: input.currentPassword },
         { headers: headers() }
       );
+    },
+
+    async listVerifiedEmails(): Promise<VerifiedEmail[]> {
+      const response = await client.listVerifiedEmails({}, { headers: headers() });
+      return response.verifiedEmails.map(verifiedEmail);
+    },
+
+    async requestEmailVerification(email: string): Promise<void> {
+      await client.requestEmailVerification({ email }, { headers: headers() });
+    },
+
+    async confirmEmailVerification(email: string, code: string): Promise<VerifiedEmail[]> {
+      const response = await client.confirmEmailVerification(
+        { email, code },
+        { headers: headers() }
+      );
+      return response.verifiedEmails.map(verifiedEmail);
+    },
+
+    async setPrimaryEmail(email: string): Promise<VerifiedEmail[]> {
+      const response = await client.setPrimaryEmail({ email }, { headers: headers() });
+      return response.verifiedEmails.map(verifiedEmail);
     },
 
     async updateSettings(input: UpdateSettingsInput): Promise<AccountUserSettings> {
@@ -95,6 +123,18 @@ export function createAccountAPI(config: AccountAPIConfig) {
       );
       return true;
     }
+  };
+}
+
+function verifiedEmail(value: {
+  email: string;
+  verifiedAt?: { toDate(): Date };
+  primary: boolean;
+}): VerifiedEmail {
+  return {
+    email: value.email,
+    verifiedAt: value.verifiedAt?.toDate().toISOString() ?? null,
+    primary: value.primary
   };
 }
 

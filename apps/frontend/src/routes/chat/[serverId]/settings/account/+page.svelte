@@ -9,6 +9,7 @@
   import DeleteAccountSection from './DeleteAccountSection.svelte';
   import ExternalIdentitySettings from './ExternalIdentitySettings.svelte';
   import PasswordSettings from './PasswordSettings.svelte';
+  import VerifiedEmailSettings from './VerifiedEmailSettings.svelte';
 
   const serverScope = useServerScope();
   const currentUser = $derived(serverScope.store.currentUser);
@@ -49,6 +50,9 @@
     </Panel>
 
     <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
+    {#key serverScope.connection.queryScope}
+      <VerifiedEmailSettings />
+    {/key}
     <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
     <DeleteAccountSection
       canDeleteAccount={currentUser.user?.viewerCanDeleteAccount ?? false}

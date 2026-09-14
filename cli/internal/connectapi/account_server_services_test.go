@@ -3,6 +3,7 @@ package connectapi
 import (
 	"context"
 	"errors"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/email"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	configv1 "hmans.de/chatto/internal/pb/chatto/config/v1"
@@ -419,6 +421,73 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	}
 	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "anotherpassword456"); err != nil {
 		t.Fatalf("VerifyPassword changed: %v", err)
+	}
+}
+
+func TestMyAccountServiceManagesVerifiedEmails(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	mailer := email.NewMockSender(true)
+	env.api.emailSender = mailer
+
+	// The account requests a code through the authenticated API. The address is
+	// not verified until the code delivered by the configured sender is confirmed.
+	if _, err := env.account.RequestEmailVerification(ctx, connect.NewRequest(&apiv1.RequestEmailVerificationRequest{
+		Email: "First@Example.com",
+	})); err != nil {
+		t.Fatalf("RequestEmailVerification: %v", err)
+	}
+	message := mailer.LastMessage()
+	if message == nil || message.To != "first@example.com" {
+		t.Fatalf("verification message = %+v, want normalized recipient", message)
+	}
+	listed, err := env.account.ListVerifiedEmails(ctx, connect.NewRequest(&apiv1.ListVerifiedEmailsRequest{}))
+	if err != nil {
+		t.Fatalf("ListVerifiedEmails before confirmation: %v", err)
+	}
+	if emails := listed.Msg.GetVerifiedEmails(); len(emails) != 0 {
+		t.Fatalf("emails before confirmation = %+v, want none", emails)
+	}
+	if _, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{
+		Email: "first@example.com",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("SetPrimaryEmail before confirmation code = %v, want not_found", connect.CodeOf(err))
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(message.Body)
+	if code == "" {
+		t.Fatalf("verification message body has no code: %q", message.Body)
+	}
+	confirmed, err := env.account.ConfirmEmailVerification(ctx, connect.NewRequest(&apiv1.ConfirmEmailVerificationRequest{
+		Email: "first@example.com", Code: code,
+	}))
+	if err != nil {
+		t.Fatalf("ConfirmEmailVerification: %v", err)
+	}
+	if emails := confirmed.Msg.GetVerifiedEmails(); len(emails) != 1 || !emails[0].GetPrimary() {
+		t.Fatalf("confirmed emails = %+v, want one primary address", emails)
+	}
+	if _, err := env.account.RequestEmailVerification(ctx, connect.NewRequest(&apiv1.RequestEmailVerificationRequest{
+		Email: "FIRST@example.com",
+	})); connect.CodeOf(err) != connect.CodeAlreadyExists {
+		t.Fatalf("RequestEmailVerification verified address code = %v, want already_exists", connect.CodeOf(err))
+	}
+
+	// A second verified address stays secondary until the account selects it.
+	if err := env.core.AddVerifiedEmailDirect(ctx, env.viewer.Id, "second@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect second: %v", err)
+	}
+	selected, err := env.account.SetPrimaryEmail(ctx, connect.NewRequest(&apiv1.SetPrimaryEmailRequest{Email: "second@example.com"}))
+	if err != nil {
+		t.Fatalf("SetPrimaryEmail: %v", err)
+	}
+	primary := ""
+	for _, address := range selected.Msg.GetVerifiedEmails() {
+		if address.GetPrimary() {
+			primary = address.GetEmail()
+		}
+	}
+	if primary != "second@example.com" {
+		t.Fatalf("primary email = %q, want second@example.com", primary)
 	}
 }
 

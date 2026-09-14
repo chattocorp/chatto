@@ -225,6 +225,48 @@ func TestChattoCore_VerifyEmailCode(t *testing.T) {
 	})
 }
 
+func TestChattoCore_PrimaryVerifiedEmail(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "primary-email-user", "Primary Email User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	// The first verified address becomes primary. Adding a second address must
+	// not redirect future account email without an explicit user choice.
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "first@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect first: %v", err)
+	}
+	if err := chattoCore.AddVerifiedEmailDirect(ctx, user.Id, "second@example.com"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect second: %v", err)
+	}
+	primary, ok, err := chattoCore.PrimaryVerifiedEmail(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("PrimaryVerifiedEmail: %v", err)
+	}
+	if !ok || primary.Email != "first@example.com" {
+		t.Fatalf("primary = %+v, %t; want first@example.com", primary, ok)
+	}
+
+	// The user can select any address they have already verified.
+	if err := chattoCore.SetPrimaryVerifiedEmail(ctx, user.Id, " SECOND@example.com "); err != nil {
+		t.Fatalf("SetPrimaryVerifiedEmail: %v", err)
+	}
+	primary, ok, err = chattoCore.PrimaryVerifiedEmail(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("PrimaryVerifiedEmail after change: %v", err)
+	}
+	if !ok || primary.Email != "second@example.com" {
+		t.Fatalf("primary after change = %+v, %t; want second@example.com", primary, ok)
+	}
+
+	// An unverified address cannot become primary.
+	if err := chattoCore.SetPrimaryVerifiedEmail(ctx, user.Id, "unknown@example.com"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("SetPrimaryVerifiedEmail unknown error = %v, want ErrNotFound", err)
+	}
+}
+
 func TestChattoCore_ListUsersWithVerifiedEmail(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

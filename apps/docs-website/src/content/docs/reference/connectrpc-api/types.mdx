@@ -866,6 +866,18 @@ Current authenticated user's public profile plus self-only settings.
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
 | `has_password` | `bool` | Whether this account currently has a password sign-in credential. |
 
+<a id="chatto-api-v1-VerifiedEmail"></a>
+
+### VerifiedEmail
+
+One email address that the authenticated user has proved they control.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `email` | `string` | Normalized email address. |
+| `verified_at` | `google.protobuf.Timestamp` | Time at which the address was verified. |
+| `primary` | `bool` | Whether account-directed email is sent to this address. |
+
 <a id="chatto-api-v1-AssetUpload"></a>
 
 ### AssetUpload

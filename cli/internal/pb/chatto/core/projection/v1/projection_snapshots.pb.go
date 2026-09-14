@@ -3249,8 +3249,10 @@ type ProjectedUserProfileSnapshot struct {
 	Preferences    *v1.ServerUserPreferences             `protobuf:"bytes,10,opt,name=preferences,proto3" json:"preferences,omitempty"`
 	LoginChangedAt *timestamppb.Timestamp                `protobuf:"bytes,11,opt,name=login_changed_at,json=loginChangedAt,proto3" json:"login_changed_at,omitempty"`
 	Bio            *ProjectedEncryptedUserStringSnapshot `protobuf:"bytes,12,opt,name=bio,proto3" json:"bio,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Event ID of the verified email selected for account-directed email.
+	PrimaryVerifiedEmailEventId string `protobuf:"bytes,13,opt,name=primary_verified_email_event_id,json=primaryVerifiedEmailEventId,proto3" json:"primary_verified_email_event_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *ProjectedUserProfileSnapshot) Reset() {
@@ -3365,6 +3367,13 @@ func (x *ProjectedUserProfileSnapshot) GetBio() *ProjectedEncryptedUserStringSna
 		return x.Bio
 	}
 	return nil
+}
+
+func (x *ProjectedUserProfileSnapshot) GetPrimaryVerifiedEmailEventId() string {
+	if x != nil {
+		return x.PrimaryVerifiedEmailEventId
+	}
+	return ""
 }
 
 type ProjectedEncryptedUserStringSnapshot struct {
@@ -4334,7 +4343,7 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\vlogin_index\x18\x04 \x03(\v2/.chatto.core.projection.v1.StringStringSnapshotR\n" +
 	"loginIndex\x12P\n" +
 	"\vemail_index\x18\x05 \x03(\v2/.chatto.core.projection.v1.StringStringSnapshotR\n" +
-	"emailIndex\"\xf8\x05\n" +
+	"emailIndex\"\xbe\x06\n" +
 	"\x1cProjectedUserProfileSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12,\n" +
 	"\x04user\x18\x02 \x01(\v2\x18.chatto.core.evt.v1.UserR\x04user\x12U\n" +
@@ -4349,7 +4358,8 @@ const file_chatto_core_projection_v1_projection_snapshots_proto_rawDesc = "" +
 	"\vpreferences\x18\n" +
 	" \x01(\v2).chatto.core.evt.v1.ServerUserPreferencesR\vpreferences\x12D\n" +
 	"\x10login_changed_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0eloginChangedAt\x12Q\n" +
-	"\x03bio\x18\f \x01(\v2?.chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshotR\x03bio\"\xc1\x01\n" +
+	"\x03bio\x18\f \x01(\v2?.chatto.core.projection.v1.ProjectedEncryptedUserStringSnapshotR\x03bio\x12D\n" +
+	"\x1fprimary_verified_email_event_id\x18\r \x01(\tR\x1bprimaryVerifiedEmailEventId\"\xc1\x01\n" +
 	"$ProjectedEncryptedUserStringSnapshot\x12\x19\n" +
 	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
 	"\n" +

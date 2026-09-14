@@ -69,6 +69,10 @@ socket.
 
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
 the same settings resource as updates and the combined viewer response.
+`MyAccountService` also lists the caller's verified emails, sends and confirms
+email-verification codes, and selects the primary email. These methods accept
+no target user ID. Verification delivery uses the server's configured
+transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.

@@ -5,6 +5,9 @@ import AccountPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
   listExternalIdentities: vi.fn(),
+  listVerifiedEmails: vi.fn(),
+  requestEmailVerification: vi.fn(),
+  goto: vi.fn(),
   currentUser: {
     user: {
       id: 'U123abcetc.',
@@ -21,9 +24,16 @@ const mocks = vi.hoisted(() => ({
 const connection = {
   queryScope: 'account-settings-test',
   getAPI: () => ({
-    list: mocks.listExternalIdentities
+    list: mocks.listExternalIdentities,
+    listVerifiedEmails: mocks.listVerifiedEmails,
+    requestEmailVerification: mocks.requestEmailVerification
   })
 };
+
+vi.mock('$app/navigation', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$app/navigation')>()),
+  goto: mocks.goto
+}));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
@@ -42,16 +52,73 @@ async function settle(): Promise<void> {
 
 describe('Account settings page', () => {
   beforeEach(() => {
+    sessionStorage.clear();
     mocks.listExternalIdentities.mockReset();
     mocks.listExternalIdentities.mockResolvedValue({ providers: [], linkedIdentities: [] });
+    mocks.listVerifiedEmails.mockReset();
+    mocks.listVerifiedEmails.mockResolvedValue([]);
+    mocks.requestEmailVerification.mockReset();
+    mocks.requestEmailVerification.mockResolvedValue(undefined);
+    mocks.goto.mockReset();
+    mocks.goto.mockResolvedValue(undefined);
   });
 
   it('shows the current user ID in account information', async () => {
     const { container, getByText } = render(AccountPage);
     await settle();
 
-    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(4);
     await expect.element(getByText('User ID')).toBeVisible();
     await expect.element(getByText('U123abcetc.')).toBeVisible();
+  });
+
+  it('shows verified email addresses and their primary actions', async () => {
+    mocks.listVerifiedEmails.mockResolvedValue([
+      { email: 'alice@example.com', primary: true },
+      { email: 'alice.secondary@example.com', primary: false }
+    ]);
+
+    const { container, getByRole, getByText } = render(AccountPage);
+    await settle();
+
+    expect(container.querySelector('table')).not.toBeNull();
+    await expect.element(getByText('Email address', { exact: true })).toBeVisible();
+    await expect.element(getByRole('row', { name: 'alice@example.com Primary' })).toBeVisible();
+    await expect.element(getByRole('button', { name: 'Make primary' })).toBeVisible();
+
+    await getByRole('button', { name: 'Add email address' }).click();
+
+    await expect.element(getByRole('dialog', { name: 'Add email address' })).toBeInTheDocument();
+    await expect
+      .element(getByRole('textbox', { name: 'Email address', exact: true }))
+      .toBeVisible();
+    await expect.element(getByRole('textbox', { name: 'Confirm email address' })).toBeVisible();
+    await expect.element(getByText(/six-digit verification code/)).toBeVisible();
+  });
+
+  it('requires matching email addresses before requesting verification', async () => {
+    const { getByRole } = render(AccountPage);
+    await settle();
+
+    await getByRole('button', { name: 'Add email address' }).click();
+
+    const emailInput = getByRole('textbox', { name: 'Email address', exact: true });
+    const confirmationInput = getByRole('textbox', { name: 'Confirm email address' });
+    const submitButton = getByRole('button', { name: 'Send verification code' });
+
+    await emailInput.fill('alice.new@example.com');
+    await confirmationInput.fill('alice.typo@example.com');
+
+    await expect.element(confirmationInput).toHaveAttribute('aria-invalid', 'true');
+    await expect.element(getByRole('alert')).toHaveTextContent('Email addresses do not match');
+    await expect.element(submitButton).toBeDisabled();
+    expect(mocks.requestEmailVerification).not.toHaveBeenCalled();
+
+    await confirmationInput.fill('ALICE.NEW@example.com');
+    await expect.element(submitButton).toBeEnabled();
+    await submitButton.click();
+
+    expect(mocks.requestEmailVerification).toHaveBeenCalledWith('alice.new@example.com');
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/settings/account/verify-email');
   });
 });

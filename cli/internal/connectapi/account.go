@@ -2,9 +2,15 @@ package connectapi
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
+	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/email"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -67,6 +73,124 @@ func (s *accountService) ChangePassword(ctx context.Context, req *connect.Reques
 		return nil, err
 	}
 	return connect.NewResponse(&apiv1.ChangePasswordResponse{User: responseUser}), nil
+}
+
+func (s *accountService) ListVerifiedEmails(ctx context.Context, _ *connect.Request[apiv1.ListVerifiedEmailsRequest]) (*connect.Response[apiv1.ListVerifiedEmailsResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ListVerifiedEmailsResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
+}
+
+func (s *accountService) RequestEmailVerification(ctx context.Context, req *connect.Request[apiv1.RequestEmailVerificationRequest]) (*connect.Response[apiv1.RequestEmailVerificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if s.api.emailSender == nil || !s.api.emailSender.IsEnabled() {
+		return nil, connect.NewError(connect.CodeUnavailable, email.ErrEmailDisabled)
+	}
+	address := strings.ToLower(strings.TrimSpace(req.Msg.GetEmail()))
+	verifiedEmails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	for _, verified := range verifiedEmails {
+		if strings.EqualFold(verified.Email, address) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("email address is already verified"))
+		}
+	}
+	code, err := s.api.core.CreateEmailVerificationCode(ctx, caller.UserID, address)
+	if err != nil {
+		if errors.Is(err, core.ErrEmailVerificationCodeLimitExceeded) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+			return nil, connect.NewError(connect.CodeResourceExhausted, err)
+		}
+		return nil, connectError(err)
+	}
+	serverName := "Chatto"
+	if model := s.api.core.ConfigModel(); model != nil {
+		if name := strings.TrimSpace(model.GetEffectiveServerName()); name != "" {
+			serverName = name
+		}
+	}
+	expiration := emailOTPExpirationText(s.api.config.Auth.EmailOTP.TTLOrDefault())
+	err = s.api.emailSender.SendContext(ctx, email.Message{
+		To:      address,
+		Subject: fmt.Sprintf("Verify your email for %s", serverName),
+		Body:    fmt.Sprintf("Use this verification code to add this email address to your %s account:\n\n%s\n\nThis code will expire in %s.\n\nIf you didn't request this, you can ignore this email.", serverName, code, expiration),
+	})
+	if err != nil {
+		_ = s.api.core.CancelEmailVerificationCode(ctx, caller.UserID, address, code)
+		return nil, connect.NewError(connect.CodeUnavailable, errors.New("email delivery failed"))
+	}
+	return connect.NewResponse(&apiv1.RequestEmailVerificationResponse{}), nil
+}
+
+func (s *accountService) ConfirmEmailVerification(ctx context.Context, req *connect.Request[apiv1.ConfirmEmailVerificationRequest]) (*connect.Response[apiv1.ConfirmEmailVerificationResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	address := strings.ToLower(strings.TrimSpace(req.Msg.GetEmail()))
+	if _, err := s.api.core.VerifyEmailCode(ctx, caller.UserID, address, strings.TrimSpace(req.Msg.GetCode())); err != nil {
+		if errors.Is(err, core.ErrTokenNotFound) || errors.Is(err, core.ErrTokenExpired) || errors.Is(err, core.ErrEmailVerificationCodeInvalid) || errors.Is(err, core.ErrEmailVerificationCodeExhausted) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid or expired verification code"))
+		}
+		return nil, connectError(err)
+	}
+	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ConfirmEmailVerificationResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
+}
+
+func (s *accountService) SetPrimaryEmail(ctx context.Context, req *connect.Request[apiv1.SetPrimaryEmailRequest]) (*connect.Response[apiv1.SetPrimaryEmailResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.SetPrimaryVerifiedEmail(ctx, caller.UserID, req.Msg.GetEmail()); err != nil {
+		return nil, connectError(err)
+	}
+	emails, err := s.api.core.GetVerifiedEmails(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.SetPrimaryEmailResponse{VerifiedEmails: verifiedEmailsToAPI(emails)}), nil
+}
+
+func verifiedEmailsToAPI(emails []core.VerifiedEmail) []*apiv1.VerifiedEmail {
+	out := make([]*apiv1.VerifiedEmail, 0, len(emails))
+	for _, verified := range emails {
+		out = append(out, &apiv1.VerifiedEmail{
+			Email: verified.Email, VerifiedAt: timestamppb.New(verified.VerifiedAt), Primary: verified.Primary,
+		})
+	}
+	return out
+}
+
+func emailOTPExpirationText(ttl time.Duration) string {
+	switch {
+	case ttl%time.Hour == 0:
+		return pluralDuration(int(ttl/time.Hour), "hour")
+	case ttl%time.Minute == 0:
+		return pluralDuration(int(ttl/time.Minute), "minute")
+	default:
+		return pluralDuration(int(ttl/time.Second), "second")
+	}
+}
+
+func pluralDuration(value int, unit string) string {
+	if value == 1 {
+		return fmt.Sprintf("1 %s", unit)
+	}
+	return fmt.Sprintf("%d %ss", value, unit)
 }
 
 func (s *accountService) GetSettings(ctx context.Context, _ *connect.Request[apiv1.GetSettingsRequest]) (*connect.Response[apiv1.GetSettingsResponse], error) {

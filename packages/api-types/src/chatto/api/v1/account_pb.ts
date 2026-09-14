@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
 import { TimeFormat, UserSettings } from "./viewer_pb.js";
 
@@ -210,6 +210,369 @@ export class ChangePasswordResponse extends Message<ChangePasswordResponse> {
 
   static equals(a: ChangePasswordResponse | PlainMessage<ChangePasswordResponse> | undefined, b: ChangePasswordResponse | PlainMessage<ChangePasswordResponse> | undefined): boolean {
     return proto3.util.equals(ChangePasswordResponse, a, b);
+  }
+}
+
+/**
+ * One email address that the authenticated user has proved they control.
+ *
+ * @generated from message chatto.api.v1.VerifiedEmail
+ */
+export class VerifiedEmail extends Message<VerifiedEmail> {
+  /**
+   * Normalized email address.
+   *
+   * @generated from field: string email = 1;
+   */
+  email = "";
+
+  /**
+   * Time at which the address was verified.
+   *
+   * @generated from field: google.protobuf.Timestamp verified_at = 2;
+   */
+  verifiedAt?: Timestamp;
+
+  /**
+   * Whether account-directed email is sent to this address.
+   *
+   * @generated from field: bool primary = 3;
+   */
+  primary = false;
+
+  constructor(data?: PartialMessage<VerifiedEmail>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.VerifiedEmail";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "verified_at", kind: "message", T: Timestamp },
+    { no: 3, name: "primary", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): VerifiedEmail {
+    return new VerifiedEmail().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): VerifiedEmail {
+    return new VerifiedEmail().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): VerifiedEmail {
+    return new VerifiedEmail().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: VerifiedEmail | PlainMessage<VerifiedEmail> | undefined, b: VerifiedEmail | PlainMessage<VerifiedEmail> | undefined): boolean {
+    return proto3.util.equals(VerifiedEmail, a, b);
+  }
+}
+
+/**
+ * Request the authenticated user's verified email addresses.
+ *
+ * @generated from message chatto.api.v1.ListVerifiedEmailsRequest
+ */
+export class ListVerifiedEmailsRequest extends Message<ListVerifiedEmailsRequest> {
+  constructor(data?: PartialMessage<ListVerifiedEmailsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListVerifiedEmailsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVerifiedEmailsRequest {
+    return new ListVerifiedEmailsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVerifiedEmailsRequest | PlainMessage<ListVerifiedEmailsRequest> | undefined, b: ListVerifiedEmailsRequest | PlainMessage<ListVerifiedEmailsRequest> | undefined): boolean {
+    return proto3.util.equals(ListVerifiedEmailsRequest, a, b);
+  }
+}
+
+/**
+ * Verified email addresses for the authenticated user.
+ *
+ * @generated from message chatto.api.v1.ListVerifiedEmailsResponse
+ */
+export class ListVerifiedEmailsResponse extends Message<ListVerifiedEmailsResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
+   */
+  verifiedEmails: VerifiedEmail[] = [];
+
+  constructor(data?: PartialMessage<ListVerifiedEmailsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListVerifiedEmailsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verified_emails", kind: "message", T: VerifiedEmail, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListVerifiedEmailsResponse {
+    return new ListVerifiedEmailsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListVerifiedEmailsResponse | PlainMessage<ListVerifiedEmailsResponse> | undefined, b: ListVerifiedEmailsResponse | PlainMessage<ListVerifiedEmailsResponse> | undefined): boolean {
+    return proto3.util.equals(ListVerifiedEmailsResponse, a, b);
+  }
+}
+
+/**
+ * Request a short-lived verification code for an email address.
+ *
+ * @generated from message chatto.api.v1.RequestEmailVerificationRequest
+ */
+export class RequestEmailVerificationRequest extends Message<RequestEmailVerificationRequest> {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email = "";
+
+  constructor(data?: PartialMessage<RequestEmailVerificationRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RequestEmailVerificationRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RequestEmailVerificationRequest {
+    return new RequestEmailVerificationRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RequestEmailVerificationRequest {
+    return new RequestEmailVerificationRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RequestEmailVerificationRequest {
+    return new RequestEmailVerificationRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RequestEmailVerificationRequest | PlainMessage<RequestEmailVerificationRequest> | undefined, b: RequestEmailVerificationRequest | PlainMessage<RequestEmailVerificationRequest> | undefined): boolean {
+    return proto3.util.equals(RequestEmailVerificationRequest, a, b);
+  }
+}
+
+/**
+ * Result of requesting an email verification code.
+ *
+ * @generated from message chatto.api.v1.RequestEmailVerificationResponse
+ */
+export class RequestEmailVerificationResponse extends Message<RequestEmailVerificationResponse> {
+  constructor(data?: PartialMessage<RequestEmailVerificationResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RequestEmailVerificationResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RequestEmailVerificationResponse {
+    return new RequestEmailVerificationResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RequestEmailVerificationResponse {
+    return new RequestEmailVerificationResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RequestEmailVerificationResponse {
+    return new RequestEmailVerificationResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RequestEmailVerificationResponse | PlainMessage<RequestEmailVerificationResponse> | undefined, b: RequestEmailVerificationResponse | PlainMessage<RequestEmailVerificationResponse> | undefined): boolean {
+    return proto3.util.equals(RequestEmailVerificationResponse, a, b);
+  }
+}
+
+/**
+ * Confirm control of an email address with a verification code.
+ *
+ * @generated from message chatto.api.v1.ConfirmEmailVerificationRequest
+ */
+export class ConfirmEmailVerificationRequest extends Message<ConfirmEmailVerificationRequest> {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email = "";
+
+  /**
+   * @generated from field: string code = 2;
+   */
+  code = "";
+
+  constructor(data?: PartialMessage<ConfirmEmailVerificationRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ConfirmEmailVerificationRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmEmailVerificationRequest {
+    return new ConfirmEmailVerificationRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmEmailVerificationRequest {
+    return new ConfirmEmailVerificationRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmEmailVerificationRequest {
+    return new ConfirmEmailVerificationRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmEmailVerificationRequest | PlainMessage<ConfirmEmailVerificationRequest> | undefined, b: ConfirmEmailVerificationRequest | PlainMessage<ConfirmEmailVerificationRequest> | undefined): boolean {
+    return proto3.util.equals(ConfirmEmailVerificationRequest, a, b);
+  }
+}
+
+/**
+ * Verified email addresses after a successful confirmation.
+ *
+ * @generated from message chatto.api.v1.ConfirmEmailVerificationResponse
+ */
+export class ConfirmEmailVerificationResponse extends Message<ConfirmEmailVerificationResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
+   */
+  verifiedEmails: VerifiedEmail[] = [];
+
+  constructor(data?: PartialMessage<ConfirmEmailVerificationResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ConfirmEmailVerificationResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verified_emails", kind: "message", T: VerifiedEmail, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ConfirmEmailVerificationResponse {
+    return new ConfirmEmailVerificationResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ConfirmEmailVerificationResponse {
+    return new ConfirmEmailVerificationResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ConfirmEmailVerificationResponse {
+    return new ConfirmEmailVerificationResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ConfirmEmailVerificationResponse | PlainMessage<ConfirmEmailVerificationResponse> | undefined, b: ConfirmEmailVerificationResponse | PlainMessage<ConfirmEmailVerificationResponse> | undefined): boolean {
+    return proto3.util.equals(ConfirmEmailVerificationResponse, a, b);
+  }
+}
+
+/**
+ * Select a verified email for account-directed email.
+ *
+ * @generated from message chatto.api.v1.SetPrimaryEmailRequest
+ */
+export class SetPrimaryEmailRequest extends Message<SetPrimaryEmailRequest> {
+  /**
+   * @generated from field: string email = 1;
+   */
+  email = "";
+
+  constructor(data?: PartialMessage<SetPrimaryEmailRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPrimaryEmailRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "email", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPrimaryEmailRequest {
+    return new SetPrimaryEmailRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPrimaryEmailRequest {
+    return new SetPrimaryEmailRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPrimaryEmailRequest {
+    return new SetPrimaryEmailRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPrimaryEmailRequest | PlainMessage<SetPrimaryEmailRequest> | undefined, b: SetPrimaryEmailRequest | PlainMessage<SetPrimaryEmailRequest> | undefined): boolean {
+    return proto3.util.equals(SetPrimaryEmailRequest, a, b);
+  }
+}
+
+/**
+ * Verified email addresses after the primary address changes.
+ *
+ * @generated from message chatto.api.v1.SetPrimaryEmailResponse
+ */
+export class SetPrimaryEmailResponse extends Message<SetPrimaryEmailResponse> {
+  /**
+   * @generated from field: repeated chatto.api.v1.VerifiedEmail verified_emails = 1;
+   */
+  verifiedEmails: VerifiedEmail[] = [];
+
+  constructor(data?: PartialMessage<SetPrimaryEmailResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetPrimaryEmailResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "verified_emails", kind: "message", T: VerifiedEmail, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetPrimaryEmailResponse {
+    return new SetPrimaryEmailResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetPrimaryEmailResponse {
+    return new SetPrimaryEmailResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetPrimaryEmailResponse {
+    return new SetPrimaryEmailResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetPrimaryEmailResponse | PlainMessage<SetPrimaryEmailResponse> | undefined, b: SetPrimaryEmailResponse | PlainMessage<SetPrimaryEmailResponse> | undefined): boolean {
+    return proto3.util.equals(SetPrimaryEmailResponse, a, b);
   }
 }
 
