@@ -131,7 +131,7 @@ func (s *voiceCallService) JoinCall(ctx context.Context, req *connect.Request[ap
 	if !s.api.config.LiveKit.IsConfigured() {
 		return connect.NewResponse(&apiv1.JoinCallResponse{}), nil
 	}
-	if err := s.api.core.RecordCallParticipantJoined(ctx, req.Msg.GetRoomId(), caller.UserID, evtv1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+	if err := s.api.core.JoinVoiceCall(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.JoinCallResponse{Joined: true}), nil
@@ -150,6 +150,10 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
 	}
 
+	permissions, err := s.api.core.AuthorizeCall(ctx, caller.UserID, req.Msg.GetRoomId(), false)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
@@ -174,6 +178,7 @@ func (s *voiceCallService) CreateCallToken(ctx context.Context, req *connect.Req
 		s.api.absolutizeAssetURL(ctx, avatarURL),
 		user.GetIsBot(),
 		access.E2EEKey,
+		permissions,
 		access.CallID,
 	)
 	if err != nil {
@@ -208,6 +213,13 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported call media publisher kind"))
 	}
 
+	permissions, err := s.api.core.AuthorizeCall(ctx, caller.UserID, req.Msg.GetRoomId(), false)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !permissions.ScreenShare {
+		return nil, connectError(core.ErrPermissionDenied)
+	}
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)

@@ -69,6 +69,7 @@
     "no_game_windows": "Keine teilbaren Fenster gefunden. Öffne ein Spiel im Fenster- oder randlosen Modus und versuche es erneut.",
     "game_windows_failed": "Die teilbaren Fenster konnten nicht geladen werden.",
     "untitled_window": "Fenster ohne Titel",
-    "game_window_selected": "{name} ausgewählt"
+    "game_window_selected": "{name} ausgewählt",
+    "permission_denied": "Du hast keine Berechtigung für diese Anrufaktion."
   }
 }

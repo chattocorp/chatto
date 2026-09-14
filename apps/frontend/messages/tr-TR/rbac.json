@@ -110,7 +110,8 @@
       "room": "Odalar",
       "server": "Sunucu",
       "user": "Kullanıcılar",
-      "other": "Diğer"
+      "other": "Diğer",
+      "call": "Aramalar"
     },
     "permission_descriptions": {
       "server_manage": "Sunucu ayarlarını güncelleyin (ad, açıklama, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Kullanıcı oluşturun, hesap kimliğini düzenleyin, şifreleri sıfırlayın, doğrulanmış e-postalar ekleyin ve oturum açma bekleme sürelerini temizleyin",
       "user_manage_permissions": "Kullanıcı başına doğrudan izin geçersiz kılmalarını düzenleyin",
       "bot_create": "Sahibi olduğunuz bot hesaplarını oluşturun",
-      "bot_manage": "Tüm bot hesaplarını görüntüleyin ve yönetin"
+      "bot_manage": "Tüm bot hesaplarını görüntüleyin ve yönetin",
+      "call_start": "Arama başlatma (call.join izni de gerekir)",
+      "call_join": "Devam eden bir aramaya katılma",
+      "call_voice": "Aramalarda mikrofonu kullanma",
+      "call_camera": "Aramalarda kamerayı kullanma",
+      "call_screenshare": "Yakalanan ses dahil ekran veya uygulama paylaşma"
     }
   }
 }

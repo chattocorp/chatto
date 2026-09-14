@@ -69,6 +69,7 @@
     "no_game_windows": "Não foram encontradas janelas partilháveis. Abre um jogo no modo de janela ou sem margens e tenta novamente.",
     "game_windows_failed": "Não foi possível carregar as janelas partilháveis.",
     "untitled_window": "Janela sem título",
-    "game_window_selected": "{name} selecionado"
+    "game_window_selected": "{name} selecionado",
+    "permission_denied": "Não tens permissão para realizar esta ação na chamada."
   }
 }

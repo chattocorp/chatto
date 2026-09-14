@@ -157,6 +157,12 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 		IsMember:  state.IsMember,
 		HasUnread: state.HasUnread,
 		Permissions: permissionGrants(
+			permissionGrant(core.PermCallStart, state.CallPermissions.Start),
+			permissionGrant(core.PermCallJoin, state.CallPermissions.Join),
+			permissionGrant(core.PermCallVoice, state.CallPermissions.Voice),
+			permissionGrant(core.PermCallCamera, state.CallPermissions.Camera),
+			permissionGrant(core.PermCallScreenShare, state.CallPermissions.ScreenShare),
+
 			permissionGrant(core.PermRoomList, state.CanListRoom),
 			permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
 			permissionGrant(core.PermMessageRead, state.CanReadMessages),

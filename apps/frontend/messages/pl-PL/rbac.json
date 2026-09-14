@@ -110,7 +110,8 @@
       "room": "Pokoje",
       "server": "Serwer",
       "user": "Użytkownicy",
-      "other": "Inne"
+      "other": "Inne",
+      "call": "Rozmowy"
     },
     "permission_descriptions": {
       "server_manage": "Aktualizuj ustawienia serwera (nazwa, opis, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Twórz użytkowników, edytuj tożsamość konta, resetuj hasła, dołączaj zweryfikowane e-maile i usuwaj czasy odnowienia logowania",
       "user_manage_permissions": "Edytuj bezpośrednie zastąpienia uprawnień poszczególnych użytkowników",
       "bot_create": "Tworzyć własne konta botów",
-      "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi"
+      "bot_manage": "Wyświetlać wszystkie konta botów i zarządzać nimi",
+      "call_start": "Rozpoczynanie rozmowy (wymaga też call.join)",
+      "call_join": "Dołączanie do trwającej rozmowy",
+      "call_voice": "Używanie mikrofonu podczas rozmów",
+      "call_camera": "Używanie kamery podczas rozmów",
+      "call_screenshare": "Udostępnianie ekranu lub aplikacji wraz z przechwyconym dźwiękiem"
     }
   }
 }

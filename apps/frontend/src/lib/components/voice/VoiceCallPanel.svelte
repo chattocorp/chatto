@@ -54,6 +54,8 @@ Room sidebar panel for voice/video calls.
   let isInAnotherCall = $derived(voiceCallState.isInAnyCall && !isInThisCall);
   let isConnecting = $derived(voiceCallState.connecting && voiceCallState.roomId === roomId);
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
+  let callPermissions = $derived(voiceCallState.permissionsFor(roomId));
+  let canEnterCall = $derived(callPermissions.join && (hasActiveCall || callPermissions.start));
   let isStageLayout = $derived(layout === 'stage');
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
@@ -324,19 +326,21 @@ Room sidebar panel for voice/video calls.
   {@const isMutedForViewer = participant.isLocal
     ? voiceCallState.isMuted
     : participant.isLocallyMuted}
-  <CallTileActionButton
-    icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
-    active={isMutedForViewer}
-    label={participant.isLocal
-      ? isMutedForViewer
-        ? m('voice.unmute')
-        : m('voice.mute')
-      : isMutedForViewer
-        ? m('voice.locally_unmute_participant')
-        : m('voice.locally_mute_participant')}
-    testId="call-feed-local-mute-button"
-    onclick={(event) => toggleFeedMute(participant, event)}
-  />
+  {#if !participant.isLocal || !isMutedForViewer || voiceCallState.canUseVoice}
+    <CallTileActionButton
+      icon={isMutedForViewer ? 'icon-[uil--volume-mute]' : 'icon-[uil--volume-up]'}
+      active={isMutedForViewer}
+      label={participant.isLocal
+        ? isMutedForViewer
+          ? m('voice.unmute')
+          : m('voice.mute')
+        : isMutedForViewer
+          ? m('voice.locally_unmute_participant')
+          : m('voice.locally_mute_participant')}
+      testId="call-feed-local-mute-button"
+      onclick={(event) => toggleFeedMute(participant, event)}
+    />
+  {/if}
 {/snippet}
 
 {#snippet mediaTileActions(participant: DisplayParticipant)}
@@ -576,6 +580,7 @@ Room sidebar panel for voice/video calls.
           iconClass="text-lg"
           onclick={() => voiceCallState.toggleCamera()}
           pending={voiceCallState.isCameraPending}
+          disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
         />
 
         <VoiceCallControlButton
@@ -586,6 +591,7 @@ Room sidebar panel for voice/video calls.
           iconClass="text-lg"
           onclick={() => voiceCallState.toggleMute()}
           pending={voiceCallState.isMicrophonePending}
+          disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
         />
 
         <ScreenShareControlButton
@@ -614,8 +620,12 @@ Room sidebar panel for voice/video calls.
         class="btn-action w-full btn-sm"
         data-testid="call-join-button"
         onclick={handleJoin}
-        disabled={isInAnotherCall || isConnecting}
-        title={isInAnotherCall ? m('voice.already_in_another_call') : joinLabel}
+        disabled={!canEnterCall || isInAnotherCall || isConnecting}
+        title={!canEnterCall
+          ? m('voice.permission_denied')
+          : isInAnotherCall
+            ? m('voice.already_in_another_call')
+            : joinLabel}
       >
         {joinLabel}
       </button>

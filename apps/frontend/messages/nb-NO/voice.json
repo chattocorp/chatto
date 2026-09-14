@@ -69,6 +69,7 @@
     "no_game_windows": "Fant ingen vinduer som kan deles. Åpne et spill i vindus- eller kantløs modus og prøv igjen.",
     "game_windows_failed": "Kunne ikke laste vinduer som kan deles.",
     "untitled_window": "Vindu uten tittel",
-    "game_window_selected": "{name} er valgt"
+    "game_window_selected": "{name} er valgt",
+    "permission_denied": "Du har ikke tillatelse til å utføre denne samtalehandlingen."
   }
 }

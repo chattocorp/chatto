@@ -69,6 +69,7 @@
     "no_game_windows": "No shareable windows found. Open a game in windowed or borderless mode and try again.",
     "game_windows_failed": "Could not load shareable windows.",
     "untitled_window": "Untitled window",
-    "game_window_selected": "{name} selected"
+    "game_window_selected": "{name} selected",
+    "permission_denied": "You do not have permission to perform this call action."
   }
 }

@@ -110,7 +110,8 @@
       "room": "Rom",
       "server": "Server",
       "user": "Brukere",
-      "other": "Annet"
+      "other": "Annet",
+      "call": "Samtaler"
     },
     "permission_descriptions": {
       "server_manage": "Oppdater serverinnstillinger (navn, beskrivelse, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Opprett brukere, rediger kontoidentitet, tilbakestill passord, legg ved bekreftede e-poster og fjern påloggingsavkjølinger",
       "user_manage_permissions": "Rediger direkte overstyringer av tillatelser per bruker",
       "bot_create": "Opprett botkontoer som du eier",
-      "bot_manage": "Vis og administrer alle botkontoer"
+      "bot_manage": "Vis og administrer alle botkontoer",
+      "call_start": "Starte en samtale (krever også call.join)",
+      "call_join": "Bli med i en pågående samtale",
+      "call_voice": "Bruke mikrofonen i samtaler",
+      "call_camera": "Bruke kameraet i samtaler",
+      "call_screenshare": "Dele en skjerm eller et program, inkludert innspilt lyd"
     }
   }
 }

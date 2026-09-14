@@ -110,7 +110,8 @@
       "room": "Rooms",
       "server": "Server",
       "user": "Users",
-      "other": "Other"
+      "other": "Other",
+      "call": "Calls"
     },
     "permission_descriptions": {
       "server_manage": "Update server settings (name, description, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns",
       "user_manage_permissions": "Edit direct per-user permission overrides",
       "bot_create": "Create bot accounts that you own",
-      "bot_manage": "View and manage every bot account"
+      "bot_manage": "View and manage every bot account",
+      "call_start": "Start a call (also requires call.join)",
+      "call_join": "Join an active call",
+      "call_voice": "Use the microphone in calls",
+      "call_camera": "Use the camera in calls",
+      "call_screenshare": "Share a screen or application, including captured audio"
     }
   }
 }

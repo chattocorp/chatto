@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -137,9 +137,13 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 
 ### 9. Defaults are one-time initialization, not startup policy
 
-**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not inspect, copy, reset, or reconcile existing permission state during startup.
+**Decision:** Apply the current server default set only when the durable RBAC stream is empty. New groups and ordinary rooms store no default decisions. Commit a channel room and any exceptional default decisions in one atomic EVT batch: fresh announcements rooms deny `message.post` to `everyone` and allow it for `admin`. Do not reset existing permission state during startup. The introduction of
+call permissions has one explicit upgrade exception: initialize each missing
+server-level `everyone` call permission once. Any historical grant, deny, or
+clear prevents that initialization. This preserves the existing human call
+feature without undoing an operator's later decision.
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
-**Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
+**Tradeoff:** Apart from the explicit call-permission upgrade above, adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
 ### 10. The permission catalog defines inclusion
 
@@ -160,6 +164,11 @@ identifiers preserve persisted facts and integrations.
 relationships in sync. Tests cover the current relationship.
 
 ## Permissions
+
+- `call.start`, `call.join`, `call.voice`, `call.camera`, and `call.screenshare`
+  separate starting, joining, and publishing media. Room membership remains
+  mandatory. These permissions apply to rooms and the shared Direct messages
+  scope. See [FDR-016](FDR-016-voice-calls.md).
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
 

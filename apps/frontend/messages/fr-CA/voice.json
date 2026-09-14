@@ -69,6 +69,7 @@
     "no_game_windows": "Aucune fenêtre partageable trouvée. Ouvrez un jeu en mode fenêtré ou sans bordure et réessayez.",
     "game_windows_failed": "Impossible de charger les fenêtres partageables.",
     "untitled_window": "Fenêtre sans titre",
-    "game_window_selected": "{name} sélectionné"
+    "game_window_selected": "{name} sélectionné",
+    "permission_denied": "Vous n’avez pas la permission d’effectuer cette action dans un appel."
   }
 }

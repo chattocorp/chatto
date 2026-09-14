@@ -110,7 +110,8 @@
       "room": "聊天室",
       "server": "服务器",
       "user": "用户",
-      "other": "其他"
+      "other": "其他",
+      "call": "通话"
     },
     "permission_descriptions": {
       "server_manage": "更新服务器设置（名称、描述、徽标）",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "创建用户、编辑账号身份信息、重置密码、关联已验证的电子邮箱，以及清除登录冷却时间",
       "user_manage_permissions": "编辑针对单个用户的直接权限覆盖",
       "bot_create": "创建您拥有的机器人账户",
-      "bot_manage": "查看和管理所有机器人账户"
+      "bot_manage": "查看和管理所有机器人账户",
+      "call_start": "发起通话（还需要 call.join）",
+      "call_join": "加入正在进行的通话",
+      "call_voice": "在通话中使用麦克风",
+      "call_camera": "在通话中使用摄像头",
+      "call_screenshare": "共享屏幕或应用程序，包括捕获的音频"
     }
   }
 }

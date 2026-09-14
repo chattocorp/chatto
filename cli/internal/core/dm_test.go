@@ -121,9 +121,9 @@ func TestDMRoomID(t *testing.T) {
 	})
 }
 
-func TestDMScopeAppliesOnlyToMessagePermissions(t *testing.T) {
+func TestDMScopeAppliesOnlyToMessageAndCallPermissions(t *testing.T) {
 	for _, metadata := range AllPermissions() {
-		want := metadata.Category == CategoryMessage
+		want := metadata.Category == CategoryMessage || metadata.Category == CategoryCall
 		if got := PermissionAppliesAtScope(metadata.Permission, ScopeDM); got != want {
 			t.Errorf("PermissionAppliesAtScope(%s, DM) = %v, want %v", metadata.Permission, got, want)
 		}

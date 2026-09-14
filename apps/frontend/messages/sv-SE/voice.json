@@ -69,6 +69,7 @@
     "no_game_windows": "Inga delningsbara fönster hittades. Öppna ett spel i fönsterläge eller kantlöst läge och försök igen.",
     "game_windows_failed": "Det gick inte att läsa in delningsbara fönster.",
     "untitled_window": "Namnlöst fönster",
-    "game_window_selected": "{name} har valts"
+    "game_window_selected": "{name} har valts",
+    "permission_denied": "Du har inte behörighet att utföra den här samtalsåtgärden."
   }
 }

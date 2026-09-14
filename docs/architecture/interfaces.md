@@ -305,3 +305,10 @@ Account validation errors include `Chatto-Error-Field` response metadata with
 the affected field. Errors without this metadata apply to the form.
 The `[core] skip_setup_wizard` flag suppresses the command and discovery state.
 See [FDR-047](../fdr/FDR-047-first-run-setup.md).
+
+The call credential APIs require room membership and `call.join`. Starting a
+call also requires `call.start`. Tokens encode `call.voice`, `call.camera`, and
+`call.screenshare` as source restrictions; native companion credentials require
+`call.screenshare`. Member-only observer reads and leaving do not require these
+permissions. Room viewer-state permission rows expose the five actions through
+existing room reads and realtime reconciliation.

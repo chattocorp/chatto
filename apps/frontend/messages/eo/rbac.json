@@ -110,7 +110,8 @@
       "room": "Ĉambroj",
       "server": "Servilo",
       "user": "Uzantoj",
-      "other": "Aliaj"
+      "other": "Aliaj",
+      "call": "Vokoj"
     },
     "permission_descriptions": {
       "server_manage": "Ĝisdatigu servilajn agordojn (nomo, priskribo, emblemo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Kreu uzantojn, redaktu kontan identecon, restarigi pasvortojn, kunsendi kontrolitajn retpoŝtojn kaj malplenigi ensalutajn malfunkciojn",
       "user_manage_permissions": "Redakti rektajn per-uzantajn permesojn anstataŭigas",
       "bot_create": "Krei robotajn kontojn, kiujn vi posedas",
-      "bot_manage": "Vidi kaj administri ĉiujn robotajn kontojn"
+      "bot_manage": "Vidi kaj administri ĉiujn robotajn kontojn",
+      "call_start": "Komenci vokon (ankaŭ postulas call.join)",
+      "call_join": "Aliĝi al aktiva voko",
+      "call_voice": "Uzi la mikrofonon dum vokoj",
+      "call_camera": "Uzi la kameraon dum vokoj",
+      "call_screenshare": "Kunhavigi ekranon aŭ aplikaĵon, inkluzive de kaptita sono"
     }
   }
 }

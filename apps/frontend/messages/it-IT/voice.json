@@ -69,6 +69,7 @@
     "no_game_windows": "Nessuna finestra condivisibile trovata. Apri un gioco in modalità finestra o senza bordi e riprova.",
     "game_windows_failed": "Impossibile caricare le finestre condivisibili.",
     "untitled_window": "Finestra senza titolo",
-    "game_window_selected": "{name} selezionato"
+    "game_window_selected": "{name} selezionato",
+    "permission_denied": "Non hai il permesso di eseguire questa azione nella chiamata."
   }
 }
