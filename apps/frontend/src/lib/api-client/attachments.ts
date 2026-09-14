@@ -187,9 +187,7 @@ function roomFileAttachment(
     id: value?.id ?? '',
     filename: value?.filename ?? '',
     contentType: value?.contentType ?? '',
-    description:
-      description ??
-      ('description' in (value ?? {}) ? ((value as MessageAttachment).description ?? null) : null),
+    description: description ?? null,
     width: value?.width ?? 0,
     height: value?.height ?? 0,
     assetUrl: assetUrl(value?.assetUrl),
