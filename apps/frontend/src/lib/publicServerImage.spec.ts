@@ -67,11 +67,22 @@ describe('loadPublicServerImage', () => {
   });
 
   it('does not expose an unsupported image response', async () => {
+    let bodyCancelled = false;
     const browserFetch = vi.fn().mockResolvedValue(
-      new Response('<svg xmlns="http://www.w3.org/2000/svg"></svg>', {
-        status: 200,
-        headers: { 'Content-Type': 'image/svg+xml' }
-      })
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('<svg></svg>'));
+          },
+          cancel() {
+            bodyCancelled = true;
+          }
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'image/svg+xml' }
+        }
+      )
     );
     vi.stubGlobal('fetch', browserFetch);
     const createObjectURL = vi.spyOn(URL, 'createObjectURL');
@@ -82,7 +93,7 @@ describe('loadPublicServerImage', () => {
 
     loadPublicServerImage('https://chat.example/not-an-image')(image);
 
-    await vi.waitFor(() => expect(browserFetch).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(bodyCancelled).toBe(true));
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(image.src).toBe('');
   });

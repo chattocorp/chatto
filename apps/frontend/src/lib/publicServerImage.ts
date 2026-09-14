@@ -14,7 +14,10 @@ export const MAX_PUBLIC_SERVER_IMAGE_BYTES = 5 * 1024 * 1024;
 
 async function readBoundedImage(response: Response, mediaType: string): Promise<Blob | null> {
   const declaredSize = Number(response.headers.get('content-length'));
-  if (Number.isFinite(declaredSize) && declaredSize > MAX_PUBLIC_SERVER_IMAGE_BYTES) return null;
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_PUBLIC_SERVER_IMAGE_BYTES) {
+    await response.body?.cancel();
+    return null;
+  }
 
   if (!response.body) {
     const imageData = await response.blob();
@@ -85,7 +88,10 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
           ?.split(';', 1)[0]
           ?.trim()
           .toLowerCase();
-        if (!response.ok || !mediaType || !supportedPublicServerImageTypes.has(mediaType)) return;
+        if (!response.ok || !mediaType || !supportedPublicServerImageTypes.has(mediaType)) {
+          await response.body?.cancel();
+          return;
+        }
 
         const imageData = await readBoundedImage(response, mediaType);
         if (!imageData) return;
