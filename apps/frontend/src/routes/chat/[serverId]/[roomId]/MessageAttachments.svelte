@@ -2,6 +2,7 @@
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
   import type { MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
+  import { Dialog } from '$lib/ui';
 
   type RawAttachment = MessageAttachmentView;
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -153,8 +154,15 @@
 
   type Attachment = ReturnType<typeof normalizeAttachment>;
 
+  let descriptionAttachmentID = $state<string | null>(null);
+
   const attachments = $derived.by(() =>
     rawAttachments.map((attachment) => normalizeAttachment(attachment))
+  );
+  const descriptionAttachment = $derived(
+    descriptionAttachmentID
+      ? (attachments.find((attachment) => attachment.id === descriptionAttachmentID) ?? null)
+      : null
   );
 
   const MIN_THUMB_SIZE = 24;
@@ -438,15 +446,33 @@
       }
     });
   }
+
+  function openDescription(attachment: Attachment, event: Event) {
+    event.stopPropagation();
+    descriptionAttachmentID = attachment.id;
+  }
+
+  function closeDescription() {
+    descriptionAttachmentID = null;
+  }
 </script>
 
 {#if attachments.length > 0}
-  {#snippet deleteAttachmentButton(attachment: Attachment, className = '')}
+  {#snippet deleteAttachmentButton(attachment: Attachment)}
     {#if canDeleteAttachment}
       <button
         type="button"
         onclick={(event) => openDeleteConfirmation(attachment, event)}
-        class={['attachment-remove-button md:group-hover/attachment:opacity-100', className]}
+        class={[
+          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
+          attachment.description
+            ? canEditAttachmentDescription
+              ? 'top-[5.75rem]'
+              : 'top-12'
+            : canEditAttachmentDescription
+              ? 'top-12'
+              : 'top-1'
+        ]}
         aria-label={m('room.attachment.delete_label')}
         title={m('room.attachment.delete_label')}
       >
@@ -460,7 +486,10 @@
       <button
         type="button"
         onclick={(event) => openDescriptionEditor(attachment, event)}
-        class="attachment-remove-button top-12 md:group-hover/attachment:opacity-100"
+        class={[
+          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
+          attachment.description ? 'top-12' : 'top-1'
+        ]}
         aria-label={attachment.description
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
@@ -473,27 +502,24 @@
     {/if}
   {/snippet}
 
-  {#snippet descriptionDetails(attachment: Attachment)}
+  {#snippet descriptionButton(attachment: Attachment)}
     {#if attachment.description}
-      <details class="group/description mt-0.5 max-w-lg text-sm">
-        <summary
-          class="flex min-h-10 w-fit cursor-pointer list-none items-center gap-1.5 rounded px-1.5 text-muted transition-[background-color,color] hover:bg-surface hover:text-text focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action"
-        >
-          <span class="iconify icon-[uil--accessible-icon-alt] text-base" aria-hidden="true"></span>
-          <span>{m('room.attachment.show_description')}</span>
-          <span
-            class="iconify icon-[uil--angle-down] text-base transition-transform group-open/description:rotate-180"
-            aria-hidden="true"
-          ></span>
-        </summary>
-        <p
-          class="mt-0.5 max-w-prose rounded-md bg-surface px-3 py-2 whitespace-pre-wrap text-text"
-          dir="auto"
-        >
-          {attachment.description}
-        </p>
-      </details>
+      <button
+        type="button"
+        onclick={(event) => openDescription(attachment, event)}
+        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
+        aria-label={m('room.attachment.show_description')}
+        title={m('room.attachment.show_description')}
+      >
+        <span class="iconify icon-[uil--info-circle] text-sm" aria-hidden="true"></span>
+      </button>
     {/if}
+  {/snippet}
+
+  {#snippet attachmentControls(attachment: Attachment)}
+    {@render descriptionButton(attachment)}
+    {@render editDescriptionButton(attachment)}
+    {@render deleteAttachmentButton(attachment)}
   {/snippet}
 
   {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
@@ -536,8 +562,7 @@
           </span>
         {/if}
       </button>
-      {@render deleteAttachmentButton(attachment)}
-      {@render editDescriptionButton(attachment)}
+      {@render attachmentControls(attachment)}
     </div>
   {/snippet}
 
@@ -590,8 +615,7 @@
               </button>
             </div>
           {/await}
-          {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
-          {@render editDescriptionButton(attachment)}
+          {@render attachmentControls(attachment)}
         </div>
       {:else if attachment.contentType.startsWith('image/')}
         {@render imageAttachmentButton(attachment, 'single')}
@@ -613,8 +637,7 @@
           >
             <track kind="captions" />
           </video>
-          {@render deleteAttachmentButton(attachment)}
-          {@render editDescriptionButton(attachment)}
+          {@render attachmentControls(attachment)}
         </div>
       {:else if attachment.contentType.startsWith('audio/') && attachment.url}
         <div class="group/attachment relative min-w-0">
@@ -632,8 +655,7 @@
             </audio>
             <span class="text-sm text-muted">{attachment.filename}</span>
           </div>
-          {@render deleteAttachmentButton(attachment)}
-          {@render editDescriptionButton(attachment)}
+          {@render attachmentControls(attachment)}
         </div>
       {:else}
         <div class="group/attachment relative embed-frame block">
@@ -662,14 +684,12 @@
               <span class="text-sm">{attachment.filename}</span>
             </div>
           </button>
-          {@render deleteAttachmentButton(attachment)}
-          {@render editDescriptionButton(attachment)}
+          {@render attachmentControls(attachment)}
         </div>
       {/if}
       {#if attachment.description && !isGalleryImageAttachment(attachment)}
         <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
       {/if}
-      {@render descriptionDetails(attachment)}
     </div>
   {/snippet}
 
@@ -719,4 +739,17 @@
       {/each}
     </div>
   {/if}
+{/if}
+
+{#if descriptionAttachment?.description}
+  <Dialog
+    visible
+    size="sm"
+    title={m('room.attachment.description_title')}
+    onclose={closeDescription}
+  >
+    <p class="max-w-prose break-words whitespace-pre-wrap text-text" dir="auto">
+      {descriptionAttachment.description}
+    </p>
+  </Dialog>
 {/if}
