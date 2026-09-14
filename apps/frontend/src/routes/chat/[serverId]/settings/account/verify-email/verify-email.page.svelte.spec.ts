@@ -1,17 +1,19 @@
 import { flushSync } from 'svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import {
   readPendingEmailVerification,
   storePendingEmailVerification
 } from '$lib/verifiedEmailChallenge';
+import { adminQueryKeys } from '$lib/query/admin';
+import { queryClient } from '$lib/query/client';
+import { settingsQueryKeys } from '$lib/query/settings';
 import VerifyEmailPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
   confirmEmailVerification: vi.fn(),
   requestEmailVerification: vi.fn(),
   goto: vi.fn(),
-  setQueryData: vi.fn(),
   toastSuccess: vi.fn(),
   scopeCurrent: true
 }));
@@ -27,10 +29,6 @@ const connection = {
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
   goto: mocks.goto
-}));
-
-vi.mock('$lib/query/client', () => ({
-  queryClient: { setQueryData: mocks.setQueryData }
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -61,12 +59,17 @@ describe('Verify email page', () => {
     mocks.requestEmailVerification.mockReset();
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
-    mocks.setQueryData.mockReset();
     mocks.toastSuccess.mockReset();
     mocks.scopeCurrent = true;
+    queryClient.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('ignores a confirmation response after its server scope is disposed', async () => {
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
     let resolveConfirmation = (_emails: Array<{ email: string; primary: boolean }>) => {};
     mocks.confirmEmailVerification.mockImplementation(
       () =>
@@ -88,10 +91,38 @@ describe('Verify email page', () => {
     await settle();
 
     expect(mocks.goto).not.toHaveBeenCalled();
-    expect(mocks.setQueryData).not.toHaveBeenCalled();
+    expect(invalidateQueries).not.toHaveBeenCalled();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
     expect(readPendingEmailVerification('origin', 'U123abcetc.')).toBe(
       'alice.new@example.com'
     );
+  });
+
+  it('invalidates admin email views after confirming an address', async () => {
+    const emails = [{ email: 'alice.new@example.com', primary: true }];
+    mocks.confirmEmailVerification.mockResolvedValue(emails);
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { getByRole } = render(VerifyEmailPage);
+    await getByRole('textbox', { name: 'Digit 1' }).fill('123456');
+    await settle();
+    await getByRole('button', { name: 'Verify email' }).click();
+    await settle();
+
+    expect(mocks.confirmEmailVerification).toHaveBeenCalledWith(
+      'alice.new@example.com',
+      '123456'
+    );
+    await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalled());
+    expect(queryClient.getQueryData(settingsQueryKeys.verifiedEmails('origin', connection))).toEqual(
+      emails
+    );
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.membersRoot('origin', connection)
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      exact: true
+    });
   });
 });

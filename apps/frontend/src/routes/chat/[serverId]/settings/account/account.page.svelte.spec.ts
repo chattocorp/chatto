@@ -1,12 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { queryClient } from '$lib/query/client';
+import { adminQueryKeys } from '$lib/query/admin';
 import AccountPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
   listExternalIdentities: vi.fn(),
   listVerifiedEmails: vi.fn(),
   requestEmailVerification: vi.fn(),
+  setPrimaryEmail: vi.fn(),
   goto: vi.fn(),
   scopeCurrent: true,
   currentUser: {
@@ -27,7 +30,8 @@ const connection = {
   getAPI: () => ({
     list: mocks.listExternalIdentities,
     listVerifiedEmails: mocks.listVerifiedEmails,
-    requestEmailVerification: mocks.requestEmailVerification
+    requestEmailVerification: mocks.requestEmailVerification,
+    setPrimaryEmail: mocks.setPrimaryEmail
   })
 };
 
@@ -60,9 +64,15 @@ describe('Account settings page', () => {
     mocks.listVerifiedEmails.mockResolvedValue([]);
     mocks.requestEmailVerification.mockReset();
     mocks.requestEmailVerification.mockResolvedValue(undefined);
+    mocks.setPrimaryEmail.mockReset();
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
     mocks.scopeCurrent = true;
+    queryClient.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('shows the current user ID in account information', async () => {
@@ -96,6 +106,33 @@ describe('Account settings page', () => {
       .toBeVisible();
     await expect.element(getByRole('textbox', { name: 'Confirm email address' })).toBeVisible();
     await expect.element(getByText(/six-digit verification code/)).toBeVisible();
+  });
+
+  it('invalidates admin email views after selecting a primary address', async () => {
+    const emails = [
+      { email: 'alice@example.com', primary: false },
+      { email: 'alice.secondary@example.com', primary: true }
+    ];
+    mocks.listVerifiedEmails.mockResolvedValue([
+      { email: 'alice@example.com', primary: true },
+      { email: 'alice.secondary@example.com', primary: false }
+    ]);
+    mocks.setPrimaryEmail.mockResolvedValue(emails);
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const { getByRole } = render(AccountPage);
+    await settle();
+    await getByRole('button', { name: 'Make primary' }).click();
+    await settle();
+
+    expect(mocks.setPrimaryEmail).toHaveBeenCalledWith('alice.secondary@example.com');
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.membersRoot('origin', connection)
+    });
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
+      exact: true
+    });
   });
 
   it('requires matching email addresses before requesting verification', async () => {

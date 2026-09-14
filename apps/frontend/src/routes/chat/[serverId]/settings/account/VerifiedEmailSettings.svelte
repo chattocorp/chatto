@@ -7,6 +7,7 @@
   import { createAccountAPI } from '$lib/api-client/account';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -129,6 +130,16 @@
       const next = await connection.getAPI(createAccountAPI).setPrimaryEmail(address);
       if (!serverScope.isCurrent()) return;
       setEmails(next);
+      const userId = serverScope.store.currentUser.user?.id;
+      if (userId) {
+        void queryClient.invalidateQueries({
+          queryKey: adminQueryKeys.membersRoot(serverScope.serverId, connection)
+        });
+        void queryClient.invalidateQueries({
+          queryKey: adminQueryKeys.member(serverScope.serverId, connection, userId),
+          exact: true
+        });
+      }
       toast.success(m('settings.account.email.primary_changed'));
     } catch (err) {
       if (!serverScope.isCurrent()) return;

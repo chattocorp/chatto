@@ -6,6 +6,7 @@
 	import { m } from '$lib/i18n/messages';
 	import { serverIdToSegment } from '$lib/navigation';
 	import { queryClient } from '$lib/query/client';
+	import { adminQueryKeys } from '$lib/query/admin';
 	import { settingsQueryKeys } from '$lib/query/settings';
 	import { useServerScope } from '$lib/state/server/scope.svelte';
 	import Panel from '$lib/ui/Panel.svelte';
@@ -51,6 +52,13 @@
 				settingsQueryKeys.verifiedEmails(serverScope.serverId, connection),
 				emails
 			);
+			void queryClient.invalidateQueries({
+				queryKey: adminQueryKeys.membersRoot(serverScope.serverId, connection)
+			});
+			void queryClient.invalidateQueries({
+				queryKey: adminQueryKeys.member(serverScope.serverId, connection, userId),
+				exact: true
+			});
 			clearPendingEmailVerification(serverScope.serverId, userId, pendingEmail);
 			toast.success(m('settings.account.email.verified'));
 			await goto(accountPath, { replaceState: true });
