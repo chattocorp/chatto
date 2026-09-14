@@ -1,0 +1,70 @@
+name: build Authling image
+
+on:
+  pull_request:
+    paths:
+      - "authling/**"
+      - "pkg/**"
+      - "go.work*"
+      - "cli/go.mod"
+      - "cli/go.sum"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/workflows/build-authling-image.yml"
+  push:
+    branches: [main]
+    paths:
+      - "authling/**"
+      - "pkg/**"
+      - "go.work*"
+      - "cli/go.mod"
+      - "cli/go.sum"
+      - "LICENSE"
+      - "NOTICE"
+      - ".github/workflows/build-authling-image.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build image for verification
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: authling/Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: authling:check
+          cache-from: type=gha,scope=authling-amd64
+          cache-to: type=gha,mode=max,scope=authling-amd64
+          labels: |
+            org.opencontainers.image.source=https://github.com/chattocorp/chatto
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+      - name: Check executable
+        run: docker run --rm --network none --read-only authling:check version
+      - name: Publish verified image
+        if: github.event_name != 'pull_request'
+        env:
+          IMAGE: ghcr.io/chattocorp/authling:${{ github.sha }}
+        run: |
+          docker tag authling:check "$IMAGE"
+          docker push "$IMAGE"
+          echo "Published $IMAGE (linux/amd64). Pin its digest in the staging deployment." >> "$GITHUB_STEP_SUMMARY"
