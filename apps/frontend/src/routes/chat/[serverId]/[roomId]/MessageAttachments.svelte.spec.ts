@@ -280,7 +280,7 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('stacks edit and delete controls without overlap', () => {
+  it('stacks delete before edit and uses a file-edit icon for descriptions', () => {
     const { container } = renderAttachment(imageAttachment({ description: 'A chart.' }), {
       canDeleteAttachment: true,
       canEditAttachmentDescription: true
@@ -292,9 +292,15 @@ describe('MessageAttachments', () => {
       'button[aria-label="Delete attachment"]'
     )!;
 
-    expect(edit.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      remove.getBoundingClientRect().top
+    expect([
+      ...container.querySelectorAll(
+        'button[aria-label="Delete attachment"], button[aria-label="Edit description"]'
+      )
+    ]).toEqual([remove, edit]);
+    expect(remove.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      edit.getBoundingClientRect().top
     );
+    expect(edit.querySelector('span')?.classList.contains('icon-[uil--file-edit-alt]')).toBe(true);
   });
 
   it('associates file controls with descriptions and opens the edit dialog', () => {

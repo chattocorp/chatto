@@ -446,10 +446,7 @@
       <button
         type="button"
         onclick={(event) => openDeleteConfirmation(attachment, event)}
-        class={[
-          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
-          canEditAttachmentDescription ? 'top-12' : 'top-1'
-        ]}
+        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
         aria-label={m('room.attachment.delete_label')}
         title={m('room.attachment.delete_label')}
       >
@@ -463,7 +460,10 @@
       <button
         type="button"
         onclick={(event) => openDescriptionEditor(attachment, event)}
-        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
+        class={[
+          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
+          canDeleteAttachment ? 'top-12' : 'top-1'
+        ]}
         aria-label={attachment.description
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
@@ -471,14 +471,14 @@
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
       >
-        <span class="iconify icon-[uil--accessible-icon-alt] text-sm"></span>
+        <span class="iconify icon-[uil--file-edit-alt] text-sm"></span>
       </button>
     {/if}
   {/snippet}
 
   {#snippet attachmentControls(attachment: Attachment)}
-    {@render editDescriptionButton(attachment)}
     {@render deleteAttachmentButton(attachment)}
+    {@render editDescriptionButton(attachment)}
   {/snippet}
 
   {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
