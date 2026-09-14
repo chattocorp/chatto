@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
   import { getGradientForName } from '$lib/utils/gradients';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
 
@@ -12,14 +13,22 @@
 
   let {
     server,
-    fill = false
+    fill = false,
+    publicImageOrigin
   }: {
     server: ServerForLogo;
     /** Fill the available parent frame instead of using the default gutter size. */
     fill?: boolean;
+    /** Load the logo as an untrusted public image from this server origin. */
+    publicImageOrigin?: string;
   } = $props();
 
-  const gradientStyle = $derived(server.logoUrl ? undefined : getGradientForName(server.name));
+  const logoURL = $derived(
+    publicImageOrigin
+      ? publicServerImageURL(publicImageOrigin, server.logoUrl ?? null)
+      : (server.logoUrl ?? null)
+  );
+  const gradientStyle = $derived(logoURL ? undefined : getGradientForName(server.name));
   const initial = $derived(server.name[0]?.toUpperCase() ?? '?');
 </script>
 
@@ -34,8 +43,14 @@
     : 'h-12 w-12'}"
   style:background={gradientStyle}
 >
-  {#if server.logoUrl}
-    <SkeletonImg src={server.logoUrl} alt={server.name} class="h-full w-full object-cover" />
+  {#if logoURL && publicImageOrigin}
+    <SkeletonImg
+      alt={server.name}
+      class="h-full w-full object-cover"
+      {@attach loadPublicServerImage(logoURL)}
+    />
+  {:else if logoURL}
+    <SkeletonImg src={logoURL} alt={server.name} class="h-full w-full object-cover" />
   {:else}
     <span class="text-white drop-shadow-sm">{initial}</span>
   {/if}

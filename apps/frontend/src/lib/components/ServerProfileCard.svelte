@@ -9,6 +9,7 @@ card. Callers supply trusted badges and actions through explicit props.
   import type { PublicServerInfo } from '$lib/api-client/server';
   import ServerLogo from '$lib/components/ServerLogo.svelte';
   import { m } from '$lib/i18n/messages';
+  import { loadPublicServerImage, publicServerImageURL } from '$lib/publicServerImage';
   import { Pill, SkeletonImg } from '$lib/ui';
 
   let {
@@ -53,6 +54,7 @@ card. Callers supply trusted badges and actions through explicit props.
     name: profile?.name ?? hostname,
     logoUrl: profile?.iconUrl
   });
+  const bannerURL = $derived(publicServerImageURL(origin, profile?.bannerUrl ?? null));
   const accessibleIconActionLabel = $derived(
     iconActionLabel ? `${iconActionLabel}: ${logoServer.name}` : logoServer.name
   );
@@ -63,8 +65,12 @@ card. Callers supply trusted badges and actions through explicit props.
   data-testid={testId}
   data-origin={origin}
 >
-  {#if profile?.bannerUrl}
-    <SkeletonImg src={profile.bannerUrl} alt="" class="h-32 w-full object-cover" />
+  {#if bannerURL}
+    <SkeletonImg
+      alt=""
+      class="h-32 w-full object-cover"
+      {@attach loadPublicServerImage(bannerURL)}
+    />
   {:else}
     <div
       class="h-32 shrink-0 bg-gradient-to-br from-surface-emphasized/80 via-surface-emphasized/45 to-surface"
@@ -84,7 +90,7 @@ card. Callers supply trusted badges and actions through explicit props.
           title={accessibleIconActionLabel}
           data-testid={`${testId}-icon-action`}
         >
-          <ServerLogo server={logoServer} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
         </a>
         <!-- eslint-enable svelte/no-navigation-without-resolve -->
       {:else if onIconClick}
@@ -97,13 +103,13 @@ card. Callers supply trusted badges and actions through explicit props.
           onclick={onIconClick}
           data-testid={`${testId}-icon-action`}
         >
-          <ServerLogo server={logoServer} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
         </button>
       {:else}
         <div
           class="-mt-10 h-14 w-14 shrink-0 overflow-hidden rounded-xl border-2 border-border bg-surface-emphasized"
         >
-          <ServerLogo server={logoServer} fill />
+          <ServerLogo server={logoServer} publicImageOrigin={origin} fill />
         </div>
       {/if}
 

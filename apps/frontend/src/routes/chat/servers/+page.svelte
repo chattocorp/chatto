@@ -21,6 +21,7 @@
     type ServerDirectoryEntry,
     type ServerDirectorySnapshot
   } from '$lib/serverDirectory';
+  import { serverDirectoryDiscoveryConsent } from '$lib/serverDirectoryConsent';
   import { evaluateServerCompatibility } from '$lib/state/server/compatibility';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
   import { EmptyState, Hint, PageTitle, PaneContent, PaneHeader, Panel } from '$lib/ui';
@@ -33,6 +34,7 @@
   let probing = $state(false);
   let pendingOrigin = $state<string | null>(null);
   let actionError = $state('');
+  let directoryConsentGranted = $state(serverDirectoryDiscoveryConsent.get());
   let directoryState = $state<ServerDirectorySnapshot | null>(null);
   let scrollContainer = $state<HTMLDivElement>();
   let directorySession: ServerDirectoryDiscovery | null = null;
@@ -60,9 +62,15 @@
   );
 
   onMount(() => {
-    startDirectoryDiscovery();
+    if (directoryConsentGranted) startDirectoryDiscovery();
     return stopDirectoryDiscovery;
   });
+
+  function grantDirectoryConsent() {
+    serverDirectoryDiscoveryConsent.set(true);
+    directoryConsentGranted = true;
+    startDirectoryDiscovery();
+  }
 
   function startDirectoryDiscovery() {
     stopDirectoryDiscovery();
@@ -372,7 +380,16 @@
           <div class="mb-4"><Hint tone="warning">{m('add_server.directory.partial')}</Hint></div>
         {/if}
 
-        {#if !directoryState || directoryState.isInitialLoading}
+        {#if !directoryConsentGranted}
+          <EmptyState icon="icon-[uil--compass]" title={m('add_server.directory.consent_title')}>
+            <div class="flex max-w-xl flex-col items-center gap-4">
+              <span>{m('add_server.directory.consent_body')}</span>
+              <Button onclick={grantDirectoryConsent}>
+                {m('add_server.directory.consent_action')}
+              </Button>
+            </div>
+          </EmptyState>
+        {:else if !directoryState || directoryState.isInitialLoading}
           <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
             {#each Array(3) as _, index (index)}
               <div class="skeleton h-64 rounded-xl bg-surface"></div>

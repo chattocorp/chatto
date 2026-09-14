@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Odkryć polecane serwery?",
+      "consent_body": "Chatto łączy się z serwerami polecanymi przez serwery, do których dołączono. Te serwery mogą zobaczyć Twój adres IP i techniczne informacje o połączeniu. Chatto zapisuje ten wybór na tym urządzeniu.",
+      "consent_action": "Odkryj serwery",
       "recommended_by": "Polecane przez {servers}",
       "more_recommenders_count": {
         "other": "jeszcze {count}"

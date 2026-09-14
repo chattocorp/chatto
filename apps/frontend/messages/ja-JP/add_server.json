@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "おすすめのサーバーを探しますか？",
+      "consent_body": "Chatto は、参加済みのサーバーが推奨するサーバーに接続します。接続先のサーバーには、あなたの IP アドレスと接続に関する技術情報が表示されます。Chatto はこの選択をこのデバイスに保存します。",
+      "consent_action": "サーバーを探す",
       "recommended_by": "{servers} からのおすすめ",
       "more_recommenders_count": {
         "other": "他{count}件"

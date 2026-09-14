@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Vai atklāt ieteiktos serverus?",
+      "consent_body": "Chatto sazinās ar serveriem, kurus iesaka serveri, kuriem esi pievienojies. Šie serveri var redzēt tavu IP adresi un savienojuma tehnisko informāciju. Chatto saglabā tavu izvēli šajā ierīcē.",
+      "consent_action": "Atklāt serverus",
       "recommended_by": "Iesaka {servers}",
       "more_recommenders_count": {
         "other": "vēl {count}"
