@@ -907,6 +907,26 @@ describe('RoomList', () => {
       .toBeNull();
   });
 
+  it('expands groups independently and omits the control for joined-only groups', async () => {
+    mocks.store.navigation.roomGroups = [
+      { id: 'discovery-first', name: 'Projects', viewerCanManageGroup: false, roomIds: ['joinable-channel'] },
+      { id: 'discovery-second', name: 'Gaming', viewerCanManageGroup: false, roomIds: ['restricted-channel'] },
+      { id: 'discovery-joined', name: 'Joined', viewerCanManageGroup: false, roomIds: ['channel-1'] }
+    ];
+    const { container } = render(RoomList);
+    const sections = container.querySelectorAll('[data-testid="room-group-section"]');
+    const first = sections[0]?.querySelector<HTMLButtonElement>('[data-testid="room-group-more"]');
+    const second = sections[1]?.querySelector<HTMLButtonElement>('[data-testid="room-group-more"]');
+    expect(sections[2]?.querySelector('[data-testid="room-group-more"]')).toBeNull();
+    first?.click();
+    await expect.element(first).toHaveAttribute('aria-expanded', 'true');
+    await expect.element(second).toHaveAttribute('aria-expanded', 'false');
+    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+    expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
+    second?.click();
+    await expect.poll(() => container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull();
+  });
+
   it('hides a single unjoined room behind the disclosure', async () => {
     mocks.store.navigation.roomGroups = [
       { id: 'single', name: 'Projects', viewerCanManageGroup: false, roomIds: ['channel-1', 'joinable-channel'] }
