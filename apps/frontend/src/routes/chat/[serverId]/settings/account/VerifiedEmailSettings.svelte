@@ -104,11 +104,11 @@
     addEmailError = '';
     try {
       await connection.getAPI(createAccountAPI).requestEmailVerification(address);
-      if (connection !== serverScope.connection) return;
+      if (!serverScope.isCurrent()) return;
       addEmailVisible = false;
       await goto(verificationPath);
     } catch (err) {
-      if (connection !== serverScope.connection) return;
+      if (!serverScope.isCurrent()) return;
       clearPendingEmailVerification(serverScope.serverId, userId, address);
       addEmailError =
         err instanceof ConnectError && err.code === Code.AlreadyExists
@@ -117,7 +117,7 @@
             ? err.message
             : m('settings.account.email.request_failed');
     } finally {
-      if (connection === serverScope.connection) requesting = false;
+      if (serverScope.isCurrent()) requesting = false;
     }
   }
 
@@ -127,14 +127,14 @@
     actionError = '';
     try {
       const next = await connection.getAPI(createAccountAPI).setPrimaryEmail(address);
-      if (connection !== serverScope.connection) return;
+      if (!serverScope.isCurrent()) return;
       setEmails(next);
       toast.success(m('settings.account.email.primary_changed'));
     } catch (err) {
-      if (connection !== serverScope.connection) return;
+      if (!serverScope.isCurrent()) return;
       actionError = err instanceof Error ? err.message : m('settings.account.email.primary_failed');
     } finally {
-      if (connection === serverScope.connection) selectingEmail = '';
+      if (serverScope.isCurrent()) selectingEmail = '';
     }
   }
 </script>

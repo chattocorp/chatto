@@ -46,7 +46,7 @@
 			const emails = await connection
 				.getAPI(createAccountAPI)
 				.confirmEmailVerification(pendingEmail, code);
-			if (connection !== serverScope.connection) return;
+			if (!serverScope.isCurrent()) return;
 			queryClient.setQueryData(
 				settingsQueryKeys.verifiedEmails(serverScope.serverId, connection),
 				emails
@@ -55,11 +55,11 @@
 			toast.success(m('settings.account.email.verified'));
 			await goto(accountPath, { replaceState: true });
 		} catch (reason) {
-			if (connection !== serverScope.connection) return;
+			if (!serverScope.isCurrent()) return;
 			error =
 				reason instanceof Error ? reason.message : m('settings.account.email.confirm_failed');
 		} finally {
-			if (connection === serverScope.connection) confirming = false;
+			if (serverScope.isCurrent()) confirming = false;
 		}
 	}
 
@@ -70,11 +70,11 @@
 		error = '';
 		try {
 			await connection.getAPI(createAccountAPI).requestEmailVerification(pendingEmail);
-			if (connection !== serverScope.connection) return;
+			if (!serverScope.isCurrent()) return;
 			code = '';
 			toast.success(m('settings.account.email.code_sent'));
 		} catch (reason) {
-			if (connection !== serverScope.connection) return;
+			if (!serverScope.isCurrent()) return;
 			if (reason instanceof ConnectError && reason.code === Code.AlreadyExists) {
 				clearPendingEmailVerification(serverScope.serverId, userId, pendingEmail);
 				pendingEmail = '';
@@ -86,7 +86,7 @@
 						? reason.message
 						: m('settings.account.email.request_failed');
 		} finally {
-			if (connection === serverScope.connection) resending = false;
+			if (serverScope.isCurrent()) resending = false;
 		}
 	}
 </script>

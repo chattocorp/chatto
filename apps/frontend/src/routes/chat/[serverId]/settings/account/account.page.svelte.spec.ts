@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   listVerifiedEmails: vi.fn(),
   requestEmailVerification: vi.fn(),
   goto: vi.fn(),
+  scopeCurrent: true,
   currentUser: {
     user: {
       id: 'U123abcetc.',
@@ -40,7 +41,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     serverId: 'origin',
     store: { currentUser: mocks.currentUser },
     connection,
-    isCurrent: () => true
+    isCurrent: () => mocks.scopeCurrent
   })
 }));
 
@@ -61,6 +62,7 @@ describe('Account settings page', () => {
     mocks.requestEmailVerification.mockResolvedValue(undefined);
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
+    mocks.scopeCurrent = true;
   });
 
   it('shows the current user ID in account information', async () => {
@@ -120,5 +122,28 @@ describe('Account settings page', () => {
 
     expect(mocks.requestEmailVerification).toHaveBeenCalledWith('alice.new@example.com');
     expect(mocks.goto).toHaveBeenCalledWith('/chat/-/settings/account/verify-email');
+  });
+
+  it('does not navigate when the verification request outlives its server scope', async () => {
+    let resolveRequest = () => {};
+    mocks.requestEmailVerification.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveRequest = resolve))
+    );
+
+    const { getByRole } = render(AccountPage);
+    await settle();
+    await getByRole('button', { name: 'Add email address' }).click();
+    await getByRole('textbox', { name: 'Email address', exact: true }).fill(
+      'alice.new@example.com'
+    );
+    await getByRole('textbox', { name: 'Confirm email address' }).fill('alice.new@example.com');
+    await getByRole('button', { name: 'Send verification code' }).click();
+
+    expect(mocks.requestEmailVerification).toHaveBeenCalledOnce();
+    mocks.scopeCurrent = false;
+    resolveRequest();
+    await settle();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });
