@@ -78,6 +78,7 @@ export const settingsProfile = `/chat/${HOME}/settings/profile`;
 /** The canonical default page for user-settings test flows. */
 export const settings = settingsProfile;
 export const settingsAccount = `/chat/${HOME}/settings/account`;
+export const settingsVerifyEmail = `/chat/${HOME}/settings/account/verify-email`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
 export const settingsTime = `/chat/${HOME}/settings/time`;
 export const settingsAppearance = `/chat/${HOME}/settings/appearance`;
