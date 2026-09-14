@@ -65,7 +65,7 @@ test.describe('Leave Server', () => {
 		await expect(page.getByTitle('Leave server')).not.toBeVisible();
 	});
 
-	test('can sign out of only the selected remote server', async ({ page, chatPage }) => {
+	test('can sign out of only the selected remote server', async ({ page, chatPage, authPage }) => {
 		await createAndLoginTestUser(page);
 		await chatPage.goto();
 
@@ -75,8 +75,7 @@ test.describe('Leave Server', () => {
 		await connectRemoteInstance(page, { ...remoteServer!, baseURL }, remoteUser.userId);
 
 		await page.waitForURL(new RegExp(`/chat/${remoteHostname.replace(/\./g, '\\.')}`));
-		await page.getByTitle('Sign out').click();
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await authPage.openLogoutDialog();
 		await page.getByRole('button', { name: 'Current Server' }).click();
 
 		await expect(page).toHaveURL(/\/chat\/-/);
@@ -86,7 +85,7 @@ test.describe('Leave Server', () => {
 		await expect(page.getByTitle('Sign out')).toBeVisible();
 	});
 
-	test('keeps a remote server live after signing out of the origin', async ({ page, chatPage }) => {
+	test('keeps a remote server live after signing out of the origin', async ({ page, chatPage, authPage }) => {
 		const pageErrors: string[] = [];
 		page.on('pageerror', (error) => pageErrors.push(error.message));
 
@@ -110,8 +109,7 @@ test.describe('Leave Server', () => {
 
 		await page.goto(routes.serverOverview);
 		await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
-		await page.getByTitle('Sign out').click();
-		await expect(page.getByRole('dialog')).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+		await authPage.openLogoutDialog();
 		await page.getByRole('button', { name: 'Current Server' }).click();
 
 		const remoteHostnameEsc = remoteHostname.replace(/\./g, '\\.');

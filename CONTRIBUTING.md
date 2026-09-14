@@ -167,3 +167,8 @@ and performance suites keep their separate CI jobs. CI uploads an
 `e2e-timings-N-of-4` JSON artifact for each shard, including successful runs.
 Compare the slowest test step and complete job across repeated runs; summed
 test durations alone do not measure CI wall time.
+
+The inactive-server notification tests advance the browser clock past the
+background poll interval. They wait for real projection catch-up and socket
+closure before and after the advance. Keep server requests and message delivery
+real when adding tests that control browser time.
