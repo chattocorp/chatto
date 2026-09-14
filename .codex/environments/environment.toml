@@ -1,0 +1,23 @@
+version = 1
+name = "Chatto"
+
+[setup]
+script = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+
+[cleanup]
+script = "exec tools/stop-workspace-dev.sh"
+
+[[actions]]
+name = "Dev stack"
+icon = "run"
+command = "exec mise dev"
+
+[[actions]]
+name = "Storybook"
+icon = "tool"
+command = "exec mise storybook"
+
+[[actions]]
+name = "Docs website"
+icon = "tool"
+command = "exec mise dev-docs-website"

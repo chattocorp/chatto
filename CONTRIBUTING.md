@@ -47,6 +47,29 @@ require launching
 `mise x node@24 npm:portless@0.15.5 -- portless trust` in an
 interactive terminal so macOS can trust Portless's development CA.
 
+## Local Development with Codex
+
+The Codex desktop environment is in `.codex/environments/environment.toml`.
+Select **Chatto** in the app's local environment settings. New worktrees use
+the same setup commands as Conductor. The **Dev stack**, **Storybook**, and
+**Docs website** actions run the corresponding `mise` tasks in the integrated
+terminal. The cleanup script stops workspace processes before Codex deletes
+the worktree.
+
+Start an action, then open its URL in the app's browser. With the default
+local settings, Chatto uses `https://chatto.local.localhost:42444`, Storybook
+uses `https://storybook.local.localhost:42444`, and the docs website uses
+`https://docs.local.localhost:42444`. Authling, Mailpit, LiveKit, and Runling
+use the same URL pattern with their service names.
+
+This configuration does not allocate ports or route names for each worktree.
+The development stack uses base port `4000` and route suffix `local` outside
+Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
+`CONDUCTOR_WORKSPACE_NAME` values for each workspace before starting its
+actions. These variables are the existing `mise` inputs for port and route
+isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
+settings, and PR prompt are not part of the Codex environment configuration.
+
 ## Developing Outside of Conductor
 
 Use `mise` for local tool versions and tasks:
