@@ -11,6 +11,7 @@ import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripVTControlCharacters } from 'node:util';
 import { setTimeout as delay } from 'node:timers/promises';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -32,7 +33,7 @@ function start(args, env) {
   child.diagnostics = [];
   child.stderr.on('data', (chunk) => {
     // Report task/shell failures without dumping backend account/session logs.
-    for (const line of String(chunk).replace(/\x1b\[[0-9;]*m/g, '').split('\n')) {
+    for (const line of stripVTControlCharacters(String(chunk)).split('\n')) {
       if (/Bad substitution|Syntax error|mise ERROR|ERROR task failed/.test(line)) {
         child.diagnostics.push(line);
       }
@@ -135,7 +136,8 @@ try {
   ]);
   assert.equal(result.code, 0, `Seed task failed; see ${logPath}`);
   // Mise may prefix each output line when it runs as a nested task.
-  const lines = output.split('\n').map((line) => line.replace(/^\[seed\] /, '')).join('\n');
+  const lines = stripVTControlCharacters(output).split('\n')
+    .map((line) => line.replace(/^\[seed\] /, '')).join('\n');
   const begin = lines.indexOf('{');
   const end = lines.lastIndexOf('}');
   assert.ok(begin >= 0 && end >= begin, 'Seed task did not return a JSON manifest');
