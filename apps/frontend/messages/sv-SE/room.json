@@ -142,6 +142,14 @@
       },
       "show_less": "visa mindre"
     },
+    "typing": {
+      "one": "{name} skriver",
+      "two": "{first} och {second} skriver",
+      "many_count": {
+        "other": "{names} och {count} till skriver",
+        "one": "{names} och {count} till skriver"
+      }
+    },
     "attachment": {
       "delete_title": "Ta bort bilaga",
       "delete_prompt": "Är du säker på att du vill ta bort den här bilagan? Detta kan inte ångras.",
