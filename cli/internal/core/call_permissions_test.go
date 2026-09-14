@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -83,29 +84,38 @@ func TestCallJoinRetryCannotStartWithoutPermission(t *testing.T) {
 }
 
 func TestCallTokenPermissionCombinations(t *testing.T) {
-	for mask := 0; mask < 8; mask++ {
-		permissions := CallPermissions{Voice: mask&1 != 0, Camera: mask&2 != 0, ScreenShare: mask&4 != 0}
-		token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, "call")
-		require.NoError(t, err)
-		parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
-		require.NoError(t, err)
-		data, err := json.Marshal(parsed.Claims.(jwt.MapClaims)["video"])
-		require.NoError(t, err)
-		var grant struct {
-			CanPublish     bool     `json:"canPublish"`
-			CanSubscribe   bool     `json:"canSubscribe"`
-			CanPublishData bool     `json:"canPublishData"`
-			Sources        []string `json:"canPublishSources"`
-		}
-		require.NoError(t, json.Unmarshal(data, &grant))
-		require.Equal(t, mask != 0, grant.CanPublish)
-		require.True(t, grant.CanSubscribe)
-		require.False(t, grant.CanPublishData)
-		var sources []string
-		for _, source := range permissions.PublishSources() {
-			sources = append(sources, strings.ToLower(source.String()))
-		}
-		require.ElementsMatch(t, sources, grant.Sources)
+	// These are protocol expectations, independent of PublishSources.
+	expected := [][]string{
+		{},
+		{"microphone"},
+		{"camera"},
+		{"microphone", "camera"},
+		{"screen_share", "screen_share_audio"},
+		{"microphone", "screen_share", "screen_share_audio"},
+		{"camera", "screen_share", "screen_share_audio"},
+		{"microphone", "camera", "screen_share", "screen_share_audio"},
+	}
+	for mask, sources := range expected {
+		t.Run(fmt.Sprintf("media_%03b", mask), func(t *testing.T) {
+			permissions := CallPermissions{Voice: mask&1 != 0, Camera: mask&2 != 0, ScreenShare: mask&4 != 0}
+			token, err := GenerateVoiceCallToken("key", "secret", "room", "user", "User", "user", "", false, "e2ee", permissions, "call")
+			require.NoError(t, err)
+			parsed, _, err := jwt.NewParser().ParseUnverified(token.Token, jwt.MapClaims{})
+			require.NoError(t, err)
+			data, err := json.Marshal(parsed.Claims.(jwt.MapClaims)["video"])
+			require.NoError(t, err)
+			var grant struct {
+				CanPublish     bool     `json:"canPublish"`
+				CanSubscribe   bool     `json:"canSubscribe"`
+				CanPublishData bool     `json:"canPublishData"`
+				Sources        []string `json:"canPublishSources"`
+			}
+			require.NoError(t, json.Unmarshal(data, &grant))
+			require.Equal(t, mask != 0, grant.CanPublish)
+			require.True(t, grant.CanSubscribe)
+			require.False(t, grant.CanPublishData)
+			require.ElementsMatch(t, sources, grant.Sources)
+		})
 	}
 }
 
@@ -160,15 +170,40 @@ func TestCallPermissionReconciliation(t *testing.T) {
 	require.Len(t, service.updates, 2)
 	require.NotContains(t, service.updates[0].Permission.CanPublishSources, livekit.TrackSource_MICROPHONE)
 	require.Contains(t, service.updates[1].Permission.CanPublishSources, livekit.TrackSource_MICROPHONE, "companion audio is controlled by screenshare")
+	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallCamera))
+	service.updates = nil
+	_, err = client.ListCallParticipants(ctx)
+	require.NoError(t, err)
+	require.Len(t, service.updates, 2)
+	require.ElementsMatch(t, []livekit.TrackSource{livekit.TrackSource_SCREEN_SHARE, livekit.TrackSource_SCREEN_SHARE_AUDIO}, service.updates[0].Permission.CanPublishSources)
+	require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallCamera))
+	service.updates = nil
+	_, err = client.ListCallParticipants(ctx)
+	require.NoError(t, err)
+	require.Len(t, service.updates, 2)
+	require.Contains(t, service.updates[0].Permission.CanPublishSources, livekit.TrackSource_CAMERA)
+	require.NotContains(t, service.updates[0].Permission.CanPublishSources, livekit.TrackSource_MICROPHONE)
 	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallScreenShare))
 	_, err = client.ListCallParticipants(ctx)
 	require.NoError(t, err)
 	require.Equal(t, "companion", service.removals[0].Identity)
+	// Losing the last media source leaves the main participant subscribed.
+	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallCamera))
+	service.updates = nil
+	_, err = client.ListCallParticipants(ctx)
+	require.NoError(t, err)
+	require.Len(t, service.updates, 1)
+	require.False(t, service.updates[0].Permission.CanPublish)
+	require.True(t, service.updates[0].Permission.CanSubscribe)
+	require.False(t, service.updates[0].Permission.CanPublishData)
+	require.Empty(t, service.updates[0].Permission.CanPublishSources)
+	// The fake continues to list the removed companion on each scan.
+	require.Len(t, service.removals, 2)
 	require.NoError(t, c.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallJoin))
 	snapshots, err := client.ListCallParticipants(ctx)
 	require.NoError(t, err)
 	require.Empty(t, snapshots[0].UserIDs)
-	require.Len(t, service.removals, 3)
+	require.Len(t, service.removals, 4)
 	// Permission-sync failures must not count toward the global listing outage.
 	require.NoError(t, c.GrantUserRoomPermission(ctx, SystemActorID, room.Id, user.Id, PermCallJoin))
 	service.updateErr = errors.New("update unavailable")
@@ -262,4 +297,75 @@ func TestCallPermissionUpgradeConcurrentAndRestart(t *testing.T) {
 	_, after, err := h.publisher.SubjectEvents(ctx, evtstream.RBACSubjectFilter())
 	require.NoError(t, err)
 	require.Equal(t, seq, after)
+}
+
+// Each scoped decision must affect only its matching call capability. Clear
+// removes the last grant, so absence cannot pass through the default baseline.
+func TestCallPermissionsScopeMatrix(t *testing.T) {
+	for _, scopeKind := range []MatrixScopeKind{MatrixScopeServer, MatrixScopeGroup, MatrixScopeRoom, MatrixScopeDM} {
+		t.Run(string(scopeKind), func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			user, err := c.CreateUser(ctx, SystemActorID, "call-matrix-user", "User", "password")
+			require.NoError(t, err)
+			room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, "", "call-matrix", "")
+			require.NoError(t, err)
+			manager, err := c.CreateUser(ctx, SystemActorID, "call-matrix-manager", "Manager", "password")
+			require.NoError(t, err)
+			require.NoError(t, c.AssignServerRole(ctx, SystemActorID, manager.Id, RoleOwner))
+			scope := PermissionTargetScope{Kind: scopeKind}
+			switch scopeKind {
+			case MatrixScopeGroup:
+				group, err := c.CreateRoomGroup(ctx, SystemActorID, "Call matrix", "")
+				require.NoError(t, err)
+				require.NoError(t, c.MoveRoomToGroup(ctx, SystemActorID, room.Id, group.Id))
+				scope.ID = group.Id
+			case MatrixScopeRoom:
+				scope.ID = room.Id
+			case MatrixScopeDM:
+				other, err := c.CreateUser(ctx, SystemActorID, "call-matrix-other", "Other", "password")
+				require.NoError(t, err)
+				room, _, err = c.roomCommands.StartDM(ctx, RoomStartDMInput{ActorID: user.Id, ParticipantIDs: []string{other.Id}})
+				require.NoError(t, err)
+			}
+			if scopeKind != MatrixScopeDM {
+				_, err = c.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+				require.NoError(t, err)
+			}
+			cases := []struct {
+				permission Permission
+				disable    func(*CallPermissions)
+			}{
+				{PermCallStart, func(p *CallPermissions) { p.Start = false }},
+				{PermCallJoin, func(p *CallPermissions) { p.Join = false }},
+				{PermCallVoice, func(p *CallPermissions) { p.Voice = false }},
+				{PermCallCamera, func(p *CallPermissions) { p.Camera = false }},
+				{PermCallScreenShare, func(p *CallPermissions) { p.ScreenShare = false }},
+			}
+			for _, tc := range cases {
+				t.Run(string(tc.permission), func(t *testing.T) {
+					require.NoError(t, c.RevokeServerPermission(ctx, SystemActorID, RoleEveryone, tc.permission))
+					for _, state := range []PermissionState{PermissionStateAllow, PermissionStateDeny, PermissionStateNone} {
+						t.Run(string(state), func(t *testing.T) {
+							require.NoError(t, c.SetRolePermissionState(ctx, manager.Id, RoleEveryone, scope, tc.permission, state))
+							expected := CallPermissions{Start: true, Join: true, Voice: true, Camera: true, ScreenShare: true}
+							if state != PermissionStateAllow {
+								tc.disable(&expected)
+							}
+							for _, starting := range []bool{false, true} {
+								actual, err := c.AuthorizeCall(ctx, user.Id, room.Id, starting)
+								if !expected.Join || (starting && !expected.Start) {
+									require.ErrorIs(t, err, ErrPermissionDenied)
+								} else {
+									require.NoError(t, err)
+								}
+								require.Equal(t, expected, actual)
+							}
+						})
+					}
+					require.NoError(t, c.GrantServerPermission(ctx, SystemActorID, RoleEveryone, tc.permission))
+				})
+			}
+		})
+	}
 }
