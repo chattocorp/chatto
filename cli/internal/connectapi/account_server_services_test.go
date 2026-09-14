@@ -885,6 +885,12 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 	if err := env.core.AddVerifiedEmailDirect(env.ctx, target.Id, "admin-member-target@example.test"); err != nil {
 		t.Fatalf("AddVerifiedEmailDirect target: %v", err)
 	}
+	if err := env.core.AddVerifiedEmailDirect(env.ctx, target.Id, "admin-member-primary@example.test"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect target primary: %v", err)
+	}
+	if err := env.core.SetPrimaryVerifiedEmail(env.ctx, target.Id, "admin-member-primary@example.test"); err != nil {
+		t.Fatalf("SetPrimaryVerifiedEmail target: %v", err)
+	}
 	if _, err := env.core.UpdateUserLogin(env.ctx, target.Id, "admin-member-target-renamed"); err != nil {
 		t.Fatalf("UpdateUserLogin target: %v", err)
 	}
@@ -926,8 +932,11 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 	if got := batchTarget.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
 		t.Fatalf("BatchGetMembers target roles = %v, want explicit moderator only", got)
 	}
-	if !batchTarget.GetHasVerifiedEmail() || len(batchTarget.GetVerifiedEmails()) != 1 || batchTarget.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
-		t.Fatalf("BatchGetMembers emails = has:%v emails:%v, want target email", batchTarget.GetHasVerifiedEmail(), batchTarget.GetVerifiedEmails())
+	if !batchTarget.GetHasVerifiedEmail() || len(batchTarget.GetVerifiedEmails()) != 2 || batchTarget.GetPrimaryVerifiedEmail() != "admin-member-primary@example.test" {
+		t.Fatalf("BatchGetMembers emails = has:%v emails:%v primary:%q, want both addresses and selected primary", batchTarget.GetHasVerifiedEmail(), batchTarget.GetVerifiedEmails(), batchTarget.GetPrimaryVerifiedEmail())
+	}
+	if batchResp.Msg.GetMembers()[1].PrimaryVerifiedEmail != nil {
+		t.Fatalf("BatchGetMembers regular primary email = %q, want absent", batchResp.Msg.GetMembers()[1].GetPrimaryVerifiedEmail())
 	}
 	if batchTarget.GetLastLoginChange() == nil {
 		t.Fatal("BatchGetMembers LastLoginChange is nil, want visible cooldown timestamp")
@@ -953,8 +962,8 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 	if got := listUser.GetRoles(); len(got) != 1 || got[0] != core.RoleModerator {
 		t.Fatalf("ListMembers roles = %v, want explicit moderator only", got)
 	}
-	if !listUser.GetHasVerifiedEmail() || len(listUser.GetVerifiedEmails()) != 1 || listUser.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
-		t.Fatalf("ListMembers emails = has:%v emails:%v, want target email", listUser.GetHasVerifiedEmail(), listUser.GetVerifiedEmails())
+	if !listUser.GetHasVerifiedEmail() || len(listUser.GetVerifiedEmails()) != 2 || listUser.GetPrimaryVerifiedEmail() != "admin-member-primary@example.test" {
+		t.Fatalf("ListMembers emails = has:%v emails:%v primary:%q, want both addresses and selected primary", listUser.GetHasVerifiedEmail(), listUser.GetVerifiedEmails(), listUser.GetPrimaryVerifiedEmail())
 	}
 	if listUser.GetLastLoginChange() == nil {
 		t.Fatal("ListMembers LastLoginChange is nil, want visible cooldown timestamp")
@@ -973,8 +982,8 @@ func TestAdminUserServiceListsAndGetsMembers(t *testing.T) {
 	if member.GetUser().GetId() != target.Id || member.GetUser().GetLogin() != "admin-member-target-renamed" {
 		t.Fatalf("GetMember member = %+v, want renamed target", member)
 	}
-	if !member.GetHasVerifiedEmail() || len(member.GetVerifiedEmails()) != 1 || member.GetVerifiedEmails()[0] != "admin-member-target@example.test" {
-		t.Fatalf("GetMember emails = has:%v emails:%v, want target email", member.GetHasVerifiedEmail(), member.GetVerifiedEmails())
+	if !member.GetHasVerifiedEmail() || len(member.GetVerifiedEmails()) != 2 || member.GetPrimaryVerifiedEmail() != "admin-member-primary@example.test" {
+		t.Fatalf("GetMember emails = has:%v emails:%v primary:%q, want both addresses and selected primary", member.GetHasVerifiedEmail(), member.GetVerifiedEmails(), member.GetPrimaryVerifiedEmail())
 	}
 	if member.GetLastLoginChange() == nil {
 		t.Fatal("GetMember LastLoginChange is nil, want visible cooldown timestamp")
@@ -1017,6 +1026,9 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	}
 	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
+	}
+	if err := env.core.AddVerifiedEmailDirect(env.ctx, target.Id, "admin-role-target@example.test"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect target: %v", err)
 	}
 	adminCtx := withCaller(env.ctx, admin)
 
@@ -1065,6 +1077,9 @@ func TestAdminUserServiceAssignsAndRevokesRoles(t *testing.T) {
 	}
 	if !stringSliceContains(roleAssignerResp.Msg.GetMember().GetRoles(), core.RoleModerator) {
 		t.Fatalf("role.assign-only AssignRole response = %+v, want assigned moderator", roleAssignerResp.Msg)
+	}
+	if roleAssignerResp.Msg.GetMember().GetHasVerifiedEmail() || len(roleAssignerResp.Msg.GetMember().GetVerifiedEmails()) != 0 || roleAssignerResp.Msg.GetMember().PrimaryVerifiedEmail != nil {
+		t.Fatalf("role.assign-only response exposed verified email metadata: %+v", roleAssignerResp.Msg.GetMember())
 	}
 	roleAssignerRevokeResp, err := env.adminUsers.RevokeRole(roleAssignerCtx, connect.NewRequest(&adminv1.RevokeRoleRequest{
 		UserId:   target.Id,

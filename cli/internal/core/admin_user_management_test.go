@@ -33,6 +33,12 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if err := c.AddVerifiedEmailDirect(ctx, target.Id, "adminmember-target@example.test"); err != nil {
 		t.Fatalf("AddVerifiedEmailDirect target: %v", err)
 	}
+	if err := c.AddVerifiedEmailDirect(ctx, target.Id, "adminmember-primary@example.test"); err != nil {
+		t.Fatalf("AddVerifiedEmailDirect target primary: %v", err)
+	}
+	if err := c.SetPrimaryVerifiedEmail(ctx, target.Id, "adminmember-primary@example.test"); err != nil {
+		t.Fatalf("SetPrimaryVerifiedEmail target: %v", err)
+	}
 	if _, err := c.UpdateUserLogin(ctx, target.Id, "adminmember-target-renamed"); err != nil {
 		t.Fatalf("UpdateUserLogin target: %v", err)
 	}
@@ -84,8 +90,11 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if got := list.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
 		t.Fatalf("list user roles = %v, want explicit moderator only", got)
 	}
-	if !list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 1 || list.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
-		t.Fatalf("list user emails = has:%v emails:%v, want target email", list.Users[0].HasVerifiedEmail, list.Users[0].VerifiedEmails)
+	if !list.Users[0].HasVerifiedEmail || len(list.Users[0].VerifiedEmails) != 2 || !slices.Contains(list.Users[0].VerifiedEmails, "adminmember-target@example.test") || !slices.Contains(list.Users[0].VerifiedEmails, "adminmember-primary@example.test") {
+		t.Fatalf("list user emails = has:%v emails:%v, want both target emails", list.Users[0].HasVerifiedEmail, list.Users[0].VerifiedEmails)
+	}
+	if list.Users[0].PrimaryVerifiedEmail != "adminmember-primary@example.test" {
+		t.Fatalf("list primary email = %q, want adminmember-primary@example.test", list.Users[0].PrimaryVerifiedEmail)
 	}
 	if list.Users[0].LastLoginChange == nil {
 		t.Fatal("list user LastLoginChange is nil, want visible cooldown timestamp")
@@ -101,8 +110,8 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if got := batch.Users[0].Roles; len(got) != 1 || got[0] != RoleModerator {
 		t.Fatalf("batch target roles = %v, want explicit moderator only", got)
 	}
-	if !batch.Users[0].HasVerifiedEmail || len(batch.Users[0].VerifiedEmails) != 1 || batch.Users[0].VerifiedEmails[0] != "adminmember-target@example.test" {
-		t.Fatalf("batch target emails = has:%v emails:%v, want target email", batch.Users[0].HasVerifiedEmail, batch.Users[0].VerifiedEmails)
+	if !batch.Users[0].HasVerifiedEmail || len(batch.Users[0].VerifiedEmails) != 2 || batch.Users[0].PrimaryVerifiedEmail != "adminmember-primary@example.test" {
+		t.Fatalf("batch target emails = has:%v emails:%v primary:%q, want both addresses and selected primary", batch.Users[0].HasVerifiedEmail, batch.Users[0].VerifiedEmails, batch.Users[0].PrimaryVerifiedEmail)
 	}
 	if batch.Users[0].LastLoginChange == nil {
 		t.Fatal("batch target LastLoginChange is nil, want visible cooldown timestamp")
@@ -118,8 +127,8 @@ func TestChattoCore_AdminMemberReads(t *testing.T) {
 	if adminDetails.Member == nil {
 		t.Fatal("admin details member is nil")
 	}
-	if !adminDetails.Member.HasVerifiedEmail || len(adminDetails.Member.VerifiedEmails) != 1 || adminDetails.Member.VerifiedEmails[0] != "adminmember-target@example.test" {
-		t.Fatalf("admin details emails = has:%v emails:%v, want target email", adminDetails.Member.HasVerifiedEmail, adminDetails.Member.VerifiedEmails)
+	if !adminDetails.Member.HasVerifiedEmail || len(adminDetails.Member.VerifiedEmails) != 2 || adminDetails.Member.PrimaryVerifiedEmail != "adminmember-primary@example.test" {
+		t.Fatalf("admin details emails = has:%v emails:%v primary:%q, want both addresses and selected primary", adminDetails.Member.HasVerifiedEmail, adminDetails.Member.VerifiedEmails, adminDetails.Member.PrimaryVerifiedEmail)
 	}
 	if adminDetails.Member.LastLoginChange == nil {
 		t.Fatal("admin details LastLoginChange is nil, want visible cooldown timestamp")

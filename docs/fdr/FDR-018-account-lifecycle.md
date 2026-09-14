@@ -37,6 +37,10 @@ This FDR covers human accounts from registration through deletion: signup, email
 - Future account-directed email, including email notifications, uses the
   primary email. Sign-in, password reset, configured-owner matching, and
   identity correlation continue to accept every verified email.
+- Administrators with permission to view user-management data see the selected
+  primary email in member lists and all verified emails in member details. The
+  API identifies the primary email explicitly; clients do not infer it from
+  address order.
 - Email removal is not available yet.
 - Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 

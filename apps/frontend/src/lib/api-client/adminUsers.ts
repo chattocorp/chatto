@@ -26,6 +26,7 @@ export type AdminMember = AdminManagedUser & {
   deleted: boolean;
   hasVerifiedEmail: boolean;
   verifiedEmails: string[];
+  primaryVerifiedEmail: string | null;
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
 };
@@ -229,6 +230,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     deleted: summary.deleted,
     hasVerifiedEmail: member.hasVerifiedEmail,
     verifiedEmails: [...member.verifiedEmails],
+    primaryVerifiedEmail: member.primaryVerifiedEmail ?? null,
     viewerCanDeleteAccount: member.viewerCanDeleteAccount,
     lastLoginChange: member.lastLoginChange?.toDate().toISOString() ?? null
   };

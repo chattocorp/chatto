@@ -68,6 +68,14 @@ export class AdminMember extends Message<AdminMember> {
    */
   user?: User;
 
+  /**
+   * Selected primary verified email visible to the caller. Absence can mean
+   * that no primary email exists or that the field is not visible.
+   *
+   * @generated from field: optional string primary_verified_email = 13;
+   */
+  primaryVerifiedEmail?: string;
+
   constructor(data?: PartialMessage<AdminMember>) {
     super();
     proto3.util.initPartial(data, this);
@@ -83,6 +91,7 @@ export class AdminMember extends Message<AdminMember> {
     { no: 10, name: "viewer_can_delete_account", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 11, name: "last_login_change", kind: "message", T: Timestamp },
     { no: 12, name: "user", kind: "message", T: User },
+    { no: 13, name: "primary_verified_email", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AdminMember {

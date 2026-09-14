@@ -1,5 +1,9 @@
 import { expect, test } from './setup';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  loginAsAdmin,
+  logoutCurrentUser
+} from './fixtures/testUser';
 import * as routes from './routes';
 
 test.describe('Verified email settings', () => {
@@ -42,5 +46,13 @@ test.describe('Verified email settings', () => {
 
     await page.reload();
     await expect(page.getByRole('row', { name: `${newEmail} Primary` })).toBeVisible();
+
+    await logoutCurrentUser(page);
+    await loginAsAdmin(page);
+    await page.goto(routes.serverAdminMembers);
+
+    const adminMemberRow = page.getByRole('row').filter({ hasText: `@${user.login}` });
+    await expect(adminMemberRow).toContainText(newEmail);
+    await expect(adminMemberRow).not.toContainText(`${user.login}@example.com`);
   });
 });
