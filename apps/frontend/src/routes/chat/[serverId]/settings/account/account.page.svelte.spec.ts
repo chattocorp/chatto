@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   listVerifiedEmails: vi.fn(),
   requestEmailVerification: vi.fn(),
   setPrimaryEmail: vi.fn(),
+  beforeNavigate: vi.fn(),
   goto: vi.fn(),
   scopeCurrent: true,
   currentUser: {
@@ -37,6 +38,7 @@ const connection = {
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
+  beforeNavigate: mocks.beforeNavigate,
   goto: mocks.goto
 }));
 
@@ -65,9 +67,17 @@ describe('Account settings page', () => {
     mocks.requestEmailVerification.mockReset();
     mocks.requestEmailVerification.mockResolvedValue(undefined);
     mocks.setPrimaryEmail.mockReset();
+    mocks.beforeNavigate.mockReset();
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
     mocks.scopeCurrent = true;
+    mocks.currentUser.user = {
+      id: 'U123abcetc.',
+      login: 'alice',
+      displayName: 'Alice',
+      hasPassword: true,
+      viewerCanDeleteAccount: false
+    };
     queryClient.clear();
   });
 
@@ -106,6 +116,36 @@ describe('Account settings page', () => {
       .toBeVisible();
     await expect.element(getByRole('textbox', { name: 'Confirm email address' })).toBeVisible();
     await expect.element(getByText(/six-digit verification code/)).toBeVisible();
+  });
+
+  it('does not reuse verified email cache entries for another authenticated user', async () => {
+    const aliceEmails = [{ email: 'alice.private@example.com', primary: true }];
+    const bobEmails = [{ email: 'bob.private@example.com', primary: true }];
+    let resolveBobEmails!: (emails: typeof bobEmails) => void;
+    mocks.listVerifiedEmails
+      .mockResolvedValueOnce(aliceEmails)
+      .mockImplementationOnce(
+        () => new Promise<typeof bobEmails>((resolve) => (resolveBobEmails = resolve))
+      );
+
+    const aliceView = render(AccountPage);
+    await settle();
+    await expect.element(aliceView.getByText('alice.private@example.com')).toBeVisible();
+    aliceView.unmount();
+
+    mocks.currentUser.user = {
+      id: 'U456defetc.',
+      login: 'bob',
+      displayName: 'Bob',
+      hasPassword: true,
+      viewerCanDeleteAccount: false
+    };
+    const bobView = render(AccountPage);
+    await settle();
+
+    expect(bobView.container.textContent).not.toContain('alice.private@example.com');
+    resolveBobEmails(bobEmails);
+    await vi.waitFor(() => expect(bobView.container.textContent).toContain('bob.private@example.com'));
   });
 
   it('invalidates admin email views after selecting a primary address', async () => {
@@ -178,6 +218,31 @@ describe('Account settings page', () => {
 
     expect(mocks.requestEmailVerification).toHaveBeenCalledOnce();
     mocks.scopeCurrent = false;
+    resolveRequest();
+    await settle();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate after another navigation starts in the same server scope', async () => {
+    let resolveRequest = () => {};
+    mocks.requestEmailVerification.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveRequest = resolve))
+    );
+
+    const { getByRole } = render(AccountPage);
+    await settle();
+    await getByRole('button', { name: 'Add email address' }).click();
+    await getByRole('textbox', { name: 'Email address', exact: true }).fill(
+      'alice.new@example.com'
+    );
+    await getByRole('textbox', { name: 'Confirm email address' }).fill('alice.new@example.com');
+    await getByRole('button', { name: 'Send verification code' }).click();
+
+    expect(mocks.requestEmailVerification).toHaveBeenCalledOnce();
+    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as (() => void) | undefined;
+    expect(navigationGuard).toBeTypeOf('function');
+    navigationGuard?.();
     resolveRequest();
     await settle();
 

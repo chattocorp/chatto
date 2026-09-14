@@ -13,9 +13,11 @@ import VerifyEmailPage from './+page.svelte';
 const mocks = vi.hoisted(() => ({
   confirmEmailVerification: vi.fn(),
   requestEmailVerification: vi.fn(),
+  beforeNavigate: vi.fn(),
   goto: vi.fn(),
   toastSuccess: vi.fn(),
-  scopeCurrent: true
+  scopeCurrent: true,
+  currentUser: { user: { id: 'U123abcetc.' } }
 }));
 
 const connection = {
@@ -28,13 +30,14 @@ const connection = {
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
+  beforeNavigate: mocks.beforeNavigate,
   goto: mocks.goto
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: { user: { id: 'U123abcetc.' } } },
+    store: { currentUser: mocks.currentUser },
     connection,
     isCurrent: () => mocks.scopeCurrent
   })
@@ -57,10 +60,12 @@ describe('Verify email page', () => {
     storePendingEmailVerification('origin', 'U123abcetc.', 'alice.new@example.com');
     mocks.confirmEmailVerification.mockReset();
     mocks.requestEmailVerification.mockReset();
+    mocks.beforeNavigate.mockReset();
     mocks.goto.mockReset();
     mocks.goto.mockResolvedValue(undefined);
     mocks.toastSuccess.mockReset();
     mocks.scopeCurrent = true;
+    mocks.currentUser.user = { id: 'U123abcetc.' };
     queryClient.clear();
   });
 
@@ -114,9 +119,11 @@ describe('Verify email page', () => {
       '123456'
     );
     await vi.waitFor(() => expect(mocks.goto).toHaveBeenCalled());
-    expect(queryClient.getQueryData(settingsQueryKeys.verifiedEmails('origin', connection))).toEqual(
-      emails
-    );
+    expect(
+      queryClient.getQueryData(
+        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+      )
+    ).toEqual(emails);
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: adminQueryKeys.membersRoot('origin', connection)
     });
@@ -124,5 +131,36 @@ describe('Verify email page', () => {
       queryKey: adminQueryKeys.member('origin', connection, 'U123abcetc.'),
       exact: true
     });
+  });
+
+  it('does not navigate after another navigation starts in the same server scope', async () => {
+    const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries');
+    let resolveConfirmation = (_emails: Array<{ email: string; primary: boolean }>) => {};
+    mocks.confirmEmailVerification.mockImplementation(
+      () =>
+        new Promise<Array<{ email: string; primary: boolean }>>(
+          (resolve) => (resolveConfirmation = resolve)
+        )
+    );
+
+    const { getByRole } = render(VerifyEmailPage);
+    await getByRole('textbox', { name: 'Digit 1' }).fill('123456');
+    await getByRole('button', { name: 'Verify email' }).click();
+
+    expect(mocks.confirmEmailVerification).toHaveBeenCalledOnce();
+    const navigationGuard = mocks.beforeNavigate.mock.calls.at(-1)?.[0] as (() => void) | undefined;
+    expect(navigationGuard).toBeTypeOf('function');
+    navigationGuard?.();
+    resolveConfirmation([{ email: 'alice.new@example.com', primary: true }]);
+    await settle();
+
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(
+      queryClient.getQueryData(
+        settingsQueryKeys.verifiedEmails('origin', connection, 'U123abcetc.')
+      )
+    ).toBeUndefined();
+    expect(invalidateQueries).not.toHaveBeenCalled();
   });
 });

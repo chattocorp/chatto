@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
+  import { beforeNavigate, goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
   import { createQuery } from '@tanstack/svelte-query';
+  import { onDestroy } from 'svelte';
   import type { VerifiedEmail } from '$lib/api-client/account';
   import { createAccountAPI } from '$lib/api-client/account';
   import { m } from '$lib/i18n/messages';
@@ -11,6 +12,7 @@
   import { settingsQueryKeys } from '$lib/query/settings';
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
   import { DataTable, FormDialog, Hint, Panel, Pill } from '$lib/ui';
   import { Button, TextInput } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast/toastState.svelte';
@@ -20,6 +22,8 @@
   } from '$lib/verifiedEmailChallenge';
 
   const serverScope = useServerScope();
+  let componentActive = true;
+  let navigationGeneration = 0;
   let email = $state('');
   let emailConfirmation = $state('');
   let addEmailVisible = $state(false);
@@ -27,6 +31,49 @@
   let actionError = $state('');
   let requesting = $state(false);
   let selectingEmail = $state('');
+
+  beforeNavigate(() => {
+    navigationGeneration += 1;
+  });
+  onDestroy(() => {
+    componentActive = false;
+    navigationGeneration += 1;
+  });
+
+  type EmailActionScope = {
+    serverId: string;
+    connection: ServerConnection;
+    userId: string;
+    navigationGeneration: number;
+  };
+
+  const viewerUserId = $derived(serverScope.store.currentUser.user?.id ?? '');
+
+  function emailActionScope(): EmailActionScope {
+    return {
+      serverId: serverScope.serverId,
+      connection: serverScope.connection,
+      userId: viewerUserId,
+      navigationGeneration
+    };
+  }
+
+  function isCurrentEmailContext(scope: EmailActionScope): boolean {
+    return (
+      componentActive &&
+      serverScope.isCurrent() &&
+      scope.serverId === serverScope.serverId &&
+      scope.connection.queryScope === serverScope.connection.queryScope &&
+      scope.userId !== '' &&
+      scope.userId === viewerUserId
+    );
+  }
+
+  function isCurrentEmailAction(scope: EmailActionScope): boolean {
+    return (
+      isCurrentEmailContext(scope) && scope.navigationGeneration === navigationGeneration
+    );
+  }
 
   const verificationPath = $derived(
     resolve('/chat/[serverId]/settings/account/verify-email', {
@@ -37,15 +84,17 @@
   const emailsQuery = createQuery(
     () => {
       const connection = serverScope.connection;
+      const userId = viewerUserId;
       return {
-        queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection),
-        queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails()
+        queryKey: settingsQueryKeys.verifiedEmails(serverScope.serverId, connection, userId),
+        queryFn: () => connection.getAPI(createAccountAPI).listVerifiedEmails(),
+        enabled: userId !== ''
       };
     },
     () => queryClient
   );
 
-  const verifiedEmails = $derived(emailsQuery.data ?? []);
+  const verifiedEmails = $derived(viewerUserId ? (emailsQuery.data ?? []) : []);
   const emailsMatch = $derived(
     email.trim() !== '' &&
       emailConfirmation.trim() !== '' &&
@@ -65,9 +114,9 @@
           : '')
   );
 
-  function setEmails(value: VerifiedEmail[]) {
+  function setEmails(scope: EmailActionScope, value: VerifiedEmail[]) {
     queryClient.setQueryData(
-      settingsQueryKeys.verifiedEmails(serverScope.serverId, serverScope.connection),
+      settingsQueryKeys.verifiedEmails(scope.serverId, scope.connection, scope.userId),
       value
     );
   }
@@ -95,22 +144,24 @@
       addEmailError = m('settings.account.email.already_verified');
       return;
     }
-    const userId = serverScope.store.currentUser.user?.id ?? '';
-    if (!userId || !storePendingEmailVerification(serverScope.serverId, userId, address)) {
+    const scope = emailActionScope();
+    if (
+      !scope.userId ||
+      !storePendingEmailVerification(scope.serverId, scope.userId, address)
+    ) {
       addEmailError = m('settings.account.email.request_failed');
       return;
     }
-    const connection = serverScope.connection;
     requesting = true;
     addEmailError = '';
     try {
-      await connection.getAPI(createAccountAPI).requestEmailVerification(address);
-      if (!serverScope.isCurrent()) return;
+      await scope.connection.getAPI(createAccountAPI).requestEmailVerification(address);
+      if (!isCurrentEmailAction(scope)) return;
       addEmailVisible = false;
       await goto(verificationPath);
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
-      clearPendingEmailVerification(serverScope.serverId, userId, address);
+      clearPendingEmailVerification(scope.serverId, scope.userId, address);
+      if (!isCurrentEmailContext(scope)) return;
       addEmailError =
         err instanceof ConnectError && err.code === Code.AlreadyExists
           ? m('settings.account.email.already_verified')
@@ -118,34 +169,32 @@
             ? err.message
             : m('settings.account.email.request_failed');
     } finally {
-      if (serverScope.isCurrent()) requesting = false;
+      if (isCurrentEmailContext(scope)) requesting = false;
     }
   }
 
   async function setPrimary(address: string) {
-    const connection = serverScope.connection;
+    const scope = emailActionScope();
+    if (!scope.userId) return;
     selectingEmail = address;
     actionError = '';
     try {
-      const next = await connection.getAPI(createAccountAPI).setPrimaryEmail(address);
-      if (!serverScope.isCurrent()) return;
-      setEmails(next);
-      const userId = serverScope.store.currentUser.user?.id;
-      if (userId) {
-        void queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.membersRoot(serverScope.serverId, connection)
-        });
-        void queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.member(serverScope.serverId, connection, userId),
-          exact: true
-        });
-      }
+      const next = await scope.connection.getAPI(createAccountAPI).setPrimaryEmail(address);
+      if (!isCurrentEmailAction(scope)) return;
+      setEmails(scope, next);
+      void queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.membersRoot(scope.serverId, scope.connection)
+      });
+      void queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.member(scope.serverId, scope.connection, scope.userId),
+        exact: true
+      });
       toast.success(m('settings.account.email.primary_changed'));
     } catch (err) {
-      if (!serverScope.isCurrent()) return;
+      if (!isCurrentEmailContext(scope)) return;
       actionError = err instanceof Error ? err.message : m('settings.account.email.primary_failed');
     } finally {
-      if (serverScope.isCurrent()) selectingEmail = '';
+      if (isCurrentEmailContext(scope)) selectingEmail = '';
     }
   }
 </script>

@@ -50,7 +50,7 @@
     </Panel>
 
     <PasswordSettings {currentUser} getAccountAPI={accountAPI} />
-    {#key serverScope.connection.queryScope}
+    {#key `${serverScope.connection.queryScope}:${currentUser.user?.id ?? ''}`}
       <VerifiedEmailSettings />
     {/key}
     <ExternalIdentitySettings {currentUser} {accountSettingsPath} />
