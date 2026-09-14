@@ -250,7 +250,7 @@ administrator does not get a separate connection prompt on the management page.
 **Decision:** A public profile card accepts an image only from the advertised
 server origin. The request sends no credentials or referrer data, does not
 follow redirects, and accepts a limited set of declared raster image media
-types. It reads at most 5 MiB for one image.
+types. It rejects an image response after its body exceeds 5 MiB.
 
 **Why:** A profile must not make the client contact an unrelated image host or
 send reusable user credentials. Rejecting redirects prevents hidden network
