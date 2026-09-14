@@ -342,7 +342,9 @@ describe('RoomList', () => {
     setRoomUnread('channel-1', true);
 
     const { container } = render(RoomList);
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const groupHeader = groupHeaders[0];
 
     expect(groupHeaders).toHaveLength(1);
@@ -366,7 +368,9 @@ describe('RoomList', () => {
     mocks.store.navigation.rooms = [dm] as never;
 
     const { container } = render(RoomList);
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const groupHeader = groupHeaders[0];
 
     expect(groupHeaders).toHaveLength(1);
@@ -388,7 +392,9 @@ describe('RoomList', () => {
   it('renders a full-width separator between adjacent room and DM sections', () => {
     const { container } = render(RoomList);
     const roomList = q(container, 'nav.room-list') as HTMLElement;
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const sections = roomList.querySelectorAll<HTMLElement>('[data-testid="room-group-section"]');
     const separatedSection = sections[1];
 
@@ -448,6 +454,10 @@ describe('RoomList', () => {
 
   it('offers a join action for a visible non-member room', async () => {
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
@@ -482,6 +492,10 @@ describe('RoomList', () => {
     channel.viewerCanManageRoom = true;
 
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
@@ -501,6 +515,10 @@ describe('RoomList', () => {
 
   it('shows a disabled join action for a visible restricted room', async () => {
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
@@ -870,9 +888,53 @@ describe('RoomList', () => {
     }
   );
 
+  it('hides unjoined rooms until expanded and can hide them again', async () => {
+    const { container } = render(RoomList);
+    const more = q(container, '[data-testid="room-group-more"]');
+    await expect.element(more).toHaveTextContent('2 more');
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'true');
+    await expect.element(more).toHaveTextContent('Show less');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'false');
+    await expect
+      .poll(() => container.querySelector('[href="/chat/-/joinable-channel"]'))
+      .toBeNull();
+  });
+
+  it('hides a single unjoined room behind the disclosure', async () => {
+    mocks.store.navigation.roomGroups = [
+      { id: 'single', name: 'Projects', viewerCanManageGroup: false, roomIds: ['channel-1', 'joinable-channel'] }
+    ];
+    const { container } = render(RoomList);
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+    const more = q(container, '[data-testid="room-group-more"]');
+    await expect.element(more).toHaveTextContent('1 more');
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+  });
+
+  it('keeps the current unjoined room visible and hides the remaining room', async () => {
+    mocks.activeRoomId = 'joinable-channel';
+    const { container } = render(RoomList);
+    await expect.element(q(container, '[href="/chat/-/joinable-channel"]')).toBeInTheDocument();
+    expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
+    await expect.element(q(container, '[data-testid="room-group-more"]')).toHaveTextContent('1 more');
+  });
+
   it('lets faded joinable non-member channel rows navigate to the room route', async () => {
     const { container } = render(RoomList);
 
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
@@ -885,6 +947,10 @@ describe('RoomList', () => {
   it('lets faded non-joinable channel rows navigate to the inline access screen', async () => {
     const { container } = render(RoomList);
 
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
@@ -1291,7 +1357,9 @@ describe('RoomList', () => {
     ];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
     const header = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+      container.querySelectorAll<HTMLButtonElement>(
+        'button[aria-expanded]:not([data-testid="room-group-more"])'
+      )
     ).find((button) => button.textContent?.trim() === 'Projects');
     const title = header?.querySelector(':scope > span:last-child');
     expect(title).not.toBeNull();

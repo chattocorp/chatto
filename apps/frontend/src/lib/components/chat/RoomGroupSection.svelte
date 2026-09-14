@@ -37,6 +37,8 @@ navigation, member presence groups, and attachment date groups.
     item: Snippet<[T]>;
     /** Optional controls aligned to the end of the section heading. */
     headerActions?: Snippet;
+    /** Optional content below the items, visible only while expanded. */
+    footer?: Snippet;
     /** Optional action that replaces the disclosure icon on hover or focus. */
     leadingOverlay?: Snippet;
     /** Whether to draw the full-width divider preceding this section. */
@@ -63,6 +65,7 @@ navigation, member presence groups, and attachment date groups.
     items,
     item,
     headerActions,
+    footer,
     leadingOverlay,
     separated = false,
     contextMenuTrigger,
@@ -180,6 +183,9 @@ navigation, member presence groups, and attachment date groups.
           {/each}
         {/if}
       </div>
+    {/if}
+    {#if !collapsed && footer}
+      {@render footer()}
     {/if}
   </div>
 </section>

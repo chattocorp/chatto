@@ -110,6 +110,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let archiveRoomDialogVisible = $state(false);
   let archiveRoomTarget = $state<RoomsListItem | null>(null);
   let optimisticGroupSections = $state<ManagedNavigationSection[] | null>(null);
+  // Expansion belongs to this sidebar instance and is scoped to each server and section.
+  const expandedRoomSections = new SvelteMap<string, boolean>();
   const optimisticGroupItems = new SvelteMap<string, RoomsListGroupItem[]>();
   let activeItemDragId = $state<string | null>(null);
   let itemFinalizeScheduled = false;
@@ -480,6 +482,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   type ManagedNavigationSection = NavigationSection & { group: RoomsListGroup };
 
+  function isHiddenUnjoinedRoom(item: RoomsListGroupItem): boolean {
+    if (item.type !== 'room' || isDndShadow(item)) return false;
+    const room = roomMap.get(item.roomId);
+    return !!room && room.type !== RoomKind.DM && !room.viewerIsMember && room.id !== activeRoomId;
+  }
+
+  function visibleSectionItems(section: NavigationSection): RoomsListGroupItem[] {
+    return expandedRoomSections.get(section.persistKey)
+      ? section.items
+      : section.items.filter((item) => !isHiddenUnjoinedRoom(item));
+  }
+
   function roomItems(rooms: RoomsListItem[]): RoomsListGroupItem[] {
     return rooms.map((room) => ({
       id: `room:${room.id}`,
@@ -583,13 +597,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     );
     return sections.map((section) => ({
       ...section,
-      items: optimisticGroupItems.get(section.group.id) ?? section.items
+      items: optimisticGroupItems.get(section.group.id) ?? visibleSectionItems(section)
     }));
   });
 
   let renderManagedSections = $derived(optimisticGroupSections ?? managedSections);
 
-  let unmanagedSections = $derived(navigationSections.filter((section) => !section.group));
+  let unmanagedSections = $derived(
+    navigationSections
+      .filter((section) => !section.group)
+      .map((section) => ({
+        ...section,
+        items: visibleSectionItems(section)
+      }))
+  );
 
   // The viewer ID and DM members must come from the same server projection.
   // Reading the viewer ID from a global auth context here is unsafe — the
@@ -927,6 +948,29 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
+{#snippet moreRooms(section: NavigationSection)}
+  {@const unjoinedCount =
+    navigationSections.find((entry) => entry.id === section.id)?.items.filter(isHiddenUnjoinedRoom)
+      .length ?? 0}
+  {#if unjoinedCount > 0}
+    {@const expanded = expandedRoomSections.get(section.persistKey) ?? false}
+    <button
+      type="button"
+      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+      aria-expanded={expanded}
+      aria-label={expanded ? m('room_list.hide_rooms_in_group', { group: section.label }) : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
+      title={expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}
+      data-testid="room-group-more"
+      onclick={() => {
+        expandedRoomSections.set(section.persistKey, !expanded);
+      }}
+    >
+      <span class="sidebar-icon" aria-hidden="true">{expanded ? '−' : '+'}</span>
+      <span>{expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}</span>
+    </button>
+  {/if}
+{/snippet}
+
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
@@ -978,6 +1022,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@attach supportsRelativeSidebarMoves && canReorderGroups ? groupDragAttachment : undefined}
     >
       {#each renderManagedSections as section, i (section.id)}
+        {#snippet footer()}
+          {@render moreRooms(section)}
+        {/snippet}
         {#snippet headerActions()}
           {#if !isDndShadow(section)}
             {@render groupHeaderActions(section.group)}
@@ -994,6 +1041,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           containItemDrag
           isDndShadow={isDndShadow(section)}
           {headerActions}
+          {footer}
           leadingOverlay={!isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups
             ? groupLeadingOverlay
             : undefined}
@@ -1005,12 +1053,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <CreateRoomGroupControl />
     {/if}
     {#each unmanagedSections as section, i (section.id)}
+      {#snippet footer()}
+        {@render moreRooms(section)}
+      {/snippet}
       <RoomGroupSection
         label={section.label}
         items={section.items}
         item={sidebarLink}
         persistKey={section.persistKey}
         keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
+        {footer}
         separated={renderManagedSections.length > 0 || i > 0}
       />
     {/each}
