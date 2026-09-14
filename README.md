@@ -85,6 +85,25 @@ show its authorization prompt, run this command once in an interactive terminal:
 mise x node@24 npm:portless@0.15.5 -- portless trust
 ```
 
+### Generate Test Data
+
+With `mise dev` running, run this command in another terminal:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 5 --messages 200 --thread-replies 40
+```
+
+This adds 20 users with generated names and 200 messages across five rooms.
+The message total includes 40 thread replies. All generated users join all
+five rooms. Sign in as `alice` to browse them; generated users have no password.
+
+The same seed and counts reproduce content with the same generator version;
+IDs and timestamps change. Each run adds data. A failed run can leave partial
+data. Add `--json` to get the generated IDs and text, or `--help` for options.
+Seeding is available only in development and test builds.
+
+See [Synthetic Test Data](CONTRIBUTING.md#synthetic-test-data) for e2e use.
+
 ## License
 
 Chatto is licensed under `AGPL-3.0-or-later` by default. The independently

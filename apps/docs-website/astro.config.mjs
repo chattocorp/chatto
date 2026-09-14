@@ -86,7 +86,6 @@ export default defineConfig({
             "guides/operations/pinned-messages",
             "guides/operations/search",
             "guides/operations/operator-cli",
-            "guides/operations/synthetic-data",
             "guides/operations/backup-restore",
           ],
         },
