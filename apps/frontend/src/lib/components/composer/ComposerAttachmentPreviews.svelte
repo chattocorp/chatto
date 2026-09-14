@@ -6,13 +6,17 @@
   let {
     attachments,
     disabled,
+    canDescribe = true,
     getSubmissionStatus,
-    onremove
+    onremove,
+    ondescription
   }: {
     attachments: AttachmentsState;
     disabled: boolean;
+    canDescribe?: boolean;
     getSubmissionStatus: (file: File) => AttachmentSubmissionStatus | null;
     onremove: (index: number) => void;
+    ondescription: (index: number) => void;
   } = $props();
 
   function uploadStatusLabel(status: AttachmentSubmissionStatus): string {
@@ -25,7 +29,7 @@
 
 {#if attachments.filesWithUrls.length > 0}
   <div class="flex flex-wrap gap-2">
-    {#each attachments.filesWithUrls as { file, url }, index (url)}
+    {#each attachments.filesWithUrls as { file, url, description }, index (url)}
       {@const submissionStatus = getSubmissionStatus(file)}
       {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
       <div
@@ -34,7 +38,7 @@
       >
         <div class="relative h-12 w-12 shrink-0 overflow-hidden rounded-md">
           {#if file.type.startsWith('image/')}
-            <img src={url} alt={file.name} class="h-full w-full object-cover" />
+            <img src={url} alt={description || file.name} class="h-full w-full object-cover" />
           {:else if file.type.startsWith('video/')}
             <!-- Browser renders the first frame as a thumbnail from the object URL. -->
             <video
@@ -82,6 +86,18 @@
           >
             {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
           </div>
+          {#if canDescribe}
+            <button
+              type="button"
+              onclick={() => ondescription(index)}
+              {disabled}
+              class="mt-1 cursor-pointer text-xs text-action hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {description
+                ? m('room.attachment.edit_description')
+                : m('room.attachment.add_description')}
+            </button>
+          {/if}
           <div
             data-testid="attachment-upload-progress"
             class={[

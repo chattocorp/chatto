@@ -150,7 +150,15 @@
       "view_label": "Посмотреть {filename}",
       "download_label": "Скачать {filename}",
       "image_refresh_failed": "Не удалось обновить ссылку на изображение.",
-      "download_refresh_failed": "Не удалось обновить ссылку для скачивания."
+      "download_refresh_failed": "Не удалось обновить ссылку для скачивания.",
+      "add_description": "Добавить описание",
+      "edit_description": "Изменить описание",
+      "show_description": "Показать описание",
+      "description_title": "Описание вложения",
+      "description_label": "Описание (необязательно)",
+      "description_help": "Опишите вложение для людей, которые не могут его увидеть или услышать.",
+      "description_too_long": "Описание может содержать не более {max} символов.",
+      "description_update_failed": "Не удалось обновить описание вложения"
     },
     "link_preview": {
       "delete_title": "Удалить предварительный просмотр ссылки",

@@ -74,6 +74,18 @@ when `has_message_history` is explicitly false. A new client connected to an
 older server sees no empty DM rows, and it must treat an absent history value
 on a returned DM as unknown rather than false.
 
+Chatto 0.5.0-alpha.9 adds attachment descriptions. `CreateMessageRequest` adds
+the repeated `attachment_descriptions` field, keyed by IDs in
+`attachment_asset_ids`. Hydrated `MessageAttachment` and
+`RoomAttachmentListItem` values add an optional `description`; the base `Asset`
+resource does not change. `MessageService.SetAttachmentDescription` replaces or
+clears one description. These protobuf fields are additive, but a server before
+0.5.0-alpha.9 ignores a description on create. Clients must check the server
+version before they send the field. Upgrade all message-writing replicas before
+clients create descriptions. Do not roll back to an older writer after a
+description is stored because an old body edit cannot bind that encrypted
+metadata to its replacement body event.
+
 Chatto 0.5 bounds `AdminPermissionService.GetRolePermissionMatrix`,
 `GetUserPermissionMatrix`, `ListRolePermissionDecisions`, and
 `ListUserPermissionDecisions` by scope. All four accept `page` and an optional

@@ -31,6 +31,7 @@ export type MessageAttachmentView = {
   id: string;
   filename: string;
   contentType: string;
+  description?: string | null;
   width: number;
   height: number;
   assetUrl?: ExpiringAssetUrl | null;

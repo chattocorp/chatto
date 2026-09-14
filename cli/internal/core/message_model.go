@@ -15,6 +15,7 @@ type MessagePostInput struct {
 	RoomID                  string
 	Body                    string
 	AttachmentAssetIDs      []string
+	AttachmentDescriptions  []MessageAttachmentDescriptionInput
 	HasPendingAttachments   bool
 	VideoProcessingAssetIDs []string
 	ThreadRootEventID       string
@@ -23,6 +24,13 @@ type MessagePostInput struct {
 	CreateThread            bool
 	LinkPreview             *evtv1.LinkPreview
 	automaticThreadCreation bool
+}
+
+// MessageAttachmentDescriptionInput associates one attachment asset with
+// user-provided descriptive text.
+type MessageAttachmentDescriptionInput struct {
+	AssetID     string
+	Description string
 }
 
 // MessagePostAuthorizationInput describes the authorization preflight for a
@@ -85,6 +93,16 @@ type MessageAttachmentDeleteInput struct {
 	AttachmentID string
 }
 
+// MessageAttachmentDescriptionSetInput describes one attachment-description
+// replacement. An empty normalized description clears the current value.
+type MessageAttachmentDescriptionSetInput struct {
+	ActorID      string
+	RoomID       string
+	EventID      string
+	AttachmentID string
+	Description  string
+}
+
 // MessageLinkPreviewDeleteInput describes removal of one link preview from a
 // message body.
 type MessageLinkPreviewDeleteInput struct {
@@ -145,6 +163,13 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 	kind := preflight.Authorization.Kind
 
 	options := make([]PostMessageOption, 0, 2)
+	descriptions, err := normalizeAttachmentDescriptionInputs(input.AttachmentAssetIDs, input.AttachmentDescriptions)
+	if err != nil {
+		return nil, err
+	}
+	if len(descriptions) > 0 {
+		options = append(options, withAttachmentDescriptions(descriptions))
+	}
 	if videoProcessingAssetIDs := s.videoProcessingAssetIDsForPost(input); len(videoProcessingAssetIDs) > 0 {
 		options = append(options, WithVideoProcessingAssets(videoProcessingAssetIDs...))
 	}
@@ -163,6 +188,38 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 
 	s.core.NotifyRoomMarkedAsRead(ctx, input.ActorID, kind, room.Id)
 	return &MessagePostResult{Event: event}, nil
+}
+
+// SetAttachmentDescription sets or clears one description. Authorization:
+// actor must be able to read the message. Authors may edit within the message
+// edit window; effective message.manage bypasses the window and permits edits
+// to other authors' messages.
+func (s *MessageModel) SetAttachmentDescription(ctx context.Context, input MessageAttachmentDescriptionSetInput) (*evtv1.Event, RoomKind, error) {
+	room, kind, err := s.core.requireMessageReader(ctx, input.ActorID, input.RoomID, input.EventID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if strings.TrimSpace(input.EventID) == "" {
+		return nil, kind, invalidArgument("event_id is required")
+	}
+	if strings.TrimSpace(input.AttachmentID) == "" {
+		return nil, kind, invalidArgument("attachment_id is required")
+	}
+	event, err := s.requireMessagePostedEvent(ctx, kind, room.Id, input.EventID)
+	if err != nil {
+		return nil, kind, err
+	}
+	if event.GetMessagePosted().GetEchoOfEventId() != "" {
+		return nil, kind, invalidArgument("event_id must identify the canonical message")
+	}
+	description, err := normalizeAttachmentDescription(input.Description)
+	if err != nil {
+		return nil, kind, err
+	}
+	if err := s.core.SetAttachmentDescription(ctx, input.ActorID, kind, room.Id, input.EventID, input.AttachmentID, description); err != nil {
+		return nil, kind, err
+	}
+	return event, kind, nil
 }
 
 func (s *MessageModel) applyAutomaticThreadCreation(ctx context.Context, input MessagePostInput) (MessagePostInput, error) {

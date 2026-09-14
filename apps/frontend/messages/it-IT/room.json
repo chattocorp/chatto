@@ -150,7 +150,15 @@
       "view_label": "Visualizza {filename}",
       "download_label": "Scarica {filename}",
       "image_refresh_failed": "Impossibile aggiornare il collegamento dell'immagine",
-      "download_refresh_failed": "Impossibile aggiornare il collegamento per il download"
+      "download_refresh_failed": "Impossibile aggiornare il collegamento per il download",
+      "add_description": "Aggiungi descrizione",
+      "edit_description": "Modifica descrizione",
+      "show_description": "Mostra descrizione",
+      "description_title": "Descrizione dell'allegato",
+      "description_label": "Descrizione (facoltativa)",
+      "description_help": "Descrivi l'allegato per le persone che non possono vederlo o sentirlo.",
+      "description_too_long": "Le descrizioni possono contenere al massimo {max} caratteri.",
+      "description_update_failed": "Impossibile aggiornare la descrizione dell'allegato"
     },
     "link_preview": {
       "delete_title": "Elimina anteprima collegamento",

@@ -97,6 +97,9 @@ message MessageAttachment {
   MessageAssetUrl thumbnail_asset_url = 7;
   // Video-specific processing metadata, when this attachment is a video.
   MessageVideoProcessing video_processing = 8;
+  // User-provided description for accessibility and attachment details.
+  // Absent when the attachment has no description.
+  optional string description = 9;
 }
 
 // Aggregated reaction state for one emoji on one message.

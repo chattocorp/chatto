@@ -75,6 +75,7 @@ describe('createAttachmentAPI', () => {
           new RoomAttachmentListItem({
             messageEventId: 'event_2',
             threadRootEventId: 'event_1',
+            description: 'A short video clip',
             createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:00Z')),
             attachment: new Asset({
               id: 'att_video',
@@ -144,6 +145,7 @@ describe('createAttachmentAPI', () => {
             id: 'att_video',
             filename: 'clip.mp4',
             contentType: 'video/mp4',
+            description: 'A short video clip',
             assetUrl: { url: '/assets/files/att_video' },
             thumbnailAssetUrl: { url: '/assets/files/att_video/image/120x120/cover' },
             videoProcessing: {

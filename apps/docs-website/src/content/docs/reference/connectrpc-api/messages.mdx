@@ -124,6 +124,7 @@ Request to create a message in a room or thread.
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Cannot be combined with thread_root_event_id. |
+| `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](/reference/connectrpc-api/types/#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -238,6 +239,44 @@ Request to remove one attachment from a message.
 #### Result: DeleteAttachmentResponse
 
 Result of removing one attachment from a message.
+
+
+<a id="chatto-api-v1-MessageService-SetAttachmentDescription"></a>
+
+### SetAttachmentDescription
+
+Sets or clears one attachment description. Authors can change descriptions
+within the message edit window. Effective message.manage permits changes
+at any time and to other users' messages. Room membership and message read
+access are required.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/SetAttachmentDescription
+```
+
+<a id="chatto-api-v1-SetAttachmentDescriptionRequest"></a>
+
+#### Input: SetAttachmentDescriptionRequest
+
+Request to set or clear one attachment description.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Canonical message event containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment asset ID in the current message body. |
+| `description` | `string` | Replacement description. Chatto trims outer whitespace and preserves internal line breaks. An empty result clears the description. |
+
+
+<a id="chatto-api-v1-SetAttachmentDescriptionResponse"></a>
+
+#### Result: SetAttachmentDescriptionResponse
+
+Result of setting or clearing an attachment description.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](/reference/connectrpc-api/types/#chatto-api-v1-Message) | Renderable message after the description change. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>

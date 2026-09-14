@@ -147,6 +147,14 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
    */
   createdAt?: Timestamp;
 
+  /**
+   * User-provided description for this attachment. Absent when the attachment
+   * has no description.
+   *
+   * @generated from field: optional string description = 5;
+   */
+  description?: string;
+
   constructor(data?: PartialMessage<RoomAttachmentListItem>) {
     super();
     proto3.util.initPartial(data, this);
@@ -159,6 +167,7 @@ export class RoomAttachmentListItem extends Message<RoomAttachmentListItem> {
     { no: 2, name: "message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "created_at", kind: "message", T: Timestamp },
+    { no: 5, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomAttachmentListItem {

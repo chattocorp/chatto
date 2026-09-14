@@ -156,7 +156,15 @@
       "view_label": "Wyświetl {filename}",
       "download_label": "Pobierz {filename}",
       "image_refresh_failed": "Nie można odświeżyć linku do obrazu",
-      "download_refresh_failed": "Nie można odświeżyć linku do pobrania"
+      "download_refresh_failed": "Nie można odświeżyć linku do pobrania",
+      "add_description": "Dodaj opis",
+      "edit_description": "Edytuj opis",
+      "show_description": "Pokaż opis",
+      "description_title": "Opis załącznika",
+      "description_label": "Opis (opcjonalny)",
+      "description_help": "Opisz załącznik osobom, które nie mogą go zobaczyć ani usłyszeć.",
+      "description_too_long": "Opis może zawierać maksymalnie {max} znaków.",
+      "description_update_failed": "Nie udało się zaktualizować opisu załącznika"
     },
     "link_preview": {
       "delete_title": "Usuń podgląd linku",

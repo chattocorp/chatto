@@ -1,7 +1,7 @@
 # FDR-008: File Attachments & Video Processing
 
 **Status:** Active
-**Last reviewed:** 2026-09-05
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -14,6 +14,9 @@ Users can attach files to messages — images, videos, documents — via drag-an
 - Message attachments are uploaded through `chatto.api.v1.AssetUploadService` before message creation. The browser sends bounded unary chunks with SHA-256 checksums, then calls `MessageService.CreateMessage` with completed attachment asset IDs.
 - A completed asset can be attached only by its uploader and to one exact message. Reusing another member's asset ID, or reusing one's own already-attached asset ID, is rejected.
 - While a message's attachments are being prepared and uploaded, the bundled composer keeps their previews visible, reports committed upload progress for each file, and disables editing and composer actions until the send finishes. A failed send keeps the submitted text and attachments available for correction or retry.
+- A member can add one plain-text description to each message attachment before send. The composer keeps the description in memory and sends it only after the upload returns an asset ID. Descriptions can contain line breaks. Chatto trims outer whitespace, limits each value to 1,000 Unicode characters, and treats an empty value as removal.
+- Message authors can change attachment descriptions during the message-edit window. Effective `message.manage` permission bypasses the time limit and permits changes to other members' descriptions. A change marks the message as edited and refreshes current message views through the existing bodyless message-edited signal.
+- Image descriptions are alt text, with the filename as fallback. Video, audio, and file controls use accessible descriptions. Attachment details show descriptions on demand, and the image viewer shows them as captions.
 - Default upload size limits: 25 MB for general files, 100 MB for videos when video processing is enabled.
 - Video uploads require server-side video processing to be enabled. When it is disabled, the composer rejects `video/*` files immediately and the message-post API rejects them before storage.
 - Images are inspected for dimensions at upload time and can be resized at render time via URL parameters (width, height, fit mode). Public attachment and avatar APIs expose transform parameters; public server branding images expose canonical URLs only.
@@ -114,6 +117,14 @@ already in the cache and newly posted attachments are inserted directly.
 **Why:** Automatic retry is only operationally useful when self-hosters can tell whether the worker is available and whether durable work remains. Shared consumer state makes that answer consistent regardless of which replica serves the admin request.
 **Tradeoff:** Broker state is point-in-time. Waiting pulls demonstrate availability, but an ack-pending delivery without a waiter may be actively handled or awaiting recovery after a crash, so diagnostics report that state as unconfirmed. The unresolved-redelivery count resets as messages are acknowledged and does not identify which current item retried; the consumer also does not expose the age of its oldest pending delivery. Counts describe queued and unacknowledged work, not historical deletion totals, and idempotent cleanup cannot reliably attribute reclaimed bytes.
 
+### 13. Attachment descriptions are encrypted message metadata
+
+**Decision:** `MessageBody` stores one encrypted description envelope per described attachment, keyed by asset ID. Each envelope records its encryption version, the original author's message-body DEK epoch, nonce, and ciphertext. Its authenticated data is domain-separated and binds the description to the room, canonical message, body event, author, asset, key epoch, and description purpose. Every body replacement decrypts descriptions transiently and encrypts them again for the new body event, including linked channel echoes. Obsolete body events use the existing secure-delete process. `AssetAttachedEvent` remains the permanent asset-to-message ownership link and contains no description. `Asset`, upload-session state, snapshots, logs, realtime event payloads, and search indexes do not contain description plaintext.
+
+**Why:** A description can identify a person or disclose message context. It must follow message editing, retraction, secure deletion, and author-key shredding. It describes one use of an asset in one message, so it is not intrinsic file metadata. Permanent asset lifecycle evidence must remain useful after message PII is deleted.
+
+**Tradeoff:** Hydrating a message or room-file row must decrypt the current description. Editing any message-body field encrypts every retained description again because the body-event ID is part of authenticated data. Existing messages need no migration and return no description. All message-writing replicas must understand this metadata before clients create it. A rollback to an older writer after descriptions exist is not supported.
+
 ## Permissions
 
 Posting an attachment requires room membership, the relevant message-posting permission (`message.post` or `message.post-in-thread`), and `message.attach`. The `message.attach` permission is configurable at server, group, and room scope and only gates message attachments; server branding uploads, user avatars, link previews, and attachment deletion use their existing checks.
@@ -127,5 +138,5 @@ Fresh servers seed `message.attach` for `everyone` so new deployments keep uploa
 
 ## Related
 
-- **ADRs:** ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
+- **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-021 (dual asset storage), ADR-023 (HMAC-signed image transform URLs), ADR-032 (self-describing signed attachment URLs), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-041 (runtime units for optional processes), ADR-045 (public API stability tiers), ADR-047 (direct ticketed asset URLs), ADR-066 (durable asset processing runtime unit), ADR-067 (Electron desktop packaging), ADR-069 (explicit durable consumer lifecycle), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions), ADR-090 (EVT timeline payload hydration)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-004 (Message Editing & Deletion), FDR-034 (Chatto Desktop), FDR-039 (Message Access & Interactions)

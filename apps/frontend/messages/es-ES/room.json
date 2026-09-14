@@ -150,7 +150,15 @@
       "view_label": "Ver {filename}",
       "download_label": "Descargar {filename}",
       "image_refresh_failed": "No se pudo actualizar el enlace de la imagen",
-      "download_refresh_failed": "No se pudo actualizar el enlace de descarga"
+      "download_refresh_failed": "No se pudo actualizar el enlace de descarga",
+      "add_description": "Añadir descripción",
+      "edit_description": "Editar descripción",
+      "show_description": "Mostrar descripción",
+      "description_title": "Descripción del archivo adjunto",
+      "description_label": "Descripción (opcional)",
+      "description_help": "Describe el archivo adjunto para las personas que no pueden verlo ni oírlo.",
+      "description_too_long": "Las descripciones pueden contener como máximo {max} caracteres.",
+      "description_update_failed": "No se pudo actualizar la descripción del archivo adjunto"
     },
     "link_preview": {
       "delete_title": "Eliminar vista previa del enlace",

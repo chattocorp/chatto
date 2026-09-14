@@ -51,6 +51,9 @@ const (
 	// MessageServiceDeleteAttachmentProcedure is the fully-qualified name of the MessageService's
 	// DeleteAttachment RPC.
 	MessageServiceDeleteAttachmentProcedure = "/chatto.api.v1.MessageService/DeleteAttachment"
+	// MessageServiceSetAttachmentDescriptionProcedure is the fully-qualified name of the
+	// MessageService's SetAttachmentDescription RPC.
+	MessageServiceSetAttachmentDescriptionProcedure = "/chatto.api.v1.MessageService/SetAttachmentDescription"
 	// MessageServiceDeleteLinkPreviewProcedure is the fully-qualified name of the MessageService's
 	// DeleteLinkPreview RPC.
 	MessageServiceDeleteLinkPreviewProcedure = "/chatto.api.v1.MessageService/DeleteLinkPreview"
@@ -97,6 +100,11 @@ type MessageServiceClient interface {
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
 	// Removes one attachment from the author's own message.
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	// Sets or clears one attachment description. Authors can change descriptions
+	// within the message edit window. Effective message.manage permits changes
+	// at any time and to other users' messages. Room membership and message read
+	// access are required.
+	SetAttachmentDescription(context.Context, *connect.Request[v1.SetAttachmentDescriptionRequest]) (*connect.Response[v1.SetAttachmentDescriptionResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
 	// Reads one renderable message, including current body, attachment metadata,
@@ -172,6 +180,12 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 			connect.WithSchema(messageServiceMethods.ByName("DeleteAttachment")),
 			connect.WithClientOptions(opts...),
 		),
+		setAttachmentDescription: connect.NewClient[v1.SetAttachmentDescriptionRequest, v1.SetAttachmentDescriptionResponse](
+			httpClient,
+			baseURL+MessageServiceSetAttachmentDescriptionProcedure,
+			connect.WithSchema(messageServiceMethods.ByName("SetAttachmentDescription")),
+			connect.WithClientOptions(opts...),
+		),
 		deleteLinkPreview: connect.NewClient[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse](
 			httpClient,
 			baseURL+MessageServiceDeleteLinkPreviewProcedure,
@@ -207,17 +221,18 @@ func NewMessageServiceClient(httpClient connect.HTTPClient, baseURL string, opts
 
 // messageServiceClient implements MessageServiceClient.
 type messageServiceClient struct {
-	listReactionUsers *connect.Client[v1.ListReactionUsersRequest, v1.ListReactionUsersResponse]
-	fetchLinkPreview  *connect.Client[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse]
-	createMessage     *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
-	updateMessage     *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
-	deleteMessage     *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
-	deleteAttachment  *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
-	deleteLinkPreview *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
-	getMessage        *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
-	batchGetMessages  *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
-	addReaction       *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
-	removeReaction    *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
+	listReactionUsers        *connect.Client[v1.ListReactionUsersRequest, v1.ListReactionUsersResponse]
+	fetchLinkPreview         *connect.Client[v1.FetchLinkPreviewRequest, v1.FetchLinkPreviewResponse]
+	createMessage            *connect.Client[v1.CreateMessageRequest, v1.CreateMessageResponse]
+	updateMessage            *connect.Client[v1.UpdateMessageRequest, v1.UpdateMessageResponse]
+	deleteMessage            *connect.Client[v1.DeleteMessageRequest, v1.DeleteMessageResponse]
+	deleteAttachment         *connect.Client[v1.DeleteAttachmentRequest, v1.DeleteAttachmentResponse]
+	setAttachmentDescription *connect.Client[v1.SetAttachmentDescriptionRequest, v1.SetAttachmentDescriptionResponse]
+	deleteLinkPreview        *connect.Client[v1.DeleteLinkPreviewRequest, v1.DeleteLinkPreviewResponse]
+	getMessage               *connect.Client[v1.GetMessageRequest, v1.GetMessageResponse]
+	batchGetMessages         *connect.Client[v1.BatchGetMessagesRequest, v1.BatchGetMessagesResponse]
+	addReaction              *connect.Client[v1.AddReactionRequest, v1.AddReactionResponse]
+	removeReaction           *connect.Client[v1.RemoveReactionRequest, v1.RemoveReactionResponse]
 }
 
 // ListReactionUsers calls chatto.api.v1.MessageService.ListReactionUsers.
@@ -248,6 +263,11 @@ func (c *messageServiceClient) DeleteMessage(ctx context.Context, req *connect.R
 // DeleteAttachment calls chatto.api.v1.MessageService.DeleteAttachment.
 func (c *messageServiceClient) DeleteAttachment(ctx context.Context, req *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
 	return c.deleteAttachment.CallUnary(ctx, req)
+}
+
+// SetAttachmentDescription calls chatto.api.v1.MessageService.SetAttachmentDescription.
+func (c *messageServiceClient) SetAttachmentDescription(ctx context.Context, req *connect.Request[v1.SetAttachmentDescriptionRequest]) (*connect.Response[v1.SetAttachmentDescriptionResponse], error) {
+	return c.setAttachmentDescription.CallUnary(ctx, req)
 }
 
 // DeleteLinkPreview calls chatto.api.v1.MessageService.DeleteLinkPreview.
@@ -304,6 +324,11 @@ type MessageServiceHandler interface {
 	DeleteMessage(context.Context, *connect.Request[v1.DeleteMessageRequest]) (*connect.Response[v1.DeleteMessageResponse], error)
 	// Removes one attachment from the author's own message.
 	DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error)
+	// Sets or clears one attachment description. Authors can change descriptions
+	// within the message edit window. Effective message.manage permits changes
+	// at any time and to other users' messages. Room membership and message read
+	// access are required.
+	SetAttachmentDescription(context.Context, *connect.Request[v1.SetAttachmentDescriptionRequest]) (*connect.Response[v1.SetAttachmentDescriptionResponse], error)
 	// Removes the accepted link preview from the author's own message.
 	DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error)
 	// Reads one renderable message, including current body, attachment metadata,
@@ -375,6 +400,12 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 		connect.WithSchema(messageServiceMethods.ByName("DeleteAttachment")),
 		connect.WithHandlerOptions(opts...),
 	)
+	messageServiceSetAttachmentDescriptionHandler := connect.NewUnaryHandler(
+		MessageServiceSetAttachmentDescriptionProcedure,
+		svc.SetAttachmentDescription,
+		connect.WithSchema(messageServiceMethods.ByName("SetAttachmentDescription")),
+		connect.WithHandlerOptions(opts...),
+	)
 	messageServiceDeleteLinkPreviewHandler := connect.NewUnaryHandler(
 		MessageServiceDeleteLinkPreviewProcedure,
 		svc.DeleteLinkPreview,
@@ -419,6 +450,8 @@ func NewMessageServiceHandler(svc MessageServiceHandler, opts ...connect.Handler
 			messageServiceDeleteMessageHandler.ServeHTTP(w, r)
 		case MessageServiceDeleteAttachmentProcedure:
 			messageServiceDeleteAttachmentHandler.ServeHTTP(w, r)
+		case MessageServiceSetAttachmentDescriptionProcedure:
+			messageServiceSetAttachmentDescriptionHandler.ServeHTTP(w, r)
 		case MessageServiceDeleteLinkPreviewProcedure:
 			messageServiceDeleteLinkPreviewHandler.ServeHTTP(w, r)
 		case MessageServiceGetMessageProcedure:
@@ -460,6 +493,10 @@ func (UnimplementedMessageServiceHandler) DeleteMessage(context.Context, *connec
 
 func (UnimplementedMessageServiceHandler) DeleteAttachment(context.Context, *connect.Request[v1.DeleteAttachmentRequest]) (*connect.Response[v1.DeleteAttachmentResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.DeleteAttachment is not implemented"))
+}
+
+func (UnimplementedMessageServiceHandler) SetAttachmentDescription(context.Context, *connect.Request[v1.SetAttachmentDescriptionRequest]) (*connect.Response[v1.SetAttachmentDescriptionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.MessageService.SetAttachmentDescription is not implemented"))
 }
 
 func (UnimplementedMessageServiceHandler) DeleteLinkPreview(context.Context, *connect.Request[v1.DeleteLinkPreviewRequest]) (*connect.Response[v1.DeleteLinkPreviewResponse], error) {

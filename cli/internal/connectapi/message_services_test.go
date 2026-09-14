@@ -451,6 +451,7 @@ func TestMessageServiceValidatesEmoji(t *testing.T) {
 func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-validation")
+	assetID := env.uploadAttachmentAsset(t, room.Id, "diagram.png", "image/png", connectAPITestPNG())
 	ctx := withCaller(env.ctx, env.viewer)
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply := env.post(room.Id, env.viewer.Id, "reply", root.Id)
@@ -543,6 +544,30 @@ func TestMessageServiceCreateMessageValidatesInput(t *testing.T) {
 				RoomId:           room.Id,
 				Body:             "hello",
 				LinkPreviewToken: "not-a-token",
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "description for unrelated attachment",
+			req: &apiv1.CreateMessageRequest{
+				RoomId: room.Id,
+				Body:   "hello",
+				AttachmentDescriptions: []*apiv1.MessageAttachmentDescriptionInput{{
+					AssetId: "missing-asset", Description: "not attached",
+				}},
+			},
+			code: connect.CodeInvalidArgument,
+		},
+		{
+			name: "duplicate attachment descriptions",
+			req: &apiv1.CreateMessageRequest{
+				RoomId:             room.Id,
+				Body:               "hello",
+				AttachmentAssetIds: []string{assetID},
+				AttachmentDescriptions: []*apiv1.MessageAttachmentDescriptionInput{
+					{AssetId: assetID, Description: "first"},
+					{AssetId: assetID, Description: "second"},
+				},
 			},
 			code: connect.CodeInvalidArgument,
 		},
@@ -732,6 +757,9 @@ func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	resp, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
 		RoomId:             room.Id,
 		AttachmentAssetIds: []string{assetID},
+		AttachmentDescriptions: []*apiv1.MessageAttachmentDescriptionInput{{
+			AssetId: assetID, Description: "  A plain text note.\nSecond line.  ",
+		}},
 	}))
 	if err != nil {
 		t.Fatalf("CreateMessage: %v", err)
@@ -746,6 +774,9 @@ func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	}
 	if attachments[0].GetFilename() != "note.txt" || attachments[0].GetContentType() != "text/plain" {
 		t.Fatalf("attachment = %+v, want note.txt text/plain", attachments[0])
+	}
+	if got := attachments[0].GetDescription(); got != "A plain text note.\nSecond line." {
+		t.Fatalf("attachment description = %q, want trimmed multiline description", got)
 	}
 	if attachments[0].GetId() == "" {
 		t.Fatal("attachment id is empty")
@@ -1313,6 +1344,70 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	}
 }
 
+func TestMessageServiceSetAttachmentDescriptionAuthorAndRBAC(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("attachment-description-rbac")
+	assetID := env.uploadAttachmentAsset(t, room.Id, "photo.png", "image/png", connectAPITestPNG())
+	created, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id, AttachmentAssetIds: []string{assetID},
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage: %v", err)
+	}
+	eventID := created.Msg.GetMessage().GetId()
+	request := &apiv1.SetAttachmentDescriptionRequest{
+		RoomId: room.Id, EventId: eventID, AttachmentId: assetID, Description: "A photo",
+	}
+	if _, err := env.messages.SetAttachmentDescription(env.ctx, connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "attachment-description-other", "Attachment Description Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom other: %v", err)
+	}
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, other), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("member SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if err := env.core.GrantUserRoomPermission(env.ctx, core.SystemActorID, room.Id, other.Id, core.PermMessageManage); err != nil {
+		t.Fatalf("GrantUserRoomPermission: %v", err)
+	}
+	managed, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, other), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("manager SetAttachmentDescription: %v", err)
+	}
+	if got := managed.Msg.GetMessage().GetAttachments()[0].GetDescription(); got != "A photo" {
+		t.Fatalf("managed attachment description = %q, want %q", got, "A photo")
+	}
+
+	request.Description = "  " + strings.Repeat("界", core.MaxAttachmentDescriptionLength) + "\n"
+	trimmed, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, env.viewer), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("author SetAttachmentDescription with outer whitespace: %v", err)
+	}
+	if got := trimmed.Msg.GetMessage().GetAttachments()[0].GetDescription(); got != strings.Repeat("界", core.MaxAttachmentDescriptionLength) {
+		t.Fatalf("trimmed attachment description length = %d, want %d", len([]rune(got)), core.MaxAttachmentDescriptionLength)
+	}
+
+	request.Description = " \n "
+	cleared, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, env.viewer), connect.NewRequest(request))
+	if err != nil {
+		t.Fatalf("author clear SetAttachmentDescription: %v", err)
+	}
+	attachment := cleared.Msg.GetMessage().GetAttachments()[0]
+	if attachment.Description != nil {
+		t.Fatalf("cleared attachment description = %q, want absent", attachment.GetDescription())
+	}
+
+	request.AttachmentId = "unrelated"
+	if _, err := env.messages.SetAttachmentDescription(withCaller(env.ctx, env.viewer), connect.NewRequest(request)); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("unrelated SetAttachmentDescription code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	}
+}
+
 func TestMessageServiceDeleteMessageAuthorAndRBAC(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-delete-rbac")
@@ -1670,6 +1765,18 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	}
 
 	ctx := withCaller(env.ctx, env.viewer)
+	setResponse, err := env.messages.SetAttachmentDescription(ctx, connect.NewRequest(&apiv1.SetAttachmentDescriptionRequest{
+		RoomId:       room.Id,
+		EventId:      reply.Id,
+		AttachmentId: threadAttachment.Id,
+		Description:  "A thread diagram",
+	}))
+	if err != nil {
+		t.Fatalf("SetAttachmentDescription: %v", err)
+	}
+	if got := setResponse.Msg.GetMessage().GetAttachments()[0].GetDescription(); got != "A thread diagram" {
+		t.Fatalf("SetAttachmentDescription response description = %q, want %q", got, "A thread diagram")
+	}
 	if _, err := env.rooms.ListRoomAttachments(env.ctx, connect.NewRequest(&apiv1.ListRoomAttachmentsRequest{
 		RoomId: room.Id,
 		Page:   &apiv1.PageRequest{Limit: 10},
@@ -1699,6 +1806,9 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	if first.GetAttachment().GetId() != threadAttachment.Id || first.GetAttachment().GetFilename() != "thread.png" {
 		t.Fatalf("first attachment = %+v, want thread.png", first.GetAttachment())
 	}
+	if got := first.GetDescription(); got != "A thread diagram" {
+		t.Fatalf("room attachment description = %q, want %q", got, "A thread diagram")
+	}
 	if first.GetAttachment().GetAssetUrl().GetUrl() == "" || first.GetAttachment().GetThumbnailAssetUrl().GetUrl() == "" {
 		t.Fatalf("attachment asset URLs missing: %+v", first.GetAttachment())
 	}
@@ -1720,6 +1830,9 @@ func TestRoomMessageAndAssetServicesListAttachmentsGetMessagesAndGetAssets(t *te
 	fresh := getAttachments[0]
 	if fresh.GetId() != threadAttachment.Id {
 		t.Fatalf("GetMessage attachment ID = %q, want %q", fresh.GetId(), threadAttachment.Id)
+	}
+	if got := fresh.GetDescription(); got != "A thread diagram" {
+		t.Fatalf("GetMessage attachment description = %q, want %q", got, "A thread diagram")
 	}
 	if fresh.GetAssetUrl().GetUrl() == "" || fresh.GetAssetUrl().GetExpiresAt() == nil {
 		t.Fatalf("fresh asset URL missing: %+v", fresh.GetAssetUrl())

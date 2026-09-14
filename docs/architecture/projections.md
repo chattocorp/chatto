@@ -171,6 +171,7 @@ message/room/author/filter metadata. The state needed to apply a later edit or
 posting event is a stored, non-indexed field in that same Bleve document; it is
 not duplicated as one internal Bolt key per message. Candidate revisions must
 match current core state before hydration, fencing provider catch-up races.
+Attachment descriptions are not indexed or copied into this projection.
 
 Message bodies use BM25 scoring over a language-neutral field plus the
 operator-selected subset of all 22 complete language analyzers available in

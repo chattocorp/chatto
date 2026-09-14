@@ -150,7 +150,15 @@
       "view_label": "檢視 {filename}",
       "download_label": "下載 {filename}",
       "image_refresh_failed": "無法重新整理圖片連結",
-      "download_refresh_failed": "無法重新整理下載連結"
+      "download_refresh_failed": "無法重新整理下載連結",
+      "add_description": "新增描述",
+      "edit_description": "編輯描述",
+      "show_description": "顯示描述",
+      "description_title": "附件描述",
+      "description_label": "描述（選填）",
+      "description_help": "請為無法看到或聽到此附件的人描述其內容。",
+      "description_too_long": "描述最多可包含 {max} 個字元。",
+      "description_update_failed": "無法更新附件描述"
     },
     "link_preview": {
       "delete_title": "刪除連結預覽",

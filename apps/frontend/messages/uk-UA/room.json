@@ -156,7 +156,15 @@
       "view_label": "Переглянути {filename}",
       "download_label": "Завантажити {filename}",
       "image_refresh_failed": "Не вдалося оновити посилання на зображення",
-      "download_refresh_failed": "Не вдалося оновити посилання для завантаження"
+      "download_refresh_failed": "Не вдалося оновити посилання для завантаження",
+      "add_description": "Додати опис",
+      "edit_description": "Змінити опис",
+      "show_description": "Показати опис",
+      "description_title": "Опис вкладення",
+      "description_label": "Опис (необов’язково)",
+      "description_help": "Опишіть вкладення для людей, які не можуть його побачити або почути.",
+      "description_too_long": "Опис може містити не більше {max} символів.",
+      "description_update_failed": "Не вдалося оновити опис вкладення"
     },
     "link_preview": {
       "delete_title": "Видалити попередній перегляд посилання",

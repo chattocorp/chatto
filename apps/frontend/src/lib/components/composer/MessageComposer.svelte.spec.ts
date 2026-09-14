@@ -89,7 +89,8 @@ const mockInstanceStores = {
   serverInfo: {
     videoProcessingEnabled: false,
     maxUploadSize: 25 * 1024 * 1024,
-    maxVideoUploadSize: 25 * 1024 * 1024
+    maxVideoUploadSize: 25 * 1024 * 1024,
+    supportsFeature: vi.fn(() => true)
   },
   roomUnread: {
     setRoomUnread: vi.fn()
@@ -334,7 +335,7 @@ async function changeSelectValue(select: HTMLSelectElement, value: string) {
   await tick();
 }
 
-async function changeInputValue(input: HTMLInputElement, value: string) {
+async function changeInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: string) {
   input.value = value;
   input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
   input.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
@@ -347,10 +348,7 @@ function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
 }
 
 async function openFormattingShelf(container: HTMLElement) {
-  const toggle = q(
-    container,
-    'button[aria-label="Formatting options"]'
-  ) as HTMLButtonElement;
+  const toggle = q(container, 'button[aria-label="Formatting options"]') as HTMLButtonElement;
   if (toggle.getAttribute('aria-expanded') !== 'true') await userEvent.click(toggle);
   await vi.waitFor(() =>
     expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeTruthy()
@@ -366,6 +364,8 @@ describe('MessageComposer', () => {
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
     mockInstanceStores.serverInfo.maxVideoUploadSize = 25 * 1024 * 1024;
+    mockInstanceStores.serverInfo.supportsFeature.mockReset();
+    mockInstanceStores.serverInfo.supportsFeature.mockReturnValue(true);
     mockInstanceStores.roomUnread.setRoomUnread.mockClear();
     roomStateMock.members = [];
     roomStateMock.editState.eventId = null;
@@ -3518,6 +3518,40 @@ describe('MessageComposer', () => {
   });
 
   describe('attachment object URL lifecycle', () => {
+    it('keeps a description with its attachment and sends it from composer memory', async () => {
+      const { container, getByRole } = renderMessageComposer({ roomId: 'room_456' });
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+
+      await userEvent.click(getByRole('button', { name: 'Add description' }));
+      const dialog = getByRole('dialog', { name: 'Attachment description' });
+      await expect.element(dialog).toBeInTheDocument();
+      const input = q(document.body, 'dialog[open] textarea') as HTMLTextAreaElement;
+      await changeInputValue(input, '  A small chart.\nThe bar is blue.  ');
+      await userEvent.click(getByRole('button', { name: 'Save' }));
+
+      await expect
+        .element(container.querySelector('img')!)
+        .toHaveAttribute('alt', 'A small chart.\nThe bar is blue.');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toEqual([
+        { file, description: 'A small chart.\nThe bar is blue.' }
+      ]);
+    });
+
+    it('does not offer or send descriptions to an older server', async () => {
+      mockInstanceStores.serverInfo.supportsFeature.mockReturnValue(false);
+      const { container } = renderMessageComposer({ roomId: 'room_456' });
+      selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+
+      expect(container.textContent).not.toContain('Add description');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await vi.waitFor(() => expect(createMessageConnectMock).toHaveBeenCalledOnce());
+      expect(createMessageConnectMock.mock.calls[0][0].attachmentDescriptions).toBeUndefined();
+    });
+
     it('revokes object URLs when removing staged files', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);

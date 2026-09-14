@@ -256,7 +256,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.room_member_unbanned`                     | `RoomMemberUnbannedEvent`                           |
 | `evt.room.{roomId}.room_member_added`                        | `RoomMemberAddedEvent`                              |
 | `evt.room.{roomId}.room_member_removed`                      | `RoomMemberRemovedEvent`                            |
-| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`                                  |
+| `evt.room.{roomId}.message_body`                             | `MessageBodyEvent`; encrypted message text and separately encrypted attachment descriptions, plus non-PII content metadata |
 | `evt.room.{roomId}.message_posted`                           | `MessagePostedEvent`                                |
 | `evt.room.{roomId}.message_edited`                           | `MessageEditedEvent`                                |
 | `evt.room.{roomId}.message_retracted`                        | `MessageRetractedEvent`                             |
@@ -387,6 +387,10 @@ atomic OCC batch as the owning message body and posted fact. Video messages add
 the Started fact to that batch. The batch guards the room and authorization
 boundaries and the complete aggregate of every attached asset, so concurrent
 attachments, pending expiry, and deletion cannot commit conflicting transitions.
+The asset event is permanent ownership evidence and does not contain an attachment
+description. The current `MessageBodyEvent` holds each description as a separate
+author-key envelope. A message edit encrypts retained descriptions again against
+the replacement body event, and obsolete body events use secure deletion.
 
 Failed or losing processing attempts perform bounded prompt cleanup by
 appending ordinary derivative `AssetDeletedEvent` facts. If cleanup is

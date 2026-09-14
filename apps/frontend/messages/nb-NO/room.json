@@ -150,7 +150,15 @@
       "view_label": "Se {filename}",
       "download_label": "Last ned {filename}",
       "image_refresh_failed": "Kunne ikke oppdatere bildelinken",
-      "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken"
+      "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken",
+      "add_description": "Legg til beskrivelse",
+      "edit_description": "Rediger beskrivelse",
+      "show_description": "Vis beskrivelse",
+      "description_title": "Beskrivelse av vedlegg",
+      "description_label": "Beskrivelse (valgfritt)",
+      "description_help": "Beskriv vedlegget for personer som ikke kan se eller høre det.",
+      "description_too_long": "Beskrivelser kan inneholde maksimalt {max} tegn.",
+      "description_update_failed": "Kunne ikke oppdatere beskrivelsen av vedlegget"
     },
     "link_preview": {
       "delete_title": "Slett forhåndsvisning av kobling",

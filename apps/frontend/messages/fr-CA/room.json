@@ -150,7 +150,15 @@
       "view_label": "Afficher {filename}",
       "download_label": "Télécharger {filename}",
       "image_refresh_failed": "Impossible de rafraîchir le lien de l'image",
-      "download_refresh_failed": "Impossible de rafraîchir le lien de téléchargement"
+      "download_refresh_failed": "Impossible de rafraîchir le lien de téléchargement",
+      "add_description": "Ajouter une description",
+      "edit_description": "Modifier la description",
+      "show_description": "Afficher la description",
+      "description_title": "Description de la pièce jointe",
+      "description_label": "Description (facultative)",
+      "description_help": "Décrivez la pièce jointe pour les personnes qui ne peuvent pas la voir ou l’entendre.",
+      "description_too_long": "Les descriptions peuvent contenir au maximum {max} caractères.",
+      "description_update_failed": "Échec de la mise à jour de la description de la pièce jointe"
     },
     "link_preview": {
       "delete_title": "Supprimer l'aperçu du lien",
