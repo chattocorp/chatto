@@ -929,6 +929,40 @@ func TestSetAttachmentDescriptionUsesMessageEditWindowAndManagerOverride(t *test
 	require.Equal(t, "managed after window", body.AttachmentDescriptions[attachment.Id])
 }
 
+func TestSetAttachmentDescriptionRebuildsDescriptionsAfterOCCConflict(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "description-occ-author", "Description OCC Author", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "description-occ", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	attachmentA, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "a.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	attachmentB, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "b.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	message, err := chattoCore.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: author.Id, RoomID: room.Id, AttachmentAssetIDs: []string{attachmentA.Id, attachmentB.Id},
+	})
+	require.NoError(t, err)
+
+	attempts := 0
+	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, message.Event.Id, attachmentA.Id, "First attachment", withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
+		attempts++
+		if attempts == 1 {
+			return chattoCore.SetAttachmentDescription(attemptCtx, author.Id, KindChannel, room.Id, message.Event.Id, attachmentB.Id, "Concurrent attachment")
+		}
+		return nil
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+	body, err := chattoCore.GetFullMessageBody(ctx, message.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "First attachment", body.AttachmentDescriptions[attachmentA.Id])
+	require.Equal(t, "Concurrent attachment", body.AttachmentDescriptions[attachmentB.Id])
+}
+
 func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
