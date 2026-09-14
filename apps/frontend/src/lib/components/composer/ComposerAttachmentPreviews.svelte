@@ -32,6 +32,9 @@
     {#each attachments.filesWithUrls as { file, url, description }, index (url)}
       {@const submissionStatus = getSubmissionStatus(file)}
       {@const percentage = submissionStatus ? uploadPercentage(submissionStatus) : null}
+      {@const descriptionActionLabel = description
+        ? m('room.attachment.edit_description')
+        : m('room.attachment.add_description')}
       <div
         class="flex w-72 max-w-full items-center gap-2 rounded-md bg-surface p-2 text-sm"
         data-testid="composer-attachment-preview"
@@ -65,18 +68,38 @@
           {/if}
         </div>
         <div class="min-w-0 flex-1">
-          <div class="flex items-center justify-between gap-2">
-            <span class="truncate font-medium text-text" title={file.name}>{file.name}</span>
-            <button
-              type="button"
-              onclick={() => onremove(index)}
-              {disabled}
-              class="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted transition-[background-color,color] enabled:hover:bg-surface-strong enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={m('composer.upload.remove', { filename: file.name })}
-              title={m('composer.upload.remove', { filename: file.name })}
+          <div class="flex items-center gap-1">
+            <span class="min-w-0 flex-1 truncate font-medium text-text" title={file.name}
+              >{file.name}</span
             >
-              <span class="iconify icon-[uil--times]"></span>
-            </button>
+            <div class="flex shrink-0 items-center gap-0.5">
+              {#if canDescribe}
+                <button
+                  type="button"
+                  onclick={() => ondescription(index)}
+                  {disabled}
+                  class={[
+                    'mini-icon-action h-5 w-5 items-center justify-center disabled:cursor-not-allowed disabled:opacity-50',
+                    description && 'text-action hover:text-action'
+                  ]}
+                  aria-label={descriptionActionLabel}
+                  title={descriptionActionLabel}
+                >
+                  <span class="iconify icon-[uil--accessible-icon-alt] text-sm" aria-hidden="true"
+                  ></span>
+                </button>
+              {/if}
+              <button
+                type="button"
+                onclick={() => onremove(index)}
+                {disabled}
+                class="mini-icon-action h-5 w-5 items-center justify-center enabled:hover:text-danger disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label={m('composer.upload.remove', { filename: file.name })}
+                title={m('composer.upload.remove', { filename: file.name })}
+              >
+                <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
+              </button>
+            </div>
           </div>
           <div
             class={[
@@ -86,18 +109,6 @@
           >
             {submissionStatus ? uploadStatusLabel(submissionStatus) : formatFileSize(file.size)}
           </div>
-          {#if canDescribe}
-            <button
-              type="button"
-              onclick={() => ondescription(index)}
-              {disabled}
-              class="mt-1 cursor-pointer text-xs text-action hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {description
-                ? m('room.attachment.edit_description')
-                : m('room.attachment.add_description')}
-            </button>
-          {/if}
           <div
             data-testid="attachment-upload-progress"
             class={[

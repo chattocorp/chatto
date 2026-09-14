@@ -475,11 +475,23 @@
 
   {#snippet descriptionDetails(attachment: Attachment)}
     {#if attachment.description}
-      <details class="mt-1 max-w-lg text-sm text-muted">
-        <summary class="cursor-pointer text-action hover:underline">
-          {m('room.attachment.show_description')}
+      <details class="group/description mt-0.5 max-w-lg text-sm">
+        <summary
+          class="flex min-h-10 w-fit cursor-pointer list-none items-center gap-1.5 rounded px-1.5 text-muted transition-[background-color,color] hover:bg-surface hover:text-text focus-visible:bg-surface focus-visible:outline-2 focus-visible:outline-action"
+        >
+          <span class="iconify icon-[uil--accessible-icon-alt] text-base" aria-hidden="true"></span>
+          <span>{m('room.attachment.show_description')}</span>
+          <span
+            class="iconify icon-[uil--angle-down] text-base transition-transform group-open/description:rotate-180"
+            aria-hidden="true"
+          ></span>
         </summary>
-        <p class="mt-1 whitespace-pre-wrap" dir="auto">{attachment.description}</p>
+        <p
+          class="mt-0.5 max-w-prose rounded-md bg-surface px-3 py-2 whitespace-pre-wrap text-text"
+          dir="auto"
+        >
+          {attachment.description}
+        </p>
       </details>
     {/if}
   {/snippet}
@@ -501,10 +513,7 @@
         aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
         data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
         style={display ? imageButtonStyle(display, variant) : undefined}
-        class={[
-          'embed-frame block min-w-0 cursor-pointer',
-          !display && 'max-h-32'
-        ]}
+        class={['embed-frame block min-w-0 cursor-pointer', !display && 'max-h-32']}
       >
         {#if attachment.description}
           <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
@@ -533,131 +542,135 @@
   {/snippet}
 
   {#snippet attachmentItem(attachment: Attachment)}
-    {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
-      {@const autoLoop = attachment.contentType === 'image/gif'}
-      <div class="group/attachment relative min-w-0">
-        {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-          <div
-            class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
-            aria-busy="true"
-          >
-            {m('common.loading')}
-          </div>
-        {:then { default: VideoPlayer }}
-          <VideoPlayer
-            status={attachment.videoProcessing.status}
-            variants={attachment.videoProcessing.variants}
-            thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-            hlsUrl={attachment.videoProcessing.hlsUrl}
-            fallbackUrl={attachment.url}
-            fallbackContentType={attachment.contentType}
-            width={attachment.videoProcessing.width}
-            height={attachment.videoProcessing.height}
-            reasonCode={attachment.videoProcessing.reasonCode}
-            filename={attachment.filename}
-            describedBy={attachment.description ? descriptionID(attachment) : undefined}
-            {autoLoop}
-            onPosterError={autoLoop ? undefined : () => refreshAfterAssetError(attachment, 'video')}
-            onMediaError={() =>
-              refreshAfterAssetError(
-                attachment,
-                !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
-              )}
-          />
-        {:catch}
-          <div
-            class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
-          >
-            <p class="text-sm text-muted">{m('common.error.network')}</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick={() => (videoPlayerLoadAttempt += 1)}
+    <div class="flex max-w-full min-w-0 flex-col items-start">
+      {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
+        {@const autoLoop = attachment.contentType === 'image/gif'}
+        <div class="group/attachment relative min-w-0">
+          {#await loadVideoPlayer(videoPlayerLoadAttempt)}
+            <div
+              class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
+              aria-busy="true"
             >
-              {m('common.retry')}
-            </button>
-          </div>
-        {/await}
-        {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
-        {@render editDescriptionButton(attachment)}
-      </div>
-    {:else if attachment.contentType.startsWith('image/')}
-      {@render imageAttachmentButton(attachment, 'single')}
-    {:else if attachment.contentType.startsWith('video/') && attachment.url}
-      <!--
+              {m('common.loading')}
+            </div>
+          {:then { default: VideoPlayer }}
+            <VideoPlayer
+              status={attachment.videoProcessing.status}
+              variants={attachment.videoProcessing.variants}
+              thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+              hlsUrl={attachment.videoProcessing.hlsUrl}
+              fallbackUrl={attachment.url}
+              fallbackContentType={attachment.contentType}
+              width={attachment.videoProcessing.width}
+              height={attachment.videoProcessing.height}
+              reasonCode={attachment.videoProcessing.reasonCode}
+              filename={attachment.filename}
+              describedBy={attachment.description ? descriptionID(attachment) : undefined}
+              {autoLoop}
+              onPosterError={autoLoop
+                ? undefined
+                : () => refreshAfterAssetError(attachment, 'video')}
+              onMediaError={() =>
+                refreshAfterAssetError(
+                  attachment,
+                  !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+                )}
+            />
+          {:catch}
+            <div
+              class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
+            >
+              <p class="text-sm text-muted">{m('common.error.network')}</p>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => (videoPlayerLoadAttempt += 1)}
+              >
+                {m('common.retry')}
+              </button>
+            </div>
+          {/await}
+          {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
+          {@render editDescriptionButton(attachment)}
+        </div>
+      {:else if attachment.contentType.startsWith('image/')}
+        {@render imageAttachmentButton(attachment, 'single')}
+      {:else if attachment.contentType.startsWith('video/') && attachment.url}
+        <!--
           A video attachment that hasn't been projected as a processing manifest
           yet — e.g. the message arrived before AssetProcessingStartedEvent did,
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-      <div class="group/attachment relative embed-frame">
-        <video
-          controls
-          preload="metadata"
-          src={attachment.url}
-          class="max-h-64 max-w-full"
-          onerror={() => refreshAfterAssetError(attachment, 'asset')}
-          aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
-        >
-          <track kind="captions" />
-        </video>
-        {@render deleteAttachmentButton(attachment)}
-        {@render editDescriptionButton(attachment)}
-      </div>
-    {:else if attachment.contentType.startsWith('audio/') && attachment.url}
-      <div class="group/attachment relative min-w-0">
-        <div class="embed-frame flex items-center gap-3 px-3 py-2">
-          <audio
+        <div class="group/attachment relative embed-frame">
+          <video
             controls
             preload="metadata"
             src={attachment.url}
-            class="h-8 max-w-xs"
-            data-testid="audio-player"
+            class="max-h-64 max-w-full"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
-            {attachment.filename}
-          </audio>
-          <span class="text-sm text-muted">{attachment.filename}</span>
+            <track kind="captions" />
+          </video>
+          {@render deleteAttachmentButton(attachment)}
+          {@render editDescriptionButton(attachment)}
         </div>
-        {@render deleteAttachmentButton(attachment)}
-        {@render editDescriptionButton(attachment)}
-      </div>
-    {:else}
-      <div class="group/attachment relative embed-frame block">
-        <button
-          type="button"
-          onclick={() => openDownload(attachment)}
-          aria-label={m('room.attachment.download_label', { filename: attachment.filename })}
-          aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
-          class="block w-full cursor-pointer text-start"
-        >
-          <div class="flex h-16 items-center gap-2 px-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6 text-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+      {:else if attachment.contentType.startsWith('audio/') && attachment.url}
+        <div class="group/attachment relative min-w-0">
+          <div class="embed-frame flex items-center gap-3 px-3 py-2">
+            <audio
+              controls
+              preload="metadata"
+              src={attachment.url}
+              class="h-8 max-w-xs"
+              data-testid="audio-player"
+              onerror={() => refreshAfterAssetError(attachment, 'asset')}
+              aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="text-sm">{attachment.filename}</span>
+              {attachment.filename}
+            </audio>
+            <span class="text-sm text-muted">{attachment.filename}</span>
           </div>
-        </button>
-        {@render deleteAttachmentButton(attachment)}
-        {@render editDescriptionButton(attachment)}
-      </div>
-    {/if}
-    {#if attachment.description && !isGalleryImageAttachment(attachment)}
-      <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
-    {/if}
-    {@render descriptionDetails(attachment)}
+          {@render deleteAttachmentButton(attachment)}
+          {@render editDescriptionButton(attachment)}
+        </div>
+      {:else}
+        <div class="group/attachment relative embed-frame block">
+          <button
+            type="button"
+            onclick={() => openDownload(attachment)}
+            aria-label={m('room.attachment.download_label', { filename: attachment.filename })}
+            aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
+            class="block w-full cursor-pointer text-start"
+          >
+            <div class="flex h-16 items-center gap-2 px-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6 text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              <span class="text-sm">{attachment.filename}</span>
+            </div>
+          </button>
+          {@render deleteAttachmentButton(attachment)}
+          {@render editDescriptionButton(attachment)}
+        </div>
+      {/if}
+      {#if attachment.description && !isGalleryImageAttachment(attachment)}
+        <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
+      {/if}
+      {@render descriptionDetails(attachment)}
+    </div>
   {/snippet}
 
   {#if hasImageGallery}

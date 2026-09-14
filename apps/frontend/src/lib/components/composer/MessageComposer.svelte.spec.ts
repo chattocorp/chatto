@@ -3523,7 +3523,12 @@ describe('MessageComposer', () => {
       const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
       await expect.poll(() => q(container, 'img')).toBeTruthy();
 
-      await userEvent.click(getByRole('button', { name: 'Add description' }));
+      const descriptionAction = q(
+        container,
+        'button[aria-label="Add description"]'
+      ) as HTMLButtonElement;
+      expect(descriptionAction.textContent?.trim()).toBe('');
+      await userEvent.click(descriptionAction);
       const dialog = getByRole('dialog', { name: 'Attachment description' });
       await expect.element(dialog).toBeInTheDocument();
       const input = q(document.body, 'dialog[open] textarea') as HTMLTextAreaElement;

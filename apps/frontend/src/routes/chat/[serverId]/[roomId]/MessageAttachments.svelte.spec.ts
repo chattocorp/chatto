@@ -254,6 +254,10 @@ describe('MessageAttachments', () => {
     expect(image.closest('button')?.getAttribute('aria-describedby')).toBe(
       'attachment-description-event_1-att_1'
     );
+    const details = container.querySelector('details')!;
+    expect(details.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      image.closest('button')!.getBoundingClientRect().bottom
+    );
     image.closest('button')!.click();
 
     await vi.waitFor(() => {
