@@ -33,6 +33,7 @@ as its permanent home. Do not add coupling that makes this move more difficult.
 - Never claim full verification when only a partial signal was run.
 - Never silence lint, type, vet, or Svelte warnings as a routine fix. Fix the cause; discuss rare scoped exceptions before adding them.
 - Never log PII: no raw login names, display names, email addresses, submitted auth identifiers, OAuth/OIDC provider subjects, tokens, passwords, auth codes, reset links, raw IPs, or full query strings.
+- Protect user privacy when you design or build a feature. Identify each external system that the feature contacts and the data that the connection reveals, including the user’s IP address. Avoid unnecessary third-party connections, and make necessary connections clear to the user.
 
 ## Current Project Status
 
