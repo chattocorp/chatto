@@ -1,8 +1,9 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import { seedData, loginSeededUser } from './fixtures/seed';
 import { withServerUser } from './fixtures/serverUser';
-import { postMessagesViaConnect, postThreadReplyViaConnect } from './fixtures/connectHelpers';
+import { postMessagesViaConnect } from './fixtures/connectHelpers';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { waitForRoomReady } from './fixtures/realtimeSync';
 
@@ -384,19 +385,10 @@ test.describe('Message pane auto-scroll', () => {
     await page.setViewportSize({ width: 1280, height: 500 });
 
     // Create user and load the primary server
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 60 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-    // Extract roomId from URL.
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Post 60 messages via API (much faster than UI-based posting)
-    const messages = Array.from({ length: 60 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Reload so messages are loaded via the initial query (last 50) rather than
     // waiting for 60 subscription events to arrive and render through virtua.
@@ -404,7 +396,7 @@ test.describe('Message pane auto-scroll', () => {
     await page.reload();
 
     // Wait for the last message to appear (it's in the initial load of 50 newest messages)
-    await expect(page.getByText(`Message 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[59].body)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -444,7 +436,7 @@ test.describe('Message pane auto-scroll', () => {
 
     // Verify pagination actually loaded older messages by scrolling to the top
     await scrollContainerToTop(page, messagesContainer);
-    await expect(page.getByText(`Message 1 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[0].body)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
   });
@@ -522,32 +514,17 @@ test.describe('Message pane auto-scroll', () => {
     await page.setViewportSize({ width: 1280, height: 500 });
 
     // Create user and enter room
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 20 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Post enough messages via API to make the container scrollable
-    const longText =
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.';
-    const messages = Array.from(
-      { length: 20 },
-      (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
-    );
-    await postMessagesViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Reload so messages are loaded via initial query instead of waiting for
     // 20 subscription events to arrive and render through virtua
     await page.reload();
 
     // Wait for the last message to be visible
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[19].body)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -599,38 +576,24 @@ test.describe('Message pane auto-scroll', () => {
     // number of replies.
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, {
+      seed: 42,
+      users: 1,
+      rooms: 1,
+      messages: 21,
+      threadReplies: 20
+    });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Post a root message and open its thread.
-    const rootMessage = await roomPage.sendMessage(`Thread root ${timestamp}`);
-    const rootEventId = await rootMessage.getEventId();
-    if (!rootEventId) throw new Error('Could not read root event id');
-    await rootMessage.openThread();
+    await chatPage.enterRoom(scene.rooms[0].name);
+    await roomPage.getMessageByEventId(scene.messages[0].id).openThread();
     await expect(roomPage.threadPane).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
-
-    // Post enough thread replies via API to make the thread scrollable.
-    const longText =
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor.';
-    const replies = Array.from(
-      { length: 20 },
-      (_, i) => `Reply ${i + 1} - ${timestamp} - ${longText}`
-    );
-    for (const body of replies) {
-      await postThreadReplyViaConnect(page, roomId, body, rootEventId);
-    }
+    await roomPage.expectThreadRouteActive();
 
     // Reload so the thread pane loads via initial query (URL-driven).
     await page.reload();
     await expect(roomPage.threadPane).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
-    await expect(roomPage.threadPane.getByText(`Reply 20 - ${timestamp}`)).toBeVisible({
+    await expect(roomPage.threadPane.getByText(scene.messages[20].body)).toBeVisible({
       timeout: TIMEOUTS.COMPLEX_OPERATION
     });
 
@@ -672,23 +635,13 @@ test.describe('Message pane auto-scroll', () => {
     roomPage: _roomPage
   }) => {
     // Setup: Create user and navigate to room
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 15 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Post messages via API to make the container scrollable
-    const messages = Array.from({ length: 15 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 15 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[14].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -736,23 +689,14 @@ test.describe('Message pane auto-scroll', () => {
     roomPage
   }) => {
     // Setup: Create user and navigate to room
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 10 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
+    await chatPage.enterRoom(scene.rooms[0].name);
     const timestamp = Date.now();
 
-    // Post initial messages via API to make the container scrollable
-    const messages = Array.from({ length: 10 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
-
     // Wait for messages to appear in UI
-    await expect(page.getByText(`Message 10 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[9].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -798,25 +742,13 @@ Line 8: This is the last line of this long message.`;
     roomPage: _roomPage
   }) => {
     // Create user and enter room
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 2 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    const timestamp = Date.now();
-
-    // Send just 2 messages — not enough to fill the viewport
-    await postMessagesViaConnect(page, roomId, [
-      `First message - ${timestamp}`,
-      `Second message - ${timestamp}`
-    ]);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Wait for messages to appear
-    await expect(page.getByText(`Second message - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[1].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -834,7 +766,7 @@ Line 8: This is the last line of this long message.`;
     // Verify: messages are bottom-aligned, not top-aligned. The timeline can
     // replace a provisional row with its canonical resource between frames,
     // so take both measurements in one retried assertion.
-    const lastMessage = page.getByText(`Second message - ${timestamp}`);
+    const lastMessage = page.getByText(scene.messages[1].body);
     await expect(async () => {
       const containerBox = await messagesContainer.boundingBox();
       const messageBox = await lastMessage.boundingBox();
@@ -862,28 +794,14 @@ Line 8: This is the last line of this long message.`;
     await page.setViewportSize({ width: 1280, height: 500 });
 
     // Create account and enter general room
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 20 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL for API-based message posting
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
+    await chatPage.enterRoom(scene.rooms[0].name);
     const timestamp = Date.now();
 
-    // Post enough messages via API to make container scrollable
-    const longText =
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt.';
-    const messages = Array.from(
-      { length: 20 },
-      (_, i) => `Message ${i + 1} - ${timestamp} - ${longText}`
-    );
-    await postMessagesViaConnect(page, roomId, messages);
-
     // Wait for the last message to be visible
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[19].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -916,13 +834,13 @@ Line 8: This is the last line of this long message.`;
     await expect(page.getByRole('heading', { name: `# ${secondRoomName}` })).toBeVisible();
 
     // Navigate back to general room
-    await chatPage.enterRoom('general');
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Verify we're back in general room
-    await expect(page.getByRole('heading', { name: '# general' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: `# ${scene.rooms[0].name}` })).toBeVisible();
 
     // Wait for messages to load
-    await expect(page.getByText(`Message 20 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[19].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 

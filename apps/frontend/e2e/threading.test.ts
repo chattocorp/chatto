@@ -8,6 +8,7 @@ import {
   postMessagesViaConnect,
   postReplyViaConnect
 } from './fixtures/connectHelpers';
+import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
@@ -1543,26 +1544,17 @@ test.describe('Message Threading', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 20 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    // Extract roomId from URL
-    const url = page.url();
-    const match = url.match(/\/chat\/-\/([^/]+)/);
-    const roomId = match![1];
-
-    // Post enough messages to make the container scrollable
-    const timestamp = Date.now();
-    const messages = Array.from({ length: 20 }, (_, i) => `Scroll test ${i + 1} - ${timestamp}`);
-    await postMessagesForSetupViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Reload so messages are loaded via initial query instead of waiting for
     // 20 subscription events to arrive and render through virtua
     await page.reload();
 
     // Wait for messages to appear and scroll to stabilize at bottom
-    await expect(page.getByText(`Scroll test 20 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[19].body)).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
@@ -1603,7 +1595,7 @@ test.describe('Message Threading', () => {
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [100, 250, 500] });
 
     // Open a thread on the first visible message and post a reply
-    const rootMessage = roomPage.getMessage(`Scroll test 1 - ${timestamp}`);
+    const rootMessage = roomPage.getMessage(scene.messages[0].body);
     await rootMessage.openThread();
     await roomPage.expectThreadPaneVisible();
 

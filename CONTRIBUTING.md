@@ -120,3 +120,60 @@ Local development instances are bootstrapped from `cli/chatto.toml` when the ser
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
+
+## Synthetic Test Data
+
+With the development server running, add a reproducible dataset:
+
+```sh
+mise seed -- --seed 42 --users 20 --rooms 5 \
+  --messages 200 --thread-replies 40 --json > .context/demo-seed.json
+```
+
+This creates 20 passwordless users, five channels, and 200 messages, including
+40 thread replies. All generated users join all generated channels. The command
+uses the local operator socket from `cli/chatto.toml`; pass `--operator-socket`
+if your server uses another path. It does not start the server.
+
+The JSON manifest contains user, room, and message IDs, plus generated content
+and thread links. The pinned `gofakeit` library supplies names, usernames, room
+topics, descriptions, and sentence text. There are no visible dataset prefixes
+or test markers. A fixed seed, generator version, and counts reproduce content
+and relationships. IDs and timestamps are new on each run. Existing login and
+room-name collisions receive numeric suffixes. Each call adds another dataset;
+a failed or cancelled run can leave partial data, so do not retry automatically.
+
+Use the bootstrap owner to browse the channels. To sign in as a generated user,
+set a password with `chatto operator user set-password USER_ID`. Seeding does
+not set passwords, assign owner roles, or send verification email.
+
+The CLI and operator seeding service are compiled with `bootstrap` or
+`test_endpoints`. Release builds do not include them. Test-endpoint builds also
+provide `POST /auth/test/seed`, with the same fields in camelCase. E2E tests can
+use the shared helper:
+
+```ts
+import { seedData, loginSeededUser } from './fixtures/seed';
+
+const scene = await seedData(page.request, {
+  seed: 42,
+  users: 3, rooms: 2, messages: 20, threadReplies: 5,
+});
+await loginSeededUser(page.request, scene.users[0]);
+await page.goto(`/chat/-/${scene.rooms[0].id}`);
+```
+
+The helper returns after the serving projections are current. `loginSeededUser`
+creates a real cookie session without password setup or login. Use it before
+loading the app and use a fresh browser context for each viewer. Generated users have
+ordinary permissions; server permission changes can prevent message creation.
+The existing performance fixture retains its separate, fixed workload.
+
+Use the manifest's IDs and bodies in assertions. Seeding replaces scenario
+setup, such as creating history before a pagination test. Keep the browser
+actions and real network delivery that the test is intended to exercise. For
+example, a realtime message test must still send a new message after the receiver
+connects; pre-existing seeded history cannot prove live delivery.
+
+See the [seeding guide](apps/docs-website/src/content/docs/guides/operations/synthetic-data.mdx)
+for limits and the API request format.

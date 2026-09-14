@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -37,19 +38,13 @@ test.describe('Virtualizer stability', () => {
     chatPage
   }) => {
     await page.setViewportSize({ width: 1280, height: 500 });
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 25 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-
-    await chatPage.enterRoom('general');
-    const generalRoomId = getRoomIdFromUrl(page);
+    await chatPage.enterRoom(scene.rooms[0].name);
     const timestamp = Date.now();
-    const longText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.';
-    const messages = Array.from(
-      { length: 25 },
-      (_, i) => `Fade reset message ${i + 1} - ${timestamp} - ${longText}`
-    );
-    await postMessagesViaConnect(page, generalRoomId, messages);
-    await expect(page.getByText(`Fade reset message 25 - ${timestamp}`)).toBeVisible({
+
+    await expect(page.getByText(scene.messages[24].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -81,16 +76,12 @@ test.describe('Virtualizer stability', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 20 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
+    await chatPage.enterRoom(scene.rooms[0].name);
 
-    // Enter the default "general" room and post many messages
-    await chatPage.enterRoom('general');
-    const generalRoomId = getRoomIdFromUrl(page);
-
-    const messages = Array.from({ length: 20 }, (_, i) => `General message ${i + 1}`);
-    await postMessagesViaConnect(page, generalRoomId, messages);
-    await expect(page.getByText('General message 20')).toBeVisible({
+    await expect(page.getByText(scene.messages[19].body)).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -117,7 +108,7 @@ test.describe('Virtualizer stability', () => {
 
     // Rapidly switch between rooms 6 times
     for (let i = 0; i < 6; i++) {
-      await chatPage.enterRoom('general');
+      await chatPage.enterRoom(scene.rooms[0].name);
       await chatPage.enterRoom(secondRoomName);
     }
 

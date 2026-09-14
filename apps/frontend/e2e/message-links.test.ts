@@ -1,9 +1,9 @@
 import { expect } from '@playwright/test';
+import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   postMessageViaConnect,
-  postMessagesViaConnect,
   postReplyViaConnect,
   postThreadReplyViaConnect,
   getIdsFromUrlViaConnect
@@ -151,19 +151,14 @@ test.describe('Message links', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 61 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
+    await chatPage.enterRoom(scene.rooms[0].name);
+    const roomId = scene.rooms[0].id;
+    const targetBody = scene.messages[0].body;
+    const targetEventId = scene.messages[0].id;
     const timestamp = Date.now();
-
-    // Post an old target message, then fill to push it out of view
-    const targetBody = `Old target - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-
-    const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, fillerMessages);
 
     // Post a reply referencing the old target (same pattern as jump-to-message tests)
     const replyBody = `Reply to old target - ${timestamp}`;
@@ -196,7 +191,7 @@ test.describe('Message links', () => {
     await page.getByTestId('jump-to-present').evaluate((button: HTMLElement) => button.click());
 
     // The latest filler should become visible
-    await expect(page.getByText(`Filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[60].body)).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 

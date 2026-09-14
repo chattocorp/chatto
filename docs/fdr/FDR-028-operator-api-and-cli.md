@@ -1,7 +1,7 @@
 # FDR-028: Operator API & CLI
 
 **Status:** Active
-**Last reviewed:** 2026-08-29
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -21,6 +21,18 @@ The Operator API gives server operators a local, root-equivalent user administra
 - CLI clients read the socket path from `--operator-socket`, `CHATTO_OPERATOR_API_SOCKET_PATH`, or `operator_api.socket_path` in `chatto.toml`.
 - Password-setting commands prompt on interactive terminals when a password flag is not supplied. Non-interactive use must pass the password explicitly with `--password-stdin`, `--password-file`, or `--password`.
 - User deletion is irreversible and requires `--yes` in non-interactive use.
+- Development and test builds provide `chatto operator seed` to add reproducible
+  synthetic users, channels, messages, and thread replies. Counts and a random
+  seed select the dataset. All generated users join all generated channels.
+  Accounts have no password or owner role. JSON output provides the created IDs
+  and content for later operations and test assertions.
+- A pinned data generator supplies natural names, room topics, and text. Visible
+  resources contain no dataset labels or message markers. Tests use IDs and
+  content from the manifest. Existing name collisions receive numeric suffixes.
+- Seeding retains existing data and adds a dataset on each call. A failed
+  run can leave partial data and must not be retried automatically. Release
+  builds do not provide seeding. Tests can call a test-only HTTP wrapper and
+  create cookie sessions for generated users without password setup.
 
 ## Design Decisions
 
@@ -53,6 +65,16 @@ The Operator API gives server operators a local, root-equivalent user administra
 **Decision:** The default socket path is `/tmp/chatto/operator.sock`, not `/run` or `/var/run`.
 **Why:** Many self-hosters run Chatto in Docker, where `/tmp` is writable without extra packaging setup and `docker exec chatto chatto operator ...` works without mounting host runtime directories.
 **Tradeoff:** System packages should override the path to `/run/chatto/operator.sock` when that is more idiomatic for their service manager.
+
+### 6. Development data uses ordinary domain operations
+
+**Decision:** Synthetic data uses the existing account, membership, and message
+operations, with normal encryption and message permission checks. Content and
+relationships are reproducible; IDs and timestamps are not fixed.
+**Why:** Test and demonstration data must behave like real conversations,
+including thread state and live updates.
+**Tradeoff:** This costs more than direct event injection. The fixed performance
+fixture remains separate so its workload stays comparable.
 
 ## Permissions
 

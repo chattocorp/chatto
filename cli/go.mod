@@ -27,6 +27,7 @@ require (
 	github.com/aws/smithy-go v1.27.4
 	github.com/blevesearch/bleve/v2 v2.6.0
 	github.com/blevesearch/bleve_index_api v1.3.11
+	github.com/brianvoe/gofakeit/v7 v7.17.0
 	github.com/c2h5oh/datasize v0.0.0-20231215233829-aa82cc1e6500
 	github.com/charmbracelet/log v1.0.0
 	github.com/coreos/go-oidc/v3 v3.20.0

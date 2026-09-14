@@ -238,6 +238,12 @@ sources = [
 ]
 outputs = ["bin/chatto"]
 
+[tasks.seed]
+description = "Add reproducible synthetic data to the running development server"
+depends = ["build-dev-cli"]
+dir = "cli"
+run = "./bin/chatto operator seed"
+
 [tasks.build-e2e-server]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
 depends = ["setup-cli", "build-frontend"]
