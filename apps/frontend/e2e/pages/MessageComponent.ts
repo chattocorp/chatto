@@ -162,6 +162,9 @@ export class MessageComponent {
     const dialog = this.page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Delete' }).click();
+    // Mutation delivery can remove the row before the modal's history.back().
+    // Wait for that navigation before a caller reloads or opens another modal.
+    await expect(dialog).not.toBeVisible();
   }
 
   /**
@@ -253,6 +256,9 @@ export class MessageComponent {
     const dialog = this.page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await dialog.getByRole('button', { name: 'Delete' }).click();
+    // Mutation delivery can remove the row before the modal's history.back().
+    // Wait for that navigation before a caller reloads or opens another modal.
+    await expect(dialog).not.toBeVisible();
   }
 
   /**
