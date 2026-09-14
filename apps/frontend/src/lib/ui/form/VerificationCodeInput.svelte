@@ -20,6 +20,22 @@ code, keyboard backspace navigation, and one-time-code autofill.
 	} = $props();
 
 	let inputs: Array<HTMLInputElement | undefined> = [];
+	let digits = $state(codeDigits(value));
+	let publishedValue = value;
+
+	function codeDigits(code: string): string[] {
+		return [...code.replace(/\D/g, '').slice(0, 6), '', '', '', '', '', ''].slice(0, 6);
+	}
+
+	function currentDigits(): string[] {
+		return value === publishedValue ? digits : codeDigits(value);
+	}
+
+	function publishDigits(next: string[]) {
+		digits = next;
+		publishedValue = next.join('');
+		value = publishedValue;
+	}
 
 	function registerInput(index: number) {
 		return (input: HTMLInputElement) => {
@@ -35,19 +51,19 @@ code, keyboard backspace navigation, and one-time-code autofill.
 	}
 
 	function applyCodeFrom(index: number, inputValue: string) {
-		index = Math.min(index, value.length);
-		const current = value.padEnd(6, ' ').slice(0, 6).split('');
-		const digits = inputValue
+		const next = [...currentDigits()];
+		const insertedDigits = inputValue
 			.replace(/\D/g, '')
 			.slice(0, 6 - index)
 			.split('');
-		if (digits.length === 0) {
-			current[index] = ' ';
-		} else {
-			for (const [offset, digit] of digits.entries()) current[index + offset] = digit;
+		if (insertedDigits.length === 0) {
+			next[index] = '';
+			publishDigits(next);
+			return;
 		}
-		value = current.join('').replace(/ /g, '');
-		inputs[Math.min(index + Math.max(digits.length, 1), 5)]?.focus();
+		for (const [offset, digit] of insertedDigits.entries()) next[index + offset] = digit;
+		publishDigits(next);
+		inputs[Math.min(index + insertedDigits.length, 5)]?.focus();
 	}
 
 	function handleInput(index: number, event: Event) {
@@ -60,11 +76,11 @@ code, keyboard backspace navigation, and one-time-code autofill.
 	}
 
 	function handleKeydown(index: number, event: KeyboardEvent) {
-		if (event.key === 'Backspace' && !value[index] && index > 0) {
+		const current = currentDigits();
+		if (event.key === 'Backspace' && !current[index] && index > 0) {
 			event.preventDefault();
-			const current = value.padEnd(6, ' ').slice(0, 6).split('');
-			current[index - 1] = ' ';
-			value = current.join('').replace(/ /g, '');
+			current[index - 1] = '';
+			publishDigits(current);
 			inputs[index - 1]?.focus();
 		}
 	}
@@ -79,7 +95,7 @@ code, keyboard backspace navigation, and one-time-code autofill.
 		<input
 			{@attach registerInput(index)}
 			{@attach autofocus && index === 0 && focusInput}
-			value={value[index] ?? ''}
+			value={currentDigits()[index]}
 			type="text"
 			inputmode="numeric"
 			pattern="[0-9]*"
