@@ -1,7 +1,7 @@
 # FDR-008: Signed-in Password Change
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -14,6 +14,9 @@ OpenID Connect `sub` remain unchanged.
 - The account page links to password change. The form requires the current
   password, a distinct replacement password under the active password policy,
   and matching confirmation.
+- Compatible password managers can open `/.well-known/change-password`.
+  Authling redirects the request to the signed-in password-change page. If the
+  person must sign in, Authling returns to that page after successful login.
 - Incorrect current passwords share Authling's distributed attempt limits and
   bounded password-verification capacity. Operational failures do not consume
   the guessing budget.
@@ -99,6 +102,19 @@ not a new identity or a protocol-wide logout operation.
 or sessions already held by relying parties. Token revocation and RP-initiated
 logout remain separate protocol work.
 
+### 6. Publish password-manager discovery at the origin
+
+**Decision:** Authling publishes a temporary redirect from the standard
+well-known change-password URL to its password-change page. Login accepts only
+that exact internal page as the return target for this flow.
+
+**Why:** Password managers can take a person to the correct password form
+without knowledge of Authling's page layout. The fixed return target preserves
+the destination without creating an open redirect.
+
+**Tradeoff:** A reverse proxy that handles well-known paths must forward this
+path to Authling.
+
 ## Security and Failure Behavior
 
 - Passwords appear only in bounded same-origin POST bodies and transient
@@ -114,6 +130,8 @@ logout remain separate protocol work.
   with the new password.
 - The POST endpoint requires Authling's canonical browser origin and uses a
   bounded request body.
+- The login continuation accepts only the fixed password-change path. It never
+  redirects to a submitted external URL.
 
 ## Compatibility
 

@@ -297,6 +297,12 @@ export default defineConfig(async ({ command }) => {
           target: backendTarget,
           changeOrigin: true
         },
+        '^/\\.well-known(?:/|$)': {
+          target: backendTarget,
+          // Let the backend answer discovery requests and return a reliable
+          // 404 for unknown resources instead of the development SPA shell.
+          changeOrigin: false
+        },
         '/webhooks': {
           target: backendTarget,
           changeOrigin: true

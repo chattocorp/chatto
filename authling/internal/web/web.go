@@ -52,6 +52,10 @@ type Dependencies struct {
 	TrustProxyHeaders bool
 }
 
+const changePasswordWellKnownPath = "/.well-known/change-password"
+const accountPasswordPath = "/account/password"
+const loginReturnParameter = "return_to"
+
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
 // the server and remain usable without client-side JavaScript.
 func Handler(dependencies ...Dependencies) http.Handler {
@@ -73,16 +77,20 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		panic("open embedded web assets: " + err.Error())
 	}
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
+	mux.HandleFunc("GET "+changePasswordWellKnownPath, func(w http.ResponseWriter, r *http.Request) {
+		redirect(w, r, accountPasswordPath)
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		render(w, r, http.StatusOK, homePage())
 	})
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.URL.Query().Get("id")
+		returnPath := loginReturnPath(r.URL.Query().Get(loginReturnParameter))
 		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
-		render(w, r, http.StatusOK, loginPage("", requestID))
+		render(w, r, http.StatusOK, loginPage("", requestID, returnPath))
 	})
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Authentication == nil || deps.Sessions == nil {
@@ -95,29 +103,34 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", ""))
+			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", "", ""))
 			return
 		}
 		requestID := r.FormValue("oidc_request")
+		returnPath := loginReturnPath(r.FormValue(loginReturnParameter))
 		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
 		account, err := deps.Authentication.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidCredentials) {
-			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID))
+			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID, returnPath))
 			return
 		}
 		if err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
 		if err := establishSession(w, r, deps, account.ID); err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
 		if requestID != "" {
 			redirect(w, r, "/oidc/consent?id="+url.QueryEscape(requestID))
+			return
+		}
+		if returnPath != "" {
+			redirect(w, r, returnPath)
 			return
 		}
 		redirect(w, r, "/account")
@@ -512,11 +525,11 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		redirect(w, r, "/account?profile_updated=1")
 	})
-	mux.HandleFunc("GET /account/password", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET "+accountPasswordPath, func(w http.ResponseWriter, r *http.Request) {
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
-			redirect(w, r, "/login")
+			redirect(w, r, passwordChangeLoginURL())
 			return
 		} else if err != nil {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
@@ -533,7 +546,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		render(w, r, http.StatusOK, passwordChangePage("", deps.Accounts.PasswordMinimumLength(), email))
 	})
-	mux.HandleFunc("POST /account/password", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST "+accountPasswordPath, func(w http.ResponseWriter, r *http.Request) {
 		if deps.Accounts == nil || deps.Authentication == nil || deps.Sessions == nil {
 			http.Error(w, "password change unavailable", http.StatusServiceUnavailable)
 			return
@@ -881,6 +894,17 @@ func useTrustedProxyOrigin(next http.Handler) http.Handler {
 func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {
 	_, err := service.Consent(r.Context(), id)
 	return err == nil
+}
+
+func loginReturnPath(candidate string) string {
+	if candidate == accountPasswordPath {
+		return candidate
+	}
+	return ""
+}
+
+func passwordChangeLoginURL() string {
+	return "/login?" + url.Values{loginReturnParameter: {accountPasswordPath}}.Encode()
 }
 
 func render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {

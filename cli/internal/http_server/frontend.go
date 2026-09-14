@@ -409,7 +409,8 @@ func serveFrontendFile(c *gin.Context, clientFS fs.FS, filePath string) error {
 func isReservedNonFrontendPath(urlPath string) bool {
 	return hasPathSegmentPrefix(urlPath, "/api") ||
 		hasPathSegmentPrefix(urlPath, "/auth") ||
-		hasPathSegmentPrefix(urlPath, "/assets")
+		hasPathSegmentPrefix(urlPath, "/assets") ||
+		hasPathSegmentPrefix(urlPath, "/.well-known")
 }
 
 func hasPathSegmentPrefix(urlPath string, prefix string) bool {
@@ -500,7 +501,7 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			return
 		}
 
-		// Skip if path starts with /api, /auth, /assets (handled by other routes)
+		// Skip paths that belong to backend interfaces or discovery resources.
 		urlPath := c.Request.URL.Path
 		if isReservedNonFrontendPath(urlPath) {
 			c.Next()

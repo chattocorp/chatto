@@ -35,6 +35,34 @@ func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
 	}
 }
 
+func TestChangePasswordWellKnownURLRedirectsToPasswordPage(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		t.Run(method, func(t *testing.T) {
+			request := httptest.NewRequest(method, changePasswordWellKnownPath, nil)
+			response := httptest.NewRecorder()
+
+			Handler().ServeHTTP(response, request)
+
+			if response.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusSeeOther)
+			}
+			if got := response.Header().Get("Location"); got != accountPasswordPath {
+				t.Fatalf("Location = %q, want %q", got, accountPasswordPath)
+			}
+			if got := response.Header().Get("Cache-Control"); got != "no-store" {
+				t.Fatalf("Cache-Control = %q, want no-store", got)
+			}
+		})
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/.well-known/unknown", nil)
+	response := httptest.NewRecorder()
+	Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("unknown well-known status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
 func TestLoginPageAutofocusesEmail(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/login", nil)
 	response := httptest.NewRecorder()
@@ -50,6 +78,34 @@ func TestLoginPageAutofocusesEmail(t *testing.T) {
 	}
 	if !strings.Contains(body, `href="/password-reset"`) || !strings.Contains(body, "Forgot your password?") {
 		t.Fatalf("login page does not link to password reset: %q", body)
+	}
+}
+
+func TestLoginPageAcceptsOnlyPasswordChangeReturnPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		returnPath string
+		wantHidden bool
+	}{
+		{name: "password change", returnPath: accountPasswordPath, wantHidden: true},
+		{name: "external URL", returnPath: "https://attacker.example", wantHidden: false},
+		{name: "scheme-relative URL", returnPath: "//attacker.example", wantHidden: false},
+		{name: "other internal path", returnPath: "/account", wantHidden: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/login?"+url.Values{loginReturnParameter: {test.returnPath}}.Encode(), nil)
+			response := httptest.NewRecorder()
+			Handler().ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+			}
+			hasHidden := strings.Contains(response.Body.String(), `name="return_to" value="/account/password"`)
+			if hasHidden != test.wantHidden {
+				t.Fatalf("return-path hidden field present = %v, want %v", hasHidden, test.wantHidden)
+			}
+		})
 	}
 }
 
