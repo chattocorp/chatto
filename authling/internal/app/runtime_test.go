@@ -19,6 +19,7 @@ import (
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
@@ -2225,4 +2226,78 @@ func eventCount(t *testing.T, runtime *Runtime) uint64 {
 		t.Fatal(err)
 	}
 	return info.State.Msgs
+}
+
+// A stopped inventory used to cancel projectors without releasing Serve's
+// readiness wait, hiding the underlying NATS error until external cancellation.
+func TestServeReturnsInventoryStartupFailure(t *testing.T) {
+	for _, missingTier := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing_tier=%v", missingTier), func(t *testing.T) {
+			cfg := embeddedTestConfig(t)
+			cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:0", PublicURL: "http://localhost:8080"}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			runtime, err := New(testContext(t), cfg, logging.Events{Logger: logger})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer runtime.Close()
+			js, err := jetstream.New(runtime.connection.NATS)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stream, err := js.Stream(testContext(t), "KV_"+storage.RuntimeStateBucket)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := stream.Info(testContext(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			info.Config.MaxConsumers = 1
+			if _, err := js.UpdateStream(testContext(t), info.Config); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := stream.CreateConsumer(testContext(t), jetstream.ConsumerConfig{Name: "occupy-quota", AckPolicy: jetstream.AckExplicitPolicy}); err != nil {
+				t.Fatal(err)
+			}
+			if missingTier {
+				runtime.Sessions = sessions.New(failingInventoryKV{}, js, make([]byte, 32), runtime.Accounts.AuthenticationVersion)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- serveRuntime(ctx, cfg, logger, runtime) }()
+			select {
+			case err := <-done:
+				var apiErr nats.JetStreamError
+				if !errors.As(err, &apiErr) {
+					t.Fatalf("lost NATS API error: %v", err)
+				}
+				if missingTier && apiErr.APIError().ErrorCode != 10120 {
+					t.Fatalf("NATS error code = %d", apiErr.APIError().ErrorCode)
+				}
+				if missingTier && !strings.Contains(err.Error(), "R1 tier") {
+					t.Fatalf("missing quota hint: %v", err)
+				}
+				if !missingTier && !strings.Contains(err.Error(), "maximum consumers limit reached") {
+					t.Fatalf("lost consumer limit error: %v", err)
+				}
+				if !strings.Contains(err.Error(), "watch browser sessions") {
+					t.Fatalf("lost inventory context: %v", err)
+				}
+			case <-time.After(3 * time.Second):
+				cancel()
+				err := <-done
+				t.Fatalf("startup waited for external cancellation: %v", err)
+			}
+		})
+	}
+}
+
+// Missing R1 tiers on an R3 deployment produce this server API error. Inject
+// only Watch's failure; run the real inventory and projection lifecycles.
+type failingInventoryKV struct{ jetstream.KeyValue }
+
+func (failingInventoryKV) Watch(context.Context, string, ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
+	return nil, &nats.APIError{Code: 400, ErrorCode: 10120, Description: "no JetStream default or applicable tiered limit present"}
 }

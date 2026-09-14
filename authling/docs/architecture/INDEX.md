@@ -9,7 +9,9 @@ The [`authling` command](../../cmd/authling/main.go) exposes `help`, `version`,
 and `run`. `run` loads the standalone configuration, opens Authling's NATS
 storage, starts every required projection and the browser-session inventory,
 waits for startup replay, starts the HTTP listener, and then runs until its
-process context is cancelled.
+process context is cancelled. A required task failure cancels startup readiness
+waits and is returned to the CLI with its original error chain. A missing
+JetStream tier error also includes an account-quota hint.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
 signed-in password-change, verified email-change, consent, account, and logout
