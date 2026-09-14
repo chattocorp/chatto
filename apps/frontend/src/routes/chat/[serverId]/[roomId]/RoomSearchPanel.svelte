@@ -5,7 +5,6 @@ Room-scoped message search for the room sidebar. Its store is retained per room
 so switching rooms cannot leak a query or plaintext results into another room.
 -->
 <script lang="ts">
-  import type { Attachment } from 'svelte/attachments';
   import SearchResult from '$lib/components/search/SearchResult.svelte';
   import SearchAvailability from '$lib/components/search/SearchAvailability.svelte';
   import { m } from '$lib/i18n/messages';
@@ -19,7 +18,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
   import SearchResults from '$lib/components/search/SearchResults.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Hint, ScrollFader } from '$lib/ui';
-  import { TextInput } from '$lib/ui/form';
+  import ChatSearchInput from '$lib/components/chat/ChatSearchInput.svelte';
   import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
@@ -47,18 +46,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
     void store.ensureStatus();
   });
 
-  function submit(event: SubmitEvent): void {
-    event.preventDefault();
-    search.submitNow();
-  }
-
-  const focusSearchField: Attachment<HTMLFormElement> = (form) => {
-    queueMicrotask(() => {
-      if (!form.isConnected) return;
-      form.querySelector<HTMLInputElement>('input')?.focus();
-    });
-  };
-
   function scheduleSearch(event: Event): void {
     search.schedule((event.currentTarget as HTMLInputElement).value);
   }
@@ -83,26 +70,6 @@ so switching rooms cannot leak a query or plaintext results into another room.
     {/if}
   {/snippet}
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="border-b border-border p-2">
-      <form onsubmit={submit} {@attach focusSearchField}>
-        <TextInput
-          label={m('search.query.label')}
-          labelHidden
-          testid="room-search-query"
-          bind:value={store.query}
-          placeholder={m('search.query.placeholder')}
-          leadingIcon="icon-[uil--search]"
-          autocomplete="off"
-          oninput={scheduleSearch}
-        />
-      </form>
-      {#if store.status.state === MessageSearchState.DEGRADED}
-        <div class="mt-2">
-          <Hint tone="warning">{m('search.degraded')}</Hint>
-        </div>
-      {/if}
-    </div>
-
     <ScrollFader top bottom keyboardFocusable={false} class="min-h-0 flex-1">
       <SearchResults {store} compact>
         {#snippet children(result)}
@@ -133,5 +100,22 @@ so switching rooms cannot leak a query or plaintext results into another room.
         {/snippet}
       </SearchResults>
     </ScrollFader>
+
+    <div class="shrink-0 bg-background p-2" data-testid="room-search-input-block">
+      {#if store.status.state === MessageSearchState.DEGRADED}
+        <div class="mb-2">
+          <Hint tone="warning">{m('search.degraded')}</Hint>
+        </div>
+      {/if}
+      <ChatSearchInput
+        label={m('search.query.label')}
+        testid="room-search-query"
+        bind:value={store.query}
+        placeholder={m('search.query.placeholder')}
+        focusOnMount
+        oninput={scheduleSearch}
+        onsubmit={() => search.submitNow()}
+      />
+    </div>
   </div>
 </SearchAvailability>

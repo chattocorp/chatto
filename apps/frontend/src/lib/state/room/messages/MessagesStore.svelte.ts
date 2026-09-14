@@ -161,6 +161,8 @@ export class MessagesStore {
   #windowId = 0;
   #pendingAuthoritativeLoadId: number | null = null;
   #pendingJumpId: number | null = null;
+  /** True when the retained room window is historical or its latest read failed. */
+  #needsLatestWindow = false;
   #projectionAccessRevoked = false;
   #previewGeneration = 0;
 
@@ -420,6 +422,7 @@ export class MessagesStore {
     this.selectRoom(roomId);
     this.#pendingAuthoritativeLoadId = null;
     const connection = roomTimelinePageToEventConnectionPage(page);
+    this.#needsLatestWindow = false;
     // Reset already purged the pre-prefix state. Preserve writes ingested
     // after that reset: the snapshot page was captured before those writes
     // and its later arrival must not erase read-your-writes.
@@ -433,14 +436,16 @@ export class MessagesStore {
     this.#jumpId++;
     this.#windowId++;
     this.#pendingJumpId = null;
+    if (this.#pendingAuthoritativeLoadId === null) this.isInitialLoading = false;
   }
 
-  /** Restore the authoritative latest room window after crossing a route boundary. */
+  /** Load the latest room window at a route boundary when retained data needs it. */
   restoreLatestWindow(): Promise<boolean> {
     if (this.scope !== 'room') return Promise.resolve(false);
-    this.#jumpId++;
-    this.#windowId++;
-    this.#pendingJumpId = null;
+    this.cancelPendingHistoricalJump();
+    if (this.#pendingAuthoritativeLoadId !== null || !this.#needsLatestWindow) {
+      return Promise.resolve(false);
+    }
     return this.resetAndFetchLatest();
   }
 
@@ -455,6 +460,7 @@ export class MessagesStore {
     for (const event of projected) this.clearOptimisticVersionForEvent(event.id);
     this.events = source.sort(projected);
     this.seenIds = new SvelteSet(projected.map((event) => event.id));
+    this.#needsLatestWindow = false;
     this.oldestCursor = connection.startCursor ?? undefined;
     this.newestCursor = connection.endCursor ?? undefined;
     this.hasReachedStart = !connection.hasOlder;
@@ -748,6 +754,7 @@ export class MessagesStore {
       }
 
       if (!page.hasNewer) jumpState.hasReachedEnd = true;
+      if (!page.hasNewer) this.#needsLatestWindow = false;
     } catch (error) {
       console.error('MessagesStore: loadNewer failed:', error);
     } finally {
@@ -803,6 +810,7 @@ export class MessagesStore {
       this.oldestCursor = startCursor ?? undefined;
       this.newestCursor = endCursor ?? undefined;
       this.hasReachedStart = !hasOlder;
+      this.#needsLatestWindow = hasNewer;
 
       // Only enter jumped mode when newer messages exist beyond this window.
       jumpState.isJumpedMode = hasNewer;
@@ -1166,6 +1174,7 @@ export class MessagesStore {
   private resetState(): void {
     this.events = [];
     this.seenIds = new SvelteSet();
+    this.#needsLatestWindow = false;
     this.previewEvents.clear();
     this.invalidatePendingPreviewFetches();
     this.optimisticReactions.clearAll();
@@ -1355,12 +1364,15 @@ export class MessagesStore {
     );
   }
 
-  private resetAndFetchLatest(): Promise<boolean> {
+  private async resetAndFetchLatest(): Promise<boolean> {
+    const source = this.source;
     const thisLoad = this.startLoad();
     this.#pendingAuthoritativeLoadId = thisLoad;
     this.resetState();
     this.isInitialLoading = true;
-    return this.fetchCurrent(thisLoad);
+    const loaded = await this.fetchCurrent(thisLoad);
+    if (this.source === source && !this.isStale(thisLoad)) this.#needsLatestWindow = !loaded;
+    return loaded;
   }
 
   private async fetchCurrent(

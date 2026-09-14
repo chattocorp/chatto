@@ -654,6 +654,205 @@ describe('MessagesStore — room lifecycle ownership', () => {
     store.dispose();
   });
 
+  it('keeps a retained latest room window across route boundaries', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValue(pageFromEvent(threadMessageEvent('latest-message')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+
+    expect(getRoomEvents).toHaveBeenCalledOnce();
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('keeps the initial latest read alive across a route boundary', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const initial = deferred<RoomPage>();
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockImplementation(() => initial.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+
+    store.setRoom('room-1');
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    initial.resolve(pageFromEvent(threadMessageEvent('loaded-after-boundary')));
+    await settle();
+
+    expect(getRoomEvents).toHaveBeenCalledOnce();
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['loaded-after-boundary']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
+  it('retries a failed initial latest read at the next route boundary', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('retried-latest')));
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.setRoom('room-1');
+    await settle();
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['retried-latest']);
+    expect(store.isInitialLoading).toBe(false);
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+    store.dispose();
+  });
+
+  it('keeps a newer latest read active when an older read settles', async () => {
+    type RoomPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEvents']>>;
+    const initial = deferred<RoomPage>();
+    const replacement = deferred<RoomPage>();
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockImplementationOnce(() => initial.promise)
+      .mockImplementationOnce(() => replacement.promise);
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      fakeTimelineAPI({ getRoomEvents })
+    );
+
+    store.setRoom('room-1');
+    const replacing = store.jumpToPresent(new JumpToMessageState());
+    initial.resolve(pageFromEvent(threadMessageEvent('stale-latest')));
+    await settle();
+
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+
+    replacement.resolve(pageFromEvent(threadMessageEvent('current-latest')));
+    await expect(replacing).resolves.toBe(true);
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['current-latest']);
+    store.dispose();
+  });
+
+  it('restores the latest window after leaving a completed historical jump', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('initial-latest')))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('restored-latest')));
+    const timeline = fakeTimelineAPI({
+      getRoomEvents,
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('historical-target') as never],
+        startCursor: 'tl:historical',
+        endCursor: 'tl:historical',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    await store.jumpToMessage('historical-target', new JumpToMessageState());
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+
+    expect(getRoomEvents).toHaveBeenCalledTimes(2);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['restored-latest']);
+    store.dispose();
+  });
+
+  it('retries a failed historical-window restoration at the next route boundary', async () => {
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('initial-latest')))
+      .mockRejectedValueOnce(new Error('network failed'))
+      .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('restored-latest')));
+    const timeline = fakeTimelineAPI({
+      getRoomEvents,
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('historical-target') as never],
+        startCursor: 'tl:historical',
+        endCursor: 'tl:historical',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    store.setRoom('room-1');
+    await settle();
+    await store.jumpToMessage('historical-target', new JumpToMessageState());
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    await expect(store.restoreLatestWindow()).resolves.toBe(true);
+
+    expect(getRoomEvents).toHaveBeenCalledTimes(3);
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['restored-latest']);
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
+    store.dispose();
+  });
+
+  it('cancels a pending historical jump without restarting the latest read', async () => {
+    type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
+    const around = deferred<AroundPage>();
+    const getRoomEvents = vi
+      .fn<RoomTimelineAPI['getRoomEvents']>()
+      .mockResolvedValue(pageFromEvent(threadMessageEvent('latest-message')));
+    const timeline = fakeTimelineAPI({
+      getRoomEvents,
+      getRoomEventsAround: vi.fn(() => around.promise)
+    });
+    const store = new MessagesStore(
+      new FakeQueryClient() as unknown as ServerConnection,
+      () => null,
+      timeline
+    );
+    store.setRoom('room-1');
+    await settle();
+
+    const jumping = store.jumpToMessage('historical-target', new JumpToMessageState());
+    await expect(store.restoreLatestWindow()).resolves.toBe(false);
+    around.resolve({
+      events: [threadMessageEvent('historical-target') as never],
+      startCursor: 'tl:historical',
+      endCursor: 'tl:historical',
+      hasOlder: true,
+      hasNewer: true
+    });
+
+    await expect(jumping).resolves.toBe(false);
+    expect(getRoomEvents).toHaveBeenCalledOnce();
+    expect(store.rootEvents.map((event) => event.id)).toEqual(['latest-message']);
+    expect(store.isInitialLoading).toBe(false);
+    store.dispose();
+  });
+
   it('keeps an in-flight message jump when lazy latest-page hydration arrives', async () => {
     const fake = new FakeQueryClient();
     type AroundPage = Awaited<ReturnType<RoomTimelineAPI['getRoomEventsAround']>>;
@@ -2493,15 +2692,26 @@ describe('MessagesStore — room lifecycle ownership', () => {
       .fn<RoomTimelineAPI['getRoomEvents']>()
       .mockResolvedValueOnce(pageFromEvent(threadMessageEvent('m1')))
       .mockRejectedValueOnce(new ConnectError('permission denied', Code.PermissionDenied));
+    const timeline = fakeTimelineAPI({
+      getRoomEvents,
+      getRoomEventsAround: vi.fn(async () => ({
+        events: [threadMessageEvent('historical') as never],
+        startCursor: 'tl:historical',
+        endCursor: 'tl:historical',
+        hasOlder: true,
+        hasNewer: true
+      }))
+    });
     const store = new MessagesStore(
       {} as ServerConnection,
       () => null,
-      fakeTimelineAPI({ getRoomEvents })
+      timeline
     );
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     store.setRoom('room-1');
     await settle();
+    await store.jumpToMessage('historical', new JumpToMessageState());
     await expect(store.restoreLatestWindow()).resolves.toBe(false);
 
     expect(store.rootEvents).toEqual([]);

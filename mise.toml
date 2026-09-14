@@ -12,6 +12,7 @@ uv = "0.11.30"
 [env]
 _.file = '.env'
 CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
+CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}"
 
 # =============================================================================
 # Setup
@@ -291,18 +292,6 @@ exec portless "storybook.$CHATTO_DEV_ROUTE_SUFFIX" -- \
   sh -c 'exec pnpm exec storybook dev --host "$HOST" --port "$PORT" --no-open'
 '''
 
-[tasks.dev-backend]
-description = "Build and run the local development backend"
-depends = ["setup-cli"]
-dir = "cli"
-run = "mkdir -p internal/http_server/.client && touch internal/http_server/.client/.gitkeep && go build -trimpath -tags 'bootstrap nomsgpack' -ldflags \"-X main.Version=$CHATTO_DEVELOPMENT_VERSION\" -o bin/chatto-dev . && exec ./bin/chatto-dev start"
-
-[tasks.dev-frontend]
-description = "Run the local development frontend"
-depends = ["setup-frontend", "build-api-types"]
-dir = "apps/frontend"
-run = "exec ./node_modules/.bin/vite dev"
-
 [tasks.desktop-dev]
 description = "Run the experimental Chatto desktop app with the latest frontend build"
 depends = ["build-frontend"]
@@ -312,7 +301,6 @@ run = "pnpm dev"
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_LIVEKIT_KEYS = "devkey: devsecret",
   CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
@@ -323,7 +311,6 @@ run = "exec mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- 
 [tasks.dev-mailpit]
 description = "Run a local Mailpit SMTP server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
 }
@@ -339,7 +326,8 @@ env = {
   CHATTO_DEV_ROUTE_SUFFIX = "{{env.CONDUCTOR_WORKSPACE_NAME | default(value='local')}}",
 }
 run = '''
-exec tools/dev-supervisor.sh mise run --jobs 6 --output prefix \
+CONDUCTOR_WORKSPACE_PATH="$PWD" tools/stop-workspace-dev.sh "$CHATTO_DEV_PORT_BASE"
+exec "$PWD/tools/dev-supervisor.sh" mise run --jobs 6 --output prefix \
   dev-stack-mailpit ::: dev-stack-livekit ::: dev-stack-authling ::: \
   dev-stack-backend ::: dev-stack-frontend ::: dev-stack-runling-bot
 '''
@@ -348,8 +336,8 @@ exec tools/dev-supervisor.sh mise run --jobs 6 --output prefix \
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
-  CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 9}}",
+  CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
+  CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
 }
 run = '''
 set -eu
@@ -366,10 +354,10 @@ exec portless \
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  CHATTO_DEV_BACKEND_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
-  CHATTO_DEV_LIVEKIT_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
-  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 6}}",
-  CHATTO_DEV_LIVEKIT_UDP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 7}}",
+  CHATTO_DEV_BACKEND_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
+  CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
+  CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
+  CHATTO_DEV_LIVEKIT_UDP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
 }
 run = '''
 set -eu
@@ -384,14 +372,14 @@ exec portless \
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CHATTO_DEV_PORT_BASE | int + 2}}",
   AUTHLING_HTTP_TRUST_PROXY_HEADERS = "true",
   AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH = "10",
   AUTHLING_NATS_REPLICAS = "1",
   AUTHLING_NATS_EMBEDDED_ENABLED = "true",
   AUTHLING_SMTP_ENABLED = "true",
   AUTHLING_SMTP_HOST = "127.0.0.1",
-  AUTHLING_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  AUTHLING_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   AUTHLING_SMTP_TLS = "opportunistic",
   AUTHLING_SMTP_FROM = "authling@authling.local",
 }
@@ -421,9 +409,9 @@ exec portless \
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 4}}",
-  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 4}}",
+  CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   CHATTO_LOG_LEVEL = "debug",
   CHATTO_LOG_FORMAT = "text",
   CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET = "871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3",
@@ -472,7 +460,7 @@ env = {
   CHATTO_BOOTSTRAP_BOTS_0_DISPLAY_NAME = "TestBot",
   CHATTO_BOOTSTRAP_BOTS_0_OWNER_LOGIN = "alice",
   CHATTO_BOOTSTRAP_BOTS_0_API_KEY_NAME = "Local development",
-  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}/api/runs/start/chatto",
+  CHATTO_BOOTSTRAP_BOTS_0_OUTBOUND_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 3}}/api/runs/start/chatto",
   CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE = "./data/bootstrap/test_bot.key",
   CHATTO_BOOTSTRAP_BOTS_0_PERMISSIONS = "room.join,room.list,message.read,message.post-in-thread",
   CHATTO_BOOTSTRAP_BOTS_0_ROOMS = "general",
@@ -508,8 +496,8 @@ exec bin/chatto-dev start
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  CHATTO_RUNLING_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
-  CHATTO_RUNLING_SERVER_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_RUNLING_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}",
+  CHATTO_RUNLING_SERVER_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
 }
 run = '''
 set -eu
@@ -526,8 +514,8 @@ exec portless \
 hide = true
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
-  VITE_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
-  CHATTO_BACKEND_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  VITE_PORT = "{{env.CHATTO_DEV_PORT_BASE}}",
+  CHATTO_BACKEND_URL = "http://127.0.0.1:{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
 }
 run = '''
 set -eu
@@ -558,27 +546,27 @@ description = "Build and run the bundled Chatto CLI command with workspace-safe 
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
-  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
-  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CHATTO_DEV_PORT_BASE}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
   CHATTO_METRICS_ENABLED = "true",
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
+  CHATTO_METRICS_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
   CHATTO_EXPORTER_ENABLED = "true",
   CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
+  CHATTO_EXPORTER_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 3}}",
   CHATTO_EXPORTER_PATH = "/metrics",
   CHATTO_MCP_ENABLED = "true",
   CHATTO_LIVEKIT_ENABLED = "true",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_LIVEKIT_API_KEY = "devkey",
   CHATTO_LIVEKIT_API_SECRET = "devsecret",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int}}/webhooks/livekit",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CHATTO_DEV_PORT_BASE | int}}/webhooks/livekit",
   CHATTO_SMTP_ENABLED = "true",
   CHATTO_SMTP_HOST = "127.0.0.1",
-  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
+  CHATTO_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   CHATTO_SMTP_TLS = "opportunistic",
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }

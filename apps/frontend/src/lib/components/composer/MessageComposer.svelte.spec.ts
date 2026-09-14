@@ -462,7 +462,7 @@ describe('MessageComposer', () => {
       expect(actions?.contains(q(container, 'button[title="Attach file"]'))).toBe(true);
       expect(actions?.contains(q(container, 'button[aria-label="Insert timestamp"]'))).toBe(true);
       expect(actions?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
-      expect(surface).toHaveClass('composer-surface');
+      expect(surface).toHaveClass('chat-input-surface');
       expect(q(container, '[data-testid="composer-formatting-shelf"]')).toBeNull();
     });
 
