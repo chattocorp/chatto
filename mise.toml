@@ -409,6 +409,7 @@ exec portless \
 
 [tasks.dev-stack-backend]
 hide = true
+shell = "bash -c"
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}",

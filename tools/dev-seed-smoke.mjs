@@ -29,6 +29,15 @@ function start(args, env) {
     stdio: ['ignore', 'pipe', 'pipe']
   });
   children.add(child);
+  child.diagnostics = [];
+  child.stderr.on('data', (chunk) => {
+    // Report task/shell failures without dumping backend account/session logs.
+    for (const line of String(chunk).replace(/\x1b\[[0-9;]*m/g, '').split('\n')) {
+      if (/Bad substitution|Syntax error|mise ERROR|ERROR task failed/.test(line)) {
+        child.diagnostics.push(line);
+      }
+    }
+  });
   child.stdout.pipe(log, { end: false });
   child.stderr.pipe(log, { end: false });
   child.done = new Promise((resolve, reject) => {
@@ -100,7 +109,7 @@ try {
   const socket = join(data, 'operator/operator.sock');
   while (true) {
     assert.ok(!interrupted, 'Development smoke test interrupted');
-    assert.equal(backend.exitCode, null, `Development backend exited; see ${logPath}`);
+    assert.equal(backend.exitCode, null, `Development backend exited: ${backend.diagnostics.join("; ")}; see ${logPath}`);
     assert.equal(backend.signalCode, null, `Development backend was stopped; see ${logPath}`);
     let ready = false;
     try {
