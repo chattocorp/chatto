@@ -3,6 +3,7 @@ import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS, POLLING_INTERVALS } from './constants';
 import { getIdsFromUrlViaConnect, postMessagesViaConnect } from './fixtures/connectHelpers';
+import { seedData, loginSeededUser } from './fixtures/seed';
 
 test.describe('message pagination', () => {
   test('newest message is visible after posting many messages and reloading', async ({
@@ -10,21 +11,16 @@ test.describe('message pagination', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    await createAndLoginTestUser(page);
+    // Prepare history before mounting the app. This tests the initial timeline
+    // page and reload without rendering every setup message over WebSocket.
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 60 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
+    await chatPage.enterRoom(scene.rooms[0].name);
 
-    const { roomId } = await getIdsFromUrlViaConnect(page);
-    const timestamp = Date.now();
+    const lastMessage = scene.messages.at(-1)!.body;
 
-    // Post 60 messages via Connect (more than default limit of 50)
-    const messages = Array.from({ length: 60 }, (_, i) => `Message ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
-
-    const lastMessage = `Message 60 - ${timestamp}`;
-
-    // Reload so messages are loaded via the initial query (last 50) rather than
-    // waiting for 60 subscription events to arrive and render through virtua.
+    // Keep the reload assertion: seeded history must survive a fresh page load.
     await page.reload();
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
 
@@ -40,22 +36,16 @@ test.describe('message pagination', () => {
     // Use smaller viewport to ensure content is scrollable
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 70 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
-    const timestamp = Date.now();
-
-    // Post 70 messages via Connect (well over the 50-message page size)
-    const messages = Array.from({ length: 70 }, (_, i) => `Scroll-test ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Reload the page so only the initial Connect timeline page populates the cache.
     // Messages 1-20 are outside that page and require backward pagination.
     await page.reload();
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
-    await expect(page.getByText(`Scroll-test 70 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[69].body)).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
@@ -74,7 +64,7 @@ test.describe('message pagination', () => {
 
     // Pick a message in the initially loaded batch as anchor, far enough from
     // the latest message that scrolling up still triggers backward pagination.
-    const anchorMessage = `Scroll-test 48 - ${timestamp}`;
+    const anchorMessage = scene.messages[47].body;
 
     // Scroll up incrementally until the anchor message is visible.
     // Important: stop scrolling as soon as the anchor appears to avoid
@@ -147,26 +137,20 @@ test.describe('message pagination', () => {
     // guard (distanceFromBottom > viewportSize) was too strict for tall viewports.
     await page.setViewportSize({ width: 1280, height: 900 });
 
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 150 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
-    const timestamp = Date.now();
-
-    // Post 150 messages (3 full pages of 50)
-    const messages = Array.from({ length: 150 }, (_, i) => `Paginate ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, messages);
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Reload for clean state (loads last ~50)
     await page.reload();
     await page.waitForURL(/\/chat\/-\/[a-zA-Z0-9_-]+$/);
-    await expect(page.getByText(`Paginate 150 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[149].body)).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
     // The first message should NOT be visible yet
-    await expect(page.getByText(`Paginate 1 - ${timestamp}`)).not.toBeVisible();
+    await expect(page.getByText(scene.messages[0].body)).not.toBeVisible();
 
     const messagesContainer = page.getByTestId('messages-container');
 
@@ -203,7 +187,7 @@ test.describe('message pagination', () => {
     }
 
     // Sanity check: the first message must be in the loaded timeline too.
-    await expect(page.getByText(`Paginate 1 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[0].body)).toBeVisible({
       timeout: TIMEOUTS.UI_FAST
     });
     await expect(startMarker).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });

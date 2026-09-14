@@ -30,6 +30,8 @@ Server and CLI Go Components:
 - go-mail (https://github.com/wneessen/go-mail) - MIT License
 - go-jose (https://github.com/go-jose/go-jose) - Apache License 2.0
 - go-nanoid (https://github.com/matoous/go-nanoid) - MIT License
+- gofakeit (https://github.com/brianvoe/gofakeit) - MIT License
+  (development and test data generation)
 - go-smtp-mock (https://github.com/mocktools/go-smtp-mock) - MIT License
 - go-str2duration (https://github.com/xhit/go-str2duration) - BSD 3-Clause License
 - go-toml (https://github.com/pelletier/go-toml) - MIT License

@@ -239,6 +239,14 @@ sources = [
 ]
 outputs = ["bin/chatto"]
 
+[tasks.seed]
+description = "Add reproducible synthetic data to the running development server"
+depends = ["build-dev-cli"]
+dir = "cli"
+run = '''
+exec ./bin/chatto operator seed --operator-socket "${CHATTO_DEV_DATA_ROOT:-./data}/operator/operator.sock" "$@"
+'''
+
 [tasks.build-e2e-server]
 description = "Build the E2E test server binary with dev bootstrap and test endpoints enabled"
 depends = ["setup-cli", "build-frontend"]
@@ -401,6 +409,7 @@ exec portless \
 
 [tasks.dev-stack-backend]
 hide = true
+shell = "bash -c"
 tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 1}}",
@@ -412,7 +421,7 @@ env = {
   CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET = "a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66",
   CHATTO_METRICS_ENABLED = "false",
   CHATTO_EXPORTER_ENABLED = "false",
-  CHATTO_OPERATOR_API_ENABLED = "false",
+  CHATTO_OPERATOR_API_ENABLED = "true",
   CHATTO_MCP_ENABLED = "true",
   CHATTO_SEARCH_ENABLED = "true",
   CHATTO_SEARCH_PROVIDER_ENABLED = "true",
@@ -480,6 +489,7 @@ export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="$authling_url"
 export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="$chatto_url/oauth/client-metadata.json"
 export CHATTO_LIVEKIT_URL="${livekit_url/https:/wss:}"
 export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$CHATTO_WEBSERVER_PORT/webhooks/livekit"
+export CHATTO_OPERATOR_API_SOCKET_PATH="$data_root/operator/operator.sock"
 export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
 export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/search"
 export CHATTO_BOOTSTRAP_BOTS_0_CREDENTIAL_FILE="$data_root/bootstrap/test_bot.key"
@@ -600,9 +610,10 @@ depends = ["setup-cli", "build-frontend"]
 dir = "cli"
 run = [
     "../tools/dev-supervisor_test.sh",
+    "node ../tools/dev-seed-smoke.mjs",
     "go test -trimpath -p ${CHATTO_GO_TEST_P:-4} -tags test_endpoints ./...",
 ]
-sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE"]
+sources = ["**/*.go", "cmd/embedded/LICENSE", "cmd/embedded/NOTICE", "../mise.toml", "../tools/dev-seed-smoke.mjs"]
 
 [tasks.test-appconfig]
 description = "Run application configuration tests standalone and in the repository workspace"

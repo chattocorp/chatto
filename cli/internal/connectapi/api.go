@@ -197,9 +197,10 @@ func (a *API) publicHandlerOptions(readMaxBytes int) []connect.HandlerOption {
 func (a *API) OperatorHandlers() []Handler {
 	options := HandlerOptionsForWebserver(a.config.Webserver)
 	userPath, userHandler := operatorv1connect.NewOperatorUserServiceHandler(&operatorUserService{api: a}, options...)
-	return []Handler{
+	handlers := []Handler{
 		{ServicePath: userPath, Handler: userHandler, AuthPolicy: AuthPolicyPublic},
 	}
+	return append(handlers, a.operatorSeedHandlers(options)...)
 }
 
 func uploadRequestMaxBytes(maxUploadSize int64) int {

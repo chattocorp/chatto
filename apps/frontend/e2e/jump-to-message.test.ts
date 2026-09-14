@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import { seedData, loginSeededUser } from './fixtures/seed';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
@@ -125,20 +126,14 @@ test.describe('jump to message', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 61 });
+    await loginSeededUser(page.request, scene.users[0]);
+    const roomId = scene.rooms[0].id;
+    const targetBody = scene.messages[0].body;
+    const targetEventId = scene.messages[0].id;
     const timestamp = Date.now();
-
-    // Post an early message that will be the reply target
-    const targetBody = `Target message - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-
-    // Post enough messages to push the target well out of the initial load window
-    const fillerMessages = Array.from({ length: 60 }, (_, i) => `Filler ${i + 1} - ${timestamp}`);
-    await postMessagesViaConnect(page, roomId, fillerMessages);
+    await chatPage.goto();
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Post a reply that references the target (the old message)
     const replyBody = `Reply pointing to target - ${timestamp}`;
@@ -169,7 +164,7 @@ test.describe('jump to message', () => {
     });
 
     // The latest filler messages should no longer be visible (cache was replaced)
-    await expect(page.getByText(`Filler 60 - ${timestamp}`)).not.toBeVisible();
+    await expect(page.getByText(scene.messages[60].body)).not.toBeVisible();
   });
 
   test('Jump to Present returns to latest messages', async ({
@@ -177,23 +172,14 @@ test.describe('jump to message', () => {
     chatPage,
     roomPage: _roomPage
   }) => {
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 61 });
+    await loginSeededUser(page.request, scene.users[0]);
+    const roomId = scene.rooms[0].id;
+    const targetBody = scene.messages[0].body;
+    const targetEventId = scene.messages[0].id;
     const timestamp = Date.now();
-
-    // Post an early message that will be the reply target
-    const targetBody = `JTP target - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-
-    // Post enough messages to push the target out of view
-    const fillerMessages = Array.from(
-      { length: 60 },
-      (_, i) => `JTP filler ${i + 1} - ${timestamp}`
-    );
-    await postMessagesViaConnect(page, roomId, fillerMessages);
+    await chatPage.goto();
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Post a reply referencing the target
     const replyBody = `JTP reply - ${timestamp}`;
@@ -244,24 +230,14 @@ test.describe('jump to message', () => {
     // Use smaller viewport to make scrolling meaningful
     await page.setViewportSize({ width: 1280, height: 500 });
 
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 31 });
+    await loginSeededUser(page.request, scene.users[0]);
+    const roomId = scene.rooms[0].id;
+    const targetBody = scene.messages[0].body;
+    const targetEventId = scene.messages[0].id;
     const timestamp = Date.now();
-
-    // Post the target message first, then enough messages to scroll it off screen
-    // but NOT out of the loaded cache (within the 50-message window)
-    const targetBody = `Nearby target - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-
-    // Post 30 messages (still within the 50-message initial load)
-    const fillerMessages = Array.from(
-      { length: 30 },
-      (_, i) => `Nearby filler ${i + 1} - ${timestamp}`
-    );
-    await postMessagesViaConnect(page, roomId, fillerMessages);
+    await chatPage.goto();
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Post a reply to the target
     const replyBody = `Nearby reply - ${timestamp}`;
@@ -283,22 +259,13 @@ test.describe('jump to message', () => {
   });
 
   test('switching rooms resets jump state', async ({ page, chatPage, roomPage: _roomPage }) => {
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 61 });
+    await loginSeededUser(page.request, scene.users[0]);
+    const roomId = scene.rooms[0].id;
+    const targetEventId = scene.messages[0].id;
     const timestamp = Date.now();
-
-    // Set up: target message, filler, reply
-    const targetBody = `Reset target - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-
-    const fillerMessages = Array.from(
-      { length: 60 },
-      (_, i) => `Reset filler ${i + 1} - ${timestamp}`
-    );
-    await postMessagesViaConnect(page, roomId, fillerMessages);
+    await chatPage.goto();
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     const replyBody = `Reset reply - ${timestamp}`;
     await postReplyViaConnect(page, roomId, replyBody, targetEventId);
@@ -322,11 +289,11 @@ test.describe('jump to message', () => {
     // "Jump to Present" should be gone
     await expect(page.getByTestId('jump-to-present')).not.toBeVisible();
 
-    // Switch back to general
-    await chatPage.enterRoom('general');
+    // Return to the seeded room.
+    await chatPage.enterRoom(scene.rooms[0].name);
 
     // Should show the latest messages, not the jumped state
-    await expect(page.getByText(`Reset filler 60 - ${timestamp}`)).toBeVisible({
+    await expect(page.getByText(scene.messages[60].body)).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
 
@@ -340,19 +307,12 @@ test.describe('jump to message', () => {
   }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 600 });
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 201 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
-    const timestamp = Date.now();
-    const targetBody = `Large timeline permalink target - ${timestamp}`;
-    const targetEventId = await postMessageViaConnect(page, roomId, targetBody);
-    await postMessagesViaConnect(
-      page,
-      roomId,
-      Array.from({ length: 200 }, (_, index) => `Large timeline filler ${index + 1} - ${timestamp}`)
-    );
+    await chatPage.enterRoom(scene.rooms[0].name);
+    const roomId = scene.rooms[0].id;
+    const targetEventId = scene.messages[0].id;
 
     await page.goto(routes.messageLink(roomId, targetEventId));
 
@@ -360,34 +320,21 @@ test.describe('jump to message', () => {
     await expect(page.getByTestId('jump-to-present')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
-    await expect(page.getByText(`Large timeline filler 200 - ${timestamp}`)).not.toBeVisible();
+    await expect(page.getByText(scene.messages[200].body)).not.toBeVisible();
   });
 
   test('a newer permalink wins when an older jump response arrives last', async ({
     page,
     chatPage
   }) => {
-    await createAndLoginTestUser(page);
+    const scene = await seedData(page.request, { seed: 42, users: 1, rooms: 1, messages: 122 });
+    await loginSeededUser(page.request, scene.users[0]);
     await chatPage.goto();
-    await chatPage.enterRoom('general');
-
-    const { roomId } = await getIdsFromUrlViaConnect(page);
-    const timestamp = Date.now();
-    const firstBody = `Superseded target A - ${timestamp}`;
-    const firstEventId = await postMessageViaConnect(page, roomId, firstBody);
-    await postMessagesViaConnect(
-      page,
-      roomId,
-      Array.from({ length: 60 }, (_, index) => `Supersession filler ${index + 1} - ${timestamp}`)
-    );
-    const secondBody = `Winning target B - ${timestamp}`;
-    const secondEventId = await postMessageViaConnect(page, roomId, secondBody);
-    const latestBody = `Later filler 60 - ${timestamp}`;
-    await postMessagesViaConnect(
-      page,
-      roomId,
-      Array.from({ length: 60 }, (_, index) => `Later filler ${index + 1} - ${timestamp}`)
-    );
+    await chatPage.enterRoom(scene.rooms[0].name);
+    const roomId = scene.rooms[0].id;
+    const firstEventId = scene.messages[0].id;
+    const secondEventId = scene.messages[61].id;
+    const latestBody = scene.messages.at(-1)!.body;
 
     // An event append can complete before the room timeline projection has
     // exposed every seeded row. Establish a fully projected latest window so

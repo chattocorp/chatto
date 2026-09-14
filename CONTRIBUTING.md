@@ -120,3 +120,30 @@ Local development instances are bootstrapped from `cli/chatto.toml` when the ser
 | `bob`   | `bob@example.com`   | `foobar123` | user  |
 
 Use `alice` when you need server administration access.
+
+## Synthetic Test Data
+
+See [Generate Test Data](README.md#generate-test-data) to populate a running
+development server. For e2e setup, use the shared helpers:
+
+```ts
+import { seedData, loginSeededUser } from './fixtures/seed';
+import * as routes from './routes';
+
+const scene = await seedData(page.request, {
+  seed: 42, users: 3, rooms: 2, messages: 20, threadReplies: 5,
+});
+await loginSeededUser(page.request, { id: scene.rooms[0].memberIds[0] });
+await page.goto(routes.room(scene.rooms[0].id));
+```
+
+The helper returns when the generated data is ready to read. Each room’s
+`memberIds` lists its final generated members. Use the returned IDs and text
+in assertions. Create the session before loading the app, with a fresh
+browser context for each viewer. These HTTP helpers require a `test_endpoints`
+build; release builds exclude them.
+
+Seed the starting state, then perform the action under test in the browser.
+For live-delivery tests, connect the receiver before sending the new message.
+Keep the normal login flow when testing authentication. The performance fixture
+retains its separate, fixed workload.

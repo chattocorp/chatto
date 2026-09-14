@@ -32,6 +32,8 @@ func createMailer(_ config.EmailConfig, _ config.SMTPConfig) (*email.MockSender,
 //   - POST /auth/test/create-user - Directly create a user without registration flow
 //   - POST /auth/test/create-user-session - Create, verify, join defaults, and log in a test user
 //   - POST /auth/test/seed-performance - Create a large encrypted performance fixture
+//   - POST /auth/test/seed - Create reproducible users, rooms, messages, and thread replies
+//   - POST /auth/test/create-session - Sign in as an existing human test account
 //   - POST /auth/test/create-registration-code - Create a registration code without email delivery
 //   - POST /auth/test/oauth-callback - Simulate OAuth callback
 //   - POST /auth/test/external-identity-flow - Create a pending external identity confirmation flow
@@ -45,6 +47,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 		"Ensure this build is not used in production!")
 
 	registerPerformanceFixtureEndpoint(auth, s)
+	registerSeedEndpoint(auth, s)
 
 	auth.GET("test/last-email", func(c *gin.Context) {
 		msg := s.mockMailer.LastMessage()

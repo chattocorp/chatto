@@ -190,6 +190,17 @@ system diagnostics or turn unavailable metrics into healthy-looking zeroes.
 | Package | Service | Access policy |
 | ------- | ------- | ------------- |
 | `chatto.operator.v1` | `OperatorUserService` | Root-equivalent access over the private Unix socket |
+| `chatto.operator.v1` | `OperatorSeedService` | Private Unix socket; compiled only with `bootstrap` or `test_endpoints` |
+
+The [synthetic data generator](../../cli/internal/core/seed_development.go) uses
+existing account, channel, membership, and message operations. Its CLI is
+`chatto operator seed`. It adds no event types, streams, or projections and waits
+for serving projections before success. The
+[test-only HTTP wrapper](../../cli/internal/http_server/seed_test_endpoint.go)
+also mounts `POST /auth/test/seed` and `POST /auth/test/create-session` in
+`test_endpoints` builds. Session creation accepts an existing human account ID
+and returns a normal cookie session with CSRF state. The fixed
+`/auth/test/seed-performance` fixture remains independent.
 
 ## Trusted NATS services
 

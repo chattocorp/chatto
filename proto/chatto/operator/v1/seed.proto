@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package chatto.operator.v1;
+
+// Generate a reproducible synthetic dataset in a development or test build.
+message SeedDataRequest {
+  // Controls generated content and relationships, but not IDs or timestamps.
+  int64 seed = 1;
+  reserved 2;
+  reserved "prefix";
+  // Number of passwordless users to create, from 1 to 5000.
+  int32 users = 3;
+  // Number of channels to create, from 1 to 100. Users times rooms must not exceed 25000.
+  int32 rooms = 4;
+  // Total posts, including thread replies, from 0 to 100000.
+  int32 messages = 5;
+  // Number of posts that reply to generated root messages. Requires at least one root.
+  int32 thread_replies = 6;
+}
+
+// A generated passwordless account. Use operator user commands to set a password.
+message SeedUser {
+  // Created account ID.
+  string id = 1;
+  // Generated login, with a numeric suffix if needed for uniqueness.
+  string login = 2;
+  // Generated display name.
+  string display_name = 3;
+}
+
+// A generated channel with a randomized membership history.
+message SeedRoom {
+  // Created channel ID.
+  string id = 1;
+  // Generated channel name.
+  string name = 2;
+  // Generated users still in this channel, in join order.
+  repeated string member_ids = 3;
+}
+
+// A generated root message or thread reply.
+message SeedMessage {
+  // Created message ID.
+  string id = 1;
+  // Channel that contains the message.
+  string room_id = 2;
+  // Generated author account ID.
+  string author_id = 3;
+  // Generated Markdown body.
+  string body = 4;
+  // Root message ID for thread replies; empty for root messages.
+  string thread_root_id = 5;
+}
+
+// Manifest of generated resources in creation order. Ready for reads on success.
+message SeedDataResponse {
+  // Generator version, including the pinned data library version.
+  string version = 1;
+  // Random seed used for this run.
+  int64 seed = 2;
+  reserved 3;
+  reserved "prefix";
+  // Generated accounts.
+  repeated SeedUser users = 4;
+  // Generated channels.
+  repeated SeedRoom rooms = 5;
+  // Generated root messages followed by generated thread replies.
+  repeated SeedMessage messages = 6;
+}
+
+// Local synthetic data generation, served only by development and test builds
+// on the operator Unix socket. Production builds do not mount this service.
+service OperatorSeedService {
+  // Adds synthetic data without clearing existing data. Socket access is required.
+  // Each call adds a new dataset. Name collisions receive numeric suffixes.
+  // Cancellation or failure can leave partial data. Automatic retries are unsafe.
+  rpc SeedData(SeedDataRequest) returns (SeedDataResponse);
+}
