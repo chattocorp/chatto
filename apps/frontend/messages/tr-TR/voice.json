@@ -69,6 +69,7 @@
     "no_game_windows": "Paylaşılabilir pencere bulunamadı. Bir oyunu pencereli veya kenarlıksız modda açıp tekrar deneyin.",
     "game_windows_failed": "Paylaşılabilir pencereler yüklenemedi.",
     "untitled_window": "Başlıksız pencere",
-    "game_window_selected": "{name} seçildi"
+    "game_window_selected": "{name} seçildi",
+    "permission_denied": "Bu arama işlemini gerçekleştirme iznin yok."
   }
 }

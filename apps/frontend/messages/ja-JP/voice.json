@@ -69,6 +69,7 @@
     "no_game_windows": "共有できるウィンドウが見つかりません。ゲームをウィンドウまたはボーダーレスモードで開いて、もう一度お試しください。",
     "game_windows_failed": "共有できるウィンドウを読み込めませんでした。",
     "untitled_window": "タイトルなしのウィンドウ",
-    "game_window_selected": "{name}を選択しました"
+    "game_window_selected": "{name}を選択しました",
+    "permission_denied": "この通話操作を実行する権限がありません。"
   }
 }

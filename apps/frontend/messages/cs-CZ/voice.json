@@ -69,6 +69,7 @@
     "no_game_windows": "Nebyla nalezena žádná okna ke sdílení. Otevřete hru v režimu okna nebo bez okrajů a zkuste to znovu.",
     "game_windows_failed": "Okna ke sdílení se nepodařilo načíst.",
     "untitled_window": "Okno bez názvu",
-    "game_window_selected": "Vybráno: {name}"
+    "game_window_selected": "Vybráno: {name}",
+    "permission_denied": "K této akci v hovoru nemáš oprávnění."
   }
 }

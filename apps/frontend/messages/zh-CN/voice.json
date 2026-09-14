@@ -69,6 +69,7 @@
     "no_game_windows": "未找到可共享的窗口。请以窗口或无边框模式打开游戏，然后重试。",
     "game_windows_failed": "无法加载可共享的窗口。",
     "untitled_window": "无标题窗口",
-    "game_window_selected": "已选择 {name}"
+    "game_window_selected": "已选择 {name}",
+    "permission_denied": "你没有执行此通话操作的权限。"
   }
 }

@@ -69,6 +69,7 @@
     "no_game_windows": "Kopīgojami logi nav atrasti. Atveriet spēli loga vai bezmalu režīmā un mēģiniet vēlreiz.",
     "game_windows_failed": "Neizdevās ielādēt kopīgojamos logus.",
     "untitled_window": "Logs bez nosaukuma",
-    "game_window_selected": "Atlasīts: {name}"
+    "game_window_selected": "Atlasīts: {name}",
+    "permission_denied": "Tev nav atļaujas veikt šo darbību zvanā."
   }
 }

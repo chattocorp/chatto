@@ -69,6 +69,7 @@
     "no_game_windows": "Neniuj kundivideblaj fenestroj troviĝis. Malfermu ludon en fenestra aŭ senranda reĝimo kaj reprovu.",
     "game_windows_failed": "Ne eblis ŝargi kundivideblajn fenestrojn.",
     "untitled_window": "Sentitola fenestro",
-    "game_window_selected": "{name} elektita"
+    "game_window_selected": "{name} elektita",
+    "permission_denied": "Vi ne havas permeson fari ĉi tiun agon en la voko."
   }
 }

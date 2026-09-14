@@ -69,6 +69,7 @@
     "no_game_windows": "No se encontraron ventanas para compartir. Abre un juego en modo ventana o sin bordes e inténtalo de nuevo.",
     "game_windows_failed": "No se pudieron cargar las ventanas para compartir.",
     "untitled_window": "Ventana sin título",
-    "game_window_selected": "Se seleccionó {name}"
+    "game_window_selected": "Se seleccionó {name}",
+    "permission_denied": "No tienes permiso para realizar esta acción en la llamada."
   }
 }
