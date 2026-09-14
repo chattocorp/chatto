@@ -39,6 +39,18 @@ disable TLS verification. Authling starts its HTTP listener only after startup
 replay and issuer initialization finish. A TCP startup/readiness probe can
 check that milestone, but does not prove continuing NATS or JetStream health.
 
+When the external account uses tiered JetStream quotas, provide an R1 tier for
+Authling's temporary ordered consumers and browser-session KV watcher, even
+when `AUTHLING_NATS_REPLICAS=3` puts all three data streams in R3. An R3-only
+account can reject those consumers with NATS error 10120 (no applicable tier).
+Keep the R3 tier and its storage allowance when adding R1. Accounts with an
+applicable default tier do not need separate R1/R3 tiers.
+
+If a required background task fails during startup, Authling exits and reports
+the underlying error. For error 10120, the message also identifies the account
+tiers to check. Consumer-limit errors require sufficient consumer capacity;
+restarting alone does not correct account quotas.
+
 Authling is a separate product from Chatto:
 
 - it is built from its own Go module;

@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
@@ -214,17 +216,34 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 		serveErr = errors.Join(serveErr, runtime.Close())
 	}()
 
+	return serveRuntime(ctx, cfg, logger, runtime)
+}
+
+// serveRuntime owns the running tasks; its caller owns closing runtime storage.
+func serveRuntime(ctx context.Context, cfg config.Config, logger *slog.Logger, runtime *Runtime) error {
 	runContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 	runErrors := make(chan error, 1)
 	go func() {
 		runErrors <- runtime.Run(runContext)
+		// Release readiness waits when any required runtime task stops.
+		cancel()
 	}()
 
-	if err := runtime.WaitReady(ctx); err != nil {
+	if err := runtime.WaitReady(runContext); err != nil {
 		cancel()
-		<-runErrors
-		return fmt.Errorf("wait for Authling readiness: %w", err)
+		runErr := <-runErrors
+		startupErr := errors.Join(err, runErr)
+		var jsErr jetstream.JetStreamError
+		var legacyErr nats.JetStreamError
+		// KV Watch currently uses the legacy client internally; projectors
+		// use the newer JetStream API. Keep both error chains intact.
+		missingTier := errors.As(startupErr, &jsErr) && jsErr.APIError() != nil && jsErr.APIError().ErrorCode == 10120
+		missingTier = missingTier || (errors.As(startupErr, &legacyErr) && legacyErr.APIError() != nil && legacyErr.APIError().ErrorCode == 10120)
+		if missingTier {
+			return fmt.Errorf("wait for Authling readiness: check NATS account JetStream tiers; R3 data streams also need an R1 tier for temporary consumers: %w", startupErr)
+		}
+		return fmt.Errorf("wait for Authling readiness: %w", startupErr)
 	}
 	listener, err := net.Listen("tcp", cfg.HTTP.BindAddressOrDefault())
 	if err != nil {
