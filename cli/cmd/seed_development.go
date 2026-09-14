@@ -4,8 +4,12 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"syscall"
 	"time"
 
 	"connectrpc.com/connect"
@@ -49,7 +53,7 @@ func operatorSeedCmd() *cobra.Command {
 			defer cancel()
 			result, err := client.SeedData(ctx, connect.NewRequest(&request))
 			if err != nil {
-				return fmt.Errorf("seed failed; partial data may remain (do not retry automatically): %w", err)
+				return seedCommandError(err)
 			}
 			return printAdminOutput(cmd.OutOrStdout(), result.Msg, func() {
 				fmt.Fprintf(cmd.OutOrStdout(), "Created %d users, %d rooms, and %d messages (seed %d, %s).\n", len(result.Msg.Users), len(result.Msg.Rooms), len(result.Msg.Messages), result.Msg.Seed, result.Msg.Version)
@@ -63,4 +67,15 @@ func operatorSeedCmd() *cobra.Command {
 	cmd.Flags().Int32Var(&request.ThreadReplies, "thread-replies", 0, "posts that reply to generated root messages")
 	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "maximum time to wait for seeding")
 	return cmd
+}
+
+// A missing or refused Unix-socket dial cannot have sent the seed request.
+// Errors after connection remain ambiguous: earlier operations may have committed.
+func seedCommandError(err error) error {
+	var dial *net.OpError
+	if errors.As(err, &dial) && dial.Op == "dial" && dial.Net == "unix" &&
+		(errors.Is(err, os.ErrNotExist) || errors.Is(err, syscall.ECONNREFUSED)) {
+		return fmt.Errorf("cannot connect to the development server; start or restart mise dev, then run mise seed again (no data was created): %w", err)
+	}
+	return fmt.Errorf("seed failed; partial data may remain (do not retry automatically): %w", err)
 }
