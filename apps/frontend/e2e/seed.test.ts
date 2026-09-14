@@ -18,9 +18,9 @@ test('seeded conversations and thread replies are readable in the browser', asyn
     messages: 12,
     threadReplies: 4
   });
-  await loginSeededUser(page.request, scene.users[0]);
   const reply = scene.messages[8];
   const room = scene.rooms.find((room) => room.id === reply.roomId)!;
+  await loginSeededUser(page.request, { id: room.memberIds[0] });
   const root = scene.messages.find((message) => message.id === reply.threadRootId)!;
   await chatPage.goto();
   await chatPage.enterRoom(room.name);

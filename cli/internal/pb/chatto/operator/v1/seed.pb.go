@@ -167,13 +167,15 @@ func (x *SeedUser) GetDisplayName() string {
 	return ""
 }
 
-// A generated channel. All generated users are members.
+// A generated channel with a randomized membership history.
 type SeedRoom struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Created channel ID.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Generated channel name.
-	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Generated users still in this channel, in join order.
+	MemberIds     []string `protobuf:"bytes,3,rep,name=member_ids,json=memberIds,proto3" json:"member_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -220,6 +222,13 @@ func (x *SeedRoom) GetName() string {
 		return x.Name
 	}
 	return ""
+}
+
+func (x *SeedRoom) GetMemberIds() []string {
+	if x != nil {
+		return x.MemberIds
+	}
+	return nil
 }
 
 // A generated root message or thread reply.
@@ -400,10 +409,12 @@ const file_chatto_operator_v1_seed_proto_rawDesc = "" +
 	"\bSeedUser\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\".\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"M\n" +
 	"\bSeedRoom\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\x8d\x01\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"member_ids\x18\x03 \x03(\tR\tmemberIds\"\x8d\x01\n" +
 	"\vSeedMessage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x1b\n" +

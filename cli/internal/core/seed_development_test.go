@@ -4,6 +4,7 @@ package core
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 
@@ -27,8 +28,9 @@ func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 	}
 	for _, room := range first.Rooms {
 		for _, user := range first.Users {
-			_, err := c.GetRoomMembership(ctx, KindChannel, user.ID, room.ID)
+			member, err := c.RoomMembershipExists(ctx, KindChannel, user.ID, room.ID)
 			require.NoError(t, err)
+			require.Equal(t, slices.Contains(room.MemberIDs, user.ID), member)
 		}
 	}
 	replies := map[string]int{}
@@ -69,6 +71,13 @@ func TestSeedDataCreatesReadableReproducibleState(t *testing.T) {
 	}
 	for i, message := range first.Messages {
 		ids[message.ID] = second.Messages[i].ID
+	}
+	for i, room := range first.Rooms {
+		mapped := []string{}
+		for _, id := range room.MemberIDs {
+			mapped = append(mapped, ids[id])
+		}
+		require.Equal(t, mapped, second.Rooms[i].MemberIDs)
 	}
 	for i, message := range first.Messages {
 		other := second.Messages[i]
@@ -146,4 +155,49 @@ func TestSeedDataAcceptsEmptyHistoryAndCancellation(t *testing.T) {
 	cancel()
 	_, err = c.SeedData(ctx, options)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+// Read persisted history to check membership at posting time and final state.
+func TestSeedDataInterleavesMembershipChanges(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	scene, err := c.SeedData(ctx, SeedOptions{Seed: 42, Users: 20, Rooms: 5, Messages: 40})
+	require.NoError(t, err)
+	lateJoins, leaves, absent := 0, 0, 0
+	for _, room := range scene.Rooms {
+		history, err := c.GetRoomEvents(ctx, KindChannel, room.ID, 100, nil)
+		require.NoError(t, err)
+		require.False(t, history.HasOlder)
+		members := map[string]bool{}
+		posted := false
+		for _, event := range history.Events {
+			switch {
+			case event.GetUserJoinedRoom() != nil:
+				members[event.ActorId] = true
+				if posted {
+					lateJoins++
+				}
+			case event.GetUserLeftRoom() != nil:
+				require.True(t, members[event.ActorId])
+				delete(members, event.ActorId)
+				leaves++
+			case event.GetMessagePosted() != nil:
+				require.True(t, members[event.ActorId], "message author must be a member at posting time")
+				posted = true
+			}
+		}
+		require.NotEmpty(t, room.MemberIDs)
+		for _, user := range scene.Users {
+			member, err := c.RoomMembershipExists(ctx, KindChannel, user.ID, room.ID)
+			require.NoError(t, err)
+			require.Equal(t, members[user.ID], member)
+			require.Equal(t, slices.Contains(room.MemberIDs, user.ID), member)
+			if !member {
+				absent++
+			}
+		}
+	}
+	require.Positive(t, lateJoins)
+	require.Positive(t, leaves)
+	require.Positive(t, absent)
 }

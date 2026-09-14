@@ -133,12 +133,13 @@ import * as routes from './routes';
 const scene = await seedData(page.request, {
   seed: 42, users: 3, rooms: 2, messages: 20, threadReplies: 5,
 });
-await loginSeededUser(page.request, scene.users[0]);
+await loginSeededUser(page.request, { id: scene.rooms[0].memberIds[0] });
 await page.goto(routes.room(scene.rooms[0].id));
 ```
 
-The helper returns when the generated data is ready to read. Use its IDs and
-text in assertions. Create the session before loading the app, with a fresh
+The helper returns when the generated data is ready to read. Each room’s
+`memberIds` lists its final generated members. Use the returned IDs and text
+in assertions. Create the session before loading the app, with a fresh
 browser context for each viewer. These HTTP helpers require a `test_endpoints`
 build; release builds exclude them.
 

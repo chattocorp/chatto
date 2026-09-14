@@ -28,12 +28,14 @@ message SeedUser {
   string display_name = 3;
 }
 
-// A generated channel. All generated users are members.
+// A generated channel with a randomized membership history.
 message SeedRoom {
   // Created channel ID.
   string id = 1;
   // Generated channel name.
   string name = 2;
+  // Generated users still in this channel, in join order.
+  repeated string member_ids = 3;
 }
 
 // A generated root message or thread reply.

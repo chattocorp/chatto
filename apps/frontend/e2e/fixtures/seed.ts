@@ -14,7 +14,7 @@ export interface SeedResult {
   version: string;
   seed: number;
   users: { id: string; login: string; displayName: string }[];
-  rooms: { id: string; name: string }[];
+  rooms: { id: string; name: string; memberIds: string[] }[];
   messages: {
     id: string;
     roomId: string;

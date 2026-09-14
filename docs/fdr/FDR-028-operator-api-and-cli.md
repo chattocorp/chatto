@@ -23,7 +23,10 @@ The Operator API gives server operators a local, root-equivalent user administra
 - User deletion is irreversible and requires `--yes` in non-interactive use.
 - Development and test builds provide `chatto operator seed` to add reproducible
   synthetic users, channels, messages, and thread replies. Counts and a random
-  seed select the dataset. All generated users join all generated channels.
+  seed select the dataset. Room membership varies. Joins and some leaves occur
+  between messages; authors are current members. Each room keeps at least one
+  member. The manifest lists final generated members. Activity is ordered
+  without artificial waits or backdated timestamps.
   Accounts have no password or owner role. JSON output provides the created IDs
   and content for later operations and test assertions.
 - A pinned data generator supplies natural names, room topics, and text. Visible

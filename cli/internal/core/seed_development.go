@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"regexp"
+	"slices"
+	"sort"
 	"strings"
 
 	"github.com/brianvoe/gofakeit/v7"
@@ -15,7 +17,7 @@ import (
 )
 
 // SeedVersion identifies the deterministic content and relationship generator.
-const SeedVersion = "synthetic-v2-gofakeit-7.17.0"
+const SeedVersion = "synthetic-v3-gofakeit-7.17.0"
 
 // SeedOptions selects an additive synthetic dataset. Messages is the total
 // number of posts, including ThreadReplies. Seed controls content and relations,
@@ -35,10 +37,12 @@ type SeedUser struct {
 	DisplayName string `json:"displayName"`
 }
 
-// SeedRoom identifies a generated channel. All generated users are members.
+// SeedRoom identifies a generated channel and its current generated members.
 type SeedRoom struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+	// MemberIDs lists generated users still in the room, in join order.
+	MemberIDs []string `json:"memberIds"`
 }
 
 // SeedMessage identifies a committed post. ThreadRootID is empty for root posts.
@@ -117,30 +121,80 @@ func (c *ChattoCore) SeedData(ctx context.Context, o SeedOptions) (*SeedResult, 
 			return result, fmt.Errorf("seed room %d: %w", i+1, err)
 		}
 		result.Rooms = append(result.Rooms, SeedRoom{ID: room.Id, Name: room.Name})
-		for _, user := range result.Users {
-			if _, err := c.AddMember(ctx, SystemActorID, KindChannel, room.Id, user.ID); err != nil {
-				return result, fmt.Errorf("seed room %d membership: %w", i+1, err)
+	}
+	// Keep one member in each room so a room always has a valid author. Other
+	// memberships have independent join/leave positions in the message sequence.
+	type membershipChange struct {
+		at, room, user int
+		leave          bool
+	}
+	changes := []membershipChange{}
+	roomIndexes := map[string]int{}
+	for r, room := range result.Rooms {
+		roomIndexes[room.ID] = r
+		anchor := r % o.Users
+		changes = append(changes, membershipChange{room: r, user: anchor})
+		popularity := 0.25 + rng.Float64()*0.5
+		for u := range result.Users {
+			if u == anchor || rng.Float64() >= popularity {
+				continue
+			}
+			joinAt := rng.IntN(max(1, o.Messages))
+			changes = append(changes, membershipChange{at: joinAt, room: r, user: u})
+			if rng.IntN(3) == 0 {
+				leaveAt := joinAt + 1 + rng.IntN(max(1, o.Messages-joinAt))
+				changes = append(changes, membershipChange{at: leaveAt, room: r, user: u, leave: true})
 			}
 		}
 	}
+	sort.SliceStable(changes, func(i, j int) bool { return changes[i].at < changes[j].at })
+	nextChange := 0
+	applyMemberships := func(at int) error {
+		for nextChange < len(changes) && changes[nextChange].at <= at {
+			change := changes[nextChange]
+			room := &result.Rooms[change.room]
+			user := result.Users[change.user]
+			if change.leave {
+				if err := c.LeaveRoom(ctx, user.ID, KindChannel, user.ID, room.ID); err != nil {
+					return err
+				}
+				room.MemberIDs = slices.DeleteFunc(room.MemberIDs, func(id string) bool { return id == user.ID })
+			} else {
+				if _, err := c.JoinRoom(ctx, user.ID, KindChannel, user.ID, room.ID); err != nil {
+					return err
+				}
+				room.MemberIDs = append(room.MemberIDs, user.ID)
+			}
+			nextChange++
+		}
+		return nil
+	}
+
 	roots := o.Messages - o.ThreadReplies
 	for i := 0; i < o.Messages; i++ {
+		if err := applyMemberships(i); err != nil {
+			return result, fmt.Errorf("seed membership before message %d: %w", i+1, err)
+		}
 		room := result.Rooms[rng.IntN(len(result.Rooms))]
-		author := result.Users[rng.IntN(len(result.Users))]
 		threadRootID := ""
 		if i >= roots {
 			root := result.Messages[rng.IntN(roots)]
-			room.ID, threadRootID = root.RoomID, root.ID
+			room, threadRootID = result.Rooms[roomIndexes[root.RoomID]], root.ID
 		}
+		authorID := room.MemberIDs[rng.IntN(len(room.MemberIDs))]
 		body := faker.Sentence()
 		post, err := c.Messages().PostMessage(ctx, MessagePostInput{
-			ActorID: author.ID, RoomID: room.ID, Body: body, ThreadRootEventID: threadRootID,
+			ActorID: authorID, RoomID: room.ID, Body: body, ThreadRootEventID: threadRootID,
 		})
 		if err != nil {
 			return result, fmt.Errorf("seed message %d: %w", i+1, err)
 		}
 		result.Messages = append(result.Messages, SeedMessage{ID: post.Event.Id, RoomID: room.ID,
-			AuthorID: author.ID, Body: body, ThreadRootID: threadRootID})
+			AuthorID: authorID, Body: body, ThreadRootID: threadRootID})
+	}
+	// A zero-message dataset still applies its joins and optional departures.
+	if err := applyMemberships(max(1, o.Messages)); err != nil {
+		return result, fmt.Errorf("seed final memberships: %w", err)
 	}
 	if err := c.WaitForProjectionsCurrent(ctx); err != nil {
 		return result, fmt.Errorf("wait for seed projections: %w", err)

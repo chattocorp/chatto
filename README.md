@@ -94,8 +94,9 @@ mise seed -- --seed 42 --users 20 --rooms 5 --messages 200 --thread-replies 40
 ```
 
 This adds 20 users with generated names and 200 messages across five rooms.
-The message total includes 40 thread replies. All generated users join all
-five rooms. Sign in as `alice` to browse them; generated users have no password.
+The message total includes 40 thread replies. Users join different rooms, with
+joins and some leaves interleaved with messages. Sign in as `alice` to browse
+them; generated users have no password.
 
 The same seed and counts reproduce content with the same generator version;
 IDs and timestamps change. Each run adds data. A failed run can leave partial

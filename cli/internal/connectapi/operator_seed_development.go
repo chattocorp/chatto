@@ -29,7 +29,7 @@ func (s *operatorSeedService) SeedData(ctx context.Context, req *connect.Request
 		response.Users = append(response.Users, &operatorv1.SeedUser{Id: user.ID, Login: user.Login, DisplayName: user.DisplayName})
 	}
 	for _, room := range r.Rooms {
-		response.Rooms = append(response.Rooms, &operatorv1.SeedRoom{Id: room.ID, Name: room.Name})
+		response.Rooms = append(response.Rooms, &operatorv1.SeedRoom{Id: room.ID, Name: room.Name, MemberIds: room.MemberIDs})
 	}
 	for _, message := range r.Messages {
 		response.Messages = append(response.Messages, &operatorv1.SeedMessage{Id: message.ID, RoomId: message.RoomID, AuthorId: message.AuthorID, Body: message.Body, ThreadRootId: message.ThreadRootID})
