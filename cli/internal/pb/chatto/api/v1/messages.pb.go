@@ -29,7 +29,8 @@ type MessageAttachmentDescriptionInput struct {
 	// Required. Asset ID included in attachment_asset_ids on the same request.
 	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
 	// Plain-text description. Chatto trims outer whitespace, preserves internal
-	// line breaks, and omits an empty result.
+	// line breaks, permits at most 1,000 Unicode characters after trimming, and
+	// omits an empty result.
 	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -584,8 +585,9 @@ type SetAttachmentDescriptionRequest struct {
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Required. Attachment asset ID in the current message body.
 	AttachmentId string `protobuf:"bytes,3,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
-	// Replacement description. Chatto trims outer whitespace and preserves
-	// internal line breaks. An empty result clears the description.
+	// Replacement description. Chatto trims outer whitespace, preserves
+	// internal line breaks, and permits at most 1,000 Unicode characters after
+	// trimming. An empty result clears the description.
 	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
