@@ -14,6 +14,7 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
     class: className,
     iconClass,
     pending = false,
+    disabled = false,
     onclick
   }: {
     label: string;
@@ -22,6 +23,7 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
     class: string;
     iconClass?: string;
     pending?: boolean;
+    disabled?: boolean;
     onclick: MouseEventHandler<HTMLButtonElement>;
   } = $props();
 </script>
@@ -33,11 +35,11 @@ Keeps labels, pending state, and icon presentation consistent across both surfac
   aria-label={label}
   data-testid={testId}
   {onclick}
-  disabled={pending}
+  disabled={pending || disabled}
   aria-busy={pending || undefined}
 >
   <span
-    class={['iconify', iconClass, pending ? 'animate-spin icon-[uil--spinner]' : icon]}
+    class={['iconify', iconClass, pending ? 'icon-[uil--spinner] animate-spin' : icon]}
     aria-hidden="true"
   ></span>
 </button>

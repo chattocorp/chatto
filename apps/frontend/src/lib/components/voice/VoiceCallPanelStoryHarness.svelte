@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 	import type { Component } from 'svelte';
 	import type { Track } from 'livekit-client';
 	import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
@@ -209,6 +210,19 @@
 		const server = ensureStorybookServer();
 		const store = serverRegistry.getStore(server.id);
 
+		store.projection.rooms.set(
+			roomId,
+			new RoomWithViewerState({
+				room: { id: roomId },
+				viewerState: {
+					isMember: true,
+					permissions: ['start', 'join', 'voice', 'camera', 'screenshare'].map((name) => ({
+						permission: `call.${name}`,
+						granted: true
+					}))
+				}
+			})
+		);
 		store.permissions = permissions;
 		store.voiceCall.roomId = roomId;
 		store.voiceCall.connected = true;

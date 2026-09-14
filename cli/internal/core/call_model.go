@@ -194,6 +194,9 @@ func (c *ChattoCore) EnableLiveKitCallReconciliation(cfg config.LiveKitConfig) e
 	if err != nil {
 		return err
 	}
+	if client, ok := lister.(*liveKitRoomClient); ok {
+		client.core = c
+	}
 	c.callModel.livekit = lister
 	return nil
 }
@@ -236,6 +239,7 @@ type liveKitRoomClient struct {
 	apiKey    string
 	apiSecret string
 	serverID  string
+	core      *ChattoCore // Optional current-authority checks for production reconciliation.
 }
 
 type liveKitRoomService interface {
@@ -276,6 +280,15 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			identity := participant.GetIdentity()
 			if identity == "" {
 				continue
+			}
+			if c.core != nil {
+				allowed, err := c.reconcileParticipantPermissions(ctx, room.GetName(), roomID, callID, participant)
+				if err != nil {
+					return nil, &callPermissionReconcileError{err}
+				}
+				if !allowed {
+					continue
+				}
 			}
 			participantIdentities = append(participantIdentities, identity)
 			if !IsCallMediaPublisher(participant.GetMetadata()) {
@@ -475,12 +488,29 @@ func (s *CallModel) AppendLeftForCall(ctx context.Context, roomID, userID, expec
 }
 
 func (s *CallModel) appendParticipantTransition(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource) error {
+	return s.appendParticipantTransitionAuthorized(ctx, roomID, userID, joined, expectedCallID, source, nil)
+}
+
+func (s *CallModel) appendParticipantTransitionAuthorized(ctx context.Context, roomID, userID string, joined bool, expectedCallID string, source evtv1.CallParticipantEventSource, authorize func(CallRoomSnapshot) error) error {
 	aggregate := evtstream.RoomAggregate(roomID)
 	filter := aggregate.AllEventsFilter()
 	for attempt := 0; attempt < callReconcileMaxRetries; attempt++ {
+		if authorize != nil {
+			if err := s.waitForLatestRoomTransition(ctx, filter); err != nil {
+				return err
+			}
+		}
 		snapshot := s.callState.Projection().RoomSnapshot(roomID)
 		if expectedCallID != "" && snapshot.Call.CallID != expectedCallID {
 			return nil
+		}
+		if authorize != nil {
+			if err := authorize(snapshot); err != nil {
+				if errors.Is(err, events.ErrConflict) {
+					continue
+				}
+				return err
+			}
 		}
 		if callParticipantTransitionAlreadyApplied(snapshot.Participants, userID, joined) {
 			return nil
@@ -729,6 +759,10 @@ func (s *CallModel) reconcileWithLiveKit(ctx context.Context, cleanupContext fun
 	}
 	snapshots, err := s.livekit.ListCallParticipants(ctx)
 	if err != nil {
+		var permissionErr *callPermissionReconcileError
+		if errors.As(err, &permissionErr) {
+			return err
+		}
 		counterCtx, counterCancel := cleanupContext()
 		failures, recordErr := s.recordLiveKitListFailure(counterCtx)
 		counterCancel()

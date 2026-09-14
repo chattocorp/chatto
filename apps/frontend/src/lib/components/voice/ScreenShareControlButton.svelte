@@ -79,6 +79,7 @@ to the browser's `getDisplayMedia` picker through LiveKit.
   }
 
   async function handleControl() {
+    if (!voiceCallState.isScreenShareEnabled && !voiceCallState.canScreenShare) return;
     try {
       if (voiceCallState.isScreenShareEnabled) {
         await voiceCallState.toggleScreenShare();
@@ -123,6 +124,7 @@ to the browser's `getDisplayMedia` picker through LiveKit.
   {iconClass}
   onclick={() => void handleControl()}
   {pending}
+  disabled={!voiceCallState.canScreenShare && !voiceCallState.isScreenShareEnabled}
 />
 
 {#if nativeAvailable}

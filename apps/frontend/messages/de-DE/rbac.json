@@ -110,7 +110,8 @@
       "room": "Räume",
       "server": "Server",
       "user": "Benutzer",
-      "other": "Sonstige"
+      "other": "Sonstige",
+      "call": "Anrufe"
     },
     "permission_descriptions": {
       "server_manage": "Servereinstellungen aktualisieren (Name, Beschreibung, Logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Benutzer erstellen, Kontoidentität bearbeiten, Passwörter zurücksetzen, verifizierte E-Mails hinzufügen und Login-Sperren zurücksetzen",
       "user_manage_permissions": "Direkte benutzerbezogene Berechtigungsüberschreibungen bearbeiten",
       "bot_create": "Bot-Konten erstellen, die dir gehören",
-      "bot_manage": "Alle Bot-Konten ansehen und verwalten"
+      "bot_manage": "Alle Bot-Konten ansehen und verwalten",
+      "call_start": "Einen Anruf starten (erfordert auch call.join)",
+      "call_join": "Einem laufenden Anruf beitreten",
+      "call_voice": "Das Mikrofon in Anrufen verwenden",
+      "call_camera": "Die Kamera in Anrufen verwenden",
+      "call_screenshare": "Bildschirm oder Anwendung einschließlich aufgenommenem Audio teilen"
     }
   }
 }

@@ -31,6 +31,39 @@ using the browser's window/tab/screen chooser.
 
 Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
+## Call permissions
+
+Room membership is required for all calls. Configure these permissions at
+Server, Room group, Room, or Direct messages scope:
+
+| Permission | Action |
+| --- | --- |
+| `call.start` | Start a call. Also requires `call.join`. |
+| `call.join` | Join an active call, including as a listener. |
+| `call.voice` | Publish microphone audio. |
+| `call.camera` | Publish camera video. |
+| `call.screenshare` | Share a screen, window, tab, or native application, including captured audio. |
+
+To create a listening audience, allow `call.join` and deny the three media
+permissions. Allow `call.start` only for people who can start the conversation.
+DM policy uses the shared Direct messages scope.
+
+On upgrade, Chatto grants these new permissions to `everyone` only if that
+permission has no previous server-level `everyone` decision. Restarting never
+restores a permission that you cleared or denied. Bots require explicit grants
+and sufficient authority from their owner.
+
+The client stops revoked media when it receives updated room permissions. The
+server also checks connected participants on its 30-second LiveKit reconciliation
+cycle. It removes participants who lose `call.join` and updates allowed media
+sources. Failed checks retry on later cycles. Revocation is not immediate:
+an unexpired old token can reconnect until a subsequent check removes it again.
+Browser tokens expire after five minutes; native publisher tokens after one
+minute. Token expiry alone does not stop an established media connection.
+
+Members without `call.join` can still see the active call. Leaving a call does
+not require a call permission. Call management is not part of these permissions.
+
 ## Requirements
 
 - A running [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) (self-hosted or cloud)

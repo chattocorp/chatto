@@ -7,7 +7,7 @@ import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, CreateCallMedi
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Voice-call request/response APIs backed by Chatto call-state projections.
+ * Room-scoped voice and video calls.
  *
  * @generated from service chatto.api.v1.VoiceCallService
  */
@@ -78,6 +78,9 @@ export const VoiceCallService = {
     /**
      * Records the caller's intent to join a room call.
      *
+     * Requires room membership and call.join. If no call is active, also
+     * requires call.start. Publishing permissions do not grant admission.
+     *
      * Returns joined=false when LiveKit is not configured.
      *
      * @generated from rpc chatto.api.v1.VoiceCallService.JoinCall
@@ -91,7 +94,13 @@ export const VoiceCallService = {
     /**
      * Issues a LiveKit token for joining the room's active call.
      *
-     * The caller must be a member of the room and a call must already be active.
+     * Requires room membership and call.join. A call must already be active.
+     * The token permits microphone, camera, and screen-share sources only when
+     * call.voice, call.camera, and call.screenshare respectively allow them.
+     * A caller without publishing permissions can listen and watch.
+     * Tokens expire after five minutes. Expiry does not end an established call.
+     * Chatto checks connected participant permissions on its 30-second LiveKit
+     * reconciliation cycle. Failed checks retry on subsequent cycles.
      * Returns NOT_FOUND when the room does not exist, PERMISSION_DENIED when the
      * caller is not a room member, and FAILED_PRECONDITION when no call is active
      * or voice and video calls are not configured.
@@ -109,7 +118,11 @@ export const VoiceCallService = {
      * by the caller. Companion publishers contribute media to the caller's
      * logical participant without becoming call participants themselves.
      *
-     * The caller must already participate in the active call. Returns
+     * Requires room membership, call.join, call.screenshare, and participation
+     * in the active call. Captured application audio does not need call.voice.
+     * The credential expires after one minute; an established publisher is
+     * checked by the same permission reconciliation as the main participant.
+     * Returns
      * FAILED_PRECONDITION when no call is active, the caller has not joined it,
      * or voice and video calls are not configured.
      *
@@ -123,6 +136,8 @@ export const VoiceCallService = {
     },
     /**
      * Records the caller's intent to leave a room call.
+     *
+     * Requires room membership, but not call.join or a publishing permission.
      *
      * Returns left=false when LiveKit is not configured.
      *
