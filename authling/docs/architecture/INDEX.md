@@ -29,7 +29,9 @@ override TOML values. Unknown TOML fields fail decoding.
 browser cookie transport policy. An `http://` origin is valid only when both
 the origin and listener are loopback; every other deployment must configure an
 `https://` origin. `AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
-Requests with another `Host` are rejected, and unsafe browser requests must
+Requests at another host, port, or scheme receive a temporary redirect (307)
+to the configured public origin, with their path and query preserved. Redirects
+run before application handlers and are not cached. Unsafe browser requests must
 carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. An explicit configuration switch lets canonical-origin

@@ -179,14 +179,14 @@ func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
 	}
 }
 
-func TestHandlerRejectsNonCanonicalHost(t *testing.T) {
+func TestHandlerRedirectsNonCanonicalHost(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "https://alias.example/", nil)
 	response := httptest.NewRecorder()
 
 	Handler(Dependencies{PublicURL: "https://auth.example"}).ServeHTTP(response, request)
 
-	if response.Code != http.StatusMisdirectedRequest {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusMisdirectedRequest)
+	if response.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusTemporaryRedirect)
 	}
 }
 
@@ -219,7 +219,7 @@ func TestHandlerUsesForwardedOriginOnlyWhenExplicitlyTrusted(t *testing.T) {
 		trust bool
 		want  int
 	}{
-		{name: "disabled", want: http.StatusMisdirectedRequest},
+		{name: "disabled", want: http.StatusTemporaryRedirect},
 		{name: "enabled", trust: true, want: http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -268,6 +268,47 @@ func TestHandlerRejectsMalformedTrustedProxyOrigins(t *testing.T) {
 
 			if response.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}
+
+func TestCanonicalRedirectUsesOnlyConfiguredOrigin(t *testing.T) {
+	for _, test := range []struct{ name, method, requestURL, want string }{
+		{"alias", "GET", "https://alias.example/login?next=%2Faccount", "https://auth.example/login?next=%2Faccount"},
+		{"upgrade", "GET", "http://auth.example/login", "https://auth.example/login"},
+		{"port", "GET", "https://auth.example:8443/", "https://auth.example/"},
+		{"escaped path", "GET", "https://alias.example/a%2Fb?x=%26", "https://auth.example/a%2Fb?x=%26"},
+		{"authority-like path", "GET", "https://alias.example//evil.example/path", "https://auth.example//evil.example/path"},
+		{"token POST", "POST", "https://alias.example/oauth/token", "https://auth.example/oauth/token"},
+		{"discovery", "GET", "https://alias.example/.well-known/openid-configuration", "https://auth.example/.well-known/openid-configuration"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			canonical, _ := url.Parse("https://auth.example")
+			handler := redirectToCanonicalOrigin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("alias reached application handler") }), canonical)
+			request := httptest.NewRequest(test.method, test.requestURL, strings.NewReader("secret=value"))
+			request.Header.Set("X-Forwarded-Host", "evil.example")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusTemporaryRedirect || response.Header().Get("Location") != test.want {
+				t.Fatalf("response = %d %q, want 307 %q", response.Code, response.Header().Get("Location"), test.want)
+			}
+			if response.Header().Get("Set-Cookie") != "" || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("redirect must not set a cookie or be cached")
+			}
+		})
+	}
+}
+
+func TestCanonicalRedirectRejectsMalformedHost(t *testing.T) {
+	for _, host := range []string{"", "user@auth.example", "alias.example/path", "alias.example?query", "alias.example#fragment", "alias.example:invalid"} {
+		t.Run(host, func(t *testing.T) {
+			request := httptest.NewRequest("GET", "https://alias.example/", nil)
+			request.Host = host
+			response := httptest.NewRecorder()
+			Handler(Dependencies{PublicURL: "https://auth.example"}).ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest || response.Header().Get("Location") != "" {
+				t.Fatalf("malformed host response = %d", response.Code)
 			}
 		})
 	}
