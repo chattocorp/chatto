@@ -465,6 +465,7 @@ export class VoiceCallState {
     this.connecting = true;
     this.roomId = roomId;
     let joinIntentRecorded = false;
+    let ownedRoom: Room | null = null;
 
     try {
       const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
@@ -513,6 +514,7 @@ export class VoiceCallState {
 
       this.setupRoomEventListeners();
       const room = this.room;
+      ownedRoom = room;
       await keyProvider.setKey(e2eeKey);
       if (this.room !== room) return;
       await room.setE2EEEnabled(true);
@@ -531,13 +533,17 @@ export class VoiceCallState {
           await this.runExplicitMediaDeviceOperation(() =>
             room.localParticipant.setMicrophoneEnabled(true)
           );
-          this.isMuted = false;
-          this.setupLocalAudioAnalyser();
+          if (this.room === room) {
+            this.isMuted = false;
+            this.setupLocalAudioAnalyser();
+          }
         } catch (err) {
-          this.isMuted = true;
-          this.notifyMediaDeviceError(
-            getVoiceCallMediaDeviceErrorMessage('microphone', err, 'join')
-          );
+          if (this.room === room) {
+            this.isMuted = true;
+            this.notifyMediaDeviceError(
+              getVoiceCallMediaDeviceErrorMessage('microphone', err, 'join')
+            );
+          }
         }
 
       // Initial capture can finish after revocation or an explicit leave.
@@ -551,10 +557,16 @@ export class VoiceCallState {
       if (this.room !== room) return;
       this.updateParticipants();
       await this.refreshDevices();
+      if (this.room !== room) return;
       if (this.consumePendingOwnJoinSound()) {
         void playCallSound('join');
       }
     } catch (err) {
+      // A departed join must not clean up or mutate a replacement call.
+      if (ownedRoom && this.room !== ownedRoom) {
+        ownedRoom.disconnect();
+        return;
+      }
       console.error('Failed to join voice call:', summarizeJoinError(err));
       if (joinIntentRecorded) {
         await this.recordLeaveIntent(roomId);
@@ -562,7 +574,7 @@ export class VoiceCallState {
       this.cleanup();
       throw err;
     } finally {
-      this.connecting = false;
+      if (!ownedRoom || this.room === ownedRoom) this.connecting = false;
     }
   }
 
@@ -777,11 +789,11 @@ export class VoiceCallState {
 
   /** Publish a host-provided native capture as this participant's screen share. */
   async startNativeScreenShare(sourceId: string, sourceName: string): Promise<void> {
-    if (!this.canScreenShare) return;
+    const room = this.room;
+    if (!room || !this.canScreenShare) return;
     if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
     if (this.screenShareToggleInFlight) await this.screenShareToggleInFlight;
-    const room = this.room;
-    if (!room) return;
+    if (this.room !== room || !this.canScreenShare) return;
 
     const startPromise = this.performStartNativeScreenShare(room, sourceId, sourceName);
     this.nativeScreenShareToggleInFlight = startPromise;

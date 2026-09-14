@@ -415,6 +415,47 @@ describe('VoiceCallState', () => {
     expect(room.disconnect).toHaveBeenCalled();
   });
 
+  it('keeps a replacement listen-only call muted when old capture completes', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    const gate = deferredVoid();
+    microphoneGate = gate;
+    const firstJoin = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() =>
+      expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true)
+    );
+    permissions.join = false;
+    await state.reconcilePermissions();
+    permissions.join = true;
+    permissions.voice = false;
+    microphoneGate = null;
+    await state.join('wss://livekit.example.test', 'R2');
+    gate.resolve();
+    await firstJoin;
+    expect(state.roomId).toBe('R2');
+    expect(state.connected).toBe(true);
+    expect(state.isMuted).toBe(true);
+    await state.leave();
+  });
+
+  it('rechecks native sharing permission after waiting for browser capture', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    await state.join('wss://livekit.example.test', 'R1');
+    screenShareGate = deferredVoid();
+    const browserShare = state.toggleScreenShare();
+    const nativeShare = state.startNativeScreenShare('window:42', 'Application');
+    permissions.screenshare = false;
+    const reconcile = state.reconcilePermissions();
+    screenShareGate.resolve();
+    await browserShare;
+    await nativeShare;
+    await reconcile;
+    expect(gameCaptureMocks.start).not.toHaveBeenCalled();
+    expect(state.isScreenShareEnabled).toBe(false);
+    await state.leave();
+  });
+
   it('sets up LiveKit E2EE before connecting', async () => {
     const client = createVoiceCallClient();
 
