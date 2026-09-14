@@ -438,21 +438,6 @@
       }
     });
   }
-
-  function openDescription(attachment: Attachment, event: Event) {
-    event.stopPropagation();
-    if (!attachment.description) return;
-    pushState('', {
-      modal: {
-        type: 'attachmentDescription',
-        serverId,
-        roomId,
-        eventId,
-        attachmentId: attachment.id,
-        description: attachment.description
-      }
-    });
-  }
 </script>
 
 {#if attachments.length > 0}
@@ -463,13 +448,7 @@
         onclick={(event) => openDeleteConfirmation(attachment, event)}
         class={[
           'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
-          attachment.description
-            ? canEditAttachmentDescription
-              ? 'top-[5.75rem]'
-              : 'top-12'
-            : canEditAttachmentDescription
-              ? 'top-12'
-              : 'top-1'
+          canEditAttachmentDescription ? 'top-12' : 'top-1'
         ]}
         aria-label={m('room.attachment.delete_label')}
         title={m('room.attachment.delete_label')}
@@ -484,10 +463,7 @@
       <button
         type="button"
         onclick={(event) => openDescriptionEditor(attachment, event)}
-        class={[
-          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
-          attachment.description ? 'top-12' : 'top-1'
-        ]}
+        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
         aria-label={attachment.description
           ? m('room.attachment.edit_description')
           : m('room.attachment.add_description')}
@@ -500,22 +476,7 @@
     {/if}
   {/snippet}
 
-  {#snippet descriptionButton(attachment: Attachment)}
-    {#if attachment.description}
-      <button
-        type="button"
-        onclick={(event) => openDescription(attachment, event)}
-        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
-        aria-label={m('room.attachment.show_description')}
-        title={m('room.attachment.show_description')}
-      >
-        <span class="iconify icon-[uil--info-circle] text-sm" aria-hidden="true"></span>
-      </button>
-    {/if}
-  {/snippet}
-
   {#snippet attachmentControls(attachment: Attachment)}
-    {@render descriptionButton(attachment)}
     {@render editDescriptionButton(attachment)}
     {@render deleteAttachmentButton(attachment)}
   {/snippet}

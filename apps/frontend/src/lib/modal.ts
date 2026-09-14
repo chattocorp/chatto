@@ -22,12 +22,6 @@ export type ChatModal =
   | (RoomModalTarget & { type: 'deleteMessage'; eventId: string })
   | (RoomModalTarget & { type: 'deleteAttachment'; eventId: string; attachmentId: string })
   | (RoomModalTarget & {
-      type: 'attachmentDescription';
-      eventId: string;
-      attachmentId: string;
-      description: string;
-    })
-  | (RoomModalTarget & {
       type: 'editAttachmentDescription';
       eventId: string;
       attachmentId: string;
@@ -48,10 +42,6 @@ export type DeleteMessageContentModalState = Extract<
   { type: 'deleteMessage' | 'deleteAttachment' | 'deleteLinkPreview' }
 >;
 export type ImageViewerModalState = Extract<ChatModal, { type: 'imageViewer' }>;
-export type AttachmentDescriptionModalState = Extract<
-  ChatModal,
-  { type: 'attachmentDescription' }
->;
 export type EditAttachmentDescriptionModalState = Extract<
   ChatModal,
   { type: 'editAttachmentDescription' }

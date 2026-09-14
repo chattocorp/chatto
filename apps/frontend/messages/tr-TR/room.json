@@ -153,7 +153,6 @@
       "download_refresh_failed": "İndirme bağlantısı yenilenemedi",
       "add_description": "Açıklama ekle",
       "edit_description": "Açıklamayı düzenle",
-      "show_description": "Açıklamayı göster",
       "description_title": "Ek açıklaması",
       "description_label": "Açıklama (isteğe bağlı)",
       "description_help": "Eki göremeyen veya duyamayan kişiler için açıklayın.",

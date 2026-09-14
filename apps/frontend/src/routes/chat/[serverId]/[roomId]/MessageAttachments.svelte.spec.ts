@@ -251,6 +251,7 @@ describe('MessageAttachments', () => {
     const image = container.querySelector<HTMLImageElement>(`img[alt="${description}"]`)!;
 
     expect(image).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Show description"]')).toBeNull();
     expect(image.closest('button')?.getAttribute('aria-describedby')).toBe(
       'attachment-description-event_1-att_1'
     );
@@ -279,47 +280,11 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('routes the description modal without changing the attachment layout', async () => {
-    const description = 'A chart with a rising blue line.';
-    const { container } = renderAttachment(imageAttachment({ description }));
-
-    expect(container.querySelector('details')).toBeNull();
-    expect(container.querySelector('button[aria-label="Edit description"]')).toBeNull();
-    const info = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show description"]'
-    )!;
-    expect(info).not.toBeNull();
-    expect(info.firstElementChild?.classList.contains('icon-[uil--info-circle]')).toBe(true);
-    expect(info.className).toContain('md:focus-visible:opacity-100');
-
-    const attachmentLayout = container.innerHTML;
-
-    info.click();
-
-    await vi.waitFor(() => {
-      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
-        modal: {
-          type: 'attachmentDescription',
-          serverId: 'server_1',
-          roomId: 'room_1',
-          eventId: 'event_1',
-          attachmentId: 'att_1',
-          description
-        }
-      });
-    });
-    expect(container.querySelector('dialog')).toBeNull();
-    expect(container.innerHTML).toBe(attachmentLayout);
-  });
-
-  it('stacks description, edit, and delete controls without overlap', () => {
+  it('stacks edit and delete controls without overlap', () => {
     const { container } = renderAttachment(imageAttachment({ description: 'A chart.' }), {
       canDeleteAttachment: true,
       canEditAttachmentDescription: true
     });
-    const info = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show description"]'
-    )!;
     const edit = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit description"]'
     )!;
@@ -327,9 +292,6 @@ describe('MessageAttachments', () => {
       'button[aria-label="Delete attachment"]'
     )!;
 
-    expect(info.getBoundingClientRect().bottom).toBeLessThanOrEqual(
-      edit.getBoundingClientRect().top
-    );
     expect(edit.getBoundingClientRect().bottom).toBeLessThanOrEqual(
       remove.getBoundingClientRect().top
     );
@@ -343,7 +305,7 @@ describe('MessageAttachments', () => {
     const download = container.querySelector<HTMLButtonElement>('button[aria-label^="Download"]')!;
 
     expect(download.getAttribute('aria-describedby')).toBe('attachment-description-event_1-file_1');
-    expect(container.querySelector('button[aria-label="Show description"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Show description"]')).toBeNull();
     const edit = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Edit description"]'
     )!;

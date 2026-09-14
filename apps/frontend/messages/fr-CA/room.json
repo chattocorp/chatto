@@ -153,7 +153,6 @@
       "download_refresh_failed": "Impossible de rafraîchir le lien de téléchargement",
       "add_description": "Ajouter une description",
       "edit_description": "Modifier la description",
-      "show_description": "Afficher la description",
       "description_title": "Description de la pièce jointe",
       "description_label": "Description (facultative)",
       "description_help": "Décrivez la pièce jointe pour les personnes qui ne peuvent pas la voir ou l’entendre.",

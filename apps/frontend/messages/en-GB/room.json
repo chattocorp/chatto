@@ -153,7 +153,6 @@
       "download_refresh_failed": "Could not refresh download link",
       "add_description": "Add description",
       "edit_description": "Edit description",
-      "show_description": "Show description",
       "description_title": "Attachment description",
       "description_label": "Description (optional)",
       "description_help": "Describe the attachment for people who cannot see or hear it.",

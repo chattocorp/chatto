@@ -153,7 +153,6 @@
       "download_refresh_failed": "無法重新整理下載連結",
       "add_description": "新增描述",
       "edit_description": "編輯描述",
-      "show_description": "顯示描述",
       "description_title": "附件描述",
       "description_label": "描述（選填）",
       "description_help": "請為無法看到或聽到此附件的人描述其內容。",

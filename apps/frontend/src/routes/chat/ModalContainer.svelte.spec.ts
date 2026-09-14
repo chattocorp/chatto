@@ -472,25 +472,6 @@ describe('ModalContainer image viewer', () => {
   });
 });
 
-describe('ModalContainer attachment description', () => {
-  it('shows the description in the global modal layer', () => {
-    mocks.modal = {
-      type: 'attachmentDescription',
-      serverId: 'origin',
-      roomId: 'room-1',
-      eventId: 'event-1',
-      attachmentId: 'attachment-1',
-      description: 'A chart with a rising blue line.'
-    };
-
-    const { container } = render(ModalContainer);
-    const dialog = container.querySelector<HTMLDialogElement>('dialog');
-
-    expect(dialog?.getAttribute('aria-label')).toBe('Attachment description');
-    expect(dialog?.textContent).toContain('A chart with a rising blue line.');
-  });
-});
-
 describe('ModalContainer sign out modal', () => {
   it('shows current-server and all-server choices', async () => {
     mocks.modal = { type: 'logout' };

@@ -153,7 +153,6 @@
       "download_refresh_failed": "ダウンロードリンクを更新できませんでした",
       "add_description": "説明を追加",
       "edit_description": "説明を編集",
-      "show_description": "説明を表示",
       "description_title": "添付ファイルの説明",
       "description_label": "説明（任意）",
       "description_help": "添付ファイルを見たり聞いたりできない人のために説明してください。",

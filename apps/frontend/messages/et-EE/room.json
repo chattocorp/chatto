@@ -153,7 +153,6 @@
       "download_refresh_failed": "Allalaadimislinki ei saanud värskendada",
       "add_description": "Lisa kirjeldus",
       "edit_description": "Muuda kirjeldust",
-      "show_description": "Näita kirjeldust",
       "description_title": "Manuse kirjeldus",
       "description_label": "Kirjeldus (valikuline)",
       "description_help": "Kirjelda manust inimestele, kes ei saa seda näha ega kuulda.",

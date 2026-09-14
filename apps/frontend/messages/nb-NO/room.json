@@ -153,7 +153,6 @@
       "download_refresh_failed": "Kunne ikke oppdatere nedlastingslenken",
       "add_description": "Legg til beskrivelse",
       "edit_description": "Rediger beskrivelse",
-      "show_description": "Vis beskrivelse",
       "description_title": "Beskrivelse av vedlegg",
       "description_label": "Beskrivelse (valgfritt)",
       "description_help": "Beskriv vedlegget for personer som ikke kan se eller høre det.",

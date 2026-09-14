@@ -159,7 +159,6 @@
       "download_refresh_failed": "Не вдалося оновити посилання для завантаження",
       "add_description": "Додати опис",
       "edit_description": "Змінити опис",
-      "show_description": "Показати опис",
       "description_title": "Опис вкладення",
       "description_label": "Опис (необов’язково)",
       "description_help": "Опишіть вкладення для людей, які не можуть його побачити або почути.",

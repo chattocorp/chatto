@@ -169,7 +169,6 @@
       "download_refresh_failed": "تعذر تحديث رابط التنزيل",
       "add_description": "إضافة وصف",
       "edit_description": "تعديل الوصف",
-      "show_description": "إظهار الوصف",
       "description_title": "وصف المرفق",
       "description_label": "الوصف (اختياري)",
       "description_help": "صِف المرفق للأشخاص الذين لا يستطيعون رؤيته أو سماعه.",

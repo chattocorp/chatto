@@ -153,7 +153,6 @@
       "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden",
       "add_description": "Beschreibung hinzufügen",
       "edit_description": "Beschreibung bearbeiten",
-      "show_description": "Beschreibung anzeigen",
       "description_title": "Anhangsbeschreibung",
       "description_label": "Beschreibung (optional)",
       "description_help": "Beschreibe den Anhang für Personen, die ihn nicht sehen oder hören können.",
