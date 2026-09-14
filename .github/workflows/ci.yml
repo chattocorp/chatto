@@ -504,7 +504,7 @@ jobs:
         run: |
           cd apps/frontend
           node --test scripts/run-e2e-shard.test.mjs
-          node scripts/run-e2e-shard.mjs "$E2E_SHARD/4" --grep-invert @ffmpeg --add-reporter=json
+          node scripts/run-e2e-shard.mjs "$E2E_SHARD/4" --grep-invert @ffmpeg
 
       - name: Upload E2E timings
         uses: actions/upload-artifact@v7

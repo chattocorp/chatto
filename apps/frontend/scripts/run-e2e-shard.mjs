@@ -64,7 +64,7 @@ function main() {
   const [current, total] = shard.split('/').map(Number);
   const directory = mkdtempSync(path.join(tmpdir(), 'chatto-e2e-shard-'));
   const require = createRequire(import.meta.url);
-  const cli = path.join(path.dirname(require.resolve('playwright/package.json')), 'cli.js');
+  const cli = require.resolve('@playwright/test/cli');
   const cwd = fileURLToPath(new URL('..', import.meta.url));
   function run(options, env = process.env, quiet = false) {
     const result = spawnSync(process.execPath, [cli, 'test', ...options], {
