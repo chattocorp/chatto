@@ -61,11 +61,11 @@ The client requests each advertised server's public profile. A result can show
 the server name, description, logo, and banner. The client accepts a logo or
 banner only from that server's origin. It loads the image without credentials
 or referrer data, does not follow image redirects, and accepts only responses
-that declare a supported raster image media type. If a server is offline or
-does not return a valid public profile, the Server Directory omits it. The
-Neighbors administration page keeps the failed server visible so that an
-administrator can review or remove it. A failed server does not prevent the
-client from showing other results.
+that declare a supported raster image media type and contain at most 5 MiB. If
+a server is offline or does not return a valid public profile, the Server
+Directory omits it. The Neighbors administration page keeps the failed server
+visible so that an administrator can review or remove it. A failed server does
+not prevent the client from showing other results.
 
 The client starts one automatic batch of 12 candidate-directory requests. It
 can start one more batch after you scroll near the end of the results. A short

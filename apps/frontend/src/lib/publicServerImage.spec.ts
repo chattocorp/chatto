@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { loadPublicServerImage, publicServerImageURL } from './publicServerImage';
+import {
+  loadPublicServerImage,
+  MAX_PUBLIC_SERVER_IMAGE_BYTES,
+  publicServerImageURL
+} from './publicServerImage';
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -79,6 +83,38 @@ describe('loadPublicServerImage', () => {
     loadPublicServerImage('https://chat.example/not-an-image')(image);
 
     await vi.waitFor(() => expect(browserFetch).toHaveBeenCalledOnce());
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(image.src).toBe('');
+  });
+
+  it('stops reading an image that exceeds the public-image byte limit', async () => {
+    let bodyCancelled = false;
+    const browserFetch = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new Uint8Array(MAX_PUBLIC_SERVER_IMAGE_BYTES + 1));
+          },
+          cancel() {
+            bodyCancelled = true;
+          }
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'image/png' }
+        }
+      )
+    );
+    vi.stubGlobal('fetch', browserFetch);
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL');
+    const image = {
+      src: '',
+      removeAttribute: vi.fn()
+    } as unknown as HTMLImageElement;
+
+    loadPublicServerImage('https://chat.example/oversized.png')(image);
+
+    await vi.waitFor(() => expect(bodyCancelled).toBe(true));
     expect(createObjectURL).not.toHaveBeenCalled();
     expect(image.src).toBe('');
   });

@@ -45,7 +45,7 @@ recommendation, not a trust or reciprocal relationship.
 - A public profile card accepts a logo or banner only from the advertised
   server origin. The client loads the image without credentials or referrer
   data, rejects redirects, and accepts only responses that declare a supported
-  raster image media type.
+  raster image media type and contain at most 5 MiB.
 - The Server Directory starts one automatic batch of 12 candidate-directory
   requests. After the user scrolls near the end of the results, the client can
   start one more automatic batch of 12. **Load more** starts each later batch.
@@ -250,11 +250,11 @@ administrator does not get a separate connection prompt on the management page.
 **Decision:** A public profile card accepts an image only from the advertised
 server origin. The request sends no credentials or referrer data, does not
 follow redirects, and accepts a limited set of declared raster image media
-types.
+types. It reads at most 5 MiB for one image.
 
 **Why:** A profile must not make the client contact an unrelated image host or
-send reusable user credentials. Rejecting redirects and active image formats
-keeps the advertised server as the visible network boundary.
+send reusable user credentials. Rejecting redirects prevents hidden network
+hops. The media-type and size limits bound untrusted image handling.
 
 **Tradeoff:** Images on a content delivery network, redirected images, and SVG
 images do not display. A remote image response must permit the browser's

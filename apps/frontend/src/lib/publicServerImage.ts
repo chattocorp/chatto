@@ -9,6 +9,40 @@ const supportedPublicServerImageTypes = new Set([
   'image/webp'
 ]);
 
+/** Maximum bytes retained for one untrusted public server image. */
+export const MAX_PUBLIC_SERVER_IMAGE_BYTES = 5 * 1024 * 1024;
+
+async function readBoundedImage(response: Response, mediaType: string): Promise<Blob | null> {
+  const declaredSize = Number(response.headers.get('content-length'));
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_PUBLIC_SERVER_IMAGE_BYTES) return null;
+
+  if (!response.body) {
+    const imageData = await response.blob();
+    return imageData.size <= MAX_PUBLIC_SERVER_IMAGE_BYTES ? imageData : null;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: ArrayBuffer[] = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_PUBLIC_SERVER_IMAGE_BYTES) {
+        await reader.cancel();
+        return null;
+      }
+      const chunk = new Uint8Array(value.byteLength);
+      chunk.set(value);
+      chunks.push(chunk.buffer);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  return new Blob(chunks, { type: mediaType });
+}
+
 /**
  * Resolve a public profile image only when it belongs to the advertised server
  * origin. Returns `null` for unsupported, credentialed, or external URLs.
@@ -53,7 +87,8 @@ export function loadPublicServerImage(source: string): Attachment<HTMLImageEleme
           .toLowerCase();
         if (!response.ok || !mediaType || !supportedPublicServerImageTypes.has(mediaType)) return;
 
-        const imageData = await response.blob();
+        const imageData = await readBoundedImage(response, mediaType);
+        if (!imageData) return;
         if (controller.signal.aborted) return;
         objectURL = URL.createObjectURL(imageData);
         image.src = objectURL;
