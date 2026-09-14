@@ -70,6 +70,31 @@
     "game_windows_failed": "Neizdevās ielādēt kopīgojamos logus.",
     "untitled_window": "Logs bez nosaukuma",
     "game_window_selected": "Atlasīts: {name}",
-    "permission_denied": "Tev nav atļaujas veikt šo darbību zvanā."
+    "permission_denied": "Tev nav atļaujas veikt šo darbību zvanā.",
+    "preferences": {
+      "title": "Balss un video",
+      "scope": "Saglabāts šajā pārlūkā šim serverim.",
+      "system_default": "Sistēmas noklusējums",
+      "unavailable_device": "Saglabātā ierīce nav pieejama",
+      "output_unsupported": "Šis pārlūks izmanto sistēmas skaļruni. Skaļruņa izvēle nav pieejama.",
+      "fallback": "Ja ierīces trūkst, tiek izmantota sistēmas noklusējuma ierīce. Tava izvēle tiek saglabāta. Kameras izvēle to neieslēdz.",
+      "join_muted": "Pievienoties zvaniem ar izslēgtu mikrofonu",
+      "next_call": "Šie iestatījumi attiecas uz nākamo zvanu. Lai mainītu ierīci tagad, izmanto zvana vadīklas.",
+      "test_title": "Pārbaudīt mikrofonu",
+      "test_description": "Ieslēdz mērītāju, ieraksti līdz 10 sekundēm un atskaņo ierakstu. Audio paliek šajā pārlūkā un tiek dzēsts, kad atstāj lapu. Tas nepārbauda zvana savienojumu.",
+      "input_level": "Mikrofona līmenis",
+      "start_test": "Sākt mikrofona pārbaudi",
+      "stop_test": "Apturēt pārbaudi",
+      "record": "Ierakstīt pārbaudi",
+      "finish_recording": "Apturēt ierakstīšanu",
+      "waiting": "Gaida piekļuvi mikrofonam…",
+      "recording": "Notiek ierakstīšana… apstāsies pēc 10 sekundēm.",
+      "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
+      "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
+      "recording_unsupported": "Ierakstīšana šajā pārlūkā nav pieejama. Joprojām vari izmantot ievades mērītāju.",
+      "playback": "Mikrofona pārbaudes ieraksts",
+      "show_cameras": "Rādīt kameras",
+      "camera_access": "Atļauj piekļuvi kamerai, lai uzskaitītu kameras. Tveršana nekavējoties apstājas."
+    }
   }
 }

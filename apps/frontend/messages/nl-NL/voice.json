@@ -70,6 +70,31 @@
     "game_windows_failed": "De deelbare vensters konden niet worden geladen.",
     "untitled_window": "Venster zonder titel",
     "game_window_selected": "{name} geselecteerd",
-    "permission_denied": "Je hebt geen toestemming voor deze oproepactie."
+    "permission_denied": "Je hebt geen toestemming voor deze oproepactie.",
+    "preferences": {
+      "title": "Spraak en video",
+      "scope": "Opgeslagen in deze browser voor deze server.",
+      "system_default": "Systeemstandaard",
+      "unavailable_device": "Opgeslagen apparaat niet beschikbaar",
+      "output_unsupported": "Deze browser gebruikt de systeemluidspreker. Luidsprekerselectie is niet beschikbaar.",
+      "fallback": "Bij ontbrekende apparaten wordt de systeemstandaard gebruikt. Je keuze blijft bewaard. Een camera selecteren schakelt deze niet in.",
+      "join_muted": "Deelnemen aan gesprekken met gedempte microfoon",
+      "next_call": "Deze instellingen gelden voor je volgende gesprek. Gebruik de gespreksbediening om nu van apparaat te wisselen.",
+      "test_title": "Je microfoon testen",
+      "test_description": "Start de meter, neem maximaal 10 seconden op en speel de opname af. De audio blijft in deze browser en wordt verwijderd als je de pagina verlaat. Dit test de gespreksverbinding niet.",
+      "input_level": "Microfoonniveau",
+      "start_test": "Microfoontest starten",
+      "stop_test": "Test stoppen",
+      "record": "Test opnemen",
+      "finish_recording": "Opname stoppen",
+      "waiting": "Wachten op microfoontoegang…",
+      "recording": "Opnemen… stopt na 10 seconden.",
+      "test_failed": "De microfoon kon niet worden getest. Controleer de apparaattoegang en probeer het opnieuw.",
+      "test_in_call": "Verlaat je gesprek voordat je de microfoon test.",
+      "recording_unsupported": "Opnemen is niet beschikbaar in deze browser. Je kunt de invoermeter wel gebruiken.",
+      "playback": "Microfoontestopname",
+      "show_cameras": "Camera’s tonen",
+      "camera_access": "Sta cameratoegang toe om camera’s te tonen. De opname stopt onmiddellijk."
+    }
   }
 }

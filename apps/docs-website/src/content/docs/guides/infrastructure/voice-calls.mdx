@@ -244,6 +244,26 @@ Use a dedicated TURN server such as [coturn](https://github.com/coturn/coturn) w
 - **Active call indicators** — Rooms with active calls show a call indicator in the room list
 - **Audio level visualization** — Participant avatars pulse with accent-colored rings based on speaking volume
 
+## Device preferences and microphone test
+
+Open **App Preferences → Voice & video** to choose a microphone, speaker,
+and camera for the selected server. Choices stay in this browser. Enable
+**Join calls with microphone muted** to start calls quietly. Selecting a
+camera does not turn it on.
+
+If a saved device is missing, calls use the system default and keep the saved
+choice for a later call. Successful device changes during a call are also
+saved. Speaker selection depends on browser support.
+
+Select **Start microphone test** to view the input level. You can then record
+up to ten seconds and play the recording through your selected speaker.
+The recording stays in browser memory and is discarded when you leave the
+page. This local test does not connect to LiveKit or test the network.
+Leave the selected server's call before running the test.
+
+Select **Show cameras** if the browser has not yet disclosed camera choices.
+This requests camera access, then stops capture immediately.
+
 ## Disabling Voice & Video Calls
 
 To disable voice and video calls, either remove the `[livekit]` section from `chatto.toml` or set:

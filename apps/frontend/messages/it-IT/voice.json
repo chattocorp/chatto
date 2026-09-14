@@ -70,6 +70,31 @@
     "game_windows_failed": "Impossibile caricare le finestre condivisibili.",
     "untitled_window": "Finestra senza titolo",
     "game_window_selected": "{name} selezionato",
-    "permission_denied": "Non hai il permesso di eseguire questa azione nella chiamata."
+    "permission_denied": "Non hai il permesso di eseguire questa azione nella chiamata.",
+    "preferences": {
+      "title": "Voce e video",
+      "scope": "Salvato in questo browser per questo server.",
+      "system_default": "Predefinito di sistema",
+      "unavailable_device": "Dispositivo salvato non disponibile",
+      "output_unsupported": "Questo browser usa l’altoparlante di sistema. La selezione dell’altoparlante non è disponibile.",
+      "fallback": "Se manca un dispositivo, viene usato quello predefinito di sistema. La scelta salvata viene conservata. Selezionare una videocamera non la accende.",
+      "join_muted": "Partecipa alle chiamate con il microfono disattivato",
+      "next_call": "Queste impostazioni si applicano alla prossima chiamata. Usa i controlli della chiamata per cambiare dispositivo ora.",
+      "test_title": "Prova il microfono",
+      "test_description": "Avvia l’indicatore, registra fino a 10 secondi e riproduci la registrazione. L’audio resta in questo browser e viene eliminato quando esci. Questo test non verifica la connessione della chiamata.",
+      "input_level": "Livello del microfono",
+      "start_test": "Avvia test del microfono",
+      "stop_test": "Interrompi test",
+      "record": "Registra un test",
+      "finish_recording": "Interrompi registrazione",
+      "waiting": "In attesa dell’accesso al microfono…",
+      "recording": "Registrazione… termina dopo 10 secondi.",
+      "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
+      "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
+      "recording_unsupported": "La registrazione non è disponibile in questo browser. Puoi comunque usare l’indicatore del livello.",
+      "playback": "Registrazione di prova del microfono",
+      "show_cameras": "Mostra videocamere",
+      "camera_access": "Consenti l’accesso alla videocamera per elencare le videocamere. La cattura si interrompe immediatamente."
+    }
   }
 }

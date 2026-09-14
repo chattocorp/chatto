@@ -1,3 +1,4 @@
+import { CallPreferencesState } from './callPreferences.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
@@ -471,6 +472,113 @@ describe('VoiceCallState', () => {
       calls.indexOf('setE2EEEnabled:true')
     );
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
+  });
+
+  it('restores saved devices and joins muted without capture prompts', async () => {
+    const preferences = new CallPreferencesState('call-device-restore');
+    preferences.setDevice('audioinput', 'preferred-mic');
+    preferences.setDevice('audiooutput', 'missing-speaker');
+    preferences.setDevice('videoinput', 'preferred-camera');
+    preferences.setJoinMuted(true);
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      new CallPreferencesState('call-device-restore')
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
+      deviceId: { ideal: 'preferred-mic' }
+    });
+    expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
+      deviceId: { ideal: 'preferred-camera' }
+    });
+    expect(lastRoomOptions?.audioOutput).toBeUndefined();
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalledWith(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput', false);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(preferences.speaker).toBe('missing-speaker');
+    await state.toggleMute();
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    await state.leave();
+  });
+
+  it('restores an available speaker and keeps saved media subordinate to permission', async () => {
+    const preferences = new CallPreferencesState('call-device-permission');
+    preferences.setDevice('audioinput', 'audio-input-1');
+    preferences.setDevice('audiooutput', 'audio-output-1');
+    preferences.setDevice('videoinput', 'video-input-1');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: false,
+        camera: false,
+        screenshare: false
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoomOptions?.audioOutput).toEqual({ deviceId: 'audio-output-1' });
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalledWith(true);
+    await state.leave();
+  });
+
+  it('does not save a device when LiveKit reports an unsuccessful switch', async () => {
+    const preferences = new CallPreferencesState('call-device-false');
+    preferences.setDevice('audioinput', 'working');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    lastRoom!.switchActiveDevice.mockResolvedValueOnce(false);
+    await state.setAudioDevice('unavailable');
+    expect(new CallPreferencesState('call-device-false').microphone).toBe('working');
+    await state.leave();
+  });
+
+  it('remembers successful call device switches but not failed switches', async () => {
+    const preferences = new CallPreferencesState('call-device-switch');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.setAudioDevice('mic-two');
+    await state.setAudioOutputDevice('speaker-two');
+    await state.setVideoDevice('camera-two');
+    switchActiveDeviceFailure = new Error('unavailable');
+    await state.setAudioDevice('missing');
+    const restored = new CallPreferencesState('call-device-switch');
+    expect([restored.microphone, restored.speaker, restored.camera]).toEqual([
+      'mic-two',
+      'speaker-two',
+      'camera-two'
+    ]);
+    await state.leave();
   });
 
   it('configures microphone capture and publication as mono', async () => {

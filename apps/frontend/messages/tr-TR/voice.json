@@ -70,6 +70,31 @@
     "game_windows_failed": "Paylaşılabilir pencereler yüklenemedi.",
     "untitled_window": "Başlıksız pencere",
     "game_window_selected": "{name} seçildi",
-    "permission_denied": "Bu arama işlemini gerçekleştirme iznin yok."
+    "permission_denied": "Bu arama işlemini gerçekleştirme iznin yok.",
+    "preferences": {
+      "title": "Ses ve video",
+      "scope": "Bu sunucu için bu tarayıcıda kaydedilir.",
+      "system_default": "Sistem varsayılanı",
+      "unavailable_device": "Kaydedilen cihaz kullanılamıyor",
+      "output_unsupported": "Bu tarayıcı sistem hoparlörünü kullanır. Hoparlör seçimi kullanılamıyor.",
+      "fallback": "Cihaz bulunamazsa sistem varsayılanı kullanılır. Seçiminiz korunur. Kamera seçmek kamerayı açmaz.",
+      "join_muted": "Aramalara mikrofon kapalı olarak katıl",
+      "next_call": "Bu ayarlar sonraki aramanızda uygulanır. Cihazı şimdi değiştirmek için arama kontrollerini kullanın.",
+      "test_title": "Mikrofonunuzu test edin",
+      "test_description": "Ölçeri başlatın, en fazla 10 saniye kaydedin ve kaydı oynatın. Ses bu tarayıcıda kalır ve sayfadan ayrıldığınızda silinir. Bu işlem arama bağlantısını test etmez.",
+      "input_level": "Mikrofon seviyesi",
+      "start_test": "Mikrofon testini başlat",
+      "stop_test": "Testi durdur",
+      "record": "Test kaydet",
+      "finish_recording": "Kaydı durdur",
+      "waiting": "Mikrofon erişimi bekleniyor…",
+      "recording": "Kaydediliyor… 10 saniye sonra durur.",
+      "test_failed": "Mikrofon test edilemedi. Cihaz erişimini kontrol edip tekrar deneyin.",
+      "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın.",
+      "recording_unsupported": "Bu tarayıcıda kayıt kullanılamıyor. Giriş ölçerini kullanmaya devam edebilirsiniz.",
+      "playback": "Mikrofon test kaydı",
+      "show_cameras": "Kameraları göster",
+      "camera_access": "Kameraları listelemek için kamera erişimine izin verin. Yakalama hemen durur."
+    }
   }
 }

@@ -70,6 +70,31 @@
     "game_windows_failed": "Okna ke sdílení se nepodařilo načíst.",
     "untitled_window": "Okno bez názvu",
     "game_window_selected": "Vybráno: {name}",
-    "permission_denied": "K této akci v hovoru nemáš oprávnění."
+    "permission_denied": "K této akci v hovoru nemáš oprávnění.",
+    "preferences": {
+      "title": "Hlas a video",
+      "scope": "Uloženo v tomto prohlížeči pro tento server.",
+      "system_default": "Výchozí zařízení systému",
+      "unavailable_device": "Uložené zařízení není dostupné",
+      "output_unsupported": "Tento prohlížeč používá systémový reproduktor. Výběr reproduktoru není dostupný.",
+      "fallback": "Chybějící zařízení nahradí výchozí zařízení systému. Váš výběr zůstane uložen. Výběr kamery ji nezapne.",
+      "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
+      "next_call": "Tato nastavení platí pro příští hovor. Zařízení během hovoru změníte pomocí ovládání hovoru.",
+      "test_title": "Otestovat mikrofon",
+      "test_description": "Spusťte měřič, nahrajte až 10 sekund a přehrajte záznam. Zvuk zůstává v prohlížeči a při opuštění stránky se odstraní. Tento test neověřuje spojení hovoru.",
+      "input_level": "Úroveň mikrofonu",
+      "start_test": "Spustit test mikrofonu",
+      "stop_test": "Zastavit test",
+      "record": "Nahrát test",
+      "finish_recording": "Zastavit nahrávání",
+      "waiting": "Čekání na přístup k mikrofonu…",
+      "recording": "Nahrávání… skončí po 10 sekundách.",
+      "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
+      "test_in_call": "Před testem mikrofonu opusťte hovor.",
+      "recording_unsupported": "Nahrávání není v tomto prohlížeči dostupné. Měřič úrovně můžete používat i nadále.",
+      "playback": "Testovací nahrávka mikrofonu",
+      "show_cameras": "Zobrazit kamery",
+      "camera_access": "Povolte přístup ke kameře pro zobrazení kamer. Snímání se ihned zastaví."
+    }
   }
 }

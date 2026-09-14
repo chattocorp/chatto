@@ -9,6 +9,23 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+- **App Preferences → Voice & video** stores microphone, speaker, camera, and
+  join-muted choices in this browser for the selected server. Successful device
+  changes during a call update those choices. Missing devices use a system
+  default without erasing the saved choice. The next call can use a device
+  that returns.
+- Camera selection does not start video. Joining muted does not request
+  microphone access merely to list devices. Browser support controls whether
+  a speaker can be selected.
+- An explicit local microphone test shows an input meter and can record up to
+  ten seconds for playback through the selected speaker. Audio remains in
+  browser memory and is discarded on page exit. The test does not connect to
+  LiveKit or verify network connectivity. Testing is unavailable during the
+  selected server's call. Stop, navigation, and device changes release capture;
+  late capture results are stopped as well.
+- Users can explicitly allow camera access to discover camera choices.
+  Discovery stops camera capture immediately.
+
 - Room membership and `call.join` are required to enter a call. Starting a
   new call also requires `call.start`. Media permissions do not grant entry.
 - `call.voice`, `call.camera`, and `call.screenshare` independently control

@@ -203,3 +203,17 @@ Startup initializes missing server/everyone call permissions with ordinary RBAC
 grants guarded by the complete RBAC subject tail. It reads historical decisions
 so a cleared or denied grant cannot return after restart. No new event variant,
 stream, or snapshot contract is required.
+
+## Browser call preferences and device test
+
+The server-owned frontend store gives each call state a browser-local
+`CallPreferencesState`. It saves device IDs and join-muted at the existing
+per-server storage boundary. These settings do not enter Chatto APIs or EVT.
+LiveKit capture defaults use the saved input choices; a missing output device
+uses the browser default. Device switches save only after success.
+
+The settings page owns `CallDeviceTest`. Explicit capture feeds a Web Audio
+meter and an optional MediaRecorder. The recording is limited to ten seconds.
+Generation checks stop late streams after cancellation. Page exit stops
+tracks, closes the audio context, cancels timers, and revokes recording URLs.
+The test does not contact a media server.

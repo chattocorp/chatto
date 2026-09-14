@@ -70,6 +70,31 @@
     "game_windows_failed": "Det gick inte att läsa in delningsbara fönster.",
     "untitled_window": "Namnlöst fönster",
     "game_window_selected": "{name} har valts",
-    "permission_denied": "Du har inte behörighet att utföra den här samtalsåtgärden."
+    "permission_denied": "Du har inte behörighet att utföra den här samtalsåtgärden.",
+    "preferences": {
+      "title": "Röst och video",
+      "scope": "Sparas i den här webbläsaren för den här servern.",
+      "system_default": "Systemstandard",
+      "unavailable_device": "Sparad enhet är inte tillgänglig",
+      "output_unsupported": "Webbläsaren använder systemets högtalare. Högtalarval är inte tillgängligt.",
+      "fallback": "Saknade enheter ersätts med systemstandarden. Ditt val sparas. Kameran aktiveras inte när du väljer den.",
+      "join_muted": "Anslut till samtal med avstängd mikrofon",
+      "next_call": "Inställningarna gäller nästa samtal. Använd samtalskontrollerna för att byta enhet nu.",
+      "test_title": "Testa mikrofonen",
+      "test_description": "Starta mätaren, spela in upp till 10 sekunder och spela upp inspelningen. Ljudet stannar i webbläsaren och raderas när du lämnar sidan. Detta testar inte samtalsanslutningen.",
+      "input_level": "Mikrofonnivå",
+      "start_test": "Starta mikrofontest",
+      "stop_test": "Stoppa test",
+      "record": "Spela in ett test",
+      "finish_recording": "Stoppa inspelning",
+      "waiting": "Väntar på mikrofonåtkomst…",
+      "recording": "Spelar in… stoppas efter 10 sekunder.",
+      "test_failed": "Kunde inte testa mikrofonen. Kontrollera enhetsåtkomsten och försök igen.",
+      "test_in_call": "Lämna samtalet innan du testar mikrofonen.",
+      "recording_unsupported": "Inspelning är inte tillgänglig i webbläsaren. Du kan fortfarande använda nivåmätaren.",
+      "playback": "Mikrofontestinspelning",
+      "show_cameras": "Visa kameror",
+      "camera_access": "Tillåt kameraåtkomst för att visa kameror. Inspelningen stoppas omedelbart."
+    }
   }
 }

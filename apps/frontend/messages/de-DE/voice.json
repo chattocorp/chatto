@@ -70,6 +70,31 @@
     "game_windows_failed": "Die teilbaren Fenster konnten nicht geladen werden.",
     "untitled_window": "Fenster ohne Titel",
     "game_window_selected": "{name} ausgewählt",
-    "permission_denied": "Du hast keine Berechtigung für diese Anrufaktion."
+    "permission_denied": "Du hast keine Berechtigung für diese Anrufaktion.",
+    "preferences": {
+      "title": "Sprache & Video",
+      "scope": "In diesem Browser für diesen Server gespeichert.",
+      "system_default": "Systemstandard",
+      "unavailable_device": "Gespeichertes Gerät nicht verfügbar",
+      "output_unsupported": "Dieser Browser verwendet den Systemlautsprecher. Eine Lautsprecherauswahl ist nicht verfügbar.",
+      "fallback": "Fehlende Geräte werden durch den Systemstandard ersetzt. Deine Auswahl bleibt gespeichert. Die Kamera wird durch die Auswahl nicht eingeschaltet.",
+      "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
+      "next_call": "Diese Einstellungen gelten für deinen nächsten Anruf. Geräte im laufenden Anruf änderst du über die Anrufsteuerung.",
+      "test_title": "Mikrofon testen",
+      "test_description": "Starte die Pegelanzeige, nimm bis zu 10 Sekunden auf und spiele die Aufnahme ab. Die Aufnahme bleibt in diesem Browser und wird beim Verlassen gelöscht. Die Anrufverbindung wird dabei nicht getestet.",
+      "input_level": "Mikrofonpegel",
+      "start_test": "Mikrofontest starten",
+      "stop_test": "Test stoppen",
+      "record": "Test aufnehmen",
+      "finish_recording": "Aufnahme stoppen",
+      "waiting": "Warte auf Mikrofonzugriff…",
+      "recording": "Aufnahme läuft… endet nach 10 Sekunden.",
+      "test_failed": "Mikrofon konnte nicht getestet werden. Prüfe den Gerätezugriff und versuche es erneut.",
+      "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest.",
+      "recording_unsupported": "Aufnahmen sind in diesem Browser nicht verfügbar. Die Pegelanzeige kannst du weiterhin verwenden.",
+      "playback": "Mikrofon-Testaufnahme",
+      "show_cameras": "Kameras anzeigen",
+      "camera_access": "Erlaube den Kamerazugriff, um Kameras aufzulisten. Die Aufnahme wird sofort beendet."
+    }
   }
 }

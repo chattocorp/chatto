@@ -70,6 +70,31 @@
     "game_windows_failed": "Não foi possível carregar as janelas partilháveis.",
     "untitled_window": "Janela sem título",
     "game_window_selected": "{name} selecionado",
-    "permission_denied": "Não tens permissão para realizar esta ação na chamada."
+    "permission_denied": "Não tens permissão para realizar esta ação na chamada.",
+    "preferences": {
+      "title": "Voz e vídeo",
+      "scope": "Guardado neste navegador para este servidor.",
+      "system_default": "Predefinição do sistema",
+      "unavailable_device": "Dispositivo guardado indisponível",
+      "output_unsupported": "Este navegador usa o altifalante do sistema. A seleção de altifalantes não está disponível.",
+      "fallback": "Quando um dispositivo está ausente, é usada a predefinição do sistema. A escolha fica guardada. Selecionar uma câmara não a liga.",
+      "join_muted": "Entrar nas chamadas com o microfone silenciado",
+      "next_call": "Estas definições aplicam-se à próxima chamada. Use os controlos da chamada para mudar de dispositivo agora.",
+      "test_title": "Testar o microfone",
+      "test_description": "Inicie o medidor, grave até 10 segundos e reproduza a gravação. O áudio fica neste navegador e é eliminado ao sair. Este teste não verifica a ligação da chamada.",
+      "input_level": "Nível do microfone",
+      "start_test": "Iniciar teste do microfone",
+      "stop_test": "Parar teste",
+      "record": "Gravar um teste",
+      "finish_recording": "Parar gravação",
+      "waiting": "A aguardar acesso ao microfone…",
+      "recording": "A gravar… termina após 10 segundos.",
+      "test_failed": "Não foi possível testar o microfone. Verifique o acesso ao dispositivo e tente novamente.",
+      "test_in_call": "Saia da chamada antes de testar o microfone.",
+      "recording_unsupported": "A gravação não está disponível neste navegador. Pode continuar a usar o medidor de entrada.",
+      "playback": "Gravação de teste do microfone",
+      "show_cameras": "Mostrar câmaras",
+      "camera_access": "Permita o acesso à câmara para listar as câmaras. A captura para imediatamente."
+    }
   }
 }
