@@ -13,6 +13,32 @@ Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
 [`docs/`](docs/README.md).
 
+## Container image
+
+Build from the containing repository root:
+
+```sh
+docker build -f authling/Dockerfile -t authling:local .
+docker run --rm --network none --read-only authling:local version
+```
+
+The image includes the web assets and runs as UID 1000. Its default command is
+`run`; mount a configuration file and pass `run --config /config/authling.toml`,
+or configure it through environment variables. The development configuration
+is not loaded from the image's `/data` working directory.
+
+The `build Authling image` workflow builds and checks Linux amd64 images for
+pull requests. Relevant changes on `main` and manual workflow runs also publish
+`ghcr.io/chattocorp/authling:<full-commit-sha>`. Deployment promotion is manual;
+pin the published digest after staging verification.
+
+For an external NATS server with a private CA, mount its CA in a dedicated
+directory and add that directory to `SSL_CERT_DIR` alongside `/etc/ssl/certs`.
+This extends Go's process-wide trust store, including outbound HTTPS. Do not
+disable TLS verification. Authling starts its HTTP listener only after startup
+replay and issuer initialization finish. A TCP startup/readiness probe can
+check that milestone, but does not prove continuing NATS or JetStream health.
+
 Authling is a separate product from Chatto:
 
 - it is built from its own Go module;
