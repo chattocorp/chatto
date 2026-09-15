@@ -65,7 +65,9 @@ func (p *Publisher) AccountTail(ctx context.Context, accountID string) (uint64, 
 }
 
 // AppendRegisteredAccount commits a local account against a previously read
-// registry tail.
+// registry tail. A conflict proves rejection. Other errors can leave the
+// outcome unknown, including a lost reply after the atomic batch committed.
+// Callers must retain referenced key material when the outcome is unknown.
 func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, claimEvent *corev1.Event, expectedRegistry uint64) (events.StreamPosition, error) {
 	account := accountEvent.GetAccountCreated()
 	claim := claimEvent.GetEmailClaimed()

@@ -122,11 +122,15 @@ all other password verification remain case-sensitive.
   update and extension story. The feature remains Experimental until those
   controls exist.
 - Key provisioning writes a durable operation marker before key material and
-  removes it after the referencing event commits. Normal failures compensate
-  immediately. A crash orphan remains discoverable but is deliberately not
-  deleted by a time-based heuristic; a future event-backed cleanup worker must
-  prove that no publication can still reference it. Cryptographic erasure also
-  requires erasure-aware replay before any account key is destroyed.
+  removes it after the referencing event commit is acknowledged. Failures before
+  publication and definite OCC rejections permit immediate cleanup. A timeout
+  or lost reply can follow a successful commit, so an unknown publication
+  outcome retains both keys and the operation marker. The browser can report
+  failure even when the account was created; the person can then sign in with
+  the submitted password. Retained markers and crash orphans remain discoverable.
+  A future event-backed cleanup worker must prove that no publication can still
+  reference the keys; elapsed time alone is not sufficient. Cryptographic erasure
+  also requires erasure-aware replay before any account key is destroyed.
 - There is no resend button; submitting the email form again starts a separate
   code flow within the shared delivery limit.
 

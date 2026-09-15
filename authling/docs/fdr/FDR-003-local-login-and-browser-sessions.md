@@ -22,7 +22,12 @@ experience.
   minutes after the tenth recorded failure. The limit is shared by Authling
   replicas. Password-verification concurrency is also bounded per process.
 - Successful login creates a new browser session. Successful signup does the
-  same and takes the person directly to the signed-in account page.
+  same and takes the person directly to the signed-in account page. Each new
+  session is bound to the credential generation that authorized login or signup.
+  A concurrent password or email change cannot upgrade that proof to a newer
+  generation. Login checks both account and email-registry projection boundaries
+  after password verification and rejects a credential that changed during the
+  check. Audit-only events do not invalidate an otherwise current proof.
 - A session expires after 24 hours even if active, or after one hour without
   activity. Activity extends only the inactivity limit, never the absolute
   lifetime.
