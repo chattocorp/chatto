@@ -20,11 +20,13 @@ to the relying party with an Authorization Code.
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
   consent decision. When consent is required, the screen identifies the
-  signed-in account and client and explains that the stable account identifier
-  will be shared.
+  signed-in account and client and lists the account ID, preferred username,
+  and optional full name that it can share. It explains that access includes
+  future profile changes.
 - Allowing creates or renews a durable exact-client authorization grant and
   binds the request to the current account. Later requests covered by that
-  grant skip the consent screen unless they use `prompt=consent`. Denying
+  grant skip the consent screen only when its disclosure version is current
+  and the request does not use `prompt=consent`. Denying
   returns `access_denied` and the original state to the validated redirect URI.
 - The authorization code expires with its ten-minute request, is bound to the
   client, redirect, and PKCE verifier, and succeeds in at most one concurrent
