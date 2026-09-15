@@ -91,18 +91,27 @@
     if (alive) await refresh();
   }
 
+  // Request each input separately so a missing or blocked camera cannot hide audio devices.
+  // Discovery never plays or publishes media, and releases even late capture results.
   async function discoverDevices() {
-    const listed = await refresh();
-    if (!alive || inCall || listed?.some((device) => device.kind === 'videoinput' && device.label))
-      return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      stream.getTracks().forEach((track) => track.stop());
-      if (alive) await refresh();
-    } catch (error) {
-      if (alive && !(error instanceof DOMException && error.name === 'NotFoundError'))
-        deviceError = true;
+    let listed = await refresh();
+    let discoveryFailed = false;
+    for (const kind of ['audioinput', 'videoinput'] as const) {
+      if (!alive || inCall) return;
+      if (listed?.some((device) => device.kind === kind && device.label)) continue;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: kind === 'audioinput',
+          video: kind === 'videoinput'
+        });
+        stream.getTracks().forEach((track) => track.stop());
+        if (alive) listed = await refresh();
+      } catch (error) {
+        if (!(error instanceof DOMException && error.name === 'NotFoundError'))
+          discoveryFailed = true;
+      }
     }
+    if (alive && discoveryFailed) deviceError = true;
   }
 </script>
 
