@@ -61,7 +61,7 @@ test.describe('Verified email settings', () => {
     await expect(adminMemberRow).not.toContainText(`${user.login}@example.com`);
   });
 
-  test('rejects a stale tab after another tab replaces its cookie session', async ({
+  test('rejects a request captured before another tab replaces its cookie session', async ({
     accountPage,
     page
   }) => {
@@ -129,10 +129,24 @@ test.describe('Verified email settings', () => {
     const rejectedList = await listResponse;
     expect(rejectedList.ok()).toBe(false);
     await expect(rejectedList.json()).resolves.toMatchObject({ code: 'failed_precondition' });
-    await expect(page.getByText(/authenticated account changed/)).toBeVisible();
-    await expect(
-      page.getByText(`${secondUser.login}@example.com`, { exact: true })
-    ).toHaveCount(0);
+
+    const firstUserId = page.getByText(firstUser.id ?? '', { exact: true });
+    const secondUserId = page.getByText(secondUser.id ?? '', { exact: true });
+    const secondUserEmail = page.getByText(`${secondUser.login}@example.com`, { exact: true });
+    const accountChangedError = page.getByText(/authenticated account changed/);
+
+    // The root session can independently detect the new cookie. It must either
+    // keep Alice's view with the rejection, or switch the complete view to Bob.
+    // Bob's address must never appear while the page still identifies Alice.
+    await expect
+      .poll(async () => {
+        if (await firstUserId.isVisible()) {
+          return (await accountChangedError.isVisible()) && !(await secondUserEmail.isVisible());
+        }
+        return (await secondUserId.isVisible()) && (await secondUserEmail.isVisible());
+      })
+      .toBe(true);
+    expect((await firstUserId.isVisible()) && (await secondUserEmail.isVisible())).toBe(false);
     await otherTab.close();
   });
 
