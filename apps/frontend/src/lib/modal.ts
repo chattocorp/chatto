@@ -1,3 +1,4 @@
+import type { MessageAttachmentView } from '$lib/render/messageAttachments';
 import type { ExpiringAssetUrl } from '$lib/attachments/attachmentUrls';
 
 /** One image shown by the history-backed attachment viewer. */
@@ -30,6 +31,12 @@ export type ChatModal =
       description: string;
     })
   | (RoomModalTarget & { type: 'deleteLinkPreview'; eventId: string; previewUrl: string })
+  | (RoomModalTarget & {
+      type: 'attachmentViewer';
+      eventId: string;
+      items: MessageAttachmentView[];
+      index: number;
+    })
   | (RoomModalTarget & {
       type: 'htmlViewer';
       eventId: string;
@@ -64,3 +71,6 @@ export function chatModalKey(modal: ChatModal): ChatModal | string {
     ? JSON.stringify([modal.type, modal.serverId, modal.roomId, modal.eventId])
     : modal;
 }
+
+/** One opening of the shared file viewer, including an optional image gallery. */
+export type AttachmentViewerModalState = Extract<ChatModal, { type: 'attachmentViewer' }>;

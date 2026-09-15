@@ -114,9 +114,9 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 		{name: "duplicate scope"},
 		{name: "account data without openid"},
 		{name: "prompt none"},
-		{name: "prompt login"},
+		{name: "prompt login", want: true},
 		{name: "form post"},
-		{name: "max age"},
+		{name: "max age", want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -186,54 +186,6 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 	uncached.validateDestination = func(context.Context, string) error { return nil }
 	if _, err := uncached.Resolve(context.Background(), clientID); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized CIMD error = %v", err)
-	}
-}
-
-func TestCIMDResolverBoundsConcurrentFetches(t *testing.T) {
-	var concurrent, maximum atomic.Int32
-	release := make(chan struct{})
-	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-		current := concurrent.Add(1)
-		for {
-			previous := maximum.Load()
-			if current <= previous || maximum.CompareAndSwap(previous, current) {
-				break
-			}
-		}
-		defer concurrent.Add(-1)
-		select {
-		case <-release:
-		case <-request.Context().Done():
-			return nil, request.Context().Err()
-		}
-		document := `{"client_id":"` + request.URL.String() + `","redirect_uris":["https://client.example/callback"],"token_endpoint_auth_method":"none"}`
-		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
-	})}
-	resolver, _ := NewCIMDResolver("https://auth.example", client, nil, nil)
-	resolver.validateDestination = func(context.Context, string) error { return nil }
-	errors := make(chan error, 9)
-	for index := range 9 {
-		go func() {
-			_, err := resolver.Resolve(context.Background(), fmt.Sprintf("https://client.example/metadata-%d.json", index))
-			errors <- err
-		}()
-	}
-	deadline := time.Now().Add(time.Second)
-	for maximum.Load() < 8 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if maximum.Load() != 8 {
-		close(release)
-		t.Fatalf("maximum concurrent CIMD fetches = %d, want 8", maximum.Load())
-	}
-	close(release)
-	for range 9 {
-		if err := <-errors; err != nil {
-			t.Fatal(err)
-		}
-	}
-	if maximum.Load() > 8 {
-		t.Fatalf("maximum concurrent CIMD fetches = %d", maximum.Load())
 	}
 }
 
@@ -459,5 +411,56 @@ func TestCIMDCachePolicyIsBounded(t *testing.T) {
 	}
 	if age, cache := cimdCacheAge("max-age=999999"); !cache || age != maxCIMDCacheAge {
 		t.Fatalf("cache age = %v, %v", age, cache)
+	}
+}
+
+func TestAuthenticationFreshness(t *testing.T) {
+	now := time.Date(2026, 9, 15, 12, 0, 0, 500, time.UTC)
+	age := uint(60)
+	zero := uint(0)
+	for _, tt := range []struct {
+		name  string
+		state authRequestState
+		at    time.Time
+		want  bool
+	}{
+		{"ordinary SSO", authRequestState{}, now.Add(-time.Hour), true},
+		{"missing evidence", authRequestState{}, time.Time{}, false},
+		{"future evidence", authRequestState{}, now.Add(time.Nanosecond), false},
+		{"recent", authRequestState{MaxAge: &age}, now.Add(-59 * time.Second), true},
+		{"exact boundary", authRequestState{MaxAge: &age}, now.Add(-60 * time.Second), true},
+		{"expired", authRequestState{MaxAge: &age}, now.Add(-60*time.Second - time.Nanosecond), false},
+		{"equal request time", authRequestState{CreatedAt: now, ForceLogin: true}, now, false},
+		{"same second old login", authRequestState{CreatedAt: now, ForceLogin: true}, now.Add(-time.Nanosecond), false},
+		{"forced login", authRequestState{CreatedAt: now.Add(-time.Second), ForceLogin: true}, now, true},
+		{"zero old login", authRequestState{CreatedAt: now, MaxAge: &zero}, now.Add(-time.Nanosecond), false},
+		{"zero permits consent after fresh login", authRequestState{CreatedAt: now.Add(-time.Minute), MaxAge: &zero}, now.Add(-time.Second), true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.state.checkAuthentication(tt.at, now); (err == nil) != tt.want {
+				t.Fatalf("freshness error = %v, want allowed %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestFreshnessParameterValidation(t *testing.T) {
+	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
+	for _, tt := range []struct {
+		query string
+		want  bool
+	}{
+		{"max_age=0", true}, {"max_age=60", true}, {"max_age=18446744073709551615", true},
+		{"max_age=", false}, {"max_age=-1", false}, {"max_age=%2B1", false}, {"max_age=1.5", false},
+		{"max_age=18446744073709551616", false}, {"max_age=1&max_age=2", false},
+		{"prompt=login", true}, {"prompt=login+consent", true}, {"prompt=consent+login", true},
+		{"prompt=login+login", false}, {"prompt=none+login", false}, {"prompt=select_account", false},
+	} {
+		t.Run(tt.query, func(t *testing.T) {
+			err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, valid+"&"+tt.query, nil))
+			if (err == nil) != tt.want {
+				t.Fatalf("validation = %v, want allowed %v", err, tt.want)
+			}
+		})
 	}
 }

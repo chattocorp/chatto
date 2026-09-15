@@ -38,7 +38,9 @@ func TestValidateTimelineEntryRecordRejectsMismatchedMetadata(t *testing.T) {
 
 	tests := map[string]func(*TimelineEntry, *evtstream.SubjectEvent){
 		"sequence": func(_ *TimelineEntry, record *evtstream.SubjectEvent) { record.Sequence++ },
-		"subject":  func(_ *TimelineEntry, record *evtstream.SubjectEvent) { record.Subject = "evt.room.other.message_posted" },
+		"subject": func(_ *TimelineEntry, record *evtstream.SubjectEvent) {
+			record.Subject = "evt.room.other.message_posted"
+		},
 		"event ID": func(_ *TimelineEntry, record *evtstream.SubjectEvent) { record.Event.Id = "other" },
 		"actor":    func(_ *TimelineEntry, record *evtstream.SubjectEvent) { record.Event.ActorId = "other" },
 		"room": func(_ *TimelineEntry, record *evtstream.SubjectEvent) {
@@ -73,7 +75,9 @@ func TestValidateTimelineBodyRecordRejectsMismatchedMetadata(t *testing.T) {
 
 	tests := map[string]func(*TimelineBodyReference, *evtstream.SubjectEvent){
 		"sequence": func(_ *TimelineBodyReference, record *evtstream.SubjectEvent) { record.Sequence++ },
-		"subject":  func(_ *TimelineBodyReference, record *evtstream.SubjectEvent) { record.Subject = "evt.room.other.message_body" },
+		"subject": func(_ *TimelineBodyReference, record *evtstream.SubjectEvent) {
+			record.Subject = "evt.room.other.message_body"
+		},
 		"target": func(_ *TimelineBodyReference, record *evtstream.SubjectEvent) {
 			record.Event.GetMessageBody().EventId = "other"
 		},
@@ -188,4 +192,59 @@ func TestGetMessageDoesNotHydrateUnauthorizedPayload(t *testing.T) {
 	_, err = core.RoomTimelineReads().GetMessage(ctx, viewer.GetId(), room.GetId(), message.GetId())
 	require.ErrorIs(t, err, ErrPermissionDenied)
 	require.Empty(t, reader.reads)
+}
+
+func TestRoomTimelineHydratesEchoMetadataInOneBatch(t *testing.T) {
+	original1 := postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 1})
+	original1.GetMessagePosted().InReplyTo = "ROOT"
+	original2 := postedEvent(postedOpts{envelopeID: "M2", roomID: "R1", actorID: "U1", inThread: "ROOT", at: 2})
+	original2.GetMessagePosted().InReplyTo = "M1"
+	echo1 := postedEvent(postedOpts{envelopeID: "E1", roomID: "R1", actorID: "U1", echoOfEventID: "M1", echoFromThreadRootEventID: "ROOT", at: 3})
+	echo2 := postedEvent(postedOpts{envelopeID: "E2", roomID: "R1", actorID: "U1", echoOfEventID: "M2", echoFromThreadRootEventID: "ROOT", at: 4})
+	events := []*evtv1.Event{original1, original2, echo1, echo2}
+	projection := NewRoomTimelineProjection()
+	for i, event := range events {
+		require.NoError(t, projection.Apply(event, uint64(i+1)))
+	}
+	reader := testTimelineEventReader(events)
+	core := &ChattoCore{
+		roomModel:        newTestRoomModel(t, nil, nil, nil, nil, projection, nil, nil, nil, nil, nil),
+		timelineHydrator: newRoomTimelineHydrator(reader),
+	}
+	first, _ := projection.Get("E1")
+	second, _ := projection.Get("E2")
+	page, err := core.hydrateTimelineEntries(context.Background(), []*TimelineEntry{first, second})
+	require.NoError(t, err)
+	require.Equal(t, "ROOT", page[0].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, "M1", page[1].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, [][]uint64{{3, 4}, {1, 2}}, reader.reads)
+	require.True(t, page[0].EchoMetadataHydrated)
+	reader.reads = nil
+	originalEntry, _ := projection.Get("M1")
+	page, err = core.hydrateTimelineEntries(context.Background(), []*TimelineEntry{originalEntry, first, first})
+	require.NoError(t, err)
+	require.Equal(t, "ROOT", page[1].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, "ROOT", page[2].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, [][]uint64{{1, 3, 3}}, reader.reads)
+	delete(reader.records, 1)
+	echo1.GetMessagePosted().InReplyTo = "stale legacy attribution"
+	page, err = core.hydrateTimelineEntries(context.Background(), []*TimelineEntry{first, second})
+	require.NoError(t, err)
+	require.Empty(t, page[0].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, "M1", page[1].GetMessagePosted().GetInReplyTo())
+
+	// A corrupt original post must not prevent unrelated echoes from loading.
+	reader.records[1] = testTimelineEventReader(events).records[1]
+	reader.records[1].Event = proto.Clone(original1).(*evtv1.Event)
+	reader.records[1].Event.ActorId = "CORRUPT"
+	_, err = core.timelineHydrator.events(context.Background(), []*TimelineEntry{originalEntry})
+	require.ErrorIs(t, err, errTimelineEntryCorrupt)
+	page, err = core.hydrateTimelineEntries(context.Background(), []*TimelineEntry{first, second})
+	require.NoError(t, err)
+	require.Empty(t, page[0].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, "M1", page[1].GetMessagePosted().GetInReplyTo())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = core.HydrateMessagePost(ctx, echo1)
+	require.ErrorIs(t, err, context.Canceled)
 }

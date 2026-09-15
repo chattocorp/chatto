@@ -159,6 +159,33 @@ test.describe('video player @ffmpeg', () => {
         // via the subscription so that the second user sees the player without reloading.
         await expect(roomPage2.mediaPlayer).toBeVisible({ timeout: VIDEO_PROCESSING_TIMEOUT });
 
+        // The shared viewer keeps processed HLS playback and its own fullscreen player.
+        await page.getByRole('button', { name: 'View test-video.mp4', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: 'test-video.mp4', exact: true });
+        const viewerVideo = dialog.locator('media-provider video');
+        await expect
+          .poll(() => viewerVideo.evaluate((video) => video.readyState))
+          .toBeGreaterThanOrEqual(2);
+        await viewerVideo.evaluate(async (video) => {
+          video.muted = true;
+          video.loop = true;
+          await video.play();
+        });
+        await expect(viewerVideo).toHaveJSProperty('paused', false);
+        await expect(dialog.getByRole('link', { name: 'Download', exact: true })).toHaveAttribute(
+          'href',
+          /[?&]download=1(?:&|$)/
+        );
+        await dialog.locator('media-player').hover();
+        await dialog.getByRole('button', { name: /fullscreen/i }).click({ timeout: 10000 });
+        await expect
+          .poll(() => page.evaluate(() => document.fullscreenElement?.tagName))
+          .toBe('MEDIA-PLAYER');
+        await page.evaluate(() => document.exitFullscreen());
+        await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+        await expect(dialog).not.toBeVisible();
+        await expect(page.locator('dialog media-player')).toHaveCount(0);
+
         // Filter for critical errors (ignore noise like favicon 404s)
         const criticalErrors = [
           ...consoleErrors.filter(

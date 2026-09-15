@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/subjects"
 	"hmans.de/chatto/internal/evtstream"
@@ -1567,7 +1569,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		}
 	})
 
-	t.Run("echo carries the same body content as the reply", func(t *testing.T) {
+	t.Run("echo resolves the original body without storing a copy", func(t *testing.T) {
 		// Post root and reply with echo.
 		rootEvent, _ := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Root for body test", nil, "", "", nil, false)
 		replyEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "Shared body content", nil, rootEvent.Id, "", nil, true)
@@ -1575,8 +1577,7 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 			t.Fatalf("Failed to post reply: %v", err)
 		}
 
-		// Echo and reply each have their own envelope id and encryption
-		// context, but decrypt to the same visible content.
+		// Echo and reply share the original body reference and encryption context.
 		replyBody, err := core.currentMessageBody(ctx, replyEvent.Id)
 		if err != nil || replyBody == nil {
 			t.Fatal("reply has no projected body")
@@ -1603,9 +1604,32 @@ func TestChattoCore_PostMessage_ThreadReplyEcho(t *testing.T) {
 		if echoID == "" {
 			t.Fatal("Echo event has no id")
 		}
-		if string(echoBody.EncryptedBody) == string(replyBody.EncryptedBody) {
-			t.Errorf("Echo body ciphertext should be independently encrypted")
+		if !proto.Equal(echoBody, replyBody) {
+			t.Error("Echo must resolve the original body")
 		}
+		seqs, _, _ := core.roomModel.bodyEventSeqs(echoID)
+		if len(seqs) != 0 {
+			t.Fatalf("echo owns body sequences: %v", seqs)
+		}
+		posts, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+		require.NoError(t, err)
+		for _, post := range posts {
+			if post.Id == echoID {
+				require.Empty(t, post.GetMessagePosted().GetMentions())
+				require.Empty(t, post.GetMessagePosted().GetMentionedUserIds())
+				require.Empty(t, post.GetMessagePosted().GetInReplyTo())
+			}
+		}
+		before, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageEdited))
+		require.NoError(t, err)
+		require.NoError(t, core.EditMessage(ctx, user.Id, KindChannel, room.Id, echoID, "Shared body content"))
+		after, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessageEdited))
+		require.NoError(t, err)
+		require.Len(t, after, len(before)+1)
+		require.Equal(t, replyEvent.Id, after[len(after)-1].GetMessageEdited().GetEventId())
+		seqs, _, _ = core.roomModel.bodyEventSeqs(echoID)
+		require.Empty(t, seqs)
+
 		echoText, err := core.GetMessageBody(ctx, echoID)
 		if err != nil {
 			t.Fatalf("Failed to decrypt echo body: %v", err)
@@ -1649,10 +1673,31 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 		}
 
 		// Post thread reply with echo, mentioning the target user
-		_, err = core.PostMessage(ctx, KindChannel, room.Id, author.Id, "Hey @mention-target check this out", nil, rootEvent.Id, "", nil, true)
+		reply, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "Hey @mention-target check this out", nil, rootEvent.Id, rootEvent.Id, nil, true)
 		if err != nil {
 			t.Fatalf("Failed to post echo reply with mention: %v", err)
 		}
+
+		require.NotEmpty(t, reply.GetMessagePosted().GetMentions())
+		echoID, ok := core.roomModel.channelEchoEventID(reply.Id)
+		require.True(t, ok)
+		facts, _, err := core.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+		require.NoError(t, err)
+		var storedEcho *evtv1.Event
+		for _, fact := range facts {
+			if fact.Id == echoID {
+				storedEcho = fact
+			}
+		}
+		require.NotNil(t, storedEcho)
+		require.Empty(t, storedEcho.GetMessagePosted().GetMentions())
+		require.Empty(t, storedEcho.GetMessagePosted().GetMentionedUserIds())
+		require.Empty(t, storedEcho.GetMessagePosted().GetInReplyTo())
+		hydrated, err := core.HydrateMessagePost(ctx, storedEcho)
+		require.NoError(t, err)
+		require.Equal(t, rootEvent.Id, hydrated.GetInReplyTo())
+		require.Equal(t, reply.GetMessagePosted().GetMentionedUserIds(), hydrated.GetMentionedUserIds())
+		require.Len(t, hydrated.GetMentions(), len(reply.GetMessagePosted().GetMentions()))
 
 		// Wait for async notifications to be delivered
 		nc.Flush()

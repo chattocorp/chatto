@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -69,7 +69,7 @@ body from EVT.
 
 ### 3. Optimistic concurrency for edits
 
-**Decision:** Authorized edits use the room aggregate tail as their OCC boundary. Every attempt waits for current room and message state, validates stable room-group, RBAC, and user authorization inputs, and rechecks room archive state, membership, current message identity and authorship, the exact author edit-window boundary, and applicable permissions. It rebuilds from the latest committed body and atomically commits the body, semantic edit, and any edit-driven echo change. A room conflict retries the complete decision. Internal linked-message propagation and deletions remain room-scoped.
+**Decision:** Authorized edits use the room aggregate tail as their OCC boundary. Every attempt waits for current room and message state, validates stable room-group, RBAC, and user authorization inputs, and rechecks room archive state, membership, current message identity and authorship, the exact author edit-window boundary, and applicable permissions. It rebuilds from the latest committed body and atomically commits the body, semantic edit, and any edit-driven echo change. A room conflict retries the complete decision. Content mutations and deletions remain room-scoped.
 **Why:** Reusing a body prepared before a room OCC conflict could restore an attachment or preview removed by another mutation, while guarding edit facts independently could let a late body resurrect a deleted message. The room guard closes those lifecycle races. Stable request-time authorization gives one clear decision point without a synthetic domain event. Atomic echo reconciliation prevents partial success. See ADR-016, ADR-033, ADR-034, ADR-040, ADR-068, and ADR-087.
 **Tradeoff:** A cross-aggregate revocation after the final authorization validation can overlap a successful edit. The public API does not currently expose a client revision token, so concurrent full-text replacements resolve in commit order; the later successful edit supplies the visible text while retaining independently committed metadata changes.
 
@@ -79,11 +79,12 @@ body from EVT.
 **Why:** Mentions are post-time attention facts, not mutable properties of the latest body. This prevents retroactive pings and keeps edit replay independent from mutable usernames and private body payload retention. See FDR-006.
 **Tradeoff:** If an author needs to notify someone they forgot, they must send a new message. If they remove an `@name` while editing, the original notification still reflects that the mention happened.
 
-### 5. Echo propagation
+### 5. Echo content follows the original
 
-**Decision:** Thread replies and their channel echoes are separate message events linked by `echoOfEventId`. An edit or delete targeting the original reply is applied to both visible artifacts by the read model. A delete targeting the echo's own event ID hides only the echo artifact from the room timeline.
-**Why:** Message identity belongs to the EVT envelope, and `MessagePostedEvent` remains payload-only. The link preserves the user-facing "same reply shown twice" behavior without duplicating envelope metadata into payload fields. See FDR-003.
-**Tradeoff:** Frontend has to distinguish direct echo deletes from original-reply deletes: direct echo deletes remove the echo row, while original deletes tombstone any loaded echoes.
+**Decision:** An echo references its original reply. Full and partial edits through either view change only the original content. Deleting an echo hides only its timeline entry. Deleting the original removes content from both views.
+**Why:** One content source keeps text, attachments, descriptions, previews, and edit state consistent.
+**Tradeoff:** Reads and content mutations must resolve echo IDs before they access or change content. Physical body-record ownership stays separate so echo deletion cannot erase the original.
+
 
 ### 6. Delete physically removes the body payload, not just hides it
 

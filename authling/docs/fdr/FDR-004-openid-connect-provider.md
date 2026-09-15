@@ -58,11 +58,53 @@ are HTTPS-only, do not follow redirects, reject special-use destinations,
 ignore proxy configuration, and have strict concurrency, response-size,
 timeout, and cache bounds. Invalid responses are never cached.
 
+Each resolver permits eight active cache-miss lookups. Admission happens before
+DNS validation and does not queue: a saturated resolver rejects another cache
+miss immediately. Valid cache hits still work. One five-second deadline covers
+DNS validation, the HTTP request, and body reading; an earlier caller deadline
+or cancellation takes precedence. The dial-time destination check retains the
+lookup context even when the HTTP transport detaches its dial context.
+
+The cache holds at most 256 clients. Each lookup and insertion removes expired
+entries. At capacity, insertion evicts the entry that expires first. Cache
+lifetimes retain the existing one-minute default and five-minute maximum;
+`no-store` and `no-cache` responses are not retained. Idle expired entries can
+remain allocated until the next lookup, within the same entry cap. Each parsed
+document is limited to 5 KiB. Returned clients do not expose mutable cache data.
+
+These limits are per process and use no durable state or background worker.
+A later request can retry after a slot is released; failures are not cached.
+Ingress rate limits remain a separate control for aggregate request traffic.
+
 Special-use destinations are rejected by default. Operators may explicitly
 trust exact CIMD hostnames that resolve to private or loopback addresses in
 controlled development environments. Private-host and loopback-host trust are
 separate exceptions, and each admits only its named address class. Neither
 permits link-local, multicast, or other special-use destinations.
+
+## Authentication Freshness
+
+Authorization accepts `prompt=login`, `prompt=consent`, and their combination.
+`prompt=login` and `max_age=0` require a successful authentication ceremony
+that starts after the authorization request was created. A positive `max_age`
+sets the maximum elapsed seconds since authentication. Invalid, duplicate,
+negative, and overflowing values are rejected. `prompt=none` remains unsupported.
+
+Both automatic grant reuse and explicit approval check freshness. If the
+session is too old, the browser returns to login with the same pending request.
+A failed login does not change authentication time. The checks use full timestamp
+precision so a session from earlier in the same second cannot satisfy forced
+login. Positive age limits are checked again when consent is submitted.
+
+ID tokens include `auth_time`, in Unix seconds, from the authenticated browser
+session. Consent, profile updates, and session activity do not advance this
+value. Email-change session replacement preserves it. Successful login, signup,
+password reset, and signed-in password change record the start of their
+successful credential ceremony as a conservative authentication time.
+
+Authentication time and request constraints are encrypted runtime state and
+survive a restart. They do not add durable domain events. This implements the
+freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html#AuthRequest).
 
 ## Security and Failure Behavior
 
@@ -71,7 +113,10 @@ permits link-local, multicast, or other special-use destinations.
   PKCE, unsupported scopes and response modes, request objects, and
   `prompt=none` fail closed.
 - Consent and login POSTs require Authling's exact browser origin. Pending IDs
-  are resolved server-side and cannot carry an arbitrary return URL.
+  are resolved server-side and cannot carry an arbitrary return URL. Login and
+  recovery forms permit only the validated client redirect origin in addition
+  to Authling in their Content Security Policy `form-action` directive, so
+  automatic consent reuse can complete the browser redirect chain.
 - A storage conflict during approval or code claim fails the operation instead
   of creating two grants.
 - Grant creation and revocation use account-subject OCC and wait for the grant

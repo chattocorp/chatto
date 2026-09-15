@@ -515,7 +515,7 @@ export class SetAttachmentDescriptionRequest extends Message<SetAttachmentDescri
   roomId = "";
 
   /**
-   * Required. Canonical message event containing the attachment.
+   * Required. Message event containing the attachment, or its channel echo.
    *
    * @generated from field: string event_id = 2;
    */

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/core"
@@ -1169,5 +1170,61 @@ func TestFollowedThreadsResponseOmitsUnavailableRooms(t *testing.T) {
 	}
 	if got := len(resp.GetThreads()); got != 0 {
 		t.Fatalf("followedThreadsResponse returned %d unavailable threads, want 0", got)
+	}
+}
+
+func TestRoomTimelineEchoUsesUnavailableOriginalWithoutStaleContent(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("echo-unavailable")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "original", nil, root.Id, "", nil, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
+	if !ok {
+		t.Fatal("missing echo")
+	}
+	corruptMessageBody(t, env.ctx, env, room.Id, reply.Id, env.viewer.Id)
+	response, err := env.rooms.GetRoomEvents(ctx, connect.NewRequest(&apiv1.GetRoomEventsRequest{RoomId: room.Id, Limit: 20}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	echo := timelinePageEvent(response.Msg.GetPage(), echoID)
+	if echo == nil {
+		t.Fatal("missing echo row")
+	}
+	message := echo.GetMessagePosted().GetMessage()
+	if message == nil || message.Body != nil || message.DeletedAt != nil {
+		t.Fatalf("echo should be unavailable without a deletion: %v", message)
+	}
+}
+
+func TestMessageBatchHydratesEchoAndOriginalAfterAuthorizedAliasEdit(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	room := env.createJoinedRoom("echo-batch")
+	root := env.post(room.Id, env.viewer.Id, "root", "")
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, env.viewer.Id, "original", nil, root.Id, root.Id, nil, true)
+	require.NoError(t, err)
+	echoID, ok := env.core.ChannelEchoEventID(reply.Id)
+	require.True(t, ok)
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "echo-other", "Echo Other", "password123")
+	require.NoError(t, err)
+	_, err = env.core.JoinRoom(env.ctx, other.Id, core.KindChannel, other.Id, room.Id)
+	require.NoError(t, err)
+	text := "alias edit"
+	_, err = env.messages.UpdateMessage(withCaller(env.ctx, other), connect.NewRequest(&apiv1.UpdateMessageRequest{RoomId: room.Id, EventId: echoID, Body: &text}))
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	_, err = env.messages.UpdateMessage(ctx, connect.NewRequest(&apiv1.UpdateMessageRequest{RoomId: room.Id, EventId: echoID, Body: &text}))
+	require.NoError(t, err)
+	batch, err := env.messages.BatchGetMessages(ctx, connect.NewRequest(&apiv1.BatchGetMessagesRequest{RoomId: room.Id, EventIds: []string{reply.Id, echoID}}))
+	require.NoError(t, err)
+	require.Len(t, batch.Msg.GetMessages(), 2)
+	for _, message := range batch.Msg.GetMessages() {
+		require.Equal(t, text, message.GetBody())
+		require.Equal(t, root.Id, message.GetInReplyTo())
+		require.NotNil(t, message.GetUpdatedAt())
 	}
 }

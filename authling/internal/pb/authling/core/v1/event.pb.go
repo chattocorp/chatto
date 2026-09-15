@@ -99,6 +99,9 @@ type Event struct {
 	//	*Event_OidcSigningKeyActivated
 	//	*Event_OidcSigningKeyRetirementRequested
 	//	*Event_OidcSigningKeyRetired
+	//	*Event_AccountErasureRequested
+	//	*Event_EmailReleased
+	//	*Event_AccountErased
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -290,6 +293,33 @@ func (x *Event) GetOidcSigningKeyRetired() *OIDCSigningKeyRetiredEvent {
 	return nil
 }
 
+func (x *Event) GetAccountErasureRequested() *AccountErasureRequestedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_AccountErasureRequested); ok {
+			return x.AccountErasureRequested
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetEmailReleased() *EmailReleasedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_EmailReleased); ok {
+			return x.EmailReleased
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetAccountErased() *AccountErasedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_AccountErased); ok {
+			return x.AccountErased
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -354,6 +384,18 @@ type Event_OidcSigningKeyRetired struct {
 	OidcSigningKeyRetired *OIDCSigningKeyRetiredEvent `protobuf:"bytes,114,opt,name=oidc_signing_key_retired,json=oidcSigningKeyRetired,proto3,oneof"`
 }
 
+type Event_AccountErasureRequested struct {
+	AccountErasureRequested *AccountErasureRequestedEvent `protobuf:"bytes,115,opt,name=account_erasure_requested,json=accountErasureRequested,proto3,oneof"`
+}
+
+type Event_EmailReleased struct {
+	EmailReleased *EmailReleasedEvent `protobuf:"bytes,116,opt,name=email_released,json=emailReleased,proto3,oneof"`
+}
+
+type Event_AccountErased struct {
+	AccountErased *AccountErasedEvent `protobuf:"bytes,117,opt,name=account_erased,json=accountErased,proto3,oneof"`
+}
+
 func (*Event_AccountCreated) isEvent_Event() {}
 
 func (*Event_EmailClaimed) isEvent_Event() {}
@@ -383,6 +425,12 @@ func (*Event_OidcSigningKeyActivated) isEvent_Event() {}
 func (*Event_OidcSigningKeyRetirementRequested) isEvent_Event() {}
 
 func (*Event_OidcSigningKeyRetired) isEvent_Event() {}
+
+func (*Event_AccountErasureRequested) isEvent_Event() {}
+
+func (*Event_EmailReleased) isEvent_Event() {}
+
+func (*Event_AccountErased) isEvent_Event() {}
 
 // ProfileUpdatedEvent replaces the encrypted, non-unique identity hints that
 // Authling publishes to relying parties.
@@ -1562,11 +1610,187 @@ func (x *OIDCGrantRevokedEvent) GetAuthorizationEventId() string {
 	return ""
 }
 
+// AccountErasureRequestedEvent permanently denies access before key destruction.
+// It is atomically committed with EmailReleasedEvent on the registry subject.
+type AccountErasureRequestedEvent struct {
+	state                  protoimpl.MessageState `protogen:"open.v1"`
+	AccountId              string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	PriorCredentialEventId string                 `protobuf:"bytes,2,opt,name=prior_credential_event_id,json=priorCredentialEventId,proto3" json:"prior_credential_event_id,omitempty"`
+	UserKeyRef             string                 `protobuf:"bytes,3,opt,name=user_key_ref,json=userKeyRef,proto3" json:"user_key_ref,omitempty"`
+	CredentialKeyRef       string                 `protobuf:"bytes,4,opt,name=credential_key_ref,json=credentialKeyRef,proto3" json:"credential_key_ref,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *AccountErasureRequestedEvent) Reset() {
+	*x = AccountErasureRequestedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountErasureRequestedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountErasureRequestedEvent) ProtoMessage() {}
+
+func (x *AccountErasureRequestedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountErasureRequestedEvent.ProtoReflect.Descriptor instead.
+func (*AccountErasureRequestedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *AccountErasureRequestedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AccountErasureRequestedEvent) GetPriorCredentialEventId() string {
+	if x != nil {
+		return x.PriorCredentialEventId
+	}
+	return ""
+}
+
+func (x *AccountErasureRequestedEvent) GetUserKeyRef() string {
+	if x != nil {
+		return x.UserKeyRef
+	}
+	return ""
+}
+
+func (x *AccountErasureRequestedEvent) GetCredentialKeyRef() string {
+	if x != nil {
+		return x.CredentialKeyRef
+	}
+	return ""
+}
+
+// EmailReleasedEvent releases the claim owned by the erased account.
+type EmailReleasedEvent struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	AccountId             string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	ErasureRequestEventId string                 `protobuf:"bytes,2,opt,name=erasure_request_event_id,json=erasureRequestEventId,proto3" json:"erasure_request_event_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *EmailReleasedEvent) Reset() {
+	*x = EmailReleasedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EmailReleasedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EmailReleasedEvent) ProtoMessage() {}
+
+func (x *EmailReleasedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EmailReleasedEvent.ProtoReflect.Descriptor instead.
+func (*EmailReleasedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *EmailReleasedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *EmailReleasedEvent) GetErasureRequestEventId() string {
+	if x != nil {
+		return x.ErasureRequestEventId
+	}
+	return ""
+}
+
+// AccountErasedEvent confirms idempotent live key destruction completed.
+type AccountErasedEvent struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	AccountId             string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	ErasureRequestEventId string                 `protobuf:"bytes,2,opt,name=erasure_request_event_id,json=erasureRequestEventId,proto3" json:"erasure_request_event_id,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *AccountErasedEvent) Reset() {
+	*x = AccountErasedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AccountErasedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AccountErasedEvent) ProtoMessage() {}
+
+func (x *AccountErasedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AccountErasedEvent.ProtoReflect.Descriptor instead.
+func (*AccountErasedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *AccountErasedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *AccountErasedEvent) GetErasureRequestEventId() string {
+	if x != nil {
+		return x.ErasureRequestEventId
+	}
+	return ""
+}
+
 var File_authling_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xae\f\n" +
+	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x0e\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1585,7 +1809,10 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x19oidc_signing_key_prepared\x18o \x01(\v2-.authling.core.v1.OIDCSigningKeyPreparedEventH\x00R\x16oidcSigningKeyPrepared\x12m\n" +
 	"\x1aoidc_signing_key_activated\x18p \x01(\v2..authling.core.v1.OIDCSigningKeyActivatedEventH\x00R\x17oidcSigningKeyActivated\x12\x8c\x01\n" +
 	"%oidc_signing_key_retirement_requested\x18q \x01(\v28.authling.core.v1.OIDCSigningKeyRetirementRequestedEventH\x00R!oidcSigningKeyRetirementRequested\x12g\n" +
-	"\x18oidc_signing_key_retired\x18r \x01(\v2,.authling.core.v1.OIDCSigningKeyRetiredEventH\x00R\x15oidcSigningKeyRetiredB\a\n" +
+	"\x18oidc_signing_key_retired\x18r \x01(\v2,.authling.core.v1.OIDCSigningKeyRetiredEventH\x00R\x15oidcSigningKeyRetired\x12l\n" +
+	"\x19account_erasure_requested\x18s \x01(\v2..authling.core.v1.AccountErasureRequestedEventH\x00R\x17accountErasureRequested\x12M\n" +
+	"\x0eemail_released\x18t \x01(\v2$.authling.core.v1.EmailReleasedEventH\x00R\remailReleased\x12M\n" +
+	"\x0eaccount_erased\x18u \x01(\v2$.authling.core.v1.AccountErasedEventH\x00R\raccountErasedB\a\n" +
 	"\x05event\"\x96\x03\n" +
 	"\x13ProfileUpdatedEvent\x12\x1d\n" +
 	"\n" +
@@ -1695,7 +1922,22 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x19\n" +
 	"\bgrant_id\x18\x02 \x01(\tR\agrantId\x124\n" +
-	"\x16authorization_event_id\x18\x03 \x01(\tR\x14authorizationEventId*\x81\x01\n" +
+	"\x16authorization_event_id\x18\x03 \x01(\tR\x14authorizationEventId\"\xc8\x01\n" +
+	"\x1cAccountErasureRequestedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x129\n" +
+	"\x19prior_credential_event_id\x18\x02 \x01(\tR\x16priorCredentialEventId\x12 \n" +
+	"\fuser_key_ref\x18\x03 \x01(\tR\n" +
+	"userKeyRef\x12,\n" +
+	"\x12credential_key_ref\x18\x04 \x01(\tR\x10credentialKeyRef\"l\n" +
+	"\x12EmailReleasedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x127\n" +
+	"\x18erasure_request_event_id\x18\x02 \x01(\tR\x15erasureRequestEventId\"l\n" +
+	"\x12AccountErasedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x127\n" +
+	"\x18erasure_request_event_id\x18\x02 \x01(\tR\x15erasureRequestEventId*\x81\x01\n" +
 	"\x12PasswordChangeKind\x12$\n" +
 	" PASSWORD_CHANGE_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dPASSWORD_CHANGE_KIND_RECOVERY\x10\x01\x12\"\n" +
@@ -1714,7 +1956,7 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_authling_core_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_authling_core_v1_event_proto_goTypes = []any{
 	(PasswordChangeKind)(0),                        // 0: authling.core.v1.PasswordChangeKind
 	(*Event)(nil),                                  // 1: authling.core.v1.Event
@@ -1733,10 +1975,13 @@ var file_authling_core_v1_event_proto_goTypes = []any{
 	(*EmailChangedEvent)(nil),                      // 14: authling.core.v1.EmailChangedEvent
 	(*OIDCGrantAuthorizedEvent)(nil),               // 15: authling.core.v1.OIDCGrantAuthorizedEvent
 	(*OIDCGrantRevokedEvent)(nil),                  // 16: authling.core.v1.OIDCGrantRevokedEvent
-	(*timestamppb.Timestamp)(nil),                  // 17: google.protobuf.Timestamp
+	(*AccountErasureRequestedEvent)(nil),           // 17: authling.core.v1.AccountErasureRequestedEvent
+	(*EmailReleasedEvent)(nil),                     // 18: authling.core.v1.EmailReleasedEvent
+	(*AccountErasedEvent)(nil),                     // 19: authling.core.v1.AccountErasedEvent
+	(*timestamppb.Timestamp)(nil),                  // 20: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	17, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	20, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
 	10, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
 	9,  // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
 	3,  // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
@@ -1752,14 +1997,17 @@ var file_authling_core_v1_event_proto_depIdxs = []int32{
 	6,  // 13: authling.core.v1.Event.oidc_signing_key_activated:type_name -> authling.core.v1.OIDCSigningKeyActivatedEvent
 	7,  // 14: authling.core.v1.Event.oidc_signing_key_retirement_requested:type_name -> authling.core.v1.OIDCSigningKeyRetirementRequestedEvent
 	8,  // 15: authling.core.v1.Event.oidc_signing_key_retired:type_name -> authling.core.v1.OIDCSigningKeyRetiredEvent
-	17, // 16: authling.core.v1.OIDCSigningKeyPreparedEvent.activate_at:type_name -> google.protobuf.Timestamp
-	17, // 17: authling.core.v1.OIDCSigningKeyActivatedEvent.retire_after:type_name -> google.protobuf.Timestamp
-	0,  // 18: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
-	19, // [19:19] is the sub-list for method output_type
-	19, // [19:19] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	17, // 16: authling.core.v1.Event.account_erasure_requested:type_name -> authling.core.v1.AccountErasureRequestedEvent
+	18, // 17: authling.core.v1.Event.email_released:type_name -> authling.core.v1.EmailReleasedEvent
+	19, // 18: authling.core.v1.Event.account_erased:type_name -> authling.core.v1.AccountErasedEvent
+	20, // 19: authling.core.v1.OIDCSigningKeyPreparedEvent.activate_at:type_name -> google.protobuf.Timestamp
+	20, // 20: authling.core.v1.OIDCSigningKeyActivatedEvent.retire_after:type_name -> google.protobuf.Timestamp
+	0,  // 21: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -1783,6 +2031,9 @@ func file_authling_core_v1_event_proto_init() {
 		(*Event_OidcSigningKeyActivated)(nil),
 		(*Event_OidcSigningKeyRetirementRequested)(nil),
 		(*Event_OidcSigningKeyRetired)(nil),
+		(*Event_AccountErasureRequested)(nil),
+		(*Event_EmailReleased)(nil),
+		(*Event_AccountErased)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1790,7 +2041,7 @@ func file_authling_core_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   16,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

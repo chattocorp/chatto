@@ -105,8 +105,18 @@ Never leave a dev stack running in a detached or yielded terminal session.
   state, durable effects, realtime delivery, or mounted ConnectRPC services.
 - Update `docs/GLOSSARY.md` when introducing, renaming, or clarifying canonical
   vocabulary.
-- Update the docs website when changing user-facing features, config,
-  deployment behavior, or public APIs.
+- Public documentation requires a meaningful reader impact. Update
+  `apps/docs-website/` only when a change introduces a meaningful feature,
+  changes observable behavior, requires reader action, or makes existing public
+  documentation incorrect.
+- Internal refactors, storage changes, implementation details, and added tests
+  do not by themselves require public documentation updates. Record these in
+  FDRs, ADRs, and architecture docs as applicable.
+- Before editing public documentation, identify what the reader needs to learn
+  or do differently. If there is no concrete answer, leave it unchanged. Keep
+  justified updates limited to that difference; do not expand documentation
+  merely because related code changed.
+- Generated API reference updates must remain consistent with their source.
 - Keep `NOTICE` current when adding, removing, or materially changing bundled
   dependencies or shipped assets.
 

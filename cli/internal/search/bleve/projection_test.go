@@ -904,3 +904,34 @@ func hitIDs(response *searchv1.QueryResponse) []string {
 	}
 	return ids
 }
+
+func TestProjectionEchoesNeverCreateSearchCopies(t *testing.T) {
+	for _, bodyFirst := range []bool{false, true} {
+		t.Run(fmt.Sprintf("bodyFirst=%v", bodyFirst), func(t *testing.T) {
+			key, err := encryption.GenerateKey()
+			require.NoError(t, err)
+			p, err := NewProjection(t.TempDir()+"/index", nil, nil, staticLegacyKeys{key: key}, nil, log.New(nil))
+			require.NoError(t, err)
+			defer p.Close()
+			applyLegacyMessage(t, p, key, "REPLY", "B1", "R1", "U1", "canonical content", time.Unix(1, 0), 1)
+			echo := messagePostedEvent("ECHO", "R1", "U1", time.Unix(1, 0))
+			echo.GetMessagePosted().EchoOfEventId = "REPLY"
+			echo.GetMessagePosted().EchoFromThreadRootEventId = "ROOT"
+			body := legacyBodyEvent(t, key, "ECHO", "OLD", "R1", "U1", "stale content", time.Unix(1, 0), nil)
+			if bodyFirst {
+				require.NoError(t, p.Apply(body, 3))
+				require.NoError(t, p.Apply(echo, 4))
+			} else {
+				require.NoError(t, p.Apply(echo, 3))
+				require.NoError(t, p.Apply(body, 4))
+			}
+			applyLegacyBody(t, p, key, "ECHO", "LATE", "R1", "U1", "stale content", time.Unix(2, 0), nil, 5)
+			response, err := p.query(context.Background(), &searchv1.QueryRequest{RequiredTerms: []string{"content"}, PageSize: 10, Order: searchv1.SearchOrder_SEARCH_ORDER_RELEVANCE})
+			require.NoError(t, err)
+			require.Equal(t, []string{"REPLY"}, hitIDs(response))
+			state, err := p.loadMessage("ECHO")
+			require.NoError(t, err)
+			require.Empty(t, state.Body)
+		})
+	}
+}

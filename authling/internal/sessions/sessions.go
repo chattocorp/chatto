@@ -34,16 +34,19 @@ var ErrNotFound = errors.New("session not found")
 
 // Session is the authenticated server-side browser state.
 type Session struct {
-	AccountID             string    `json:"account_id"`
-	AuthenticationVersion uint64    `json:"authentication_version,omitempty"`
-	CreatedAt             time.Time `json:"created_at"`
-	LastSeenAt            time.Time `json:"last_seen_at"`
-	ExpiresAt             time.Time `json:"expires_at"`
+	AccountID             string `json:"account_id"`
+	AuthenticationVersion uint64 `json:"authentication_version,omitempty"`
+	// AuthenticatedAt is the start of the successful authentication ceremony.
+	// Replacement without new authentication and activity must not advance it.
+	AuthenticatedAt time.Time `json:"authenticated_at"`
+	CreatedAt       time.Time `json:"created_at"`
+	LastSeenAt      time.Time `json:"last_seen_at"`
+	ExpiresAt       time.Time `json:"expires_at"`
 }
 
 // AuthenticationVersionResolver returns the durable credential generation for
 // an account. A changed generation invalidates sessions issued before it.
-type AuthenticationVersionResolver func(accountID string) (uint64, bool)
+type AuthenticationVersionResolver func(ctx context.Context, accountID string) (uint64, bool, error)
 
 type sealedState struct {
 	Version    int    `json:"version"`
@@ -89,18 +92,20 @@ func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, authenticati
 // Create starts a new authenticated browser session and returns its bearer
 // token. Only the token belongs in the browser cookie.
 func (s *Service) Create(ctx context.Context, accountID string) (string, Session, error) {
-	return s.create(ctx, accountID, nil)
+	return s.create(ctx, accountID, nil, s.now().UTC())
 }
 
 // CreateAtAuthenticationVersion starts a browser session only for the exact
 // credential generation that authorized the surrounding operation. A
 // concurrent password or email change makes the new session stale instead of
-// silently upgrading it to the later generation.
-func (s *Service) CreateAtAuthenticationVersion(ctx context.Context, accountID string, expectedVersion uint64) (string, Session, error) {
-	return s.create(ctx, accountID, &expectedVersion)
+// silently upgrading it to the later generation. authenticatedAt must come
+// from the successful ceremony, or the previous session for a replacement
+// without new authentication. It must never come from browser input.
+func (s *Service) CreateAtAuthenticationVersion(ctx context.Context, accountID string, expectedVersion uint64, authenticatedAt time.Time) (string, Session, error) {
+	return s.create(ctx, accountID, &expectedVersion, authenticatedAt)
 }
 
-func (s *Service) create(ctx context.Context, accountID string, expectedVersion *uint64) (string, Session, error) {
+func (s *Service) create(ctx context.Context, accountID string, expectedVersion *uint64, authenticatedAt time.Time) (string, Session, error) {
 	if strings.TrimSpace(accountID) == "" {
 		return "", Session{}, fmt.Errorf("account id is required")
 	}
@@ -114,9 +119,15 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 	token := base64.RawURLEncoding.EncodeToString(random)
 	clear(random)
 	now := s.now().UTC()
-	state := Session{AccountID: accountID, CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(AbsoluteLifetime)}
+	if authenticatedAt.IsZero() || authenticatedAt.After(now) {
+		return "", Session{}, fmt.Errorf("invalid authentication time")
+	}
+	state := Session{AccountID: accountID, AuthenticatedAt: authenticatedAt.UTC(), CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(AbsoluteLifetime)}
 	if s.authenticationVersion != nil {
-		version, ok := s.authenticationVersion(accountID)
+		version, ok, err := s.authenticationVersion(ctx, accountID)
+		if err != nil {
+			return "", Session{}, err
+		}
 		if !ok {
 			return "", Session{}, fmt.Errorf("create session for absent account")
 		}
@@ -135,8 +146,8 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 		return "", Session{}, fmt.Errorf("store session: %w", err)
 	}
 	if expectedVersion != nil {
-		version, ok := s.authenticationVersion(accountID)
-		if !ok || version != *expectedVersion {
+		version, ok, err := s.authenticationVersion(ctx, accountID)
+		if err != nil || !ok || version != *expectedVersion {
 			cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 			defer cancel()
 			_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))
@@ -180,7 +191,10 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 			return Session{}, ErrNotFound
 		}
 		if s.authenticationVersion != nil {
-			version, ok := s.authenticationVersion(state.AccountID)
+			version, ok, err := s.authenticationVersion(ctx, state.AccountID)
+			if err != nil {
+				return Session{}, err
+			}
 			if !ok || version != state.AuthenticationVersion {
 				_ = s.kv.Delete(ctx, key)
 				return Session{}, ErrNotFound
@@ -264,7 +278,7 @@ func (s *Service) open(key string, value []byte) (Session, error) {
 	}
 	defer clear(plain)
 	var state Session
-	if err := json.Unmarshal(plain, &state); err != nil || state.AccountID == "" || state.CreatedAt.IsZero() || state.LastSeenAt.Before(state.CreatedAt) || state.LastSeenAt.After(state.ExpiresAt) || !state.ExpiresAt.After(state.CreatedAt) {
+	if err := json.Unmarshal(plain, &state); err != nil || state.AccountID == "" || state.CreatedAt.IsZero() || state.AuthenticatedAt.IsZero() || state.AuthenticatedAt.After(state.CreatedAt) || state.LastSeenAt.Before(state.CreatedAt) || state.LastSeenAt.After(state.ExpiresAt) || !state.ExpiresAt.After(state.CreatedAt) {
 		return Session{}, fmt.Errorf("decode session state")
 	}
 	return state, nil

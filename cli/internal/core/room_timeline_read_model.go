@@ -227,7 +227,7 @@ func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, r
 		readableEntries := make([]*TimelineEntry, 0, len(entries))
 		readableBodyReferences := make([]TimelineBodyReference, 0, len(entries))
 		for i, body := range bodies {
-			_, err := s.core.decryptMessageBody(ctx, entries[i].EventID, entries[i].RoomID, body)
+			_, err := s.core.decryptMessageBody(ctx, bodyReferences[i].MessageEventID, entries[i].RoomID, body)
 			if errors.Is(err, encryption.ErrKeyNotFound) {
 				continue
 			}

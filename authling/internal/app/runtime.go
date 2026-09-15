@@ -19,6 +19,7 @@ import (
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/emailchange"
+	"hmans.de/authling/internal/erasure"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
 	"hmans.de/authling/internal/keyvault"
@@ -36,9 +37,12 @@ import (
 // Runtime owns Authling's NATS connection, event stream, projections, and
 // domain services.
 type Runtime struct {
-	connection *natsruntime.Connection
-	projectors []*events.Projector
-	issuer     *issuer.Service
+	connection       *natsruntime.Connection
+	projectors       []*events.Projector
+	issuer           *issuer.Service
+	erasureProjector *events.Projector
+	// Erasure resumes durable account key destruction.
+	Erasure *erasure.Service
 
 	// Accounts is Authling's account command and read boundary.
 	Accounts *accounts.Service
@@ -113,7 +117,10 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 		return closeOnError(fmt.Errorf("open workflow key: %w", err))
 	}
 	publisher := evtstream.NewPublisher(eventLog)
+	erasureHandle := events.NewDecodedProjectionHandle(js, stream, erasure.NewProjection(), evtstream.Decode, logger)
+	erasureService := erasure.New(publisher, erasureHandle, vault)
 	projection := accounts.NewProjection(vault, workflowKey)
+	projection.SetErasureChecker(erasureService.IsRequested)
 	handle := events.NewDecodedProjectionHandle(
 		js,
 		stream,
@@ -135,6 +142,18 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	if err != nil {
 		return closeOnError(fmt.Errorf("open authorization grant service: %w", err))
 	}
+	if err := erasureService.ConfigureWorker(ctx, stream, logger, func(ctx context.Context, state erasure.State) error {
+		if err := handle.Projector().WaitFor(ctx, events.SubjectPosition(evtstream.AccountRegistrySubject(), state.ReleaseSequence)); err != nil {
+			return err
+		}
+		subject, err := evtstream.AccountSubject(state.AccountID)
+		if err != nil {
+			return err
+		}
+		return authorizationHandle.Projector().WaitFor(ctx, events.SubjectPosition(subject, state.RequestSequence))
+	}); err != nil {
+		return closeOnError(fmt.Errorf("configure account erasure: %w", err))
+	}
 	cimd, err := oidcprovider.NewCIMDResolver(
 		cfg.HTTP.PublicURLOrDefault(),
 		nil,
@@ -152,17 +171,19 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService, vault)
 	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{
-		connection:     connection,
-		projectors:     []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
-		issuer:         issuerService,
-		Accounts:       accountService,
-		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		PasswordReset:  passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, emailChangeOptions...),
-		Authentication: authenticationService,
-		Sessions:       sessionService,
-		Authorizations: authorizationService,
-		OIDC:           oidcService,
+		connection:       connection,
+		erasureProjector: erasureHandle.Projector(),
+		Erasure:          erasureService,
+		projectors:       []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
+		issuer:           issuerService,
+		Accounts:         accountService,
+		Registration:     registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		PasswordReset:    passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		EmailChange:      emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, emailChangeOptions...),
+		Authentication:   authenticationService,
+		Sessions:         sessionService,
+		Authorizations:   authorizationService,
+		OIDC:             oidcService,
 	}, nil
 }
 
@@ -170,9 +191,16 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 // context ends or the projection fails.
 func (r *Runtime) Run(ctx context.Context) error {
 	group, groupContext := errgroup.WithContext(ctx)
+	group.Go(func() error { return r.erasureProjector.Run(groupContext) })
+	group.Go(func() error { return r.Erasure.Run(groupContext) })
 	for _, projector := range r.projectors {
 		projector := projector
-		group.Go(func() error { return projector.Run(groupContext) })
+		group.Go(func() error {
+			if err := r.erasureProjector.WaitForStartup(groupContext); err != nil {
+				return err
+			}
+			return projector.Run(groupContext)
+		})
 	}
 	group.Go(func() error { return r.issuer.Run(groupContext) })
 	group.Go(func() error { return r.Sessions.RunInventory(groupContext) })
@@ -182,6 +210,9 @@ func (r *Runtime) Run(ctx context.Context) error {
 // WaitReady blocks until every required model has replayed its startup
 // history.
 func (r *Runtime) WaitReady(ctx context.Context) error {
+	if err := r.erasureProjector.WaitForStartup(ctx); err != nil {
+		return err
+	}
 	for _, projector := range r.projectors {
 		if err := projector.WaitForStartup(ctx); err != nil {
 			return err

@@ -176,7 +176,8 @@
         "html_document": "Dokument HTML",
         "xhtml_document": "Dokument XHTML",
         "file_size": "Velikost souboru",
-        "unavailable": "Nedostupné"
+        "unavailable": "Nedostupné",
+        "no_preview": "Náhled tohoto souboru není k dispozici. Stáhni si ho a ulož."
       }
     },
     "link_preview": {

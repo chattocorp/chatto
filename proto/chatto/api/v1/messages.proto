@@ -156,7 +156,7 @@ message DeleteAttachmentResponse {
 message SetAttachmentDescriptionRequest {
   // Required. Room containing the message.
   string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Canonical message event containing the attachment.
+  // Required. Message event containing the attachment, or its channel echo.
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Attachment asset ID in the current message body.
   string attachment_id = 3 [(buf.validate.field).string.min_len = 1];

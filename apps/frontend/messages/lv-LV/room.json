@@ -176,7 +176,8 @@
         "html_document": "HTML dokuments",
         "xhtml_document": "XHTML dokuments",
         "file_size": "Faila lielums",
-        "unavailable": "Nav pieejams"
+        "unavailable": "Nav pieejams",
+        "no_preview": "Šim failam nav pieejams priekšskatījums. Lejupielādē to, lai saglabātu."
       }
     },
     "link_preview": {

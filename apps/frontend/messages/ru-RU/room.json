@@ -177,7 +177,8 @@
         "html_document": "Документ HTML",
         "xhtml_document": "Документ XHTML",
         "file_size": "Размер файла",
-        "unavailable": "Недоступно"
+        "unavailable": "Недоступно",
+        "no_preview": "Предпросмотр этого файла недоступен. Скачай его, чтобы сохранить."
       }
     },
     "link_preview": {

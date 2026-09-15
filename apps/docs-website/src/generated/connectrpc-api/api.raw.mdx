@@ -3061,7 +3061,7 @@ Request to set or clear one attachment description.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room containing the message. |
-| `event_id` | `string` | Required. Canonical message event containing the attachment. |
+| `event_id` | `string` | Required. Message event containing the attachment, or its channel echo. |
 | `attachment_id` | `string` | Required. Attachment asset ID in the current message body. |
 | `description` | `string` | Replacement description with at most 1,000 Unicode characters. Trim outer whitespace before sending. Chatto also trims outer whitespace and preserves internal line breaks. An empty result clears the description. |
 

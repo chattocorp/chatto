@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-09-10
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -77,9 +77,9 @@ frontend-only upsert operation. See ADR-091 and FDR-045.
 every add and remove transition from a long offline interval. Reactions on
 older messages remain available through normal timeline pagination.
 
-For an echoed thread reply, the server emits authoritative upserts for both the
-canonical reply and the visible channel echo. This keeps both renderings in
-sync without requiring clients to infer echo linkage from a reaction signal.
+For an echoed thread reply, the reaction event identifies the original reply.
+Clients refresh the linked rows they have loaded. Each read resolves the same
+canonical reaction set for the original and its visible echo.
 
 ### 7. Web client reaction clicks are optimistic
 

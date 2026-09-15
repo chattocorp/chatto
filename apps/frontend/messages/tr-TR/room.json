@@ -176,7 +176,8 @@
         "html_document": "HTML belgesi",
         "xhtml_document": "XHTML belgesi",
         "file_size": "Dosya boyutu",
-        "unavailable": "Kullanılamıyor"
+        "unavailable": "Kullanılamıyor",
+        "no_preview": "Bu dosya için önizleme yok. Kaydetmek için indir."
       }
     },
     "link_preview": {

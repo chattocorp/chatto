@@ -42,6 +42,9 @@ func TestSessionLifecycleAndEncryptedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !validated.AuthenticatedAt.Equal(created.AuthenticatedAt) || !created.AuthenticatedAt.Equal(created.CreatedAt) {
+		t.Fatal("session activity advanced authentication time")
+	}
 	if !validated.LastSeenAt.Equal(now) {
 		t.Fatalf("last seen = %v, want %v", validated.LastSeenAt, now)
 	}
@@ -127,8 +130,8 @@ func TestSessionRejectsAnOlderAuthenticationVersion(t *testing.T) {
 	service, _, cleanup := testService(t)
 	defer cleanup()
 	version := uint64(3)
-	service.authenticationVersion = func(accountID string) (uint64, bool) {
-		return version, accountID == "acc_versioned"
+	service.authenticationVersion = func(ctx context.Context, accountID string) (uint64, bool, error) {
+		return version, accountID == "acc_versioned", nil
 	}
 	token, created, err := service.Create(t.Context(), "acc_versioned")
 	if err != nil {
@@ -147,16 +150,16 @@ func TestGenerationBoundSessionDoesNotUpgradeAcrossCredentialChange(t *testing.T
 	service, _, cleanup := testService(t)
 	defer cleanup()
 	version := uint64(4)
-	service.authenticationVersion = func(accountID string) (uint64, bool) {
-		return version, accountID == "acc_generation_bound"
+	service.authenticationVersion = func(ctx context.Context, accountID string) (uint64, bool, error) {
+		return version, accountID == "acc_generation_bound", nil
 	}
-	if _, created, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version); err != nil {
+	if _, created, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version, time.Now()); err != nil {
 		t.Fatal(err)
 	} else if created.AuthenticationVersion != version {
 		t.Fatalf("authentication version = %d, want %d", created.AuthenticationVersion, version)
 	}
 	version++
-	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version-1); err == nil {
+	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version-1, time.Now()); err == nil {
 		t.Fatal("generation-bound session silently upgraded across credential change")
 	}
 }
@@ -166,14 +169,14 @@ func TestGenerationBoundSessionRemovesRecordWhenVersionChangesAfterStore(t *test
 	defer cleanup()
 	const expected = uint64(7)
 	var resolutions int
-	service.authenticationVersion = func(accountID string) (uint64, bool) {
+	service.authenticationVersion = func(ctx context.Context, accountID string) (uint64, bool, error) {
 		resolutions++
 		if resolutions == 1 {
-			return expected, accountID == "acc_post_store_race"
+			return expected, accountID == "acc_post_store_race", nil
 		}
-		return expected + 1, accountID == "acc_post_store_race"
+		return expected + 1, accountID == "acc_post_store_race", nil
 	}
-	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_post_store_race", expected); err == nil {
+	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_post_store_race", expected, time.Now()); err == nil {
 		t.Fatal("generation-bound session survived a post-store credential change")
 	}
 	keys, err := stores.RuntimeState.Keys(t.Context())
@@ -298,8 +301,8 @@ func TestSessionInventoryOmitsMalformedAndStaleAuthenticationVersions(t *testing
 	service, stores, _, _, cleanup := testInventoryService(t)
 	defer cleanup()
 	version := uint64(1)
-	service.authenticationVersion = func(accountID string) (uint64, bool) {
-		return version, accountID == "acc_filtered"
+	service.authenticationVersion = func(ctx context.Context, accountID string) (uint64, bool, error) {
+		return version, accountID == "acc_filtered", nil
 	}
 	if _, err := stores.RuntimeState.Put(t.Context(), "session.malformed", []byte("not encrypted session state")); err != nil {
 		t.Fatal(err)
@@ -506,5 +509,35 @@ func testService(t *testing.T) (*Service, storage.Stores, func()) {
 		if err := connection.Close(); err != nil {
 			t.Errorf("close NATS: %v", err)
 		}
+	}
+}
+
+func TestSessionRejectsInvalidAuthenticationTime(t *testing.T) {
+	service, _, cleanup := testService(t)
+	defer cleanup()
+	service.authenticationVersion = func(context.Context, string) (uint64, bool, error) { return 1, true, nil }
+	now := time.Now().UTC()
+	service.now = func() time.Time { return now }
+	for _, at := range []time.Time{{}, now.Add(time.Nanosecond)} {
+		if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_invalid_time", 1, at); err == nil {
+			t.Fatal("accepted invalid authentication time")
+		}
+	}
+}
+
+func TestSessionStorageOutageDeniesAccessWithoutRevokingRecord(t *testing.T) {
+	service, stores, cleanup := testService(t)
+	defer cleanup()
+	token, _, err := service.Create(t.Context(), "acc_outage")
+	if err != nil {
+		t.Fatal(err)
+	}
+	outage := errors.New("injected account storage outage")
+	service.authenticationVersion = func(context.Context, string) (uint64, bool, error) { return 0, false, outage }
+	if _, err := service.Validate(t.Context(), token); !errors.Is(err, outage) {
+		t.Fatalf("validate outage: %v", err)
+	}
+	if _, err := stores.RuntimeState.Get(t.Context(), service.sessionKey(token)); err != nil {
+		t.Fatal("outage revoked valid record", err)
 	}
 }

@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-08-27
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -66,11 +66,11 @@ the message body.
 **Why:** A mention notification is an attention event that already happened. Re-resolving mentions on edit would allow quiet retroactive pings, would make notifications depend on mutable usernames and edited body text, and would complicate replay now that message bodies are private payload facts.
 **Tradeoff:** An author who forgot to mention someone must send a new message rather than editing the old one to ping them. Removing an `@name` from the edited body also does not revoke an already-created notification.
 
-### 5. Echo events carry mentions but don't re-notify
+### 5. Echoes resolve mentions without new notifications
 
-**Decision:** When a thread reply is echoed to the channel, `mentionedUserIds` is copied to the echo. The echo doesn't fire a second notification — the original reply already did.
-**Why:** The echo's mention rendering (highlight, link to profile) needs the field present, but the user shouldn't get notified twice. See FDR-003.
-**Tradeoff:** The frontend has to know that echo mentions don't trigger room-level mention indicators twice. The backend skips the notification on echo events.
+**Decision:** Echo reads resolve mention metadata from the original reply. The echo does not fire a second notification.
+**Why:** Both views need the same mention display. Each recipient needs only one notification. See FDR-003.
+**Tradeoff:** The backend resolves the original metadata for timeline and realtime reads and skips notification creation for echoes.
 
 ### 6. Direct-mention policy controls delivery
 

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -9,6 +10,10 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// errTimelineEntryCorrupt identifies a stored event that does not match its
+// projected reference. Storage failures remain distinct and must propagate.
+var errTimelineEntryCorrupt = errors.New("room timeline event is corrupt")
 
 type timelineEventReader interface {
 	EventsAt(context.Context, []uint64) ([]*evtstream.SubjectEvent, error)
@@ -48,7 +53,7 @@ func (h *RoomTimelineHydrator) events(ctx context.Context, entries []*TimelineEn
 	events := make([]*evtv1.Event, len(entries))
 	for i, record := range records {
 		if err := validateTimelineEntryRecord(entries[i], record); err != nil {
-			return nil, fmt.Errorf("hydrate room timeline entry %d: %w", i, err)
+			return nil, fmt.Errorf("%w: hydrate room timeline entry %d: %w", errTimelineEntryCorrupt, i, err)
 		}
 		events[i] = record.Event
 	}
@@ -73,6 +78,25 @@ func (h *RoomTimelineHydrator) bodies(ctx context.Context, references []Timeline
 	if h == nil || h.reader == nil {
 		return nil, fmt.Errorf("room timeline hydrator is unavailable")
 	}
+	unique := make([]TimelineBodyReference, 0, len(references))
+	indexes := make(map[TimelineBodyReference]int, len(references))
+	for _, reference := range references {
+		if _, exists := indexes[reference]; !exists {
+			indexes[reference] = len(unique)
+			unique = append(unique, reference)
+		}
+	}
+	if len(unique) != len(references) {
+		bodies, err := h.bodies(ctx, unique)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]*evtv1.MessageBody, len(references))
+		for i, reference := range references {
+			result[i] = proto.Clone(bodies[indexes[reference]]).(*evtv1.MessageBody)
+		}
+		return result, nil
+	}
 	sequences := make([]uint64, len(references))
 	for i, reference := range references {
 		if reference.StreamSeq == 0 {
@@ -91,7 +115,7 @@ func (h *RoomTimelineHydrator) bodies(ctx context.Context, references []Timeline
 	for i, record := range records {
 		body, err := validateTimelineBodyRecord(references[i], record)
 		if err != nil {
-			return nil, fmt.Errorf("hydrate message body %q: %w", references[i].MessageEventID, err)
+			return nil, fmt.Errorf("%w: hydrate message body %q: %w", ErrMessageBodyCorrupt, references[i].MessageEventID, err)
 		}
 		bodies[i] = body
 	}

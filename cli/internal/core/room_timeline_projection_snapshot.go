@@ -11,7 +11,7 @@ import (
 	projectionv1 "hmans.de/chatto/internal/pb/chatto/core/projection/v1"
 )
 
-var roomTimelineSnapshotContractID = snapshotContractID("v7", &projectionv1.RoomTimelineProjectionSnapshot{})
+var roomTimelineSnapshotContractID = snapshotContractID("v8", &projectionv1.RoomTimelineProjectionSnapshot{})
 
 func (*RoomTimelineProjection) SnapshotContractID() string {
 	return roomTimelineSnapshotContractID
@@ -261,19 +261,12 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 		}
 	}
-	for messageID, state := range restored.bodyStates {
-		if _, retracted := restored.retractedFlags[messageID]; retracted {
-			continue
+	for _, entry := range restored.entries {
+		if entry.IsMessagePost() {
+			restored.refreshAttachmentMessageLocked(entry.RoomID, entry.EventID)
 		}
-		if _, hidden := restored.hiddenEchoes[messageID]; hidden {
-			continue
-		}
-		entry, ok := restored.entryByEventIDLocked(messageID)
-		if !ok || !state.active || state.attachmentCount == 0 {
-			continue
-		}
-		restored.refreshAttachmentMessageLocked(entry.RoomID, messageID)
 	}
+
 	p.Lock()
 	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers, p.pinnedMessagesByRoom, p.latestPinByRoom = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers, restored.pinnedMessagesByRoom, restored.latestPinByRoom
 	p.Unlock()

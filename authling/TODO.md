@@ -21,9 +21,8 @@ current runtime in `docs/architecture/`.
 - [ ] Define secure upstream-account linking and email-collision behavior
 - [ ] Implement an event-backed orphan-key cleanup worker that resolves unknown
   publication outcomes before deleting keys, with crash/race tests
-- [ ] Implement durable account erasure
-- [ ] Implement erasure-aware two-phase replay before destroying account keys
-- [ ] Add key-loss, erasure, backup, substitution, and KMS-failure tests
+- [ ] Define and test retirement of external key backups after account erasure
+- [ ] Add external-KMS failure tests when a KMS provider is implemented
 - [ ] Implement upstream SSO and account linking
 
 ## OpenID Connect

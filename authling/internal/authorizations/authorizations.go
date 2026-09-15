@@ -59,6 +59,7 @@ type accountKeys struct{ userRef, dataRef string }
 type Projection struct {
 	events.MemoryProjection
 	accounts map[string]accountKeys
+	erased   map[string]bool
 	byClient map[string]map[string]Grant
 	byID     map[string]map[string]Grant
 	usedIDs  map[string]struct{}
@@ -78,10 +79,27 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		if p.accounts == nil {
 			p.accounts = make(map[string]accountKeys)
 		}
-		if _, exists := p.accounts[created.GetAccountId()]; exists {
+		if _, exists := p.accounts[created.GetAccountId()]; exists || p.erased[created.GetAccountId()] {
 			return fmt.Errorf("authorization projection saw duplicate account creation")
 		}
 		p.accounts[created.GetAccountId()] = accountKeys{created.GetUserKeyRef(), created.GetCredentialKeyRef()}
+		return nil
+	}
+	if requested := event.GetAccountErasureRequested(); requested != nil {
+		p.Lock()
+		defer p.Unlock()
+		id := requested.GetAccountId()
+		keys, ok := p.accounts[id]
+		if !ok || keys.userRef != requested.GetUserKeyRef() || keys.dataRef != requested.GetCredentialKeyRef() {
+			return fmt.Errorf("erasure references absent account or wrong keys")
+		}
+		if p.erased == nil {
+			p.erased = make(map[string]bool)
+		}
+		p.erased[id] = true
+		delete(p.accounts, id)
+		delete(p.byClient, id)
+		delete(p.byID, id)
 		return nil
 	}
 	if authorized := event.GetOidcGrantAuthorized(); authorized != nil {

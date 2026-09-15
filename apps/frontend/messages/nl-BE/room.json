@@ -176,7 +176,8 @@
         "html_document": "HTML-document",
         "xhtml_document": "XHTML-document",
         "file_size": "Bestandsgrootte",
-        "unavailable": "Niet beschikbaar"
+        "unavailable": "Niet beschikbaar",
+        "no_preview": "Er is geen voorbeeld beschikbaar voor dit bestand. Download het om het op te slaan."
       }
     },
     "link_preview": {

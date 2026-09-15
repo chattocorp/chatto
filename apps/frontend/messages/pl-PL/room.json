@@ -183,7 +183,8 @@
         "html_document": "Dokument HTML",
         "xhtml_document": "Dokument XHTML",
         "file_size": "Rozmiar pliku",
-        "unavailable": "Niedostępny"
+        "unavailable": "Niedostępny",
+        "no_preview": "Podgląd tego pliku jest niedostępny. Pobierz go, aby go zapisać."
       }
     },
     "link_preview": {

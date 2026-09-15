@@ -176,7 +176,8 @@
         "html_document": "HTML-dokument",
         "xhtml_document": "XHTML-dokument",
         "file_size": "Faili suurus",
-        "unavailable": "Pole saadaval"
+        "unavailable": "Pole saadaval",
+        "no_preview": "Selle faili eelvaade pole saadaval. Salvestamiseks laadi see alla."
       }
     },
     "link_preview": {
