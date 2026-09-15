@@ -38,11 +38,9 @@ func mountPasswordChange(mux *http.ServeMux, deps Dependencies, publicOrigin *ur
 			http.Error(w, "password change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)

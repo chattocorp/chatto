@@ -25,11 +25,9 @@ func mountPasswordReset(mux *http.ServeMux, deps Dependencies, publicOrigin *url
 			http.Error(w, "password reset unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			render(w, r, http.StatusBadRequest, passwordResetPage("Invalid form submission.", ""))
 			return
@@ -51,11 +49,9 @@ func mountPasswordReset(mux *http.ServeMux, deps Dependencies, publicOrigin *url
 			http.Error(w, "password reset unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -77,11 +73,9 @@ func mountPasswordReset(mux *http.ServeMux, deps Dependencies, publicOrigin *url
 			http.Error(w, "password reset unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return

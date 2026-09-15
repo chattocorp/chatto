@@ -26,8 +26,7 @@ func mountDeletion(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL)
 		render(w, r, http.StatusOK, deleteAccountPage(""))
 	})
 	mux.HandleFunc("POST /account/delete", func(w http.ResponseWriter, r *http.Request) {
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !requireSameOrigin(w, r, publicOrigin) {
 			return
 		}
 		if deps.Authentication == nil {
