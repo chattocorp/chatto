@@ -95,10 +95,7 @@ export function groupBotPermissions(
 
 /** Collapse display entries only when the server proves coverage of hidden children. */
 export function compactEffectivePermissions(entries: EffectivePermission[]): BotPermission[] {
-  const unique = new Map<string, EffectivePermission>();
-  for (const entry of entries)
-    unique.set(`${entry.permission}:${entry.scope}:${entry.scopeId}`, entry);
-  const all = [...unique.values()];
+  const all = entries;
   const byKey = new Map(
     all.map((entry) => [`${entry.permission}:${entry.scope}:${entry.scopeId}`, entry])
   );

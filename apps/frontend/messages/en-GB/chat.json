@@ -96,7 +96,6 @@
         "joined_rooms": "Rooms it has joined",
         "all_rooms": "Rooms",
         "server": "This server",
-        "more": "Show more permissions",
         "list_rooms": "Browse rooms",
         "echo": "Show thread replies in the room timeline",
         "start_calls": "Start calls",

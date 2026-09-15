@@ -34,7 +34,8 @@ exercise more authority than its human owner currently possesses.
   effective grants; it never returns stored overrides or inactive grants.
 - The client groups these grants for display. The API reports whether each
   grant covers all applicable child scopes, including rooms hidden from the
-  viewer. It filters hidden room identities before entry pagination.
+  viewer. It returns all viewer-visible effective grants in one coherent read, without
+  pagination or truncation.
 - The summary combines broader and narrower grants only when every applicable
   narrower scope has the same effective access. It omits permissions already
   included by another displayed permission. Named rooms follow the viewer's
@@ -44,8 +45,7 @@ exercise more authority than its human owner currently possesses.
   The profile loads these separately through the existing admin user matrix
   read. Other members cannot see inactive grants.
 - The summary refreshes every 30 seconds while the pane is open. A failed read
-  shows an error instead of stale grants. Long summaries have a control to
-  load more permissions. Closing the pane stops refreshes and clears its cache.
+  shows an error instead of stale grants. Closing the pane stops refreshes and clears its cache.
 
 - A human user with `bot.create` can create a bot account and becomes its
   owner.

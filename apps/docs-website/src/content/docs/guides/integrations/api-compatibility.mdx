@@ -30,8 +30,8 @@ data migration is required.
 API. Any signed-in member can read bot effective permissions. Human targets,
 including the caller, require `user.manage-permissions`.
 
-The response contains allowed permissions at server, group, channel-room, and
-DM scopes. It applies bot owner limits and omits hidden room identities.
+Each response contains all visible allowed permissions at server, group,
+channel-room, and DM scopes, without pagination or truncation. It applies bot owner limits and omits hidden room identities.
 `covers_descendants` reports whether a grant covers all applicable child
 scopes, including hidden rooms. Channel defaults and DM access are separate.
 Clients can use this metadata to combine overlapping grants for display.

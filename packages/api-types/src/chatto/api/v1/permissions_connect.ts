@@ -20,10 +20,10 @@ export const PermissionService = {
      * targets require user.manage-permissions, including self-targeted reads.
      * Bot authority includes the owner's current limits. Hidden room identities,
      * stored grants, credentials, and individual DM participants are not exposed.
-     * Missing or deleted targets return NOT_FOUND. Each page is a fresh read;
-     * concurrent changes can move entries between pages. Clients should refresh
-     * visible views (the bundled client uses 30 seconds), deduplicate overlapping
-     * pages, and clear the view on close or read failure.
+     * Missing or deleted targets return NOT_FOUND. Each call returns the complete
+     * visible set from one coherent read, without pagination or truncation. Clients
+     * should refresh visible views (the bundled client uses 30 seconds) and clear
+     * the view on close or read failure.
      *
      * @generated from rpc chatto.api.v1.PermissionService.ListEffectivePermissions
      */

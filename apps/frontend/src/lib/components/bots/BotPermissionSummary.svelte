@@ -1,7 +1,7 @@
 <!-- @component Public bot permissions. The query refreshes every 30 seconds
 while mounted and discards cached data when the profile closes. -->
 <script lang="ts">
-  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
+  import { createQuery } from '@tanstack/svelte-query';
   import { createPermissionAPI, type MatrixData } from '$lib/api-client/permissions';
   import { createEffectivePermissionAPI } from '$lib/api-client/effectivePermissions';
   import { m } from '$lib/i18n/messages';
@@ -19,7 +19,7 @@ while mounted and discards cached data when the profile closes. -->
 
   let { botId, botOwnerId }: { botId: string; botOwnerId?: string } = $props();
   const scope = useServerScope();
-  const query = createInfiniteQuery(
+  const query = createQuery(
     () => ({
       queryKey: [
         'server',
@@ -29,22 +29,16 @@ while mounted and discards cached data when the profile closes. -->
         'bot-permissions',
         botId
       ],
-      initialPageParam: 0,
-      queryFn: ({ pageParam, signal }) =>
+      queryFn: ({ signal }) =>
         scope.connection
           .getAPI(createEffectivePermissionAPI)
-          .listEffectivePermissions(botId, pageParam, signal),
-      getNextPageParam: (page) => page.nextOffset,
+          .listEffectivePermissions(botId, signal),
       refetchInterval: 30_000,
       gcTime: 0
     }),
     () => queryClient
   );
-  const active = $derived(
-    groupBotPermissions(
-      compactEffectivePermissions(query.data?.pages.flatMap((page) => page.permissions) ?? [])
-    )
-  );
+  const active = $derived(groupBotPermissions(compactEffectivePermissions(query.data ?? [])));
   const canManage = $derived(
     !!scope.store?.projection.viewer?.user?.profile &&
       !scope.store.projection.viewer.user.profile.isBot &&
@@ -124,7 +118,7 @@ while mounted and discards cached data when the profile closes. -->
     {:else}
       {#if active.length > 0}
         {@render permissionGroups(active)}
-      {:else if !query.hasNextPage}
+      {:else}
         <p class="text-muted">{m('chat.profile.permissions.empty')}</p>
       {/if}
       {#if inactive.length > 0 || (canManage && configuration.isError)}
@@ -142,15 +136,6 @@ while mounted and discards cached data when the profile closes. -->
             {@render permissionGroups(inactive)}
           {/if}
         </details>
-      {/if}
-      {#if query.hasNextPage}
-        <Button
-          variant="secondary"
-          disabled={query.isFetchingNextPage}
-          onclick={() => query.fetchNextPage()}
-        >
-          {m('chat.profile.permissions.more')}
-        </Button>
       {/if}
     {/if}
   </div>

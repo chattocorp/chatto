@@ -58,16 +58,13 @@ afterEach(() => {
 });
 
 it('groups effective grants without issuing an admin read for ordinary members', async () => {
-  mocks.listEffectivePermissions.mockResolvedValue({
-    permissions: [
-      grant('message.read'),
-      grant('message.read-interactions'),
-      grant('message.read', 'dm'),
-      grant('room.list'),
-      grant('room.join')
-    ],
-    hasMore: false
-  });
+  mocks.listEffectivePermissions.mockResolvedValue([
+    grant('message.read'),
+    grant('message.read-interactions'),
+    grant('message.read', 'dm'),
+    grant('room.list'),
+    grant('room.join')
+  ]);
   view = render(BotPermissionSummary, { botId: 'bot', botOwnerId: 'owner' });
   await expect.element(page.getByText('Browse and join rooms')).toBeVisible();
   await expect.element(page.getByText('Rooms it has joined', { exact: true })).toBeVisible();
@@ -77,10 +74,7 @@ it('groups effective grants without issuing an admin read for ordinary members',
 });
 
 it('keeps the disclosure collapsed across profile mounts', async () => {
-  mocks.listEffectivePermissions.mockResolvedValue({
-    permissions: [grant('message.read')],
-    hasMore: false
-  });
+  mocks.listEffectivePermissions.mockResolvedValue([grant('message.read')]);
   view = render(BotPermissionSummary, { botId: 'bot' });
   await expect.element(page.getByText('Read all messages')).toBeVisible();
   await page.getByRole('button', { name: 'What it can do' }).click();
@@ -93,41 +87,34 @@ it('keeps the disclosure collapsed across profile mounts', async () => {
 });
 
 it('hides stale effective grants after a read error and permits retry', async () => {
-  mocks.listEffectivePermissions.mockResolvedValue({
-    permissions: [grant('message.read')],
-    hasMore: false
-  });
+  mocks.listEffectivePermissions.mockResolvedValue([grant('message.read')]);
   view = render(BotPermissionSummary, { botId: 'bot' });
   await expect.element(page.getByText('Read all messages')).toBeVisible();
   mocks.listEffectivePermissions.mockRejectedValue(new Error('offline'));
   await queryClient.invalidateQueries({ queryKey: ['server', mocks.serverId] });
   await expect.element(page.getByRole('alert')).toBeVisible();
   expect(view.container.textContent).not.toContain('Read all messages');
-  mocks.listEffectivePermissions.mockResolvedValue({ permissions: [], hasMore: false });
+  mocks.listEffectivePermissions.mockResolvedValue([]);
   await page.getByRole('button', { name: 'Try Again' }).click();
   await expect.element(page.getByText('No active permissions are visible to you.')).toBeVisible();
 });
 
-it('deduplicates overlapping pages and uses the API continuation', async () => {
-  mocks.listEffectivePermissions
-    .mockResolvedValueOnce({ permissions: [grant('message.read')], hasMore: true, nextOffset: 1 })
-    .mockResolvedValueOnce({
-      permissions: [grant('message.read'), grant('message.post')],
-      hasMore: false
-    });
+it('shows the complete result from one request without a load-more control', async () => {
+  mocks.listEffectivePermissions.mockResolvedValue([grant('message.read'), grant('message.post')]);
   view = render(BotPermissionSummary, { botId: 'bot' });
-  await page.getByRole('button', { name: 'Show more permissions' }).click();
+  await expect.element(page.getByText('Read all messages')).toBeVisible();
   await expect.element(page.getByText('Post new messages')).toBeVisible();
-  expect(mocks.listEffectivePermissions).toHaveBeenLastCalledWith(
+  expect(mocks.listEffectivePermissions).toHaveBeenCalledExactlyOnceWith(
     'bot',
-    1,
     expect.any(AbortSignal)
   );
-  expect(view.container.textContent?.match(/Read all messages/g)).toHaveLength(1);
+  await expect
+    .element(page.getByRole('button', { name: 'Show more permissions' }))
+    .not.toBeInTheDocument();
 });
 
 it('reads unavailable grants separately for the owner and hides them on ownership loss', async () => {
-  mocks.listEffectivePermissions.mockResolvedValue({ permissions: [], hasMore: false });
+  mocks.listEffectivePermissions.mockResolvedValue([]);
   mocks.getUserPermissionMatrix.mockResolvedValue({
     applicablePermissions: ['message.manage'],
     scopes: [{ id: 'dm', kind: 'DM', label: 'Direct messages', parentGroupId: '' }],

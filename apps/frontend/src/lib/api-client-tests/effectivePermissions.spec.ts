@@ -8,7 +8,7 @@ vi.mock('@connectrpc/connect', async (importOriginal) => ({
 }));
 vi.mock('@connectrpc/connect-web', () => ({ createConnectTransport: () => ({}) }));
 beforeEach(() => vi.resetAllMocks());
-it('calls the read-only public API with entry pagination and coverage metadata', async () => {
+it('calls the read-only public API once with the target ID and coverage metadata', async () => {
   const api = createEffectivePermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
   const signal = new AbortController().signal;
   mocks.listEffectivePermissions.mockResolvedValue({
@@ -23,25 +23,20 @@ it('calls the read-only public API with entry pagination and coverage metadata',
         },
         coversDescendants: true
       }
-    ],
-    page: { hasMore: true }
+    ]
   });
-  await expect(api.listEffectivePermissions('bot', 5, signal)).resolves.toEqual({
-    permissions: [
-      {
-        permission: 'message.read',
-        scope: 'room',
-        scopeId: 'r',
-        scopeName: 'general',
-        parentGroupId: 'g',
-        coversDescendants: true
-      }
-    ],
-    hasMore: true,
-    nextOffset: 6
-  });
+  await expect(api.listEffectivePermissions('bot', signal)).resolves.toEqual([
+    {
+      permission: 'message.read',
+      scope: 'room',
+      scopeId: 'r',
+      scopeName: 'general',
+      parentGroupId: 'g',
+      coversDescendants: true
+    }
+  ]);
   expect(mocks.listEffectivePermissions).toHaveBeenCalledWith(
-    { userId: 'bot', page: { limit: 100, offset: 5 } },
+    { userId: 'bot' },
     { headers: { Authorization: 'Bearer token' }, signal }
   );
   mocks.listEffectivePermissions.mockResolvedValue({ permissions: [{ scope: { kind: 999 } }] });

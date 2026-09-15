@@ -17,9 +17,9 @@ export type EffectivePermission = {
 export function createEffectivePermissionAPI(config: PermissionAPIConfig) {
   const client = createChattoClient(PermissionService, config);
   return {
-    async listEffectivePermissions(userId: string, offset = 0, signal?: AbortSignal) {
+    async listEffectivePermissions(userId: string, signal?: AbortSignal) {
       const response = await client.listEffectivePermissions(
-        { userId, page: { limit: 100, offset } },
+        { userId },
         { headers: authHeaders(config), signal }
       );
       const permissions: EffectivePermission[] = response.permissions.map((entry) => {
@@ -45,13 +45,7 @@ export function createEffectivePermissionAPI(config: PermissionAPIConfig) {
           coversDescendants: entry.coversDescendants
         };
       });
-      const hasMore = response.page?.hasMore ?? false;
-      if (hasMore && permissions.length === 0) throw new Error('Empty effective permission page');
-      return {
-        permissions,
-        hasMore,
-        nextOffset: hasMore ? offset + permissions.length : undefined
-      };
+      return permissions;
     }
   };
 }

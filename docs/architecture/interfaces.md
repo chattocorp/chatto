@@ -135,7 +135,7 @@ but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
 
 `chatto.api.v1.PermissionService.ListEffectivePermissions` is a read-only,
-entry-paginated effective permission read. Authenticated members can inspect
+complete effective permission read without pagination or truncation. Authenticated members can inspect
 bot targets; human targets require `user.manage-permissions`. Core evaluates
 the existing resolver in one server content view, including bot owner limits.
 The response retains inherited and included grants. Child coverage metadata

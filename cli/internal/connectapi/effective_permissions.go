@@ -19,10 +19,8 @@ func (s *effectivePermissionService) ListEffectivePermissions(ctx context.Contex
 	if err != nil {
 		return nil, connectError(err)
 	}
-	limit, offset := apiPagination(req.Msg.GetPage(), 20, 100)
-	page, total, more := apiSlicePage(entries, limit, offset)
-	result := make([]*apiv1.EffectivePermission, 0, len(page))
-	for _, entry := range page {
+	result := make([]*apiv1.EffectivePermission, 0, len(entries))
+	for _, entry := range entries {
 		scope := &apiv1.EffectivePermissionScope{}
 		switch entry.Scope.Kind {
 		case core.MatrixScopeServer:
@@ -38,5 +36,5 @@ func (s *effectivePermissionService) ListEffectivePermissions(ctx context.Contex
 		}
 		result = append(result, &apiv1.EffectivePermission{Permission: string(entry.Permission), Scope: scope, CoversDescendants: entry.CoversDescendants})
 	}
-	return connect.NewResponse(&apiv1.ListEffectivePermissionsResponse{Permissions: result, Page: apiPageInfo(total, more)}), nil
+	return connect.NewResponse(&apiv1.ListEffectivePermissionsResponse{Permissions: result}), nil
 }

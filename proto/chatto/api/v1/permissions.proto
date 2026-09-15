@@ -3,7 +3,6 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
-import "chatto/api/v1/pagination.proto";
 
 // Effective decision for one permission key.
 message PermissionGrant {
@@ -75,22 +74,18 @@ message EffectivePermission {
   bool covers_descendants = 3;
 }
 
-// Select a current page of effective permissions for one account.
+// Read all effective permissions for one account.
 message ListEffectivePermissionsRequest {
   // Required target account ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Offset page over visible permission entries; default 20, maximum 100.
-  PageRequest page = 2;
 }
 
-// Effective grants in permission-catalog order, then stable scope-ID order.
+// All visible effective grants in permission-catalog order, then stable scope-ID order.
 // Denied and unconfigured permissions are absent. Inherited and included
 // permissions remain separate entries; clients can group them for display.
 message ListEffectivePermissionsResponse {
   // Effective grants visible to the caller.
   repeated EffectivePermission permissions = 1;
-  // Counts and continuation for the visible entry collection.
-  PageInfo page = 2;
 }
 
 // Read-only effective authority. Configuration and explanations remain in
@@ -100,9 +95,9 @@ service PermissionService {
   // targets require user.manage-permissions, including self-targeted reads.
   // Bot authority includes the owner's current limits. Hidden room identities,
   // stored grants, credentials, and individual DM participants are not exposed.
-  // Missing or deleted targets return NOT_FOUND. Each page is a fresh read;
-  // concurrent changes can move entries between pages. Clients should refresh
-  // visible views (the bundled client uses 30 seconds), deduplicate overlapping
-  // pages, and clear the view on close or read failure.
+  // Missing or deleted targets return NOT_FOUND. Each call returns the complete
+  // visible set from one coherent read, without pagination or truncation. Clients
+  // should refresh visible views (the bundled client uses 30 seconds) and clear
+  // the view on close or read failure.
   rpc ListEffectivePermissions(ListEffectivePermissionsRequest) returns (ListEffectivePermissionsResponse);
 }

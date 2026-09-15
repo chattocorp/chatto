@@ -348,13 +348,11 @@ func (x *EffectivePermission) GetCoversDescendants() bool {
 	return false
 }
 
-// Select a current page of effective permissions for one account.
+// Read all effective permissions for one account.
 type ListEffectivePermissionsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required target account ID.
-	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	// Offset page over visible permission entries; default 20, maximum 100.
-	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -396,22 +394,13 @@ func (x *ListEffectivePermissionsRequest) GetUserId() string {
 	return ""
 }
 
-func (x *ListEffectivePermissionsRequest) GetPage() *PageRequest {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
-// Effective grants in permission-catalog order, then stable scope-ID order.
+// All visible effective grants in permission-catalog order, then stable scope-ID order.
 // Denied and unconfigured permissions are absent. Inherited and included
 // permissions remain separate entries; clients can group them for display.
 type ListEffectivePermissionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Effective grants visible to the caller.
-	Permissions []*EffectivePermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
-	// Counts and continuation for the visible entry collection.
-	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	Permissions   []*EffectivePermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -453,18 +442,11 @@ func (x *ListEffectivePermissionsResponse) GetPermissions() []*EffectivePermissi
 	return nil
 }
 
-func (x *ListEffectivePermissionsResponse) GetPage() *PageInfo {
-	if x != nil {
-		return x.Page
-	}
-	return nil
-}
-
 var File_chatto_api_v1_permissions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\"K\n" +
+	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"K\n" +
 	"\x0fPermissionGrant\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -485,13 +467,11 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"permission\x18\x01 \x01(\tR\n" +
 	"permission\x12=\n" +
 	"\x05scope\x18\x02 \x01(\v2'.chatto.api.v1.EffectivePermissionScopeR\x05scope\x12-\n" +
-	"\x12covers_descendants\x18\x03 \x01(\bR\x11coversDescendants\"s\n" +
+	"\x12covers_descendants\x18\x03 \x01(\bR\x11coversDescendants\"C\n" +
 	"\x1fListEffectivePermissionsRequest\x12 \n" +
-	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\x12.\n" +
-	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x95\x01\n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"h\n" +
 	" ListEffectivePermissionsResponse\x12D\n" +
-	"\vpermissions\x18\x01 \x03(\v2\".chatto.api.v1.EffectivePermissionR\vpermissions\x12+\n" +
-	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page*\xf8\x01\n" +
+	"\vpermissions\x18\x01 \x03(\v2\".chatto.api.v1.EffectivePermissionR\vpermissions*\xf8\x01\n" +
 	"\x1cEffectivePermissionScopeKind\x12/\n" +
 	"+EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12*\n" +
 	"&EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12)\n" +
@@ -524,22 +504,18 @@ var file_chatto_api_v1_permissions_proto_goTypes = []any{
 	(*EffectivePermission)(nil),              // 4: chatto.api.v1.EffectivePermission
 	(*ListEffectivePermissionsRequest)(nil),  // 5: chatto.api.v1.ListEffectivePermissionsRequest
 	(*ListEffectivePermissionsResponse)(nil), // 6: chatto.api.v1.ListEffectivePermissionsResponse
-	(*PageRequest)(nil),                      // 7: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                         // 8: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_permissions_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.EffectivePermissionScope.kind:type_name -> chatto.api.v1.EffectivePermissionScopeKind
 	3, // 1: chatto.api.v1.EffectivePermission.scope:type_name -> chatto.api.v1.EffectivePermissionScope
-	7, // 2: chatto.api.v1.ListEffectivePermissionsRequest.page:type_name -> chatto.api.v1.PageRequest
-	4, // 3: chatto.api.v1.ListEffectivePermissionsResponse.permissions:type_name -> chatto.api.v1.EffectivePermission
-	8, // 4: chatto.api.v1.ListEffectivePermissionsResponse.page:type_name -> chatto.api.v1.PageInfo
-	5, // 5: chatto.api.v1.PermissionService.ListEffectivePermissions:input_type -> chatto.api.v1.ListEffectivePermissionsRequest
-	6, // 6: chatto.api.v1.PermissionService.ListEffectivePermissions:output_type -> chatto.api.v1.ListEffectivePermissionsResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4, // 2: chatto.api.v1.ListEffectivePermissionsResponse.permissions:type_name -> chatto.api.v1.EffectivePermission
+	5, // 3: chatto.api.v1.PermissionService.ListEffectivePermissions:input_type -> chatto.api.v1.ListEffectivePermissionsRequest
+	6, // 4: chatto.api.v1.PermissionService.ListEffectivePermissions:output_type -> chatto.api.v1.ListEffectivePermissionsResponse
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_permissions_proto_init() }
@@ -547,7 +523,6 @@ func file_chatto_api_v1_permissions_proto_init() {
 	if File_chatto_api_v1_permissions_proto != nil {
 		return
 	}
-	file_chatto_api_v1_pagination_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -5,7 +5,6 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3 } from "@bufbuild/protobuf";
-import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
  * Scope of effective authority. Channel scopes never include direct messages.
@@ -296,7 +295,7 @@ export class EffectivePermission extends Message<EffectivePermission> {
 }
 
 /**
- * Select a current page of effective permissions for one account.
+ * Read all effective permissions for one account.
  *
  * @generated from message chatto.api.v1.ListEffectivePermissionsRequest
  */
@@ -308,13 +307,6 @@ export class ListEffectivePermissionsRequest extends Message<ListEffectivePermis
    */
   userId = "";
 
-  /**
-   * Offset page over visible permission entries; default 20, maximum 100.
-   *
-   * @generated from field: chatto.api.v1.PageRequest page = 2;
-   */
-  page?: PageRequest;
-
   constructor(data?: PartialMessage<ListEffectivePermissionsRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -324,7 +316,6 @@ export class ListEffectivePermissionsRequest extends Message<ListEffectivePermis
   static readonly typeName = "chatto.api.v1.ListEffectivePermissionsRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "page", kind: "message", T: PageRequest },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListEffectivePermissionsRequest {
@@ -345,7 +336,7 @@ export class ListEffectivePermissionsRequest extends Message<ListEffectivePermis
 }
 
 /**
- * Effective grants in permission-catalog order, then stable scope-ID order.
+ * All visible effective grants in permission-catalog order, then stable scope-ID order.
  * Denied and unconfigured permissions are absent. Inherited and included
  * permissions remain separate entries; clients can group them for display.
  *
@@ -359,13 +350,6 @@ export class ListEffectivePermissionsResponse extends Message<ListEffectivePermi
    */
   permissions: EffectivePermission[] = [];
 
-  /**
-   * Counts and continuation for the visible entry collection.
-   *
-   * @generated from field: chatto.api.v1.PageInfo page = 2;
-   */
-  page?: PageInfo;
-
   constructor(data?: PartialMessage<ListEffectivePermissionsResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -375,7 +359,6 @@ export class ListEffectivePermissionsResponse extends Message<ListEffectivePermi
   static readonly typeName = "chatto.api.v1.ListEffectivePermissionsResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "permissions", kind: "message", T: EffectivePermission, repeated: true },
-    { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListEffectivePermissionsResponse {
