@@ -25,6 +25,8 @@
       )
   }));
   let documentOpen = $state(false);
+  const archiveDescription =
+    'Project files and reference material for the next release.\n\nIncludes source files, illustrations, and notes from the design review.';
 </script>
 
 <Story name="Image gallery" asChild>
@@ -64,7 +66,7 @@
   {#if documentOpen}
     <AttachmentModal
       filename="Project archive.zip"
-      description="Project files and reference material for the next release."
+      description={archiveDescription}
       contentType="application/zip"
       size={2048000}
       downloadUrl="data:application/zip,"

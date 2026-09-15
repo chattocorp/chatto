@@ -72,6 +72,17 @@ test('another user can download unsupported files and play audio in the shared m
       ).toBeVisible();
       await expect(dialog.locator('img, audio, video')).toHaveCount(0);
     }
+    if (contentType === 'application/pdf') {
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      const fallback = dialog.getByText(
+        'No preview is available for this file. Use Download to save it.'
+      );
+      const previewBounds = (await fallback.boundingBox())!;
+      const captionBounds = (await caption.boundingBox())!;
+      expect(captionBounds.x).toBeGreaterThanOrEqual(previewBounds.x + previewBounds.width);
+      await expect(dialog.getByRole('link', { name: 'Download', exact: true })).toBeInViewport();
+      await page.setViewportSize({ width: 360, height: 640 });
+    }
     const link = dialog.getByRole('link', { name: 'Download', exact: true });
     await expect(link).toBeInViewport();
     await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeInViewport();

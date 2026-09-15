@@ -94,86 +94,95 @@ Header, gallery controls and download stay outside the preview on all screens.
   describedBy={description ? descriptionId : undefined}
   {onclose}
 >
-  <div class="flex min-h-0 flex-1 flex-col">
-    {#if error}
-      <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
-        <p role="alert" class="text-sm text-danger">{error}</p>
-        {#if onretry}
-          <button type="button" class="btn-secondary shrink-0" disabled={busy} onclick={onretry}>
-            {m('common.retry')}
-          </button>
-        {/if}
+  <div class="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row lg:gap-6">
+    <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+      {#if error}
+        <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
+          <p role="alert" class="text-sm text-danger">{error}</p>
+          {#if onretry}
+            <button type="button" class="btn-secondary shrink-0" disabled={busy} onclick={onretry}>
+              {m('common.retry')}
+            </button>
+          {/if}
+        </div>
+      {/if}
+      <div class="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md">
+        {@render children()}
       </div>
-    {/if}
-    <div class="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md">
-      {@render children()}
     </div>
-    {#if description}
-      <p
-        id={descriptionId}
-        class="mt-2 max-h-[20dvh] shrink-0 overflow-y-auto text-center wrap-anywhere whitespace-pre-wrap"
-        dir="auto"
-      >
-        {description}
-      </p>
-    {/if}
-    {#if count > 1}
-      <nav
-        class="mt-2 flex shrink-0 items-center justify-center gap-3"
-        aria-label={m('ui.image_modal.fallback_alt')}
-      >
-        <button
-          type="button"
-          class="icon-action"
-          aria-label={m('ui.image_modal.previous')}
-          onclick={() => onnavigate?.(-1)}
+    <div class="flex min-h-0 shrink-0 flex-col lg:w-64">
+      {#if description}
+        <p
+          id={descriptionId}
+          class="max-h-[20dvh] shrink-0 overflow-y-auto text-center wrap-anywhere whitespace-pre-wrap lg:max-h-none lg:min-h-0 lg:shrink lg:text-start"
+          dir="auto"
         >
-          <span class="iconify icon-[uil--angle-left-b] text-xl rtl:-scale-x-100" aria-hidden="true"
-          ></span>
-        </button>
-        <span class="tabular-nums" aria-live="polite">{index + 1} / {count}</span>
-        <button
-          type="button"
-          class="icon-action"
-          aria-label={m('ui.image_modal.next')}
-          onclick={() => onnavigate?.(1)}
-        >
-          <span
-            class="iconify icon-[uil--angle-right-b] text-xl rtl:-scale-x-100"
-            aria-hidden="true"
-          ></span>
-        </button>
-      </nav>
-    {/if}
+          {description}
+        </p>
+      {/if}
+      <div
+        class="mt-3 flex shrink-0 items-center justify-between gap-4 lg:mt-auto lg:flex-col lg:items-stretch lg:gap-6 lg:pt-6"
+      >
+        <dl class="flex min-w-0 flex-wrap gap-x-6 gap-y-2 leading-5 lg:flex-col lg:gap-4">
+          <div class="min-w-0">
+            <dt class="text-muted">{m('room.attachment.html_viewer.document_type')}</dt>
+            <dd class="wrap-anywhere" title={contentType}>{typeLabel}</dd>
+          </div>
+          <div class="min-w-0">
+            <dt class="text-muted">{m('room.attachment.html_viewer.file_size')}</dt>
+            <dd>
+              {sizeLoading
+                ? m('common.loading')
+                : (formattedSize ?? m('room.attachment.html_viewer.unavailable'))}
+            </dd>
+          </div>
+        </dl>
+
+        <div class="flex shrink-0 flex-col gap-3">
+          {#if count > 1}
+            <nav
+              class="flex shrink-0 items-center justify-center gap-3"
+              aria-label={m('ui.image_modal.fallback_alt')}
+            >
+              <button
+                type="button"
+                class="icon-action"
+                aria-label={m('ui.image_modal.previous')}
+                onclick={() => onnavigate?.(-1)}
+              >
+                <span
+                  class="iconify icon-[uil--angle-left-b] text-xl rtl:-scale-x-100"
+                  aria-hidden="true"
+                ></span>
+              </button>
+              <span class="tabular-nums" aria-live="polite">{index + 1} / {count}</span>
+              <button
+                type="button"
+                class="icon-action"
+                aria-label={m('ui.image_modal.next')}
+                onclick={() => onnavigate?.(1)}
+              >
+                <span
+                  class="iconify icon-[uil--angle-right-b] text-xl rtl:-scale-x-100"
+                  aria-hidden="true"
+                ></span>
+              </button>
+            </nav>
+          {/if}
+          <a
+            href={downloadUrl ?? '#'}
+            download={filename}
+            target="_blank"
+            rel="external noopener noreferrer"
+            onclick={ondownload}
+            aria-disabled={busy}
+            class="btn-secondary shrink-0"
+          >
+            <span class="iconify icon-[uil--download-alt]" aria-hidden="true"></span>
+            {m('room.attachment.html_viewer.download')}
+          </a>
+        </div>
+      </div>
+    </div>
   </div>
-  {#snippet footerDetails()}
-    <dl class="flex min-w-0 flex-wrap gap-x-6 gap-y-2 leading-5">
-      <div class="min-w-0">
-        <dt class="text-muted">{m('room.attachment.html_viewer.document_type')}</dt>
-        <dd class="wrap-anywhere" title={contentType}>{typeLabel}</dd>
-      </div>
-      <div class="min-w-0">
-        <dt class="text-muted">{m('room.attachment.html_viewer.file_size')}</dt>
-        <dd>
-          {sizeLoading
-            ? m('common.loading')
-            : (formattedSize ?? m('room.attachment.html_viewer.unavailable'))}
-        </dd>
-      </div>
-    </dl>
-  {/snippet}
-  {#snippet footer()}
-    <a
-      href={downloadUrl ?? '#'}
-      download={filename}
-      target="_blank"
-      rel="external noopener noreferrer"
-      onclick={ondownload}
-      aria-disabled={busy}
-      class="btn-secondary shrink-0"
-    >
-      <span class="iconify icon-[uil--download-alt]" aria-hidden="true"></span>
-      {m('room.attachment.html_viewer.download')}
-    </a>
-  {/snippet}
 </Dialog>

@@ -86,7 +86,7 @@ component on selection changes so playback and consent cannot cross items.
   <SkeletonImg
     src={url}
     alt={item.description || item.filename}
-    class="h-full w-full object-contain"
+    class="h-full w-full bg-surface object-contain outline-none"
     onerror={() => {
       void onerror();
     }}
