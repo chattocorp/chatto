@@ -42,7 +42,9 @@
 
   onMount(() => {
     alive = true;
-    outputSupported = 'setSinkId' in AudioContext.prototype || 'setSinkId' in HTMLMediaElement.prototype;
+    outputSupported =
+      (typeof AudioContext !== 'undefined' && 'setSinkId' in AudioContext.prototype) ||
+      'setSinkId' in HTMLMediaElement.prototype;
     void discoverDevices();
     navigator.mediaDevices?.addEventListener('devicechange', refresh);
     return () => {
