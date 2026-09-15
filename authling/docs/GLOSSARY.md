@@ -12,8 +12,14 @@ store, or a user's home server.
 **Account** — Authling's opaque aggregate for one user identity. Its account ID
 is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
 account may have an encrypted, verified email/password credential, one or more
-independent browser sessions, and durable OIDC authorization grants. Accounts
-do not yet have profile data.
+independent browser sessions, encrypted profile data, and durable OIDC
+authorization grants.
+
+**Account deletion** — Permanent denial of Authling access followed by durable,
+retryable destruction of the account's live user and data keys. The email claim
+is released, but the account ID is never reused. Encrypted workflow records and
+external copies have separate retention limits. See
+[FDR-013](fdr/FDR-013-account-deletion.md).
 
 **Local credential** — An Authling login method based on a verified normalized
 email address and an Argon2id password verifier. Both values are retained only

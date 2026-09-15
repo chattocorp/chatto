@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -77,7 +78,7 @@ func TestBrowserAuthenticationCannotUpgradeStaleGeneration(t *testing.T) {
 			changed := false
 			// The first generation lookup is the session constructor's boundary,
 			// after the HTTP handler has obtained its authentication result.
-			sessionService := sessions.New(stores.RuntimeState, js, key, func(accountID string) (uint64, bool) {
+			sessionService := sessions.New(stores.RuntimeState, js, key, func(ctx context.Context, accountID string) (uint64, bool, error) {
 				if !changed {
 					changed = true
 					target, err := runtime.Accounts.PreparePasswordChange(ctx, accountID, proofPassword, laterPassword)
@@ -88,7 +89,7 @@ func TestBrowserAuthenticationCannotUpgradeStaleGeneration(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				return runtime.Accounts.AuthenticationVersion(accountID)
+				return runtime.Accounts.AuthenticationVersion(ctx, accountID)
 			})
 			handler := web.Handler(web.Dependencies{
 				Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration,

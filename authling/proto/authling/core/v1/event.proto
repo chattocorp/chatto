@@ -34,6 +34,9 @@ message Event {
     OIDCSigningKeyActivatedEvent oidc_signing_key_activated = 112;
     OIDCSigningKeyRetirementRequestedEvent oidc_signing_key_retirement_requested = 113;
     OIDCSigningKeyRetiredEvent oidc_signing_key_retired = 114;
+    AccountErasureRequestedEvent account_erasure_requested = 115;
+    EmailReleasedEvent email_released = 116;
+    AccountErasedEvent account_erased = 117;
   }
 }
 
@@ -222,4 +225,25 @@ message OIDCGrantRevokedEvent {
   string account_id = 1;
   string grant_id = 2;
   string authorization_event_id = 3;
+}
+
+// AccountErasureRequestedEvent permanently denies access before key destruction.
+// It is atomically committed with EmailReleasedEvent on the registry subject.
+message AccountErasureRequestedEvent {
+  string account_id = 1;
+  string prior_credential_event_id = 2;
+  string user_key_ref = 3;
+  string credential_key_ref = 4;
+}
+
+// EmailReleasedEvent releases the claim owned by the erased account.
+message EmailReleasedEvent {
+  string account_id = 1;
+  string erasure_request_event_id = 2;
+}
+
+// AccountErasedEvent confirms idempotent live key destruction completed.
+message AccountErasedEvent {
+  string account_id = 1;
+  string erasure_request_event_id = 2;
 }

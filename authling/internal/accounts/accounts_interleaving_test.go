@@ -100,7 +100,7 @@ func TestCredentialBoundAuditRequestsWaitForEmailClaim(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			commandCtx, cancel := context.WithTimeout(t.Context(), 150*time.Millisecond)
 			defer cancel()
-			if err := command(commandCtx); !errors.Is(err, context.DeadlineExceeded) {
+			if err := command(commandCtx); !errors.Is(err, context.DeadlineExceeded) && !(name == "erasure request" && errors.Is(err, ErrCredentialChanged)) {
 				t.Fatalf("command error = %v, want context deadline while registry apply is blocked", err)
 			}
 			tail, err := publisher.AccountTail(accountTestContext(t), account.ID)
@@ -121,6 +121,10 @@ func TestCredentialBoundAuditRequestsWaitForEmailClaim(t *testing.T) {
 	assertNoAuditAppend("password reset request", func(commandCtx context.Context) error {
 		_, _, err := service.RecordPasswordResetRequested(commandCtx, oldEmail)
 		return err
+	})
+
+	assertNoAuditAppend("erasure request", func(commandCtx context.Context) error {
+		return service.RequestErasure(commandCtx, account.ID, account.AuthenticationVersion)
 	})
 
 	assertNoAuditAppend("login", func(commandCtx context.Context) error {
