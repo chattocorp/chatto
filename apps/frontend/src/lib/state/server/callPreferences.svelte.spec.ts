@@ -4,6 +4,16 @@ import { availableCallDevice, CallPreferencesState } from './callPreferences.sve
 describe('CallPreferencesState', () => {
   beforeEach(() => localStorage.clear());
 
+  it('persists sensitivity per server and defaults older preferences to off', () => {
+    const state = new CallPreferencesState('sensitivity');
+    expect(state.microphoneThreshold).toBe(-60);
+    state.setMicrophoneThreshold(-32);
+    expect(new CallPreferencesState('sensitivity').microphoneThreshold).toBe(-32);
+    expect(new CallPreferencesState('other').microphoneThreshold).toBe(-60);
+    state.setMicrophoneThreshold(NaN);
+    expect(new CallPreferencesState('sensitivity').microphoneThreshold).toBe(-60);
+  });
+
   it('restores devices and join-muted independently for each server', () => {
     const first = new CallPreferencesState('first');
     first.setDevice('audioinput', 'mic');

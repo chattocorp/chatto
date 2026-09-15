@@ -9,6 +9,19 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
+- **Input threshold** is available beside a live microphone meter in call
+  devices and **App Preferences → Voice & video**. It defaults to **Off**
+  and is saved per browser and server. Higher thresholds suppress quieter
+  sounds. The meter shows input before the gate, on the same scale as its
+  threshold marker. Muted calls show no input activity.
+- Sensitivity changes affect outgoing microphone audio and the local test.
+  The gate uses a short attack, a hold period, a lower closing threshold,
+  and a slower release to limit abrupt changes and repeated opening near
+  the threshold. It does not change participant mute state. Basic audio
+  remains available if the browser cannot run the optional gate; the UI
+  shows that sensitivity is unavailable. This does not add a media service
+  or change room permissions.
+
 - **App Preferences → Voice & video** stores microphone, speaker, camera, and
   join-muted choices in this browser for the selected server. Successful device
   changes during a call update those choices. Missing devices use a system

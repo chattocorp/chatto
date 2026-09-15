@@ -1,16 +1,25 @@
+import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
+import { microphoneMeter } from '$lib/audio/noiseGate';
+import type { Track } from 'livekit-client';
 /** An explicitly started, page-owned microphone test. Audio is monitored locally without recording. */
 export class CallDeviceTest {
   active = $state(false);
   pending = $state(false);
   level = $state(0);
   error = $state(false);
+  gateUnavailable = $state(false);
+  #processor: MicrophoneProcessor | null = null;
   #generation = 0;
   #stream: MediaStream | null = null;
   #context: AudioContext | null = null;
   #audio: HTMLAudioElement | null = null;
   #frame = 0;
 
-  async start(deviceId: string, speakerId = ''): Promise<void> {
+  async start(
+    deviceId: string,
+    speakerId = '',
+    threshold: () => number = () => -60
+  ): Promise<void> {
     this.stop();
     const generation = this.#generation;
     this.pending = true;
@@ -43,9 +52,22 @@ export class CallDeviceTest {
           { once: true }
         )
       );
+      const context = new AudioContext();
+      this.#context = context;
+      await context.resume();
+      if (generation !== this.#generation) return;
+      const processor = new MicrophoneProcessor(threshold());
+      this.#processor = processor;
+      await processor.init({
+        track: stream.getAudioTracks()[0],
+        audioContext: context,
+        kind: 'audio' as Track.Kind.Audio
+      });
+      if (generation !== this.#generation) return;
+      this.gateUnavailable = processor.unavailable;
       const audio = new Audio();
       this.#audio = audio;
-      audio.srcObject = stream;
+      audio.srcObject = new MediaStream([processor.processedTrack ?? stream.getAudioTracks()[0]]);
       if ('setSinkId' in audio && speakerId) {
         try {
           await audio.setSinkId(speakerId);
@@ -59,21 +81,21 @@ export class CallDeviceTest {
         audio.pause();
         return;
       }
-      const context = new AudioContext();
-      this.#context = context;
-      await context.resume();
-      if (generation !== this.#generation) return;
       const analyser = context.createAnalyser();
       analyser.fftSize = 1024;
-      context.createMediaStreamSource(stream).connect(analyser);
+      if (!processor.active) context.createMediaStreamSource(stream).connect(analyser);
       const samples = new Float32Array(analyser.fftSize);
       const sample = () => {
         if (generation !== this.#generation) return;
-        analyser.getFloatTimeDomainData(samples);
-        this.level = Math.min(
-          1,
-          Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length) * 4
-        );
+        processor.setThreshold(threshold());
+        this.gateUnavailable = processor.unavailable;
+        if (processor.active) this.level = microphoneMeter(processor.level);
+        else {
+          analyser.getFloatTimeDomainData(samples);
+          this.level = microphoneMeter(
+            Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length)
+          );
+        }
         this.#frame = requestAnimationFrame(sample);
       };
       this.active = true;
@@ -91,6 +113,9 @@ export class CallDeviceTest {
   /** Invalidate pending capture and stop monitoring on navigation or cancel. */
   stop(): void {
     this.#generation++;
+    this.#processor?.dispose();
+    this.#processor = null;
+    this.gateUnavailable = false;
     cancelAnimationFrame(this.#frame);
     this.#audio?.pause();
     if (this.#audio) this.#audio.srcObject = null;

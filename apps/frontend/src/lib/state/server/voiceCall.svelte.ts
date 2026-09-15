@@ -1,3 +1,5 @@
+import type { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
+import { microphoneMeter } from '$lib/audio/noiseGate';
 /**
  * Voice call state — manages LiveKit connection for voice/video calls.
  *
@@ -280,6 +282,11 @@ export class VoiceCallState {
   private analyserSource: MediaStreamAudioSourceNode | null = null;
   private analyserData: Float32Array<ArrayBuffer> | null = null;
 
+  private microphoneProcessor: MicrophoneProcessor | null = null;
+  /** Pre-gate level for the settings meter; zero while muted. */
+  microphoneLevel = $state(0);
+  microphoneGateUnavailable = $state(false);
+
   readonly preferences?: CallPreferencesState;
 
   readonly permissionsFor: (roomId: string) => CallPermissions;
@@ -496,6 +503,9 @@ export class VoiceCallState {
         : [];
       const outputDevice = availableCallDevice(this.preferences?.speaker ?? '', outputDevices);
 
+      const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+      this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
+
       // Create and connect LiveKit room
       this.room = new Room({
         encryption: {
@@ -555,7 +565,7 @@ export class VoiceCallState {
           );
           if (this.room === room) {
             this.isMuted = false;
-            this.setupLocalAudioAnalyser();
+            await this.setupLocalAudioAnalyser();
           }
         } catch (err) {
           if (this.room === room) {
@@ -722,7 +732,7 @@ export class VoiceCallState {
     this.isMuted = newMuted;
 
     if (!newMuted) {
-      this.setupLocalAudioAnalyser();
+      await this.setupLocalAudioAnalyser();
     } else {
       this.teardownLocalAudioAnalyser();
     }
@@ -1068,7 +1078,7 @@ export class VoiceCallState {
 
     // Reconnect analyser to the new mic track
     if (!this.isMuted) {
-      this.setupLocalAudioAnalyser();
+      await this.setupLocalAudioAnalyser();
     }
   }
 
@@ -1299,7 +1309,14 @@ export class VoiceCallState {
   private updateAudioLevels(): void {
     if (!this.room) return;
 
+    this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
+    this.microphoneGateUnavailable = this.microphoneProcessor?.unavailable ?? false;
     const localAudioLevel = this.getLocalAudioLevel();
+    this.microphoneLevel = this.isMuted
+      ? 0
+      : microphoneMeter(
+          this.microphoneProcessor?.active ? this.microphoneProcessor.level : localAudioLevel / 2
+        );
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
@@ -1321,12 +1338,26 @@ export class VoiceCallState {
    * Set up a Web Audio API analyser connected to the local microphone track.
    * This gives us instant audio level readings without server round-trip.
    */
-  private setupLocalAudioAnalyser(): void {
+  private async setupLocalAudioAnalyser(): Promise<void> {
     this.teardownLocalAudioAnalyser();
-    if (!this.room) return;
+    const room = this.room;
+    const processor = this.microphoneProcessor;
+    if (!room) return;
 
     const { Track } = getLoadedLiveKit();
-    const micPub = this.room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone);
+    const audioTrack = micPub?.audioTrack;
+    if (audioTrack && processor) {
+      try {
+        if (audioTrack.getProcessor() !== processor) await audioTrack.setProcessor(processor);
+      } catch {
+        // Optional processing must not fail microphone enable or a device switch.
+        processor.unavailable = true;
+      }
+      if (this.room !== room || this.isMuted) return;
+      this.microphoneGateUnavailable = processor.unavailable;
+      if (processor.active) return;
+    }
     const mediaStreamTrack = micPub?.track?.mediaStreamTrack;
     if (!mediaStreamTrack) return;
 
@@ -1362,6 +1393,8 @@ export class VoiceCallState {
    * API analyser. Returns 0 if the analyser is not set up.
    */
   private getLocalAudioLevel(): number {
+    if (this.isMuted) return 0;
+    if (this.microphoneProcessor?.active) return Math.min(this.microphoneProcessor.level * 2, 1);
     if (!this.analyser || !this.analyserData) return 0;
 
     this.analyser.getFloatTimeDomainData(this.analyserData);
@@ -1378,6 +1411,10 @@ export class VoiceCallState {
   }
 
   private cleanup(): void {
+    this.microphoneProcessor?.dispose();
+    this.microphoneProcessor = null;
+    this.microphoneLevel = 0;
+    this.microphoneGateUnavailable = false;
     const disconnectedRoomId = this.roomId;
     const disconnectedCallId = this.activeCallId;
     const wasConnected = this.connected;

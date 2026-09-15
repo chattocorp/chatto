@@ -1,3 +1,4 @@
+import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -13,6 +14,17 @@ const visibleCamera = {
 describe('Call device settings', () => {
   beforeEach(() => localStorage.clear());
   afterEach(() => vi.restoreAllMocks());
+
+  it('persists threshold changes made with the keyboard', async () => {
+    vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+    const screen = render(CallDeviceSettings, {
+      preferences: new CallPreferencesState('threshold-control')
+    });
+    const slider = screen.container.querySelector<HTMLInputElement>('input[type=range]')!;
+    slider.focus();
+    await userEvent.keyboard('{Home}{ArrowRight}');
+    expect(new CallPreferencesState('threshold-control').microphoneThreshold).toBe(-59);
+  });
 
   it('shows remembered unavailable devices without requesting capture', async () => {
     vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
@@ -60,7 +72,7 @@ describe('Call device settings', () => {
       navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
       await vi.waitFor(() => expect(enumerate.mock.calls.length).toBeGreaterThan(callsBefore));
       await tick();
-      expect(audio.srcObject).toBe(destination.stream);
+      expect((audio.srcObject as MediaStream).getAudioTracks()[0].readyState).toBe('live');
       expect(audio.paused).toBe(false);
     } finally {
       await screen.unmount();

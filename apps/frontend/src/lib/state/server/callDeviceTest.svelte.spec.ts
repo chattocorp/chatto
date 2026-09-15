@@ -29,7 +29,7 @@ describe('CallDeviceTest', () => {
       await vi.waitFor(() => expect(test.level).toBeGreaterThan(0));
       expect(play).toHaveBeenCalledOnce();
       const audio = play.mock.contexts[0] as HTMLAudioElement;
-      expect(audio.srcObject).toBe(stream);
+      expect((audio.srcObject as MediaStream).getAudioTracks()[0].readyState).toBe('live');
       expect(audio.paused).toBe(false);
       test.stop();
       expect(audio.paused).toBe(true);

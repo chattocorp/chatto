@@ -18,3 +18,10 @@
 <Story name="During a call" asChild>
   <CallDeviceSettingsStoryHarness inCall />
 </Story>
+
+<Story name="Sensitivity during a call" asChild>
+  <CallDeviceSettingsStoryHarness inCall threshold={-30} />
+</Story>
+<Story name="Sensitivity unavailable" asChild>
+  <CallDeviceSettingsStoryHarness inCall threshold={-30} gateUnavailable />
+</Story>

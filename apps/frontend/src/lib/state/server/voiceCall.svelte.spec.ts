@@ -48,6 +48,14 @@ let lastRoom: {
   };
   switchActiveDevice: ReturnType<typeof vi.fn>;
 } | null = null;
+let mockMicrophonePublication:
+  | {
+      audioTrack: {
+        getProcessor: ReturnType<typeof vi.fn>;
+        setProcessor: ReturnType<typeof vi.fn>;
+      };
+    }
+  | undefined;
 let connectFailure: Error | null = null;
 let connectGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let microphoneGate: { promise: Promise<void>; resolve: () => void } | null = null;
@@ -152,7 +160,7 @@ vi.mock('livekit-client', () => {
           (publication) => publication.track.mediaStreamTrack !== track
         );
       }),
-      getTrackPublication: vi.fn(),
+      getTrackPublication: vi.fn(() => mockMicrophonePublication),
       identity: 'local-user',
       name: 'Local User',
       metadata: '',
@@ -283,6 +291,7 @@ function createPermittedCallState(api: VoiceCallAPI) {
 
 describe('VoiceCallState', () => {
   beforeEach(() => {
+    mockMicrophonePublication = undefined;
     calls.length = 0;
     lastRoomOptions = null;
     lastKeyProvider = null;
@@ -473,6 +482,24 @@ describe('VoiceCallState', () => {
     );
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
+
+  it.each([false, true])(
+    'keeps a call usable when optional processor failure is %s',
+    async (fails) => {
+      const setProcessor = fails
+        ? vi.fn().mockRejectedValue(new Error('Unavailable'))
+        : vi.fn().mockResolvedValue(undefined);
+      mockMicrophonePublication = { audioTrack: { getProcessor: vi.fn(), setProcessor } };
+      const state = createPermittedCallState(createVoiceCallClient());
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      expect(state.isMuted).toBe(false);
+      expect(setProcessor).toHaveBeenCalledOnce();
+      expect(state.microphoneGateUnavailable).toBe(fails);
+      expect(lastRoomOptions?.audioCaptureDefaults).not.toHaveProperty('processor');
+      await state.leave();
+    }
+  );
 
   it('restores saved devices and joins muted without capture prompts', async () => {
     const preferences = new CallPreferencesState('call-device-restore');

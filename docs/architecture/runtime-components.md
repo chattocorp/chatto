@@ -207,13 +207,27 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs and join-muted at the existing
+`CallPreferencesState`. It saves device IDs, join-muted, and microphone threshold at the existing
 per-server storage boundary. These settings do not enter Chatto APIs or EVT.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
-The settings page owns `CallDeviceTest`. Explicit capture feeds a Web Audio
-meter and an audio element for immediate local playback. The selected speaker
+Calls and `CallDeviceTest` share `MicrophoneProcessor`, a LiveKit-compatible
+track processor. Its bundled audio worklet calculates input RMS and applies
+one gate envelope across channels. Processing uses the audio sample clock,
+not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
+threshold half the opening amplitude (about 6 dB lower). The -60 dB control
+position disables gating. The input meter maps -60 to 0 dBFS onto 0–1.
+Calls attach the processor after LiveKit assigns its audio context. The
+processor owns its output tracks and graph; LiveKit or the test owns the
+input and context. Device restarts rebuild the graph. Permanent disposal
+rejects queued initialization after call or page exit. Module or processor
+failure preserves ordinary audio. The existing analyser remains a fallback
+when processing cannot start. The worklet asset comes from the frontend
+origin and sends only input levels to the UI, with no external connection.
+
+The settings page owns `CallDeviceTest`. Explicit capture feeds the shared
+processor and an audio element for immediate local playback. The selected speaker
 is applied where the browser supports output selection. No recording is made.
 Generation checks stop late streams or playback after cancellation. Page exit
 stops tracks and playback, closes the audio context, and cancels meter updates.

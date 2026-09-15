@@ -9,6 +9,8 @@
     <CallDeviceSettings
       preferences={scope.store.voiceCall.preferences}
       inCall={scope.store.voiceCall.isInAnyCall}
+      callLevel={scope.store.voiceCall.microphoneLevel}
+      gateUnavailable={scope.store.voiceCall.microphoneGateUnavailable}
     />
   {/if}
 {/key}

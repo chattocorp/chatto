@@ -1,3 +1,4 @@
+import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
 /** Saved device IDs are preferences, not permission grants or active track state. */
@@ -7,9 +8,17 @@ export interface CallPreferences {
   camera: string;
   /** Applied only when joining; toggling mute in a call does not change it. */
   joinMuted: boolean;
+  /** dBFS threshold; -60 disables the optional gate. */
+  microphoneThreshold: number;
 }
 
-const defaults: CallPreferences = { microphone: '', speaker: '', camera: '', joinMuted: false };
+const defaults: CallPreferences = {
+  microphone: '',
+  speaker: '',
+  camera: '',
+  joinMuted: false,
+  microphoneThreshold: GATE_OFF
+};
 
 /** Browser-local choices for one server. Empty device IDs follow the OS default. */
 export class CallPreferencesState {
@@ -23,8 +32,18 @@ export class CallPreferencesState {
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
+      microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
       joinMuted: raw?.joinMuted === true
     });
+  }
+
+  get microphoneThreshold() {
+    return this.#value.microphoneThreshold;
+  }
+
+  setMicrophoneThreshold(value: number): void {
+    this.#value.microphoneThreshold = normalizeGateThreshold(value);
+    this.#slot.set(this.#value);
   }
 
   get microphone() {
