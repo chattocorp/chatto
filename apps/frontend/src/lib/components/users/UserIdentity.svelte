@@ -40,6 +40,8 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     openOnClick = false,
     class: className,
     viewerSettings,
+    onSendMessage,
+    onOpenProfile,
     userContextMenuLoader = loadUserContextMenu
   }: {
     user: IdentityUser;
@@ -48,6 +50,9 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
     openOnClick?: boolean;
     class?: string;
     viewerSettings?: ViewerTimeSettings | null;
+    /** Host-provided room actions; absent when unavailable in this surface. */
+    onSendMessage?: (userId: string) => void;
+    onOpenProfile?: (userId: string) => void;
     userContextMenuLoader?: () => Promise<UserContextMenuModule>;
   } = $props();
 
@@ -81,7 +86,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
   <button
     type="button"
     class={[
-      'inline-flex min-h-10 min-w-0 cursor-pointer items-center gap-2 rounded text-start hover:underline focus-visible:outline-2 focus-visible:outline-action',
+      '-mx-1 inline-flex min-h-10 min-w-0 cursor-pointer items-center gap-2 selectable-list-item px-1 text-start',
       className
     ]}
     data-testid="user-identity"
@@ -111,6 +116,9 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
       position={profileMenu.position}
       presentation={profileMenu.presentation}
       {viewerSettings}
+      canSendMessage={!!onSendMessage}
+      onSendMessage={() => onSendMessage?.(user.id)}
+      {onOpenProfile}
       onClose={() => (profileMenu = null)}
     />
   {/await}

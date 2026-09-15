@@ -1,5 +1,6 @@
 <!-- @component Public bot owner identity, outside the collapsible permission section. -->
 <script lang="ts">
+  import type { ViewerTimeSettings } from '$lib/utils/formatTime';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
@@ -9,7 +10,17 @@
   import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
   import { getLiveDisplayName, getLiveAvatarUrl } from '$lib/state/userProfiles.svelte';
 
-  let { ownerId }: { ownerId: string } = $props();
+  let {
+    ownerId,
+    onSendMessage,
+    onOpenProfile,
+    viewerSettings
+  }: {
+    ownerId: string;
+    onSendMessage?: (userId: string) => void;
+    onOpenProfile?: (userId: string) => void;
+    viewerSettings?: ViewerTimeSettings | null;
+  } = $props();
   const scope = useServerScope();
   const cache = $derived(getUserSummaryCache(scope.serverId));
   const query = createQuery(
@@ -49,7 +60,14 @@
   <span class="shrink-0 text-muted">{m('chat.profile.owned_by')}</span>
   {#if identity}
     {#key ownerId}
-      <UserIdentity user={identity} size="xs" openOnClick />
+      <UserIdentity
+        user={identity}
+        size="xs"
+        openOnClick
+        {onSendMessage}
+        {onOpenProfile}
+        {viewerSettings}
+      />
     {/key}
   {:else}
     <span class="text-muted" aria-busy={query.isPending}>

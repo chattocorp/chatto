@@ -29,7 +29,15 @@ realtime changes arrive.
   import { Hint } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
-  let { userId }: { userId: string } = $props();
+  let {
+    userId,
+    onSendMessage,
+    onOpenProfile
+  }: {
+    userId: string;
+    onSendMessage?: (userId: string) => void;
+    onOpenProfile?: (userId: string) => void;
+  } = $props();
 
   const serverScope = useServerScope();
   const viewerTimeSettings = $derived(
@@ -121,7 +129,12 @@ realtime changes arrive.
 
     {#if baseUser.isBot && baseUser.botOwnerUserId}
       {#key baseUser.botOwnerUserId}
-        <BotOwnerRow ownerId={baseUser.botOwnerUserId} />
+        <BotOwnerRow
+          ownerId={baseUser.botOwnerUserId}
+          {onSendMessage}
+          {onOpenProfile}
+          viewerSettings={serverScope.store.currentUser.user?.settings}
+        />
       {/key}
     {/if}
 

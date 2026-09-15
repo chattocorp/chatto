@@ -16,7 +16,8 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     store: {
       permissions: {
         loaded: true,
-        canAdminViewUsers: false
+        canAdminViewUsers: false,
+        canStartDMs: true
       }
     }
   })
@@ -88,6 +89,32 @@ describe('UserIdentity', () => {
     await tick();
     await expect.element(q(container, '[role="dialog"]')).toBeInTheDocument();
     expect(q(container, '[role="dialog"]')?.textContent).toContain('Alice Example');
+  });
+
+  it('connects host-provided message and profile actions to the displayed user', async () => {
+    const onSendMessage = vi.fn();
+    const onOpenProfile = vi.fn();
+    const { container } = render(UserIdentity, {
+      props: { user, openOnClick: true, onSendMessage, onOpenProfile, userContextMenuLoader }
+    });
+    const button = q(container, 'button[data-testid="user-identity"]')!;
+    button.click();
+    await tick();
+    const send = [...container.querySelectorAll('button')].find(
+      (item) => item.textContent?.trim() === 'Send Message'
+    );
+    expect(send).toBeTruthy();
+    send!.click();
+    await tick();
+    expect(onSendMessage).toHaveBeenCalledWith(user.id);
+    button.click();
+    await tick();
+    const profile = [...container.querySelectorAll('button')].find(
+      (item) => item.textContent?.trim() === 'View profile'
+    );
+    expect(profile).toBeTruthy();
+    profile!.click();
+    expect(onOpenProfile).toHaveBeenCalledWith(user.id);
   });
 
   it('opens the shared user profile on right-click', async () => {
