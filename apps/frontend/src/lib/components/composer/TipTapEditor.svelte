@@ -541,7 +541,8 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   // React to editable prop changes
   $effect(() => {
     if (editor && editor.isEditable !== editable) {
-      editor.setEditable(editable);
+      // Editability changes do not change the document or the parent draft.
+      editor.setEditable(editable, false);
     }
   });
 

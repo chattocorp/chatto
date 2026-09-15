@@ -34,6 +34,7 @@ keep the compact menu without a navigation action.
   import { serverIdToSegment } from '$lib/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
+  import ScrollFader from '$lib/ui/ScrollFader.svelte';
   import MenuItem from '$lib/ui/MenuItem.svelte';
   import MenuSection from '$lib/ui/MenuSection.svelte';
   import {
@@ -182,7 +183,17 @@ keep the compact menu without a navigation action.
   {#if bio || localTime}
     <div class="space-y-1 menu-section px-3 py-2">
       {#if bio}
-        <UserBio {bio} class="max-h-40 overflow-y-auto text-sm" />
+        <ScrollFader
+          top
+          bottom
+          fill={false}
+          fadeHeight="h-5"
+          scrollClass="max-h-40 overscroll-contain"
+          aria-label={m('settings.profile.bio.label')}
+          data-testid="user-menu-bio-scroll"
+        >
+          <UserBio {bio} class="text-sm" />
+        </ScrollFader>
       {/if}
       {#if timezone && localTime}
         <p class="flex items-center gap-1.5 text-sm text-muted">
