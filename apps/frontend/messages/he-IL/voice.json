@@ -90,14 +90,10 @@
       "test_failed": "לא ניתן לבדוק את המיקרופון. יש לבדוק את הגישה למכשיר ולנסות שוב.",
       "test_in_call": "יש לצאת מהשיחה לפני בדיקת המיקרופון.",
       "processing": "עיבוד מיקרופון",
-      "low_cut": "מסנן תדרים נמוכים",
-      "equalizer": "אקולייזר",
-      "bass": "בס",
-      "mid": "תדרי ביניים",
-      "treble": "תדרים גבוהים",
-      "compressor": "קומפרסור",
-      "amount": "עוצמה",
-      "reset_processing": "איפוס העיבוד"
+      "processing_none": "ללא עיבוד",
+      "processing_subtle": "עיבוד עדין",
+      "processing_strong": "עיבוד חזק",
+      "gate_separate": "שער הרעש חל בנפרד."
     }
   }
 }

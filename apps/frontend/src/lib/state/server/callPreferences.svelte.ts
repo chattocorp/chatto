@@ -1,4 +1,7 @@
-import { normalizeMicrophoneEffects, type MicrophoneEffects } from '$lib/audio/microphoneEffects';
+import {
+  microphoneEffectsForPreset,
+  type MicrophoneProcessingPreset
+} from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
@@ -11,8 +14,8 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
-  /** Optional local effects; absent legacy values restore neutral defaults. */
-  effects: MicrophoneEffects;
+  /** Local preset; the noise gate remains independent. */
+  processingPreset: MicrophoneProcessingPreset;
 }
 
 const defaults: CallPreferences = {
@@ -20,7 +23,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
-  effects: normalizeMicrophoneEffects(),
+  processingPreset: 'none',
   microphoneThreshold: GATE_OFF
 };
 
@@ -32,29 +35,38 @@ export class CallPreferencesState {
   constructor(serverId: string) {
     this.#slot = serverSlot(serverId, 'callPreferences', defaults, Codecs.json());
     const raw = this.#slot.get();
+    // Experimental effect sliders migrate to Subtle only when explicitly enabled.
+    const legacy = (
+      raw as unknown as {
+        effects?: { lowCut?: unknown; equalizer?: unknown; compressor?: unknown };
+      } | null
+    )?.effects;
+    const preset =
+      raw?.processingPreset ??
+      (legacy?.lowCut === true || legacy?.equalizer === true || legacy?.compressor === true
+        ? 'subtle'
+        : 'none');
     this.#value = $state({
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
       microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
-      effects: normalizeMicrophoneEffects(raw?.effects),
+      processingPreset: preset === 'subtle' || preset === 'strong' ? preset : 'none',
       joinMuted: raw?.joinMuted === true
     });
   }
 
-  get effects(): Readonly<MicrophoneEffects> {
-    return this.#value.effects;
+  get effects() {
+    return microphoneEffectsForPreset(this.#value.processingPreset);
   }
 
-  setEffects(patch: Partial<MicrophoneEffects>): void {
-    this.#value.effects = normalizeMicrophoneEffects({ ...this.#value.effects, ...patch });
-    this.#slot.set(this.#value);
+  get processingPreset(): MicrophoneProcessingPreset {
+    return this.#value.processingPreset;
   }
 
-  /** Restore the processing defaults without changing device or join choices. */
-  resetProcessing(): void {
-    this.#value.effects = normalizeMicrophoneEffects();
-    this.#value.microphoneThreshold = GATE_OFF;
+  /** Change tone and dynamics without changing the gate or capture choices. */
+  setProcessingPreset(preset: MicrophoneProcessingPreset): void {
+    this.#value.processingPreset = preset === 'subtle' || preset === 'strong' ? preset : 'none';
     this.#slot.set(this.#value);
   }
 

@@ -62,40 +62,56 @@ describe('CallPreferencesState', () => {
   });
 });
 
-it('normalizes, persists and resets effects without changing device or join choices', () => {
-  const state = new CallPreferencesState('effects');
+it('persists each preset without changing the gate, devices or join choice', () => {
+  const state = new CallPreferencesState('presets');
   state.setDevice('audioinput', 'chosen');
   state.setJoinMuted(true);
   state.setMicrophoneThreshold(-25);
-  state.setEffects({
-    equalizer: true,
-    bass: 500,
-    mid: NaN,
-    treble: -500,
-    compressor: true,
-    amount: 150
-  });
-  expect(new CallPreferencesState('effects').effects).toEqual({
-    lowCut: false,
-    equalizer: true,
-    bass: 6,
-    mid: 0,
-    treble: -6,
-    compressor: true,
-    amount: 100
-  });
-  state.resetProcessing();
-  const restored = new CallPreferencesState('effects');
-  expect(restored.effects).toEqual({
-    lowCut: false,
-    equalizer: false,
-    bass: 0,
-    mid: 0,
-    treble: 0,
-    compressor: false,
-    amount: 50
-  });
-  expect(restored.microphoneThreshold).toBe(-60);
-  expect(restored.microphone).toBe('chosen');
-  expect(restored.joinMuted).toBe(true);
+  for (const preset of ['subtle', 'strong', 'none'] as const) {
+    state.setProcessingPreset(preset);
+    const restored = new CallPreferencesState('presets');
+    expect(restored.processingPreset).toBe(preset);
+    expect(new CallPreferencesState('separate-presets').processingPreset).toBe('none');
+    expect(restored.effects.compressor).toBe(preset !== 'none');
+    expect(restored.effects.equalizer).toBe(preset !== 'none');
+    expect(restored.effects.lowCut).toBe(preset !== 'none');
+    expect(restored.microphoneThreshold).toBe(-25);
+    expect(restored.microphone).toBe('chosen');
+    expect(restored.joinMuted).toBe(true);
+  }
+});
+
+it.each([
+  [{}, 'none'],
+  [{ processingPreset: 'invalid', effects: { compressor: true } }, 'none'],
+  [{ processingPreset: 'strong' }, 'strong'],
+  [{ effects: { lowCut: false, equalizer: false, compressor: false } }, 'none'],
+  [{ effects: { lowCut: true } }, 'subtle'],
+  [{ effects: { equalizer: true } }, 'subtle'],
+  [{ effects: { compressor: true } }, 'subtle'],
+  [{ effects: { compressor: 'true' } }, 'none']
+])('restores safe presets from saved preferences %j', (saved, expected) => {
+  localStorage.setItem(
+    'chatto:i:migration:callPreferences',
+    JSON.stringify({
+      ...saved,
+      microphone: 'mic',
+      microphoneThreshold: -30
+    })
+  );
+  const state = new CallPreferencesState('migration');
+  expect(state.processingPreset).toBe(expected);
+  expect(state.microphone).toBe('mic');
+  expect(state.microphoneThreshold).toBe(-30);
+});
+
+it('uses stronger tone shaping and compression for Strong than Subtle', () => {
+  const state = new CallPreferencesState('strength');
+  state.setProcessingPreset('subtle');
+  const subtle = state.effects;
+  state.setProcessingPreset('strong');
+  expect(state.effects.amount).toBeGreaterThan(subtle.amount);
+  expect(state.effects.treble).toBeGreaterThan(subtle.treble);
+  state.effects.bass = 6;
+  expect(state.effects.bass).toBe(-3);
 });

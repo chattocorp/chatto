@@ -90,14 +90,10 @@
       "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
       "test_in_call": "Enne mikrofoni testimist lahku kõnest.",
       "processing": "Mikrofoni töötlus",
-      "low_cut": "Madalate sageduste filter",
-      "equalizer": "Ekvalaiser",
-      "bass": "Bass",
-      "mid": "Kesksagedused",
-      "treble": "Kõrged sagedused",
-      "compressor": "Kompressor",
-      "amount": "Tugevus",
-      "reset_processing": "Lähtesta töötlus"
+      "processing_none": "Töötlus puudub",
+      "processing_subtle": "Õrn töötlus",
+      "processing_strong": "Tugev töötlus",
+      "gate_separate": "Müraväravat rakendatakse eraldi."
     }
   }
 }

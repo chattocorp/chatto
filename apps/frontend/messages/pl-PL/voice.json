@@ -90,14 +90,10 @@
       "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
       "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu.",
       "processing": "Przetwarzanie mikrofonu",
-      "low_cut": "Filtr dolnozaporowy",
-      "equalizer": "Korektor",
-      "bass": "Basy",
-      "mid": "Średnie tony",
-      "treble": "Wysokie tony",
-      "compressor": "Kompresor",
-      "amount": "Siła",
-      "reset_processing": "Resetuj przetwarzanie"
+      "processing_none": "Bez przetwarzania",
+      "processing_subtle": "Delikatne przetwarzanie",
+      "processing_strong": "Silne przetwarzanie",
+      "gate_separate": "Bramka szumów działa niezależnie."
     }
   }
 }

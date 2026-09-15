@@ -90,14 +90,10 @@
       "test_failed": "Mikrofon test edilemedi. Cihaz erişimini kontrol edip tekrar deneyin.",
       "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın.",
       "processing": "Mikrofon işleme",
-      "low_cut": "Düşük frekans kesme filtresi",
-      "equalizer": "Ekolayzer",
-      "bass": "Bas",
-      "mid": "Orta",
-      "treble": "Tiz",
-      "compressor": "Kompresör",
-      "amount": "Yoğunluk",
-      "reset_processing": "İşlemeyi sıfırla"
+      "processing_none": "İşleme yok",
+      "processing_subtle": "Hafif işleme",
+      "processing_strong": "Güçlü işleme",
+      "gate_separate": "Gürültü kapısı ayrı uygulanır."
     }
   }
 }

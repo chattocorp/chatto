@@ -1,7 +1,7 @@
 <!-- @component Local microphone effects; changes apply to the active call or voice test. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { Button, Checkbox, RangeField } from '$lib/ui/form';
+  import ChoiceRow from '$lib/ui/ChoiceRow.svelte';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import MicrophoneSensitivity from './MicrophoneSensitivity.svelte';
 
@@ -18,83 +18,25 @@
 
 <div class="flex flex-col gap-5">
   <MicrophoneSensitivity {preferences} {level} {unavailable} />
-  <div class="flex flex-col gap-4">
-    <Checkbox
-      id="microphone-low-cut"
-      label={m('voice.preferences.low_cut')}
+  <div role="radiogroup" aria-label={m('voice.preferences.processing')} class="flex flex-col gap-2">
+    <ChoiceRow
+      label={m('voice.preferences.processing_none')}
+      selected={preferences.processingPreset === 'none'}
       disabled={unavailable}
-      bind:checked={
-        () => preferences.effects.lowCut, (value) => preferences.setEffects({ lowCut: value })
-      }
+      onclick={() => preferences.setProcessingPreset('none')}
     />
-    <Checkbox
-      id="microphone-equalizer"
-      label={m('voice.preferences.equalizer')}
+    <ChoiceRow
+      label={m('voice.preferences.processing_subtle')}
+      selected={preferences.processingPreset === 'subtle'}
       disabled={unavailable}
-      bind:checked={
-        () => preferences.effects.equalizer, (value) => preferences.setEffects({ equalizer: value })
-      }
+      onclick={() => preferences.setProcessingPreset('subtle')}
     />
-    <div class="grid gap-4 sm:grid-cols-3">
-      <RangeField
-        id="microphone-bass"
-        label={m('voice.preferences.bass')}
-        min={-6}
-        max={6}
-        disabled={unavailable || !preferences.effects.equalizer}
-        bind:value={
-          () => preferences.effects.bass, (value) => preferences.setEffects({ bass: value ?? 0 })
-        }
-        displayValue={`${preferences.effects.bass} dB`}
-      />
-      <RangeField
-        id="microphone-mid"
-        label={m('voice.preferences.mid')}
-        min={-6}
-        max={6}
-        disabled={unavailable || !preferences.effects.equalizer}
-        bind:value={
-          () => preferences.effects.mid, (value) => preferences.setEffects({ mid: value ?? 0 })
-        }
-        displayValue={`${preferences.effects.mid} dB`}
-      />
-      <RangeField
-        id="microphone-treble"
-        label={m('voice.preferences.treble')}
-        min={-6}
-        max={6}
-        disabled={unavailable || !preferences.effects.equalizer}
-        bind:value={
-          () => preferences.effects.treble,
-          (value) => preferences.setEffects({ treble: value ?? 0 })
-        }
-        displayValue={`${preferences.effects.treble} dB`}
-      />
-    </div>
-    <Checkbox
-      id="microphone-compressor"
-      label={m('voice.preferences.compressor')}
+    <ChoiceRow
+      label={m('voice.preferences.processing_strong')}
+      selected={preferences.processingPreset === 'strong'}
       disabled={unavailable}
-      bind:checked={
-        () => preferences.effects.compressor,
-        (value) => preferences.setEffects({ compressor: value })
-      }
+      onclick={() => preferences.setProcessingPreset('strong')}
     />
-    <RangeField
-      id="microphone-compressor-amount"
-      label={m('voice.preferences.amount')}
-      min={0}
-      max={100}
-      disabled={unavailable || !preferences.effects.compressor}
-      bind:value={
-        () => preferences.effects.amount, (value) => preferences.setEffects({ amount: value ?? 50 })
-      }
-      displayValue={`${preferences.effects.amount}%`}
-    />
-    <div>
-      <Button variant="secondary" onclick={() => preferences.resetProcessing()}
-        >{m('voice.preferences.reset_processing')}</Button
-      >
-    </div>
   </div>
+  <p class="text-sm text-muted">{m('voice.preferences.gate_separate')}</p>
 </div>

@@ -90,14 +90,10 @@
       "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
       "test_in_call": "Před testem mikrofonu opusťte hovor.",
       "processing": "Zpracování mikrofonu",
-      "low_cut": "Filtr nízkých frekvencí",
-      "equalizer": "Ekvalizér",
-      "bass": "Basy",
-      "mid": "Středy",
-      "treble": "Výšky",
-      "compressor": "Kompresor",
-      "amount": "Intenzita",
-      "reset_processing": "Obnovit zpracování"
+      "processing_none": "Bez zpracování",
+      "processing_subtle": "Jemné zpracování",
+      "processing_strong": "Silné zpracování",
+      "gate_separate": "Šumová brána se používá samostatně."
     }
   }
 }

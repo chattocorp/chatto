@@ -90,14 +90,10 @@
       "test_failed": "Could not test the microphone. Check device access and try again.",
       "test_in_call": "Leave your call before testing the microphone.",
       "processing": "Microphone processing",
-      "low_cut": "Low-cut filter",
-      "equalizer": "Equaliser",
-      "bass": "Bass",
-      "mid": "Mids",
-      "treble": "Treble",
-      "compressor": "Compressor",
-      "amount": "Amount",
-      "reset_processing": "Reset processing"
+      "processing_none": "No processing",
+      "processing_subtle": "Subtle processing",
+      "processing_strong": "Strong processing",
+      "gate_separate": "Noise gate applies separately."
     }
   }
 }

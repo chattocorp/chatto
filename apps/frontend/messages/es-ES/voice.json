@@ -90,14 +90,10 @@
       "test_failed": "No se pudo probar el micrófono. Comprueba el acceso al dispositivo e inténtalo de nuevo.",
       "test_in_call": "Sal de la llamada antes de probar el micrófono.",
       "processing": "Procesamiento del micrófono",
-      "low_cut": "Filtro de corte de graves",
-      "equalizer": "Ecualizador",
-      "bass": "Graves",
-      "mid": "Medios",
-      "treble": "Agudos",
-      "compressor": "Compresor",
-      "amount": "Intensidad",
-      "reset_processing": "Restablecer procesamiento"
+      "processing_none": "Sin procesamiento",
+      "processing_subtle": "Procesamiento suave",
+      "processing_strong": "Procesamiento fuerte",
+      "gate_separate": "La puerta de ruido se aplica por separado."
     }
   }
 }

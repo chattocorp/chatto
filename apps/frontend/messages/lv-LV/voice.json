@@ -90,14 +90,10 @@
       "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
       "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
       "processing": "Mikrofona apstrāde",
-      "low_cut": "Zemo frekvenču filtrs",
-      "equalizer": "Ekvalaizers",
-      "bass": "Basi",
-      "mid": "Vidējās frekvences",
-      "treble": "Augstās frekvences",
-      "compressor": "Kompresors",
-      "amount": "Intensitāte",
-      "reset_processing": "Atiestatīt apstrādi"
+      "processing_none": "Bez apstrādes",
+      "processing_subtle": "Viegla apstrāde",
+      "processing_strong": "Spēcīga apstrāde",
+      "gate_separate": "Trokšņu vārti tiek piemēroti atsevišķi."
     }
   }
 }

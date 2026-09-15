@@ -90,14 +90,10 @@
       "test_failed": "Ne eblis testi la mikrofonon. Kontrolu la aparatan aliron kaj reprovu.",
       "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon.",
       "processing": "Mikrofona prilaborado",
-      "low_cut": "Filtrilo de malaltaj frekvencoj",
-      "equalizer": "Ekvalizilo",
-      "bass": "Basoj",
-      "mid": "Mezaj tonoj",
-      "treble": "Altaj tonoj",
-      "compressor": "Kompresoro",
-      "amount": "Intenseco",
-      "reset_processing": "Restarigi prilaboradon"
+      "processing_none": "Sen prilaborado",
+      "processing_subtle": "Milda prilaborado",
+      "processing_strong": "Forta prilaborado",
+      "gate_separate": "La bruopordego aplikiĝas aparte."
     }
   }
 }

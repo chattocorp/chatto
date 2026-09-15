@@ -9,15 +9,18 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
-- **Microphone processing** in App Preferences offers an optional low-cut
-  filter, three-band equaliser, and compressor with one amount control.
-  All start disabled and affect microphone audio in calls and the local
-  test. They do not affect received audio or screen sharing. Settings are
-  saved per browser and server. Reset disables processing and restores
-  neutral values without changing device or join-muted choices.
-  EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser compressor’s
-  built-in makeup gain. Browser automatic gain control is disabled to
-  avoid competing volume adjustments; echo and noise suppression remain on.
+- **Microphone processing** in App Preferences offers three presets:
+  **No processing** (the default), **Subtle processing**, and **Strong processing**.
+  Subtle and Strong combine a low-cut filter, equaliser, and compressor.
+  Strong applies more tone adjustment and compression. Presets replace individual
+  effect controls to keep call setup simple. The noise gate stays separate because
+  its threshold depends on the microphone and room.
+  Presets affect microphone audio in calls and the local test, not received
+  audio or screen sharing. Choices are saved per browser and server.
+  A preset change preserves the gate, device, and join-muted choices.
+  EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser
+  compressor's built-in makeup gain. Browser automatic gain control is disabled
+  to avoid competing volume adjustments; echo and noise suppression remain on.
 - **Noise gate threshold** is available beside a live microphone meter in call
   devices and **App Preferences → Voice & video**. It defaults to **Off**
   and is saved per browser and server. Higher thresholds suppress quieter

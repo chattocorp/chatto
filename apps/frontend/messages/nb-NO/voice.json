@@ -90,14 +90,10 @@
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
       "test_in_call": "Forlat samtalen før du tester mikrofonen.",
       "processing": "Mikrofonbehandling",
-      "low_cut": "Lavkuttfilter",
-      "equalizer": "Equalizer",
-      "bass": "Bass",
-      "mid": "Mellomtone",
-      "treble": "Diskant",
-      "compressor": "Kompressor",
-      "amount": "Styrke",
-      "reset_processing": "Tilbakestill behandling"
+      "processing_none": "Ingen behandling",
+      "processing_subtle": "Lett behandling",
+      "processing_strong": "Kraftig behandling",
+      "gate_separate": "Støyporten brukes separat."
     }
   }
 }

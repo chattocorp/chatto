@@ -90,14 +90,10 @@
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
       "test_in_call": "请先退出通话，再测试麦克风。",
       "processing": "麦克风处理",
-      "low_cut": "低切滤波器",
-      "equalizer": "均衡器",
-      "bass": "低音",
-      "mid": "中音",
-      "treble": "高音",
-      "compressor": "压缩器",
-      "amount": "强度",
-      "reset_processing": "重置处理"
+      "processing_none": "不处理",
+      "processing_subtle": "轻度处理",
+      "processing_strong": "强力处理",
+      "gate_separate": "噪声门单独应用。"
     }
   }
 }

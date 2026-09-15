@@ -7,18 +7,9 @@
     preferences.setDevice('audiooutput', '');
     preferences.setDevice('videoinput', '');
     preferences.setJoinMuted(unavailable);
-    preferences.resetProcessing();
+    preferences.setProcessingPreset('none');
     preferences.setMicrophoneThreshold(threshold);
-    if (effects)
-      preferences.setEffects({
-        lowCut: true,
-        equalizer: true,
-        bass: -2,
-        mid: 2,
-        treble: 1,
-        compressor: true,
-        amount: 60
-      });
+    if (effects) preferences.setProcessingPreset('strong');
     return preferences;
   }
   let {

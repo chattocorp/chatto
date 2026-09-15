@@ -90,14 +90,10 @@
       "test_failed": "Impossible de tester le microphone. Vérifiez l’accès à l’appareil et réessayez.",
       "test_in_call": "Quittez votre appel avant de tester le microphone.",
       "processing": "Traitement du microphone",
-      "low_cut": "Filtre coupe-bas",
-      "equalizer": "Égaliseur",
-      "bass": "Graves",
-      "mid": "Médiums",
-      "treble": "Aigus",
-      "compressor": "Compresseur",
-      "amount": "Intensité",
-      "reset_processing": "Réinitialiser le traitement"
+      "processing_none": "Aucun traitement",
+      "processing_subtle": "Traitement léger",
+      "processing_strong": "Traitement fort",
+      "gate_separate": "La porte de bruit s’applique séparément."
     }
   }
 }

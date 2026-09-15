@@ -1,5 +1,7 @@
 import { userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
+import { CallPreferencesState } from './callPreferences.svelte';
 import { CallDeviceTest } from './callDeviceTest.svelte';
 
 describe('CallDeviceTest', () => {
@@ -23,8 +25,31 @@ describe('CallDeviceTest', () => {
     vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
     const test = new CallDeviceTest();
+    const preferences = new CallPreferencesState('test-presets');
+    preferences.setProcessingPreset('subtle');
+    const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
     try {
-      await test.start('');
+      await test.start(
+        '',
+        '',
+        () => -60,
+        () => preferences.effects
+      );
+      expect(applied).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: 15, compressor: true })
+      );
+      preferences.setProcessingPreset('strong');
+      await vi.waitFor(() =>
+        expect(applied).toHaveBeenCalledWith(
+          expect.objectContaining({ amount: 55, compressor: true })
+        )
+      );
+      preferences.setProcessingPreset('none');
+      await vi.waitFor(() =>
+        expect(applied).toHaveBeenCalledWith(
+          expect.objectContaining({ compressor: false, equalizer: false, lowCut: false })
+        )
+      );
       expect(test.active).toBe(true);
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
         expect.objectContaining({ audio: expect.objectContaining({ autoGainControl: false }) })

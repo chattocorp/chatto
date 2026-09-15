@@ -90,14 +90,10 @@
       "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
       "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
       "processing": "Elaborazione del microfono",
-      "low_cut": "Filtro taglia-bassi",
-      "equalizer": "Equalizzatore",
-      "bass": "Bassi",
-      "mid": "Medi",
-      "treble": "Alti",
-      "compressor": "Compressore",
-      "amount": "Intensità",
-      "reset_processing": "Ripristina elaborazione"
+      "processing_none": "Nessuna elaborazione",
+      "processing_subtle": "Elaborazione leggera",
+      "processing_strong": "Elaborazione intensa",
+      "gate_separate": "Il noise gate si applica separatamente."
     }
   }
 }

@@ -90,14 +90,10 @@
       "test_failed": "無法測試麥克風。請檢查裝置存取權限後再試一次。",
       "test_in_call": "請先離開通話，再測試麥克風。",
       "processing": "麥克風處理",
-      "low_cut": "低切濾波器",
-      "equalizer": "等化器",
-      "bass": "低音",
-      "mid": "中音",
-      "treble": "高音",
-      "compressor": "壓縮器",
-      "amount": "強度",
-      "reset_processing": "重設處理"
+      "processing_none": "不處理",
+      "processing_subtle": "輕度處理",
+      "processing_strong": "強力處理",
+      "gate_separate": "噪音閘會獨立套用。"
     }
   }
 }

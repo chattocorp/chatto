@@ -135,23 +135,39 @@ describe('Call device settings', () => {
   });
 });
 
-it('enables effects independently, persists keyboard edits and resets processing', async () => {
+it('offers three presets, keeps the gate separate and removes individual effect controls', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
   const preferences = new CallPreferencesState('processing-ui');
+  preferences.setMicrophoneThreshold(-30);
   const screen = render(CallDeviceSettings, { preferences });
-  await expect.element(screen.getByRole('checkbox', { name: 'Low-cut filter' })).toBeVisible();
-  expect(screen.container.querySelector('details')).toBeNull();
-  await expect.element(screen.getByRole('slider', { name: /^Bass/ })).toBeDisabled();
-  await screen.getByRole('checkbox', { name: 'Equaliser', exact: true }).click();
-  const bass = screen.container.querySelector<HTMLInputElement>('#microphone-bass')!;
-  bass.focus();
-  await userEvent.keyboard('{End}');
-  expect(new CallPreferencesState('processing-ui').effects.bass).toBe(6);
-  await screen.getByRole('checkbox', { name: 'Compressor', exact: true }).click();
-  await expect.element(screen.getByRole('slider', { name: /^Amount/ })).toBeEnabled();
-  expect(preferences.effects.lowCut).toBe(false);
-  await screen.getByRole('button', { name: 'Reset processing' }).click();
-  expect(preferences.effects.equalizer).toBe(false);
+  const choices = screen.getByRole('radiogroup', { name: 'Microphone processing' });
+  await expect
+    .element(choices.getByRole('radio', { name: 'No processing' }))
+    .toHaveAttribute('aria-checked', 'true');
+  await choices.getByRole('radio', { name: 'Subtle processing' }).click();
+  expect(preferences.processingPreset).toBe('subtle');
+  await choices.getByRole('radio', { name: 'Strong processing' }).click();
+  expect(new CallPreferencesState('processing-ui').processingPreset).toBe('strong');
+  await expect
+    .element(choices.getByRole('radio', { name: 'Strong processing' }))
+    .toHaveAttribute('aria-checked', 'true');
+  choices.getByRole('radio', { name: 'No processing' }).element().focus();
+  await userEvent.keyboard('{Enter}');
   expect(preferences.effects.compressor).toBe(false);
-  expect(preferences.effects.bass).toBe(0);
+  expect(preferences.microphoneThreshold).toBe(-30);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
+  expect(screen.container.querySelector('details')).toBeNull();
+  expect(screen.container.textContent).not.toContain('Amount');
+});
+
+it('disables preset choices when processing is unavailable in a call', async () => {
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
+  const screen = render(CallDeviceSettings, {
+    preferences: new CallPreferencesState('unavailable-presets'),
+    inCall: true,
+    gateUnavailable: true
+  });
+  for (const name of ['No processing', 'Subtle processing', 'Strong processing']) {
+    await expect.element(screen.getByRole('radio', { name, exact: true })).toBeDisabled();
+  }
 });

@@ -90,14 +90,10 @@
       "test_failed": "マイクをテストできませんでした。デバイスへのアクセスを確認して、もう一度お試しください。",
       "test_in_call": "マイクをテストする前に通話から退出してください。",
       "processing": "マイク音声処理",
-      "low_cut": "ローカットフィルター",
-      "equalizer": "イコライザー",
-      "bass": "低音",
-      "mid": "中音",
-      "treble": "高音",
-      "compressor": "コンプレッサー",
-      "amount": "強さ",
-      "reset_processing": "音声処理をリセット"
+      "processing_none": "処理なし",
+      "processing_subtle": "弱い処理",
+      "processing_strong": "強い処理",
+      "gate_separate": "ノイズゲートは別に適用されます。"
     }
   }
 }

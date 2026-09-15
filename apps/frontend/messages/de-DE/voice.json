@@ -90,14 +90,10 @@
       "test_failed": "Mikrofon konnte nicht getestet werden. Prüfe den Gerätezugriff und versuche es erneut.",
       "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest.",
       "processing": "Mikrofonverarbeitung",
-      "low_cut": "Tiefenfilter",
-      "equalizer": "Equalizer",
-      "bass": "Bässe",
-      "mid": "Mitten",
-      "treble": "Höhen",
-      "compressor": "Kompressor",
-      "amount": "Stärke",
-      "reset_processing": "Verarbeitung zurücksetzen"
+      "processing_none": "Keine Verarbeitung",
+      "processing_subtle": "Dezente Verarbeitung",
+      "processing_strong": "Starke Verarbeitung",
+      "gate_separate": "Das Noise Gate wird separat angewendet."
     }
   }
 }

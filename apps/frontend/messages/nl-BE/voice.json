@@ -90,14 +90,10 @@
       "test_failed": "De microfoon kon niet worden getest. Controleer de apparaattoegang en probeer het opnieuw.",
       "test_in_call": "Verlaat je gesprek voordat je de microfoon test.",
       "processing": "Microfoonverwerking",
-      "low_cut": "Laagafsnijfilter",
-      "equalizer": "Equalizer",
-      "bass": "Lage tonen",
-      "mid": "Middentonen",
-      "treble": "Hoge tonen",
-      "compressor": "Compressor",
-      "amount": "Sterkte",
-      "reset_processing": "Verwerking herstellen"
+      "processing_none": "Geen verwerking",
+      "processing_subtle": "Lichte verwerking",
+      "processing_strong": "Sterke verwerking",
+      "gate_separate": "De ruispoort wordt afzonderlijk toegepast."
     }
   }
 }

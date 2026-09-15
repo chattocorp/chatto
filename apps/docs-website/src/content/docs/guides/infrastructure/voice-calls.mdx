@@ -268,19 +268,19 @@ The meter shows input before the gate. The browser still applies echo
 cancellation and noise suppression. Automatic gain control is disabled so
 it does not compete with your compressor settings.
 
-Use the **Microphone processing** panel to adjust these optional effects:
+Use the **Microphone processing** panel to choose a preset:
 
-- **Low-cut filter** removes low-frequency rumble below 80 Hz.
-- **Equaliser** adjusts bass, mids, and treble by up to 6 dB in either direction.
-  Boosts reserve headroom, so the overall volume can decrease.
-- **Compressor** reduces the difference between loud and quiet speech.
-  Increase **Amount** for stronger compression. The browser compressor also raises quiet input.
+- **No processing** (the default) disables the added filter, equaliser, and compressor.
+- **Subtle processing** combines a low-cut filter, gentle tone adjustment, and light compression.
+- **Strong processing** applies more tone adjustment and compression for more consistent speech volume.
 
-All three effects start disabled. They apply immediately to your call and
-microphone test. Processing runs locally in this order: low-cut filter,
-noise gate, equaliser, compressor. It does not affect camera, screen-share,
-or received audio. **Reset processing** disables the gate and effects and
-restores their default values. Your device choices stay unchanged.
+The noise gate applies separately. Preset changes keep your gate threshold,
+device choices, and join-muted preference. Browser echo cancellation and noise
+suppression stay enabled with all three presets.
+
+Changes apply immediately to your call and microphone test. Processing runs
+locally and affects only your microphone, not camera, screen-share, or received
+audio. Use the microphone test to compare the presets.
 
 The noise gate control and a live meter are also available in the call device menu.
 Changing the threshold does not mute or unmute your participant. The local

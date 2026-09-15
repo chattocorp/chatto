@@ -26,3 +26,21 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
     amount: bounded(raw.amount, 0, 100, 50)
   };
 }
+
+/** User-facing processing choices; the noise gate is configured separately. */
+export type MicrophoneProcessingPreset = 'none' | 'subtle' | 'strong';
+
+/** Return fresh effect settings so callers cannot mutate shared preset values. */
+export function microphoneEffectsForPreset(preset: MicrophoneProcessingPreset): MicrophoneEffects {
+  const enabled = preset !== 'none';
+  const strong = preset === 'strong';
+  return {
+    lowCut: enabled,
+    equalizer: enabled,
+    bass: enabled ? (strong ? -3 : -1) : 0,
+    mid: enabled ? (strong ? 2 : 1) : 0,
+    treble: enabled ? (strong ? 3 : 1) : 0,
+    compressor: enabled,
+    amount: enabled ? (strong ? 55 : 15) : 50
+  };
+}

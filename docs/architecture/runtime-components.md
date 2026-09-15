@@ -207,8 +207,10 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and bounded effect settings at the existing
+`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and processing preset at the existing
 per-server storage boundary. These settings do not enter Chatto APIs or EVT.
+The preset is `none`, `subtle`, or `strong`; missing or invalid values use `none`.
+Legacy enabled effect settings map to `subtle`. Other saved choices remain intact.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
@@ -223,6 +225,9 @@ position disables gating. The input meter maps -60 to 0 dBFS onto 0–1.
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
 compressor. Each EQ band is bounded to ±6 dB. Compressor amount maps 0–100
 to threshold -12…-36 dB and ratio 2…8, with 6 ms attack and 150 ms release.
+Presets derive effect settings without changing the gate. Subtle enables low-cut,
+EQ (-1/+1/+1 dB), and compressor amount 15; Strong uses -3/+2/+3 dB and amount 55.
+No processing disables these three effects.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
 The gate meters the signal after the optional low-cut filter and before EQ.
 Capture requests disable browser AGC in both owners. The processor graph is
