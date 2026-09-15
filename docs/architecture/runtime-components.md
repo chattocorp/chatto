@@ -282,8 +282,14 @@ call state does not create a separate audio context or sampling path. The workle
 origin and sends only input levels to the UI, with no external connection.
 
 The settings page owns `CallDeviceTest`. Explicit capture feeds the shared
-processor and an audio element for immediate local playback. The selected speaker
-is applied where the browser supports output selection. No recording is made.
+processor. Where `AudioContext.setSinkId` is supported, a shared final gain node
+feeds both the published stream and the context destination for direct local
+monitoring. The same node preserves monitoring after runtime processor failure.
+Other browsers use the processed stream in an audio element. Initialization
+failure monitors the raw stream. Explicit output errors stop the test instead
+of selecting another speaker silently. Active output changes are serialized
+and do not reopen capture. Explicit microphone choices use an exact device
+constraint. No recording is made.
 Generation checks stop late streams or playback after cancellation. Page exit
 stops tracks and playback, closes the audio context, and cancels meter updates.
 Camera discovery requests temporary access on page open only if device names

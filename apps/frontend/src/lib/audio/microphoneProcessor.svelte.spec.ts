@@ -51,6 +51,13 @@ it.each(['gate', 'polish'])(
       expect(local.mediaStreamTrack).not.toBe(track);
       const analyser = context.createAnalyser();
       context.createMediaStreamSource(new MediaStream([local.mediaStreamTrack])).connect(analyser);
+      const direct = context.createAnalyser();
+      expect(processor.connectMonitor(direct)).toBe(true);
+      const directSamples = new Float32Array(direct.fftSize);
+      const directPeak = () => {
+        direct.getFloatTimeDomainData(directSamples);
+        return Math.max(...directSamples.map(Math.abs));
+      };
       const samples = new Float32Array(analyser.fftSize);
       const peak = () => {
         analyser.getFloatTimeDomainData(samples);
@@ -77,6 +84,7 @@ it.each(['gate', 'polish'])(
       expect(processor.unavailable).toBe(true);
       await vi.waitFor(() => expect(processor.level).toBeGreaterThan(0));
       await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.001));
+      await vi.waitFor(() => expect(directPeak()).toBeGreaterThan(0.001));
       const old = processor.processedTrack!;
       await processor.restart({ track, audioContext: context, kind: Track.Kind.Audio });
       expect(old.readyState).toBe('ended');

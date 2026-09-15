@@ -58,12 +58,15 @@ Rooms support real-time voice conversations with optional camera video and scree
 - Camera selection does not start video. Joining muted does not request
   microphone access merely to list devices. Browser support controls whether
   a speaker can be selected.
-- Device choices use radio controls. An explicit local microphone test shows
+- Device choices use radio controls. During a local test, output changes keep
+  capture active. A failed explicit output selection stops the test instead of
+  silently playing through another device. An explicit local microphone test shows
   an input meter and plays the microphone immediately through the selected
   speaker. It does not record audio, connect to LiveKit, or verify network
   connectivity. Testing is unavailable during the selected server's call.
-  Stop, navigation, and device changes release capture and stop playback;
-  late capture results are stopped as well.
+  Stop and navigation release capture and stop playback. Input changes restart
+  an active test; output changes keep capture active. Camera choices do not
+  interrupt the microphone test. Late capture results are stopped.
 - Opening the settings page requests camera access only if camera names are
   unavailable and no call is active on the selected server. The browser may
   show its permission dialog. Discovery stops camera capture immediately.

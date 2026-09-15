@@ -25,6 +25,7 @@ export class MicrophoneProcessor implements TrackProcessor<
   #polish?: AudioWorkletNode;
   #onError?: () => void;
   #destination?: MediaStreamAudioDestinationNode;
+  #output?: GainNode;
   #threshold = GATE_OFF;
   #effects: MicrophoneEffects = normalizeMicrophoneEffects();
   #graph?: MicrophoneEffectsGraph;
@@ -95,7 +96,9 @@ export class MicrophoneProcessor implements TrackProcessor<
         processorOptions: { polish: this.#effects.polish }
       });
       this.#polish = polish;
-      polish.connect(destination);
+      const output = audioContext.createGain();
+      this.#output = output;
+      polish.connect(output).connect(destination);
       node.port.onmessage = ({ data }) => {
         this.#level = data;
       };
@@ -114,7 +117,7 @@ export class MicrophoneProcessor implements TrackProcessor<
         polish.port.postMessage({ stop: true });
         node.port.close();
         polish.port.close();
-        source.connect(destination);
+        source.connect(output);
         this.setupFallbackMeter(audioContext);
         this.active = false;
         this.unavailable = true;
@@ -144,6 +147,17 @@ export class MicrophoneProcessor implements TrackProcessor<
     await this.init(options);
   }
 
+  /**
+   * Monitor the final signal directly in the supplied context. The caller owns
+   * the sink. Runtime processor failure keeps this connection on raw input;
+   * destroy disconnects it. Returns false when initialization used raw fallback.
+   */
+  connectMonitor(destination: AudioNode): boolean {
+    if (!this.#output) return false;
+    this.#output.connect(destination);
+    return true;
+  }
+
   /** Permanently close a call/test owner, including queued SDK initialization. */
   dispose(): void {
     this.#disposed = true;
@@ -168,6 +182,8 @@ export class MicrophoneProcessor implements TrackProcessor<
     this.#graph?.destroy();
     this.#graph = undefined;
     this.#source?.disconnect();
+    this.#output?.disconnect();
+    this.#output = undefined;
     this.#node?.disconnect();
     this.#destination?.stream.getTracks().forEach((track) => track.stop());
     this.#source = undefined;

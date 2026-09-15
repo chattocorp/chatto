@@ -42,7 +42,7 @@
 
   onMount(() => {
     alive = true;
-    outputSupported = 'setSinkId' in HTMLMediaElement.prototype;
+    outputSupported = 'setSinkId' in AudioContext.prototype || 'setSinkId' in HTMLMediaElement.prototype;
     void discoverDevices();
     navigator.mediaDevices?.addEventListener('devicechange', refresh);
     return () => {
@@ -69,20 +69,20 @@
     return result;
   }
 
-  function select(kind: MediaDeviceKind, value: string) {
-    test.stop();
+  async function select(kind: MediaDeviceKind, value: string) {
+    if (kind === 'audiooutput' && test.active) {
+      if (await test.setSpeaker(value)) preferences.setDevice(kind, value);
+      return;
+    }
+    const restart = kind !== 'videoinput' && (test.active || test.pending);
     preferences.setDevice(kind, value);
+    if (restart) await startTest();
   }
 
   async function startTest() {
-    const speaker = devices.some(
-      (device) => device.kind === 'audiooutput' && device.deviceId === preferences.speaker
-    )
-      ? preferences.speaker
-      : '';
     await test.start(
       preferences.microphone,
-      speaker,
+      preferences.speaker,
       () => preferences.microphoneThreshold,
       () => preferences.effects
     );

@@ -2,6 +2,8 @@ import { userEvent } from 'vitest/browser';
 import { tick } from 'svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import type { OutputAudioContext } from '$lib/state/server/callDeviceTest.svelte';
+import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
 import CallDeviceSettings from './CallDeviceSettings.svelte';
 
@@ -58,22 +60,22 @@ describe('Call device settings', () => {
       await context.resume();
       return destination.stream;
     });
-    const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
+    const monitor = vi.spyOn(MicrophoneProcessor.prototype, 'connectMonitor');
     const screen = render(CallDeviceSettings, {
       preferences: new CallPreferencesState('playback-refresh')
     });
     try {
       await screen.getByRole('button', { name: 'Start microphone test' }).click();
       await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
-      await vi.waitFor(() => expect(play).toHaveBeenCalledOnce());
-      const audio = play.mock.contexts[0] as HTMLAudioElement;
-      await vi.waitFor(() => expect(audio.paused).toBe(false));
+      await vi.waitFor(() => expect(monitor).toHaveBeenCalledOnce());
+      const output = monitor.mock.calls[0][0];
+      expect(output.context.state).toBe('running');
       const callsBefore = enumerate.mock.calls.length;
       navigator.mediaDevices.dispatchEvent(new Event('devicechange'));
       await vi.waitFor(() => expect(enumerate.mock.calls.length).toBeGreaterThan(callsBefore));
       await tick();
-      expect((audio.srcObject as MediaStream).getAudioTracks()[0].readyState).toBe('live');
-      expect(audio.paused).toBe(false);
+      expect(destination.stream.getAudioTracks()[0].readyState).toBe('live');
+      expect(output.context.state).toBe('running');
     } finally {
       await screen.unmount();
       oscillator.stop();
@@ -171,4 +173,35 @@ it('disables the voice slider when processing is unavailable', async () => {
     gateUnavailable: true
   });
   await expect.element(screen.getByRole('slider', { name: /^Voice Quality/ })).toBeDisabled();
+});
+
+it('switches the selected test output without stopping capture or requiring another Start click', async () => {
+  const context = new AudioContext();
+  const stream = context.createMediaStreamDestination().stream;
+  const preferences = new CallPreferencesState('live-output');
+  const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+  const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
+  vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([
+    visibleCamera,
+    {kind: 'audiooutput', deviceId: 'headphones', label: 'Headphones'} as MediaDeviceInfo
+  ]);
+  const screen = render(CallDeviceSettings, {preferences});
+  try {
+    await screen.getByRole('button', {name: 'Start microphone test'}).click();
+    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
+    await screen.getByRole('radio', {name: 'Headphones'}).click();
+    await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith('headphones'));
+    await vi.waitFor(() => expect(preferences.speaker).toBe('headphones'));
+    expect(capture).toHaveBeenCalledOnce();
+    expect(stream.getAudioTracks()[0].readyState).toBe('live');
+    await expect.element(screen.getByRole('button', {name: 'Stop test'})).toBeInTheDocument();
+    await screen.getByRole('radiogroup', {name:'Speaker', exact:true})
+      .getByRole('radio', {name:'System default'}).click();
+    await vi.waitFor(() => expect(sink).toHaveBeenLastCalledWith(''));
+    expect(capture).toHaveBeenCalledOnce();
+  } finally {
+    await screen.unmount();
+    await context.close();
+    vi.restoreAllMocks();
+  }
 });
