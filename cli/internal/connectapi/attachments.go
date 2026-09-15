@@ -53,6 +53,10 @@ func (s *roomService) ListRoomAttachments(ctx context.Context, req *connect.Requ
 			ThreadRootEventId: item.ThreadRootEventID,
 			CreatedAt:         item.CreatedAt,
 		})
+		if item.Description != "" {
+			description := item.Description
+			attachments[len(attachments)-1].Description = &description
+		}
 	}
 
 	return connect.NewResponse(&apiv1.ListRoomAttachmentsResponse{

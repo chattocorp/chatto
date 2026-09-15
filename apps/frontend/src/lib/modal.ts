@@ -7,6 +7,7 @@ export type ImageViewerItem = {
   originalSrc?: string;
   alt?: string;
   filename?: string;
+  description?: string;
 };
 
 type RoomModalTarget = {
@@ -22,6 +23,12 @@ export type ChatModal =
   | { type: 'removeServer'; serverId: string; spaceName: string }
   | (RoomModalTarget & { type: 'deleteMessage'; eventId: string })
   | (RoomModalTarget & { type: 'deleteAttachment'; eventId: string; attachmentId: string })
+  | (RoomModalTarget & {
+      type: 'editAttachmentDescription';
+      eventId: string;
+      attachmentId: string;
+      description: string;
+    })
   | (RoomModalTarget & { type: 'deleteLinkPreview'; eventId: string; previewUrl: string })
   | (RoomModalTarget & {
       type: 'htmlViewer';
@@ -45,6 +52,10 @@ export type DeleteMessageContentModalState = Extract<
   { type: 'deleteMessage' | 'deleteAttachment' | 'deleteLinkPreview' }
 >;
 export type ImageViewerModalState = Extract<ChatModal, { type: 'imageViewer' }>;
+export type EditAttachmentDescriptionModalState = Extract<
+  ChatModal,
+  { type: 'editAttachmentDescription' }
+>;
 export type HtmlViewerModalState = Extract<ChatModal, { type: 'htmlViewer' }>;
 
 /** Identifies one modal interaction while allowing its render data to refresh in place. */

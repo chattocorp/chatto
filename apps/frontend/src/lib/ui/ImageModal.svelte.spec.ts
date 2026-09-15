@@ -41,6 +41,27 @@ describe('ImageModal', () => {
       .toHaveAttribute('href', 'https://cdn.example.com/display.jpg');
   });
 
+  it('shows the attachment description as a multiline caption', async () => {
+    const { container } = render(ImageModal, {
+      props: {
+        items: [
+          {
+            src: 'https://cdn.example.com/display.jpg',
+            filename: 'image.jpg',
+            description: 'A chart.\nThe line rises.'
+          }
+        ],
+        onclose: () => {}
+      }
+    });
+
+    const image = container.querySelector('img')!;
+    await expect.element(image).toHaveAttribute('alt', 'image.jpg');
+    await expect
+      .element(container.querySelector('p')!)
+      .toHaveTextContent('A chart. The line rises.');
+  });
+
   it('mirrors arrow-key navigation in RTL', async () => {
     document.documentElement.dir = 'rtl';
     const { container } = render(ImageModal, {

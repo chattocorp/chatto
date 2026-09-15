@@ -159,6 +159,13 @@
       "download_label": "{filename} herunterladen",
       "image_refresh_failed": "Bildlink konnte nicht aktualisiert werden",
       "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden",
+      "add_description": "Beschreibung hinzufügen",
+      "edit_description": "Beschreibung bearbeiten",
+      "description_title": "Anhangsbeschreibung",
+      "description_label": "Beschreibung (optional)",
+      "description_help": "Beschreibe den Anhang für Personen, die ihn nicht sehen oder hören können.",
+      "description_too_long": "Beschreibungen dürfen höchstens {max} Zeichen enthalten.",
+      "description_update_failed": "Anhangsbeschreibung konnte nicht aktualisiert werden",
       "html_viewer": {
         "download": "Herunterladen",
         "show_preview": "Vorschau anzeigen",

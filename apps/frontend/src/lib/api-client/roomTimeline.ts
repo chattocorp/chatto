@@ -468,6 +468,7 @@ function attachmentView(attachment: {
   id: string;
   filename: string;
   contentType: string;
+  description?: string;
   width: number;
   height: number;
   assetUrl?: MessageAssetUrl;
@@ -478,6 +479,7 @@ function attachmentView(attachment: {
     id: attachment.id,
     filename: attachment.filename,
     contentType: attachment.contentType,
+    description: attachment.description ?? null,
     width: attachment.width,
     height: attachment.height,
     assetUrl: assetUrlView(attachment.assetUrl),

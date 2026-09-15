@@ -25,11 +25,22 @@ func messageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) 
 	return encryption.MessageBodyAAD(eventID, bodyEventID, roomID, authorID, epoch)
 }
 
+func attachmentDescriptionAAD(canonicalMessageEventID, bodyEventID, roomID, authorID, assetID string, epoch int32) []byte {
+	return encryption.AttachmentDescriptionAAD(canonicalMessageEventID, bodyEventID, roomID, authorID, assetID, epoch)
+}
+
 func userDEKAAD(userID string, purpose evtv1.UserDEKPurpose, epoch int32) []byte {
 	return encryption.UserDEKAAD(userID, purpose, epoch)
 }
 
 func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *evtv1.MessageBody, roomID, eventID, bodyEventID, plaintext string) error {
+	return c.encryptMessageContent(ctx, body, roomID, eventID, eventID, bodyEventID, plaintext, nil)
+}
+
+// encryptMessageContent encrypts body text and every attachment description
+// with the original author's active message-body DEK. It replaces all prior
+// description envelopes so their AAD follows the new body event.
+func (c *ChattoCore) encryptMessageContent(ctx context.Context, body *evtv1.MessageBody, roomID, eventID, canonicalMessageEventID, bodyEventID, plaintext string, descriptions map[string]string) error {
 	if body == nil {
 		return fmt.Errorf("message body is nil")
 	}
@@ -54,7 +65,46 @@ func (c *ChattoCore) encryptMessageBody(ctx context.Context, body *evtv1.Message
 	body.EncryptionVersion = encryption.EnvelopeVersionV2
 	body.ContentKeyEpoch = contentKey.epoch
 	body.BodyEventId = bodyEventID
+
+	body.AttachmentDescriptions = nil
+	for _, assetID := range messageBodyAttachmentIDs(body) {
+		description := descriptions[assetID]
+		if description == "" {
+			continue
+		}
+		encryptedDescription, err := encryption.EncryptWithContentKey(
+			contentKey.key,
+			[]byte(description),
+			attachmentDescriptionAAD(canonicalMessageEventID, bodyEventID, roomID, authorID, assetID, contentKey.epoch),
+		)
+		if err != nil {
+			return fmt.Errorf("failed to encrypt attachment description: %w", err)
+		}
+		body.AttachmentDescriptions = append(body.AttachmentDescriptions, &evtv1.EncryptedAttachmentDescription{
+			AssetId:              assetID,
+			EncryptionVersion:    encryption.EnvelopeVersionV2,
+			ContentKeyEpoch:      contentKey.epoch,
+			EncryptedDescription: encryptedDescription.Ciphertext,
+			EncryptionNonce:      encryptedDescription.Nonce,
+		})
+	}
 	return nil
+}
+
+func messageBodyAttachmentIDs(body *evtv1.MessageBody) []string {
+	if body == nil {
+		return nil
+	}
+	if len(body.GetAssetIds()) > 0 {
+		return body.GetAssetIds()
+	}
+	result := make([]string, 0, len(body.GetAttachments()))
+	for _, attachment := range body.GetAttachments() {
+		if attachment.GetId() != "" {
+			result = append(result, attachment.GetId())
+		}
+	}
+	return result
 }
 
 func (c *ChattoCore) ensureActiveMessageContentKey(ctx context.Context, userID string) (*messageContentKey, error) {

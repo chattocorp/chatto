@@ -9,6 +9,7 @@
     originalSrc?: string;
     alt?: string;
     filename?: string;
+    description?: string;
   };
 
   let {
@@ -111,6 +112,12 @@
           Open original
         </a>
       </div>
+
+      {#if current.description}
+        <p class="max-w-[85vw] text-center text-sm whitespace-pre-wrap text-white/80" dir="auto">
+          {current.description}
+        </p>
+      {/if}
     </div>
   {/if}
 </dialog>

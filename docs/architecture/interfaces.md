@@ -78,6 +78,11 @@ server's configured transactional email sender.
 
 `MessageService` and `ThreadService` expose complete, paginated reaction-user
 and reply-author references in addition to bounded message previews.
+`MessageService.CreateMessage` accepts attachment descriptions keyed by an asset
+ID in the same request. `MessageService.SetAttachmentDescription` replaces or
+clears one current description with message-edit authorization. Hydrated message
+attachments and room-file wrappers expose the description; the base `Asset`
+resource remains description-free.
 `RoomService` and `ThreadService` expose caller-owned read markers through
 singular and bounded batch reads. These reads use existing message-read
 authorization and do not initialize or advance markers.

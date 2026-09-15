@@ -159,6 +159,13 @@
       "download_label": "下载 {filename}",
       "image_refresh_failed": "无法刷新图片链接",
       "download_refresh_failed": "无法刷新下载链接",
+      "add_description": "添加描述",
+      "edit_description": "编辑描述",
+      "description_title": "附件描述",
+      "description_label": "描述（可选）",
+      "description_help": "请为无法看到或听到此附件的人描述其内容。",
+      "description_too_long": "描述最多可包含 {max} 个字符。",
+      "description_update_failed": "无法更新附件描述",
       "html_viewer": {
         "download": "下载",
         "show_preview": "显示预览",

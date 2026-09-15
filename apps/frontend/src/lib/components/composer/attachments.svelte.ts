@@ -1,7 +1,7 @@
 import { toast } from '$lib/ui/toast';
 import { prepareFiles } from '$lib/attachments/prepareFiles';
 
-export type FileWithUrl = { file: File; url: string };
+export type FileWithUrl = { file: File; url: string; description: string };
 
 export type AttachmentLimits = {
   videoProcessingEnabled: boolean;
@@ -23,6 +23,12 @@ export class AttachmentsState {
 
   get selectedFiles(): File[] {
     return this.filesWithUrls.map((f) => f.file);
+  }
+
+  get descriptions() {
+    return this.filesWithUrls.flatMap(({ file, description }) =>
+      description.trim() ? [{ file, description }] : []
+    );
   }
 
   restore(files: FileWithUrl[]): void {
@@ -54,7 +60,8 @@ export class AttachmentsState {
   filesToPreviewItems(files: File[]): FileWithUrl[] {
     return files.map((file) => ({
       file,
-      url: URL.createObjectURL(file)
+      url: URL.createObjectURL(file),
+      description: ''
     }));
   }
 
@@ -80,6 +87,12 @@ export class AttachmentsState {
     const removed = this.filesWithUrls[index];
     if (removed) URL.revokeObjectURL(removed.url);
     this.filesWithUrls = this.filesWithUrls.filter((_, i) => i !== index);
+  }
+
+  setDescription(index: number, description: string): void {
+    const attachment = this.filesWithUrls[index];
+    if (!attachment) return;
+    attachment.description = description.trim();
   }
 
   clear(): void {

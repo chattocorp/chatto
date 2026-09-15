@@ -22,6 +22,23 @@ Members can attach files through drag-and-drop, paste, or the file picker when t
 
 Default upload limits are 25 MB for non-video files and 100 MB for videos when video uploads are enabled.
 
+## Attachment Descriptions
+
+Add a description in the attachment preview before you send a message. After
+send, open the attachment controls to add, replace, or remove it. Descriptions
+can contain line breaks and can contain at most 1,000 Unicode characters.
+
+Chatto uses an image description as alt text and uses the filename when no
+description exists. The image viewer also shows the description as a visible
+caption. Video, audio, and file controls expose the description to assistive
+technology.
+
+Descriptions belong to a message attachment, not to the uploaded asset. Chatto
+encrypts each description with the message author's content key. It does not put
+the description in upload-session state or permanent asset-ownership events.
+Description changes use the same three-hour window and `message.manage` override
+as message-text edits.
+
 Message attachments use upload chunks of up to 10 MiB. The browser uses the chunk
 limit returned by the server. This limit is fixed and reduces the number of
 requests on connections with high latency. If you set a reverse proxy request

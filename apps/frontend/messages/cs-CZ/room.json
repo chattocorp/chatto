@@ -159,6 +159,13 @@
       "download_label": "Stáhnout {filename}",
       "image_refresh_failed": "Odkaz na obrázek nelze obnovit",
       "download_refresh_failed": "Odkaz ke stažení nelze obnovit",
+      "add_description": "Přidat popis",
+      "edit_description": "Upravit popis",
+      "description_title": "Popis přílohy",
+      "description_label": "Popis (volitelný)",
+      "description_help": "Popište přílohu lidem, kteří ji nemohou vidět ani slyšet.",
+      "description_too_long": "Popis může obsahovat nejvýše {max} znaků.",
+      "description_update_failed": "Popis přílohy se nepodařilo aktualizovat",
       "html_viewer": {
         "download": "Stáhnout",
         "show_preview": "Zobrazit náhled",

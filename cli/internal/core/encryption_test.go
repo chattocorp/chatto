@@ -431,6 +431,34 @@ func TestGetMessageBody_CryptoShredding(t *testing.T) {
 	require.Nil(t, fullBody, "message should be nil after crypto-shredding (treated same as deleted)")
 }
 
+func TestAttachmentDescription_CryptoShredding(t *testing.T) {
+	core := setupTestCoreWithEncryption(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "description-shredding", "Description Shredding", "password123")
+	require.NoError(t, err)
+	room, err := core.CreateRoom(ctx, user.Id, KindChannel, "", "description-shredding", "")
+	require.NoError(t, err)
+	_, err = core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+	attachment, err := core.UploadAttachment(ctx, user.Id, room.Id, "photo.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	posted, err := core.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, AttachmentAssetIDs: []string{attachment.Id},
+		AttachmentDescriptions: []MessageAttachmentDescriptionInput{{
+			AssetID: attachment.Id, Description: "A person beside a window",
+		}},
+	})
+	require.NoError(t, err)
+	body, err := core.GetFullMessageBody(ctx, posted.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "A person beside a window", body.AttachmentDescriptions[attachment.Id])
+
+	require.NoError(t, core.DeleteUserEncryptionKeyAs(ctx, user.Id, user.Id))
+	body, err = core.GetFullMessageBody(ctx, posted.Event.Id)
+	require.NoError(t, err)
+	require.Nil(t, body)
+}
+
 func TestDeleteUserEncryptionKey_UsesStoredDEKWrappingRefs(t *testing.T) {
 	core := setupTestCoreWithEncryption(t)
 	ctx := testContext(t)

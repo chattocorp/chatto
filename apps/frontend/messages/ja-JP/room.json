@@ -159,6 +159,13 @@
       "download_label": "{filename}をダウンロード",
       "image_refresh_failed": "画像リンクを更新できませんでした",
       "download_refresh_failed": "ダウンロードリンクを更新できませんでした",
+      "add_description": "説明を追加",
+      "edit_description": "説明を編集",
+      "description_title": "添付ファイルの説明",
+      "description_label": "説明（任意）",
+      "description_help": "添付ファイルを見たり聞いたりできない人のために説明してください。",
+      "description_too_long": "説明は最大{max}文字まで入力できます。",
+      "description_update_failed": "添付ファイルの説明を更新できませんでした",
       "html_viewer": {
         "download": "ダウンロード",
         "show_preview": "プレビューを表示",

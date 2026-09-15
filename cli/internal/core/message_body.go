@@ -14,12 +14,13 @@ import (
 // plaintext content. The body's encryption envelope is unwrapped by
 // the resolver layer's decryptMessageBody helper.
 type DecryptedMessageBody struct {
-	AuthorId    string
-	Body        string
-	Attachments []*evtv1.Attachment
-	LinkPreview *evtv1.LinkPreview
-	CreatedAt   time.Time
-	UpdatedAt   *time.Time
+	AuthorId               string
+	Body                   string
+	Attachments            []*evtv1.Attachment
+	AttachmentDescriptions map[string]string
+	LinkPreview            *evtv1.LinkPreview
+	CreatedAt              time.Time
+	UpdatedAt              *time.Time
 }
 
 // GetFullMessageBody returns the decrypted message body for a message event,
@@ -52,13 +53,21 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		}
 		return nil, fmt.Errorf("failed to decrypt message body: %w", err)
 	}
+	descriptions, err := c.decryptAttachmentDescriptions(ctx, eventID, entry.RoomID, body)
+	if err != nil {
+		if errors.Is(err, encryption.ErrKeyNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to decrypt attachment descriptions: %w", err)
+	}
 
 	result := &DecryptedMessageBody{
-		AuthorId:    body.GetAuthorId(),
-		Body:        string(plaintext),
-		Attachments: c.mediaModel.MessageBodyAttachments(body),
-		LinkPreview: body.GetLinkPreview(),
-		CreatedAt:   entry.CreatedAt,
+		AuthorId:               body.GetAuthorId(),
+		Body:                   string(plaintext),
+		Attachments:            c.mediaModel.MessageBodyAttachments(body),
+		AttachmentDescriptions: descriptions,
+		LinkPreview:            body.GetLinkPreview(),
+		CreatedAt:              entry.CreatedAt,
 	}
 	// UpdatedAt: if EVT hydration returned a body different from the
 	// original post's body, the message has been edited. The body
@@ -69,6 +78,76 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		result.UpdatedAt = &t
 	}
 	return result, nil
+}
+
+// decryptAttachmentDescriptions decrypts attachment-description envelopes
+// without retaining plaintext in a projection. Duplicate, unsupported, or
+// detached entries make the message body corrupt.
+func (c *ChattoCore) decryptAttachmentDescriptions(ctx context.Context, eventID, roomID string, msg *evtv1.MessageBody) (map[string]string, error) {
+	if msg == nil || len(msg.GetAttachmentDescriptions()) == 0 {
+		return map[string]string{}, nil
+	}
+	attachmentIDs := messageBodyAttachmentIDs(msg)
+	currentAssets := make(map[string]struct{}, len(attachmentIDs))
+	for _, assetID := range attachmentIDs {
+		currentAssets[assetID] = struct{}{}
+	}
+	result := make(map[string]string, len(msg.GetAttachmentDescriptions()))
+	canonicalMessageEventID := c.attachmentDescriptionCanonicalEventID(eventID)
+	keys := make(map[int32]*messageContentKey)
+	for _, encryptedDescription := range msg.GetAttachmentDescriptions() {
+		if encryptedDescription == nil {
+			return nil, fmt.Errorf("%w: nil attachment description", ErrMessageBodyCorrupt)
+		}
+		assetID := encryptedDescription.GetAssetId()
+		if _, ok := currentAssets[assetID]; !ok {
+			return nil, fmt.Errorf("%w: attachment description references an absent asset", ErrMessageBodyCorrupt)
+		}
+		if _, duplicate := result[assetID]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate attachment description", ErrMessageBodyCorrupt)
+		}
+		if encryptedDescription.GetEncryptionVersion() != encryption.EnvelopeVersionV2 {
+			return nil, fmt.Errorf("%w: unsupported attachment description encryption version %d", ErrMessageBodyCorrupt, encryptedDescription.GetEncryptionVersion())
+		}
+		epoch := encryptedDescription.GetContentKeyEpoch()
+		if epoch <= 0 {
+			return nil, fmt.Errorf("%w: missing attachment description content key epoch", ErrMessageBodyCorrupt)
+		}
+		contentKey := keys[epoch]
+		if contentKey == nil {
+			contentKeyEvent, ok, err := c.userModel.contentKeyAtEpoch(msg.GetAuthorId(), evtv1.UserDEKPurpose_USER_DEK_PURPOSE_MESSAGE_BODY, epoch)
+			if err != nil {
+				return nil, err
+			}
+			if !ok {
+				return nil, encryption.ErrKeyNotFound
+			}
+			contentKey, err = c.unwrapMessageContentKey(ctx, contentKeyEvent)
+			if err != nil {
+				return nil, err
+			}
+			keys[epoch] = contentKey
+		}
+		plaintext, err := encryption.DecryptWithContentKey(
+			contentKey.key,
+			encryptedDescription.GetEncryptedDescription(),
+			encryptedDescription.GetEncryptionNonce(),
+			attachmentDescriptionAAD(canonicalMessageEventID, msg.GetBodyEventId(), roomID, msg.GetAuthorId(), assetID, epoch),
+		)
+		if err != nil {
+			return nil, messageBodyEnvelopeError(err)
+		}
+		result[assetID] = string(plaintext)
+	}
+	return result, nil
+}
+
+func (c *ChattoCore) attachmentDescriptionCanonicalEventID(eventID string) string {
+	entry, ok := c.roomModel.timelineEntry(eventID)
+	if ok && entry.EchoOfEventID != "" {
+		return entry.EchoOfEventID
+	}
+	return eventID
 }
 
 func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*evtv1.MessageBody, error) {

@@ -56,6 +56,7 @@ unknown instance) the component renders nothing.
     id: string;
     filename: string;
     contentType: string;
+    description: string | null;
     thumbnailAssetUrl: ExpiringAssetUrl | null;
     videoThumbnailAssetUrl: ExpiringAssetUrl | null;
     thumbnailUrl: string | null;
@@ -165,6 +166,7 @@ unknown instance) the component renders nothing.
               id: a.id,
               filename: a.filename,
               contentType: a.contentType,
+              description: a.description ?? null,
               thumbnailAssetUrl,
               videoThumbnailAssetUrl,
               thumbnailUrl: displayThumbnailAssetUrl?.url ?? null
@@ -402,7 +404,7 @@ unknown instance) the component renders nothing.
               >
                 <img
                   src={thumbnailUrl}
-                  alt={attachment.filename}
+                  alt={attachment.description || attachment.filename}
                   class="h-full w-full object-cover"
                   onerror={() => refreshAfterThumbnailError(attachment)}
                 />

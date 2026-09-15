@@ -143,6 +143,7 @@ Room-scoped file list for the room sidebar.
     onclick={() => openFile(item)}
     title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
     data-testid="room-file-row"
+    aria-describedby={item.attachment.description ? `${entry.id}-description` : undefined}
   >
     <span
       class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
@@ -164,6 +165,11 @@ Room-scoped file list for the room sidebar.
     </span>
     <span class="min-w-0 flex-1">
       <bdi class="block truncate text-sm">{item.attachment.filename}</bdi>
+      {#if item.attachment.description}
+        <span id={`${entry.id}-description`} class="block truncate text-xs text-muted" dir="auto">
+          {item.attachment.description}
+        </span>
+      {/if}
       <span class="block truncate text-xs text-muted">{formatTimestamp(item.createdAt)}</span>
     </span>
   </button>

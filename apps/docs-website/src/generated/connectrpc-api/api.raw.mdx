@@ -2922,6 +2922,7 @@ Request to create a message in a room or thread.
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
 | `link_preview_token` | `string` | Short-lived token returned by FetchLinkPreview for the selected URL. The server resolves the token to cached, server-fetched metadata during post. |
 | `create_thread` | `bool` | True to establish the new root message as a thread immediately. Requires both message.post and message.post-in-thread. Cannot be combined with thread_root_event_id. |
+| `attachment_descriptions` | repeated [`MessageAttachmentDescriptionInput`](#chatto-api-v1-MessageAttachmentDescriptionInput) | Optional descriptions for assets in attachment_asset_ids. Asset IDs must be unique in this list. At most one description can target each asset. |
 
 
 <a id="chatto-api-v1-CreateMessageResponse"></a>
@@ -3036,6 +3037,44 @@ Request to remove one attachment from a message.
 #### Result: DeleteAttachmentResponse
 
 Result of removing one attachment from a message.
+
+
+<a id="chatto-api-v1-MessageService-SetAttachmentDescription"></a>
+
+### SetAttachmentDescription
+
+Sets or clears one attachment description. Authors can change descriptions
+within the message edit window. Effective message.manage permits changes
+at any time and to other users' messages. Room membership and message read
+access are required.
+
+```http
+POST /api/connect/chatto.api.v1.MessageService/SetAttachmentDescription
+```
+
+<a id="chatto-api-v1-SetAttachmentDescriptionRequest"></a>
+
+#### Input: SetAttachmentDescriptionRequest
+
+Request to set or clear one attachment description.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room containing the message. |
+| `event_id` | `string` | Required. Canonical message event containing the attachment. |
+| `attachment_id` | `string` | Required. Attachment asset ID in the current message body. |
+| `description` | `string` | Replacement description with at most 1,000 Unicode characters. Trim outer whitespace before sending. Chatto also trims outer whitespace and preserves internal line breaks. An empty result clears the description. |
+
+
+<a id="chatto-api-v1-SetAttachmentDescriptionResponse"></a>
+
+#### Result: SetAttachmentDescriptionResponse
+
+Result of setting or clearing an attachment description.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`Message`](#chatto-api-v1-Message) | Renderable message after the description change. |
 
 
 <a id="chatto-api-v1-MessageService-DeleteLinkPreview"></a>
@@ -4950,6 +4989,7 @@ be absent while processing is pending or when the source is unavailable.
 | `asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for the original asset, when available. |
 | `thumbnail_asset_url` | [`MessageAssetUrl`](#chatto-api-v1-MessageAssetUrl) | Signed URL for a thumbnail image, when available. |
 | `video_processing` | [`MessageVideoProcessing`](#chatto-api-v1-MessageVideoProcessing) | Video-specific processing metadata, when this attachment is a video. |
+| `description` | `optional string` | User-provided description for accessibility and attachment details. Absent when the attachment has no description. |
 
 
 
@@ -5085,6 +5125,7 @@ One current room attachment and its message anchor.
 | `message_event_id` | `string` | Message event containing the attachment. |
 | `thread_root_event_id` | `string` | Thread root event ID when the containing message is a thread reply. |
 | `created_at` | `google.protobuf.Timestamp` | Message creation timestamp. |
+| `description` | `optional string` | User-provided description for this attachment. Absent when the attachment has no description. |
 
 
 
@@ -5706,6 +5747,19 @@ One current, authorized message search result.
 | --- | --- | --- |
 | `message` | [`Message`](#chatto-api-v1-Message) | Current renderable message that matched the query. |
 | `relevance_score` | `double` | Search-provider relevance score. Higher values are more relevant for the same query. Clients may merge results from servers using compatible search implementations by this value. |
+
+
+
+<a id="chatto-api-v1-MessageAttachmentDescriptionInput"></a>
+
+### MessageAttachmentDescriptionInput
+
+Description supplied for one attachment in a new message.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `asset_id` | `string` | Required. Asset ID included in attachment_asset_ids on the same request. |
+| `description` | `string` | Plain-text description with at most 1,000 Unicode characters. Trim outer whitespace before sending. Chatto also trims outer whitespace, preserves internal line breaks, and omits an empty result. |
 
 
 

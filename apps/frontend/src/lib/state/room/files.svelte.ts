@@ -35,6 +35,7 @@ function attachmentState(item: RoomFileItem) {
     id: attachment.id,
     filename: attachment.filename,
     contentType: attachment.contentType,
+    description: attachment.description ?? null,
     width: attachment.width,
     height: attachment.height,
     processing: processing

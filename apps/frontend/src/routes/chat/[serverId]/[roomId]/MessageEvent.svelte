@@ -126,6 +126,9 @@
     })
   );
   const canDelete = $derived(isAuthor || roomPermissions.canManageOthersMessage);
+  const canEditAttachmentDescription = $derived(
+    canEdit && serverInfo.supportsFeature('attachmentDescriptions')
+  );
 
   const interactions = new MessageEventInteractionState();
   $effect(() => () => interactions.dispose());
@@ -669,6 +672,7 @@
         {roomId}
         eventId={isEcho ? messageEvent!.echoOfEventId! : event.id}
         canDeleteAttachment={isAuthor}
+        {canEditAttachmentDescription}
       />
 
       {#if messageEvent?.linkPreview}

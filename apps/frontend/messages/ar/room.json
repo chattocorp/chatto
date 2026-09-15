@@ -175,6 +175,13 @@
       "download_label": "تنزيل {filename}",
       "image_refresh_failed": "تعذر تحديث رابط الصورة",
       "download_refresh_failed": "تعذر تحديث رابط التنزيل",
+      "add_description": "إضافة وصف",
+      "edit_description": "تعديل الوصف",
+      "description_title": "وصف المرفق",
+      "description_label": "الوصف (اختياري)",
+      "description_help": "صِف المرفق للأشخاص الذين لا يستطيعون رؤيته أو سماعه.",
+      "description_too_long": "يمكن أن يحتوي الوصف على {max} حرفًا كحد أقصى.",
+      "description_update_failed": "تعذر تحديث وصف المرفق",
       "html_viewer": {
         "download": "تنزيل",
         "show_preview": "إظهار المعاينة",

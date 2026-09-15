@@ -391,6 +391,14 @@ export class MessageAttachment extends Message$1<MessageAttachment> {
    */
   videoProcessing?: MessageVideoProcessing;
 
+  /**
+   * User-provided description for accessibility and attachment details.
+   * Absent when the attachment has no description.
+   *
+   * @generated from field: optional string description = 9;
+   */
+  description?: string;
+
   constructor(data?: PartialMessage<MessageAttachment>) {
     super();
     proto3.util.initPartial(data, this);
@@ -407,6 +415,7 @@ export class MessageAttachment extends Message$1<MessageAttachment> {
     { no: 6, name: "asset_url", kind: "message", T: MessageAssetUrl },
     { no: 7, name: "thumbnail_asset_url", kind: "message", T: MessageAssetUrl },
     { no: 8, name: "video_processing", kind: "message", T: MessageVideoProcessing },
+    { no: 9, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageAttachment {

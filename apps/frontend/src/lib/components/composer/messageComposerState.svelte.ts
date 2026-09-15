@@ -576,6 +576,11 @@ export class MessageComposerState {
       roomId: this.#dependencies.getRoomId(),
       bodyToSend,
       filesToSend,
+      attachmentDescriptions: this.#dependencies.serverInfo.supportsFeature(
+        'attachmentDescriptions'
+      )
+        ? this.attachments.descriptions
+        : undefined,
       threadRootEventId: this.#dependencies.getThreadRootEventId() ?? null,
       inReplyTo: this.#dependencies.getReplyEventId() ?? null,
       linkPreviewToken: this.linkPreviews.buildToken(),
