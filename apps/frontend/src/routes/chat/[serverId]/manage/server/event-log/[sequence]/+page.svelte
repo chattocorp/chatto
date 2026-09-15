@@ -5,6 +5,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAdminEventLogAPI } from '$lib/api-client/adminEventLog';
   import Panel from '$lib/ui/Panel.svelte';
+  import JsonCode from '$lib/ui/JsonCode.svelte';
   import { Hint, PaneContent, Pill } from '$lib/ui';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
@@ -105,8 +106,7 @@
         </Panel>
 
         <Panel title={m('admin.event_log.payload')}>
-          <pre
-            class="overflow-x-auto rounded-md bg-surface-emphasized p-4 font-mono text-xs leading-relaxed">{entry.payloadJson}</pre>
+          <JsonCode text={entry.payloadJson} />
         </Panel>
       {/if}
     </div>
