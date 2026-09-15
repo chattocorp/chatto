@@ -11,7 +11,6 @@
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, Button, Form } from '$lib/ui/form';
-  import KnownServerSignInCard from './KnownServerSignInCard.svelte';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
 
   const { data } = $props();
@@ -180,14 +179,16 @@
 
       {#if signedOutServers.length > 0}
         <div class="mt-8 flex w-full flex-col gap-3 text-left">
-          {#each signedOutServers as server (server.id)}
-            <KnownServerSignInCard
-              {server}
-              connecting={connectingServerId === server.id}
-              disabled={connectingServerId !== null}
-              onSignIn={() => handleKnownServerSignIn(server)}
-            />
-          {/each}
+          {#await import('./KnownServerSignInCard.svelte') then { default: KnownServerSignInCard }}
+            {#each signedOutServers as server (server.id)}
+              <KnownServerSignInCard
+                {server}
+                connecting={connectingServerId === server.id}
+                disabled={connectingServerId !== null}
+                onSignIn={() => handleKnownServerSignIn(server)}
+              />
+            {/each}
+          {/await}
         </div>
       {/if}
 
