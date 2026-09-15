@@ -3,6 +3,7 @@
   import { chatModalKey, type ChatModal } from '$lib/modal';
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
+  import AttachmentViewerModal from './modals/AttachmentViewerModal.svelte';
   import ImageViewerModal from './modals/ImageViewerModal.svelte';
   import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
@@ -31,6 +32,8 @@
       <RemoveServerModal {modal} onclose={closeModal} />
     {:else if modal.type === 'deleteMessage' || modal.type === 'deleteAttachment' || modal.type === 'deleteLinkPreview'}
       <DeleteMessageContentModal {modal} onclose={closeModal} />
+    {:else if modal.type === 'attachmentViewer'}
+      <AttachmentViewerModal {modal} onclose={closeModal} />
     {:else if modal.type === 'imageViewer'}
       <ImageViewerModal {modal} onclose={closeModal} />
     {:else if modal.type === 'htmlViewer'}

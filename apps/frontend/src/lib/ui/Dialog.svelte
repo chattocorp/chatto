@@ -18,6 +18,7 @@ labels truncate only after the dialog reaches its viewport limit.
     children,
     footer,
     footerDetails,
+    mediaViewer = false,
     visible = $bindable(false),
     title,
     size = 'md',
@@ -33,6 +34,8 @@ labels truncate only after the dialog reaches its viewport limit.
     footer?: Snippet;
     /** Optional file or task details beside the fixed footer actions. */
     footerDetails?: Snippet;
+    /** Full-screen on small viewports, with a flexible media area and fixed controls. */
+    mediaViewer?: boolean;
     onclose?: () => void;
   } = $props();
 
@@ -185,7 +188,12 @@ labels truncate only after the dialog reaches its viewport limit.
       close();
     }
   }}
-  class="m-auto w-fit max-w-[calc(100vw-2rem)] bg-transparent backdrop:bg-black/50"
+  class={[
+    'm-auto bg-transparent backdrop:bg-black/50',
+    mediaViewer
+      ? 'h-dvh max-h-dvh w-dvw max-w-dvw sm:h-fit sm:w-fit sm:max-w-[calc(100vw-2rem)]'
+      : 'w-fit max-w-[calc(100vw-2rem)]'
+  ]}
   class:closing
   aria-labelledby={title ? titleId : undefined}
   aria-describedby={describedBy}
@@ -200,11 +208,21 @@ labels truncate only after the dialog reaches its viewport limit.
   -->
   {#if visible || closing}
     <div
-      class="dialog-frame flex max-h-[calc(100dvh-2rem)] w-max max-w-full flex-col overflow-hidden rounded-lg border border-text/10 bg-surface p-2 shadow-xl sm:max-h-[78vh]"
+      class={[
+        'dialog-frame flex max-w-full flex-col overflow-hidden bg-surface shadow-xl',
+        mediaViewer
+          ? 'h-dvh max-h-dvh w-full sm:h-[85dvh] sm:max-h-[85dvh] sm:w-max sm:rounded-lg sm:border sm:border-text/10 sm:p-2'
+          : 'max-h-[calc(100dvh-2rem)] w-max rounded-lg border border-text/10 p-2 sm:max-h-[78vh]'
+      ]}
       style:--dialog-baseline-width={sizeWidths[size]}
     >
       <div
-        class="flex min-h-0 w-max max-w-full min-w-full flex-1 flex-col overflow-hidden rounded-md bg-background p-3"
+        class={[
+          'flex min-h-0 w-max max-w-full min-w-full flex-1 flex-col overflow-hidden bg-background p-3',
+          mediaViewer
+            ? 'ps-[max(0.75rem,env(safe-area-inset-left))] pe-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:rounded-md'
+            : 'rounded-md'
+        ]}
       >
         <!--
           Header row holds the title (if any) and the close button, so
@@ -220,7 +238,10 @@ labels truncate only after the dialog reaches its viewport limit.
           {#if title}
             <h2
               id={titleId}
-              class="min-w-0 text-xl font-semibold text-balance wrap-anywhere text-text-top"
+              class={[
+                'min-w-0 text-xl font-semibold text-balance wrap-anywhere text-text-top',
+                mediaViewer && 'line-clamp-2'
+              ]}
             >
               <bdi>{title}</bdi>
             </h2>
@@ -237,7 +258,12 @@ labels truncate only after the dialog reaches its viewport limit.
           </button>
         </header>
 
-        <div class="min-h-0 w-0 min-w-full overflow-y-auto text-text">
+        <div
+          class={[
+            'min-h-0 w-0 min-w-full text-text',
+            mediaViewer ? 'flex flex-1 flex-col overflow-hidden' : 'overflow-y-auto'
+          ]}
+        >
           {@render children()}
         </div>
 

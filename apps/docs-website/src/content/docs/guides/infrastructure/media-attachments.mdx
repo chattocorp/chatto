@@ -93,11 +93,26 @@ The official Docker image includes the required ffmpeg tools. Host installs need
   New processed videos use HLS for reliable duration detection, seeking, and adaptive quality on both NATS ObjectStore and S3. Videos processed by older Chatto versions are not backfilled and continue using their MP4 variants; unprocessed NATS-backed video files remain complete, non-seekable responses.
 </Aside>
 
-## HTML Attachments
+## Attachment Viewer
 
-Select an HTML or XHTML attachment to open its viewer. The viewer shows the
-document type and file size. Select **Download** to
-save the original file. Download does not load the preview.
+Select a message attachment to open its viewer. For audio and video, select the
+filename button below the player. The viewer shows the filename, file type, and
+file size. Select **Download** to save the original file, including when the
+preview shows a resized image or a processed video.
+
+Images in the same message form a gallery. Use **Previous image**, **Next image**,
+or the arrow keys to move between them. The filename, size, and download link
+follow the selected image. Browser Back closes the whole gallery. Escape and
+Close also close the viewer and return focus to its opening control.
+
+The viewer fills the screen on phones. Close and Download stay visible outside
+the preview. Images, audio, and video have previews. Other formats, including
+PDFs, text files, and archives, show file details and Download.
+
+### HTML and XHTML
+
+HTML and XHTML previews require a separate choice. Download does not load the
+preview.
 
 Select **Show preview** to view the document. Before you select it, Chatto does
 not load the document or its external resources. The notice below the button

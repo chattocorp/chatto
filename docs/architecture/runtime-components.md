@@ -30,6 +30,18 @@ custom startup blocks.
 
 ## Client runtimes
 
+The bundled client routes message attachments through
+[`AttachmentViewerModal.svelte`](../../apps/frontend/src/routes/chat/modals/AttachmentViewerModal.svelte).
+One shallow-history entry owns the attachment list. Gallery selection, preview
+consent, loading state, and refresh generations exist only for that opening.
+The shared `AttachmentModal` shell keeps Close, file metadata, and Download
+outside the preview and fills small viewports. `AttachmentPreview` selects an
+image, a lazily loaded video player, native audio/video, an opt-in sandboxed HTML
+iframe, or a download-only fallback. Selection and closure invalidate pending
+URL responses and unmount the previous media. Metadata queries are scoped to
+the server session, room, and asset and are not retained after unmount.
+See [FDR-008](../fdr/FDR-008-file-attachments-and-video.md).
+
 The experimental Electron desktop shell is a Chatto client runtime using a
 pinned stable Electron and bundled Chromium release. It embeds the official
 static SvelteKit build and intercepts the fixed secure origin

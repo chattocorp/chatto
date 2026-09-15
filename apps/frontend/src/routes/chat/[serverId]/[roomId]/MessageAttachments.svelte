@@ -1,7 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import { isHtmlAttachment, type MessageAttachmentView } from '$lib/render/messageAttachments';
-  import type { ImageItem } from '$lib/ui/ImageModal.svelte';
+  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -9,12 +8,10 @@
   import { pushState } from '$app/navigation';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
-  import { toast } from '$lib/ui/toast';
   import {
     assetUrlNeedsRefresh,
     createAssetUrlRetainer,
     earliestAssetUrlRefreshAt,
-    LIGHTBOX_ATTACHMENT_IMAGE_REFRESH,
     mergeRefreshedAttachmentUrls,
     refreshAttachmentUrlsForAssets,
     withAssetUrlRetryParam,
@@ -337,85 +334,22 @@
     return serverScope.connection.getAPI(createAttachmentAPI);
   }
 
-  async function refreshLightboxUrls(): Promise<Map<string, RefreshedAttachmentUrls>> {
-    const freshUrls = await refreshAttachmentUrlsForAssets(
-      currentAttachmentAPI(),
-      roomId,
-      imageAttachments.map((attachment) => attachment.id),
-      LIGHTBOX_ATTACHMENT_IMAGE_REFRESH
-    );
-    if (freshUrls.size > 0) {
-      refreshedAttachmentUrls = mergeRefreshedAttachmentUrls(refreshedAttachmentUrls, freshUrls);
-    }
-    return freshUrls;
-  }
-
-  async function openImageModal(attachment: Attachment) {
-    // Refresh in one round-trip so navigating between images in the
-    // lightbox can't hit an expired URL mid-session.
-    const freshUrls = await refreshLightboxUrls();
-    if (!serverScope.isCurrent()) return;
-    const imageItems: ImageItem[] = imageAttachments
-      .map((a) => ({
-        id: a.id,
-        src:
-          normalizeAssetUrl(
-            freshUrls.has(a.id) ? freshUrls.get(a.id)!.thumbnailAssetUrl : a.thumbnailAssetUrl
-          )?.url ?? '',
-        originalSrc: normalizeAssetUrl(
-          freshUrls.has(a.id) ? freshUrls.get(a.id)!.assetUrl : a.assetUrl
-        )?.url,
-        alt: a.filename,
-        filename: a.filename
-      }))
-      .filter((item) => item.src !== '');
-    if (imageItems.length === 0) {
-      toast.error(m('room.attachment.image_refresh_failed'));
-      return;
-    }
-    const imageIndex = imageItems.findIndex((item) => item.id === attachment.id);
-    if (imageIndex < 0) {
-      toast.error(m('room.attachment.image_refresh_failed'));
-      return;
-    }
+  function openAttachmentModal(attachment: Attachment) {
+    // Capture file identities and URLs; media state stays local to the viewer.
+    const items =
+      attachment.contentType.startsWith('image/') && !attachment.videoProcessing
+        ? attachments.filter((a) => a.contentType.startsWith('image/') && !a.videoProcessing)
+        : attachments.filter((a) => a.id === attachment.id);
     pushState('', {
       modal: {
-        type: 'imageViewer',
+        type: 'attachmentViewer',
         serverId,
         roomId,
         eventId,
-        imageItems,
-        imageIndex
+        items,
+        index: items.findIndex((a) => a.id === attachment.id)
       }
     });
-  }
-
-  function openHtmlModal(attachment: Attachment) {
-    pushState('', {
-      modal: {
-        type: 'htmlViewer',
-        serverId,
-        roomId,
-        eventId,
-        attachmentId: attachment.id,
-        filename: attachment.filename,
-        contentType: attachment.contentType,
-        assetUrl: attachment.assetUrl
-      }
-    });
-  }
-
-  async function openDownload(attachment: Attachment) {
-    const freshUrls = await refreshAndApplyUrls();
-    if (!serverScope.isCurrent()) return;
-    const fresh = normalizeAssetUrl(
-      freshUrls.has(attachment.id) ? freshUrls.get(attachment.id)!.assetUrl : attachment.assetUrl
-    )?.url;
-    if (!fresh) {
-      toast.error(m('room.attachment.download_refresh_failed'));
-      return;
-    }
-    window.open(fresh, '_blank', 'noopener,noreferrer');
   }
 
   function openDeleteConfirmation(attachment: Attachment, event: Event) {
@@ -460,7 +394,7 @@
           : null}
     <button
       type="button"
-      onclick={() => openImageModal(attachment)}
+      onclick={() => openAttachmentModal(attachment)}
       aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
       data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
       class={[
@@ -502,6 +436,24 @@
           <span class="iconify icon-[uil--times] text-sm"></span>
         </span>
       {/if}
+    </button>
+  {/snippet}
+
+  {#snippet viewAttachmentButton(attachment: Attachment)}
+    <button
+      type="button"
+      class="mt-1 inline-flex max-w-full cursor-pointer items-center gap-2 text-sm text-muted hover:text-text"
+      onclick={(event) => {
+        // Stop inline playback before the viewer creates another player.
+        event.currentTarget.parentElement?.querySelectorAll('audio, video').forEach((media) => {
+          if (media instanceof HTMLMediaElement) media.pause();
+        });
+        openAttachmentModal(attachment);
+      }}
+      aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
+    >
+      <span class="iconify icon-[uil--expand-alt] shrink-0" aria-hidden="true"></span>
+      <bdi class="truncate">{attachment.filename}</bdi>
     </button>
   {/snippet}
 
@@ -550,6 +502,7 @@
             </button>
           </div>
         {/await}
+        {@render viewAttachmentButton(attachment)}
         {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
       </div>
     {:else if attachment.contentType.startsWith('image/')}
@@ -571,6 +524,7 @@
         >
           <track kind="captions" />
         </video>
+        {@render viewAttachmentButton(attachment)}
       </div>
     {:else if attachment.contentType.startsWith('audio/') && attachment.url}
       <div class="group/attachment relative min-w-0">
@@ -585,8 +539,8 @@
           >
             {attachment.filename}
           </audio>
-          <span class="text-sm text-muted">{attachment.filename}</span>
         </div>
+        {@render viewAttachmentButton(attachment)}
         {@render deleteAttachmentButton(attachment)}
       </div>
     {:else}
@@ -595,16 +549,8 @@
       >
         <button
           type="button"
-          onclick={() =>
-            isHtmlAttachment(attachment.contentType)
-              ? openHtmlModal(attachment)
-              : openDownload(attachment)}
-          aria-label={m(
-            isHtmlAttachment(attachment.contentType)
-              ? 'room.attachment.view_label'
-              : 'room.attachment.download_label',
-            { filename: attachment.filename }
-          )}
+          onclick={() => openAttachmentModal(attachment)}
+          aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
           class="block min-w-0 flex-1 cursor-pointer text-start"
         >
           <div class="flex min-h-16 items-center gap-3 px-3 py-3">

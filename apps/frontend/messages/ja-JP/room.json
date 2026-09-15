@@ -169,7 +169,8 @@
         "html_document": "HTMLドキュメント",
         "xhtml_document": "XHTMLドキュメント",
         "file_size": "ファイルサイズ",
-        "unavailable": "利用できません"
+        "unavailable": "利用できません",
+        "no_preview": "このファイルのプレビューはありません。保存するにはダウンロードしてください。"
       }
     },
     "link_preview": {

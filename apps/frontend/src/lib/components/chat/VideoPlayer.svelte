@@ -48,6 +48,7 @@
     reasonCode = null,
     filename,
     autoLoop = false,
+    viewer = false,
     onMediaError,
     onPosterError
   }: {
@@ -62,6 +63,8 @@
     reasonCode?: string | null;
     filename: string;
     autoLoop?: boolean;
+    /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
+    viewer?: boolean;
     onMediaError?: () => void | Promise<string | null>;
     onPosterError?: () => void;
   } = $props();
@@ -130,7 +133,9 @@
   });
 
   const frameStyle = $derived(
-    `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
+    viewer
+      ? 'width: 100%; height: 100%; max-width: 100%; max-height: 100%;'
+      : `width: ${displaySize.width}px; max-width: 100%; aspect-ratio: ${displaySize.width} / ${displaySize.height};`
   );
 
   // Vidstack auto-detects media type from URL extensions, but our stable asset
@@ -209,6 +214,8 @@
   // unmount the DOM node. Instead, open our CSS overlay outside the list.
   function interceptFullscreenRequest(node: HTMLElement) {
     function handleFullscreenRequest(e: Event) {
+      // Viewer media lives outside the virtual list and can use native fullscreen.
+      if (viewer) return;
       e.preventDefault();
       if (!playbackSource) return;
 

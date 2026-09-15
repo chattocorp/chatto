@@ -169,7 +169,8 @@
         "html_document": "HTML-dokumento",
         "xhtml_document": "XHTML-dokumento",
         "file_size": "Dosiergrando",
-        "unavailable": "Ne disponebla"
+        "unavailable": "Ne disponebla",
+        "no_preview": "Antaŭrigardo ne disponeblas por ĉi tiu dosiero. Elŝutu ĝin por konservi ĝin."
       }
     },
     "link_preview": {

@@ -169,7 +169,8 @@
         "html_document": "Documento HTML",
         "xhtml_document": "Documento XHTML",
         "file_size": "Dimensione del file",
-        "unavailable": "Non disponibile"
+        "unavailable": "Non disponibile",
+        "no_preview": "Non è disponibile un’anteprima per questo file. Scaricalo per salvarlo."
       }
     },
     "link_preview": {

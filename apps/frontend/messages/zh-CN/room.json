@@ -169,7 +169,8 @@
         "html_document": "HTML 文档",
         "xhtml_document": "XHTML 文档",
         "file_size": "文件大小",
-        "unavailable": "无法获取"
+        "unavailable": "无法获取",
+        "no_preview": "无法预览此文件。请下载以保存。"
       }
     },
     "link_preview": {

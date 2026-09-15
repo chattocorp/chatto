@@ -171,27 +171,41 @@ describe('MessageAttachments', () => {
     await view.getByRole('button', { name: 'View report.html' }).click();
     expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
       modal: {
-        type: 'htmlViewer',
+        type: 'attachmentViewer',
         serverId: 'server_1',
         roomId: 'room_1',
         eventId: 'event_1',
-        attachmentId: attachment.id,
-        filename: attachment.filename,
-        contentType: attachment.contentType,
-        assetUrl: attachment.assetUrl
+        items: [
+          expect.objectContaining({ id: attachment.id, filename: attachment.filename, contentType })
+        ],
+        index: 0
       }
     });
     expect(attachmentMocks.refreshAssetUrls).not.toHaveBeenCalled();
     expect(view.container.querySelector('iframe')).toBeNull();
   });
 
+  it('pauses inline audio before opening its attachment viewer', async () => {
+    const attachment = fileAttachment({ filename: 'voice.mp3', contentType: 'audio/mpeg' });
+    const view = renderAttachment(attachment);
+    const audio = view.container.querySelector('audio')!;
+    const pause = vi.spyOn(audio, 'pause');
+    await view.getByRole('button', { name: 'View voice.mp3', exact: true }).click();
+    expect(pause).toHaveBeenCalledOnce();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: expect.objectContaining({
+        type: 'attachmentViewer',
+        index: 0,
+        items: [expect.objectContaining({ id: attachment.id })]
+      })
+    });
+  });
+
   it.each(['text/plain', 'application/pdf', 'application/xml'])(
-    'keeps %s on the file download path',
+    'opens %s in the shared viewer',
     async (contentType) => {
       const view = renderAttachment(fileAttachment({ filename: 'report.html', contentType }));
-      await expect
-        .element(view.getByRole('button', { name: 'Download report.html' }))
-        .toBeVisible();
+      await expect.element(view.getByRole('button', { name: 'View report.html' })).toBeVisible();
       expect(attachmentMocks.pushState).not.toHaveBeenCalled();
     }
   );
@@ -408,82 +422,27 @@ describe('MessageAttachments', () => {
     });
   });
 
-  it('does not open a different gallery image when the clicked image URL is cleared', async () => {
-    attachmentMocks.refreshAssetUrls.mockResolvedValue(
-      new Map([['cleared', emptyRefreshedUrls()]])
-    );
-    const { container } = renderAttachments([
-      imageAttachment({
-        id: 'cleared',
-        filename: 'cleared.jpg'
-      }),
-      imageAttachment({
-        id: 'kept',
-        filename: 'kept.jpg'
-      })
+  it('opens the requested image and preserves the complete gallery for the viewer', async () => {
+    const view = renderAttachments([
+      imageAttachment({ id: 'first', filename: 'first.jpg' }),
+      imageAttachment({ id: 'second', filename: 'second.jpg' }),
+      fileAttachment({ id: 'pdf', filename: 'report.pdf' })
     ]);
-
-    const { button } = imageFrame(container, 'cleared.jpg');
-    button.click();
-
-    await vi.waitFor(() => {
-      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalled();
+    await view.getByRole('button', { name: 'View second.jpg' }).click();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'attachmentViewer',
+        serverId: 'server_1',
+        roomId: 'room_1',
+        eventId: 'event_1',
+        items: [
+          expect.objectContaining({ id: 'first' }),
+          expect.objectContaining({ id: 'second' })
+        ],
+        index: 1
+      }
     });
-    await vi.waitFor(() => {
-      expect(container.querySelector('img[alt="cleared.jpg"]')).toBeNull();
-    });
-    expect(attachmentMocks.pushState).not.toHaveBeenCalled();
-  });
-
-  it('opens the lightbox with a compressed display URL and a separate original URL', async () => {
-    attachmentMocks.refreshAssetUrls.mockResolvedValue(
-      new Map([
-        [
-          'att_1',
-          {
-            assetUrl: {
-              url: 'https://cdn.example.test/original.jpg',
-              expiresAt: '2027-05-29T15:00:00Z'
-            },
-            thumbnailAssetUrl: {
-              url: 'https://cdn.example.test/lightbox.jpg',
-              expiresAt: '2027-05-29T15:00:00Z'
-            },
-            videoThumbnailAssetUrl: null,
-            variantAssetUrls: new Map()
-          }
-        ]
-      ])
-    );
-    const { container } = renderAttachment(imageAttachment({ filename: 'large.jpg' }));
-
-    imageFrame(container, 'large.jpg').button.click();
-
-    await vi.waitFor(() => {
-      expect(attachmentMocks.refreshAssetUrls).toHaveBeenCalledWith('room_1', ['att_1'], {
-        width: 2048,
-        height: 2048,
-        fit: ImageFitMode.CONTAIN
-      });
-      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
-        modal: {
-          type: 'imageViewer',
-          serverId: 'server_1',
-          roomId: 'room_1',
-          eventId: 'event_1',
-          imageItems: [
-            {
-              id: 'att_1',
-              src: 'https://cdn.example.test/lightbox.jpg',
-              originalSrc: 'https://cdn.example.test/original.jpg',
-              alt: 'large.jpg',
-              filename: 'large.jpg'
-            }
-          ],
-          imageIndex: 0
-        }
-      });
-    });
+    expect(attachmentMocks.refreshAssetUrls).not.toHaveBeenCalled();
   });
 
   it('updates gallery fades as its viewport scrolls and resizes', async () => {
@@ -662,7 +621,7 @@ describe('MessageAttachments', () => {
 
     const gallery = container.querySelector<HTMLElement>('[data-testid="message-image-gallery"]');
     const downloadButton = container.querySelector<HTMLButtonElement>(
-      'button[aria-label^="Download"]'
+      'button[aria-label^="View document"]'
     );
 
     expect(gallery).not.toBeNull();

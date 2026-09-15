@@ -176,7 +176,8 @@
         "html_document": "Документ HTML",
         "xhtml_document": "Документ XHTML",
         "file_size": "Розмір файлу",
-        "unavailable": "Недоступно"
+        "unavailable": "Недоступно",
+        "no_preview": "Попередній перегляд цього файлу недоступний. Завантаж його, щоб зберегти."
       }
     },
     "link_preview": {
