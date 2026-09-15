@@ -1,6 +1,8 @@
 import { createContext } from 'svelte';
 import {
+  getRoomSidebarPanelState,
   setRoomSidebarPanelState,
+  type RoomSidebarPreference,
   type RoomSidebarPanel,
   type RoomSidebarPanelState
 } from '$lib/storage/roomSidebarPanel';
@@ -31,7 +33,9 @@ type RoomSidebarProfileState = AppRoomScope & {
   userId: string;
 };
 
-type RoomSidebarProfileRequest = RoomSidebarProfileState;
+type RoomSidebarProfileRequest = RoomSidebarProfileState & {
+  presentation: RoomSidebarPresentation;
+};
 
 /**
  * App-scoped UI state that should be shared across route components.
@@ -43,7 +47,7 @@ type RoomSidebarProfileRequest = RoomSidebarProfileState;
 export class AppUiState {
   #activeServerId = $state<string | null>(null);
   #activeRoomId = $state<string | null>(null);
-  #desktopRoomSidebarSessionState = $state<Record<string, RoomSidebarPanelState | undefined>>({});
+  #desktopRoomSidebarSessionState = $state<Record<string, RoomSidebarPreference>>({});
   #mobileRoomSidebarPanel = $state<RoomSidebarPanelState>(null);
   #mobileRoomSidebarScope = $state<string | null>(null);
   #roomSidebarProfile = $state<RoomSidebarProfileState | null>(null);
@@ -85,6 +89,9 @@ export class AppUiState {
       this.disableRoomCallWide();
     }
 
+    if (nextScope && !(nextScope in this.#desktopRoomSidebarSessionState)) {
+      this.#desktopRoomSidebarSessionState[nextScope] = getRoomSidebarPanelState(serverId, roomId);
+    }
     this.#applyRoomSidebarPanelRequest();
     this.#applyRoomSidebarProfileRequest();
   }
@@ -98,7 +105,25 @@ export class AppUiState {
   get activeDesktopRoomSidebarPanel(): RoomSidebarPanelState {
     const scope = this.#activeRoomScopeKey;
     if (!scope) return null;
-    return this.#desktopRoomSidebarSessionState[scope] ?? null;
+    const preference = this.#desktopRoomSidebarSessionState[scope];
+    return typeof preference === 'object' && preference !== null
+      ? preference.previousPanel
+      : (preference ?? null);
+  }
+
+  /**
+   * Resolve the desktop profile from the current DM participants. Missing choices
+   * default to that profile. Saved closed/panel choices suppress the default.
+   * This derived presentation must not create a mobile profile or write storage.
+   */
+  desktopRoomSidebarProfileUserId(defaultUserId: string | null): string | null {
+    if (this.activeRoomSidebarProfileUserId) return this.activeRoomSidebarProfileUserId;
+    const scope = this.#activeRoomScopeKey;
+    if (!scope) return null;
+    const preference = this.#desktopRoomSidebarSessionState[scope];
+    return preference === undefined || (typeof preference === 'object' && preference !== null)
+      ? defaultUserId
+      : null;
   }
 
   get mobileRoomSidebarPanel(): RoomSidebarPanelState {
@@ -112,8 +137,14 @@ export class AppUiState {
   }
 
   toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    if (this.activeRoomSidebarProfileUserId) {
-      this.closeRoomSidebarProfile();
+    const preference = this.#activeRoomScopeKey
+      ? this.#desktopRoomSidebarSessionState[this.#activeRoomScopeKey]
+      : undefined;
+    if (
+      this.activeRoomSidebarProfileUserId ||
+      (typeof preference === 'object' && preference !== null)
+    ) {
+      this.closeRoomSidebarProfile('desktop');
       this.openDesktopRoomSidebarPanel(panel);
       return;
     }
@@ -126,6 +157,7 @@ export class AppUiState {
   }
 
   openDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
+    this.#roomSidebarProfile = null;
     this.#setDesktopRoomSidebarPanel(panel);
     if (panel !== 'call') this.disableRoomCallWideForActiveRoom();
   }
@@ -137,7 +169,7 @@ export class AppUiState {
 
   toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel): void {
     if (this.activeRoomSidebarProfileUserId) {
-      this.closeRoomSidebarProfile();
+      this.closeRoomSidebarProfile('mobile');
       this.openMobileRoomSidebarPanel(panel);
       return;
     }
@@ -153,6 +185,7 @@ export class AppUiState {
     const scope = this.#activeRoomScopeKey;
     if (!scope) return;
 
+    this.#roomSidebarProfile = null;
     this.#mobileRoomSidebarScope = scope;
     this.#mobileRoomSidebarPanel = panel;
   }
@@ -164,21 +197,35 @@ export class AppUiState {
   /**
    * Show a user profile in the room sidebar.
    *
-   * The selected room-extras panel remains in memory so closing the profile
-   * returns the viewer to the prior panel without changing their preference.
+   * The selected room-extras panel is retained so closing the profile
+   * returns the viewer to the prior panel. Desktop choices survive reloads.
    * The responsive layout selects desktop or mobile presentation at render
    * time, so the profile remains visible after a breakpoint change.
    */
-  openRoomSidebarProfile(userId: string): void {
+  openRoomSidebarProfile(
+    userId: string,
+    presentation: RoomSidebarPresentation = getRoomSidebarPresentation()
+  ): void {
     const scope = this.activeRoomScope;
     if (!scope) return;
+    if (presentation === 'desktop') {
+      this.#setDesktopRoomSidebarPanel({
+        view: 'profile',
+        previousPanel: this.activeDesktopRoomSidebarPanel
+      });
+    }
     this.#roomSidebarProfile = { ...scope, userId };
     this.disableRoomCallWideForActiveRoom();
   }
 
-  /** Close the transient room-sidebar profile view. */
-  closeRoomSidebarProfile(): void {
+  /** Close a profile and remember its underlying panel on desktop only. */
+  closeRoomSidebarProfile(
+    presentation: RoomSidebarPresentation = getRoomSidebarPresentation()
+  ): void {
     this.#roomSidebarProfile = null;
+    if (presentation === 'desktop') {
+      this.#setDesktopRoomSidebarPanel(this.activeDesktopRoomSidebarPanel);
+    }
   }
 
   /**
@@ -206,9 +253,10 @@ export class AppUiState {
   requestRoomSidebarProfile(
     serverId: string,
     roomId: string,
-    userId: string
+    userId: string,
+    presentation: RoomSidebarPresentation = getRoomSidebarPresentation()
   ): void {
-    this.#roomSidebarProfileRequest = { serverId, roomId, userId };
+    this.#roomSidebarProfileRequest = { serverId, roomId, userId, presentation };
     this.#applyRoomSidebarProfileRequest();
   }
 
@@ -268,13 +316,11 @@ export class AppUiState {
     return roomScopeKey(this.#activeServerId, this.#activeRoomId);
   }
 
-  #setDesktopRoomSidebarPanel(panel: RoomSidebarPanelState): void {
+  #setDesktopRoomSidebarPanel(panel: Exclude<RoomSidebarPreference, undefined>): void {
     const scope = this.activeRoomScope;
     if (!scope) return;
 
-    if (panel !== null) {
-      setRoomSidebarPanelState(scope.serverId, scope.roomId, panel);
-    }
+    setRoomSidebarPanelState(scope.serverId, scope.roomId, panel);
     this.#desktopRoomSidebarSessionState = {
       ...this.#desktopRoomSidebarSessionState,
       [roomScopeKey(scope.serverId, scope.roomId)]: panel
@@ -309,7 +355,6 @@ export class AppUiState {
       return;
     }
 
-    setRoomSidebarPanelState(request.serverId, request.roomId, request.panel);
     this.openMobileRoomSidebarPanel(request.panel);
   }
 
@@ -324,7 +369,7 @@ export class AppUiState {
     }
 
     this.#roomSidebarProfileRequest = null;
-    this.openRoomSidebarProfile(request.userId);
+    this.openRoomSidebarProfile(request.userId, request.presentation);
   }
 }
 

@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { serverStorageKey } from './serverStorage';
 import {
   getRoomSidebarPanelState,
-  ROOM_SIDEBAR_DEFAULT_PANEL,
   roomSidebarPanelStorageSuffix,
   setRoomSidebarPanelState
 } from './roomSidebarPanel';
@@ -25,8 +24,8 @@ beforeEach(() => {
 });
 
 describe('room sidebar panel storage', () => {
-  it('defaults to members', () => {
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe(ROOM_SIDEBAR_DEFAULT_PANEL);
+  it('distinguishes no choice from closed', () => {
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
   });
 
   it('persists the selected panel per server and room', () => {
@@ -39,27 +38,48 @@ describe('room sidebar panel storage', () => {
     expect(getRoomSidebarPanelState('server-b', 'room-1')).toBe('call');
   });
 
-  it('does not persist closed state across sessions', () => {
+  it('persists closed state across sessions', () => {
     setRoomSidebarPanelState('server-a', 'room-1', 'files');
     setRoomSidebarPanelState('server-a', 'room-1', null);
 
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
-    expect(localStorage.getItem(key)).toBe('files');
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('files');
+    expect(localStorage.getItem(key)).toBe('closed');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
   });
 
-  it('falls back to members for legacy closed values', () => {
+  it('accepts legacy closed values', () => {
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
     localStorage.setItem(key, 'closed');
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('members');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeNull();
   });
 
-  it('falls back to members for unknown stored values', () => {
+  it('treats unknown stored values as no choice', () => {
     const key = serverStorageKey('server-a', roomSidebarPanelStorageSuffix('room-1'));
 
     localStorage.setItem(key, 'calendar');
-    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBe('members');
+    expect(getRoomSidebarPanelState('server-a', 'room-1')).toBeUndefined();
   });
+});
+
+describe('profile preferences', () => {
+  it('round-trips profiles with and without a previous panel', () => {
+    for (const previousPanel of ['files', null] as const) {
+      const preference = { view: 'profile', previousPanel } as const;
+      setRoomSidebarPanelState('server-a', 'dm-1', preference);
+      expect(getRoomSidebarPanelState('server-a', 'dm-1')).toEqual(preference);
+    }
+  });
+
+  it.each(['{', '{}', 'null', '{"view":"profile","previousPanel":"unknown"}'])(
+    'ignores malformed profile state: %s',
+    (raw) => {
+      localStorage.setItem(
+        serverStorageKey('server-a', roomSidebarPanelStorageSuffix('dm-1')),
+        raw
+      );
+      expect(getRoomSidebarPanelState('server-a', 'dm-1')).toBeUndefined();
+    }
+  );
 });
