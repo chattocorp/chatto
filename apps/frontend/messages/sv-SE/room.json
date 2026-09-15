@@ -158,7 +158,19 @@
       "view_label": "Visa {filename}",
       "download_label": "Ladda ner {filename}",
       "image_refresh_failed": "Det gick inte att uppdatera bildlänken",
-      "download_refresh_failed": "Det gick inte att uppdatera nedladdningslänken"
+      "download_refresh_failed": "Det gick inte att uppdatera nedladdningslänken",
+      "html_viewer": {
+        "download": "Ladda ned",
+        "show_preview": "Visa förhandsvisning",
+        "warning": "Det här dokumentet kan läsa in innehåll från externa webbplatser. Dessa webbplatser kan se din IP-adress.",
+        "preview_title": "Förhandsvisning av {filename}",
+        "preview_failed": "Kunde inte läsa in förhandsvisningen. Försök igen.",
+        "document_type": "Dokumenttyp",
+        "html_document": "HTML-dokument",
+        "xhtml_document": "XHTML-dokument",
+        "file_size": "Filstorlek",
+        "unavailable": "Inte tillgänglig"
+      }
     },
     "link_preview": {
       "delete_title": "Ta bort länkförhandsgranskning",

@@ -162,7 +162,19 @@
       "view_label": "הצג {filename}",
       "download_label": "הורד את {filename}",
       "image_refresh_failed": "לא ניתן לרענן את הקישור לתמונה",
-      "download_refresh_failed": "לא ניתן לרענן את קישור ההורדה"
+      "download_refresh_failed": "לא ניתן לרענן את קישור ההורדה",
+      "html_viewer": {
+        "download": "הורדה",
+        "show_preview": "הצגת תצוגה מקדימה",
+        "warning": "מסמך זה עשוי לטעון תוכן מאתרים חיצוניים. אתרים אלה יכולים לראות את כתובת ה-IP שלך.",
+        "preview_title": "תצוגה מקדימה של {filename}",
+        "preview_failed": "לא ניתן לטעון את התצוגה המקדימה. אפשר לנסות שוב.",
+        "document_type": "סוג מסמך",
+        "html_document": "מסמך HTML",
+        "xhtml_document": "מסמך XHTML",
+        "file_size": "גודל הקובץ",
+        "unavailable": "לא זמין"
+      }
     },
     "link_preview": {
       "delete_title": "מחק תצוגה מקדימה של קישור",

@@ -65,6 +65,8 @@ export type RoomFilesPage = {
 };
 
 export type AttachmentAPI = {
+  /** Read original-file metadata without fetching the document bytes. */
+  getMetadata(roomId: string, assetId: string, signal?: AbortSignal): Promise<{ size: number }>;
   listRoomAttachments(input: {
     roomId: string;
     limit: number;
@@ -83,6 +85,15 @@ export function createAttachmentAPI(config: AttachmentAPIConfig): AttachmentAPI 
   const rooms = createChattoClient(RoomService, config);
   const headers = () => authHeaders(config);
   return {
+    async getMetadata(roomId, assetId, signal) {
+      try {
+        const response = await assets.getAsset({ roomId, assetId }, { headers: headers(), signal });
+        if (!response.asset) throw new Error('Asset metadata unavailable');
+        return { size: Number(response.asset.size) };
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
     async listRoomAttachments({ roomId, limit, offset, thumbnail }) {
       try {
         const response = await rooms.listRoomAttachments(

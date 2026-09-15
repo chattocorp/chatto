@@ -34,7 +34,10 @@ email claim, and OpenID Connect `sub` remain unchanged.
 - A successful reset advances the account's durable authentication version.
   Authling browser sessions created under an older version stop validating,
   including after a process restart. The completing browser receives a new
-  session and continues to its account or its interrupted OIDC consent request.
+  session bound to the reset's exact authentication generation and continues to
+  its account or its interrupted OIDC consent request. If another credential
+  change occurs before session creation, the old reset result cannot authorize
+  a session at the new generation.
 - Previously issued OIDC ID and access tokens are not revoked. They expire
   after five minutes, and relying-party sessions remain under the relying
   party's control.

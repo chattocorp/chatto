@@ -159,7 +159,19 @@
       "view_label": "Посмотреть {filename}",
       "download_label": "Скачать {filename}",
       "image_refresh_failed": "Не удалось обновить ссылку на изображение.",
-      "download_refresh_failed": "Не удалось обновить ссылку для скачивания."
+      "download_refresh_failed": "Не удалось обновить ссылку для скачивания.",
+      "html_viewer": {
+        "download": "Скачать",
+        "show_preview": "Показать предпросмотр",
+        "warning": "Этот документ может загружать содержимое с внешних сайтов. Эти сайты могут видеть твой IP-адрес.",
+        "preview_title": "Предпросмотр {filename}",
+        "preview_failed": "Не удалось загрузить предпросмотр. Попробуй ещё раз.",
+        "document_type": "Тип документа",
+        "html_document": "Документ HTML",
+        "xhtml_document": "Документ XHTML",
+        "file_size": "Размер файла",
+        "unavailable": "Недоступно"
+      }
     },
     "link_preview": {
       "delete_title": "Удалить предварительный просмотр ссылки",

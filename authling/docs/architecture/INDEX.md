@@ -91,7 +91,9 @@ restore boundary.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event
-commits. Normal command failures compensate immediately. Crash orphans remain
+is acknowledged. Failures before publication and definite OCC rejections permit
+immediate cleanup. An unknown publication outcome retains both keys and the
+operation marker, even if the request reports failure. Crash orphans remain
 discoverable by their durable marker; Authling does not use time alone as
 authority to delete keys that an in-flight replica could still reference.
 
@@ -154,6 +156,9 @@ share distributed attempt limits and bounded Argon2 capacity. They resolve and
 decrypt a verifier only for one bounded Argon2id comparison; absent login
 accounts resolve a persistent synthetic key hierarchy and encrypted dummy
 verifier through the same storage path.
+After a successful password check, login waits for both account and registry
+projection boundaries and reads the generation only if the exact verified
+credential remains active. Audit events do not change that credential proof.
 
 The runtime does not become ready until the projections have replayed their
 captured startup history. A decode or apply failure fails the projection and
@@ -228,7 +233,12 @@ inactivity limit. Activity updates use OCC and never extend the absolute
 deadline. Each session records the account authentication version current at
 issuance. Password reset, signed-in password change, and verified email change
 advance that durable version, invalidating every older session across replicas
-and restarts. Logout deletes the server record before clearing the cookie.
+and restarts. Login, signup, and recovery bind session creation to the exact
+authentication generation that authorized the operation. A later mutation
+cannot upgrade an earlier proof to the new generation. The event and session
+storage formats are unchanged; all replicas must run the fix to close the old
+session-creation path. Logout deletes the server record before clearing the
+cookie.
 
 `GET /account` also reads the current account's active sessions from the
 process-wide inventory. It renders lifecycle timestamps and identifies the

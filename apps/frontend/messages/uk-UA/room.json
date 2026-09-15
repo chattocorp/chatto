@@ -165,7 +165,19 @@
       "view_label": "Переглянути {filename}",
       "download_label": "Завантажити {filename}",
       "image_refresh_failed": "Не вдалося оновити посилання на зображення",
-      "download_refresh_failed": "Не вдалося оновити посилання для завантаження"
+      "download_refresh_failed": "Не вдалося оновити посилання для завантаження",
+      "html_viewer": {
+        "download": "Завантажити",
+        "show_preview": "Показати попередній перегляд",
+        "warning": "Цей документ може завантажувати вміст із зовнішніх вебсайтів. Ці вебсайти можуть бачити твою IP-адресу.",
+        "preview_title": "Попередній перегляд {filename}",
+        "preview_failed": "Не вдалося завантажити попередній перегляд. Спробуй ще раз.",
+        "document_type": "Тип документа",
+        "html_document": "Документ HTML",
+        "xhtml_document": "Документ XHTML",
+        "file_size": "Розмір файлу",
+        "unavailable": "Недоступно"
+      }
     },
     "link_preview": {
       "delete_title": "Видалити попередній перегляд посилання",

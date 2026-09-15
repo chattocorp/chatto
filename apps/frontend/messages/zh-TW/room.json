@@ -158,7 +158,19 @@
       "view_label": "檢視 {filename}",
       "download_label": "下載 {filename}",
       "image_refresh_failed": "無法重新整理圖片連結",
-      "download_refresh_failed": "無法重新整理下載連結"
+      "download_refresh_failed": "無法重新整理下載連結",
+      "html_viewer": {
+        "download": "下載",
+        "show_preview": "顯示預覽",
+        "warning": "此文件可能會從外部網站載入內容。這些網站可以看到你的 IP 位址。",
+        "preview_title": "{filename} 的預覽",
+        "preview_failed": "無法載入預覽。請再試一次。",
+        "document_type": "文件類型",
+        "html_document": "HTML 文件",
+        "xhtml_document": "XHTML 文件",
+        "file_size": "檔案大小",
+        "unavailable": "無法取得"
+      }
     },
     "link_preview": {
       "delete_title": "刪除連結預覽",

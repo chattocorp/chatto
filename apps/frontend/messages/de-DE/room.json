@@ -158,7 +158,19 @@
       "view_label": "{filename} ansehen",
       "download_label": "{filename} herunterladen",
       "image_refresh_failed": "Bildlink konnte nicht aktualisiert werden",
-      "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden"
+      "download_refresh_failed": "Downloadlink konnte nicht aktualisiert werden",
+      "html_viewer": {
+        "download": "Herunterladen",
+        "show_preview": "Vorschau anzeigen",
+        "warning": "Dieses Dokument kann Inhalte von externen Websites laden. Diese Websites können deine IP-Adresse sehen.",
+        "preview_title": "Vorschau von {filename}",
+        "preview_failed": "Die Vorschau konnte nicht geladen werden. Bitte versuche es erneut.",
+        "document_type": "Dokumenttyp",
+        "html_document": "HTML-Dokument",
+        "xhtml_document": "XHTML-Dokument",
+        "file_size": "Dateigröße",
+        "unavailable": "Nicht verfügbar"
+      }
     },
     "link_preview": {
       "delete_title": "Linkvorschau löschen",

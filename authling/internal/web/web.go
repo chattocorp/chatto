@@ -121,7 +121,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
 			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
@@ -228,7 +228,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusOK, passwordResetCompletePage())
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
 			render(w, r, http.StatusServiceUnavailable, passwordResetCompletePage())
 			return
 		}
@@ -847,7 +847,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusCreated, accountCreatedPage(account.ID))
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
 			render(w, r, http.StatusServiceUnavailable, accountCreatedPage(account.ID))
 			return
 		}
@@ -921,22 +921,10 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-func establishSession(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string) error {
-	return establishSessionForAuthenticationVersion(w, r, deps, accountID, nil)
-}
-
+// establishSessionAtAuthenticationVersion never upgrades a stale login or
+// recovery proof to a credential generation that did not authorize it.
 func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64) error {
-	return establishSessionForAuthenticationVersion(w, r, deps, accountID, &authenticationVersion)
-}
-
-func establishSessionForAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion *uint64) error {
-	var token string
-	var err error
-	if authenticationVersion == nil {
-		token, _, err = deps.Sessions.Create(r.Context(), accountID)
-	} else {
-		token, _, err = deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, *authenticationVersion)
-	}
+	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion)
 	if err != nil {
 		return err
 	}

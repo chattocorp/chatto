@@ -53,7 +53,8 @@ const config = {
         // A frontend can connect to arbitrary operator-selected Chatto and
         // LiveKit servers, including HTTP development instances.
         'connect-src': ['self', 'http:', 'https:', 'ws:', 'wss:'],
-        'frame-src': ['https://www.youtube-nocookie.com'],
+        // Opt-in sandboxed HTML attachments can come from any registered server.
+        'frame-src': ['self', 'http:', 'https:'],
         'worker-src': ['self']
       }
     },

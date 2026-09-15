@@ -379,7 +379,9 @@ func (v *Vault) ProvisionCredentialKeys(ctx context.Context) (operationRef, user
 }
 
 // RemoveProvisionedCredentialKeys removes a pair that no committed event
-// references. It must not be used after event publication succeeds.
+// references. It must not be used after event publication succeeds or while
+// publication has an unknown outcome. A missing acknowledgement is not proof
+// that no committed event references the keys.
 func (v *Vault) RemoveProvisionedCredentialKeys(ctx context.Context, operationRef, userRef, dataRef string) error {
 	var errs []error
 	if dataRef != "" {

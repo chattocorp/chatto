@@ -158,7 +158,19 @@
       "view_label": "Zobrazit {filename}",
       "download_label": "Stáhnout {filename}",
       "image_refresh_failed": "Odkaz na obrázek nelze obnovit",
-      "download_refresh_failed": "Odkaz ke stažení nelze obnovit"
+      "download_refresh_failed": "Odkaz ke stažení nelze obnovit",
+      "html_viewer": {
+        "download": "Stáhnout",
+        "show_preview": "Zobrazit náhled",
+        "warning": "Tento dokument může načítat obsah z externích webových stránek. Tyto stránky mohou vidět tvou IP adresu.",
+        "preview_title": "Náhled souboru {filename}",
+        "preview_failed": "Náhled se nepodařilo načíst. Zkus to znovu.",
+        "document_type": "Typ dokumentu",
+        "html_document": "Dokument HTML",
+        "xhtml_document": "Dokument XHTML",
+        "file_size": "Velikost souboru",
+        "unavailable": "Nedostupné"
+      }
     },
     "link_preview": {
       "delete_title": "Smazat náhled odkazu",
