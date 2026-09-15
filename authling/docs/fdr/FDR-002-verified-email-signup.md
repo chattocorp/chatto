@@ -133,8 +133,10 @@ all other password verification remain case-sensitive.
   failure even when the account was created; the person can then sign in with
   the submitted password. Retained markers and crash orphans remain discoverable.
   A future event-backed cleanup worker must prove that no publication can still
-  reference the keys; elapsed time alone is not sufficient. Cryptographic erasure
-  also requires erasure-aware replay before any account key is destroyed.
+  reference the keys; elapsed time alone is not sufficient. Account deletion
+  already provides durable key destruction and erasure-aware replay, as defined
+  by [FDR-013](FDR-013-account-deletion.md). Orphan-provisioning cleanup remains
+  a separate workflow.
 - There is no resend button; submitting the email form again starts a separate
   code flow within the shared delivery limit.
 

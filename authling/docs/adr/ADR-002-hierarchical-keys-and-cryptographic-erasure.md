@@ -66,10 +66,17 @@ not be usable as KMS storage coordinates.
 
 Sensitive values are encrypted with random **data keys**, not directly with
 the user key. A data key belongs to a declared purpose and epoch and is wrapped
-by the user's key. Initial purpose boundaries will distinguish at least:
+by the user's key. The intended purpose boundaries distinguish at least:
 
 - core account and profile data;
 - authentication credentials and linked identities.
+
+The current local-account implementation does not yet separate these purposes
+into independent keys. One wrapped credential data key protects the email,
+password verifier, profile, and authorization-grant client metadata, with
+distinct authenticated contexts. Account-wide erasure is implemented;
+independent purpose-key retirement is not. The purpose separation above remains
+an unimplemented part of this decision.
 
 Key granularity follows the promised erasure boundary. A feature that promises
 independent cryptographic erasure of one credential must give that scope
@@ -195,8 +202,11 @@ products prove their boundaries:
 
 - opaque KMS key-reference interfaces and a self-hosted provider;
 - wrapped data-key storage and validation;
-- bounded unwrapped-key resolution and cache invalidation; and
-- envelope-neutral durable-effect consumption and retry mechanics.
+- bounded unwrapped-key resolution and cache invalidation.
+
+Envelope-neutral durable consumption and retry mechanics are already provided
+by `hmans.de/chatto/pkg/events`. Authling's account-erasure worker uses them;
+Authling retains ownership of the erasure events and key-destruction policy.
 
 The extracted layer must not know Authling or Chatto user IDs, data purposes,
 protobuf messages, NATS resource names, AAD formats, backup policy, or erasure

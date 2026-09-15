@@ -61,8 +61,9 @@ correlations. No new stream, bucket, snapshot, or persisted index is added.
 
 Routine rotation works in embedded and external NATS deployments without an
 operator control connection. Restarting during any transition resumes from
-the durable issuer history. JWKS can contain the active key, a pre-published
-successor, and an unexpired predecessor at the same time.
+the durable issuer history. JWKS contains the active key and, during a
+transition, either a pre-published successor or an unexpired predecessor. A new
+rotation waits for the preceding retirement to complete.
 
 The configured interval controls when rotation begins, not the fixed safety
 windows. Keeping publication and retirement overlap under Authling's control

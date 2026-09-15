@@ -51,7 +51,10 @@ generated browser assets. The Vite output under `internal/web/assets/` is not
 versioned; CI, tests, and release builds regenerate it before compiling the Go
 binary. Font and icon licensing remains part of the shipped-artifact review.
 
-The initial Content Security Policy can prohibit scripts entirely and restrict
-styles, fonts, forms, and images to Authling's own origin. A future enhancement
-that needs JavaScript must deliberately revise that policy and preserve the
+The Content Security Policy prohibits scripts and restricts styles and fonts
+to Authling's own origin. Images may also use data URLs. Forms use Authling's
+origin; pages that continue an OIDC request also permit its validated client
+redirect origin so the browser can complete the redirect chain. This exception
+does not permit arbitrary return URLs. A future enhancement that needs
+JavaScript must deliberately revise the policy and preserve the
 non-JavaScript path.
