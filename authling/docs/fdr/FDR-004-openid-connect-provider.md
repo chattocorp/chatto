@@ -58,6 +58,24 @@ are HTTPS-only, do not follow redirects, reject special-use destinations,
 ignore proxy configuration, and have strict concurrency, response-size,
 timeout, and cache bounds. Invalid responses are never cached.
 
+Each resolver permits eight active cache-miss lookups. Admission happens before
+DNS validation and does not queue: a saturated resolver rejects another cache
+miss immediately. Valid cache hits still work. One five-second deadline covers
+DNS validation, the HTTP request, and body reading; an earlier caller deadline
+or cancellation takes precedence. The dial-time destination check retains the
+lookup context even when the HTTP transport detaches its dial context.
+
+The cache holds at most 256 clients. Each lookup and insertion removes expired
+entries. At capacity, insertion evicts the entry that expires first. Cache
+lifetimes retain the existing one-minute default and five-minute maximum;
+`no-store` and `no-cache` responses are not retained. Idle expired entries can
+remain allocated until the next lookup, within the same entry cap. Each parsed
+document is limited to 5 KiB. Returned clients do not expose mutable cache data.
+
+These limits are per process and use no durable state or background worker.
+A later request can retry after a slot is released; failures are not cached.
+Ingress rate limits remain a separate control for aggregate request traffic.
+
 Special-use destinations are rejected by default. Operators may explicitly
 trust exact CIMD hostnames that resolve to private or loopback addresses in
 controlled development environments. Private-host and loopback-host trust are

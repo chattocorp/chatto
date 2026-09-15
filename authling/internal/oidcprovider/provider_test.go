@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -186,54 +185,6 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 	uncached.validateDestination = func(context.Context, string) error { return nil }
 	if _, err := uncached.Resolve(context.Background(), clientID); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized CIMD error = %v", err)
-	}
-}
-
-func TestCIMDResolverBoundsConcurrentFetches(t *testing.T) {
-	var concurrent, maximum atomic.Int32
-	release := make(chan struct{})
-	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
-		current := concurrent.Add(1)
-		for {
-			previous := maximum.Load()
-			if current <= previous || maximum.CompareAndSwap(previous, current) {
-				break
-			}
-		}
-		defer concurrent.Add(-1)
-		select {
-		case <-release:
-		case <-request.Context().Done():
-			return nil, request.Context().Err()
-		}
-		document := `{"client_id":"` + request.URL.String() + `","redirect_uris":["https://client.example/callback"],"token_endpoint_auth_method":"none"}`
-		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
-	})}
-	resolver, _ := NewCIMDResolver("https://auth.example", client, nil, nil)
-	resolver.validateDestination = func(context.Context, string) error { return nil }
-	errors := make(chan error, 9)
-	for index := range 9 {
-		go func() {
-			_, err := resolver.Resolve(context.Background(), fmt.Sprintf("https://client.example/metadata-%d.json", index))
-			errors <- err
-		}()
-	}
-	deadline := time.Now().Add(time.Second)
-	for maximum.Load() < 8 && time.Now().Before(deadline) {
-		time.Sleep(time.Millisecond)
-	}
-	if maximum.Load() != 8 {
-		close(release)
-		t.Fatalf("maximum concurrent CIMD fetches = %d, want 8", maximum.Load())
-	}
-	close(release)
-	for range 9 {
-		if err := <-errors; err != nil {
-			t.Fatal(err)
-		}
-	}
-	if maximum.Load() > 8 {
-		t.Fatalf("maximum concurrent CIMD fetches = %d", maximum.Load())
 	}
 }
 

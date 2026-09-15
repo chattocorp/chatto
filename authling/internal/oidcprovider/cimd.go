@@ -20,10 +20,20 @@ import (
 )
 
 const (
-	maxCIMDBytes    = 5 << 10
-	maxCIMDCacheAge = 5 * time.Minute
-	defaultCIMDAge  = time.Minute
+	maxCIMDBytes        = 5 << 10
+	maxCIMDCacheAge     = 5 * time.Minute
+	defaultCIMDAge      = time.Minute
+	maxCIMDCacheEntries = 256
+	maxCIMDLookups      = 8
+	cimdLookupTimeout   = 5 * time.Second
 )
+
+// errCIMDBusy rejects a cache miss when all lookup slots are in use.
+var errCIMDBusy = errors.New("CIMD resolver busy")
+
+// cimdLookupContextKey carries the lookup context through net/http, which
+// detaches dial cancellation but preserves context values for connection reuse.
+type cimdLookupContextKey struct{}
 
 type cimdDocument struct {
 	ClientID                string   `json:"client_id"`
@@ -71,16 +81,16 @@ func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts, tr
 		trustedLoopback[normalizeCIMDHost(host)] = struct{}{}
 	}
 	if client == nil {
-		client = &http.Client{Transport: cimdTransport(allowLoopback, trustedHosts, trustedLoopback), Timeout: 5 * time.Second}
+		client = &http.Client{Transport: cimdTransport(allowLoopback, trustedHosts, trustedLoopback), Timeout: cimdLookupTimeout}
 	} else {
 		clone := *client
 		client = &clone
-		if client.Timeout == 0 || client.Timeout > 5*time.Second {
-			client.Timeout = 5 * time.Second
+		if client.Timeout == 0 || client.Timeout > cimdLookupTimeout {
+			client.Timeout = cimdLookupTimeout
 		}
 	}
 	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resolver := &CIMDResolver{client: client, allowLoopback: allowLoopback, slots: make(chan struct{}, 8), cache: make(map[string]cachedClient)}
+	resolver := &CIMDResolver{client: client, allowLoopback: allowLoopback, slots: make(chan struct{}, maxCIMDLookups), cache: make(map[string]cachedClient)}
 	resolver.validateDestination = func(ctx context.Context, host string) error {
 		return validateCIMDDestination(ctx, host, allowLoopback, trustedHosts, trustedLoopback)
 	}
@@ -88,32 +98,52 @@ func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts, tr
 }
 
 // Resolve fetches and validates one CIMD document, caching only valid results.
+// A cache miss must acquire a slot without waiting before it can start DNS or
+// HTTP work. One deadline covers the complete lookup, including the body read.
+// Cache access removes expired entries; the entry cap also bounds idle retention.
 func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, error) {
-	now := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, cimdLookupTimeout)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	parsed, err := validateClientIdentifierURL(clientID)
+	if err != nil {
+		return nil, err
+	}
 	r.mu.Lock()
-	if cached, ok := r.cache[clientID]; ok && now.Before(cached.expires) {
+	if err := ctx.Err(); err != nil {
+		r.mu.Unlock()
+		return nil, err
+	}
+	r.removeExpiredLocked(time.Now())
+	if cached, ok := r.cache[clientID]; ok {
 		copy := *cached.client
 		copy.Redirects = append([]string(nil), cached.client.Redirects...)
 		r.mu.Unlock()
 		return &copy, nil
 	}
-	delete(r.cache, clientID)
 	r.mu.Unlock()
 
-	parsed, err := validateClientIdentifierURL(clientID)
-	if err != nil {
-		return nil, err
-	}
-	if err := r.validateDestination(ctx, parsed.Hostname()); err != nil {
-		return nil, err
-	}
 	select {
 	case r.slots <- struct{}{}:
 		defer func() { <-r.slots }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
+	default:
+		return nil, errCIMDBusy
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.validateDestination(ctx, parsed.Hostname()); err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(context.WithValue(ctx, cimdLookupContextKey{}, ctx), http.MethodGet, clientID, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create CIMD request: %w", err)
 	}
@@ -146,14 +176,43 @@ func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, e
 	if err != nil {
 		return nil, err
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if age, cache := cimdCacheAge(response.Header.Get("Cache-Control")); cache {
 		r.mu.Lock()
+		if err := ctx.Err(); err != nil {
+			r.mu.Unlock()
+			return nil, err
+		}
+		now := time.Now()
+		r.removeExpiredLocked(now)
+		if _, exists := r.cache[clientID]; !exists && len(r.cache) >= maxCIMDCacheEntries {
+			var earliestID string
+			var earliest time.Time
+			for id, entry := range r.cache {
+				if earliest.IsZero() || entry.expires.Before(earliest) {
+					earliestID, earliest = id, entry.expires
+				}
+			}
+			delete(r.cache, earliestID)
+		}
 		r.cache[clientID] = cachedClient{client: client, expires: now.Add(age)}
 		r.mu.Unlock()
 	}
 	copy := *client
 	copy.Redirects = append([]string(nil), client.Redirects...)
 	return &copy, nil
+}
+
+// removeExpiredLocked removes stale entries even when a different client is
+// requested. The caller must hold mu; at most maxCIMDCacheEntries are examined.
+func (r *CIMDResolver) removeExpiredLocked(now time.Time) {
+	for id, entry := range r.cache {
+		if !now.Before(entry.expires) {
+			delete(r.cache, id)
+		}
+	}
 }
 
 func validateClientIdentifierURL(raw string) (*url.URL, error) {
@@ -252,6 +311,15 @@ func cimdTransport(allowLoopback bool, trustedPrivateHosts, trustedLoopbackHosts
 	return &http.Transport{
 		Proxy: nil,
 		DialContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+			// Reuse must not let dial-time DNS continue after the admitted lookup.
+			if lookup, ok := ctx.Value(cimdLookupContextKey{}).(context.Context); ok {
+				ctx = lookup
+			}
+			ctx, cancel := context.WithTimeout(ctx, cimdLookupTimeout)
+			defer cancel()
+			if err := ctx.Err(); err != nil {
+				return nil, err
+			}
 			host, port, err := net.SplitHostPort(address)
 			if err != nil {
 				return nil, err
