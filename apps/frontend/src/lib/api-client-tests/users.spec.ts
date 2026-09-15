@@ -80,7 +80,7 @@ describe('createUserAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
-            isBot: true,
+            bot: { ownerUserId: 'owner' },
             avatarUrl: 'https://cdn/avatar.webp'
           })
         })
@@ -99,6 +99,7 @@ describe('createUserAPI', () => {
         displayName: 'Alice',
         deleted: false,
         isBot: true,
+        bot: { ownerUserId: 'owner' },
         avatarUrl: 'https://cdn/avatar.webp',
         bio: null,
         timezone: null
@@ -113,6 +114,17 @@ describe('createUserAPI', () => {
       { userIds: ['U1', 'U2'] },
       { headers: { Authorization: 'Bearer token' } }
     );
+  });
+
+  it('maps a bot owner identity without treating it as a management grant', () => {
+    expect(
+      mapUserSummary(new APIUser({ id: 'bot', bot: { ownerUserId: 'owner' } })).bot?.ownerUserId
+    ).toBe('owner');
+  });
+
+  it('uses bot metadata presence as the bot marker', () => {
+    expect(mapUserSummary(new APIUser({ id: 'human' })).isBot).toBe(false);
+    expect(mapUserSummary(new APIUser({ id: 'bot', bot: {} })).isBot).toBe(true);
   });
 
   it('maps missing avatar URLs to null', () => {

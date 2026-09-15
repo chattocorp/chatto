@@ -4,12 +4,7 @@ import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 
-function call(
-  roomId: string,
-  callId: string,
-  userIds: string[],
-  isBot = false
-): ActiveCall {
+function call(roomId: string, callId: string, userIds: string[], isBot = false): ActiveCall {
   return new ActiveCall({
     room: new RoomSummary({ id: roomId }),
     callId,
@@ -20,7 +15,7 @@ function call(
             id: userId,
             login: userId.toLowerCase(),
             displayName: userId,
-            isBot
+            bot: isBot ? { ownerUserId: 'owner' } : undefined
           })
         })
     )

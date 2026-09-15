@@ -7,6 +7,7 @@
 package apiv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -20,6 +21,67 @@ const (
 	// Verify that runtime/protoimpl is sufficiently up-to-date.
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
+
+// Scope of effective authority. Channel scopes never include direct messages.
+type EffectivePermissionScopeKind int32
+
+const (
+	// No scope supplied.
+	EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED EffectivePermissionScopeKind = 0
+	// Server authority or the default for channel rooms.
+	EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER EffectivePermissionScopeKind = 1
+	// A channel room group.
+	EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP EffectivePermissionScopeKind = 2
+	// One channel room.
+	EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM EffectivePermissionScopeKind = 3
+	// Direct-message authority; membership is always required.
+	EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_DM EffectivePermissionScopeKind = 4
+)
+
+// Enum value maps for EffectivePermissionScopeKind.
+var (
+	EffectivePermissionScopeKind_name = map[int32]string{
+		0: "EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED",
+		1: "EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER",
+		2: "EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP",
+		3: "EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM",
+		4: "EFFECTIVE_PERMISSION_SCOPE_KIND_DM",
+	}
+	EffectivePermissionScopeKind_value = map[string]int32{
+		"EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED": 0,
+		"EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER":      1,
+		"EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP":       2,
+		"EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM":        3,
+		"EFFECTIVE_PERMISSION_SCOPE_KIND_DM":          4,
+	}
+)
+
+func (x EffectivePermissionScopeKind) Enum() *EffectivePermissionScopeKind {
+	p := new(EffectivePermissionScopeKind)
+	*p = x
+	return p
+}
+
+func (x EffectivePermissionScopeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (EffectivePermissionScopeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_permissions_proto_enumTypes[0].Descriptor()
+}
+
+func (EffectivePermissionScopeKind) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_permissions_proto_enumTypes[0]
+}
+
+func (x EffectivePermissionScopeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use EffectivePermissionScopeKind.Descriptor instead.
+func (EffectivePermissionScopeKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{0}
+}
 
 // Effective decision for one permission key.
 type PermissionGrant struct {
@@ -146,11 +208,245 @@ func (x *CapabilityGrant) GetGranted() bool {
 	return false
 }
 
+// Scope metadata visible to the caller.
+type EffectivePermissionScope struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Scope tier.
+	Kind EffectivePermissionScopeKind `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.api.v1.EffectivePermissionScopeKind" json:"kind,omitempty"`
+	// Room or group ID; empty for server and DM scopes.
+	Id string `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// Current room or group name; empty for server and DM scopes.
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// Parent group ID for a channel room; empty for other scopes.
+	ParentGroupId string `protobuf:"bytes,4,opt,name=parent_group_id,json=parentGroupId,proto3" json:"parent_group_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EffectivePermissionScope) Reset() {
+	*x = EffectivePermissionScope{}
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectivePermissionScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectivePermissionScope) ProtoMessage() {}
+
+func (x *EffectivePermissionScope) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectivePermissionScope.ProtoReflect.Descriptor instead.
+func (*EffectivePermissionScope) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *EffectivePermissionScope) GetKind() EffectivePermissionScopeKind {
+	if x != nil {
+		return x.Kind
+	}
+	return EffectivePermissionScopeKind_EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED
+}
+
+func (x *EffectivePermissionScope) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EffectivePermissionScope) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EffectivePermissionScope) GetParentGroupId() string {
+	if x != nil {
+		return x.ParentGroupId
+	}
+	return ""
+}
+
+// A permission currently allowed at a scope. Membership and action-specific
+// requirements still apply. This is effective authority, not a stored grant.
+type EffectivePermission struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable permission identifier.
+	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
+	// Scope where the permission is allowed.
+	Scope *EffectivePermissionScope `protobuf:"bytes,2,opt,name=scope,proto3" json:"scope,omitempty"`
+	// True when every applicable child scope also allows this permission.
+	// Hidden rooms participate in this check without revealing their identities.
+	// False means clients must not describe this grant as covering all children.
+	CoversDescendants bool `protobuf:"varint,3,opt,name=covers_descendants,json=coversDescendants,proto3" json:"covers_descendants,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *EffectivePermission) Reset() {
+	*x = EffectivePermission{}
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EffectivePermission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EffectivePermission) ProtoMessage() {}
+
+func (x *EffectivePermission) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EffectivePermission.ProtoReflect.Descriptor instead.
+func (*EffectivePermission) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *EffectivePermission) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *EffectivePermission) GetScope() *EffectivePermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return nil
+}
+
+func (x *EffectivePermission) GetCoversDescendants() bool {
+	if x != nil {
+		return x.CoversDescendants
+	}
+	return false
+}
+
+// Read all effective permissions for one account.
+type ListEffectivePermissionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required target account ID.
+	UserId        string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffectivePermissionsRequest) Reset() {
+	*x = ListEffectivePermissionsRequest{}
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffectivePermissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffectivePermissionsRequest) ProtoMessage() {}
+
+func (x *ListEffectivePermissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffectivePermissionsRequest.ProtoReflect.Descriptor instead.
+func (*ListEffectivePermissionsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListEffectivePermissionsRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+// All visible effective grants in permission-catalog order, then stable scope-ID order.
+// Denied and unconfigured permissions are absent. Inherited and included
+// permissions remain separate entries; clients can group them for display.
+type ListEffectivePermissionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Effective grants visible to the caller.
+	Permissions   []*EffectivePermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEffectivePermissionsResponse) Reset() {
+	*x = ListEffectivePermissionsResponse{}
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEffectivePermissionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEffectivePermissionsResponse) ProtoMessage() {}
+
+func (x *ListEffectivePermissionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_permissions_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEffectivePermissionsResponse.ProtoReflect.Descriptor instead.
+func (*ListEffectivePermissionsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_permissions_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListEffectivePermissionsResponse) GetPermissions() []*EffectivePermission {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
 var File_chatto_api_v1_permissions_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\n" +
-	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\"K\n" +
+	"\x1fchatto/api/v1/permissions.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\"K\n" +
 	"\x0fPermissionGrant\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
@@ -160,7 +456,30 @@ const file_chatto_api_v1_permissions_proto_rawDesc = "" +
 	"\n" +
 	"capability\x18\x01 \x01(\tR\n" +
 	"capability\x12\x18\n" +
-	"\agranted\x18\x02 \x01(\bR\agrantedB\xac\x01\n" +
+	"\agranted\x18\x02 \x01(\bR\agranted\"\xa7\x01\n" +
+	"\x18EffectivePermissionScope\x12?\n" +
+	"\x04kind\x18\x01 \x01(\x0e2+.chatto.api.v1.EffectivePermissionScopeKindR\x04kind\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12&\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\xa3\x01\n" +
+	"\x13EffectivePermission\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x01 \x01(\tR\n" +
+	"permission\x12=\n" +
+	"\x05scope\x18\x02 \x01(\v2'.chatto.api.v1.EffectivePermissionScopeR\x05scope\x12-\n" +
+	"\x12covers_descendants\x18\x03 \x01(\bR\x11coversDescendants\"C\n" +
+	"\x1fListEffectivePermissionsRequest\x12 \n" +
+	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"h\n" +
+	" ListEffectivePermissionsResponse\x12D\n" +
+	"\vpermissions\x18\x01 \x03(\v2\".chatto.api.v1.EffectivePermissionR\vpermissions*\xf8\x01\n" +
+	"\x1cEffectivePermissionScopeKind\x12/\n" +
+	"+EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED\x10\x00\x12*\n" +
+	"&EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER\x10\x01\x12)\n" +
+	"%EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP\x10\x02\x12(\n" +
+	"$EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM\x10\x03\x12&\n" +
+	"\"EFFECTIVE_PERMISSION_SCOPE_KIND_DM\x10\x042\x90\x01\n" +
+	"\x11PermissionService\x12{\n" +
+	"\x18ListEffectivePermissions\x12..chatto.api.v1.ListEffectivePermissionsRequest\x1a/.chatto.api.v1.ListEffectivePermissionsResponseB\xac\x01\n" +
 	"\x11com.chatto.api.v1B\x10PermissionsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
 var (
@@ -175,17 +494,28 @@ func file_chatto_api_v1_permissions_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_permissions_proto_rawDescData
 }
 
-var file_chatto_api_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_chatto_api_v1_permissions_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_api_v1_permissions_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_permissions_proto_goTypes = []any{
-	(*PermissionGrant)(nil), // 0: chatto.api.v1.PermissionGrant
-	(*CapabilityGrant)(nil), // 1: chatto.api.v1.CapabilityGrant
+	(EffectivePermissionScopeKind)(0),        // 0: chatto.api.v1.EffectivePermissionScopeKind
+	(*PermissionGrant)(nil),                  // 1: chatto.api.v1.PermissionGrant
+	(*CapabilityGrant)(nil),                  // 2: chatto.api.v1.CapabilityGrant
+	(*EffectivePermissionScope)(nil),         // 3: chatto.api.v1.EffectivePermissionScope
+	(*EffectivePermission)(nil),              // 4: chatto.api.v1.EffectivePermission
+	(*ListEffectivePermissionsRequest)(nil),  // 5: chatto.api.v1.ListEffectivePermissionsRequest
+	(*ListEffectivePermissionsResponse)(nil), // 6: chatto.api.v1.ListEffectivePermissionsResponse
 }
 var file_chatto_api_v1_permissions_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: chatto.api.v1.EffectivePermissionScope.kind:type_name -> chatto.api.v1.EffectivePermissionScopeKind
+	3, // 1: chatto.api.v1.EffectivePermission.scope:type_name -> chatto.api.v1.EffectivePermissionScope
+	4, // 2: chatto.api.v1.ListEffectivePermissionsResponse.permissions:type_name -> chatto.api.v1.EffectivePermission
+	5, // 3: chatto.api.v1.PermissionService.ListEffectivePermissions:input_type -> chatto.api.v1.ListEffectivePermissionsRequest
+	6, // 4: chatto.api.v1.PermissionService.ListEffectivePermissions:output_type -> chatto.api.v1.ListEffectivePermissionsResponse
+	4, // [4:5] is the sub-list for method output_type
+	3, // [3:4] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_permissions_proto_init() }
@@ -198,13 +528,14 @@ func file_chatto_api_v1_permissions_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_permissions_proto_rawDesc), len(file_chatto_api_v1_permissions_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   2,
+			NumEnums:      1,
+			NumMessages:   6,
 			NumExtensions: 0,
-			NumServices:   0,
+			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_permissions_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_permissions_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_permissions_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_permissions_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_permissions_proto = out.File

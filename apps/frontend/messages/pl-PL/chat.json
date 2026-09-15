@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Nie znaleziono użytkownika",
       "bot": "Bot",
-      "local_time": "{time} czasu lokalnego ({zone})"
+      "local_time": "{time} czasu lokalnego ({zone})",
+      "permissions": {
+        "title": "Co może robić",
+        "empty": "Nie widzisz żadnych aktywnych uprawnień.",
+        "error": "Nie udało się wczytać uprawnień tego bota.",
+        "inactive_title": "Nieaktywne uprawnienia",
+        "inactive_note": "Te uprawnienia są zapisane, ale obecne uprawnienia właściciela na nie nie pozwalają.",
+        "read": "Czytać wszystkie wiadomości",
+        "interactions": "Czytać wątki, które utworzył lub w których został bezpośrednio wspomniany",
+        "post": "Wysyłać nowe wiadomości",
+        "room": "#{name}",
+        "group": "Grupa: {name}",
+        "dm": "Jego wiadomości bezpośrednie",
+        "joined_rooms": "Pokoje, do których dołączył",
+        "all_rooms": "Pokoje",
+        "server": "Ten serwer",
+        "list_rooms": "Przeglądać pokoje",
+        "echo": "Pokazywać odpowiedzi w wątkach na osi czasu pokoju",
+        "start_calls": "Rozpoczynać rozmowy",
+        "browse_join": "Przeglądać pokoje i dołączać do nich",
+        "reply": "Odpowiadać w wątkach",
+        "manage_messages": "Zarządzać wiadomościami"
+      },
+      "owned_by": "Właściciel"
     }
   }
 }

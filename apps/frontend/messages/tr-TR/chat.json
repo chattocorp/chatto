@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Kullanıcı bulunamadı",
       "bot": "Bot",
-      "local_time": "{time} yerel saat ({zone})"
+      "local_time": "{time} yerel saat ({zone})",
+      "permissions": {
+        "title": "Yapabilecekleri",
+        "empty": "Görebildiğin etkin bir izin yok.",
+        "error": "Bu botun izinleri yüklenemedi.",
+        "inactive_title": "Etkin olmayan izinler",
+        "inactive_note": "Bu izinler kayıtlı, ancak sahibinin mevcut izinleri bunlara izin vermiyor.",
+        "read": "Tüm mesajları okuma",
+        "interactions": "Oluşturduğu veya doğrudan bahsedildiği konuları okuma",
+        "post": "Yeni mesajlar gönderme",
+        "room": "#{name}",
+        "group": "Grup: {name}",
+        "dm": "Kendi doğrudan mesajları",
+        "joined_rooms": "Katıldığı odalar",
+        "all_rooms": "Odalar",
+        "server": "Bu sunucu",
+        "list_rooms": "Odaları keşfet",
+        "echo": "Konu yanıtlarını oda zaman akışında gösterme",
+        "start_calls": "Arama başlatma",
+        "browse_join": "Odaları keşfet ve katıl",
+        "reply": "Konularda yanıt ver",
+        "manage_messages": "Mesajları yönet"
+      },
+      "owned_by": "Sahibi"
     }
   }
 }

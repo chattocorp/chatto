@@ -233,7 +233,7 @@ async function batchTimelineUsers(
         login: summary.login,
         displayName: summary.displayName,
         deleted: summary.deleted,
-        isBot: summary.isBot,
+        bot: summary.bot,
         avatarUrl: summary.avatarUrl ?? undefined
       } as User;
     }
@@ -458,7 +458,7 @@ function userView(userId: string, users: Record<string, User>) {
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
-    isBot: user.isBot,
+    isBot: !!user.bot,
     avatarUrl: user.avatarUrl || null,
     presenceStatus: PresenceStatus.OFFLINE
   };

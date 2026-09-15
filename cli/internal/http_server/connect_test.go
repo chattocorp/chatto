@@ -971,7 +971,7 @@ func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
 	}
 	bot := created.Msg.GetBot().GetUser()
 	apiKey := created.Msg.GetApiKey()
-	if bot.GetId() == "" || !bot.GetIsBot() || apiKey == "" {
+	if bot.GetId() == "" || bot.GetBot() == nil || apiKey == "" {
 		t.Fatalf("created bot response = %+v", created.Msg)
 	}
 
@@ -985,7 +985,7 @@ func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetViewer with bot API key: %v", err)
 	}
-	if got := viewer.Msg.GetUser().GetProfile(); got.GetId() != bot.GetId() || !got.GetIsBot() {
+	if got := viewer.Msg.GetUser().GetProfile(); got.GetId() != bot.GetId() || got.GetBot() == nil {
 		t.Fatalf("bot API viewer profile = %+v, want bot %q", got, bot.GetId())
 	}
 

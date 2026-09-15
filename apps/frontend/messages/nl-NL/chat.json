@@ -80,7 +80,30 @@
       "fallback_title": "Profiel",
       "not_found": "Gebruiker niet gevonden",
       "bot": "Bot",
-      "local_time": "{time} lokale tijd ({zone})"
+      "local_time": "{time} lokale tijd ({zone})",
+      "permissions": {
+        "title": "Wat hij kan doen",
+        "empty": "Er zijn geen actieve machtigingen zichtbaar voor jou.",
+        "error": "De machtigingen van deze bot konden niet worden geladen.",
+        "inactive_title": "Inactieve machtigingen",
+        "inactive_note": "Deze machtigingen zijn opgeslagen, maar de huidige machtigingen van de eigenaar staan ze niet toe.",
+        "read": "Alle berichten lezen",
+        "interactions": "Threads lezen die hij heeft gemaakt of waarin hij rechtstreeks is vermeld",
+        "post": "Nieuwe berichten plaatsen",
+        "room": "#{name}",
+        "group": "Groep: {name}",
+        "dm": "Zijn privéberichten",
+        "joined_rooms": "Ruimtes waarvan hij lid is",
+        "all_rooms": "Ruimtes",
+        "server": "Deze server",
+        "list_rooms": "Ruimtes bekijken",
+        "echo": "Threadantwoorden in de ruimtetijdlijn tonen",
+        "start_calls": "Gesprekken starten",
+        "browse_join": "Ruimtes bekijken en deelnemen",
+        "reply": "Antwoorden in threads",
+        "manage_messages": "Berichten beheren"
+      },
+      "owned_by": "Eigenaar"
     }
   }
 }

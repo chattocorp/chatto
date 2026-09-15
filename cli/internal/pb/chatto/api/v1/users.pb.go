@@ -21,6 +21,53 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Public metadata for a bot account. Presence on User identifies a bot.
+// Credentials and management-only details belong to the managed Bot resource.
+type BotInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Human account that owns this bot; this identity does not grant management access.
+	OwnerUserId   string `protobuf:"bytes,1,opt,name=owner_user_id,json=ownerUserId,proto3" json:"owner_user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotInfo) Reset() {
+	*x = BotInfo{}
+	mi := &file_chatto_api_v1_users_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotInfo) ProtoMessage() {}
+
+func (x *BotInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_users_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotInfo.ProtoReflect.Descriptor instead.
+func (*BotInfo) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BotInfo) GetOwnerUserId() string {
+	if x != nil {
+		return x.OwnerUserId
+	}
+	return ""
+}
+
 // Public user fields.
 type User struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -38,21 +85,21 @@ type User struct {
 	PresenceStatus PresenceStatus `protobuf:"varint,6,opt,name=presence_status,json=presenceStatus,proto3,enum=chatto.api.v1.PresenceStatus" json:"presence_status,omitempty"`
 	// Custom profile status, when set.
 	CustomStatus *CustomUserStatus `protobuf:"bytes,7,opt,name=custom_status,json=customStatus,proto3" json:"custom_status,omitempty"`
-	// True when this identity represents an automated bot.
-	IsBot bool `protobuf:"varint,8,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	// Short self-authored biography shown on the user's profile, when set.
 	Bio *string `protobuf:"bytes,9,opt,name=bio,proto3,oneof" json:"bio,omitempty"`
 	// IANA time zone the user chose to share on their profile (for example
 	// "Europe/Berlin"). Absent means the user has not enabled time-zone
 	// sharing or has no stored time zone.
-	Timezone      *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	Timezone *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	// Present for a bot identity; absent for humans and deleted-account references.
+	Bot           *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
 	*x = User{}
-	mi := &file_chatto_api_v1_users_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -64,7 +111,7 @@ func (x *User) String() string {
 func (*User) ProtoMessage() {}
 
 func (x *User) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_users_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_users_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -77,7 +124,7 @@ func (x *User) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use User.ProtoReflect.Descriptor instead.
 func (*User) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_users_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *User) GetId() string {
@@ -129,13 +176,6 @@ func (x *User) GetCustomStatus() *CustomUserStatus {
 	return nil
 }
 
-func (x *User) GetIsBot() bool {
-	if x != nil {
-		return x.IsBot
-	}
-	return false
-}
-
 func (x *User) GetBio() string {
 	if x != nil && x.Bio != nil {
 		return *x.Bio
@@ -150,11 +190,20 @@ func (x *User) GetTimezone() string {
 	return ""
 }
 
+func (x *User) GetBot() *BotInfo {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\x8e\x03\n" +
+	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
+	"\aBotInfo\x12\"\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xaf\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -164,13 +213,13 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"avatar_url\x18\x05 \x01(\tH\x00R\tavatarUrl\x88\x01\x01\x12F\n" +
 	"\x0fpresence_status\x18\x06 \x01(\x0e2\x1d.chatto.api.v1.PresenceStatusR\x0epresenceStatus\x12D\n" +
 	"\rcustom_status\x18\a \x01(\v2\x1f.chatto.api.v1.CustomUserStatusR\fcustomStatus\x12\x15\n" +
-	"\x06is_bot\x18\b \x01(\bR\x05isBot\x12\x15\n" +
 	"\x03bio\x18\t \x01(\tH\x01R\x03bio\x88\x01\x01\x12\x1f\n" +
 	"\btimezone\x18\n" +
-	" \x01(\tH\x02R\btimezone\x88\x01\x01B\r\n" +
+	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12(\n" +
+	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03botB\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
-	"\t_timezoneB\xa6\x01\n" +
+	"\t_timezoneJ\x04\b\b\x10\tR\x06is_botB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -186,20 +235,22 @@ func file_chatto_api_v1_users_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_users_proto_rawDescData
 }
 
-var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
+var file_chatto_api_v1_users_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_api_v1_users_proto_goTypes = []any{
-	(*User)(nil),             // 0: chatto.api.v1.User
-	(PresenceStatus)(0),      // 1: chatto.api.v1.PresenceStatus
-	(*CustomUserStatus)(nil), // 2: chatto.api.v1.CustomUserStatus
+	(*BotInfo)(nil),          // 0: chatto.api.v1.BotInfo
+	(*User)(nil),             // 1: chatto.api.v1.User
+	(PresenceStatus)(0),      // 2: chatto.api.v1.PresenceStatus
+	(*CustomUserStatus)(nil), // 3: chatto.api.v1.CustomUserStatus
 }
 var file_chatto_api_v1_users_proto_depIdxs = []int32{
-	1, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
-	2, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	2, // 0: chatto.api.v1.User.presence_status:type_name -> chatto.api.v1.PresenceStatus
+	3, // 1: chatto.api.v1.User.custom_status:type_name -> chatto.api.v1.CustomUserStatus
+	0, // 2: chatto.api.v1.User.bot:type_name -> chatto.api.v1.BotInfo
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_users_proto_init() }
@@ -209,14 +260,14 @@ func file_chatto_api_v1_users_proto_init() {
 	}
 	file_chatto_api_v1_presence_proto_init()
 	file_chatto_api_v1_user_status_proto_init()
-	file_chatto_api_v1_users_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_users_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_users_proto_rawDesc), len(file_chatto_api_v1_users_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   1,
+			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
