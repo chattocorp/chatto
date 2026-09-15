@@ -89,7 +89,7 @@
       "test_failed": "Mikrofon test edilemedi. Cihaz erişimini kontrol edip tekrar deneyin.",
       "test_in_call": "Mikrofonu test etmeden önce aramadan ayrılın.",
       "processing": "Mikrofon işleme",
-      "your_voice": "Sesin",
+      "voice_quality": "Ses kalitesi",
       "voice_normal": "Normal",
       "voice_cool": "Oldukça iyi",
       "voice_awesome": "MUHTEŞEM"

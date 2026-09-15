@@ -89,7 +89,7 @@
       "test_failed": "Could not test the microphone. Check device access and try again.",
       "test_in_call": "Leave your call before testing the microphone.",
       "processing": "Microphone processing",
-      "your_voice": "Your Voice",
+      "voice_quality": "Voice Quality",
       "voice_normal": "Normal",
       "voice_cool": "Pretty cool",
       "voice_awesome": "AWESOME"

@@ -9,7 +9,7 @@ export interface MicrophoneEffects {
   amount: number;
   /** Ramp filter cutoff and compression from neutral; omitted means full strength. */
   strength?: number;
-  /** Soft saturation blend, 0–1; only the top fifth of Your Voice enables it. */
+  /** Soft saturation blend, 0–1; only the top fifth of Voice Quality enables it. */
   saturation?: number;
 }
 

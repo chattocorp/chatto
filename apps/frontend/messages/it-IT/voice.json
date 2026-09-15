@@ -89,7 +89,7 @@
       "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
       "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
       "processing": "Elaborazione del microfono",
-      "your_voice": "La tua voce",
+      "voice_quality": "Qualità della voce",
       "voice_normal": "Normale",
       "voice_cool": "Niente male",
       "voice_awesome": "FANTASTICA"

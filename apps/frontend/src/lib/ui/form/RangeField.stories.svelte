@@ -56,7 +56,7 @@
   <div class="max-w-md">
     <RangeField
       id="rainbow-range"
-      label="Your Voice"
+      label="Voice Quality"
       min={0}
       max={100}
       bind:value={awesome}
@@ -69,7 +69,7 @@
   <div class="max-w-md">
     <RangeField
       id="disabled-rainbow"
-      label="Your Voice"
+      label="Voice Quality"
       min={0}
       max={100}
       value={100}
@@ -84,7 +84,7 @@
   <div class="max-w-md">
     <RangeField
       id="partial-rainbow"
-      label="Your Voice"
+      label="Voice Quality"
       min={0}
       max={100}
       bind:value={warmingUp}

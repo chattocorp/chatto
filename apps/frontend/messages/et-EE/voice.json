@@ -89,7 +89,7 @@
       "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
       "test_in_call": "Enne mikrofoni testimist lahku kõnest.",
       "processing": "Mikrofoni töötlus",
-      "your_voice": "Sinu hääl",
+      "voice_quality": "Hääle kvaliteet",
       "voice_normal": "Tavaline",
       "voice_cool": "Päris lahe",
       "voice_awesome": "VÕIMAS"

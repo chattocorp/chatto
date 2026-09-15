@@ -89,7 +89,7 @@
       "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
       "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu.",
       "processing": "Przetwarzanie mikrofonu",
-      "your_voice": "Twój głos",
+      "voice_quality": "Jakość głosu",
       "voice_normal": "Normalny",
       "voice_cool": "Całkiem fajny",
       "voice_awesome": "NIESAMOWITY"

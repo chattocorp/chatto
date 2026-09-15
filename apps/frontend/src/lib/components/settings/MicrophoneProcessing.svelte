@@ -21,7 +21,7 @@
   <div class="flex flex-col gap-2">
     <RangeField
       id="microphone-voice"
-      label={m('voice.preferences.your_voice')}
+      label={m('voice.preferences.voice_quality')}
       min={0}
       max={100}
       step={0.1}

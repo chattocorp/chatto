@@ -89,7 +89,7 @@
       "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
       "test_in_call": "Před testem mikrofonu opusťte hovor.",
       "processing": "Zpracování mikrofonu",
-      "your_voice": "Tvůj hlas",
+      "voice_quality": "Kvalita hlasu",
       "voice_normal": "Normální",
       "voice_cool": "Docela super",
       "voice_awesome": "ÚŽASNÝ"

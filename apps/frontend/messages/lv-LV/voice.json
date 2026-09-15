@@ -89,7 +89,7 @@
       "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
       "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
       "processing": "Mikrofona apstrāde",
-      "your_voice": "Tava balss",
+      "voice_quality": "Balss kvalitāte",
       "voice_normal": "Parasta",
       "voice_cool": "Diezgan forša",
       "voice_awesome": "LIELISKA"

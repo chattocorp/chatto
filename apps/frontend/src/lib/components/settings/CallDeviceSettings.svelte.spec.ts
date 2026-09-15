@@ -140,7 +140,7 @@ it('offers a continuous voice slider while keeping the gate separate', async () 
   const preferences = new CallPreferencesState('voice-ui');
   preferences.setMicrophoneThreshold(-30);
   const screen = render(CallDeviceSettings, { preferences });
-  const slider = screen.getByRole('slider', { name: /^Your Voice/ });
+  const slider = screen.getByRole('slider', { name: /^Voice Quality/ });
   await expect.element(slider).toHaveValue('0');
   slider.element().focus();
   await userEvent.keyboard('{End}');
@@ -170,5 +170,5 @@ it('disables the voice slider when processing is unavailable', async () => {
     inCall: true,
     gateUnavailable: true
   });
-  await expect.element(screen.getByRole('slider', { name: /^Your Voice/ })).toBeDisabled();
+  await expect.element(screen.getByRole('slider', { name: /^Voice Quality/ })).toBeDisabled();
 });

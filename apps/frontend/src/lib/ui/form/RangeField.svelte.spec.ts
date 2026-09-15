@@ -42,7 +42,7 @@ it.each([
   async (rainbow, value, disabled, opacity, dancing) => {
     const screen = render(RangeField, {
       id: 'rainbow',
-      label: 'Your Voice',
+      label: 'Voice Quality',
       min: 0,
       max: 100,
       value,
@@ -67,7 +67,7 @@ it.each([
 it('animates the actual painted rainbow element rather than the native input', () => {
   const screen = render(RangeField, {
     id: 'moving-rainbow',
-    label: 'Your Voice',
+    label: 'Voice Quality',
     min: 0,
     max: 100,
     value: 100,
@@ -103,7 +103,7 @@ it('keeps the rainbow and text static when reduced motion is requested', async (
   try {
     const screen = render(RangeField, {
       id: 'quiet-rainbow',
-      label: 'Your Voice',
+      label: 'Voice Quality',
       min: 0,
       max: 100,
       value: 100,

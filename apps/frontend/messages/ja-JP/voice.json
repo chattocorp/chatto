@@ -89,7 +89,7 @@
       "test_failed": "マイクをテストできませんでした。デバイスへのアクセスを確認して、もう一度お試しください。",
       "test_in_call": "マイクをテストする前に通話から退出してください。",
       "processing": "マイク音声処理",
-      "your_voice": "あなたの声",
+      "voice_quality": "音声品質",
       "voice_normal": "普通",
       "voice_cool": "いい感じ",
       "voice_awesome": "最高"

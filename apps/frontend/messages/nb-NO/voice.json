@@ -89,7 +89,7 @@
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
       "test_in_call": "Forlat samtalen før du tester mikrofonen.",
       "processing": "Mikrofonbehandling",
-      "your_voice": "Stemmen din",
+      "voice_quality": "Stemmekvalitet",
       "voice_normal": "Normal",
       "voice_cool": "Ganske kul",
       "voice_awesome": "FANTASTISK"

@@ -9,7 +9,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
-- **Your Voice** in App Preferences is a continuous processing slider.
+- **Voice Quality** in App Preferences is a continuous processing slider.
   **Normal** (the default) disables the added effects, **Pretty cool** marks
   gentle processing at the midpoint, and **AWESOME** adds bass, reduces nasal
   midrange, brightens highs, and applies firmer compression. At the maximum,

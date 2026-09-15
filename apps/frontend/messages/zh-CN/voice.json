@@ -89,7 +89,7 @@
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
       "test_in_call": "请先退出通话，再测试麦克风。",
       "processing": "麦克风处理",
-      "your_voice": "你的声音",
+      "voice_quality": "语音质量",
       "voice_normal": "普通",
       "voice_cool": "挺酷",
       "voice_awesome": "超棒"

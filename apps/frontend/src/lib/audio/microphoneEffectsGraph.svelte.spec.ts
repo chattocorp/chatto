@@ -143,7 +143,7 @@ it('adds harmonics with saturation and keeps full-scale output bounded', async (
   expect(Math.max(...fullScale.map(Math.abs))).toBeLessThanOrEqual(1);
 });
 
-it('introduces saturation only over the last fifth of Your Voice', () => {
+it('introduces saturation only over the last fifth of Voice Quality', () => {
   expect(microphoneEffectsForAmount(0).saturation).toBe(0);
   expect(microphoneEffectsForAmount(50).saturation).toBe(0);
   expect(microphoneEffectsForAmount(80).saturation).toBe(0);
