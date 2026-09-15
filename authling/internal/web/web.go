@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -269,8 +270,13 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		profile, err := deps.Accounts.Profile(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy(consent.RedirectOrigin))
-		render(w, r, http.StatusOK, consentPage(consent, email))
+		render(w, r, http.StatusOK, consentPage(consent, email, account.ID, profile))
 	})
 	mux.HandleFunc("POST /oidc/consent", func(w http.ResponseWriter, r *http.Request) {
 		if deps.OIDC == nil {
@@ -297,6 +303,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		var target string
 		if r.FormValue("decision") == "allow" {
+			if r.FormValue("consent_version") != strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) {
+				http.Error(w, "consent disclosure changed; reload the consent page before authorizing", http.StatusBadRequest)
+				return
+			}
 			target, err = deps.OIDC.Authorize(r.Context(), r.FormValue("id"), account.ID)
 		} else if r.FormValue("decision") == "deny" {
 			target, err = deps.OIDC.Deny(r.Context(), r.FormValue("id"))

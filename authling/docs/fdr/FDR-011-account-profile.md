@@ -24,6 +24,10 @@ profile data.
 - ID tokens and UserInfo publish non-empty values as the standard
   `preferred_username` and `name` claims. Relying parties must not treat either
   value as a stable identifier.
+- Consent lists the current identity values and discloses later profile changes,
+  including a full name added later. Existing grants require approval under
+  this disclosure before automatic consent can resume. See
+  [FDR-010](FDR-010-oidc-authorization-grants.md).
 
 ## Security and storage
 

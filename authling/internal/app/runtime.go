@@ -131,7 +131,7 @@ func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault(), cfg.OIDC.SigningKeyRotationInterval(), issuerOptions...)
 	authorizationProjection := authorizations.NewProjection()
 	authorizationHandle := events.NewDecodedProjectionHandle(js, stream, authorizationProjection, evtstream.Decode, logger)
-	authorizationService, err := authorizations.NewService(publisher, authorizationHandle, workflowKey)
+	authorizationService, err := authorizations.NewService(publisher, authorizationHandle, workflowKey, vault)
 	if err != nil {
 		return closeOnError(fmt.Errorf("open authorization grant service: %w", err))
 	}

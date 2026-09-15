@@ -3,6 +3,8 @@ package app
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,6 +23,8 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
@@ -28,6 +32,7 @@ import (
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
+	"hmans.de/authling/internal/keyvault"
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/passwordreset"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
@@ -532,8 +537,24 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 		t.Fatalf("first consent status/body = %d %s", firstPage.Code, firstPage.Body.String())
 	}
 	firstURL, _ := url.Parse(firstLocation)
+	for _, disclosure := range []string{account.ID, "Read your username:", "Read your full name if you add one", "This access includes future changes to your username and full name"} {
+		if !strings.Contains(firstPage.Body.String(), disclosure) {
+			t.Fatalf("consent omits %q", disclosure)
+		}
+	}
+	for _, version := range []string{"", "0", "2"} {
+		stale := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
+			"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {version},
+		}.Encode(), cookie)
+		if stale.Code != http.StatusBadRequest {
+			t.Fatalf("stale disclosure status = %d", stale.Code)
+		}
+	}
+	if grants, err := runtime.Authorizations.List(testContext(t), account.ID); err != nil || len(grants) != 0 {
+		t.Fatalf("stale consent created grants: %d, %v", len(grants), err)
+	}
 	allow := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {firstURL.Query().Get("id")}, "decision": {"allow"},
+		"id": {firstURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"},
 	}.Encode(), cookie)
 	if allow.Code != http.StatusSeeOther {
 		t.Fatalf("allow status/body = %d %s", allow.Code, allow.Body.String())
@@ -609,7 +630,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 	}
 	afterRevokeURL, _ := url.Parse(afterRevokeLocation)
 	reauthorize := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
-		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"},
+		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"},
 	}.Encode(), cookie)
 	if reauthorize.Code != http.StatusSeeOther {
 		t.Fatalf("reauthorization status/body = %d %s", reauthorize.Code, reauthorize.Body.String())
@@ -623,7 +644,7 @@ func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) 
 func TestOIDCAuthorizationGrantsReplayAfterRestart(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)
-	account, err := first.Accounts.Create(testContext(t))
+	account, err := first.Accounts.CreateLocal(testContext(t), "grant@example.com", "a deliberately uncommon password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -633,12 +654,22 @@ func TestOIDCAuthorizationGrantsReplayAfterRestart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	event, raw := lastAccountEvent(t, first, account.ID)
+	protected := event.GetOidcGrantAuthorized()
+	if protected.GetMetadataEnvelopeVersion() != 1 || protected.GetConsentVersion() != authorizations.ConsentVersion || protected.GetClientName() != "" || protected.GetClientHost() != "" {
+		t.Fatal("new grant did not use protected metadata and current disclosure")
+	}
+	for _, secret := range []string{"Client One", "client.example", "client-one"} {
+		if bytes.Contains(raw, []byte(secret)) {
+			t.Fatal("durable grant leaked client metadata")
+		}
+	}
 	stopTestRuntime(t, first, cancelFirst, firstErrors)
 
 	restarted, cancelRestarted, restartedErrors := startTestRuntime(t, cfg)
 	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
 	grants, err := restarted.Authorizations.List(testContext(t), account.ID)
-	if err != nil || len(grants) != 1 || grants[0].ID != grant.ID || grants[0].AuthorizationEventID != grant.AuthorizationEventID {
+	if err != nil || len(grants) != 1 || grants[0].ID != grant.ID || grants[0].AuthorizationEventID != grant.AuthorizationEventID || grants[0].ClientName != "Client One" || grants[0].ClientHost != "client.example" {
 		t.Fatalf("replayed grants = %+v, %v; want %+v", grants, err, grant)
 	}
 	if _, ok := restarted.Accounts.Get(account.ID); !ok {
@@ -649,7 +680,7 @@ func TestOIDCAuthorizationGrantsReplayAfterRestart(t *testing.T) {
 func TestConcurrentOIDCAuthorizationsShareOneGrantGeneration(t *testing.T) {
 	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t))
 	defer stopTestRuntime(t, runtime, cancel, runErrors)
-	account, err := runtime.Accounts.Create(testContext(t))
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "grant@example.com", "a deliberately uncommon password")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -804,7 +835,7 @@ func completeAuthorizationForScopes(t *testing.T, handler http.Handler, verifier
 		}
 		cookie = cookies[0]
 	}
-	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}}.Encode(), cookie)
+	consent := requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oidc/consent", url.Values{"id": {requestID}, "decision": {"allow"}, "consent_version": {"1"}}.Encode(), cookie)
 	if consent.Code != http.StatusSeeOther {
 		t.Fatalf("consent status/body = %d %s", consent.Code, consent.Body.String())
 	}
@@ -2351,4 +2382,81 @@ type failingInventoryKV struct{ jetstream.KeyValue }
 
 func (failingInventoryKV) Watch(context.Context, string, ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
 	return nil, &nats.APIError{Code: 400, ErrorCode: 10120, Description: "no JetStream default or applicable tiered limit present"}
+}
+
+func TestLegacyGrantRequiresFreshDisclosureAfterRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	first, cancel, errs := startTestRuntime(t, cfg)
+	account, err := first.Accounts.CreateLocal(testContext(t), "legacy@example.com", "a deliberately uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js, _, err := storage.Open(testContext(t), first.connection.NATS, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stores, err := storage.OpenStores(testContext(t), js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, err := keyvault.New(stores.Keys).WorkflowKey(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := hmac.New(sha256.New, key)
+	clear(key)
+	_, _ = digest.Write([]byte("authling:oidc-client-index:v1\x00client-legacy"))
+	legacy := &corev1.Event{Id: "evt_legacygrant", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
+		AccountId: account.ID, GrantId: "grant_legacy", ClientIdDigest: digest.Sum(nil), ClientName: "Legacy App", ClientHost: "legacy.example", Scopes: []string{"openid"},
+	}}}
+	raw, err := proto.Marshal(legacy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	subject, _ := evtstream.AccountSubject(account.ID)
+	if _, err := js.Publish(testContext(t), subject, raw); err != nil {
+		t.Fatal(err)
+	}
+	stopTestRuntime(t, first, cancel, errs)
+	restarted, cancelRestarted, restartErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, restarted, cancelRestarted, restartErrors)
+	grants, err := restarted.Authorizations.List(testContext(t), account.ID)
+	if err != nil || len(grants) != 1 || grants[0].ClientName != "Legacy App" {
+		t.Fatalf("legacy replay failed: %v", err)
+	}
+	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err != nil || covered {
+		t.Fatalf("legacy grant skipped disclosure: %v %v", covered, err)
+	}
+	renewed, err := restarted.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{ID: "client-legacy", Name: "Current App", Host: "current.example"}, []string{"openid"})
+	if err != nil || renewed.ID != "grant_legacy" {
+		t.Fatalf("legacy renewal failed: %v", err)
+	}
+	event, _ := lastAccountEvent(t, restarted, account.ID)
+	if event.GetOidcGrantAuthorized().GetPriorAuthorizationEventId() != legacy.GetId() {
+		t.Fatal("renewal lost historical correlation")
+	}
+	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err != nil || !covered {
+		t.Fatalf("renewed grant did not cover disclosure: %v %v", covered, err)
+	}
+	// Key loss must fail closed for reads and automatic consent, but must not block revocation.
+	js, _, err = storage.Open(testContext(t), restarted.connection.NATS, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stores, err = storage.OpenStores(testContext(t), js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := stores.Keys.Purge(testContext(t), event.GetOidcGrantAuthorized().GetUserKeyRef()); err != nil {
+		t.Fatal(err)
+	}
+	if covered, err := restarted.Authorizations.Covers(testContext(t), account.ID, "client-legacy", []string{"openid"}); err == nil || covered {
+		t.Fatal("automatic consent accepted missing metadata key")
+	}
+	if _, err := restarted.Authorizations.List(testContext(t), account.ID); err == nil {
+		t.Fatal("listed protected metadata after key loss")
+	}
+	if err := restarted.Authorizations.Revoke(testContext(t), account.ID, renewed.ID); err != nil {
+		t.Fatalf("revoke after metadata key loss: %v", err)
+	}
 }
