@@ -103,7 +103,8 @@
         "browse_join": "Procházet místnosti a připojovat se",
         "reply": "Odpovídat ve vláknech",
         "manage_messages": "Spravovat zprávy"
-      }
+      },
+      "owned_by": "Vlastník"
     }
   }
 }

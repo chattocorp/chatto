@@ -103,7 +103,8 @@
         "browse_join": "瀏覽並加入房間",
         "reply": "在討論串中回覆",
         "manage_messages": "管理訊息"
-      }
+      },
+      "owned_by": "擁有者"
     }
   }
 }

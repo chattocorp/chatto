@@ -98,6 +98,12 @@ methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors
 returns canonical origins without a session or an ordering contract. The
 server does not contact the advertised origins.
 
+Public `User` resources expose `bot_owner_user_id` for active bots in ordinary
+reads, administrator lists, and realtime snapshot hydration. The bot profile
+refreshes this reference every 30 seconds and loads the owner's public identity
+through `UserService.BatchGetUsers`. No credentials or management rights are
+exposed by the reference.
+
 `UserService` provides user reads and the canonical target-aware avatar upload
 and delete operations. Self-targeting is available to human and bot callers. A
 cross-human target requires `user.manage-accounts`. A cross-bot target permits

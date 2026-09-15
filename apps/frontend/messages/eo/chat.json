@@ -103,7 +103,8 @@
         "browse_join": "Foliumi kaj aliĝi al ĉambroj",
         "reply": "Respondi en fadenoj",
         "manage_messages": "Administri mesaĝojn"
-      }
+      },
+      "owned_by": "Posedanto"
     }
   }
 }

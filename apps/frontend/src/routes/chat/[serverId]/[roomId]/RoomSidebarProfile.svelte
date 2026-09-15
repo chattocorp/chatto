@@ -9,6 +9,7 @@ realtime changes arrive.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
+  import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
   import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
@@ -50,7 +51,8 @@ realtime changes arrive.
           return user;
         },
         enabled: !!userId,
-        staleTime: 30_000
+        staleTime: 30_000,
+        refetchInterval: (query) => (query.state.data?.isBot ? 30_000 : false)
       };
     },
     () => queryClient
@@ -116,6 +118,12 @@ realtime changes arrive.
         <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
       </div>
     </div>
+
+    {#if baseUser.isBot && baseUser.botOwnerUserId}
+      {#key baseUser.botOwnerUserId}
+        <BotOwnerRow ownerId={baseUser.botOwnerUserId} />
+      {/key}
+    {/if}
 
     {#if bio}
       <UserBio {bio} class="mt-4" />

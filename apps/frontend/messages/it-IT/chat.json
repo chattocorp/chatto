@@ -103,7 +103,8 @@
         "browse_join": "Esplorare le stanze e partecipare",
         "reply": "Rispondere nelle discussioni",
         "manage_messages": "Gestire i messaggi"
-      }
+      },
+      "owned_by": "Proprietario"
     }
   }
 }

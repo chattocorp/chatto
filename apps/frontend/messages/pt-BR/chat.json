@@ -103,7 +103,8 @@
         "browse_join": "Explorar e entrar em salas",
         "reply": "Responder em tópicos",
         "manage_messages": "Gerenciar mensagens"
-      }
+      },
+      "owned_by": "Proprietário"
     }
   }
 }

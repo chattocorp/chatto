@@ -103,7 +103,8 @@
         "browse_join": "Parcourir et rejoindre des salons",
         "reply": "Répondre dans les fils",
         "manage_messages": "Gérer les messages"
-      }
+      },
+      "owned_by": "Propriétaire"
     }
   }
 }

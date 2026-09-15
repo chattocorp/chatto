@@ -45,9 +45,12 @@ type User struct {
 	// IANA time zone the user chose to share on their profile (for example
 	// "Europe/Berlin"). Absent means the user has not enabled time-zone
 	// sharing or has no stored time zone.
-	Timezone      *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Timezone *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
+	// Human account that owns this bot. Absent for human or deleted accounts.
+	// This public identity reference does not grant bot management access.
+	BotOwnerUserId *string `protobuf:"bytes,11,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3,oneof" json:"bot_owner_user_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *User) Reset() {
@@ -150,11 +153,18 @@ func (x *User) GetTimezone() string {
 	return ""
 }
 
+func (x *User) GetBotOwnerUserId() string {
+	if x != nil && x.BotOwnerUserId != nil {
+		return *x.BotOwnerUserId
+	}
+	return ""
+}
+
 var File_chatto_api_v1_users_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\x8e\x03\n" +
+	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"\xd4\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -167,10 +177,12 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x06is_bot\x18\b \x01(\bR\x05isBot\x12\x15\n" +
 	"\x03bio\x18\t \x01(\tH\x01R\x03bio\x88\x01\x01\x12\x1f\n" +
 	"\btimezone\x18\n" +
-	" \x01(\tH\x02R\btimezone\x88\x01\x01B\r\n" +
+	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12.\n" +
+	"\x11bot_owner_user_id\x18\v \x01(\tH\x03R\x0ebotOwnerUserId\x88\x01\x01B\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
-	"\t_timezoneB\xa6\x01\n" +
+	"\t_timezoneB\x14\n" +
+	"\x12_bot_owner_user_idB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 

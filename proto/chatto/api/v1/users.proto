@@ -29,4 +29,7 @@ message User {
   // "Europe/Berlin"). Absent means the user has not enabled time-zone
   // sharing or has no stored time zone.
   optional string timezone = 10;
+  // Human account that owns this bot. Absent for human or deleted accounts.
+  // This public identity reference does not grant bot management access.
+  optional string bot_owner_user_id = 11;
 }

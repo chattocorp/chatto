@@ -17,6 +17,13 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
+## Bot owner identity
+
+The public `User` resource includes optional `bot_owner_user_id` for active
+bots. It identifies the human owner without granting management access.
+Older servers omit the field; clients must tolerate its absence. No stored
+data migration is required.
+
 ## Bot permission summaries
 
 `BotService.ListBotPermissions` is an additive API for authenticated members.

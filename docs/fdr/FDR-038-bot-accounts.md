@@ -12,6 +12,11 @@ exercise more authority than its human owner currently possesses.
 
 ## Behavior
 
+- Bot profiles show an **Owned by** row below the bot identity. The owner's
+  avatar and name open the shared user profile card on click or tap. This row
+  stays visible when permissions are collapsed. Owner identity refreshes every
+  30 seconds while the bot profile is open.
+
 - A bot's profile pane shows **What it can do** to all authenticated
   members. It describes effective permissions after the owner's current
   authority is applied. Channel rooms and direct messages have separate

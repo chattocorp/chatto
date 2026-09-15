@@ -103,7 +103,8 @@
         "browse_join": "Browse and join rooms",
         "reply": "Reply in threads",
         "manage_messages": "Manage messages"
-      }
+      },
+      "owned_by": "Owned by"
     }
   }
 }

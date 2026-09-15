@@ -103,7 +103,8 @@
         "browse_join": "ルームを探して参加",
         "reply": "スレッドで返信",
         "manage_messages": "メッセージを管理"
-      }
+      },
+      "owned_by": "所有者"
     }
   }
 }

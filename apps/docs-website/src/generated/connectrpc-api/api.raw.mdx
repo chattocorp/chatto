@@ -4781,6 +4781,7 @@ Public user fields.
 | `is_bot` | `bool` | True when this identity represents an automated bot. |
 | `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
+| `bot_owner_user_id` | `optional string` | Human account that owns this bot. Absent for human or deleted accounts. This public identity reference does not grant bot management access. |
 
 
 

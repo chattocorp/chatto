@@ -103,7 +103,8 @@
         "browse_join": "Pārlūkot telpas un pievienoties tām",
         "reply": "Atbildēt pavedienos",
         "manage_messages": "Pārvaldīt ziņojumus"
-      }
+      },
+      "owned_by": "Īpašnieks"
     }
   }
 }

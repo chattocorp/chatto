@@ -103,7 +103,8 @@
         "browse_join": "Sirvida ruume ja nendega liituda",
         "reply": "Vastata lõimedes",
         "manage_messages": "Hallata sõnumeid"
-      }
+      },
+      "owned_by": "Omanik"
     }
   }
 }

@@ -103,7 +103,8 @@
         "browse_join": "Bla gjennom og bli med i rom",
         "reply": "Svare i tråder",
         "manage_messages": "Administrere meldinger"
-      }
+      },
+      "owned_by": "Eies av"
     }
   }
 }

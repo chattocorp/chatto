@@ -103,7 +103,8 @@
         "browse_join": "浏览并加入房间",
         "reply": "在线程中回复",
         "manage_messages": "管理消息"
-      }
+      },
+      "owned_by": "所有者"
     }
   }
 }

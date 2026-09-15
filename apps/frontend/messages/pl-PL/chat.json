@@ -103,7 +103,8 @@
         "browse_join": "Przeglądać pokoje i dołączać do nich",
         "reply": "Odpowiadać w wątkach",
         "manage_messages": "Zarządzać wiadomościami"
-      }
+      },
+      "owned_by": "Właściciel"
     }
   }
 }

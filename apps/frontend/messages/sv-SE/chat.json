@@ -103,7 +103,8 @@
         "browse_join": "Bläddra bland och gå med i rum",
         "reply": "Svara i trådar",
         "manage_messages": "Hantera meddelanden"
-      }
+      },
+      "owned_by": "Ägs av"
     }
   }
 }

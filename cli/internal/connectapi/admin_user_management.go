@@ -285,7 +285,7 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 	if err != nil {
 		presence = core.PresenceStatusOffline
 	}
-	return &apiv1.User{
+	summary := &apiv1.User{
 		Id:             member.ID,
 		Login:          member.Login,
 		DisplayName:    member.DisplayName,
@@ -294,6 +294,10 @@ func (s *adminUserManagementService) adminMemberUser(ctx context.Context, member
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(member.CustomStatus),
 	}
+	if member.IsBot && !member.Deleted && member.BotOwnerUserID != "" {
+		summary.BotOwnerUserId = stringPtr(member.BotOwnerUserID)
+	}
+	return summary
 }
 
 func (s *adminUserManagementService) adminMemberAfterMutation(ctx context.Context, actorID, userID string) (*adminv1.AdminMember, error) {

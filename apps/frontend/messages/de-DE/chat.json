@@ -103,7 +103,8 @@
         "browse_join": "Räume finden und beitreten",
         "reply": "In Threads antworten",
         "manage_messages": "Nachrichten verwalten"
-      }
+      },
+      "owned_by": "Gehört"
     }
   }
 }

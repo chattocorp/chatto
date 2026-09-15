@@ -115,6 +115,13 @@ describe('createUserAPI', () => {
     );
   });
 
+  it('maps a bot owner identity without treating it as a management grant', () => {
+    expect(
+      mapUserSummary(new APIUser({ id: 'bot', isBot: true, botOwnerUserId: 'owner' }))
+        .botOwnerUserId
+    ).toBe('owner');
+  });
+
   it('maps missing avatar URLs to null', () => {
     expect(
       mapUserSummary(

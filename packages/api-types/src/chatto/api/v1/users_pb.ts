@@ -86,6 +86,14 @@ export class User extends Message<User> {
    */
   timezone?: string;
 
+  /**
+   * Human account that owns this bot. Absent for human or deleted accounts.
+   * This public identity reference does not grant bot management access.
+   *
+   * @generated from field: optional string bot_owner_user_id = 11;
+   */
+  botOwnerUserId?: string;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -104,6 +112,7 @@ export class User extends Message<User> {
     { no: 8, name: "is_bot", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 9, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 11, name: "bot_owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

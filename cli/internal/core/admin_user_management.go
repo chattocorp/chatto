@@ -37,16 +37,18 @@ type AdminMemberRole struct {
 }
 
 type AdminMember struct {
-	ID                     string
-	Login                  string
-	DisplayName            string
-	AvatarURL              string
-	Roles                  []string
-	CreatedAt              *timestamppb.Timestamp
-	Deleted                bool
-	IsBot                  bool
-	HasVerifiedEmail       bool
-	VerifiedEmails         []string
+	ID          string
+	Login       string
+	DisplayName string
+	AvatarURL   string
+	Roles       []string
+	CreatedAt   *timestamppb.Timestamp
+	Deleted     bool
+	IsBot       bool
+	// BotOwnerUserID identifies the human owner of a bot.
+	BotOwnerUserID   string
+	HasVerifiedEmail bool
+	VerifiedEmails   []string
 	// PrimaryVerifiedEmail is empty when no primary address is visible.
 	PrimaryVerifiedEmail   string
 	ViewerCanDeleteAccount bool
@@ -289,15 +291,16 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 	}
 
 	member := &AdminMember{
-		ID:           user.GetId(),
-		Login:        user.GetLogin(),
-		DisplayName:  user.GetDisplayName(),
-		AvatarURL:    avatarURL,
-		Roles:        roles,
-		CreatedAt:    user.GetCreatedAt(),
-		Deleted:      user.GetDeleted(),
-		IsBot:        user.GetIsBot(),
-		CustomStatus: user.GetCustomStatus(),
+		ID:             user.GetId(),
+		Login:          user.GetLogin(),
+		DisplayName:    user.GetDisplayName(),
+		AvatarURL:      avatarURL,
+		Roles:          roles,
+		CreatedAt:      user.GetCreatedAt(),
+		Deleted:        user.GetDeleted(),
+		IsBot:          user.GetIsBot(),
+		BotOwnerUserID: user.GetBotOwnerUserId(),
+		CustomStatus:   user.GetCustomStatus(),
 	}
 
 	if canViewEmails, err := c.canViewAdminMemberEmails(ctx, actorID, user.GetId()); err != nil {

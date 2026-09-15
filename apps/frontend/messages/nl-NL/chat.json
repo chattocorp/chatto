@@ -103,7 +103,8 @@
         "browse_join": "Ruimtes bekijken en deelnemen",
         "reply": "Antwoorden in threads",
         "manage_messages": "Berichten beheren"
-      }
+      },
+      "owned_by": "Eigenaar"
     }
   }
 }

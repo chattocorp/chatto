@@ -103,7 +103,8 @@
         "browse_join": "Odaları keşfet ve katıl",
         "reply": "Konularda yanıt ver",
         "manage_messages": "Mesajları yönet"
-      }
+      },
+      "owned_by": "Sahibi"
     }
   }
 }
