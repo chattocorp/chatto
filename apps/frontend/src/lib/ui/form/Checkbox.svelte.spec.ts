@@ -1,3 +1,4 @@
+import '../../../app.css';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import Checkbox from './Checkbox.svelte';
@@ -62,4 +63,40 @@ describe('Checkbox', () => {
     expect(input.checked).toBe(true);
     expect(input.disabled).toBe(true);
   });
+});
+
+it('keeps native focus inside its row when nested in a scrolled pane', async () => {
+  const outer = document.createElement('div');
+  outer.style.cssText = 'position:relative;height:200px;overflow:hidden';
+  const pane = document.createElement('div');
+  pane.style.cssText = 'height:200px;overflow:auto';
+  const spacer = document.createElement('div');
+  spacer.style.height = '600px';
+  outer.append(pane);
+  pane.append(spacer);
+  document.body.append(outer);
+  const screen = render(Checkbox, { id: 'scrolled-checkbox', label: 'Low-cut filter' });
+  const details = document.createElement('details');
+  const summary = document.createElement('summary');
+  summary.textContent = 'Microphone processing';
+  details.append(summary, screen.container);
+  pane.append(details);
+  details.open = true;
+  try {
+    pane.scrollTop = pane.scrollHeight;
+    const input = screen.container.querySelector('input')!;
+    const label = screen.container.querySelector('label')!;
+    const row = label.getBoundingClientRect();
+    const native = input.getBoundingClientRect();
+    // The hidden input must scroll with its visible label, not with the outer frame.
+    expect(native.top).toBeGreaterThanOrEqual(row.top);
+    expect(native.bottom).toBeLessThanOrEqual(row.bottom);
+    await screen.getByText('Low-cut filter').click();
+    expect(input.checked).toBe(true);
+    expect(outer.scrollTop).toBe(0);
+    expect(document.activeElement).toBe(input);
+  } finally {
+    await screen.unmount();
+    outer.remove();
+  }
 });

@@ -160,7 +160,7 @@
         bind:checked={() => preferences.joinMuted, (value) => preferences.setJoinMuted(value)}
       />
     </Panel>
-    <Panel title={m('voice.preferences.test_title')} icon="iconify icon-[uil--microphone]">
+    <Panel title={m('voice.preferences.processing')} icon="iconify icon-[uil--microphone]">
       <div class="flex max-w-xl flex-col gap-4">
         <MicrophoneProcessing
           {preferences}

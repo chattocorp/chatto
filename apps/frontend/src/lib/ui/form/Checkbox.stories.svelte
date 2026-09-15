@@ -125,3 +125,12 @@
     <Checkbox id="g4" bind:checked={d} label="All messages in subscribed rooms" />
   </div>
 </Story>
+
+<Story name="Inside a scrolled pane" asChild>
+  <div class="relative h-48 overflow-hidden">
+    <div class="h-full overflow-auto">
+      <div class="h-64" aria-hidden="true"></div>
+      <Checkbox id="scrolled-story" label="Low-cut filter" />
+    </div>
+  </div>
+</Story>

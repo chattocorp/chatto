@@ -139,7 +139,8 @@ it('enables effects independently, persists keyboard edits and resets processing
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
   const preferences = new CallPreferencesState('processing-ui');
   const screen = render(CallDeviceSettings, { preferences });
-  await screen.getByText('Microphone processing', { exact: true }).click();
+  await expect.element(screen.getByRole('checkbox', { name: 'Low-cut filter' })).toBeVisible();
+  expect(screen.container.querySelector('details')).toBeNull();
   await expect.element(screen.getByRole('slider', { name: /^Bass/ })).toBeDisabled();
   await screen.getByRole('checkbox', { name: 'Equaliser', exact: true }).click();
   const bass = screen.container.querySelector<HTMLInputElement>('#microphone-bass')!;
