@@ -232,4 +232,19 @@ func TestRoomTimelineHydratesEchoMetadataInOneBatch(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, page[0].GetMessagePosted().GetInReplyTo())
 	require.Equal(t, "M1", page[1].GetMessagePosted().GetInReplyTo())
+
+	// A corrupt original post must not prevent unrelated echoes from loading.
+	reader.records[1] = testTimelineEventReader(events).records[1]
+	reader.records[1].Event = proto.Clone(original1).(*evtv1.Event)
+	reader.records[1].Event.ActorId = "CORRUPT"
+	_, err = core.timelineHydrator.events(context.Background(), []*TimelineEntry{originalEntry})
+	require.ErrorIs(t, err, errTimelineEntryCorrupt)
+	page, err = core.hydrateTimelineEntries(context.Background(), []*TimelineEntry{first, second})
+	require.NoError(t, err)
+	require.Empty(t, page[0].GetMessagePosted().GetInReplyTo())
+	require.Equal(t, "M1", page[1].GetMessagePosted().GetInReplyTo())
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err = core.HydrateMessagePost(ctx, echo1)
+	require.ErrorIs(t, err, context.Canceled)
 }

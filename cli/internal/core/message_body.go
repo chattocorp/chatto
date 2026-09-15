@@ -227,13 +227,13 @@ func (c *ChattoCore) hydrateMessagePosts(ctx context.Context, events []*evtv1.Ev
 		}
 	}
 	loaded, err := c.timelineHydrator.events(ctx, missing)
-	if errors.Is(err, jetstream.ErrMsgNotFound) {
-		// Secure deletion can remove one record during a read. Preserve the
-		// remaining echoes instead of failing the complete response.
+	if errors.Is(err, jetstream.ErrMsgNotFound) || errors.Is(err, errTimelineEntryCorrupt) {
+		// Isolate missing or invalid original metadata so one damaged record
+		// cannot prevent the remaining echoes from loading.
 		loaded = nil
 		for _, entry := range missing {
 			one, readErr := c.timelineHydrator.events(ctx, []*TimelineEntry{entry})
-			if errors.Is(readErr, jetstream.ErrMsgNotFound) {
+			if errors.Is(readErr, jetstream.ErrMsgNotFound) || errors.Is(readErr, errTimelineEntryCorrupt) {
 				continue
 			}
 			if readErr != nil {

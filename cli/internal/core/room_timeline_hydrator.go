@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/protobuf/proto"
@@ -9,6 +10,10 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
+
+// errTimelineEntryCorrupt identifies a stored event that does not match its
+// projected reference. Storage failures remain distinct and must propagate.
+var errTimelineEntryCorrupt = errors.New("room timeline event is corrupt")
 
 type timelineEventReader interface {
 	EventsAt(context.Context, []uint64) ([]*evtstream.SubjectEvent, error)
@@ -48,7 +53,7 @@ func (h *RoomTimelineHydrator) events(ctx context.Context, entries []*TimelineEn
 	events := make([]*evtv1.Event, len(entries))
 	for i, record := range records {
 		if err := validateTimelineEntryRecord(entries[i], record); err != nil {
-			return nil, fmt.Errorf("hydrate room timeline entry %d: %w", i, err)
+			return nil, fmt.Errorf("%w: hydrate room timeline entry %d: %w", errTimelineEntryCorrupt, i, err)
 		}
 		events[i] = record.Event
 	}
