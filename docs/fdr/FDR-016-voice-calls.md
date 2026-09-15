@@ -36,7 +36,9 @@ Rooms support real-time voice conversations with optional camera video and scree
   server without changing gate, device, or join-muted choices.
   EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser
   compressor's built-in makeup gain. Browser automatic gain control is disabled
-  to avoid competing volume adjustments; echo and noise suppression remain on.
+  to avoid competing volume adjustments. Calls retain browser echo cancellation
+  and noise suppression. The local test disables echo cancellation so it does
+  not cancel its own playback.
 - **Noise gate threshold** is available beside a live microphone meter in call
   devices and **App Preferences → Voice & video**. It defaults to **Off**
   and is saved per browser and server. Higher thresholds suppress quieter
@@ -67,6 +69,10 @@ Rooms support real-time voice conversations with optional camera video and scree
   Stop and navigation release capture and stop playback. Input changes restart
   an active test; output changes keep capture active. Camera choices do not
   interrupt the microphone test. Late capture results are stopped.
+  At Normal with the gate Off, the test plays the original capture stream,
+  disables browser noise suppression, and does not initialize custom processing.
+  Switching between this bypass and processing restarts capture and keeps the
+  selected speaker. Use headphones for local monitoring to avoid feedback.
 - Opening the settings page requests camera access only if camera names are
   unavailable and no call is active on the selected server. The browser may
   show its permission dialog. Discovery stops camera capture immediately.

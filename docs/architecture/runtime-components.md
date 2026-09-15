@@ -281,8 +281,15 @@ failure preserves ordinary audio. The processor owns an analyser fallback when t
 call state does not create a separate audio context or sampling path. The worklet asset comes from the frontend
 origin and sends only input levels to the UI, with no external connection.
 
-The settings page owns `CallDeviceTest`. Explicit capture feeds the shared
-processor. Where `AudioContext.setSinkId` is supported, a shared final gain node
+The settings page owns `CallDeviceTest`. At Normal with the gate Off, an audio
+element plays the original capture stream. A parallel analyser measures input;
+it does not feed playback, and no custom processor initializes. Browser echo
+cancellation, noise suppression, and automatic gain control are disabled on
+this raw path. Enabling processing restarts capture with noise suppression;
+echo cancellation stays disabled for local monitoring. Returning to bypass
+also restarts capture. Both transitions preserve the selected speaker.
+With processing enabled, capture feeds the shared processor.
+Where `AudioContext.setSinkId` is supported, a shared final gain node
 feeds both the published stream and the context destination for direct local
 monitoring. The same node preserves monitoring after runtime processor failure.
 Other browsers use the processed stream in an audio element. Initialization

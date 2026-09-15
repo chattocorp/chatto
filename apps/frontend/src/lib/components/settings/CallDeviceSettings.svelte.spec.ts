@@ -61,9 +61,9 @@ describe('Call device settings', () => {
       return destination.stream;
     });
     const monitor = vi.spyOn(MicrophoneProcessor.prototype, 'connectMonitor');
-    const screen = render(CallDeviceSettings, {
-      preferences: new CallPreferencesState('playback-refresh')
-    });
+    const preferences = new CallPreferencesState('playback-refresh');
+    preferences.setVoiceAmount(50);
+    const screen = render(CallDeviceSettings, { preferences });
     try {
       await screen.getByRole('button', { name: 'Start microphone test' }).click();
       await expect.element(screen.getByRole('button', { name: 'Stop test' })).toBeInTheDocument();
@@ -179,6 +179,7 @@ it('switches the selected test output without stopping capture or requiring anot
   const context = new AudioContext();
   const stream = context.createMediaStreamDestination().stream;
   const preferences = new CallPreferencesState('live-output');
+  preferences.setVoiceAmount(50);
   const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
   const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([

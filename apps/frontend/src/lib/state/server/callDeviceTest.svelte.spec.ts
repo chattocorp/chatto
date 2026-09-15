@@ -1,5 +1,6 @@
 import { userEvent } from 'vitest/browser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { microphoneEffectsForAmount } from '$lib/audio/microphoneEffects';
 import { MicrophoneProcessor } from '$lib/audio/microphoneProcessor';
 import { CallPreferencesState } from './callPreferences.svelte';
 import { CallDeviceTest, type OutputAudioContext } from './callDeviceTest.svelte';
@@ -54,12 +55,6 @@ describe('CallDeviceTest', () => {
           expect.objectContaining({ strength: 1, compressor: true })
         )
       );
-      preferences.setVoiceAmount(0);
-      await vi.waitFor(() =>
-        expect(applied).toHaveBeenCalledWith(
-          expect.objectContaining({ compressor: false, equalizer: false, lowCut: false })
-        )
-      );
       expect(test.active).toBe(true);
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(
         expect.objectContaining({ audio: expect.objectContaining({ autoGainControl: false }) })
@@ -111,7 +106,7 @@ describe('CallDeviceTest', () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
     const test = new CallDeviceTest();
     try {
-      const pending = test.start('', 'speaker');
+      const pending = test.start('', 'speaker', () => -60, () => microphoneEffectsForAmount(50));
       await vi.waitFor(() => expect(sink).toHaveBeenCalledWith('speaker'));
       test.stop();
       resolve();
@@ -132,7 +127,7 @@ describe('CallDeviceTest', () => {
     const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockRejectedValue(new Error('Output denied'));
     const test = new CallDeviceTest();
     try {
-      await test.start('', 'missing-speaker');
+      await test.start('', 'missing-speaker', () => -60, () => microphoneEffectsForAmount(50));
       expect(sink).toHaveBeenCalledExactlyOnceWith('missing-speaker');
       expect(test.error).toBe(true);
       expect(test.active).toBe(false);
@@ -175,7 +170,7 @@ describe('CallDeviceTest', () => {
       new DOMException('Denied', 'NotAllowedError')
     );
     const test = new CallDeviceTest();
-    await test.start('mic');
+    await test.start('mic', '', () => -60, () => microphoneEffectsForAmount(50));
     expect(test.error).toBe(true);
     expect(test.pending).toBe(false);
     expect(test.active).toBe(false);
@@ -209,7 +204,7 @@ it('serializes speaker changes without replacing or stopping microphone capture'
   const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
   const test = new CallDeviceTest();
   try {
-    await test.start('mic', 'first');
+    await test.start('mic', 'first', () => -60, () => microphoneEffectsForAmount(50));
     let finish!: () => void;
     sink.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
     const second = test.setSpeaker('second');
@@ -237,7 +232,7 @@ it('does not apply queued output changes after the test is stopped', async () =>
   const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
   const test = new CallDeviceTest();
   try {
-    await test.start('mic');
+    await test.start('mic', '', () => -60, () => microphoneEffectsForAmount(50));
     let finish!: () => void;
     sink.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
     const pending = test.setSpeaker('second');
@@ -249,6 +244,98 @@ it('does not apply queued output changes after the test is stopped', async () =>
     expect(await queued).toBe(false);
     expect(sink.mock.calls.map(([id]) => id)).toEqual(['', 'second']);
     expect(test.active).toBe(false);
+    expect(stream.getAudioTracks()[0].readyState).toBe('ended');
+  } finally {
+    test.stop();
+    await context.close();
+    vi.restoreAllMocks();
+  }
+});
+
+it('plays the original capture stream at Normal with the gate Off, without initializing DSP', async () => {
+  const context = new AudioContext();
+  const stream = context.createMediaStreamDestination().stream;
+  const capture = vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+  const init = vi.spyOn(MicrophoneProcessor.prototype, 'init');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const sink = vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockResolvedValue();
+  const test = new CallDeviceTest();
+  try {
+    await test.start('raw-mic', 'headphones');
+    expect(init).not.toHaveBeenCalled();
+    expect(play).toHaveBeenCalledOnce();
+    expect((play.mock.contexts[0] as HTMLAudioElement).srcObject).toBe(stream);
+    expect(sink).toHaveBeenCalledExactlyOnceWith('headphones');
+    expect(capture).toHaveBeenCalledWith({audio: {
+      deviceId: {exact: 'raw-mic'}, channelCount: {ideal: 1},
+      echoCancellation: false, noiseSuppression: false, autoGainControl: false
+    }, video: false});
+    await test.setSpeaker('');
+    expect(sink).toHaveBeenLastCalledWith('');
+    expect(capture).toHaveBeenCalledOnce();
+    expect(test.active).toBe(true);
+  } finally {
+    test.stop();
+    await context.close();
+    vi.restoreAllMocks();
+  }
+});
+
+it('crosses the raw/processed boundary and keeps the selected speaker while releasing old capture', async () => {
+  const context = new AudioContext();
+  const source = context.createMediaStreamDestination().stream;
+  const streams: MediaStream[] = [];
+  vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockImplementation(async () => {
+    const stream = source.clone();
+    streams.push(stream);
+    return stream;
+  });
+  const init = vi.spyOn(MicrophoneProcessor.prototype, 'init');
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const elementSink = vi.spyOn(HTMLMediaElement.prototype, 'setSinkId').mockResolvedValue();
+  const contextSink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue(undefined);
+  const test = new CallDeviceTest();
+  let amount = 0;
+  try {
+    await test.start('mic', 'first', () => -60, () => microphoneEffectsForAmount(amount));
+    await test.setSpeaker('second');
+    amount = 50;
+    await vi.waitFor(() => {
+      expect(init).toHaveBeenCalledOnce();
+      expect(test.active).toBe(true);
+    });
+    expect(contextSink).toHaveBeenLastCalledWith('second');
+    expect(streams[0].getAudioTracks()[0].readyState).toBe('ended');
+    amount = 0;
+    await vi.waitFor(() => expect(play).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(test.active).toBe(true));
+    expect(elementSink).toHaveBeenLastCalledWith('second');
+    expect(streams).toHaveLength(3);
+    expect(streams[1].getAudioTracks()[0].readyState).toBe('ended');
+    expect((play.mock.contexts[1] as HTMLAudioElement).srcObject).toBe(streams[2]);
+    test.stop();
+    expect(streams.every(s => s.getAudioTracks()[0].readyState === 'ended')).toBe(true);
+  } finally {
+    test.stop();
+    await context.close();
+    vi.restoreAllMocks();
+  }
+});
+
+
+it('does not report an output switch as successful by changing only the raw meter context', async () => {
+  const context = new AudioContext();
+  const stream = context.createMediaStreamDestination().stream;
+  vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(stream);
+  const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue();
+  const sink = vi.spyOn(AudioContext.prototype as OutputAudioContext, 'setSinkId').mockResolvedValue();
+  const test = new CallDeviceTest();
+  try {
+    await test.start('mic');
+    Object.defineProperty(play.mock.contexts[0], 'setSinkId', { value: undefined });
+    expect(await test.setSpeaker('headphones')).toBe(false);
+    expect(sink).not.toHaveBeenCalled();
+    expect(test.error).toBe(true);
     expect(stream.getAudioTracks()[0].readyState).toBe('ended');
   } finally {
     test.stop();
