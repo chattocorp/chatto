@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -27,6 +28,9 @@ const (
 	authRequestLifetime = 10 * time.Minute
 	accessTokenLifetime = 5 * time.Minute
 )
+
+// ErrLoginRequired means the browser must authenticate again before approval.
+var ErrLoginRequired = errors.New("fresh authentication required")
 
 var errOIDCStateNotFound = errors.New("OIDC state not found")
 
@@ -51,6 +55,8 @@ type authRequestState struct {
 	ResponseMode  liboidc.ResponseMode        `json:"response_mode,omitempty"`
 	CodeChallenge string                      `json:"code_challenge"`
 	CodeMethod    liboidc.CodeChallengeMethod `json:"code_challenge_method"`
+	MaxAge        *uint                       `json:"max_age,omitempty"`
+	ForceLogin    bool                        `json:"force_login,omitempty"`
 	ForceConsent  bool                        `json:"force_consent,omitempty"`
 	Subject       string                      `json:"subject,omitempty"`
 	Authorized    bool                        `json:"authorized"`
@@ -131,7 +137,9 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRe
 		State: request.State, Nonce: request.Nonce, Scopes: append([]string(nil), request.Scopes...),
 		ResponseType: request.ResponseType, ResponseMode: request.ResponseMode,
 		CodeChallenge: request.CodeChallenge, CodeMethod: request.CodeChallengeMethod,
-		ForceConsent: len(request.Prompt) == 1 && request.Prompt[0] == liboidc.PromptConsent,
+		ForceConsent: slices.Contains(request.Prompt, liboidc.PromptConsent),
+		ForceLogin:   slices.Contains(request.Prompt, liboidc.PromptLogin),
+		MaxAge:       request.MaxAge,
 	}
 	if err := s.create(ctx, s.requestKey(id), state, authRequestLifetime); err != nil {
 		return nil, err
@@ -219,13 +227,42 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 	}, nil
 }
 
+// CheckAuthentication checks persisted request constraints against server-owned
+// authentication evidence. It does not consume the request or change consent.
+func (s *Storage) CheckAuthentication(ctx context.Context, id string, authenticatedAt time.Time) error {
+	_, state, err := s.readRequest(ctx, id)
+	if err != nil || state.Authorized {
+		return errOIDCStateNotFound
+	}
+	return state.checkAuthentication(authenticatedAt, s.now().UTC())
+}
+
+// checkAuthentication compares full precision times. In particular, a session
+// from earlier in the same second cannot satisfy forced authentication.
+func (r *authRequestState) checkAuthentication(authenticatedAt, now time.Time) error {
+	if authenticatedAt.IsZero() || authenticatedAt.After(now) {
+		return ErrLoginRequired
+	}
+	if r.ForceLogin || r.MaxAge != nil && *r.MaxAge == 0 {
+		if !authenticatedAt.After(r.CreatedAt) {
+			return ErrLoginRequired
+		}
+	} else if r.MaxAge != nil && now.Sub(authenticatedAt).Seconds() > float64(*r.MaxAge) {
+		return ErrLoginRequired
+	}
+	return nil
+}
+
 // Authorize binds the current account to a pending request using OCC.
-func (s *Storage) Authorize(ctx context.Context, id, accountID string) error {
+func (s *Storage) Authorize(ctx context.Context, id, accountID string, authenticatedAt time.Time) error {
 	entry, state, err := s.readRequest(ctx, id)
 	if err != nil || state.Authorized || accountID == "" {
 		return errOIDCStateNotFound
 	}
-	state.Subject, state.Authorized, state.AuthTime = accountID, true, s.now().UTC()
+	if err := state.checkAuthentication(authenticatedAt, s.now().UTC()); err != nil {
+		return err
+	}
+	state.Subject, state.Authorized, state.AuthTime = accountID, true, authenticatedAt.UTC()
 	remaining := state.ExpiresAt.Sub(s.now().UTC())
 	data, err := s.seal(s.requestKey(id), state)
 	if err != nil {

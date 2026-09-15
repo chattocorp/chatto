@@ -87,7 +87,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.URL.Query().Get("id")
 		returnPath := loginReturnPath(r.URL.Query().Get(loginReturnParameter))
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
@@ -109,10 +109,11 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		requestID := r.FormValue("oidc_request")
 		returnPath := loginReturnPath(r.FormValue(loginReturnParameter))
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
+		authenticatedAt := time.Now().UTC()
 		account, err := deps.Authentication.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidCredentials) {
 			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID, returnPath))
@@ -122,7 +123,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
-		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion, authenticatedAt); err != nil {
 			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
@@ -138,7 +139,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	})
 	mux.HandleFunc("GET /password-reset", func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.URL.Query().Get("id")
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
@@ -159,7 +160,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		requestID := r.FormValue("oidc_request")
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
@@ -185,7 +186,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		requestID := r.FormValue("oidc_request")
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
@@ -211,11 +212,12 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		requestID := r.FormValue("oidc_request")
-		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
 		flow := r.FormValue("flow")
+		authenticatedAt := time.Now().UTC()
 		account, err := deps.PasswordReset.Complete(r.Context(), flow, r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidPassword) {
 			render(w, r, http.StatusUnprocessableEntity, newPasswordPage(flow, err.Error(), deps.PasswordReset.PasswordMinimumLength(), requestID))
@@ -229,7 +231,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusOK, passwordResetCompletePage())
 			return
 		}
-		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion, authenticatedAt); err != nil {
 			render(w, r, http.StatusServiceUnavailable, passwordResetCompletePage())
 			return
 		}
@@ -258,7 +260,15 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if target, authorized, err := deps.OIDC.TryAuthorize(r.Context(), requestID, account.ID); err != nil {
+		session, err := authenticatedSession(r, deps)
+		if err != nil || session.AccountID != account.ID {
+			http.Error(w, "session unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if target, authorized, err := deps.OIDC.TryAuthorize(r.Context(), requestID, account.ID, session.AuthenticatedAt); errors.Is(err, oidcprovider.ErrLoginRequired) {
+			redirect(w, r, "/login?id="+url.QueryEscape(requestID))
+			return
+		} else if err != nil {
 			http.Error(w, "authorization request unavailable", http.StatusServiceUnavailable)
 			return
 		} else if authorized {
@@ -307,11 +317,20 @@ func Handler(dependencies ...Dependencies) http.Handler {
 				http.Error(w, "consent disclosure changed; reload the consent page before authorizing", http.StatusBadRequest)
 				return
 			}
-			target, err = deps.OIDC.Authorize(r.Context(), r.FormValue("id"), account.ID)
+			session, sessionErr := authenticatedSession(r, deps)
+			if sessionErr != nil || session.AccountID != account.ID {
+				http.Error(w, "session unavailable", http.StatusServiceUnavailable)
+				return
+			}
+			target, err = deps.OIDC.Authorize(r.Context(), r.FormValue("id"), account.ID, session.AuthenticatedAt)
 		} else if r.FormValue("decision") == "deny" {
 			target, err = deps.OIDC.Deny(r.Context(), r.FormValue("id"))
 		} else {
 			http.Error(w, "invalid decision", http.StatusBadRequest)
+			return
+		}
+		if errors.Is(err, oidcprovider.ErrLoginRequired) {
+			redirect(w, r, "/login?id="+url.QueryEscape(r.FormValue("id")))
 			return
 		}
 		if err != nil {
@@ -590,6 +609,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("New passwords do not match.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		}
+		authenticatedAt := time.Now().UTC()
 		changed, err := deps.Authentication.ChangePassword(r.Context(), account.ID, r.FormValue("current_password"), newPassword)
 		switch {
 		case errors.Is(err, accounts.ErrInvalidCredentials):
@@ -606,7 +626,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusServiceUnavailable, passwordChangePage("We couldn't change your password. Please try again later.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		}
-		if err := establishSessionAtAuthenticationVersion(w, r, deps, changed.ID, changed.AuthenticationVersion); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, changed.ID, changed.AuthenticationVersion, authenticatedAt); err != nil {
 			clearSessionCookie(w, deps.SecureCookies)
 			http.Error(w, "password changed, but a new session could not be established", http.StatusServiceUnavailable)
 			return
@@ -739,6 +759,11 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		flow := r.FormValue("flow")
+		session, err := authenticatedSession(r, deps)
+		if err != nil || session.AccountID != account.ID {
+			http.Error(w, "session unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		completion, err := deps.EmailChange.Complete(r.Context(), account.ID, flow)
 		if errors.Is(err, emailchange.ErrInvalidFlow) {
 			render(w, r, http.StatusUnprocessableEntity, emailChangePage("We couldn't change that email address. Start again.", email))
@@ -748,7 +773,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusServiceUnavailable, emailChangeConfirmPage(flow, "We couldn't change your email address. Please try again.", email))
 			return
 		}
-		if err := establishSessionAtAuthenticationVersion(w, r, deps, completion.Account.ID, completion.AuthenticationVersion); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, completion.Account.ID, completion.AuthenticationVersion, session.AuthenticatedAt); err != nil {
 			clearSessionCookie(w, deps.SecureCookies)
 			http.Error(w, "email changed, but a new session could not be established", http.StatusServiceUnavailable)
 			return
@@ -844,6 +869,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, "Passwords do not match.", deps.Registration.PasswordMinimumLength()))
 			return
 		}
+		authenticatedAt := time.Now().UTC()
 		account, err := deps.Registration.Complete(r.Context(), flow, password)
 		if errors.Is(err, accounts.ErrInvalidPassword) {
 			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error(), deps.Registration.PasswordMinimumLength()))
@@ -857,7 +883,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusCreated, accountCreatedPage(account.ID))
 			return
 		}
-		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion, authenticatedAt); err != nil {
 			render(w, r, http.StatusServiceUnavailable, accountCreatedPage(account.ID))
 			return
 		}
@@ -901,9 +927,16 @@ func useTrustedProxyOrigin(next http.Handler) http.Handler {
 	})
 }
 
-func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {
-	_, err := service.Consent(r.Context(), id)
-	return err == nil
+// validConsentRequest also permits the validated client origin in form-action.
+// A successful login or recovery POST can reach that origin through automatic
+// consent reuse. Browsers apply the initiating form's CSP to that redirect chain.
+func validConsentRequest(w http.ResponseWriter, r *http.Request, service *oidcprovider.Service, id string) bool {
+	consent, err := service.Consent(r.Context(), id)
+	if err != nil {
+		return false
+	}
+	w.Header().Set("Content-Security-Policy", contentSecurityPolicy(consent.RedirectOrigin))
+	return true
 }
 
 func loginReturnPath(candidate string) string {
@@ -933,8 +966,8 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 
 // establishSessionAtAuthenticationVersion never upgrades a stale login or
 // recovery proof to a credential generation that did not authorize it.
-func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64) error {
-	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion)
+func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64, authenticatedAt time.Time) error {
+	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion, authenticatedAt)
 	if err != nil {
 		return err
 	}
@@ -960,6 +993,21 @@ func setSessionCookie(w http.ResponseWriter, token string, secure bool) {
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 	})
+}
+
+// authenticatedSession returns server-owned authentication evidence for OIDC.
+func authenticatedSession(r *http.Request, deps Dependencies) (sessions.Session, error) {
+	if deps.Sessions == nil {
+		return sessions.Session{}, fmt.Errorf("session services unavailable")
+	}
+	cookie, err := sessionCookie(r, deps.SecureCookies)
+	if errors.Is(err, http.ErrNoCookie) {
+		return sessions.Session{}, sessions.ErrNotFound
+	}
+	if err != nil {
+		return sessions.Session{}, err
+	}
+	return deps.Sessions.Validate(r.Context(), cookie.Value)
 }
 
 func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account, error) {

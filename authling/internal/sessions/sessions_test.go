@@ -42,6 +42,9 @@ func TestSessionLifecycleAndEncryptedStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !validated.AuthenticatedAt.Equal(created.AuthenticatedAt) || !created.AuthenticatedAt.Equal(created.CreatedAt) {
+		t.Fatal("session activity advanced authentication time")
+	}
 	if !validated.LastSeenAt.Equal(now) {
 		t.Fatalf("last seen = %v, want %v", validated.LastSeenAt, now)
 	}
@@ -150,13 +153,13 @@ func TestGenerationBoundSessionDoesNotUpgradeAcrossCredentialChange(t *testing.T
 	service.authenticationVersion = func(accountID string) (uint64, bool) {
 		return version, accountID == "acc_generation_bound"
 	}
-	if _, created, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version); err != nil {
+	if _, created, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version, time.Now()); err != nil {
 		t.Fatal(err)
 	} else if created.AuthenticationVersion != version {
 		t.Fatalf("authentication version = %d, want %d", created.AuthenticationVersion, version)
 	}
 	version++
-	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version-1); err == nil {
+	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_generation_bound", version-1, time.Now()); err == nil {
 		t.Fatal("generation-bound session silently upgraded across credential change")
 	}
 }
@@ -173,7 +176,7 @@ func TestGenerationBoundSessionRemovesRecordWhenVersionChangesAfterStore(t *test
 		}
 		return expected + 1, accountID == "acc_post_store_race"
 	}
-	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_post_store_race", expected); err == nil {
+	if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_post_store_race", expected, time.Now()); err == nil {
 		t.Fatal("generation-bound session survived a post-store credential change")
 	}
 	keys, err := stores.RuntimeState.Keys(t.Context())
@@ -505,6 +508,19 @@ func testService(t *testing.T) (*Service, storage.Stores, func()) {
 		cancel()
 		if err := connection.Close(); err != nil {
 			t.Errorf("close NATS: %v", err)
+		}
+	}
+}
+
+func TestSessionRejectsInvalidAuthenticationTime(t *testing.T) {
+	service, _, cleanup := testService(t)
+	defer cleanup()
+	service.authenticationVersion = func(string) (uint64, bool) { return 1, true }
+	now := time.Now().UTC()
+	service.now = func() time.Time { return now }
+	for _, at := range []time.Time{{}, now.Add(time.Nanosecond)} {
+		if _, _, err := service.CreateAtAuthenticationVersion(t.Context(), "acc_invalid_time", 1, at); err == nil {
+			t.Fatal("accepted invalid authentication time")
 		}
 	}
 }

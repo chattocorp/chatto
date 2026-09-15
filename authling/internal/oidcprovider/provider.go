@@ -8,8 +8,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/rs/cors"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
@@ -76,7 +78,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 	}
 	provider, err := op.NewProvider(&op.Config{
 		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true,
-		SupportedClaims: []string{"sub", "preferred_username", "name"}, SupportedScopes: []string{liboidc.ScopeOpenID},
+		SupportedClaims: []string{"sub", "preferred_username", "name", "auth_time"}, SupportedScopes: []string{liboidc.ScopeOpenID},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
 		return fmt.Errorf("construct OIDC provider: %w", err)
@@ -110,8 +112,9 @@ func (s *Service) Consent(ctx context.Context, id string) (ConsentRequest, error
 	return s.storage.Consent(ctx, id)
 }
 
-// Authorize approves a pending request for the authenticated account and returns the provider callback.
-func (s *Service) Authorize(ctx context.Context, id, accountID string) (string, error) {
+// Authorize approves a pending request and returns the provider callback.
+// accountID and authenticatedAt must come from the validated browser session.
+func (s *Service) Authorize(ctx context.Context, id, accountID string, authenticatedAt time.Time) (string, error) {
 	consent, err := s.storage.Consent(ctx, id)
 	if err != nil {
 		return "", err
@@ -119,22 +122,29 @@ func (s *Service) Authorize(ctx context.Context, id, accountID string) (string, 
 	if s.grants == nil {
 		return "", fmt.Errorf("OIDC authorization grants unavailable")
 	}
+	if err := s.storage.CheckAuthentication(ctx, id, authenticatedAt); err != nil {
+		return "", err
+	}
 	if _, err := s.grants.Authorize(ctx, accountID, authorizations.Client{
 		ID: consent.ClientID, Name: consent.ClientName, Host: consent.ClientHost,
 	}, consent.Scopes); err != nil {
 		return "", err
 	}
-	if err := s.storage.Authorize(ctx, id, accountID); err != nil {
+	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt); err != nil {
 		return "", err
 	}
 	return s.callback(ctx, id)
 }
 
 // TryAuthorize approves a pending request from an existing durable grant.
-// prompt=consent always returns false so the browser sees explicit consent.
-func (s *Service) TryAuthorize(ctx context.Context, id, accountID string) (string, bool, error) {
+// accountID and authenticatedAt must come from the validated browser session.
+// prompt=consent requires an explicit decision even after fresh authentication.
+func (s *Service) TryAuthorize(ctx context.Context, id, accountID string, authenticatedAt time.Time) (string, bool, error) {
 	consent, err := s.storage.Consent(ctx, id)
 	if err != nil {
+		return "", false, err
+	}
+	if err := s.storage.CheckAuthentication(ctx, id, authenticatedAt); err != nil {
 		return "", false, err
 	}
 	if consent.ForceConsent || s.grants == nil {
@@ -147,7 +157,7 @@ func (s *Service) TryAuthorize(ctx context.Context, id, accountID string) (strin
 	if !covered {
 		return "", false, nil
 	}
-	if err := s.storage.Authorize(ctx, id, accountID); err != nil {
+	if err := s.storage.Authorize(ctx, id, accountID, authenticatedAt); err != nil {
 		return "", false, err
 	}
 	target, err := s.callback(ctx, id)
@@ -326,7 +336,7 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic"},
-		"claims_supported":                      []string{"sub", "preferred_username", "name"},
+		"claims_supported":                      []string{"sub", "preferred_username", "name", "auth_time"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"request_parameter_supported":           false,
 		"client_id_metadata_document_supported": true,
@@ -347,7 +357,7 @@ func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
 		return localError()
 	}
 	query := r.URL.Query()
-	for _, name := range []string{"client_id", "redirect_uri", "response_type", "response_mode", "scope", "code_challenge", "code_challenge_method", "state", "nonce", "prompt"} {
+	for _, name := range []string{"client_id", "redirect_uri", "response_type", "response_mode", "scope", "code_challenge", "code_challenge_method", "state", "nonce", "prompt", "max_age"} {
 		if len(query[name]) > 1 {
 			return localError()
 		}
@@ -374,13 +384,27 @@ func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
 		return clientError("invalid_request")
 	}
 	prompts := strings.Fields(query.Get("prompt"))
-	if len(prompts) > 0 && !(len(prompts) == 1 && prompts[0] == liboidc.PromptConsent) {
-		return clientError("invalid_request")
+	seenPrompts := make(map[string]bool, len(prompts))
+	for _, prompt := range prompts {
+		if (prompt != liboidc.PromptConsent && prompt != liboidc.PromptLogin) || seenPrompts[prompt] {
+			return clientError("invalid_request")
+		}
+		seenPrompts[prompt] = true
+	}
+	if query.Has("max_age") {
+		raw := query.Get("max_age")
+		// Decimal seconds only; uint matches the OIDC library without duration overflow.
+		if raw == "" || strings.Trim(raw, "0123456789") != "" {
+			return clientError("invalid_request")
+		}
+		if _, err := strconv.ParseUint(raw, 10, strconv.IntSize); err != nil {
+			return clientError("invalid_request")
+		}
 	}
 	if query.Get("request") != "" {
 		return clientError("request_not_supported")
 	}
-	if query.Has("max_age") || len(query.Get("nonce")) > 1024 {
+	if len(query.Get("nonce")) > 1024 {
 		return clientError("invalid_request")
 	}
 	return nil

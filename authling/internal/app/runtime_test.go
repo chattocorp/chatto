@@ -1142,7 +1142,7 @@ func TestSignedInPasswordChangePreservesAccountAndInvalidatesOlderSessionsAcross
 	if _, err := first.Sessions.Validate(testContext(t), olderSession); !errors.Is(err, sessions.ErrNotFound) {
 		t.Fatalf("older session validation error = %v, want ErrNotFound", err)
 	}
-	replacementSession, _, err := first.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, changed.AuthenticationVersion)
+	replacementSession, _, err := first.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, changed.AuthenticationVersion, time.Now())
 	if err != nil {
 		t.Fatalf("create replacement session: %v", err)
 	}
@@ -1591,7 +1591,7 @@ func TestCommittedEmailChangeRecoveryDoesNotCrossPasswordReset(t *testing.T) {
 	if _, ok := runtime.Accounts.CompletedEmailChange(target, "recovery-new@example.com"); ok {
 		t.Fatal("email change recovery crossed the later password-reset generation")
 	}
-	if _, _, err := runtime.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, completion.AuthenticationVersion); err == nil {
+	if _, _, err := runtime.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, completion.AuthenticationVersion, time.Now()); err == nil {
 		t.Fatal("email change completion established a session across the later password-reset generation")
 	}
 }
@@ -2411,5 +2411,130 @@ func TestGrantKeyLossFailsClosedAndAllowsRevocation(t *testing.T) {
 	}
 	if err := runtime.Authorizations.Revoke(testContext(t), account.ID, grant.ID); err != nil {
 		t.Fatalf("revoke after metadata key loss: %v", err)
+	}
+}
+
+func TestOIDCFreshnessEnforcedAcrossHTTPAndRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"}}}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	account, err := runtime.Accounts.CreateLocal(t.Context(), "oidc@example.com", "a deliberately uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// This session was authenticated ten minutes ago, even though it was just created.
+	oldTime := time.Now().UTC().Add(-10 * time.Minute)
+	token, _, err := runtime.Sessions.CreateAtAuthenticationVersion(t.Context(), account.ID, account.AuthenticationVersion, oldTime)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cookie := &http.Cookie{Name: "authling_session", Value: token}
+	handlerFor := func() http.Handler {
+		return web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Sessions: runtime.Sessions, Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURL})
+	}
+	handler := handlerFor()
+	start := func(parameters url.Values) string {
+		t.Helper()
+		query := url.Values{"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "response_type": {"code"}, "scope": {"openid"}, "code_challenge": {"7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"}, "code_challenge_method": {"S256"}}
+		for key, values := range parameters {
+			query[key] = values
+		}
+		response := requestHandler(t, handler, http.MethodGet, "/oauth/authorize?"+query.Encode(), "", cookie)
+		location := response.Header().Get("Location")
+		if !strings.HasPrefix(location, "/oidc/consent?id=") {
+			t.Fatalf("start status %d, location %q", response.Code, location)
+		}
+		return location
+	}
+	forced := start(url.Values{"prompt": {"login consent"}})
+	// Both the pending request constraints and session evidence survive restart.
+	stopTestRuntime(t, runtime, cancel, runErrors)
+	runtime, cancel, runErrors = startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	handler = handlerFor()
+	for _, path := range []string{forced, start(url.Values{"max_age": {"0"}}), start(url.Values{"max_age": {"60"}})} {
+		parsed, _ := url.Parse(path)
+		id := parsed.Query().Get("id")
+		for _, method := range []string{http.MethodGet, http.MethodPost} {
+			target, body := path, ""
+			if method == http.MethodPost {
+				target = "/oidc/consent"
+				body = url.Values{"id": {id}, "decision": {"allow"}, "consent_version": {"1"}}.Encode()
+			}
+			response := requestHandler(t, handler, method, target, body, cookie)
+			if response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login?id="+id {
+				t.Fatalf("%s stale consent = %d %q", method, response.Code, response.Header().Get("Location"))
+			}
+		}
+	}
+	grants, err := runtime.Authorizations.List(t.Context(), account.ID)
+	if err != nil || len(grants) != 0 {
+		t.Fatalf("stale approval created grants: %d, %v", len(grants), err)
+	}
+	recentEnough := start(url.Values{"max_age": {"3600"}})
+	if response := requestHandler(t, handler, http.MethodGet, recentEnough, "", cookie); response.Code != http.StatusOK {
+		t.Fatalf("valid existing session = %d", response.Code)
+	}
+	parsed, _ := url.Parse(recentEnough)
+	approved := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{"id": {parsed.Query().Get("id")}, "decision": {"allow"}, "consent_version": {"1"}}.Encode(), cookie)
+	callback := requestHandler(t, handler, http.MethodGet, approved.Header().Get("Location"), "", cookie)
+	redirect, _ := url.Parse(callback.Header().Get("Location"))
+	tokens := issueOIDCTokens(t, handler, redirect.Query().Get("code"), strings.Repeat("v", 43))
+	claims := verifyIDToken(t, runtime, tokens.IDToken)
+	if claims["auth_time"] != float64(oldTime.Unix()) {
+		t.Fatalf("auth_time = %v, want %d", claims["auth_time"], oldTime.Unix())
+	}
+	// A durable grant cannot bypass forced login either.
+	if response := requestHandler(t, handler, http.MethodGet, forced, "", cookie); !strings.HasPrefix(response.Header().Get("Location"), "/login?id=") {
+		t.Fatalf("grant bypassed login: %d", response.Code)
+	}
+	parsed, _ = url.Parse(forced)
+	id := parsed.Query().Get("id")
+	failed := requestHandler(t, handler, http.MethodPost, "/login", url.Values{"email": {"oidc@example.com"}, "password": {"wrong"}, "oidc_request": {id}}.Encode(), cookie)
+	if failed.Code != http.StatusUnprocessableEntity || len(failed.Result().Cookies()) != 0 {
+		t.Fatal("failed login issued session")
+	}
+	login := requestHandler(t, handler, http.MethodPost, "/login", url.Values{"email": {"oidc@example.com"}, "password": {"a deliberately uncommon password"}, "oidc_request": {id}}.Encode(), cookie)
+	if login.Code != http.StatusSeeOther || len(login.Result().Cookies()) != 1 {
+		t.Fatalf("fresh login = %d", login.Code)
+	}
+	cookie = login.Result().Cookies()[0]
+	if response := requestHandler(t, handler, http.MethodGet, forced, "", cookie); response.Code != http.StatusOK {
+		t.Fatalf("fresh login lost forced consent: %d", response.Code)
+	}
+}
+
+func TestEmailChangeSessionPreservesAuthenticationTime(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg, sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(t.Context(), "before@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	at := time.Now().UTC().Add(-10 * time.Minute)
+	token, _, err := runtime.Sessions.CreateAtAuthenticationVersion(t.Context(), account.ID, account.AuthenticationVersion, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(t.Context(), account.ID, "the original uncommon password", "after@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(t.Context(), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{Accounts: runtime.Accounts, Sessions: runtime.Sessions, EmailChange: runtime.EmailChange, PublicURL: cfg.HTTP.PublicURL})
+	response := requestHandler(t, handler, http.MethodPost, "/account/email/complete", url.Values{"flow": {flow}}.Encode(), &http.Cookie{Name: "authling_session", Value: token})
+	if response.Code != http.StatusSeeOther || len(response.Result().Cookies()) != 1 {
+		t.Fatalf("complete status %d", response.Code)
+	}
+	state, err := runtime.Sessions.Validate(t.Context(), response.Result().Cookies()[0].Value)
+	if err != nil || !state.AuthenticatedAt.Equal(at) || !state.CreatedAt.After(at) {
+		t.Fatalf("replacement authentication time = %v, %v", state.AuthenticatedAt, err)
 	}
 }
