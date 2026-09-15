@@ -597,6 +597,55 @@ describe('Room interaction bundles', () => {
       .toBeInTheDocument();
   });
 
+  it('opens a desktop DM profile by default and remembers closing it', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    const close = await waitForElement<HTMLButtonElement>(
+      container,
+      '[data-testid="close-room-sidebar"]'
+    );
+    expect(appUi.desktopRoomSidebarProfileUserId('user-1')).toBe('user-1');
+    close.click();
+    await tick();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .not.toBeInTheDocument();
+    const restored = new AppUiState();
+    restored.setActiveRoomScope('server-1', 'room-1');
+    expect(restored.desktopRoomSidebarProfileUserId('user-1')).toBeNull();
+  });
+
+  it('does not move a default DM profile into the mobile overlay', async () => {
+    mocks.roomKind = RoomKind.DM;
+    const resize = stubMatchMedia(false);
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await tick();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
+    resize(true);
+    await waitForElement(container, '[data-testid="room-sidebar-desktop-pane"]');
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    resize(false);
+    await tick();
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-mobile-pane"]'))
+      .not.toBeInTheDocument();
+  });
+
+  it('shows the selected extras panel instead of the default DM profile', async () => {
+    mocks.roomKind = RoomKind.DM;
+    appUi.openDesktopRoomSidebarPanel('files');
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+    await expect
+      .element(q(container, '[data-testid="room-sidebar-desktop-pane"]'))
+      .toBeInTheDocument();
+    expect(appUi.desktopRoomSidebarProfileUserId('user-1')).toBeNull();
+    expect(appUi.activeDesktopRoomSidebarPanel).toBe('files');
+  });
+
   it('opens the other direct-message participant information from the header', async () => {
     mocks.roomKind = RoomKind.DM;
     const { container } = render(Room, { props: { roomId: 'room-1' } });

@@ -553,7 +553,9 @@ describe('CurrentUserBar', () => {
     leaveButton.click();
 
     expect(navigation.goto).toHaveBeenCalledWith('/chat/-/room-1');
-    expect(getRoomSidebarPanelState('origin', 'room-1')).toBe('call');
+    expect(getRoomSidebarPanelState('origin', 'room-1')).toBe(
+      window.matchMedia('(min-width: 1024px)').matches ? 'call' : undefined
+    );
     expect(voiceCallState.toggleMute).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleCamera).toHaveBeenCalledOnce();
     expect(voiceCallState.toggleScreenShare).toHaveBeenCalledOnce();
