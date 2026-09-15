@@ -47,6 +47,7 @@
     height = null,
     reasonCode = null,
     filename,
+    describedBy,
     autoLoop = false,
     viewer = false,
     onMediaError,
@@ -62,6 +63,7 @@
     height?: number | null;
     reasonCode?: string | null;
     filename: string;
+    describedBy?: string;
     autoLoop?: boolean;
     /** Fit the player to the shared attachment viewer rather than a timeline thumbnail. */
     viewer?: boolean;
@@ -332,6 +334,7 @@
       onerror={handlePlayerError}
       onloadedmetadata={handleVideoMetadata}
       class="block h-full w-full object-contain"
+      aria-describedby={describedBy}
     >
       <source src={selectedVariant.url} type="video/mp4" onerror={onMediaError} />
     </video>
@@ -345,6 +348,7 @@
       playsinline
       onerror={handlePlayerError}
       class="block h-full w-full"
+      aria-describedby={describedBy}
     >
       <media-provider>
         {#if thumbnailUrl}

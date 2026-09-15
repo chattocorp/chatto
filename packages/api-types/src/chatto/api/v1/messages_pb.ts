@@ -8,6 +8,57 @@ import { FieldMask, Message, proto3 } from "@bufbuild/protobuf";
 import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
+ * Description supplied for one attachment in a new message.
+ *
+ * @generated from message chatto.api.v1.MessageAttachmentDescriptionInput
+ */
+export class MessageAttachmentDescriptionInput extends Message<MessageAttachmentDescriptionInput> {
+  /**
+   * Required. Asset ID included in attachment_asset_ids on the same request.
+   *
+   * @generated from field: string asset_id = 1;
+   */
+  assetId = "";
+
+  /**
+   * Plain-text description with at most 1,000 Unicode characters. Trim outer
+   * whitespace before sending. Chatto also trims outer whitespace, preserves
+   * internal line breaks, and omits an empty result.
+   *
+   * @generated from field: string description = 2;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<MessageAttachmentDescriptionInput>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.MessageAttachmentDescriptionInput";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "asset_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MessageAttachmentDescriptionInput {
+    return new MessageAttachmentDescriptionInput().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): MessageAttachmentDescriptionInput {
+    return new MessageAttachmentDescriptionInput().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): MessageAttachmentDescriptionInput {
+    return new MessageAttachmentDescriptionInput().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: MessageAttachmentDescriptionInput | PlainMessage<MessageAttachmentDescriptionInput> | undefined, b: MessageAttachmentDescriptionInput | PlainMessage<MessageAttachmentDescriptionInput> | undefined): boolean {
+    return proto3.util.equals(MessageAttachmentDescriptionInput, a, b);
+  }
+}
+
+/**
  * Request to create a message in a room or thread.
  *
  * @generated from message chatto.api.v1.CreateMessageRequest
@@ -74,6 +125,14 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
    */
   createThread = false;
 
+  /**
+   * Optional descriptions for assets in attachment_asset_ids. Asset IDs must
+   * be unique in this list. At most one description can target each asset.
+   *
+   * @generated from field: repeated chatto.api.v1.MessageAttachmentDescriptionInput attachment_descriptions = 12;
+   */
+  attachmentDescriptions: MessageAttachmentDescriptionInput[] = [];
+
   constructor(data?: PartialMessage<CreateMessageRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -90,6 +149,7 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
     { no: 6, name: "also_send_to_channel", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 10, name: "link_preview_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 11, name: "create_thread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 12, name: "attachment_descriptions", kind: "message", T: MessageAttachmentDescriptionInput, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateMessageRequest {
@@ -438,6 +498,114 @@ export class DeleteAttachmentResponse extends Message<DeleteAttachmentResponse> 
 
   static equals(a: DeleteAttachmentResponse | PlainMessage<DeleteAttachmentResponse> | undefined, b: DeleteAttachmentResponse | PlainMessage<DeleteAttachmentResponse> | undefined): boolean {
     return proto3.util.equals(DeleteAttachmentResponse, a, b);
+  }
+}
+
+/**
+ * Request to set or clear one attachment description.
+ *
+ * @generated from message chatto.api.v1.SetAttachmentDescriptionRequest
+ */
+export class SetAttachmentDescriptionRequest extends Message<SetAttachmentDescriptionRequest> {
+  /**
+   * Required. Room containing the message.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Canonical message event containing the attachment.
+   *
+   * @generated from field: string event_id = 2;
+   */
+  eventId = "";
+
+  /**
+   * Required. Attachment asset ID in the current message body.
+   *
+   * @generated from field: string attachment_id = 3;
+   */
+  attachmentId = "";
+
+  /**
+   * Replacement description with at most 1,000 Unicode characters. Trim outer
+   * whitespace before sending. Chatto also trims outer whitespace and preserves
+   * internal line breaks. An empty result clears the description.
+   *
+   * @generated from field: string description = 4;
+   */
+  description = "";
+
+  constructor(data?: PartialMessage<SetAttachmentDescriptionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetAttachmentDescriptionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "attachment_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAttachmentDescriptionRequest {
+    return new SetAttachmentDescriptionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAttachmentDescriptionRequest {
+    return new SetAttachmentDescriptionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAttachmentDescriptionRequest {
+    return new SetAttachmentDescriptionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAttachmentDescriptionRequest | PlainMessage<SetAttachmentDescriptionRequest> | undefined, b: SetAttachmentDescriptionRequest | PlainMessage<SetAttachmentDescriptionRequest> | undefined): boolean {
+    return proto3.util.equals(SetAttachmentDescriptionRequest, a, b);
+  }
+}
+
+/**
+ * Result of setting or clearing an attachment description.
+ *
+ * @generated from message chatto.api.v1.SetAttachmentDescriptionResponse
+ */
+export class SetAttachmentDescriptionResponse extends Message<SetAttachmentDescriptionResponse> {
+  /**
+   * Renderable message after the description change.
+   *
+   * @generated from field: chatto.api.v1.Message message = 1;
+   */
+  message?: Message$1;
+
+  constructor(data?: PartialMessage<SetAttachmentDescriptionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.SetAttachmentDescriptionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: Message$1 },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetAttachmentDescriptionResponse {
+    return new SetAttachmentDescriptionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetAttachmentDescriptionResponse {
+    return new SetAttachmentDescriptionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetAttachmentDescriptionResponse {
+    return new SetAttachmentDescriptionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: SetAttachmentDescriptionResponse | PlainMessage<SetAttachmentDescriptionResponse> | undefined, b: SetAttachmentDescriptionResponse | PlainMessage<SetAttachmentDescriptionResponse> | undefined): boolean {
+    return proto3.util.equals(SetAttachmentDescriptionResponse, a, b);
   }
 }
 

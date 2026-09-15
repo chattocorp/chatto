@@ -4,6 +4,7 @@
   import AboutChattoModal from './modals/AboutChattoModal.svelte';
   import DeleteMessageContentModal from './modals/DeleteMessageContentModal.svelte';
   import AttachmentViewerModal from './modals/AttachmentViewerModal.svelte';
+  import EditAttachmentDescriptionModal from './modals/EditAttachmentDescriptionModal.svelte';
   import ImageViewerModal from './modals/ImageViewerModal.svelte';
   import HtmlViewerModal from './modals/HtmlViewerModal.svelte';
   import LeaveRoomModal from './modals/LeaveRoomModal.svelte';
@@ -36,6 +37,8 @@
       <AttachmentViewerModal {modal} onclose={closeModal} />
     {:else if modal.type === 'imageViewer'}
       <ImageViewerModal {modal} onclose={closeModal} />
+    {:else if modal.type === 'editAttachmentDescription'}
+      <EditAttachmentDescriptionModal {modal} onclose={closeModal} />
     {:else if modal.type === 'htmlViewer'}
       <HtmlViewerModal {modal} onclose={closeModal} />
     {/if}

@@ -115,7 +115,7 @@ token-safe vocabulary.
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
 | `ProfileUpdatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-key references plus replacement encrypted preferred-username and full-name fields |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
-| `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; client display snapshot; granted scopes |
+| `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; encrypted client display snapshot and account key references; granted scopes; consent disclosure version |
 | `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 | `OIDCSigningKeyRotationRequestedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque future signing-key reference |
@@ -176,8 +176,11 @@ revocation, retains ended grant IDs to prevent generation reuse, and serves
 only after startup replay. Grant commands synchronize to the account tail,
 publish with account-subject OCC, retry from refreshed state after conflicts,
 and wait for their committed position. The projection is cold-replay-only and
-contains client metadata and scopes but no account PII, tokens, codes, redirect
-URIs, or browser data.
+retains scopes and encrypted client display metadata. The service decrypts
+metadata for display and authenticates it before consent reuse. Metadata keys
+must match the account creation event. Only encrypted grant records are
+supported. See [FDR-010](../fdr/FDR-010-oidc-authorization-grants.md) for the
+encryption and disclosure-version rules.
 
 The browser-session inventory is a process-wide in-memory model over one
 filtered `session.*` watcher on `AUTHLING_RUNTIME_STATE`. It decrypts the latest
@@ -303,8 +306,10 @@ protocol endpoints below `/oauth/`. Authorization accepts only code flow,
 requires exactly the `openid` scope and S256 PKCE.
 Signed-out requests resume through an opaque server-side request ID after
 login. `GET /oidc/consent` reuses a durable exact-client authorization grant
-when it covers the requested scopes, except when `prompt=consent` requires an
-explicit decision. Same-origin `POST /oidc/consent` records explicit approval
+when it covers the requested scopes and current disclosure version, except
+when `prompt=consent` requires an explicit decision. The page lists the account
+ID, username, and optional full name and discloses later profile changes. Same-origin `POST /oidc/consent`
+requires the current form disclosure version to record explicit approval
 before authorizing the expiring request or returns a denial to the validated
 client redirect.
 

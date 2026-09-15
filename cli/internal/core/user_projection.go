@@ -46,8 +46,11 @@ type projectedUser struct {
 	shredded      bool
 	avatar        *evtv1.AssetRecord
 	verifiedEmail map[string]projectedVerifiedEmail
-	preferences   *evtv1.ServerUserPreferences
-	loginChanged  time.Time
+	// primaryVerifiedEmailEventID identifies one entry in verifiedEmail without
+	// retaining another plaintext or digest copy.
+	primaryVerifiedEmailEventID string
+	preferences                 *evtv1.ServerUserPreferences
+	loginChanged                time.Time
 }
 
 // projectedUserPII retains only the encrypted field and the event context
@@ -139,6 +142,8 @@ func (p *UserProjection) Apply(event *evtv1.Event, seq uint64) error {
 		p.applyAssetDeleted(e.AssetDeleted)
 	case *evtv1.Event_UserVerifiedEmailAdded:
 		return p.applyVerifiedEmailAdded(event.GetId(), e.UserVerifiedEmailAdded, event.GetCreatedAt())
+	case *evtv1.Event_UserPrimaryEmailChanged:
+		p.applyPrimaryEmailChanged(e.UserPrimaryEmailChanged)
 	case *evtv1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(e.UserServerPreferencesChanged)
 	case *evtv1.Event_UserLoginCooldownStarted:
@@ -248,6 +253,8 @@ func (p *UserProjection) applyPreparedContentEvent(event *evtv1.Event, seq uint6
 		if prepared.lookupReady && prepared.lookupValue != "" {
 			p.applyVerifiedEmailAddedWithEmail(event.GetId(), value.UserVerifiedEmailAdded, event.GetCreatedAt(), prepared.lookupValue)
 		}
+	case *evtv1.Event_UserPrimaryEmailChanged:
+		p.applyPrimaryEmailChanged(value.UserPrimaryEmailChanged)
 	case *evtv1.Event_UserServerPreferencesChanged:
 		p.applyServerPreferencesChanged(value.UserServerPreferencesChanged)
 	case *evtv1.Event_UserLoginCooldownStarted:
@@ -467,6 +474,7 @@ func (p *UserProjection) applyVerifiedEmailAdded(eventID string, e *evtv1.UserVe
 func (p *UserProjection) applyVerifiedEmailAddedWithEmail(eventID string, e *evtv1.UserVerifiedEmailAddedEvent, envelopeCreatedAt *timestamppb.Timestamp, email string) {
 	hash := emailHash(email)
 	u := p.ensureUserLocked(e.GetUserId())
+	previous, replacesExisting := u.verifiedEmail[hash]
 	verifiedAt := time.Now()
 	if envelopeCreatedAt != nil {
 		verifiedAt = envelopeCreatedAt.AsTime()
@@ -475,7 +483,23 @@ func (p *UserProjection) applyVerifiedEmailAddedWithEmail(eventID string, e *evt
 		pii:        newProjectedUserPII(eventID, evtstream.EventUserVerifiedEmailAdded, "email", e.GetEncryptedEmail()),
 		verifiedAt: verifiedAt,
 	}
+	if u.primaryVerifiedEmailEventID == "" || (replacesExisting && previous.pii != nil && previous.pii.eventID == u.primaryVerifiedEmailEventID) {
+		u.primaryVerifiedEmailEventID = eventID
+	}
 	p.emailIndex[hash] = e.GetUserId()
+}
+
+func (p *UserProjection) applyPrimaryEmailChanged(e *evtv1.UserPrimaryEmailChangedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetVerifiedEmailEventId() == "" {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	for _, email := range u.verifiedEmail {
+		if email.pii != nil && email.pii.eventID == e.GetVerifiedEmailEventId() {
+			u.primaryVerifiedEmailEventID = e.GetVerifiedEmailEventId()
+			return
+		}
+	}
 }
 
 func (p *UserProjection) applyServerPreferencesChanged(e *evtv1.UserServerPreferencesChangedEvent) {
@@ -552,6 +576,7 @@ func (p *UserProjection) applyAccountDeleted(e *evtv1.UserAccountDeletedEvent) {
 	u.displayName = nil
 	u.bio = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
+	u.primaryVerifiedEmailEventID = ""
 	u.loginChanged = time.Time{}
 	delete(p.dekEvents, e.GetUserId())
 }
@@ -579,6 +604,7 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 	u.bio = nil
 	u.preferences = nil
 	u.verifiedEmail = make(map[string]projectedVerifiedEmail)
+	u.primaryVerifiedEmailEventID = ""
 	u.loginChanged = time.Time{}
 }
 
@@ -1133,12 +1159,14 @@ func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID strin
 	type emailSnapshot struct {
 		pii        *projectedPIISnapshot
 		verifiedAt time.Time
+		primary    bool
 	}
 	snapshots := make([]emailSnapshot, 0, len(u.verifiedEmail))
 	for _, email := range u.verifiedEmail {
 		snapshots = append(snapshots, emailSnapshot{
 			pii:        p.piiSnapshotLocked(userID, email.pii),
 			verifiedAt: email.verifiedAt,
+			primary:    email.pii != nil && email.pii.eventID == u.primaryVerifiedEmailEventID,
 		})
 	}
 	p.RUnlock()
@@ -1153,7 +1181,7 @@ func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID strin
 		if !ok || email == "" {
 			continue
 		}
-		out = append(out, VerifiedEmail{Email: email, VerifiedAt: snapshot.verifiedAt})
+		out = append(out, VerifiedEmail{Email: email, VerifiedAt: snapshot.verifiedAt, Primary: snapshot.primary})
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if !out[i].VerifiedAt.Equal(out[j].VerifiedAt) {
@@ -1162,6 +1190,30 @@ func (p *UserProjection) VerifiedEmailsContext(ctx context.Context, userID strin
 		return strings.ToLower(out[i].Email) < strings.ToLower(out[j].Email)
 	})
 	return out, nil
+}
+
+func (p *UserProjection) verifiedEmailEventID(userID, email string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.shredded {
+		return "", false
+	}
+	verified, ok := u.verifiedEmail[emailHash(email)]
+	if !ok || verified.pii == nil || verified.pii.eventID == "" {
+		return "", false
+	}
+	return verified.pii.eventID, true
+}
+
+func (p *UserProjection) primaryVerifiedEmailEventID(userID string) string {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.shredded {
+		return ""
+	}
+	return u.primaryVerifiedEmailEventID
 }
 
 func (p *UserProjection) VerifiedEmails(userID string) []VerifiedEmail {

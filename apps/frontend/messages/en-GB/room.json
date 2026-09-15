@@ -159,6 +159,13 @@
       "download_label": "Download {filename}",
       "image_refresh_failed": "Could not refresh image link",
       "download_refresh_failed": "Could not refresh download link",
+      "add_description": "Add description",
+      "edit_description": "Edit description",
+      "description_title": "Attachment description",
+      "description_label": "Description (optional)",
+      "description_help": "Describe the attachment for people who cannot see or hear it.",
+      "description_too_long": "Descriptions can contain at most {max} characters.",
+      "description_update_failed": "Failed to update attachment description",
       "html_viewer": {
         "download": "Download",
         "show_preview": "Show preview",

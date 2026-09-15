@@ -26,13 +26,14 @@ func (p *UserProjection) Snapshot() ([]byte, error) {
 			continue
 		}
 		entry := &projectionv1.ProjectedUserProfileSnapshot{
-			UserId:      userID,
-			Login:       snapshotProjectedUserPII(u.login),
-			LoginHash:   u.loginHash,
-			DisplayName: snapshotProjectedUserPII(u.displayName),
-			Bio:         snapshotProjectedUserPII(u.bio),
-			Deleted:     u.deleted,
-			Shredded:    u.shredded,
+			UserId:                      userID,
+			Login:                       snapshotProjectedUserPII(u.login),
+			LoginHash:                   u.loginHash,
+			DisplayName:                 snapshotProjectedUserPII(u.displayName),
+			Bio:                         snapshotProjectedUserPII(u.bio),
+			Deleted:                     u.deleted,
+			Shredded:                    u.shredded,
+			PrimaryVerifiedEmailEventId: u.primaryVerifiedEmailEventID,
 		}
 		if u.user != nil {
 			entry.User = proto.Clone(u.user).(*evtv1.User)
@@ -164,7 +165,7 @@ func (p *UserProjection) Restore(data []byte) error {
 		if active && (entry.GetUser() == nil || login == nil || displayName == nil) {
 			return fmt.Errorf("user profile snapshot has incomplete active user %q", userID)
 		}
-		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
+		if !active && (login != nil || entry.GetLoginHash() != "" || displayName != nil || bio != nil || len(entry.GetVerifiedEmails()) > 0 || entry.GetPrimaryVerifiedEmailEventId() != "" || entry.GetPreferences() != nil || entry.GetLoginChangedAt() != nil) {
 			return fmt.Errorf("user profile snapshot has profile state on inactive user %q", userID)
 		}
 		for name, pii := range map[string]*projectedUserPII{"login": login, "display name": displayName, "bio": bio} {
@@ -175,6 +176,7 @@ func (p *UserProjection) Restore(data []byte) error {
 		u := &projectedUser{
 			login: login, loginHash: entry.GetLoginHash(), displayName: displayName, bio: bio,
 			deleted: entry.GetDeleted(), shredded: entry.GetShredded(), verifiedEmail: make(map[string]projectedVerifiedEmail),
+			primaryVerifiedEmailEventID: entry.GetPrimaryVerifiedEmailEventId(),
 		}
 		if entry.GetUser() != nil {
 			u.user = proto.Clone(entry.GetUser()).(*evtv1.User)
@@ -206,6 +208,20 @@ func (p *UserProjection) Restore(data []byte) error {
 				return fmt.Errorf("user profile snapshot verified email for %q has no matching DEK", userID)
 			}
 			u.verifiedEmail[email.GetDigest()] = projectedVerifiedEmail{pii: pii, verifiedAt: email.GetVerifiedAt().AsTime()}
+		}
+		if len(u.verifiedEmail) > 0 {
+			primaryFound := false
+			for _, email := range u.verifiedEmail {
+				if email.pii != nil && email.pii.eventID == u.primaryVerifiedEmailEventID {
+					primaryFound = true
+					break
+				}
+			}
+			if !primaryFound {
+				return fmt.Errorf("user profile snapshot has invalid primary verified email for %q", userID)
+			}
+		} else if u.primaryVerifiedEmailEventID != "" {
+			return fmt.Errorf("user profile snapshot has primary verified email without an address for %q", userID)
 		}
 		restored.users[userID] = u
 		if u.user != nil && u.user.GetIsBot() && u.user.GetBotOwnerUserId() != "" && active {

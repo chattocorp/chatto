@@ -7,8 +7,8 @@
   import { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { ConfirmDialog, Dialog } from '$lib/ui';
-  import { Button } from '$lib/ui/form';
+  import { ConfirmDialog, Dialog, FormDialog } from '$lib/ui';
+  import { Button, TextArea } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getRoomMembers, getRoomMembersStore, getComposerContext } from '$lib/state/room';
   import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
@@ -100,6 +100,29 @@
   const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
   const composerId = $props.id();
   const formattingToolbarId = `${composerId}-formatting-toolbar`;
+  const supportsAttachmentDescriptions = $derived(
+    serverInfo.supportsFeature('attachmentDescriptions')
+  );
+  let descriptionAttachmentIndex = $state<number | null>(null);
+  let attachmentDescription = $state('');
+  const attachmentDescriptionLength = $derived(Array.from(attachmentDescription.trim()).length);
+  const attachmentDescriptionTooLong = $derived(attachmentDescriptionLength > 1000);
+
+  function openAttachmentDescription(index: number) {
+    descriptionAttachmentIndex = index;
+    attachmentDescription = composer.attachments.filesWithUrls[index]?.description ?? '';
+  }
+
+  function closeAttachmentDescription() {
+    descriptionAttachmentIndex = null;
+    attachmentDescription = '';
+  }
+
+  function saveAttachmentDescription() {
+    if (descriptionAttachmentIndex === null || attachmentDescriptionTooLong) return;
+    composer.attachments.setDescription(descriptionAttachmentIndex, attachmentDescription);
+    closeAttachmentDescription();
+  }
 
   $effect(() => {
     const deadline = slowModeDeadline;
@@ -179,8 +202,10 @@
   <ComposerAttachmentPreviews
     attachments={composer.attachments}
     disabled={composer.submission.loading}
+    canDescribe={supportsAttachmentDescriptions}
     getSubmissionStatus={(file) => composer.submission.attachmentStatus(file)}
     onremove={(index) => composer.attachments.removeFile(index)}
+    ondescription={openAttachmentDescription}
   />
 
   {#if slowModeSeconds > 0}
@@ -225,7 +250,7 @@
 
   <div
     data-testid="composer-input-surface"
-    class="@container relative flex min-w-0 items-end gap-1 chat-input-surface px-2.5 py-1.5"
+    class="@container relative flex chat-input-surface min-w-0 items-end gap-1 px-2.5 py-1.5"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
@@ -332,6 +357,27 @@
   >
     {m('composer.role_mention_confirm_body')}
   </ConfirmDialog>
+{/if}
+
+{#if supportsAttachmentDescriptions && descriptionAttachmentIndex !== null}
+  <FormDialog
+    visible
+    title={m('room.attachment.description_title')}
+    disabled={attachmentDescriptionTooLong}
+    onsubmit={saveAttachmentDescription}
+    onclose={closeAttachmentDescription}
+  >
+    <TextArea
+      id={`${composerId}-attachment-description`}
+      label={m('room.attachment.description_label')}
+      description={m('room.attachment.description_help')}
+      rows={5}
+      bind:value={attachmentDescription}
+      error={attachmentDescriptionTooLong
+        ? m('room.attachment.description_too_long', { max: 1000 })
+        : undefined}
+    />
+  </FormDialog>
 {/if}
 
 {#if composer.pendingThreadDestinationConfirmation}

@@ -13,6 +13,7 @@ Header, gallery controls and download stay outside the preview on all screens.
   let {
     filename,
     contentType,
+    description,
     children,
     index = 0,
     count = 1,
@@ -30,6 +31,7 @@ Header, gallery controls and download stay outside the preview on all screens.
   }: {
     filename: string;
     contentType: string;
+    description?: string;
     children: Snippet;
     index?: number;
     count?: number;
@@ -46,6 +48,8 @@ Header, gallery controls and download stay outside the preview on all screens.
     onretry?: () => void;
     onclose: () => void;
   } = $props();
+
+  const descriptionId = $props.id();
 
   function handleKeydown(event: KeyboardEvent) {
     if (count < 2 || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
@@ -82,7 +86,14 @@ Header, gallery controls and download stay outside the preview on all screens.
 
 <svelte:window onkeydown={handleKeydown} />
 
-<Dialog visible title={filename} size="xl" mediaViewer {onclose}>
+<Dialog
+  visible
+  title={filename}
+  size="xl"
+  mediaViewer
+  describedBy={description ? descriptionId : undefined}
+  {onclose}
+>
   <div class="flex min-h-0 flex-1 flex-col">
     {#if error}
       <div class="mb-3 flex shrink-0 items-center justify-between gap-3">
@@ -97,6 +108,15 @@ Header, gallery controls and download stay outside the preview on all screens.
     <div class="flex min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md">
       {@render children()}
     </div>
+    {#if description}
+      <p
+        id={descriptionId}
+        class="mt-2 max-h-[20dvh] shrink-0 overflow-y-auto text-center wrap-anywhere whitespace-pre-wrap"
+        dir="auto"
+      >
+        {description}
+      </p>
+    {/if}
     {#if count > 1}
       <nav
         class="mt-2 flex shrink-0 items-center justify-center gap-3"

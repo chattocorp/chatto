@@ -261,8 +261,29 @@ message MessageBody {
   // typically by an UploadAsset call from the same actor.
   repeated string asset_ids = 31;
 
+  // Encrypted user-provided descriptions for assets referenced by this
+  // message. Descriptions are encrypted separately so attachment identity and
+  // ordering stay available to projections without exposing this PII.
+  repeated EncryptedAttachmentDescription attachment_descriptions = 32;
+
   // Link preview extracted from the first URL in the message body
   LinkPreview link_preview = 40;
+}
+
+// EncryptedAttachmentDescription stores one attachment description in the
+// same privacy and secure-deletion lifecycle as its containing message body.
+message EncryptedAttachmentDescription {
+  // Asset ID whose presentation this description explains.
+  string asset_id = 1;
+  // Encryption envelope version. Version 2 uses XChaCha20-Poly1305 with the
+  // message author's referenced message-body DEK epoch.
+  int32 encryption_version = 2;
+  // Per-user message-body DEK epoch that encrypted this description.
+  int32 content_key_epoch = 3;
+  // Encrypted description ciphertext with authentication tag.
+  bytes encrypted_description = 4;
+  // XChaCha20-Poly1305 nonce for encrypted_description.
+  bytes encryption_nonce = 5;
 }
 
 // LinkPreview stores OpenGraph/oEmbed metadata for a URL in a message.

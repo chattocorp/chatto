@@ -9,9 +9,13 @@ const SERVER_QUERY_GC_TIME_MS = 5 * 60_000;
 function retryServerQuery(failureCount: number, error: Error): boolean {
   if (
     error instanceof ConnectError &&
-    [Code.InvalidArgument, Code.NotFound, Code.PermissionDenied, Code.Unauthenticated].includes(
-      error.code
-    )
+    [
+      Code.InvalidArgument,
+      Code.NotFound,
+      Code.FailedPrecondition,
+      Code.PermissionDenied,
+      Code.Unauthenticated
+    ].includes(error.code)
   ) {
     return false;
   }

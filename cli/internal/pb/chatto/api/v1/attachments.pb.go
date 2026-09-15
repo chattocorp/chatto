@@ -151,7 +151,10 @@ type RoomAttachmentListItem struct {
 	// Thread root event ID when the containing message is a thread reply.
 	ThreadRootEventId string `protobuf:"bytes,3,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`
 	// Message creation timestamp.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// User-provided description for this attachment. Absent when the attachment
+	// has no description.
+	Description   *string `protobuf:"bytes,5,opt,name=description,proto3,oneof" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -212,6 +215,13 @@ func (x *RoomAttachmentListItem) GetCreatedAt() *timestamppb.Timestamp {
 		return x.CreatedAt
 	}
 	return nil
+}
+
+func (x *RoomAttachmentListItem) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
 }
 
 // Request to read one room-scoped asset with freshly signed URLs.
@@ -448,7 +458,7 @@ const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\x06height\x18\x06 \x01(\x05R\x06height\x12;\n" +
 	"\tasset_url\x18\a \x01(\v2\x1e.chatto.api.v1.MessageAssetUrlR\bassetUrl\x12N\n" +
 	"\x13thumbnail_asset_url\x18\b \x01(\v2\x1e.chatto.api.v1.MessageAssetUrlR\x11thumbnailAssetUrl\x12P\n" +
-	"\x10video_processing\x18\t \x01(\v2%.chatto.api.v1.MessageVideoProcessingR\x0fvideoProcessing\"\xe4\x01\n" +
+	"\x10video_processing\x18\t \x01(\v2%.chatto.api.v1.MessageVideoProcessingR\x0fvideoProcessing\"\x9b\x02\n" +
 	"\x16RoomAttachmentListItem\x124\n" +
 	"\n" +
 	"attachment\x18\x01 \x01(\v2\x14.chatto.api.v1.AssetR\n" +
@@ -456,7 +466,9 @@ const file_chatto_api_v1_attachments_proto_rawDesc = "" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x129\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"\x9b\x01\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12%\n" +
+	"\vdescription\x18\x05 \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\f_description\"\x9b\x01\n" +
 	"\x0fGetAssetRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\basset_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aassetId\x12B\n" +
@@ -528,6 +540,7 @@ func file_chatto_api_v1_attachments_proto_init() {
 	}
 	file_chatto_api_v1_common_proto_init()
 	file_chatto_api_v1_message_types_proto_init()
+	file_chatto_api_v1_attachments_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

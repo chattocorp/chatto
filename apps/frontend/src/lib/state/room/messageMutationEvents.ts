@@ -1,6 +1,7 @@
 export type RoomMessageMutationReason =
   | 'message-deleted'
   | 'attachment-deleted'
+  | 'attachment-description-updated'
   | 'link-preview-deleted';
 
 export type RoomMessageMutatedDetail = {

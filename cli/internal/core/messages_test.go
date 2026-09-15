@@ -9,9 +9,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/encryption"
 	"hmans.de/chatto/internal/evtstream"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
@@ -392,7 +394,7 @@ func TestChattoCore_EditMessageReconcilesThreadReplyEcho(t *testing.T) {
 		t.Fatalf("nil echo option should preserve echo; got id=%q ok=%v", gotEchoID, ok)
 	}
 	agg := evtstream.RoomAggregate(room.Id)
-	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
+	if _, err := core.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(_ context.Context, _ *evtv1.MessageBody, _ map[string]string) (string, error) {
 		return "independently edited echo", nil
 	}); err != nil {
 		t.Fatalf("Diverge linked echo body: %v", err)
@@ -491,7 +493,7 @@ func TestPublishMessageEditRejectsRetractionCommittedDuringAttempt(t *testing.T)
 
 	agg := evtstream.RoomAggregate(room.Id)
 	attempts := 0
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody, _ map[string]string) (string, error) {
 		attempts++
 		if attempts == 1 {
 			_, published, err := chattoCore.publishMessageRetract(ctx, user.Id, KindChannel, agg, room.Id, posted.Id, nil)
@@ -528,7 +530,7 @@ func TestPublishMessageEditRebuildsBodyAfterOCCConflict(t *testing.T) {
 
 	agg := evtstream.RoomAggregate(room.Id)
 	attempts := 0
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, posted.Id, func(_ context.Context, _ *evtv1.MessageBody, _ map[string]string) (string, error) {
 		attempts++
 		if attempts == 1 {
 			require.NoError(t, chattoCore.DeleteLinkPreviewFromMessage(ctx, user.Id, KindChannel, room.Id, posted.Id, preview.GetUrl()))
@@ -583,7 +585,7 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	}
 
 	agg := evtstream.RoomAggregate(room.Id)
-	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *evtv1.MessageBody) (string, error) {
+	_, err = chattoCore.publishMessageEdit(ctx, user.Id, agg, room.Id, echoID, func(ctx context.Context, body *evtv1.MessageBody, _ map[string]string) (string, error) {
 		plaintext, err := chattoCore.decryptMessageBody(ctx, echoID, room.Id, body)
 		if err != nil {
 			return "", err
@@ -593,7 +595,7 @@ func TestPartialEditPropagationAppliesDeltaToLatestLinkedBody(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, reply.Id, nil, func(body *evtv1.MessageBody) error {
+	err = chattoCore.editEmbeddedBody(ctx, user.Id, KindChannel, room.Id, reply.Id, messageMutationAuthorization{authorOnly: true}, nil, func(body *evtv1.MessageBody, _ map[string]string) error {
 		removeAsset(body, attachmentA.Id)
 		return nil
 	})
@@ -799,6 +801,218 @@ func TestChattoCore_MessageBodyEventsKeepCanonicalPostedEventsBodyless(t *testin
 	}
 	if body != "edited private body payload" {
 		t.Fatalf("body = %q, want edited content", body)
+	}
+}
+
+func TestMessageAttachmentDescriptionsAreEncryptedAndFollowMessageEdits(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-author", "Attachment Description Author", "password123")
+	require.NoError(t, err)
+	manager, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-manager", "Attachment Description Manager", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "attachment-descriptions", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, manager.Id, KindChannel, manager.Id, room.Id)
+	require.NoError(t, err)
+	require.NoError(t, chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermMessageManage))
+	attachment, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "diagram.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+
+	const initialDescription = "A release diagram with three connected services"
+	result, err := chattoCore.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID:            author.Id,
+		RoomID:             room.Id,
+		Body:               "Architecture",
+		AttachmentAssetIDs: []string{attachment.Id},
+		AttachmentDescriptions: []MessageAttachmentDescriptionInput{{
+			AssetID: attachment.Id, Description: "  " + initialDescription + "\n",
+		}},
+	})
+	require.NoError(t, err)
+
+	stored, err := chattoCore.currentMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.Len(t, stored.GetAttachmentDescriptions(), 1)
+	firstEnvelope := proto.Clone(stored.GetAttachmentDescriptions()[0]).(*evtv1.EncryptedAttachmentDescription)
+	require.NotContains(t, string(firstEnvelope.GetEncryptedDescription()), initialDescription)
+	encoded, err := proto.Marshal(stored)
+	require.NoError(t, err)
+	require.NotContains(t, string(encoded), initialDescription)
+
+	body, err := chattoCore.GetFullMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, initialDescription, body.AttachmentDescriptions[attachment.Id])
+
+	require.NoError(t, chattoCore.EditMessage(ctx, author.Id, KindChannel, room.Id, result.Event.Id, "Updated architecture"))
+	storedAfterBodyEdit, err := chattoCore.currentMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.NotEqual(t, stored.GetBodyEventId(), storedAfterBodyEdit.GetBodyEventId())
+	require.NotEqual(t, firstEnvelope.GetEncryptedDescription(), storedAfterBodyEdit.GetAttachmentDescriptions()[0].GetEncryptedDescription())
+	body, err = chattoCore.GetFullMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, initialDescription, body.AttachmentDescriptions[attachment.Id])
+
+	const managedDescription = "A manager-provided description"
+	_, _, err = chattoCore.Messages().SetAttachmentDescription(ctx, MessageAttachmentDescriptionSetInput{
+		ActorID: manager.Id, RoomID: room.Id, EventID: result.Event.Id,
+		AttachmentID: attachment.Id, Description: managedDescription,
+	})
+	require.NoError(t, err)
+	body, err = chattoCore.GetFullMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, managedDescription, body.AttachmentDescriptions[attachment.Id])
+
+	_, _, err = chattoCore.Messages().SetAttachmentDescription(ctx, MessageAttachmentDescriptionSetInput{
+		ActorID: author.Id, RoomID: room.Id, EventID: result.Event.Id,
+		AttachmentID: attachment.Id, Description: " \n ",
+	})
+	require.NoError(t, err)
+	body, err = chattoCore.GetFullMessageBody(ctx, result.Event.Id)
+	require.NoError(t, err)
+	require.NotContains(t, body.AttachmentDescriptions, attachment.Id)
+
+	tampered := proto.Clone(storedAfterBodyEdit).(*evtv1.MessageBody)
+	tampered.AttachmentDescriptions[0].EncryptionNonce[0] ^= 0xff
+	_, err = chattoCore.decryptAttachmentDescriptions(ctx, result.Event.Id, room.Id, tampered)
+	require.ErrorIs(t, err, ErrMessageBodyCorrupt)
+	aadTampered := proto.Clone(storedAfterBodyEdit).(*evtv1.MessageBody)
+	aadTampered.BodyEventId = "different-body-event"
+	_, err = chattoCore.decryptAttachmentDescriptions(ctx, result.Event.Id, room.Id, aadTampered)
+	require.ErrorIs(t, err, ErrMessageBodyCorrupt)
+}
+
+func TestAttachmentDescriptionValidation(t *testing.T) {
+	assetID := "A1"
+	_, err := normalizeAttachmentDescriptionInputs([]string{assetID}, []MessageAttachmentDescriptionInput{
+		{AssetID: assetID, Description: "first"},
+		{AssetID: assetID, Description: "second"},
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	_, err = normalizeAttachmentDescriptionInputs([]string{assetID}, []MessageAttachmentDescriptionInput{
+		{AssetID: "A2", Description: "detached"},
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	valid, err := normalizeAttachmentDescription(strings.Repeat("界", MaxAttachmentDescriptionLength))
+	require.NoError(t, err)
+	require.Equal(t, MaxAttachmentDescriptionLength, utf8.RuneCountInString(valid))
+	_, err = normalizeAttachmentDescription(strings.Repeat("界", MaxAttachmentDescriptionLength+1))
+	require.ErrorIs(t, err, ErrInvalidArgument)
+}
+
+func TestSetAttachmentDescriptionUsesMessageEditWindowAndManagerOverride(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-window", "Attachment Description Window", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "attachment-description-window", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	attachment, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "diagram.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "diagram", []string{attachment.Id}, "", "", nil, false)
+	require.NoError(t, err)
+	expired := func() time.Time { return message.GetCreatedAt().AsTime().Add(MessageEditWindow).Add(time.Nanosecond) }
+
+	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, message.Id, attachment.Id, "too late", withEditMessageClock(expired))
+	require.ErrorIs(t, err, ErrEditWindowExpired)
+	require.NoError(t, chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.Id, author.Id, PermMessageManage))
+	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, message.Id, attachment.Id, "managed after window", withEditMessageClock(expired))
+	require.NoError(t, err)
+	body, err := chattoCore.GetFullMessageBody(ctx, message.Id)
+	require.NoError(t, err)
+	require.Equal(t, "managed after window", body.AttachmentDescriptions[attachment.Id])
+}
+
+func TestSetAttachmentDescriptionRebuildsDescriptionsAfterOCCConflict(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "description-occ-author", "Description OCC Author", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, "", "description-occ", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	attachmentA, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "a.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	attachmentB, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "b.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	message, err := chattoCore.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: author.Id, RoomID: room.Id, AttachmentAssetIDs: []string{attachmentA.Id, attachmentB.Id},
+	})
+	require.NoError(t, err)
+
+	attempts := 0
+	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, message.Event.Id, attachmentA.Id, "First attachment", withEditMessageCommitAuthorization(func(attemptCtx context.Context) error {
+		attempts++
+		if attempts == 1 {
+			return chattoCore.SetAttachmentDescription(attemptCtx, author.Id, KindChannel, room.Id, message.Event.Id, attachmentB.Id, "Concurrent attachment")
+		}
+		return nil
+	}))
+	require.NoError(t, err)
+	require.Equal(t, 2, attempts)
+	body, err := chattoCore.GetFullMessageBody(ctx, message.Event.Id)
+	require.NoError(t, err)
+	require.Equal(t, "First attachment", body.AttachmentDescriptions[attachmentA.Id])
+	require.Equal(t, "Concurrent attachment", body.AttachmentDescriptions[attachmentB.Id])
+}
+
+func TestAttachmentDescriptionsFollowLinkedEchoesAndAttachmentDeletion(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "attachment-description-echo", "Attachment Description Echo", "password123")
+	require.NoError(t, err)
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "attachment-description-echo", "")
+	require.NoError(t, err)
+	_, err = chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id)
+	require.NoError(t, err)
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "root", nil, "", "", nil, false)
+	require.NoError(t, err)
+	attachment, err := chattoCore.UploadAttachment(ctx, author.Id, room.Id, "diagram.png", "image/png", bytes.NewReader(createTestPNG(20, 20)))
+	require.NoError(t, err)
+	reply, err := chattoCore.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: author.Id, RoomID: room.Id, Body: "reply", ThreadRootEventID: root.Id,
+		AttachmentAssetIDs: []string{attachment.Id}, AlsoSendToChannel: true,
+		AttachmentDescriptions: []MessageAttachmentDescriptionInput{{
+			AssetID: attachment.Id, Description: "Original description",
+		}},
+	})
+	require.NoError(t, err)
+	echoID, ok := chattoCore.roomModel.channelEchoEventID(reply.Event.Id)
+	require.True(t, ok)
+	_, _, err = chattoCore.Messages().SetAttachmentDescription(ctx, MessageAttachmentDescriptionSetInput{
+		ActorID: author.Id, RoomID: room.Id, EventID: echoID,
+		AttachmentID: attachment.Id, Description: "Echo-only edit",
+	})
+	require.ErrorIs(t, err, ErrInvalidArgument)
+
+	for _, eventID := range []string{reply.Event.Id, echoID} {
+		body, err := chattoCore.GetFullMessageBody(ctx, eventID)
+		require.NoError(t, err)
+		require.Equal(t, "Original description", body.AttachmentDescriptions[attachment.Id])
+	}
+
+	err = chattoCore.SetAttachmentDescription(ctx, author.Id, KindChannel, room.Id, reply.Event.Id, attachment.Id, "Replacement description")
+	require.NoError(t, err)
+	for _, eventID := range []string{reply.Event.Id, echoID} {
+		body, err := chattoCore.GetFullMessageBody(ctx, eventID)
+		require.NoError(t, err)
+		require.Equal(t, "Replacement description", body.AttachmentDescriptions[attachment.Id])
+	}
+
+	err = chattoCore.DeleteAttachmentFromMessage(ctx, author.Id, KindChannel, room.Id, reply.Event.Id, attachment.Id)
+	require.NoError(t, err)
+	for _, eventID := range []string{reply.Event.Id, echoID} {
+		body, err := chattoCore.GetFullMessageBody(ctx, eventID)
+		require.NoError(t, err)
+		require.Empty(t, body.Attachments)
+		require.NotContains(t, body.AttachmentDescriptions, attachment.Id)
 	}
 }
 
@@ -1390,6 +1604,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 	require.NoError(t, err)
 
 	err = core.editEmbeddedBody(ctx, author.Id, KindChannel, room.Id, message.Id,
+		messageMutationAuthorization{authorOnly: true},
 		func(attemptCtx context.Context) error {
 			removed, err := core.RemoveMember(attemptCtx, SystemActorID, KindChannel, room.Id, author.Id)
 			if err != nil {
@@ -1400,7 +1615,7 @@ func TestPartialMessageEditReauthorizesAfterMemberRemoval(t *testing.T) {
 			}
 			return nil
 		},
-		func(body *evtv1.MessageBody) error {
+		func(body *evtv1.MessageBody, _ map[string]string) error {
 			body.LinkPreview = nil
 			return nil
 		},

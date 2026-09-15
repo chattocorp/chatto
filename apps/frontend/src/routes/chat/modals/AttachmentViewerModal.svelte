@@ -210,6 +210,7 @@ media. HTML consent is never stored in history or carried to another selection.
 <AttachmentModal
   filename={item.filename}
   contentType={item.contentType}
+  description={item.description ?? undefined}
   size={metadata.data?.size ?? null}
   sizeLoading={metadata.isPending}
   {index}

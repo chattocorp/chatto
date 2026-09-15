@@ -85,7 +85,7 @@ component on selection changes so playback and consent cannot cross items.
 {:else if url && type.startsWith('image/')}
   <SkeletonImg
     src={url}
-    alt={item.filename}
+    alt={item.description || item.filename}
     class="h-full w-full object-contain"
     onerror={() => {
       void onerror();

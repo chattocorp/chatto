@@ -49,7 +49,7 @@
   const connection = {} as ServerConnection;
   const store = {
     notifications: { hasThreadNotification: () => false },
-    serverInfo: { messageEditWindowSeconds: 31_536_000 },
+    serverInfo: { messageEditWindowSeconds: 31_536_000, supportsFeature: () => true },
     activeCallRooms: { getParticipantCallPresence: () => null },
     currentUser: {
       user: { id: 'viewer', login: 'viewer', settings: undefined }

@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"hmans.de/chatto/internal/pb/chatto/core/notification/v1"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -22,10 +24,17 @@ const (
 
 type postMessageOptions struct {
 	videoProcessingAssetIDs map[string]struct{}
+	attachmentDescriptions  map[string]string
 	createThread            bool
 	commitAuthorize         func(context.Context, string) error
 	messageAttemptPrepared  func(context.Context) error
 	echoAttemptPrepared     func(context.Context) error
+}
+
+func withAttachmentDescriptions(descriptions map[string]string) PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.attachmentDescriptions = descriptions
+	}
 }
 
 type editMessageOptions struct {
@@ -535,7 +544,11 @@ func (c *ChattoCore) buildThreadReplyEchoEventsWithIDs(
 		return "", nil, nil, ErrMessageNotFound
 	}
 	echoBody := proto.Clone(body).(*evtv1.MessageBody)
-	if err := c.encryptMessageBody(ctx, echoBody, originalPost.GetRoomId(), echoID, echoBodyEventID, plaintext); err != nil {
+	descriptions, err := c.decryptAttachmentDescriptions(ctx, originalEvent.GetId(), originalPost.GetRoomId(), body)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("decrypt thread reply attachment descriptions: %w", err)
+	}
+	if err := c.encryptMessageContent(ctx, echoBody, originalPost.GetRoomId(), echoID, originalEvent.GetId(), echoBodyEventID, plaintext, descriptions); err != nil {
 		return "", nil, nil, fmt.Errorf("encrypt thread reply echo: %w", err)
 	}
 	echoBodyEvent := newEvent(actorID, &evtv1.Event{
@@ -1001,7 +1014,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		AuthorId:    user_id,
 		LinkPreview: linkPreview,
 	}
-	if err := c.encryptMessageBody(ctx, messageBody, room_id, eventID, bodyEventID, body); err != nil {
+	if err := c.encryptMessageContent(ctx, messageBody, room_id, eventID, eventID, bodyEventID, body, options.attachmentDescriptions); err != nil {
 		return nil, err
 	}
 	bodyEventEvent := newEvent(user_id, &evtv1.Event{
@@ -1276,6 +1289,43 @@ func validateMessageAttachmentAssetIDs(assetIDs []string) error {
 		}
 	}
 	return nil
+}
+
+func normalizeAttachmentDescription(value string) (string, error) {
+	normalized := strings.TrimSpace(value)
+	if utf8.RuneCountInString(normalized) > MaxAttachmentDescriptionLength {
+		return "", invalidArgument(fmt.Sprintf("attachment description cannot exceed %d characters", MaxAttachmentDescriptionLength))
+	}
+	return normalized, nil
+}
+
+func normalizeAttachmentDescriptionInputs(assetIDs []string, inputs []MessageAttachmentDescriptionInput) (map[string]string, error) {
+	if len(inputs) > MaxMessageAttachmentAssetIDs {
+		return nil, invalidArgument(fmt.Sprintf("attachment descriptions exceed maximum count of %d", MaxMessageAttachmentAssetIDs))
+	}
+	assets := make(map[string]struct{}, len(assetIDs))
+	for _, assetID := range assetIDs {
+		assets[assetID] = struct{}{}
+	}
+	result := make(map[string]string, len(inputs))
+	for _, input := range inputs {
+		if _, ok := assets[input.AssetID]; !ok {
+			return nil, invalidArgument("attachment description asset ID must be included in attachment_asset_ids")
+		}
+		if _, exists := result[input.AssetID]; exists {
+			return nil, invalidArgument("attachment description asset IDs must be unique")
+		}
+		description, err := normalizeAttachmentDescription(input.Description)
+		if err != nil {
+			return nil, err
+		}
+		if description != "" {
+			result[input.AssetID] = description
+		} else {
+			result[input.AssetID] = ""
+		}
+	}
+	return result, nil
 }
 
 type messageMutationAuthorization struct {
@@ -1591,7 +1641,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		}
 	}
 	createdChannelEchoID := ""
-	committedPlaintext, err := c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, channelEchoCreationTargetID, channelEchoRetractionTargetID, &createdChannelEchoID, func(ctx context.Context, updated *evtv1.MessageBody) (string, error) {
+	committedPlaintext, err := c.publishMessageEditWithAuthorization(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, channelEchoCreationTargetID, channelEchoRetractionTargetID, &createdChannelEchoID, func(ctx context.Context, updated *evtv1.MessageBody, _ map[string]string) (string, error) {
 		if updated.GetAuthorId() == "" {
 			return "", fmt.Errorf("cannot edit: message body author is empty")
 		}
@@ -1616,7 +1666,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 			// batch; another edit would create a duplicate realtime upsert.
 			continue
 		}
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linked *evtv1.MessageBody) (string, error) {
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linked *evtv1.MessageBody, _ map[string]string) (string, error) {
 			if options.preserveBody {
 				plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linked)
 				if err != nil {
@@ -1718,7 +1768,7 @@ func (c *ChattoCore) publishMessageRetract(
 // publishMessageEdit emits a MessageEditedEvent on EVT. StreamMyEvents
 // receives the canonical live.evt.> republish directly. Factored out so
 // EditMessage / editEmbeddedBody can fan the same payload to linked messages.
-type messageEditMutation func(context.Context, *evtv1.MessageBody) (plaintext string, err error)
+type messageEditMutation func(context.Context, *evtv1.MessageBody, map[string]string) (plaintext string, err error)
 
 func (c *ChattoCore) publishMessageEdit(
 	ctx context.Context,
@@ -1800,12 +1850,16 @@ func (c *ChattoCore) publishMessageEditWithAuthorization(
 			return "", ErrMessageNotFound
 		}
 		updated := proto.Clone(current).(*evtv1.MessageBody)
-		plaintext, err := mutate(ctx, updated)
+		descriptions, err := c.decryptAttachmentDescriptions(ctx, eventID, roomID, current)
+		if err != nil {
+			return "", fmt.Errorf("decrypt attachment descriptions for edit: %w", err)
+		}
+		plaintext, err := mutate(ctx, updated, descriptions)
 		if err != nil {
 			return "", err
 		}
 		updated.UpdatedAt = timestamppb.Now()
-		if err := c.encryptMessageBody(ctx, updated, roomID, eventID, bodyEventID, plaintext); err != nil {
+		if err := c.encryptMessageContent(ctx, updated, roomID, eventID, c.attachmentDescriptionCanonicalEventID(eventID), bodyEventID, plaintext, descriptions); err != nil {
 			return "", err
 		}
 		bodyEvent := newEvent(actorID, &evtv1.Event{
@@ -2079,48 +2133,54 @@ func validateLinkPreviewAsset(name string, asset *evtv1.AssetRecord) error {
 }
 
 // editEmbeddedBody is the shared engine behind partial-edit
-// operations (DeleteAttachmentFromMessage, DeleteLinkPreviewFromMessage).
+// operations (SetAttachmentDescription, DeleteAttachmentFromMessage,
+// DeleteLinkPreviewFromMessage).
 // Reads the current body from the projection, applies `mutate` to a
-// clone, encrypts no further (the body's ciphertext is unchanged —
-// only metadata moves), and emits a MessageEditedEvent.
-//
-// `actorID` is the user performing the edit; ownership is checked
-// against the body's author.
+// clone, re-encrypts all PII for the replacement MessageBodyEvent, and emits a
+// MessageEditedEvent.
 func (c *ChattoCore) editEmbeddedBody(
 	ctx context.Context,
 	actorID string,
 	kind RoomKind,
 	roomID, eventID string,
+	policy messageMutationAuthorization,
 	commitAuthorize func(context.Context) error,
-	mutate func(*evtv1.MessageBody) error,
+	mutate func(*evtv1.MessageBody, map[string]string) error,
+	opts ...EditMessageOption,
 ) error {
+	options := collectEditMessageOptions(opts)
+	now := time.Now
+	if options.now != nil {
+		now = options.now
+	}
 	if eventID == "" {
 		return ErrMessageNotFound
 	}
 	agg := evtstream.RoomAggregate(roomID)
-	policy := messageMutationAuthorization{authorOnly: true}
 	authorize := func(attemptCtx context.Context) error {
-		if err := c.authorizeMessageMutation(attemptCtx, actorID, kind, roomID, eventID, policy, time.Now()); err != nil {
+		if err := c.authorizeMessageMutation(attemptCtx, actorID, kind, roomID, eventID, policy, now()); err != nil {
 			return err
 		}
 		if commitAuthorize != nil {
-			return commitAuthorize(attemptCtx)
+			if err := commitAuthorize(attemptCtx); err != nil {
+				return err
+			}
+		}
+		if options.commitAuthorize != nil {
+			return options.commitAuthorize(attemptCtx)
 		}
 		return nil
 	}
 	validateCommit := func() error {
-		_, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, policy, time.Now())
+		_, err := c.validateMessageMutationIdentity(ctx, actorID, kind, roomID, eventID, policy, now())
 		return err
 	}
-	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", "", func(ctx context.Context, updated *evtv1.MessageBody) (string, error) {
-		if updated.GetAuthorId() != actorID {
-			return "", ErrNotMessageAuthor
-		}
+	_, err := c.publishAuthorizedMessageEdit(ctx, actorID, agg, roomID, eventID, authorize, validateCommit, "", "", func(ctx context.Context, updated *evtv1.MessageBody, descriptions map[string]string) (string, error) {
 		plaintext, err := c.decryptMessageBody(ctx, eventID, roomID, updated)
 		if err != nil {
 			return "", fmt.Errorf("decrypt message body for edit: %w", err)
 		}
-		if err := mutate(updated); err != nil {
+		if err := mutate(updated, descriptions); err != nil {
 			return "", err
 		}
 		return string(plaintext), nil
@@ -2130,12 +2190,12 @@ func (c *ChattoCore) editEmbeddedBody(
 	}
 	c.secureDeleteObsoleteMessageBodyEvents(ctx, eventID)
 	for _, linkedID := range c.roomModel.linkedEventIDs(eventID) {
-		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linkedBody *evtv1.MessageBody) (string, error) {
+		if _, err := c.publishMessageEdit(ctx, actorID, agg, roomID, linkedID, func(ctx context.Context, linkedBody *evtv1.MessageBody, descriptions map[string]string) (string, error) {
 			plaintext, err := c.decryptMessageBody(ctx, linkedID, roomID, linkedBody)
 			if err != nil {
 				return "", fmt.Errorf("decrypt linked message body for edit: %w", err)
 			}
-			if err := mutate(linkedBody); err != nil {
+			if err := mutate(linkedBody, descriptions); err != nil {
 				return "", err
 			}
 			return string(plaintext), nil
@@ -2149,13 +2209,43 @@ func (c *ChattoCore) editEmbeddedBody(
 	return nil
 }
 
+// SetAttachmentDescription replaces one attachment description with the same
+// authorization, edit window, OCC, linked-echo, and secure-deletion behavior
+// as a message-body edit. An empty description clears the value.
+func (c *ChattoCore) SetAttachmentDescription(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, attachmentID, description string, opts ...EditMessageOption) error {
+	normalized, err := normalizeAttachmentDescription(description)
+	if err != nil {
+		return err
+	}
+	description = normalized
+	policy := messageMutationAuthorization{enforceEditWindow: true, requireMessageRead: true}
+	return c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, policy, nil, func(body *evtv1.MessageBody, descriptions map[string]string) error {
+		found := false
+		for _, attachment := range c.mediaModel.MessageBodyAttachments(body) {
+			if attachment.GetId() == attachmentID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("attachment not found in message: %w", ErrMessageAttachmentNotFound)
+		}
+		if description == "" {
+			delete(descriptions, attachmentID)
+		} else {
+			descriptions[attachmentID] = description
+		}
+		return nil
+	}, opts...)
+}
+
 // DeleteAttachmentFromMessage deletes a single attachment from a
 // message. Only the message author can delete their attachments.
 // Emits a MessageEditedEvent with the attachment removed; also
 // deletes the file from the asset store best-effort.
 func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, attachmentID string) error {
 	var removed *evtv1.Attachment
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *evtv1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, messageMutationAuthorization{authorOnly: true}, nil, func(body *evtv1.MessageBody, descriptions map[string]string) error {
 		// Resolve the attachment (new bodies hold IDs; older bodies hold
 		// embedded protos). Then trim from whichever shape holds it.
 		for _, att := range c.mediaModel.MessageBodyAttachments(body) {
@@ -2181,6 +2271,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 			}
 		}
 		body.Attachments = trimmedAttachments
+		delete(descriptions, attachmentID)
 		return nil
 	})
 	if err != nil {
@@ -2225,7 +2316,7 @@ func (c *ChattoCore) DeleteAttachmentFromMessage(ctx context.Context, actorID st
 // Only the message author can delete link previews from their
 // messages.
 func (c *ChattoCore) DeleteLinkPreviewFromMessage(ctx context.Context, actorID string, kind RoomKind, roomID, eventID, previewURL string) error {
-	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, nil, func(body *evtv1.MessageBody) error {
+	err := c.editEmbeddedBody(ctx, actorID, kind, roomID, eventID, messageMutationAuthorization{authorOnly: true}, nil, func(body *evtv1.MessageBody, _ map[string]string) error {
 		if body.GetLinkPreview() == nil || body.GetLinkPreview().GetUrl() != previewURL {
 			return fmt.Errorf("link preview not found in message: %w", ErrMessageLinkPreviewNotFound)
 		}

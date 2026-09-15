@@ -34,6 +34,9 @@ message AdminMember {
   google.protobuf.Timestamp last_login_change = 11;
   // Public identity fields for this user.
   chatto.api.v1.User user = 12;
+  // Selected primary verified email visible to the caller. Absence can mean
+  // that no primary email exists or that the field is not visible.
+  optional string primary_verified_email = 13;
 }
 
 // Request server-admin member rows.

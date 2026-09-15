@@ -411,8 +411,11 @@ type MessageAttachment struct {
 	ThumbnailAssetUrl *MessageAssetUrl `protobuf:"bytes,7,opt,name=thumbnail_asset_url,json=thumbnailAssetUrl,proto3" json:"thumbnail_asset_url,omitempty"`
 	// Video-specific processing metadata, when this attachment is a video.
 	VideoProcessing *MessageVideoProcessing `protobuf:"bytes,8,opt,name=video_processing,json=videoProcessing,proto3" json:"video_processing,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// User-provided description for accessibility and attachment details.
+	// Absent when the attachment has no description.
+	Description   *string `protobuf:"bytes,9,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MessageAttachment) Reset() {
@@ -499,6 +502,13 @@ func (x *MessageAttachment) GetVideoProcessing() *MessageVideoProcessing {
 		return x.VideoProcessing
 	}
 	return nil
+}
+
+func (x *MessageAttachment) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
 }
 
 // Aggregated reaction state for one emoji on one message.
@@ -954,7 +964,7 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"reasonCode\x12N\n" +
 	"\x13thumbnail_asset_url\x18\a \x01(\v2\x1e.chatto.api.v1.MessageAssetUrlR\x11thumbnailAssetUrl\x12>\n" +
 	"\bvariants\x18\b \x03(\v2\".chatto.api.v1.MessageVideoVariantR\bvariants\x120\n" +
-	"\x03hls\x18\t \x01(\v2\x1e.chatto.api.v1.MessageVideoHLSR\x03hls\"\xef\x02\n" +
+	"\x03hls\x18\t \x01(\v2\x1e.chatto.api.v1.MessageVideoHLSR\x03hls\"\xa6\x03\n" +
 	"\x11MessageAttachment\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bfilename\x18\x02 \x01(\tR\bfilename\x12!\n" +
@@ -963,7 +973,9 @@ const file_chatto_api_v1_message_types_proto_rawDesc = "" +
 	"\x06height\x18\x05 \x01(\x05R\x06height\x12;\n" +
 	"\tasset_url\x18\x06 \x01(\v2\x1e.chatto.api.v1.MessageAssetUrlR\bassetUrl\x12N\n" +
 	"\x13thumbnail_asset_url\x18\a \x01(\v2\x1e.chatto.api.v1.MessageAssetUrlR\x11thumbnailAssetUrl\x12P\n" +
-	"\x10video_processing\x18\b \x01(\v2%.chatto.api.v1.MessageVideoProcessingR\x0fvideoProcessing\"\x88\x01\n" +
+	"\x10video_processing\x18\b \x01(\v2%.chatto.api.v1.MessageVideoProcessingR\x0fvideoProcessing\x12%\n" +
+	"\vdescription\x18\t \x01(\tH\x00R\vdescription\x88\x01\x01B\x0e\n" +
+	"\f_description\"\x88\x01\n" +
 	"\x0fMessageReaction\x12\x14\n" +
 	"\x05emoji\x18\x01 \x01(\tR\x05emoji\x12\x14\n" +
 	"\x05count\x18\x02 \x01(\x05R\x05count\x12\x1f\n" +
@@ -1074,6 +1086,7 @@ func file_chatto_api_v1_message_types_proto_init() {
 		return
 	}
 	file_chatto_api_v1_link_previews_proto_init()
+	file_chatto_api_v1_message_types_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_api_v1_message_types_proto_msgTypes[6].OneofWrappers = []any{}
 	file_chatto_api_v1_message_types_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}

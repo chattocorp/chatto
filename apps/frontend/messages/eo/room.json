@@ -159,6 +159,13 @@
       "download_label": "Elŝutu {filename}",
       "image_refresh_failed": "Ne eblis refreŝigi bildan ligilon",
       "download_refresh_failed": "Ne eblis refreŝigi elŝutan ligilon",
+      "add_description": "Aldoni priskribon",
+      "edit_description": "Redakti priskribon",
+      "description_title": "Priskribo de aldonaĵo",
+      "description_label": "Priskribo (nedeviga)",
+      "description_help": "Priskribu la aldonaĵon por homoj, kiuj ne povas vidi aŭ aŭdi ĝin.",
+      "description_too_long": "Priskriboj povas enhavi maksimume {max} signojn.",
+      "description_update_failed": "Ne eblis ĝisdatigi la priskribon de la aldonaĵo",
       "html_viewer": {
         "download": "Elŝuti",
         "show_preview": "Montri antaŭrigardon",

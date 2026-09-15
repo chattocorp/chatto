@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+  import { type MessageAttachmentView } from '$lib/render/messageAttachments';
 
   type RawAttachment = MessageAttachmentView;
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
@@ -41,13 +41,15 @@
     serverId,
     roomId,
     eventId,
-    canDeleteAttachment = false
+    canDeleteAttachment = false,
+    canEditAttachmentDescription = false
   }: {
     attachments: readonly MessageAttachmentView[];
     serverId: string;
     roomId: string;
     eventId: string;
     canDeleteAttachment?: boolean;
+    canEditAttachmentDescription?: boolean;
   } = $props();
 
   let refreshedAttachmentUrls = $state.raw(new Map<string, RefreshedAttachmentUrls>());
@@ -140,6 +142,10 @@
           }
         : null
     };
+  }
+
+  function descriptionID(attachment: Attachment): string {
+    return `attachment-description-${eventId}-${attachment.id}`;
   }
 
   type Attachment = ReturnType<typeof normalizeAttachment>;
@@ -366,21 +372,61 @@
       }
     });
   }
+
+  function openDescriptionEditor(attachment: Attachment, event: Event) {
+    event.stopPropagation();
+    pushState('', {
+      modal: {
+        type: 'editAttachmentDescription',
+        serverId,
+        roomId,
+        eventId,
+        attachmentId: attachment.id,
+        description: attachment.description ?? ''
+      }
+    });
+  }
 </script>
 
 {#if attachments.length > 0}
-  {#snippet deleteAttachmentButton(attachment: Attachment, className = '')}
+  {#snippet deleteAttachmentButton(attachment: Attachment)}
     {#if canDeleteAttachment}
       <button
         type="button"
         onclick={(event) => openDeleteConfirmation(attachment, event)}
-        class={['attachment-remove-button md:group-hover/attachment:opacity-100', className]}
+        class="attachment-remove-button top-1 z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100"
         aria-label={m('room.attachment.delete_label')}
         title={m('room.attachment.delete_label')}
       >
         <span class="iconify icon-[uil--times] text-sm"></span>
       </button>
     {/if}
+  {/snippet}
+
+  {#snippet editDescriptionButton(attachment: Attachment)}
+    {#if canEditAttachmentDescription}
+      <button
+        type="button"
+        onclick={(event) => openDescriptionEditor(attachment, event)}
+        class={[
+          'attachment-remove-button z-10 md:group-hover/attachment:opacity-100 md:focus-visible:opacity-100',
+          canDeleteAttachment ? 'top-12' : 'top-1'
+        ]}
+        aria-label={attachment.description
+          ? m('room.attachment.edit_description')
+          : m('room.attachment.add_description')}
+        title={attachment.description
+          ? m('room.attachment.edit_description')
+          : m('room.attachment.add_description')}
+      >
+        <span class="iconify icon-[uil--file-edit-alt] text-sm"></span>
+      </button>
+    {/if}
+  {/snippet}
+
+  {#snippet attachmentControls(attachment: Attachment)}
+    {@render deleteAttachmentButton(attachment)}
+    {@render editDescriptionButton(attachment)}
   {/snippet}
 
   {#snippet imageAttachmentButton(attachment: Attachment, variant: 'single' | 'gallery')}
@@ -392,51 +438,39 @@
         : variant === 'gallery'
           ? fallbackGalleryThumbDisplay()
           : null}
-    <button
-      type="button"
-      onclick={() => openAttachmentModal(attachment)}
-      aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
-      data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
-      class={[
-        'group/attachment relative embed-frame block min-w-0 cursor-pointer',
-        variant === 'gallery' && 'shrink-0',
-        !display && 'max-h-32'
-      ]}
-      style={display ? imageButtonStyle(display, variant) : undefined}
-    >
-      {#if imageAttachmentUrl(attachment)}
-        <SkeletonImg
-          loading="lazy"
-          src={imageAttachmentUrl(attachment)}
-          alt={attachment.filename}
-          class={[
-            display?.fit === 'contain' ? 'object-contain' : 'object-cover',
-            display ? 'h-full w-full' : 'max-h-32 w-auto'
-          ]}
-          onerror={() =>
-            refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
-        />
-      {:else}
-        <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
-          <span class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
-        </span>
-      {/if}
-      {#if canDeleteAttachment}
-        <span
-          role="button"
-          tabindex="-1"
-          onclick={(e) => openDeleteConfirmation(attachment, e)}
-          onkeydown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') openDeleteConfirmation(attachment, e);
-          }}
-          class="attachment-remove-button md:group-hover/attachment:opacity-100"
-          aria-label={m('room.attachment.delete_label')}
-          title={m('room.attachment.delete_label')}
-        >
-          <span class="iconify icon-[uil--times] text-sm"></span>
-        </span>
-      {/if}
-    </button>
+    <div class={['group/attachment relative min-w-0', variant === 'gallery' && 'shrink-0']}>
+      <button
+        type="button"
+        onclick={() => openAttachmentModal(attachment)}
+        aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
+        aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
+        data-testid={variant === 'gallery' ? 'message-gallery-image' : undefined}
+        style={display ? imageButtonStyle(display, variant) : undefined}
+        class={['embed-frame block min-w-0 cursor-pointer', !display && 'max-h-32']}
+      >
+        {#if attachment.description}
+          <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
+        {/if}
+        {#if imageAttachmentUrl(attachment)}
+          <SkeletonImg
+            loading="lazy"
+            src={imageAttachmentUrl(attachment)}
+            alt={attachment.description || attachment.filename}
+            class={[
+              display?.fit === 'contain' ? 'object-contain' : 'object-cover',
+              display ? 'h-full w-full' : 'max-h-32 w-auto'
+            ]}
+            onerror={() =>
+              refreshAfterAssetError(attachment, attachment.thumbnailUrl ? 'thumbnail' : 'asset')}
+          />
+        {:else}
+          <span class="flex h-16 w-16 items-center justify-center text-muted" aria-hidden="true">
+            <span class="iconify icon-[mdi--file-image-outline] text-2xl"></span>
+          </span>
+        {/if}
+      </button>
+      {@render attachmentControls(attachment)}
+    </div>
   {/snippet}
 
   {#snippet viewAttachmentButton(attachment: Attachment)}
@@ -458,136 +492,163 @@
   {/snippet}
 
   {#snippet attachmentItem(attachment: Attachment)}
-    {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
-      {@const autoLoop = attachment.contentType === 'image/gif'}
-      <div class="group/attachment relative min-w-0">
-        {#await loadVideoPlayer(videoPlayerLoadAttempt)}
-          <div
-            class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
-            aria-busy="true"
-          >
-            {m('common.loading')}
-          </div>
-        {:then { default: VideoPlayer }}
-          <VideoPlayer
-            status={attachment.videoProcessing.status}
-            variants={attachment.videoProcessing.variants}
-            thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
-            hlsUrl={attachment.videoProcessing.hlsUrl}
-            fallbackUrl={attachment.url}
-            fallbackContentType={attachment.contentType}
-            width={attachment.videoProcessing.width}
-            height={attachment.videoProcessing.height}
-            reasonCode={attachment.videoProcessing.reasonCode}
-            filename={attachment.filename}
-            {autoLoop}
-            onPosterError={autoLoop ? undefined : () => refreshAfterAssetError(attachment, 'video')}
-            onMediaError={() =>
-              refreshAfterAssetError(
-                attachment,
-                !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
-              )}
-          />
-        {:catch}
-          <div
-            class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
-          >
-            <p class="text-sm text-muted">{m('common.error.network')}</p>
-            <button
-              type="button"
-              class="btn-secondary"
-              onclick={() => (videoPlayerLoadAttempt += 1)}
+    <div class="flex max-w-full min-w-0 flex-col items-start">
+      {#if attachment.videoProcessing && (attachment.contentType === 'image/gif' || attachment.contentType.startsWith('video/'))}
+        {@const autoLoop = attachment.contentType === 'image/gif'}
+        <div class="group/attachment relative min-w-0">
+          {#await loadVideoPlayer(videoPlayerLoadAttempt)}
+            <div
+              class="embed-frame flex min-h-32 min-w-48 items-center justify-center p-4 text-sm text-muted"
+              aria-busy="true"
             >
-              {m('common.retry')}
-            </button>
-          </div>
-        {/await}
-        {@render viewAttachmentButton(attachment)}
-        {@render deleteAttachmentButton(attachment, autoLoop ? '' : 'z-10')}
-      </div>
-    {:else if attachment.contentType.startsWith('image/')}
-      {@render imageAttachmentButton(attachment, 'single')}
-    {:else if attachment.contentType.startsWith('video/') && attachment.url}
-      <!--
+              {m('common.loading')}
+            </div>
+          {:then { default: VideoPlayer }}
+            <VideoPlayer
+              status={attachment.videoProcessing.status}
+              variants={attachment.videoProcessing.variants}
+              thumbnailUrl={attachment.videoProcessing.thumbnailUrl}
+              hlsUrl={attachment.videoProcessing.hlsUrl}
+              fallbackUrl={attachment.url}
+              fallbackContentType={attachment.contentType}
+              width={attachment.videoProcessing.width}
+              height={attachment.videoProcessing.height}
+              reasonCode={attachment.videoProcessing.reasonCode}
+              filename={attachment.filename}
+              describedBy={attachment.description ? descriptionID(attachment) : undefined}
+              {autoLoop}
+              onPosterError={autoLoop
+                ? undefined
+                : () => refreshAfterAssetError(attachment, 'video')}
+              onMediaError={() =>
+                refreshAfterAssetError(
+                  attachment,
+                  !autoLoop && attachment.videoProcessing?.hlsUrl ? 'hls' : 'video'
+                )}
+            />
+          {:catch}
+            <div
+              class="embed-frame flex min-h-32 min-w-48 flex-col items-center justify-center gap-3 p-4 text-center"
+            >
+              <p class="text-sm text-muted">{m('common.error.network')}</p>
+              <button
+                type="button"
+                class="btn-secondary"
+                onclick={() => (videoPlayerLoadAttempt += 1)}
+              >
+                {m('common.retry')}
+              </button>
+            </div>
+          {/await}
+          {@render viewAttachmentButton(attachment)}
+          {@render attachmentControls(attachment)}
+        </div>
+      {:else if attachment.contentType.startsWith('image/')}
+        {@render imageAttachmentButton(attachment, 'single')}
+      {:else if attachment.contentType.startsWith('video/') && attachment.url}
+        <!--
           A video attachment that hasn't been projected as a processing manifest
           yet — e.g. the message arrived before AssetProcessingStartedEvent did,
           or processing has never been requested for this asset. Render the raw
           original so the user can at least play it.
         -->
-      <div class="embed-frame">
-        <video
-          controls
-          preload="metadata"
-          src={attachment.url}
-          class="max-h-64 max-w-full"
-          onerror={() => refreshAfterAssetError(attachment, 'asset')}
-        >
-          <track kind="captions" />
-        </video>
-        {@render viewAttachmentButton(attachment)}
-      </div>
-    {:else if attachment.contentType.startsWith('audio/') && attachment.url}
-      <div class="group/attachment relative min-w-0">
-        <div class="embed-frame flex items-center gap-3 px-3 py-2">
-          <audio
+        <div class="group/attachment relative embed-frame">
+          <video
             controls
             preload="metadata"
             src={attachment.url}
-            class="h-8 max-w-xs"
-            data-testid="audio-player"
+            class="max-h-64 max-w-full"
             onerror={() => refreshAfterAssetError(attachment, 'asset')}
+            aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
           >
-            {attachment.filename}
-          </audio>
+            <track kind="captions" />
+          </video>
+          {@render viewAttachmentButton(attachment)}
+          {@render attachmentControls(attachment)}
         </div>
-        {@render viewAttachmentButton(attachment)}
-        {@render deleteAttachmentButton(attachment)}
-      </div>
-    {:else}
-      <div
-        class="group/attachment embed-frame flex max-w-full min-w-[min(14rem,100%)] items-center"
-      >
-        <button
-          type="button"
-          onclick={() => openAttachmentModal(attachment)}
-          aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
-          class="block min-w-0 flex-1 cursor-pointer text-start"
+      {:else if attachment.contentType.startsWith('audio/') && attachment.url}
+        <div class="group/attachment relative min-w-0">
+          <div class="embed-frame flex items-center gap-3 px-3 py-2">
+            <audio
+              controls
+              preload="metadata"
+              src={attachment.url}
+              class="h-8 max-w-xs"
+              data-testid="audio-player"
+              onerror={() => refreshAfterAssetError(attachment, 'asset')}
+              aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
+            >
+              {attachment.filename}
+            </audio>
+          </div>
+          {@render viewAttachmentButton(attachment)}
+          {@render attachmentControls(attachment)}
+        </div>
+      {:else}
+        <div
+          class="group/attachment embed-frame flex max-w-full min-w-[min(14rem,100%)] items-center"
         >
-          <div class="flex min-h-16 items-center gap-3 px-3 py-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6 shrink-0 text-muted"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-              />
-            </svg>
-            <span class="min-w-0 text-sm wrap-anywhere"><bdi>{attachment.filename}</bdi></span>
-          </div>
-        </button>
-        {#if canDeleteAttachment}
-          <!-- Keep tile actions in normal flow so additional actions share the
-               same spacing and cannot overlap the filename. -->
-          <div class="me-1 flex shrink-0 items-center">
-            <button
-              type="button"
-              onclick={(event) => openDeleteConfirmation(attachment, event)}
-              class="mini-icon-action h-10 w-10 items-center justify-center"
-              aria-label={m('room.attachment.delete_label')}
-              title={m('room.attachment.delete_label')}
-            >
-              <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
-            </button>
-          </div>
-        {/if}
-      </div>
-    {/if}
+          <button
+            type="button"
+            onclick={() => openAttachmentModal(attachment)}
+            aria-label={m('room.attachment.view_label', { filename: attachment.filename })}
+            aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
+            class="block min-w-0 flex-1 cursor-pointer text-start"
+          >
+            <div class="flex min-h-16 items-center gap-3 px-3 py-3">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-6 w-6 shrink-0 text-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                />
+              </svg>
+              <span class="min-w-0 text-sm wrap-anywhere"><bdi>{attachment.filename}</bdi></span>
+            </div>
+          </button>
+          {#if canDeleteAttachment || canEditAttachmentDescription}
+            <div class="me-1 flex shrink-0 items-center">
+              {#if canDeleteAttachment}
+                <button
+                  type="button"
+                  onclick={(event) => openDeleteConfirmation(attachment, event)}
+                  class="mini-icon-action h-10 w-10 items-center justify-center"
+                  aria-label={m('room.attachment.delete_label')}
+                  title={m('room.attachment.delete_label')}
+                >
+                  <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
+                </button>
+              {/if}
+              {#if canEditAttachmentDescription}
+                <button
+                  type="button"
+                  onclick={(event) => openDescriptionEditor(attachment, event)}
+                  class="mini-icon-action h-10 w-10 items-center justify-center"
+                  aria-label={attachment.description
+                    ? m('room.attachment.edit_description')
+                    : m('room.attachment.add_description')}
+                  title={attachment.description
+                    ? m('room.attachment.edit_description')
+                    : m('room.attachment.add_description')}
+                >
+                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
+                </button>
+              {/if}
+            </div>
+          {/if}
+        </div>
+      {/if}
+      {#if attachment.description && !isGalleryImageAttachment(attachment)}
+        <span id={descriptionID(attachment)} class="sr-only">{attachment.description}</span>
+      {/if}
+    </div>
   {/snippet}
 
   {#if hasImageGallery}

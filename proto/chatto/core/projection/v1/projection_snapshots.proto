@@ -376,6 +376,8 @@ message ProjectedUserProfileSnapshot {
   chatto.core.evt.v1.ServerUserPreferences preferences = 10;
   google.protobuf.Timestamp login_changed_at = 11;
   ProjectedEncryptedUserStringSnapshot bio = 12;
+  // Event ID of the verified email selected for account-directed email.
+  string primary_verified_email_event_id = 13;
 }
 
 message ProjectedEncryptedUserStringSnapshot {

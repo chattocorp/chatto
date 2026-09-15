@@ -1,7 +1,7 @@
 # FDR-010: OIDC Authorization Grants
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -23,11 +23,19 @@ sessions.
   authenticated account, exact client, and granted scopes. The grant captures
   the validated client name and display host used by the account UI.
 - A later request skips the consent page only when its exact client ID has an
-  active grant containing every requested scope. Authentication is still
+  active grant containing every requested scope and the current consent
+  disclosure version. Authentication is still
   required, and all ordinary client, redirect, request, and PKCE validation
   still runs.
 - `prompt=consent` always displays consent. Allowing it renews the active grant
   and records a new authorization fact without changing the active grant ID.
+- Consent disclosure version 1 lists the stable account ID (`sub`), preferred
+  username (`preferred_username`), and optional full name (`name`). It shows
+  current values and explains that access includes future profile changes,
+  including a full name added later. The `openid` claim contract does
+  not change. An expanded claim policy must use a new disclosure version.
+- Approval forms carry the disclosure version. The server rejects an outdated
+  approval form and asks the person to reload it. Denial remains available.
 - Denying a forced-consent request does not revoke an existing grant.
 - The account page lists active grants with their client name, display host,
   and latest explicit authorization time. Same-origin POST is required to
@@ -42,30 +50,45 @@ sessions.
 
 ## Durable Model
 
-`OIDCGrantAuthorizedEvent` and `OIDCGrantRevokedEvent` are PII-free account
-aggregate facts in `AUTHLING_EVT`. They contain opaque account and grant IDs,
-a deployment-keyed digest of the exact client ID, the client metadata snapshot,
-scopes, and opaque event correlations. They contain no raw configured client
-ID or CIMD URL, account email, browser metadata, token, code, redirect URI, or
-submitted request URL.
+`OIDCGrantAuthorizedEvent` and `OIDCGrantRevokedEvent` are account aggregate
+facts in `AUTHLING_EVT`. Grants contain opaque account and grant IDs, a
+deployment-keyed digest of the exact client ID, scopes, consent disclosure
+version, encrypted display metadata, and opaque event correlations. Client
+names and hosts can contain personal data, so events never store them in
+plaintext. Raw client IDs, CIMD URLs, account emails, tokens, codes, redirect
+URIs, and submitted request URLs are not added to these records.
+
+Metadata envelope version 1 encrypts the name and display host as a JSON object
+with XChaCha20-Poly1305. It uses the account's existing credential data key and
+user-key hierarchy; authorization does not provision or delete keys. Associated
+data binds the envelope to the event ID, account ID, grant ID, exact-client
+digest, scopes, prior authorization event, disclosure version, and both key
+references. The version-specific domain separates it from other encrypted
+account data. Authorization requires an account with encryption keys.
+
+Only metadata envelope version 1 is supported. The unused plaintext protobuf
+fields retain their original tags but must be empty. Authling has not been
+deployed; this implementation does not provide a migration from plaintext
+grant history.
 
 The authorization projection consumes `authling.evt.account.*`, rebuilds the
 active grant inventory in memory, and is disposable. Commands synchronize it
 to the current account tail, publish with account-subject OCC, re-evaluate
 after conflicts, and wait for the committed position before returning. Replay
 rejects renewals or revocations that reference another active authorization,
-grant IDs reused after revocation, and grants for absent accounts.
+grant IDs reused after revocation, grants for absent accounts, and protected
+metadata that references a different account key hierarchy. The decoder
+rejects unknown envelope or disclosure versions and mixed plaintext/encrypted
+fields. The projection retains ciphertext for protected grants. The service
+authenticates and decrypts it when returning display data or checking consent
+reuse. Missing keys or invalid ciphertext fail closed. Revocation itself does
+not require decryption.
 
 The client metadata stored in a grant is a display snapshot, not the authority
 for future protocol requests. Every authorization request continues to resolve
 and validate the currently configured client or CIMD document. This avoids an
 outbound metadata fetch from the account page and prevents transient client
 resolution failures from hiding revocation controls.
-
-The new protobuf variants are additive storage fields, but binaries predating
-them reject the unknown Authling event payload during replay. Deploy this
-experimental feature as a coordinated Authling upgrade. Once either event has
-been written, do not roll a replica back to a version that predates FDR-010.
 
 ## Security and Failure Behavior
 

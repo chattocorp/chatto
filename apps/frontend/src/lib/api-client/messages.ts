@@ -17,6 +17,7 @@ export type CreateMessageInput = {
   body: string;
   attachmentAssetIds?: string[];
   attachments?: File[] | null;
+  attachmentDescriptions?: AttachmentDescriptionInput[];
   threadRootEventId?: string | null;
   inReplyTo?: string | null;
   alsoSendToChannel?: boolean;
@@ -24,6 +25,9 @@ export type CreateMessageInput = {
   linkPreviewToken?: string | null;
   onAttachmentUploadUpdate?: (update: AttachmentUploadUpdate) => void;
 };
+
+export type AttachmentDescriptionInput =
+  { file: File; description: string } | { assetId: string; description: string };
 
 export type AttachmentUploadUpdate =
   | {
@@ -57,7 +61,16 @@ export function createMessageAPI(config: MessageAPIConfig) {
   return {
     async createMessage(input: CreateMessageInput): Promise<CreateMessageResult> {
       try {
-        const uploadedAttachmentAssetIds = await uploadMessageAttachments(config, input);
+        const uploadedAttachments = await uploadMessageAttachments(config, input);
+        const uploadedAttachmentAssetIds = uploadedAttachments.map(({ assetId }) => assetId);
+        const uploadedAssetIDByFile = new Map(
+          uploadedAttachments.map(({ file, assetId }) => [file, assetId] as const)
+        );
+        const attachmentDescriptions = (input.attachmentDescriptions ?? []).flatMap((entry) => {
+          const assetId =
+            'assetId' in entry ? entry.assetId : uploadedAssetIDByFile.get(entry.file);
+          return assetId ? [{ assetId, description: entry.description.trim() }] : [];
+        });
         const response = await client.createMessage(
           {
             roomId: input.roomId,
@@ -66,6 +79,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
               ...(input.attachmentAssetIds ?? []),
               ...uploadedAttachmentAssetIds
             ],
+            attachmentDescriptions,
             threadRootEventId: input.threadRootEventId ?? '',
             inReplyTo: input.inReplyTo ?? '',
             alsoSendToChannel: input.alsoSendToChannel ?? false,
@@ -138,11 +152,32 @@ export function createMessageAPI(config: MessageAPIConfig) {
       attachmentId: string
     ): Promise<boolean> {
       try {
-        await client.deleteAttachment(
-          { roomId, eventId, attachmentId },
+        await client.deleteAttachment({ roomId, eventId, attachmentId }, { headers: headers() });
+        return true;
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async setAttachmentDescription(
+      roomId: string,
+      eventId: string,
+      attachmentId: string,
+      description: string
+    ): Promise<UpdateMessageResult> {
+      try {
+        const response = await client.setAttachmentDescription(
+          { roomId, eventId, attachmentId, description: description.trim() },
           { headers: headers() }
         );
-        return true;
+        const users = await timelineUsersForMessages(
+          config,
+          response.message ? [response.message] : []
+        );
+        return {
+          updated: true,
+          event: response.message ? messageToTimelineEvent(response.message, users) : null
+        };
       } catch (err) {
         return handleAuthError(config, err);
       }
@@ -150,10 +185,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
 
     async deleteLinkPreview(roomId: string, eventId: string, url: string): Promise<boolean> {
       try {
-        await client.deleteLinkPreview(
-          { roomId, eventId, url },
-          { headers: headers() }
-        );
+        await client.deleteLinkPreview({ roomId, eventId, url }, { headers: headers() });
         return true;
       } catch (err) {
         return handleAuthError(config, err);
@@ -182,7 +214,7 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
           }
         });
         input.onAttachmentUploadUpdate?.({ file, phase: 'uploaded' });
-        return asset;
+        return { file, assetId: asset.assetId };
       } catch (error) {
         input.onAttachmentUploadUpdate?.({ file, phase: 'failed' });
         throw error;
@@ -193,6 +225,6 @@ async function uploadMessageAttachments(config: MessageAPIConfig, input: CreateM
   if (failed) throw failed.reason;
   return results.map((result) => {
     if (result.status === 'rejected') throw result.reason;
-    return result.value.assetId;
+    return result.value;
   });
 }

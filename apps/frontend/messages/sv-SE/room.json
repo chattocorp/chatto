@@ -159,6 +159,13 @@
       "download_label": "Ladda ner {filename}",
       "image_refresh_failed": "Det gick inte att uppdatera bildlänken",
       "download_refresh_failed": "Det gick inte att uppdatera nedladdningslänken",
+      "add_description": "Lägg till beskrivning",
+      "edit_description": "Redigera beskrivning",
+      "description_title": "Beskrivning av bilaga",
+      "description_label": "Beskrivning (valfritt)",
+      "description_help": "Beskriv bilagan för personer som inte kan se eller höra den.",
+      "description_too_long": "Beskrivningar får innehålla högst {max} tecken.",
+      "description_update_failed": "Det gick inte att uppdatera beskrivningen av bilagan",
       "html_viewer": {
         "download": "Ladda ned",
         "show_preview": "Visa förhandsvisning",

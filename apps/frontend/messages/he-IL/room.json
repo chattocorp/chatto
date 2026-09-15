@@ -163,6 +163,13 @@
       "download_label": "הורד את {filename}",
       "image_refresh_failed": "לא ניתן לרענן את הקישור לתמונה",
       "download_refresh_failed": "לא ניתן לרענן את קישור ההורדה",
+      "add_description": "הוספת תיאור",
+      "edit_description": "עריכת התיאור",
+      "description_title": "תיאור הקובץ המצורף",
+      "description_label": "תיאור (רשות)",
+      "description_help": "תארו את הקובץ המצורף עבור אנשים שאינם יכולים לראות או לשמוע אותו.",
+      "description_too_long": "התיאור יכול להכיל עד {max} תווים.",
+      "description_update_failed": "עדכון תיאור הקובץ המצורף נכשל",
       "html_viewer": {
         "download": "הורדה",
         "show_preview": "הצגת תצוגה מקדימה",

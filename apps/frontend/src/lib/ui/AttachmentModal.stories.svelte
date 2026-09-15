@@ -39,6 +39,7 @@
     <AttachmentModal
       filename={images[index].filename}
       contentType={images[index].contentType}
+      description="A white circle on a coloured background."
       size={24000}
       downloadUrl={images[index].url}
       {index}

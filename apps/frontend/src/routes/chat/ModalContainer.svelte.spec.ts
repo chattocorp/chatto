@@ -216,6 +216,11 @@ vi.mock('$lib/ui/form', async () => {
   return { Button: ButtonMock };
 });
 
+vi.mock('./modals/EditAttachmentDescriptionModal.svelte', async () => {
+  const { default: DialogMock } = await import('./ModalContainerDialogMock.svelte');
+  return { default: DialogMock };
+});
+
 import ModalContainer from './ModalContainer.svelte';
 import SignOutDialog from './SignOutDialog.svelte';
 

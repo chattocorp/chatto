@@ -8,6 +8,19 @@ import "chatto/api/v1/link_previews.proto";
 import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/reactions.proto";
 
+// Description supplied for one attachment in a new message.
+message MessageAttachmentDescriptionInput {
+  // Required. Asset ID included in attachment_asset_ids on the same request.
+  string asset_id = 1 [(buf.validate.field).string = {
+    min_len: 1
+    max_bytes: 15
+  }];
+  // Plain-text description with at most 1,000 Unicode characters. Trim outer
+  // whitespace before sending. Chatto also trims outer whitespace, preserves
+  // internal line breaks, and omits an empty result.
+  string description = 2 [(buf.validate.field).string.max_len = 1000];
+}
+
 // Request to create a message in a room or thread.
 message CreateMessageRequest {
   // Field 8 was `link_preview`, a client-provided metadata message used before
@@ -53,6 +66,11 @@ message CreateMessageRequest {
   // both message.post and message.post-in-thread. Cannot be combined with
   // thread_root_event_id.
   bool create_thread = 11;
+  // Optional descriptions for assets in attachment_asset_ids. Asset IDs must
+  // be unique in this list. At most one description can target each asset.
+  repeated MessageAttachmentDescriptionInput attachment_descriptions = 12 [(buf.validate.field).repeated = {
+    max_items: 10
+  }];
 }
 
 // Result of creating a message.
@@ -132,6 +150,26 @@ message DeleteAttachmentRequest {
 message DeleteAttachmentResponse {
   reserved 1;
   reserved "deleted";
+}
+
+// Request to set or clear one attachment description.
+message SetAttachmentDescriptionRequest {
+  // Required. Room containing the message.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Canonical message event containing the attachment.
+  string event_id = 2 [(buf.validate.field).string.min_len = 1];
+  // Required. Attachment asset ID in the current message body.
+  string attachment_id = 3 [(buf.validate.field).string.min_len = 1];
+  // Replacement description with at most 1,000 Unicode characters. Trim outer
+  // whitespace before sending. Chatto also trims outer whitespace and preserves
+  // internal line breaks. An empty result clears the description.
+  string description = 4 [(buf.validate.field).string.max_len = 1000];
+}
+
+// Result of setting or clearing an attachment description.
+message SetAttachmentDescriptionResponse {
+  // Renderable message after the description change.
+  Message message = 1;
 }
 
 // Request to remove the accepted link preview from a message.
@@ -235,6 +273,11 @@ service MessageService {
   rpc DeleteMessage(DeleteMessageRequest) returns (DeleteMessageResponse);
   // Removes one attachment from the author's own message.
   rpc DeleteAttachment(DeleteAttachmentRequest) returns (DeleteAttachmentResponse);
+  // Sets or clears one attachment description. Authors can change descriptions
+  // within the message edit window. Effective message.manage permits changes
+  // at any time and to other users' messages. Room membership and message read
+  // access are required.
+  rpc SetAttachmentDescription(SetAttachmentDescriptionRequest) returns (SetAttachmentDescriptionResponse);
   // Removes the accepted link preview from the author's own message.
   rpc DeleteLinkPreview(DeleteLinkPreviewRequest) returns (DeleteLinkPreviewResponse);
   // Reads one renderable message, including current body, attachment metadata,

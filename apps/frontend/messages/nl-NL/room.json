@@ -159,6 +159,13 @@
       "download_label": "{filename} downloaden",
       "image_refresh_failed": "Kan afbeeldingslink niet vernieuwen",
       "download_refresh_failed": "Kan de downloadlink niet vernieuwen",
+      "add_description": "Beschrijving toevoegen",
+      "edit_description": "Beschrijving bewerken",
+      "description_title": "Beschrijving van bijlage",
+      "description_label": "Beschrijving (optioneel)",
+      "description_help": "Beschrijf de bijlage voor mensen die deze niet kunnen zien of horen.",
+      "description_too_long": "Beschrijvingen mogen maximaal {max} tekens bevatten.",
+      "description_update_failed": "Beschrijving van bijlage bijwerken mislukt",
       "html_viewer": {
         "download": "Downloaden",
         "show_preview": "Voorbeeld tonen",

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { ChangePasswordRequest, ChangePasswordResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
+import { ChangePasswordRequest, ChangePasswordResponse, ConfirmEmailVerificationRequest, ConfirmEmailVerificationResponse, DeleteMyAccountRequest, DeleteMyAccountResponse, GetSettingsRequest, GetSettingsResponse, ListVerifiedEmailsRequest, ListVerifiedEmailsResponse, RequestAccountDeletionRequest, RequestAccountDeletionResponse, RequestEmailVerificationRequest, RequestEmailVerificationResponse, SetPrimaryEmailRequest, SetPrimaryEmailResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateSettingsRequest, UpdateSettingsResponse } from "./account_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 import { DisconnectExternalIdentityRequest, DisconnectExternalIdentityResponse, ListExternalIdentitiesRequest, ListExternalIdentitiesResponse, StartExternalIdentityLinkRequest, StartExternalIdentityLinkResponse } from "./external_identities_pb.js";
 import { SetPresenceRequest, SetPresenceResponse } from "./presence_pb.js";
@@ -39,6 +39,66 @@ export const MyAccountService = {
       name: "ChangePassword",
       I: ChangePasswordRequest,
       O: ChangePasswordResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Lists the authenticated user's verified email addresses and primary choice.
+     * Returns FAILED_PRECONDITION when the authenticated account does not match
+     * expected_user_id.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.ListVerifiedEmails
+     */
+    listVerifiedEmails: {
+      name: "ListVerifiedEmails",
+      I: ListVerifiedEmailsRequest,
+      O: ListVerifiedEmailsResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.NoSideEffects,
+    },
+    /**
+     * Sends a six-digit code to an email address that the authenticated user
+     * wants to add. The code expires after the server-configured email OTP
+     * lifetime. The client can request a new code after expiry. The server must
+     * have transactional email enabled. Returns ALREADY_EXISTS when the address
+     * is already verified for the user, RESOURCE_EXHAUSTED after too many code
+     * requests or attempts, and UNAVAILABLE when email delivery is disabled or
+     * fails. Returns FAILED_PRECONDITION when the authenticated account does not
+     * match expected_user_id.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.RequestEmailVerification
+     */
+    requestEmailVerification: {
+      name: "RequestEmailVerification",
+      I: RequestEmailVerificationRequest,
+      O: RequestEmailVerificationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Confirms a verification code and adds the address to the account. Returns
+     * INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+     * when another user already controls the address. Returns FAILED_PRECONDITION
+     * when the authenticated account does not match expected_user_id.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.ConfirmEmailVerification
+     */
+    confirmEmailVerification: {
+      name: "ConfirmEmailVerification",
+      I: ConfirmEmailVerificationRequest,
+      O: ConfirmEmailVerificationResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Selects one verified address for future account-directed email. Returns
+     * NOT_FOUND when the address is not verified for the authenticated user, and
+     * FAILED_PRECONDITION when the authenticated account does not match
+     * expected_user_id.
+     *
+     * @generated from rpc chatto.api.v1.MyAccountService.SetPrimaryEmail
+     */
+    setPrimaryEmail: {
+      name: "SetPrimaryEmail",
+      I: SetPrimaryEmailRequest,
+      O: SetPrimaryEmailResponse,
       kind: MethodKind.Unary,
     },
     /**

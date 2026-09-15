@@ -272,6 +272,18 @@ describe('shared attachment previews', () => {
     await expect.element(view.getByAltText('first.gif')).toBeVisible();
   });
 
+  it('preserves gallery descriptions as alt text and visible captions', async () => {
+    const modal = gallery();
+    modal.items[0].description = 'Blue line rising across the chart.';
+    modal.items[1].description = 'Red line falling across the chart.';
+    const view = mount(modal);
+    await expect.element(view.getByAltText(modal.items[0].description)).toBeVisible();
+    await expect.element(view.getByText(modal.items[0].description, { exact: true })).toBeVisible();
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByAltText(modal.items[1].description)).toBeVisible();
+    await expect.element(view.getByText(modal.items[1].description, { exact: true })).toBeVisible();
+  });
+
   it('discards an earlier image refresh after changing the selection', async () => {
     let resolve!: (value: Map<string, RefreshedAttachmentUrls>) => void;
     mocks.refreshUrls.mockImplementationOnce(() => new Promise((done) => (resolve = done)));
@@ -299,7 +311,9 @@ describe('shared attachment previews', () => {
     view.container.querySelector('img')!.dispatchEvent(new Event('error'));
     await expect.element(view.getByRole('alert')).toBeVisible();
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(2);
-    await expect.element(view.getByRole('button', { name: 'Try Again', exact: true })).toBeVisible();
+    await expect
+      .element(view.getByRole('button', { name: 'Try Again', exact: true }))
+      .toBeVisible();
     await view.getByRole('button', { name: 'Try Again', exact: true }).click();
     await expect.poll(() => mocks.refreshUrls.mock.calls.length).toBe(3);
   });
@@ -325,7 +339,11 @@ describe('shared attachment previews', () => {
       ...modal.items[0],
       contentType: 'video/mp4',
       assetUrl: { url: 'data:video/mp4,', expiresAt: '2099-01-01' },
-      videoProcessing: { status: VideoProcessingStatus.Pending, variants: [], sourceAvailable: true }
+      videoProcessing: {
+        status: VideoProcessingStatus.Pending,
+        variants: [],
+        sourceAvailable: true
+      }
     };
     const view = mount(modal);
     await expect
