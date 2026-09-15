@@ -254,6 +254,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
+			if consent.Silent {
+				rejectSilentRequest(w, r, deps.OIDC, requestID, true)
+				return
+			}
 			redirect(w, r, "/login?id="+url.QueryEscape(requestID))
 			return
 		} else if err != nil {
@@ -266,6 +270,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		if target, authorized, err := deps.OIDC.TryAuthorize(r.Context(), requestID, account.ID, session.AuthenticatedAt); errors.Is(err, oidcprovider.ErrLoginRequired) {
+			if consent.Silent {
+				rejectSilentRequest(w, r, deps.OIDC, requestID, true)
+				return
+			}
 			redirect(w, r, "/login?id="+url.QueryEscape(requestID))
 			return
 		} else if err != nil {
@@ -273,6 +281,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		} else if authorized {
 			redirect(w, r, target)
+			return
+		}
+		if consent.Silent {
+			rejectSilentRequest(w, r, deps.OIDC, requestID, false)
 			return
 		}
 		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
@@ -807,7 +819,14 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		clearSessionCookie(w, deps.SecureCookies)
 		redirect(w, r, "/login")
 	})
-	mux.HandleFunc("GET /signup", func(w http.ResponseWriter, r *http.Request) { render(w, r, http.StatusOK, signupPage("")) })
+	mux.HandleFunc("GET /signup", func(w http.ResponseWriter, r *http.Request) {
+		requestID := r.URL.Query().Get("id")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
+			return
+		}
+		render(w, r, http.StatusOK, signupPage("", requestID))
+	})
 	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
 			http.Error(w, "signup unavailable", http.StatusServiceUnavailable)
@@ -819,15 +838,20 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, signupPage("Invalid form submission."))
+			render(w, r, http.StatusBadRequest, signupPage("Invalid form submission.", ""))
+			return
+		}
+		requestID := r.FormValue("oidc_request")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
 		flow, err := deps.Registration.Start(r.Context(), r.FormValue("email"))
 		if err != nil {
-			render(w, r, http.StatusUnprocessableEntity, signupPage(publicStartError(err)))
+			render(w, r, http.StatusUnprocessableEntity, signupPage(publicStartError(err), requestID))
 			return
 		}
-		render(w, r, http.StatusOK, codePage(flow, ""))
+		render(w, r, http.StatusOK, codePage(flow, "", requestID))
 	})
 	mux.HandleFunc("POST /signup/verify", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
@@ -843,12 +867,17 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
-		flow := r.FormValue("flow")
-		if err := deps.Registration.Verify(r.Context(), flow, r.FormValue("code")); err != nil {
-			render(w, r, http.StatusUnprocessableEntity, codePage(flow, registration.ErrInvalidCode.Error()))
+		requestID := r.FormValue("oidc_request")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
-		render(w, r, http.StatusOK, passwordPage(flow, "", deps.Registration.PasswordMinimumLength()))
+		flow := r.FormValue("flow")
+		if err := deps.Registration.Verify(r.Context(), flow, r.FormValue("code")); err != nil {
+			render(w, r, http.StatusUnprocessableEntity, codePage(flow, registration.ErrInvalidCode.Error(), requestID))
+			return
+		}
+		render(w, r, http.StatusOK, passwordPage(flow, "", deps.Registration.PasswordMinimumLength(), requestID))
 	})
 	mux.HandleFunc("POST /signup/complete", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
@@ -864,20 +893,25 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
+		requestID := r.FormValue("oidc_request")
+		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(w, r, deps.OIDC, requestID)) {
+			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
+			return
+		}
 		flow := r.FormValue("flow")
 		password := r.FormValue("password")
 		if password != r.FormValue("password_confirmation") {
-			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, "Passwords do not match.", deps.Registration.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, "Passwords do not match.", deps.Registration.PasswordMinimumLength(), requestID))
 			return
 		}
 		authenticatedAt := time.Now().UTC()
 		account, err := deps.Registration.Complete(r.Context(), flow, password)
 		if errors.Is(err, accounts.ErrInvalidPassword) {
-			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error(), deps.Registration.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error(), deps.Registration.PasswordMinimumLength(), requestID))
 			return
 		}
 		if err != nil {
-			render(w, r, http.StatusUnprocessableEntity, signupPage(registration.ErrInvalidFlow.Error()))
+			render(w, r, http.StatusUnprocessableEntity, signupPage(registration.ErrInvalidFlow.Error(), requestID))
 			return
 		}
 		if deps.Sessions == nil {
@@ -886,6 +920,10 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion, authenticatedAt); err != nil {
 			render(w, r, http.StatusServiceUnavailable, accountCreatedPage(account.ID))
+			return
+		}
+		if requestID != "" {
+			redirect(w, r, "/oidc/consent?id="+url.QueryEscape(requestID))
 			return
 		}
 		redirect(w, r, "/account")
@@ -938,6 +976,16 @@ func validConsentRequest(w http.ResponseWriter, r *http.Request, service *oidcpr
 	}
 	w.Header().Set("Content-Security-Policy", contentSecurityPolicy(consent.RedirectOrigin))
 	return true
+}
+
+// rejectSilentRequest returns a protocol error without rendering an interactive page.
+func rejectSilentRequest(w http.ResponseWriter, r *http.Request, service *oidcprovider.Service, id string, loginRequired bool) {
+	target, err := service.RejectSilent(r.Context(), id, loginRequired)
+	if err != nil {
+		http.Error(w, "authorization request unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	redirect(w, r, target)
 }
 
 func loginReturnPath(candidate string) string {

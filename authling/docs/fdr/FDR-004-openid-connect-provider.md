@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -82,16 +82,43 @@ controlled development environments. Private-host and loopback-host trust are
 separate exceptions, and each admits only its named address class. Neither
 permits link-local, multicast, or other special-use destinations.
 
+## Request Admission
+
+Before client lookup, a syntactically valid authorization request consumes one
+of 1,000 shared admissions. Each admission restarts a ten-minute quiet window;
+the exhausted counter expires ten minutes after the last admission. Rejected
+requests do not extend it. This bounds new pending state without evicting
+sessions or recovery records. It also bounds admissions for configured and
+cached CIMD clients. The counter uses OCC in `AUTHLING_RUNTIME_STATE` and survives
+process restart. Failed lookup or state creation does not refund admission.
+
+Exhaustion returns HTTP 429 with `Retry-After: 600`; unavailable or malformed
+admission state returns HTTP 503. Neither response logs request metadata or
+redirects to an unvalidated client. Ingress limits remain necessary for total
+HTTP traffic. Admission does not apply to consent, code exchange, or UserInfo,
+so existing flows can finish while new requests are limited.
+
+Browser preflight at the token endpoint returns CORS headers before POST
+validation. Actual token requests still require the supported form encoding,
+parameters, and PKCE proof.
+
 ## Authentication Freshness
 
 Authorization accepts `prompt=login`, `prompt=consent`, and their combination.
 `prompt=login` and `max_age=0` require a successful authentication ceremony
 that starts after the authorization request was created. A positive `max_age`
 sets the maximum elapsed seconds since authentication. Invalid, duplicate,
-negative, and overflowing values are rejected. `prompt=none` remains unsupported.
+negative, and overflowing values are rejected.
+
+`prompt=none` permits no interactive page. An active session and a current
+covering grant can authorize silently. An absent or stale session returns
+`login_required`; a missing or revoked grant returns `consent_required` to the
+validated redirect URI with the original state. Combining `none` with another
+prompt is invalid. The encrypted request stores this constraint across restart.
 
 Both automatic grant reuse and explicit approval check freshness. If the
-session is too old, the browser returns to login with the same pending request.
+session is too old, an interactive request returns to login with the same
+pending request. A silent request returns `login_required`.
 A failed login does not change authentication time. The checks use full timestamp
 precision so a session from earlier in the same second cannot satisfy forced
 login. Positive age limits are checked again when consent is submitted.
@@ -110,8 +137,7 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 
 - An issuer mismatch or signing-key mismatch prevents readiness.
 - Duplicate security-sensitive authorization parameters, missing or weak
-  PKCE, unsupported scopes and response modes, request objects, and
-  `prompt=none` fail closed.
+  PKCE, unsupported scopes and response modes, and request objects fail closed.
 - Consent and login POSTs require Authling's exact browser origin. Pending IDs
   are resolved server-side and cannot carry an arbitrary return URL. Login and
   recovery forms permit only the validated client redirect origin in addition
@@ -143,3 +169,11 @@ freshness parameters in [OpenID Connect Core](https://openid.net/specs/openid-co
 - **Authorization grants:** [FDR-010](FDR-010-oidc-authorization-grants.md)
 - **Profiles:** [FDR-011](FDR-011-account-profile.md)
 - **Signing-key rotation:** [FDR-012](FDR-012-automatic-oidc-signing-key-rotation.md)
+
+## Upgrade Behavior
+
+These changes add no durable event variants. Historical pending requests omit
+`silent` and retain their interactive behavior. New runtime counters expire on
+their own; no data migration is required. Update all replicas before relying on
+the shared limits or silent-request behavior: older replicas do not enforce
+these controls.
