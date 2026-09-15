@@ -315,3 +315,26 @@ func TestCIMDHTTPSBodyCancellationReleasesSlot(t *testing.T) {
 		t.Fatalf("HTTPS lookup did not recover: %v", err)
 	}
 }
+
+// A canceled HTTP handler can finish its partial response before the transport
+// reports cancellation. EOF must not hide the caller's cancellation reason.
+type cimdCanceledEOFBody struct{ cancel context.CancelFunc }
+
+func (b cimdCanceledEOFBody) Read(p []byte) (int, error) { b.cancel(); return copy(p, "{"), io.EOF }
+func (cimdCanceledEOFBody) Close() error                 { return nil }
+
+func TestCIMDBodyEOFDoesNotHideCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	resolver := newCIMDTestResolver(t, func(request *http.Request) (*http.Response, error) {
+		response := cimdTestResponse(request, "max-age=60")
+		response.Body = cimdCanceledEOFBody{cancel: cancel}
+		return response, nil
+	})
+	if _, err := resolver.Resolve(ctx, "https://client.example/metadata"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("body EOF hid cancellation: %v", err)
+	}
+	if len(resolver.slots) != 0 || len(resolver.cache) != 0 {
+		t.Fatal("canceled body retained resources")
+	}
+}

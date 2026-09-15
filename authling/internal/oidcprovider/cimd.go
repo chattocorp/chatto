@@ -162,6 +162,11 @@ func (r *CIMDResolver) Resolve(ctx context.Context, clientID string) (*Client, e
 	}
 	limited := io.LimitReader(response.Body, maxCIMDBytes+1)
 	data, err := io.ReadAll(limited)
+	// A canceled peer can finish a partial body with EOF before the transport
+	// reports cancellation. Preserve the caller's reason before decoding it.
+	if contextErr := ctx.Err(); contextErr != nil {
+		return nil, contextErr
+	}
 	if err != nil {
 		return nil, fmt.Errorf("read CIMD: %w", err)
 	}

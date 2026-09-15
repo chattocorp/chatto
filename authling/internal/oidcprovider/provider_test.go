@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
@@ -113,9 +114,9 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 		{name: "duplicate scope"},
 		{name: "account data without openid"},
 		{name: "prompt none"},
-		{name: "prompt login"},
+		{name: "prompt login", want: true},
 		{name: "form post"},
-		{name: "max age"},
+		{name: "max age", want: true},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -410,5 +411,56 @@ func TestCIMDCachePolicyIsBounded(t *testing.T) {
 	}
 	if age, cache := cimdCacheAge("max-age=999999"); !cache || age != maxCIMDCacheAge {
 		t.Fatalf("cache age = %v, %v", age, cache)
+	}
+}
+
+func TestAuthenticationFreshness(t *testing.T) {
+	now := time.Date(2026, 9, 15, 12, 0, 0, 500, time.UTC)
+	age := uint(60)
+	zero := uint(0)
+	for _, tt := range []struct {
+		name  string
+		state authRequestState
+		at    time.Time
+		want  bool
+	}{
+		{"ordinary SSO", authRequestState{}, now.Add(-time.Hour), true},
+		{"missing evidence", authRequestState{}, time.Time{}, false},
+		{"future evidence", authRequestState{}, now.Add(time.Nanosecond), false},
+		{"recent", authRequestState{MaxAge: &age}, now.Add(-59 * time.Second), true},
+		{"exact boundary", authRequestState{MaxAge: &age}, now.Add(-60 * time.Second), true},
+		{"expired", authRequestState{MaxAge: &age}, now.Add(-60*time.Second - time.Nanosecond), false},
+		{"equal request time", authRequestState{CreatedAt: now, ForceLogin: true}, now, false},
+		{"same second old login", authRequestState{CreatedAt: now, ForceLogin: true}, now.Add(-time.Nanosecond), false},
+		{"forced login", authRequestState{CreatedAt: now.Add(-time.Second), ForceLogin: true}, now, true},
+		{"zero old login", authRequestState{CreatedAt: now, MaxAge: &zero}, now.Add(-time.Nanosecond), false},
+		{"zero permits consent after fresh login", authRequestState{CreatedAt: now.Add(-time.Minute), MaxAge: &zero}, now.Add(-time.Second), true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.state.checkAuthentication(tt.at, now); (err == nil) != tt.want {
+				t.Fatalf("freshness error = %v, want allowed %v", err, tt.want)
+			}
+		})
+	}
+}
+
+func TestFreshnessParameterValidation(t *testing.T) {
+	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
+	for _, tt := range []struct {
+		query string
+		want  bool
+	}{
+		{"max_age=0", true}, {"max_age=60", true}, {"max_age=18446744073709551615", true},
+		{"max_age=", false}, {"max_age=-1", false}, {"max_age=%2B1", false}, {"max_age=1.5", false},
+		{"max_age=18446744073709551616", false}, {"max_age=1&max_age=2", false},
+		{"prompt=login", true}, {"prompt=login+consent", true}, {"prompt=consent+login", true},
+		{"prompt=login+login", false}, {"prompt=none+login", false}, {"prompt=select_account", false},
+	} {
+		t.Run(tt.query, func(t *testing.T) {
+			err := validateAuthorizeRequest(httptest.NewRequest(http.MethodGet, valid+"&"+tt.query, nil))
+			if (err == nil) != tt.want {
+				t.Fatalf("validation = %v, want allowed %v", err, tt.want)
+			}
+		})
 	}
 }

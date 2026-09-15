@@ -305,7 +305,12 @@ OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
 requires exactly the `openid` scope and S256 PKCE.
 Signed-out requests resume through an opaque server-side request ID after
-login. `GET /oidc/consent` reuses a durable exact-client authorization grant
+login. Encrypted session state carries a separate authentication timestamp;
+email-change session replacement preserves it. Encrypted OIDC request state
+stores `max_age` and forced-login constraints. Both grant reuse and approval
+check these constraints, return stale sessions to login, and copy the actual
+authentication time into the ID token's `auth_time` claim.
+`GET /oidc/consent` reuses a durable exact-client authorization grant
 when it covers the requested scopes and current disclosure version, except
 when `prompt=consent` requires an explicit decision. The page lists the account
 ID, username, and optional full name and discloses later profile changes. Same-origin `POST /oidc/consent`

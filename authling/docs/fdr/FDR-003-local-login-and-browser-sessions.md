@@ -28,6 +28,11 @@ experience.
   generation. Login checks both account and email-registry projection boundaries
   after password verification and rejects a credential that changed during the
   check. Audit-only events do not invalidate an otherwise current proof.
+- Encrypted session state stores authentication time separately from session
+  creation and activity times. Login, signup, password reset, and signed-in
+  password change record the start of the successful credential ceremony.
+  Email-change session replacement preserves the previous authentication time.
+  OIDC uses this value for authentication freshness and the `auth_time` claim.
 - A session expires after 24 hours even if active, or after one hour without
   activity. Activity extends only the inactivity limit, never the absolute
   lifetime.
