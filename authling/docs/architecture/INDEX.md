@@ -360,6 +360,15 @@ password reset, signed-in password change, and email change also cap request
 bodies. OTP flows globally limit delivery and bound concurrent SMTP and
 completion work per process.
 
+Signup, password reset, and email change use `storage.DeliveryBudget` for
+refundable delivery counters. Each workflow keeps its existing global key,
+HMAC-derived recipient keys, limits, and 15-minute quiet window. The budget
+reserves global capacity before recipient capacity. Failed work refunds
+confirmed reservations on a best-effort basis. Counter mutations retry only
+confirmed revision conflicts. An uncertain write acknowledgement stops the
+operation and can leave capacity consumed until expiry. Rollback attempts both
+counters even if one fails. Non-refundable request admission remains separate.
+
 ## Account deletion and erasure
 
 `GET /account/delete` renders the effects and limits from
