@@ -313,6 +313,13 @@ projection boundaries, then appends a `PasswordChangedEvent` bound to the exact
 reauthenticated credential. It advances the authentication version, invalidates
 older browser sessions, and creates a replacement session at that exact
 generation. The account ID, verified email, and OIDC `sub` remain unchanged.
+Both password commands use one private replacement method in `accounts` for
+password hashing, verifier encryption, event publication, and projection waits.
+Each command retains its input checks and ceremony kind. Recovery also retains
+its request event reference. A confirmed conflict triggers a fresh credential
+check; retries reuse the same event and encrypted verifier. Other publication
+errors return without retry because the commit outcome can be unknown.
+
 `GET` and `HEAD /.well-known/change-password` return a temporary, non-cacheable
 redirect to this page. A signed-out request carries only this fixed internal
 return target through login. Other submitted return targets are ignored.
