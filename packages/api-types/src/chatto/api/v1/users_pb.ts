@@ -124,7 +124,7 @@ export class User extends Message<User> {
   /**
    * Present for a bot identity; absent for humans and deleted-account references.
    *
-   * @generated from field: chatto.api.v1.BotInfo bot = 12;
+   * @generated from field: chatto.api.v1.BotInfo bot = 11;
    */
   bot?: BotInfo;
 
@@ -145,7 +145,7 @@ export class User extends Message<User> {
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
     { no: 9, name: "bio", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 10, name: "timezone", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 12, name: "bot", kind: "message", T: BotInfo },
+    { no: 11, name: "bot", kind: "message", T: BotInfo },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

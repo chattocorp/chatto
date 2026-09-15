@@ -92,7 +92,7 @@ type User struct {
 	// sharing or has no stored time zone.
 	Timezone *string `protobuf:"bytes,10,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	// Present for a bot identity; absent for humans and deleted-account references.
-	Bot           *BotInfo `protobuf:"bytes,12,opt,name=bot,proto3" json:"bot,omitempty"`
+	Bot           *BotInfo `protobuf:"bytes,11,opt,name=bot,proto3" json:"bot,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -203,7 +203,7 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\n" +
 	"\x19chatto/api/v1/users.proto\x12\rchatto.api.v1\x1a\x1cchatto/api/v1/presence.proto\x1a\x1fchatto/api/v1/user_status.proto\"-\n" +
 	"\aBotInfo\x12\"\n" +
-	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xc8\x03\n" +
+	"\rowner_user_id\x18\x01 \x01(\tR\vownerUserId\"\xaf\x03\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -216,10 +216,10 @@ const file_chatto_api_v1_users_proto_rawDesc = "" +
 	"\x03bio\x18\t \x01(\tH\x01R\x03bio\x88\x01\x01\x12\x1f\n" +
 	"\btimezone\x18\n" +
 	" \x01(\tH\x02R\btimezone\x88\x01\x01\x12(\n" +
-	"\x03bot\x18\f \x01(\v2\x16.chatto.api.v1.BotInfoR\x03botB\r\n" +
+	"\x03bot\x18\v \x01(\v2\x16.chatto.api.v1.BotInfoR\x03botB\r\n" +
 	"\v_avatar_urlB\x06\n" +
 	"\x04_bioB\v\n" +
-	"\t_timezoneJ\x04\b\b\x10\tJ\x04\b\v\x10\fR\x06is_botR\x11bot_owner_user_idB\xa6\x01\n" +
+	"\t_timezoneJ\x04\b\b\x10\tR\x06is_botB\xa6\x01\n" +
 	"\x11com.chatto.api.v1B\n" +
 	"UsersProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 

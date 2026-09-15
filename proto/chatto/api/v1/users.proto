@@ -28,8 +28,8 @@ message User {
   PresenceStatus presence_status = 6;
   // Custom profile status, when set.
   CustomUserStatus custom_status = 7;
-  reserved 8, 11;
-  reserved "is_bot", "bot_owner_user_id";
+  reserved 8;
+  reserved "is_bot";
   // Short self-authored biography shown on the user's profile, when set.
   optional string bio = 9;
   // IANA time zone the user chose to share on their profile (for example
@@ -37,5 +37,5 @@ message User {
   // sharing or has no stored time zone.
   optional string timezone = 10;
   // Present for a bot identity; absent for humans and deleted-account references.
-  BotInfo bot = 12;
+  BotInfo bot = 11;
 }
