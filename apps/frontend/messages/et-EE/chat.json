@@ -80,7 +80,30 @@
       "fallback_title": "Profiil",
       "not_found": "Kasutajat ei leitud",
       "bot": "Bot",
-      "local_time": "{time} kohalik aeg ({zone})"
+      "local_time": "{time} kohalik aeg ({zone})",
+      "permissions": {
+        "title": "Mida see bot teha saab",
+        "note": "Praegused õigused, mis on sulle nähtavad. Sõnumi- ja kõnetoimingud nõuavad ka liikmelisust ning neil võib olla muid nõudeid.",
+        "empty": "Sulle pole nähtavaid aktiivseid õigusi.",
+        "error": "Selle boti õigusi ei saanud laadida.",
+        "inactive_title": "Mitteaktiivsed õigused",
+        "inactive_note": "Need õigused on salvestatud, kuid omaniku praegused õigused ei luba neid.",
+        "allowed": "Saab: {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Lugeda kõiki sõnumeid",
+        "interactions": "Lugeda lõimi, mille ta lõi või kus teda otse mainiti",
+        "post": "Saata uusi sõnumeid",
+        "room": "#{name}",
+        "group": "Rühm: {name}",
+        "dm": "Otsesõnumid, milles ta osaleb",
+        "joined_rooms": "Ruumid, millega ta on liitunud",
+        "all_rooms": "Kõik kanaliruumid",
+        "server": "See server",
+        "more": "Näita rohkem õigusi",
+        "list_rooms": "Näha ruume kataloogis",
+        "echo": "Näidata lõimede vastuseid ruumi ajajoonel",
+        "start_calls": "Alustada kõnesid"
+      }
     }
   }
 }

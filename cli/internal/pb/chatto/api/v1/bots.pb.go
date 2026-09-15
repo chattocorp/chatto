@@ -24,6 +24,67 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// The scope of a bot permission. Channel scopes never include direct messages.
+type BotPermissionScope int32
+
+const (
+	// No scope was supplied.
+	BotPermissionScope_BOT_PERMISSION_SCOPE_UNSPECIFIED BotPermissionScope = 0
+	// Server authority, or a default for all channel rooms and groups.
+	BotPermissionScope_BOT_PERMISSION_SCOPE_SERVER BotPermissionScope = 1
+	// A room group and its channel rooms.
+	BotPermissionScope_BOT_PERMISSION_SCOPE_GROUP BotPermissionScope = 2
+	// One channel room.
+	BotPermissionScope_BOT_PERMISSION_SCOPE_ROOM BotPermissionScope = 3
+	// Direct messages the bot belongs to; participant identities are not exposed.
+	BotPermissionScope_BOT_PERMISSION_SCOPE_DM BotPermissionScope = 4
+)
+
+// Enum value maps for BotPermissionScope.
+var (
+	BotPermissionScope_name = map[int32]string{
+		0: "BOT_PERMISSION_SCOPE_UNSPECIFIED",
+		1: "BOT_PERMISSION_SCOPE_SERVER",
+		2: "BOT_PERMISSION_SCOPE_GROUP",
+		3: "BOT_PERMISSION_SCOPE_ROOM",
+		4: "BOT_PERMISSION_SCOPE_DM",
+	}
+	BotPermissionScope_value = map[string]int32{
+		"BOT_PERMISSION_SCOPE_UNSPECIFIED": 0,
+		"BOT_PERMISSION_SCOPE_SERVER":      1,
+		"BOT_PERMISSION_SCOPE_GROUP":       2,
+		"BOT_PERMISSION_SCOPE_ROOM":        3,
+		"BOT_PERMISSION_SCOPE_DM":          4,
+	}
+)
+
+func (x BotPermissionScope) Enum() *BotPermissionScope {
+	p := new(BotPermissionScope)
+	*p = x
+	return p
+}
+
+func (x BotPermissionScope) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BotPermissionScope) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_bots_proto_enumTypes[0].Descriptor()
+}
+
+func (BotPermissionScope) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_bots_proto_enumTypes[0]
+}
+
+func (x BotPermissionScope) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BotPermissionScope.Descriptor instead.
+func (BotPermissionScope) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{0}
+}
+
 // Availability of best-effort credential last-use telemetry.
 type CredentialLastUsedState int32
 
@@ -65,11 +126,11 @@ func (x CredentialLastUsedState) String() string {
 }
 
 func (CredentialLastUsedState) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_api_v1_bots_proto_enumTypes[0].Descriptor()
+	return file_chatto_api_v1_bots_proto_enumTypes[1].Descriptor()
 }
 
 func (CredentialLastUsedState) Type() protoreflect.EnumType {
-	return &file_chatto_api_v1_bots_proto_enumTypes[0]
+	return &file_chatto_api_v1_bots_proto_enumTypes[1]
 }
 
 func (x CredentialLastUsedState) Number() protoreflect.EnumNumber {
@@ -78,7 +139,202 @@ func (x CredentialLastUsedState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CredentialLastUsedState.Descriptor instead.
 func (CredentialLastUsedState) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{1}
+}
+
+// One permission in a bot's effective allowlist. Membership and other action
+// requirements still apply. Broader scopes replace equivalent narrower entries.
+type BotPermission struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable permission key, such as message.read.
+	Permission string `protobuf:"bytes,1,opt,name=permission,proto3" json:"permission,omitempty"`
+	// Where the permission applies.
+	Scope BotPermissionScope `protobuf:"varint,2,opt,name=scope,proto3,enum=chatto.api.v1.BotPermissionScope" json:"scope,omitempty"`
+	// Room or group ID. Empty for server and direct-message scopes.
+	ScopeId string `protobuf:"bytes,3,opt,name=scope_id,json=scopeId,proto3" json:"scope_id,omitempty"`
+	// Current room or group name. Empty for server and direct-message scopes.
+	ScopeName string `protobuf:"bytes,4,opt,name=scope_name,json=scopeName,proto3" json:"scope_name,omitempty"`
+	// False means the stored grant is unavailable under the owner's current
+	// permissions. Only the owner and authorised human bot managers see it.
+	Active        bool `protobuf:"varint,5,opt,name=active,proto3" json:"active,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotPermission) Reset() {
+	*x = BotPermission{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotPermission) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotPermission) ProtoMessage() {}
+
+func (x *BotPermission) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotPermission.ProtoReflect.Descriptor instead.
+func (*BotPermission) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *BotPermission) GetPermission() string {
+	if x != nil {
+		return x.Permission
+	}
+	return ""
+}
+
+func (x *BotPermission) GetScope() BotPermissionScope {
+	if x != nil {
+		return x.Scope
+	}
+	return BotPermissionScope_BOT_PERMISSION_SCOPE_UNSPECIFIED
+}
+
+func (x *BotPermission) GetScopeId() string {
+	if x != nil {
+		return x.ScopeId
+	}
+	return ""
+}
+
+func (x *BotPermission) GetScopeName() string {
+	if x != nil {
+		return x.ScopeName
+	}
+	return ""
+}
+
+func (x *BotPermission) GetActive() bool {
+	if x != nil {
+		return x.Active
+	}
+	return false
+}
+
+// Select a live page of a bot's permission summary.
+type ListBotPermissionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required bot account ID.
+	BotUserId string `protobuf:"bytes,1,opt,name=bot_user_id,json=botUserId,proto3" json:"bot_user_id,omitempty"`
+	// Offset pagination over summary entries; default 20, maximum 100.
+	Page          *PageRequest `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotPermissionsRequest) Reset() {
+	*x = ListBotPermissionsRequest{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotPermissionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotPermissionsRequest) ProtoMessage() {}
+
+func (x *ListBotPermissionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotPermissionsRequest.ProtoReflect.Descriptor instead.
+func (*ListBotPermissionsRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ListBotPermissionsRequest) GetBotUserId() string {
+	if x != nil {
+		return x.BotUserId
+	}
+	return ""
+}
+
+func (x *ListBotPermissionsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+// Current permission summary, filtered for the caller's room visibility.
+type ListBotPermissionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ordered by permission catalog, then stable scope ID. An empty collection
+	// means no configured access is visible to this caller.
+	Permissions []*BotPermission `protobuf:"bytes,1,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	// Pagination for the filtered collection.
+	Page          *PageInfo `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotPermissionsResponse) Reset() {
+	*x = ListBotPermissionsResponse{}
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotPermissionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotPermissionsResponse) ProtoMessage() {}
+
+func (x *ListBotPermissionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotPermissionsResponse.ProtoReflect.Descriptor instead.
+func (*ListBotPermissionsResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *ListBotPermissionsResponse) GetPermissions() []*BotPermission {
+	if x != nil {
+		return x.Permissions
+	}
+	return nil
+}
+
+func (x *ListBotPermissionsResponse) GetPage() *PageInfo {
+	if x != nil {
+		return x.Page
+	}
+	return nil
 }
 
 // A managed bot account. Raw API keys are returned only when Chatto issues
@@ -103,7 +359,7 @@ type Bot struct {
 
 func (x *Bot) Reset() {
 	*x = Bot{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -115,7 +371,7 @@ func (x *Bot) String() string {
 func (*Bot) ProtoMessage() {}
 
 func (x *Bot) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[0]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -128,7 +384,7 @@ func (x *Bot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bot.ProtoReflect.Descriptor instead.
 func (*Bot) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{0}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Bot) GetUser() *User {
@@ -193,7 +449,7 @@ type BotApiKey struct {
 
 func (x *BotApiKey) Reset() {
 	*x = BotApiKey{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -205,7 +461,7 @@ func (x *BotApiKey) String() string {
 func (*BotApiKey) ProtoMessage() {}
 
 func (x *BotApiKey) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[1]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -218,7 +474,7 @@ func (x *BotApiKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotApiKey.ProtoReflect.Descriptor instead.
 func (*BotApiKey) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{1}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *BotApiKey) GetId() string {
@@ -276,7 +532,7 @@ type BotIncomingWebhook struct {
 
 func (x *BotIncomingWebhook) Reset() {
 	*x = BotIncomingWebhook{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -288,7 +544,7 @@ func (x *BotIncomingWebhook) String() string {
 func (*BotIncomingWebhook) ProtoMessage() {}
 
 func (x *BotIncomingWebhook) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[2]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -301,7 +557,7 @@ func (x *BotIncomingWebhook) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotIncomingWebhook.ProtoReflect.Descriptor instead.
 func (*BotIncomingWebhook) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{2}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *BotIncomingWebhook) GetId() string {
@@ -353,7 +609,7 @@ type ListBotsRequest struct {
 
 func (x *ListBotsRequest) Reset() {
 	*x = ListBotsRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -365,7 +621,7 @@ func (x *ListBotsRequest) String() string {
 func (*ListBotsRequest) ProtoMessage() {}
 
 func (x *ListBotsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[3]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -378,7 +634,7 @@ func (x *ListBotsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotsRequest.ProtoReflect.Descriptor instead.
 func (*ListBotsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{3}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ListBotsRequest) GetSearch() string {
@@ -408,7 +664,7 @@ type ListBotsResponse struct {
 
 func (x *ListBotsResponse) Reset() {
 	*x = ListBotsResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -420,7 +676,7 @@ func (x *ListBotsResponse) String() string {
 func (*ListBotsResponse) ProtoMessage() {}
 
 func (x *ListBotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[4]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -433,7 +689,7 @@ func (x *ListBotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotsResponse.ProtoReflect.Descriptor instead.
 func (*ListBotsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{4}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListBotsResponse) GetBots() []*Bot {
@@ -461,7 +717,7 @@ type GetBotRequest struct {
 
 func (x *GetBotRequest) Reset() {
 	*x = GetBotRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -473,7 +729,7 @@ func (x *GetBotRequest) String() string {
 func (*GetBotRequest) ProtoMessage() {}
 
 func (x *GetBotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[5]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -486,7 +742,7 @@ func (x *GetBotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotRequest.ProtoReflect.Descriptor instead.
 func (*GetBotRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{5}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetBotRequest) GetBotUserId() string {
@@ -507,7 +763,7 @@ type GetBotResponse struct {
 
 func (x *GetBotResponse) Reset() {
 	*x = GetBotResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -519,7 +775,7 @@ func (x *GetBotResponse) String() string {
 func (*GetBotResponse) ProtoMessage() {}
 
 func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -532,7 +788,7 @@ func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotResponse.ProtoReflect.Descriptor instead.
 func (*GetBotResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *GetBotResponse) GetBot() *Bot {
@@ -553,7 +809,7 @@ type BatchGetBotsRequest struct {
 
 func (x *BatchGetBotsRequest) Reset() {
 	*x = BatchGetBotsRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -565,7 +821,7 @@ func (x *BatchGetBotsRequest) String() string {
 func (*BatchGetBotsRequest) ProtoMessage() {}
 
 func (x *BatchGetBotsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +834,7 @@ func (x *BatchGetBotsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetBotsRequest.ProtoReflect.Descriptor instead.
 func (*BatchGetBotsRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *BatchGetBotsRequest) GetBotUserIds() []string {
@@ -599,7 +855,7 @@ type BatchGetBotsResponse struct {
 
 func (x *BatchGetBotsResponse) Reset() {
 	*x = BatchGetBotsResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +867,7 @@ func (x *BatchGetBotsResponse) String() string {
 func (*BatchGetBotsResponse) ProtoMessage() {}
 
 func (x *BatchGetBotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[8]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +880,7 @@ func (x *BatchGetBotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchGetBotsResponse.ProtoReflect.Descriptor instead.
 func (*BatchGetBotsResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{8}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *BatchGetBotsResponse) GetBots() []*Bot {
@@ -649,7 +905,7 @@ type CreateBotRequest struct {
 
 func (x *CreateBotRequest) Reset() {
 	*x = CreateBotRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -661,7 +917,7 @@ func (x *CreateBotRequest) String() string {
 func (*CreateBotRequest) ProtoMessage() {}
 
 func (x *CreateBotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[9]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -674,7 +930,7 @@ func (x *CreateBotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotRequest.ProtoReflect.Descriptor instead.
 func (*CreateBotRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{9}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *CreateBotRequest) GetLogin() string {
@@ -713,7 +969,7 @@ type CreateBotResponse struct {
 
 func (x *CreateBotResponse) Reset() {
 	*x = CreateBotResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -725,7 +981,7 @@ func (x *CreateBotResponse) String() string {
 func (*CreateBotResponse) ProtoMessage() {}
 
 func (x *CreateBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[10]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -738,7 +994,7 @@ func (x *CreateBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotResponse.ProtoReflect.Descriptor instead.
 func (*CreateBotResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{10}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateBotResponse) GetBot() *Bot {
@@ -773,7 +1029,7 @@ type DeleteBotRequest struct {
 
 func (x *DeleteBotRequest) Reset() {
 	*x = DeleteBotRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -785,7 +1041,7 @@ func (x *DeleteBotRequest) String() string {
 func (*DeleteBotRequest) ProtoMessage() {}
 
 func (x *DeleteBotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[11]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -798,7 +1054,7 @@ func (x *DeleteBotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBotRequest.ProtoReflect.Descriptor instead.
 func (*DeleteBotRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{11}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *DeleteBotRequest) GetBotUserId() string {
@@ -819,7 +1075,7 @@ type DeleteBotResponse struct {
 
 func (x *DeleteBotResponse) Reset() {
 	*x = DeleteBotResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -831,7 +1087,7 @@ func (x *DeleteBotResponse) String() string {
 func (*DeleteBotResponse) ProtoMessage() {}
 
 func (x *DeleteBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[12]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -844,7 +1100,7 @@ func (x *DeleteBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteBotResponse.ProtoReflect.Descriptor instead.
 func (*DeleteBotResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{12}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *DeleteBotResponse) GetDeleted() bool {
@@ -867,7 +1123,7 @@ type CreateBotApiKeyRequest struct {
 
 func (x *CreateBotApiKeyRequest) Reset() {
 	*x = CreateBotApiKeyRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -879,7 +1135,7 @@ func (x *CreateBotApiKeyRequest) String() string {
 func (*CreateBotApiKeyRequest) ProtoMessage() {}
 
 func (x *CreateBotApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -892,7 +1148,7 @@ func (x *CreateBotApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*CreateBotApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateBotApiKeyRequest) GetBotUserId() string {
@@ -925,7 +1181,7 @@ type CreateBotApiKeyResponse struct {
 
 func (x *CreateBotApiKeyResponse) Reset() {
 	*x = CreateBotApiKeyResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -937,7 +1193,7 @@ func (x *CreateBotApiKeyResponse) String() string {
 func (*CreateBotApiKeyResponse) ProtoMessage() {}
 
 func (x *CreateBotApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -950,7 +1206,7 @@ func (x *CreateBotApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*CreateBotApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateBotApiKeyResponse) GetBot() *Bot {
@@ -987,7 +1243,7 @@ type RevokeBotApiKeyRequest struct {
 
 func (x *RevokeBotApiKeyRequest) Reset() {
 	*x = RevokeBotApiKeyRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1255,7 @@ func (x *RevokeBotApiKeyRequest) String() string {
 func (*RevokeBotApiKeyRequest) ProtoMessage() {}
 
 func (x *RevokeBotApiKeyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1012,7 +1268,7 @@ func (x *RevokeBotApiKeyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotApiKeyRequest.ProtoReflect.Descriptor instead.
 func (*RevokeBotApiKeyRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *RevokeBotApiKeyRequest) GetBotUserId() string {
@@ -1040,7 +1296,7 @@ type RevokeBotApiKeyResponse struct {
 
 func (x *RevokeBotApiKeyResponse) Reset() {
 	*x = RevokeBotApiKeyResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1052,7 +1308,7 @@ func (x *RevokeBotApiKeyResponse) String() string {
 func (*RevokeBotApiKeyResponse) ProtoMessage() {}
 
 func (x *RevokeBotApiKeyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1065,7 +1321,7 @@ func (x *RevokeBotApiKeyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotApiKeyResponse.ProtoReflect.Descriptor instead.
 func (*RevokeBotApiKeyResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RevokeBotApiKeyResponse) GetBot() *Bot {
@@ -1088,7 +1344,7 @@ type CreateBotIncomingWebhookRequest struct {
 
 func (x *CreateBotIncomingWebhookRequest) Reset() {
 	*x = CreateBotIncomingWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1100,7 +1356,7 @@ func (x *CreateBotIncomingWebhookRequest) String() string {
 func (*CreateBotIncomingWebhookRequest) ProtoMessage() {}
 
 func (x *CreateBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1113,7 +1369,7 @@ func (x *CreateBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
 func (*CreateBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{17}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateBotIncomingWebhookRequest) GetBotUserId() string {
@@ -1144,7 +1400,7 @@ type CreateBotIncomingWebhookResponse struct {
 
 func (x *CreateBotIncomingWebhookResponse) Reset() {
 	*x = CreateBotIncomingWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1412,7 @@ func (x *CreateBotIncomingWebhookResponse) String() string {
 func (*CreateBotIncomingWebhookResponse) ProtoMessage() {}
 
 func (x *CreateBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[18]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,7 +1425,7 @@ func (x *CreateBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
 func (*CreateBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{18}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *CreateBotIncomingWebhookResponse) GetBot() *Bot {
@@ -1199,7 +1455,7 @@ type RevokeBotIncomingWebhookRequest struct {
 
 func (x *RevokeBotIncomingWebhookRequest) Reset() {
 	*x = RevokeBotIncomingWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1211,7 +1467,7 @@ func (x *RevokeBotIncomingWebhookRequest) String() string {
 func (*RevokeBotIncomingWebhookRequest) ProtoMessage() {}
 
 func (x *RevokeBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[19]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1224,7 +1480,7 @@ func (x *RevokeBotIncomingWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotIncomingWebhookRequest.ProtoReflect.Descriptor instead.
 func (*RevokeBotIncomingWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{19}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RevokeBotIncomingWebhookRequest) GetBotUserId() string {
@@ -1252,7 +1508,7 @@ type RevokeBotIncomingWebhookResponse struct {
 
 func (x *RevokeBotIncomingWebhookResponse) Reset() {
 	*x = RevokeBotIncomingWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1264,7 +1520,7 @@ func (x *RevokeBotIncomingWebhookResponse) String() string {
 func (*RevokeBotIncomingWebhookResponse) ProtoMessage() {}
 
 func (x *RevokeBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[20]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1277,7 +1533,7 @@ func (x *RevokeBotIncomingWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotIncomingWebhookResponse.ProtoReflect.Descriptor instead.
 func (*RevokeBotIncomingWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{20}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *RevokeBotIncomingWebhookResponse) GetBot() *Bot {
@@ -1300,7 +1556,7 @@ type ReassignBotOwnerRequest struct {
 
 func (x *ReassignBotOwnerRequest) Reset() {
 	*x = ReassignBotOwnerRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1312,7 +1568,7 @@ func (x *ReassignBotOwnerRequest) String() string {
 func (*ReassignBotOwnerRequest) ProtoMessage() {}
 
 func (x *ReassignBotOwnerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[21]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1325,7 +1581,7 @@ func (x *ReassignBotOwnerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReassignBotOwnerRequest.ProtoReflect.Descriptor instead.
 func (*ReassignBotOwnerRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{21}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ReassignBotOwnerRequest) GetBotUserId() string {
@@ -1354,7 +1610,7 @@ type ReassignBotOwnerResponse struct {
 
 func (x *ReassignBotOwnerResponse) Reset() {
 	*x = ReassignBotOwnerResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[22]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1366,7 +1622,7 @@ func (x *ReassignBotOwnerResponse) String() string {
 func (*ReassignBotOwnerResponse) ProtoMessage() {}
 
 func (x *ReassignBotOwnerResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[22]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1379,7 +1635,7 @@ func (x *ReassignBotOwnerResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReassignBotOwnerResponse.ProtoReflect.Descriptor instead.
 func (*ReassignBotOwnerResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{22}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ReassignBotOwnerResponse) GetBot() *Bot {
@@ -1414,7 +1670,7 @@ type BotOutboundWebhook struct {
 
 func (x *BotOutboundWebhook) Reset() {
 	*x = BotOutboundWebhook{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1426,7 +1682,7 @@ func (x *BotOutboundWebhook) String() string {
 func (*BotOutboundWebhook) ProtoMessage() {}
 
 func (x *BotOutboundWebhook) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[23]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1439,7 +1695,7 @@ func (x *BotOutboundWebhook) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotOutboundWebhook.ProtoReflect.Descriptor instead.
 func (*BotOutboundWebhook) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{23}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *BotOutboundWebhook) GetId() string {
@@ -1513,7 +1769,7 @@ type BotWebhookFailure struct {
 
 func (x *BotWebhookFailure) Reset() {
 	*x = BotWebhookFailure{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1525,7 +1781,7 @@ func (x *BotWebhookFailure) String() string {
 func (*BotWebhookFailure) ProtoMessage() {}
 
 func (x *BotWebhookFailure) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[24]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1538,7 +1794,7 @@ func (x *BotWebhookFailure) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotWebhookFailure.ProtoReflect.Descriptor instead.
 func (*BotWebhookFailure) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{24}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BotWebhookFailure) GetId() string {
@@ -1594,7 +1850,7 @@ type ListBotOutboundWebhooksRequest struct {
 
 func (x *ListBotOutboundWebhooksRequest) Reset() {
 	*x = ListBotOutboundWebhooksRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1606,7 +1862,7 @@ func (x *ListBotOutboundWebhooksRequest) String() string {
 func (*ListBotOutboundWebhooksRequest) ProtoMessage() {}
 
 func (x *ListBotOutboundWebhooksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[25]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1619,7 +1875,7 @@ func (x *ListBotOutboundWebhooksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotOutboundWebhooksRequest.ProtoReflect.Descriptor instead.
 func (*ListBotOutboundWebhooksRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{25}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ListBotOutboundWebhooksRequest) GetBotUserId() string {
@@ -1640,7 +1896,7 @@ type ListBotOutboundWebhooksResponse struct {
 
 func (x *ListBotOutboundWebhooksResponse) Reset() {
 	*x = ListBotOutboundWebhooksResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1652,7 +1908,7 @@ func (x *ListBotOutboundWebhooksResponse) String() string {
 func (*ListBotOutboundWebhooksResponse) ProtoMessage() {}
 
 func (x *ListBotOutboundWebhooksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[26]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1665,7 +1921,7 @@ func (x *ListBotOutboundWebhooksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotOutboundWebhooksResponse.ProtoReflect.Descriptor instead.
 func (*ListBotOutboundWebhooksResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{26}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListBotOutboundWebhooksResponse) GetWebhooks() []*BotOutboundWebhook {
@@ -1688,7 +1944,7 @@ type GetBotOutboundWebhookRequest struct {
 
 func (x *GetBotOutboundWebhookRequest) Reset() {
 	*x = GetBotOutboundWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1700,7 +1956,7 @@ func (x *GetBotOutboundWebhookRequest) String() string {
 func (*GetBotOutboundWebhookRequest) ProtoMessage() {}
 
 func (x *GetBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[27]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1713,7 +1969,7 @@ func (x *GetBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
 func (*GetBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{27}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetBotOutboundWebhookRequest) GetBotUserId() string {
@@ -1741,7 +1997,7 @@ type GetBotOutboundWebhookResponse struct {
 
 func (x *GetBotOutboundWebhookResponse) Reset() {
 	*x = GetBotOutboundWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1753,7 +2009,7 @@ func (x *GetBotOutboundWebhookResponse) String() string {
 func (*GetBotOutboundWebhookResponse) ProtoMessage() {}
 
 func (x *GetBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[28]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1766,7 +2022,7 @@ func (x *GetBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
 func (*GetBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{28}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
@@ -1795,7 +2051,7 @@ type CreateBotOutboundWebhookRequest struct {
 
 func (x *CreateBotOutboundWebhookRequest) Reset() {
 	*x = CreateBotOutboundWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1807,7 +2063,7 @@ func (x *CreateBotOutboundWebhookRequest) String() string {
 func (*CreateBotOutboundWebhookRequest) ProtoMessage() {}
 
 func (x *CreateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[29]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1820,7 +2076,7 @@ func (x *CreateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
 func (*CreateBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{29}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *CreateBotOutboundWebhookRequest) GetBotUserId() string {
@@ -1871,7 +2127,7 @@ type CreateBotOutboundWebhookResponse struct {
 
 func (x *CreateBotOutboundWebhookResponse) Reset() {
 	*x = CreateBotOutboundWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1883,7 +2139,7 @@ func (x *CreateBotOutboundWebhookResponse) String() string {
 func (*CreateBotOutboundWebhookResponse) ProtoMessage() {}
 
 func (x *CreateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[30]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1896,7 +2152,7 @@ func (x *CreateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
 func (*CreateBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{30}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *CreateBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
@@ -1938,7 +2194,7 @@ type UpdateBotOutboundWebhookRequest struct {
 
 func (x *UpdateBotOutboundWebhookRequest) Reset() {
 	*x = UpdateBotOutboundWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1950,7 +2206,7 @@ func (x *UpdateBotOutboundWebhookRequest) String() string {
 func (*UpdateBotOutboundWebhookRequest) ProtoMessage() {}
 
 func (x *UpdateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[31]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1963,7 +2219,7 @@ func (x *UpdateBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
 func (*UpdateBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{31}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *UpdateBotOutboundWebhookRequest) GetBotUserId() string {
@@ -2019,7 +2275,7 @@ type UpdateBotOutboundWebhookResponse struct {
 
 func (x *UpdateBotOutboundWebhookResponse) Reset() {
 	*x = UpdateBotOutboundWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2031,7 +2287,7 @@ func (x *UpdateBotOutboundWebhookResponse) String() string {
 func (*UpdateBotOutboundWebhookResponse) ProtoMessage() {}
 
 func (x *UpdateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[32]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2044,7 +2300,7 @@ func (x *UpdateBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
 func (*UpdateBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{32}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *UpdateBotOutboundWebhookResponse) GetWebhook() *BotOutboundWebhook {
@@ -2067,7 +2323,7 @@ type RevokeBotOutboundWebhookRequest struct {
 
 func (x *RevokeBotOutboundWebhookRequest) Reset() {
 	*x = RevokeBotOutboundWebhookRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2079,7 +2335,7 @@ func (x *RevokeBotOutboundWebhookRequest) String() string {
 func (*RevokeBotOutboundWebhookRequest) ProtoMessage() {}
 
 func (x *RevokeBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[33]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2092,7 +2348,7 @@ func (x *RevokeBotOutboundWebhookRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotOutboundWebhookRequest.ProtoReflect.Descriptor instead.
 func (*RevokeBotOutboundWebhookRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{33}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *RevokeBotOutboundWebhookRequest) GetBotUserId() string {
@@ -2118,7 +2374,7 @@ type RevokeBotOutboundWebhookResponse struct {
 
 func (x *RevokeBotOutboundWebhookResponse) Reset() {
 	*x = RevokeBotOutboundWebhookResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2130,7 +2386,7 @@ func (x *RevokeBotOutboundWebhookResponse) String() string {
 func (*RevokeBotOutboundWebhookResponse) ProtoMessage() {}
 
 func (x *RevokeBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[34]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2143,7 +2399,7 @@ func (x *RevokeBotOutboundWebhookResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeBotOutboundWebhookResponse.ProtoReflect.Descriptor instead.
 func (*RevokeBotOutboundWebhookResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{34}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{37}
 }
 
 // Read the retained failure history for a current endpoint.
@@ -2161,7 +2417,7 @@ type ListBotWebhookFailuresRequest struct {
 
 func (x *ListBotWebhookFailuresRequest) Reset() {
 	*x = ListBotWebhookFailuresRequest{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2173,7 +2429,7 @@ func (x *ListBotWebhookFailuresRequest) String() string {
 func (*ListBotWebhookFailuresRequest) ProtoMessage() {}
 
 func (x *ListBotWebhookFailuresRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[35]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2186,7 +2442,7 @@ func (x *ListBotWebhookFailuresRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotWebhookFailuresRequest.ProtoReflect.Descriptor instead.
 func (*ListBotWebhookFailuresRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{35}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListBotWebhookFailuresRequest) GetBotUserId() string {
@@ -2229,7 +2485,7 @@ type ListBotWebhookFailuresResponse struct {
 
 func (x *ListBotWebhookFailuresResponse) Reset() {
 	*x = ListBotWebhookFailuresResponse{}
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2241,7 +2497,7 @@ func (x *ListBotWebhookFailuresResponse) String() string {
 func (*ListBotWebhookFailuresResponse) ProtoMessage() {}
 
 func (x *ListBotWebhookFailuresResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_bots_proto_msgTypes[36]
+	mi := &file_chatto_api_v1_bots_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2254,7 +2510,7 @@ func (x *ListBotWebhookFailuresResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotWebhookFailuresResponse.ProtoReflect.Descriptor instead.
 func (*ListBotWebhookFailuresResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{36}
+	return file_chatto_api_v1_bots_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListBotWebhookFailuresResponse) GetFailures() []*BotWebhookFailure {
@@ -2275,7 +2531,22 @@ var File_chatto_api_v1_bots_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\n" +
-	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf5\x02\n" +
+	"\x18chatto/api/v1/bots.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xba\x01\n" +
+	"\rBotPermission\x12\x1e\n" +
+	"\n" +
+	"permission\x18\x01 \x01(\tR\n" +
+	"permission\x127\n" +
+	"\x05scope\x18\x02 \x01(\x0e2!.chatto.api.v1.BotPermissionScopeR\x05scope\x12\x19\n" +
+	"\bscope_id\x18\x03 \x01(\tR\ascopeId\x12\x1d\n" +
+	"\n" +
+	"scope_name\x18\x04 \x01(\tR\tscopeName\x12\x16\n" +
+	"\x06active\x18\x05 \x01(\bR\x06active\"t\n" +
+	"\x19ListBotPermissionsRequest\x12'\n" +
+	"\vbot_user_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\tbotUserId\x12.\n" +
+	"\x04page\x18\x02 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\x89\x01\n" +
+	"\x1aListBotPermissionsResponse\x12>\n" +
+	"\vpermissions\x18\x01 \x03(\v2\x1c.chatto.api.v1.BotPermissionR\vpermissions\x12+\n" +
+	"\x04page\x18\x02 \x01(\v2\x17.chatto.api.v1.PageInfoR\x04page\"\xf5\x02\n" +
 	"\x03Bot\x12'\n" +
 	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\x12\"\n" +
 	"\rowner_user_id\x18\x02 \x01(\tR\vownerUserId\x129\n" +
@@ -2430,14 +2701,21 @@ const file_chatto_api_v1_bots_proto_rawDesc = "" +
 	"\x1eListBotWebhookFailuresResponse\x12<\n" +
 	"\bfailures\x18\x01 \x03(\v2 .chatto.api.v1.BotWebhookFailureR\bfailures\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\tR\n" +
-	"nextCursor*\xca\x01\n" +
+	"nextCursor*\xb7\x01\n" +
+	"\x12BotPermissionScope\x12$\n" +
+	" BOT_PERMISSION_SCOPE_UNSPECIFIED\x10\x00\x12\x1f\n" +
+	"\x1bBOT_PERMISSION_SCOPE_SERVER\x10\x01\x12\x1e\n" +
+	"\x1aBOT_PERMISSION_SCOPE_GROUP\x10\x02\x12\x1d\n" +
+	"\x19BOT_PERMISSION_SCOPE_ROOM\x10\x03\x12\x1b\n" +
+	"\x17BOT_PERMISSION_SCOPE_DM\x10\x04*\xca\x01\n" +
 	"\x17CredentialLastUsedState\x12*\n" +
 	"&CREDENTIAL_LAST_USED_STATE_UNSPECIFIED\x10\x00\x12.\n" +
 	"*CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED\x10\x01\x12'\n" +
 	"#CREDENTIAL_LAST_USED_STATE_RECORDED\x10\x02\x12*\n" +
-	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\xb3\r\n" +
+	"&CREDENTIAL_LAST_USED_STATE_UNAVAILABLE\x10\x032\x9e\x0e\n" +
 	"\n" +
-	"BotService\x12u\n" +
+	"BotService\x12i\n" +
+	"\x12ListBotPermissions\x12(.chatto.api.v1.ListBotPermissionsRequest\x1a).chatto.api.v1.ListBotPermissionsResponse\x12u\n" +
 	"\x16ListBotWebhookFailures\x12,.chatto.api.v1.ListBotWebhookFailuresRequest\x1a-.chatto.api.v1.ListBotWebhookFailuresResponse\x12x\n" +
 	"\x17ListBotOutboundWebhooks\x12-.chatto.api.v1.ListBotOutboundWebhooksRequest\x1a..chatto.api.v1.ListBotOutboundWebhooksResponse\x12r\n" +
 	"\x15GetBotOutboundWebhook\x12+.chatto.api.v1.GetBotOutboundWebhookRequest\x1a,.chatto.api.v1.GetBotOutboundWebhookResponse\x12{\n" +
@@ -2468,124 +2746,134 @@ func file_chatto_api_v1_bots_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_bots_proto_rawDescData
 }
 
-var file_chatto_api_v1_bots_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
+var file_chatto_api_v1_bots_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_chatto_api_v1_bots_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_chatto_api_v1_bots_proto_goTypes = []any{
-	(CredentialLastUsedState)(0),             // 0: chatto.api.v1.CredentialLastUsedState
-	(*Bot)(nil),                              // 1: chatto.api.v1.Bot
-	(*BotApiKey)(nil),                        // 2: chatto.api.v1.BotApiKey
-	(*BotIncomingWebhook)(nil),               // 3: chatto.api.v1.BotIncomingWebhook
-	(*ListBotsRequest)(nil),                  // 4: chatto.api.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),                 // 5: chatto.api.v1.ListBotsResponse
-	(*GetBotRequest)(nil),                    // 6: chatto.api.v1.GetBotRequest
-	(*GetBotResponse)(nil),                   // 7: chatto.api.v1.GetBotResponse
-	(*BatchGetBotsRequest)(nil),              // 8: chatto.api.v1.BatchGetBotsRequest
-	(*BatchGetBotsResponse)(nil),             // 9: chatto.api.v1.BatchGetBotsResponse
-	(*CreateBotRequest)(nil),                 // 10: chatto.api.v1.CreateBotRequest
-	(*CreateBotResponse)(nil),                // 11: chatto.api.v1.CreateBotResponse
-	(*DeleteBotRequest)(nil),                 // 12: chatto.api.v1.DeleteBotRequest
-	(*DeleteBotResponse)(nil),                // 13: chatto.api.v1.DeleteBotResponse
-	(*CreateBotApiKeyRequest)(nil),           // 14: chatto.api.v1.CreateBotApiKeyRequest
-	(*CreateBotApiKeyResponse)(nil),          // 15: chatto.api.v1.CreateBotApiKeyResponse
-	(*RevokeBotApiKeyRequest)(nil),           // 16: chatto.api.v1.RevokeBotApiKeyRequest
-	(*RevokeBotApiKeyResponse)(nil),          // 17: chatto.api.v1.RevokeBotApiKeyResponse
-	(*CreateBotIncomingWebhookRequest)(nil),  // 18: chatto.api.v1.CreateBotIncomingWebhookRequest
-	(*CreateBotIncomingWebhookResponse)(nil), // 19: chatto.api.v1.CreateBotIncomingWebhookResponse
-	(*RevokeBotIncomingWebhookRequest)(nil),  // 20: chatto.api.v1.RevokeBotIncomingWebhookRequest
-	(*RevokeBotIncomingWebhookResponse)(nil), // 21: chatto.api.v1.RevokeBotIncomingWebhookResponse
-	(*ReassignBotOwnerRequest)(nil),          // 22: chatto.api.v1.ReassignBotOwnerRequest
-	(*ReassignBotOwnerResponse)(nil),         // 23: chatto.api.v1.ReassignBotOwnerResponse
-	(*BotOutboundWebhook)(nil),               // 24: chatto.api.v1.BotOutboundWebhook
-	(*BotWebhookFailure)(nil),                // 25: chatto.api.v1.BotWebhookFailure
-	(*ListBotOutboundWebhooksRequest)(nil),   // 26: chatto.api.v1.ListBotOutboundWebhooksRequest
-	(*ListBotOutboundWebhooksResponse)(nil),  // 27: chatto.api.v1.ListBotOutboundWebhooksResponse
-	(*GetBotOutboundWebhookRequest)(nil),     // 28: chatto.api.v1.GetBotOutboundWebhookRequest
-	(*GetBotOutboundWebhookResponse)(nil),    // 29: chatto.api.v1.GetBotOutboundWebhookResponse
-	(*CreateBotOutboundWebhookRequest)(nil),  // 30: chatto.api.v1.CreateBotOutboundWebhookRequest
-	(*CreateBotOutboundWebhookResponse)(nil), // 31: chatto.api.v1.CreateBotOutboundWebhookResponse
-	(*UpdateBotOutboundWebhookRequest)(nil),  // 32: chatto.api.v1.UpdateBotOutboundWebhookRequest
-	(*UpdateBotOutboundWebhookResponse)(nil), // 33: chatto.api.v1.UpdateBotOutboundWebhookResponse
-	(*RevokeBotOutboundWebhookRequest)(nil),  // 34: chatto.api.v1.RevokeBotOutboundWebhookRequest
-	(*RevokeBotOutboundWebhookResponse)(nil), // 35: chatto.api.v1.RevokeBotOutboundWebhookResponse
-	(*ListBotWebhookFailuresRequest)(nil),    // 36: chatto.api.v1.ListBotWebhookFailuresRequest
-	(*ListBotWebhookFailuresResponse)(nil),   // 37: chatto.api.v1.ListBotWebhookFailuresResponse
-	(*User)(nil),                             // 38: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),            // 39: google.protobuf.Timestamp
-	(*PageRequest)(nil),                      // 40: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                         // 41: chatto.api.v1.PageInfo
-	(*fieldmaskpb.FieldMask)(nil),            // 42: google.protobuf.FieldMask
+	(BotPermissionScope)(0),                  // 0: chatto.api.v1.BotPermissionScope
+	(CredentialLastUsedState)(0),             // 1: chatto.api.v1.CredentialLastUsedState
+	(*BotPermission)(nil),                    // 2: chatto.api.v1.BotPermission
+	(*ListBotPermissionsRequest)(nil),        // 3: chatto.api.v1.ListBotPermissionsRequest
+	(*ListBotPermissionsResponse)(nil),       // 4: chatto.api.v1.ListBotPermissionsResponse
+	(*Bot)(nil),                              // 5: chatto.api.v1.Bot
+	(*BotApiKey)(nil),                        // 6: chatto.api.v1.BotApiKey
+	(*BotIncomingWebhook)(nil),               // 7: chatto.api.v1.BotIncomingWebhook
+	(*ListBotsRequest)(nil),                  // 8: chatto.api.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),                 // 9: chatto.api.v1.ListBotsResponse
+	(*GetBotRequest)(nil),                    // 10: chatto.api.v1.GetBotRequest
+	(*GetBotResponse)(nil),                   // 11: chatto.api.v1.GetBotResponse
+	(*BatchGetBotsRequest)(nil),              // 12: chatto.api.v1.BatchGetBotsRequest
+	(*BatchGetBotsResponse)(nil),             // 13: chatto.api.v1.BatchGetBotsResponse
+	(*CreateBotRequest)(nil),                 // 14: chatto.api.v1.CreateBotRequest
+	(*CreateBotResponse)(nil),                // 15: chatto.api.v1.CreateBotResponse
+	(*DeleteBotRequest)(nil),                 // 16: chatto.api.v1.DeleteBotRequest
+	(*DeleteBotResponse)(nil),                // 17: chatto.api.v1.DeleteBotResponse
+	(*CreateBotApiKeyRequest)(nil),           // 18: chatto.api.v1.CreateBotApiKeyRequest
+	(*CreateBotApiKeyResponse)(nil),          // 19: chatto.api.v1.CreateBotApiKeyResponse
+	(*RevokeBotApiKeyRequest)(nil),           // 20: chatto.api.v1.RevokeBotApiKeyRequest
+	(*RevokeBotApiKeyResponse)(nil),          // 21: chatto.api.v1.RevokeBotApiKeyResponse
+	(*CreateBotIncomingWebhookRequest)(nil),  // 22: chatto.api.v1.CreateBotIncomingWebhookRequest
+	(*CreateBotIncomingWebhookResponse)(nil), // 23: chatto.api.v1.CreateBotIncomingWebhookResponse
+	(*RevokeBotIncomingWebhookRequest)(nil),  // 24: chatto.api.v1.RevokeBotIncomingWebhookRequest
+	(*RevokeBotIncomingWebhookResponse)(nil), // 25: chatto.api.v1.RevokeBotIncomingWebhookResponse
+	(*ReassignBotOwnerRequest)(nil),          // 26: chatto.api.v1.ReassignBotOwnerRequest
+	(*ReassignBotOwnerResponse)(nil),         // 27: chatto.api.v1.ReassignBotOwnerResponse
+	(*BotOutboundWebhook)(nil),               // 28: chatto.api.v1.BotOutboundWebhook
+	(*BotWebhookFailure)(nil),                // 29: chatto.api.v1.BotWebhookFailure
+	(*ListBotOutboundWebhooksRequest)(nil),   // 30: chatto.api.v1.ListBotOutboundWebhooksRequest
+	(*ListBotOutboundWebhooksResponse)(nil),  // 31: chatto.api.v1.ListBotOutboundWebhooksResponse
+	(*GetBotOutboundWebhookRequest)(nil),     // 32: chatto.api.v1.GetBotOutboundWebhookRequest
+	(*GetBotOutboundWebhookResponse)(nil),    // 33: chatto.api.v1.GetBotOutboundWebhookResponse
+	(*CreateBotOutboundWebhookRequest)(nil),  // 34: chatto.api.v1.CreateBotOutboundWebhookRequest
+	(*CreateBotOutboundWebhookResponse)(nil), // 35: chatto.api.v1.CreateBotOutboundWebhookResponse
+	(*UpdateBotOutboundWebhookRequest)(nil),  // 36: chatto.api.v1.UpdateBotOutboundWebhookRequest
+	(*UpdateBotOutboundWebhookResponse)(nil), // 37: chatto.api.v1.UpdateBotOutboundWebhookResponse
+	(*RevokeBotOutboundWebhookRequest)(nil),  // 38: chatto.api.v1.RevokeBotOutboundWebhookRequest
+	(*RevokeBotOutboundWebhookResponse)(nil), // 39: chatto.api.v1.RevokeBotOutboundWebhookResponse
+	(*ListBotWebhookFailuresRequest)(nil),    // 40: chatto.api.v1.ListBotWebhookFailuresRequest
+	(*ListBotWebhookFailuresResponse)(nil),   // 41: chatto.api.v1.ListBotWebhookFailuresResponse
+	(*PageRequest)(nil),                      // 42: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                         // 43: chatto.api.v1.PageInfo
+	(*User)(nil),                             // 44: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),            // 45: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),            // 46: google.protobuf.FieldMask
 }
 var file_chatto_api_v1_bots_proto_depIdxs = []int32{
-	38, // 0: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
-	39, // 1: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
-	39, // 2: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
-	3,  // 3: chatto.api.v1.Bot.incoming_webhooks:type_name -> chatto.api.v1.BotIncomingWebhook
-	2,  // 4: chatto.api.v1.Bot.api_keys:type_name -> chatto.api.v1.BotApiKey
-	39, // 5: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 6: chatto.api.v1.BotApiKey.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	39, // 7: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	39, // 8: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
-	39, // 10: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
-	40, // 11: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
-	1,  // 12: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	41, // 13: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
-	1,  // 14: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 15: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
-	1,  // 16: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 17: chatto.api.v1.CreateBotResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
-	1,  // 18: chatto.api.v1.CreateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	2,  // 19: chatto.api.v1.CreateBotApiKeyResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
-	1,  // 20: chatto.api.v1.RevokeBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 21: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 22: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
-	1,  // 23: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
-	25, // 24: chatto.api.v1.BotOutboundWebhook.latest_failure:type_name -> chatto.api.v1.BotWebhookFailure
-	39, // 25: chatto.api.v1.BotOutboundWebhook.created_at:type_name -> google.protobuf.Timestamp
-	39, // 26: chatto.api.v1.BotWebhookFailure.completed_at:type_name -> google.protobuf.Timestamp
-	24, // 27: chatto.api.v1.ListBotOutboundWebhooksResponse.webhooks:type_name -> chatto.api.v1.BotOutboundWebhook
-	24, // 28: chatto.api.v1.GetBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	24, // 29: chatto.api.v1.CreateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	42, // 30: chatto.api.v1.UpdateBotOutboundWebhookRequest.update_mask:type_name -> google.protobuf.FieldMask
-	24, // 31: chatto.api.v1.UpdateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
-	25, // 32: chatto.api.v1.ListBotWebhookFailuresResponse.failures:type_name -> chatto.api.v1.BotWebhookFailure
-	36, // 33: chatto.api.v1.BotService.ListBotWebhookFailures:input_type -> chatto.api.v1.ListBotWebhookFailuresRequest
-	26, // 34: chatto.api.v1.BotService.ListBotOutboundWebhooks:input_type -> chatto.api.v1.ListBotOutboundWebhooksRequest
-	28, // 35: chatto.api.v1.BotService.GetBotOutboundWebhook:input_type -> chatto.api.v1.GetBotOutboundWebhookRequest
-	30, // 36: chatto.api.v1.BotService.CreateBotOutboundWebhook:input_type -> chatto.api.v1.CreateBotOutboundWebhookRequest
-	32, // 37: chatto.api.v1.BotService.UpdateBotOutboundWebhook:input_type -> chatto.api.v1.UpdateBotOutboundWebhookRequest
-	34, // 38: chatto.api.v1.BotService.RevokeBotOutboundWebhook:input_type -> chatto.api.v1.RevokeBotOutboundWebhookRequest
-	4,  // 39: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
-	6,  // 40: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
-	8,  // 41: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
-	10, // 42: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
-	12, // 43: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
-	14, // 44: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
-	16, // 45: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
-	18, // 46: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
-	20, // 47: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
-	22, // 48: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
-	37, // 49: chatto.api.v1.BotService.ListBotWebhookFailures:output_type -> chatto.api.v1.ListBotWebhookFailuresResponse
-	27, // 50: chatto.api.v1.BotService.ListBotOutboundWebhooks:output_type -> chatto.api.v1.ListBotOutboundWebhooksResponse
-	29, // 51: chatto.api.v1.BotService.GetBotOutboundWebhook:output_type -> chatto.api.v1.GetBotOutboundWebhookResponse
-	31, // 52: chatto.api.v1.BotService.CreateBotOutboundWebhook:output_type -> chatto.api.v1.CreateBotOutboundWebhookResponse
-	33, // 53: chatto.api.v1.BotService.UpdateBotOutboundWebhook:output_type -> chatto.api.v1.UpdateBotOutboundWebhookResponse
-	35, // 54: chatto.api.v1.BotService.RevokeBotOutboundWebhook:output_type -> chatto.api.v1.RevokeBotOutboundWebhookResponse
-	5,  // 55: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
-	7,  // 56: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
-	9,  // 57: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
-	11, // 58: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
-	13, // 59: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
-	15, // 60: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
-	17, // 61: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
-	19, // 62: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
-	21, // 63: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
-	23, // 64: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
-	49, // [49:65] is the sub-list for method output_type
-	33, // [33:49] is the sub-list for method input_type
-	33, // [33:33] is the sub-list for extension type_name
-	33, // [33:33] is the sub-list for extension extendee
-	0,  // [0:33] is the sub-list for field type_name
+	0,  // 0: chatto.api.v1.BotPermission.scope:type_name -> chatto.api.v1.BotPermissionScope
+	42, // 1: chatto.api.v1.ListBotPermissionsRequest.page:type_name -> chatto.api.v1.PageRequest
+	2,  // 2: chatto.api.v1.ListBotPermissionsResponse.permissions:type_name -> chatto.api.v1.BotPermission
+	43, // 3: chatto.api.v1.ListBotPermissionsResponse.page:type_name -> chatto.api.v1.PageInfo
+	44, // 4: chatto.api.v1.Bot.user:type_name -> chatto.api.v1.User
+	45, // 5: chatto.api.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	45, // 6: chatto.api.v1.Bot.api_key_created_at:type_name -> google.protobuf.Timestamp
+	7,  // 7: chatto.api.v1.Bot.incoming_webhooks:type_name -> chatto.api.v1.BotIncomingWebhook
+	6,  // 8: chatto.api.v1.Bot.api_keys:type_name -> chatto.api.v1.BotApiKey
+	45, // 9: chatto.api.v1.BotApiKey.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 10: chatto.api.v1.BotApiKey.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
+	45, // 11: chatto.api.v1.BotApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	45, // 12: chatto.api.v1.BotIncomingWebhook.created_at:type_name -> google.protobuf.Timestamp
+	1,  // 13: chatto.api.v1.BotIncomingWebhook.last_used_state:type_name -> chatto.api.v1.CredentialLastUsedState
+	45, // 14: chatto.api.v1.BotIncomingWebhook.last_used_at:type_name -> google.protobuf.Timestamp
+	42, // 15: chatto.api.v1.ListBotsRequest.page:type_name -> chatto.api.v1.PageRequest
+	5,  // 16: chatto.api.v1.ListBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	43, // 17: chatto.api.v1.ListBotsResponse.page:type_name -> chatto.api.v1.PageInfo
+	5,  // 18: chatto.api.v1.GetBotResponse.bot:type_name -> chatto.api.v1.Bot
+	5,  // 19: chatto.api.v1.BatchGetBotsResponse.bots:type_name -> chatto.api.v1.Bot
+	5,  // 20: chatto.api.v1.CreateBotResponse.bot:type_name -> chatto.api.v1.Bot
+	6,  // 21: chatto.api.v1.CreateBotResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
+	5,  // 22: chatto.api.v1.CreateBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	6,  // 23: chatto.api.v1.CreateBotApiKeyResponse.api_key_metadata:type_name -> chatto.api.v1.BotApiKey
+	5,  // 24: chatto.api.v1.RevokeBotApiKeyResponse.bot:type_name -> chatto.api.v1.Bot
+	5,  // 25: chatto.api.v1.CreateBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	5,  // 26: chatto.api.v1.RevokeBotIncomingWebhookResponse.bot:type_name -> chatto.api.v1.Bot
+	5,  // 27: chatto.api.v1.ReassignBotOwnerResponse.bot:type_name -> chatto.api.v1.Bot
+	29, // 28: chatto.api.v1.BotOutboundWebhook.latest_failure:type_name -> chatto.api.v1.BotWebhookFailure
+	45, // 29: chatto.api.v1.BotOutboundWebhook.created_at:type_name -> google.protobuf.Timestamp
+	45, // 30: chatto.api.v1.BotWebhookFailure.completed_at:type_name -> google.protobuf.Timestamp
+	28, // 31: chatto.api.v1.ListBotOutboundWebhooksResponse.webhooks:type_name -> chatto.api.v1.BotOutboundWebhook
+	28, // 32: chatto.api.v1.GetBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	28, // 33: chatto.api.v1.CreateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	46, // 34: chatto.api.v1.UpdateBotOutboundWebhookRequest.update_mask:type_name -> google.protobuf.FieldMask
+	28, // 35: chatto.api.v1.UpdateBotOutboundWebhookResponse.webhook:type_name -> chatto.api.v1.BotOutboundWebhook
+	29, // 36: chatto.api.v1.ListBotWebhookFailuresResponse.failures:type_name -> chatto.api.v1.BotWebhookFailure
+	3,  // 37: chatto.api.v1.BotService.ListBotPermissions:input_type -> chatto.api.v1.ListBotPermissionsRequest
+	40, // 38: chatto.api.v1.BotService.ListBotWebhookFailures:input_type -> chatto.api.v1.ListBotWebhookFailuresRequest
+	30, // 39: chatto.api.v1.BotService.ListBotOutboundWebhooks:input_type -> chatto.api.v1.ListBotOutboundWebhooksRequest
+	32, // 40: chatto.api.v1.BotService.GetBotOutboundWebhook:input_type -> chatto.api.v1.GetBotOutboundWebhookRequest
+	34, // 41: chatto.api.v1.BotService.CreateBotOutboundWebhook:input_type -> chatto.api.v1.CreateBotOutboundWebhookRequest
+	36, // 42: chatto.api.v1.BotService.UpdateBotOutboundWebhook:input_type -> chatto.api.v1.UpdateBotOutboundWebhookRequest
+	38, // 43: chatto.api.v1.BotService.RevokeBotOutboundWebhook:input_type -> chatto.api.v1.RevokeBotOutboundWebhookRequest
+	8,  // 44: chatto.api.v1.BotService.ListBots:input_type -> chatto.api.v1.ListBotsRequest
+	10, // 45: chatto.api.v1.BotService.GetBot:input_type -> chatto.api.v1.GetBotRequest
+	12, // 46: chatto.api.v1.BotService.BatchGetBots:input_type -> chatto.api.v1.BatchGetBotsRequest
+	14, // 47: chatto.api.v1.BotService.CreateBot:input_type -> chatto.api.v1.CreateBotRequest
+	16, // 48: chatto.api.v1.BotService.DeleteBot:input_type -> chatto.api.v1.DeleteBotRequest
+	18, // 49: chatto.api.v1.BotService.CreateBotApiKey:input_type -> chatto.api.v1.CreateBotApiKeyRequest
+	20, // 50: chatto.api.v1.BotService.RevokeBotApiKey:input_type -> chatto.api.v1.RevokeBotApiKeyRequest
+	22, // 51: chatto.api.v1.BotService.CreateBotIncomingWebhook:input_type -> chatto.api.v1.CreateBotIncomingWebhookRequest
+	24, // 52: chatto.api.v1.BotService.RevokeBotIncomingWebhook:input_type -> chatto.api.v1.RevokeBotIncomingWebhookRequest
+	26, // 53: chatto.api.v1.BotService.ReassignBotOwner:input_type -> chatto.api.v1.ReassignBotOwnerRequest
+	4,  // 54: chatto.api.v1.BotService.ListBotPermissions:output_type -> chatto.api.v1.ListBotPermissionsResponse
+	41, // 55: chatto.api.v1.BotService.ListBotWebhookFailures:output_type -> chatto.api.v1.ListBotWebhookFailuresResponse
+	31, // 56: chatto.api.v1.BotService.ListBotOutboundWebhooks:output_type -> chatto.api.v1.ListBotOutboundWebhooksResponse
+	33, // 57: chatto.api.v1.BotService.GetBotOutboundWebhook:output_type -> chatto.api.v1.GetBotOutboundWebhookResponse
+	35, // 58: chatto.api.v1.BotService.CreateBotOutboundWebhook:output_type -> chatto.api.v1.CreateBotOutboundWebhookResponse
+	37, // 59: chatto.api.v1.BotService.UpdateBotOutboundWebhook:output_type -> chatto.api.v1.UpdateBotOutboundWebhookResponse
+	39, // 60: chatto.api.v1.BotService.RevokeBotOutboundWebhook:output_type -> chatto.api.v1.RevokeBotOutboundWebhookResponse
+	9,  // 61: chatto.api.v1.BotService.ListBots:output_type -> chatto.api.v1.ListBotsResponse
+	11, // 62: chatto.api.v1.BotService.GetBot:output_type -> chatto.api.v1.GetBotResponse
+	13, // 63: chatto.api.v1.BotService.BatchGetBots:output_type -> chatto.api.v1.BatchGetBotsResponse
+	15, // 64: chatto.api.v1.BotService.CreateBot:output_type -> chatto.api.v1.CreateBotResponse
+	17, // 65: chatto.api.v1.BotService.DeleteBot:output_type -> chatto.api.v1.DeleteBotResponse
+	19, // 66: chatto.api.v1.BotService.CreateBotApiKey:output_type -> chatto.api.v1.CreateBotApiKeyResponse
+	21, // 67: chatto.api.v1.BotService.RevokeBotApiKey:output_type -> chatto.api.v1.RevokeBotApiKeyResponse
+	23, // 68: chatto.api.v1.BotService.CreateBotIncomingWebhook:output_type -> chatto.api.v1.CreateBotIncomingWebhookResponse
+	25, // 69: chatto.api.v1.BotService.RevokeBotIncomingWebhook:output_type -> chatto.api.v1.RevokeBotIncomingWebhookResponse
+	27, // 70: chatto.api.v1.BotService.ReassignBotOwner:output_type -> chatto.api.v1.ReassignBotOwnerResponse
+	54, // [54:71] is the sub-list for method output_type
+	37, // [37:54] is the sub-list for method input_type
+	37, // [37:37] is the sub-list for extension type_name
+	37, // [37:37] is the sub-list for extension extendee
+	0,  // [0:37] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_bots_proto_init() }
@@ -2595,17 +2883,17 @@ func file_chatto_api_v1_bots_proto_init() {
 	}
 	file_chatto_api_v1_pagination_proto_init()
 	file_chatto_api_v1_users_proto_init()
-	file_chatto_api_v1_bots_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_api_v1_bots_proto_msgTypes[2].OneofWrappers = []any{}
-	file_chatto_api_v1_bots_proto_msgTypes[9].OneofWrappers = []any{}
-	file_chatto_api_v1_bots_proto_msgTypes[31].OneofWrappers = []any{}
+	file_chatto_api_v1_bots_proto_msgTypes[4].OneofWrappers = []any{}
+	file_chatto_api_v1_bots_proto_msgTypes[5].OneofWrappers = []any{}
+	file_chatto_api_v1_bots_proto_msgTypes[12].OneofWrappers = []any{}
+	file_chatto_api_v1_bots_proto_msgTypes[34].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_bots_proto_rawDesc), len(file_chatto_api_v1_bots_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   37,
+			NumEnums:      2,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

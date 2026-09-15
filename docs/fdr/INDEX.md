@@ -31,7 +31,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-09-10 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-08-30 |
 | [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-27 |
-| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-09 |
+| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-09-15 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-09-15 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-08-27 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-08-21 |
@@ -47,7 +47,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-30 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-09-01 |
-| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-09 |
+| [FDR-038](FDR-038-bot-accounts.md) | Bot Accounts | Experimental | 2026-09-15 |
 | [FDR-039](FDR-039-message-access-and-interactions.md) | Message Access & Interactions | Experimental | 2026-09-04 |
 | [FDR-040](FDR-040-backup-and-restore.md) | Backup and Restore | Active | 2026-08-27 |
 | [FDR-041](FDR-041-transactional-email-delivery.md) | Transactional Email Delivery | Active | 2026-08-28 |

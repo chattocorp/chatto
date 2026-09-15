@@ -3,18 +3,35 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotOutboundWebhookRequest, CreateBotOutboundWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotOutboundWebhooksRequest, ListBotOutboundWebhooksResponse, ListBotsRequest, ListBotsResponse, ListBotWebhookFailuresRequest, ListBotWebhookFailuresResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RevokeBotOutboundWebhookRequest, RevokeBotOutboundWebhookResponse, UpdateBotOutboundWebhookRequest, UpdateBotOutboundWebhookResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotApiKeyRequest, CreateBotApiKeyResponse, CreateBotIncomingWebhookRequest, CreateBotIncomingWebhookResponse, CreateBotOutboundWebhookRequest, CreateBotOutboundWebhookResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotOutboundWebhookRequest, GetBotOutboundWebhookResponse, GetBotRequest, GetBotResponse, ListBotOutboundWebhooksRequest, ListBotOutboundWebhooksResponse, ListBotPermissionsRequest, ListBotPermissionsResponse, ListBotsRequest, ListBotsResponse, ListBotWebhookFailuresRequest, ListBotWebhookFailuresResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RevokeBotApiKeyRequest, RevokeBotApiKeyResponse, RevokeBotIncomingWebhookRequest, RevokeBotIncomingWebhookResponse, RevokeBotOutboundWebhookRequest, RevokeBotOutboundWebhookResponse, UpdateBotOutboundWebhookRequest, UpdateBotOutboundWebhookResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Creates and manages bot accounts owned by human users. Bot API keys cannot
- * call this service.
+ * Creates and manages bot accounts owned by human users. Bot API keys can
+ * read public permission summaries, but cannot use management operations.
  *
  * @generated from service chatto.api.v1.BotService
  */
 export const BotService = {
   typeName: "chatto.api.v1.BotService",
   methods: {
+    /**
+     * Describe a bot's effective permissions to any authenticated member.
+     * Hidden room IDs and names are omitted. Inactive grants are visible only to
+     * the bot's owner and authorised human bot managers. This does not grant
+     * access to bot credentials. Missing or non-bot accounts return NOT_FOUND.
+     * Each page is a current read; concurrent changes can move entries between
+     * pages. Clients should refresh while visible (the bundled client uses 30
+     * seconds) and stop refreshing and clear the view when the profile closes.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ListBotPermissions
+     */
+    listBotPermissions: {
+      name: "ListBotPermissions",
+      I: ListBotPermissionsRequest,
+      O: ListBotPermissionsResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * List retained failures for an endpoint of a bot you can manage. Returns full
      * records in recording order, oldest first. Expired records are omitted.

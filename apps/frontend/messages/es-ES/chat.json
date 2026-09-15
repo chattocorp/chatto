@@ -80,7 +80,30 @@
       "fallback_title": "Perfil",
       "not_found": "Usuario no encontrado",
       "bot": "Bot",
-      "local_time": "{time}, hora local ({zone})"
+      "local_time": "{time}, hora local ({zone})",
+      "permissions": {
+        "title": "Qué puede hacer este bot",
+        "note": "Permisos actuales visibles para ti. Las acciones de mensajes y llamadas también requieren ser miembro y pueden tener otros requisitos.",
+        "empty": "No hay permisos activos visibles para ti.",
+        "error": "No se pudieron cargar los permisos de este bot.",
+        "inactive_title": "Permisos inactivos",
+        "inactive_note": "Estos permisos están guardados, pero los permisos actuales del propietario no los permiten.",
+        "allowed": "Puede: {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Leer todos los mensajes",
+        "interactions": "Leer hilos que creó o donde se le mencionó directamente",
+        "post": "Publicar mensajes nuevos",
+        "room": "#{name}",
+        "group": "Grupo: {name}",
+        "dm": "Mensajes directos en los que participa",
+        "joined_rooms": "Salas a las que se ha unido",
+        "all_rooms": "Todas las salas de canales",
+        "server": "Este servidor",
+        "more": "Mostrar más permisos",
+        "list_rooms": "Ver salas en el directorio",
+        "echo": "Mostrar respuestas de hilos en la cronología de la sala",
+        "start_calls": "Iniciar llamadas"
+      }
     }
   }
 }

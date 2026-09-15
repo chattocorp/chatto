@@ -1,13 +1,17 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-09-09
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
 A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status, bio, shared time zone) plus server-synced User Preferences (timezone, time format). Human accounts support the complete profile. Bot accounts support self-service login, display-name, bio, and avatar changes (FDR-038). The login is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate human-account needs. The profile does not contain App Preferences, such as appearance, thread presentation, language, editor, and send-key behavior. The app applies these choices to its registered servers.
 
 ## Behavior
+
+Bot profile panes include a readable permission summary. See
+[FDR-038](FDR-038-bot-accounts.md) for effective access, room visibility, and
+manager-only inactive grants.
 
 `MyAccountService.UpdateProfile` and `UpdateSettings` use update masks as defined
 in [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md). Unselected fields

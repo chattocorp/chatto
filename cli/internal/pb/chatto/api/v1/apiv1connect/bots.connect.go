@@ -33,6 +33,9 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// BotServiceListBotPermissionsProcedure is the fully-qualified name of the BotService's
+	// ListBotPermissions RPC.
+	BotServiceListBotPermissionsProcedure = "/chatto.api.v1.BotService/ListBotPermissions"
 	// BotServiceListBotWebhookFailuresProcedure is the fully-qualified name of the BotService's
 	// ListBotWebhookFailures RPC.
 	BotServiceListBotWebhookFailuresProcedure = "/chatto.api.v1.BotService/ListBotWebhookFailures"
@@ -80,6 +83,14 @@ const (
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
 type BotServiceClient interface {
+	// Describe a bot's effective permissions to any authenticated member.
+	// Hidden room IDs and names are omitted. Inactive grants are visible only to
+	// the bot's owner and authorised human bot managers. This does not grant
+	// access to bot credentials. Missing or non-bot accounts return NOT_FOUND.
+	// Each page is a current read; concurrent changes can move entries between
+	// pages. Clients should refresh while visible (the bundled client uses 30
+	// seconds) and stop refreshing and clear the view when the profile closes.
+	ListBotPermissions(context.Context, *connect.Request[v1.ListBotPermissionsRequest]) (*connect.Response[v1.ListBotPermissionsResponse], error)
 	// List retained failures for an endpoint of a bot you can manage. Returns full
 	// records in recording order, oldest first. Expired records are omitted.
 	// This history is diagnostic; an empty result does not prove successful delivery.
@@ -133,6 +144,12 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 	baseURL = strings.TrimRight(baseURL, "/")
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
 	return &botServiceClient{
+		listBotPermissions: connect.NewClient[v1.ListBotPermissionsRequest, v1.ListBotPermissionsResponse](
+			httpClient,
+			baseURL+BotServiceListBotPermissionsProcedure,
+			connect.WithSchema(botServiceMethods.ByName("ListBotPermissions")),
+			connect.WithClientOptions(opts...),
+		),
 		listBotWebhookFailures: connect.NewClient[v1.ListBotWebhookFailuresRequest, v1.ListBotWebhookFailuresResponse](
 			httpClient,
 			baseURL+BotServiceListBotWebhookFailuresProcedure,
@@ -239,6 +256,7 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
+	listBotPermissions       *connect.Client[v1.ListBotPermissionsRequest, v1.ListBotPermissionsResponse]
 	listBotWebhookFailures   *connect.Client[v1.ListBotWebhookFailuresRequest, v1.ListBotWebhookFailuresResponse]
 	listBotOutboundWebhooks  *connect.Client[v1.ListBotOutboundWebhooksRequest, v1.ListBotOutboundWebhooksResponse]
 	getBotOutboundWebhook    *connect.Client[v1.GetBotOutboundWebhookRequest, v1.GetBotOutboundWebhookResponse]
@@ -255,6 +273,11 @@ type botServiceClient struct {
 	createBotIncomingWebhook *connect.Client[v1.CreateBotIncomingWebhookRequest, v1.CreateBotIncomingWebhookResponse]
 	revokeBotIncomingWebhook *connect.Client[v1.RevokeBotIncomingWebhookRequest, v1.RevokeBotIncomingWebhookResponse]
 	reassignBotOwner         *connect.Client[v1.ReassignBotOwnerRequest, v1.ReassignBotOwnerResponse]
+}
+
+// ListBotPermissions calls chatto.api.v1.BotService.ListBotPermissions.
+func (c *botServiceClient) ListBotPermissions(ctx context.Context, req *connect.Request[v1.ListBotPermissionsRequest]) (*connect.Response[v1.ListBotPermissionsResponse], error) {
+	return c.listBotPermissions.CallUnary(ctx, req)
 }
 
 // ListBotWebhookFailures calls chatto.api.v1.BotService.ListBotWebhookFailures.
@@ -339,6 +362,14 @@ func (c *botServiceClient) ReassignBotOwner(ctx context.Context, req *connect.Re
 
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
+	// Describe a bot's effective permissions to any authenticated member.
+	// Hidden room IDs and names are omitted. Inactive grants are visible only to
+	// the bot's owner and authorised human bot managers. This does not grant
+	// access to bot credentials. Missing or non-bot accounts return NOT_FOUND.
+	// Each page is a current read; concurrent changes can move entries between
+	// pages. Clients should refresh while visible (the bundled client uses 30
+	// seconds) and stop refreshing and clear the view when the profile closes.
+	ListBotPermissions(context.Context, *connect.Request[v1.ListBotPermissionsRequest]) (*connect.Response[v1.ListBotPermissionsResponse], error)
 	// List retained failures for an endpoint of a bot you can manage. Returns full
 	// records in recording order, oldest first. Expired records are omitted.
 	// This history is diagnostic; an empty result does not prove successful delivery.
@@ -388,6 +419,12 @@ type BotServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	botServiceMethods := v1.File_chatto_api_v1_bots_proto.Services().ByName("BotService").Methods()
+	botServiceListBotPermissionsHandler := connect.NewUnaryHandler(
+		BotServiceListBotPermissionsProcedure,
+		svc.ListBotPermissions,
+		connect.WithSchema(botServiceMethods.ByName("ListBotPermissions")),
+		connect.WithHandlerOptions(opts...),
+	)
 	botServiceListBotWebhookFailuresHandler := connect.NewUnaryHandler(
 		BotServiceListBotWebhookFailuresProcedure,
 		svc.ListBotWebhookFailures,
@@ -491,6 +528,8 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 	)
 	return "/chatto.api.v1.BotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case BotServiceListBotPermissionsProcedure:
+			botServiceListBotPermissionsHandler.ServeHTTP(w, r)
 		case BotServiceListBotWebhookFailuresProcedure:
 			botServiceListBotWebhookFailuresHandler.ServeHTTP(w, r)
 		case BotServiceListBotOutboundWebhooksProcedure:
@@ -531,6 +570,10 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 
 // UnimplementedBotServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedBotServiceHandler struct{}
+
+func (UnimplementedBotServiceHandler) ListBotPermissions(context.Context, *connect.Request[v1.ListBotPermissionsRequest]) (*connect.Response[v1.ListBotPermissionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ListBotPermissions is not implemented"))
+}
 
 func (UnimplementedBotServiceHandler) ListBotWebhookFailures(context.Context, *connect.Request[v1.ListBotWebhookFailuresRequest]) (*connect.Response[v1.ListBotWebhookFailuresResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.ListBotWebhookFailures is not implemented"))

@@ -1,7 +1,11 @@
 import { updateMask } from './updateMask';
 import { authHeaders, createChattoClient } from './connect.js';
 import { BotService } from '@chatto/api-types/api/v1/bots_connect';
-import { CredentialLastUsedState, type Bot as APIBot } from '@chatto/api-types/api/v1/bots_pb';
+import {
+  BotPermissionScope,
+  CredentialLastUsedState,
+  type Bot as APIBot
+} from '@chatto/api-types/api/v1/bots_pb';
 
 export type BotAPIConfig = {
   baseUrl: string;
@@ -35,6 +39,15 @@ export type Bot = {
   }[];
 };
 
+/** Public summary entry, already filtered and combined by the server. */
+export type BotPermission = {
+  permission: string;
+  scope: 'server' | 'group' | 'room' | 'dm';
+  scopeId: string;
+  scopeName: string;
+  active: boolean;
+};
+
 export type BotPage = {
   bots: Bot[];
   totalCount: number;
@@ -45,6 +58,33 @@ export function createBotAPI(config: BotAPIConfig) {
   const client = createChattoClient(BotService, config);
   const headers = () => authHeaders(config);
   return {
+    async listPermissions(botUserId: string, offset = 0, signal?: AbortSignal) {
+      const response = await client.listBotPermissions(
+        { botUserId, page: { limit: 100, offset } },
+        { headers: headers(), signal }
+      );
+      const permissions: BotPermission[] = response.permissions.map((entry) => {
+        const scope =
+          entry.scope === BotPermissionScope.SERVER
+            ? 'server'
+            : entry.scope === BotPermissionScope.GROUP
+              ? 'group'
+              : entry.scope === BotPermissionScope.ROOM
+                ? 'room'
+                : entry.scope === BotPermissionScope.DM
+                  ? 'dm'
+                  : null;
+        if (!scope) throw new Error('Unsupported bot permission scope');
+        return {
+          permission: entry.permission,
+          scope,
+          scopeId: entry.scopeId,
+          scopeName: entry.scopeName,
+          active: entry.active
+        };
+      });
+      return { permissions, hasMore: response.page?.hasMore ?? false };
+    },
     async listWebhookFailures(
       botUserId: string,
       webhookId: string,

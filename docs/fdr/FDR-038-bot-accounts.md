@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-09-09
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -11,6 +11,22 @@ within an explicit permission allowlist, but it cannot sign in as a person or
 exercise more authority than its human owner currently possesses.
 
 ## Behavior
+
+- A bot's profile pane shows **What this bot can do** to all authenticated
+  members. It describes effective permissions after the owner's current
+  authority is applied. Channel rooms and direct messages have separate
+  descriptions. Message and call actions still require membership and other
+  action-specific conditions.
+- The summary combines broader and narrower grants only when every applicable
+  narrower scope has the same effective access. It omits permissions already
+  included by another displayed permission. Named rooms follow the viewer's
+  normal room visibility. No DM participants or credential details are exposed.
+- Bot owners and authorised human bot managers also see inactive grants, with
+  an explanation that the owner's current permissions do not allow them.
+  Other members cannot see inactive grants.
+- The summary refreshes every 30 seconds while the pane is open. A failed read
+  shows an error instead of stale grants. Long summaries have a control to
+  load more permissions. Closing the pane stops refreshes and clears its cache.
 
 - A human user with `bot.create` can create a bot account and becomes its
   owner.

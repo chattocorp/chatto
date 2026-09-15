@@ -80,7 +80,30 @@
       "fallback_title": "Profile",
       "not_found": "User not found",
       "bot": "Bot",
-      "local_time": "{time} local time ({zone})"
+      "local_time": "{time} local time ({zone})",
+      "permissions": {
+        "title": "What this bot can do",
+        "note": "Current permissions visible to you. Membership and other action requirements still apply.",
+        "empty": "No active permissions are visible to you.",
+        "error": "Could not load this bot’s permissions.",
+        "inactive_title": "Inactive grants",
+        "inactive_note": "These grants are saved, but the owner’s current permissions do not allow them.",
+        "allowed": "Can {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Read all messages",
+        "interactions": "Read threads it authored or where it was directly mentioned",
+        "post": "Post new messages",
+        "room": "#{name}",
+        "group": "Group: {name}",
+        "dm": "Direct messages it belongs to",
+        "joined_rooms": "Rooms it has joined",
+        "all_rooms": "All channel rooms",
+        "server": "This server",
+        "more": "Show more permissions",
+        "list_rooms": "See rooms in the directory",
+        "echo": "Show thread replies in the room timeline",
+        "start_calls": "Start calls"
+      }
     }
   }
 }

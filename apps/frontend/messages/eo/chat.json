@@ -80,7 +80,30 @@
       "fallback_title": "Profilo",
       "not_found": "Uzanto ne trovita",
       "bot": "Roboto",
-      "local_time": "Loka tempo {time} ({zone})"
+      "local_time": "Loka tempo {time} ({zone})",
+      "permissions": {
+        "title": "Kion ĉi tiu roboto povas fari",
+        "note": "Nunaj permesoj videblaj al vi. Mesaĝaj kaj vokaj agoj ankaŭ postulas membrecon kaj povas havi aliajn postulojn.",
+        "empty": "Neniuj aktivaj permesoj estas videblaj al vi.",
+        "error": "Ne eblis ŝargi la permesojn de ĉi tiu roboto.",
+        "inactive_title": "Neaktivaj permesoj",
+        "inactive_note": "Ĉi tiuj permesoj estas konservitaj, sed la nunaj permesoj de la posedanto ne permesas ilin.",
+        "allowed": "Povas: {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Legi ĉiujn mesaĝojn",
+        "interactions": "Legi fadenojn kiujn ĝi kreis aŭ en kiuj ĝi estis rekte menciita",
+        "post": "Afiŝi novajn mesaĝojn",
+        "room": "#{name}",
+        "group": "Grupo: {name}",
+        "dm": "Rektaj mesaĝoj en kiuj ĝi partoprenas",
+        "joined_rooms": "Ĉambroj al kiuj ĝi aliĝis",
+        "all_rooms": "Ĉiuj kanalaj ĉambroj",
+        "server": "Ĉi tiu servilo",
+        "more": "Montri pliajn permesojn",
+        "list_rooms": "Vidi ĉambrojn en la dosierujo",
+        "echo": "Montri fadenajn respondojn en la ĉambra templinio",
+        "start_calls": "Komenci vokojn"
+      }
     }
   }
 }

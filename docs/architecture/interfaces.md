@@ -120,13 +120,19 @@ See [role operations](../../cli/internal/core/role_management.go) and the
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named
-incoming webhooks for each bot. Bot
-permission reads and writes use `AdminPermissionService`'s canonical user
-permission operations with the bot's user ID as the target. Human owners can
+incoming webhooks for each bot. Bot permission configuration reads and writes
+use `AdminPermissionService`'s canonical user permission operations with the
+bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management. A human with
 `user.manage-accounts` can list and read all bots for avatar administration,
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
+
+`BotService.ListBotPermissions` exposes a paginated, read-only effective
+allowlist to all authenticated members. Core evaluates the existing permission
+resolver in one server content view. It combines equivalent scopes and filters
+room metadata before pagination. Inactive grants require bot management
+access. The read does not expose credentials or individual DM participants.
 
 Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot

@@ -17,6 +17,15 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
+## Bot permission summaries
+
+`BotService.ListBotPermissions` is an additive API for authenticated members.
+It returns effective bot grants with separate channel and DM scopes. It omits
+hidden room identities. Only bot owners and authorised human bot managers can
+receive inactive grants. Existing bot management APIs keep their access rules.
+No stored-data migration is required. Servers without this method return
+`UNIMPLEMENTED`; the bundled profile shows that the summary is unavailable.
+
 ## Target a server release
 
 Use the protobuf definitions and API reference from the same Chatto release as

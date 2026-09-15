@@ -9,6 +9,7 @@ realtime changes arrive.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
+  import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
@@ -118,6 +119,12 @@ realtime changes arrive.
 
     {#if bio}
       <UserBio {bio} class="mt-4" />
+    {/if}
+
+    {#if baseUser.isBot}
+      {#key baseUser.id}
+        <BotPermissionSummary botId={baseUser.id} />
+      {/key}
     {/if}
 
     {#if timezone && localTime}

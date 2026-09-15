@@ -8,6 +8,53 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
+// The scope of a bot permission. Channel scopes never include direct messages.
+enum BotPermissionScope {
+  // No scope was supplied.
+  BOT_PERMISSION_SCOPE_UNSPECIFIED = 0;
+  // Server authority, or a default for all channel rooms and groups.
+  BOT_PERMISSION_SCOPE_SERVER = 1;
+  // A room group and its channel rooms.
+  BOT_PERMISSION_SCOPE_GROUP = 2;
+  // One channel room.
+  BOT_PERMISSION_SCOPE_ROOM = 3;
+  // Direct messages the bot belongs to; participant identities are not exposed.
+  BOT_PERMISSION_SCOPE_DM = 4;
+}
+
+// One permission in a bot's effective allowlist. Membership and other action
+// requirements still apply. Broader scopes replace equivalent narrower entries.
+message BotPermission {
+  // Stable permission key, such as message.read.
+  string permission = 1;
+  // Where the permission applies.
+  BotPermissionScope scope = 2;
+  // Room or group ID. Empty for server and direct-message scopes.
+  string scope_id = 3;
+  // Current room or group name. Empty for server and direct-message scopes.
+  string scope_name = 4;
+  // False means the stored grant is unavailable under the owner's current
+  // permissions. Only the owner and authorised human bot managers see it.
+  bool active = 5;
+}
+
+// Select a live page of a bot's permission summary.
+message ListBotPermissionsRequest {
+  // Required bot account ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Offset pagination over summary entries; default 20, maximum 100.
+  PageRequest page = 2;
+}
+
+// Current permission summary, filtered for the caller's room visibility.
+message ListBotPermissionsResponse {
+  // Ordered by permission catalog, then stable scope ID. An empty collection
+  // means no configured access is visible to this caller.
+  repeated BotPermission permissions = 1;
+  // Pagination for the filtered collection.
+  PageInfo page = 2;
+}
+
 // A managed bot account. Raw API keys are returned only when Chatto issues
 // them.
 message Bot {
@@ -341,9 +388,18 @@ message RevokeBotOutboundWebhookRequest {
 // Revocation completed, or this endpoint was already absent.
 message RevokeBotOutboundWebhookResponse {}
 
-// Creates and manages bot accounts owned by human users. Bot API keys cannot
-// call this service.
+// Creates and manages bot accounts owned by human users. Bot API keys can
+// read public permission summaries, but cannot use management operations.
 service BotService {
+  // Describe a bot's effective permissions to any authenticated member.
+  // Hidden room IDs and names are omitted. Inactive grants are visible only to
+  // the bot's owner and authorised human bot managers. This does not grant
+  // access to bot credentials. Missing or non-bot accounts return NOT_FOUND.
+  // Each page is a current read; concurrent changes can move entries between
+  // pages. Clients should refresh while visible (the bundled client uses 30
+  // seconds) and stop refreshing and clear the view when the profile closes.
+  rpc ListBotPermissions(ListBotPermissionsRequest) returns (ListBotPermissionsResponse);
+
   // List retained failures for an endpoint of a bot you can manage. Returns full
   // records in recording order, oldest first. Expired records are omitted.
   // This history is diagnostic; an empty result does not prove successful delivery.

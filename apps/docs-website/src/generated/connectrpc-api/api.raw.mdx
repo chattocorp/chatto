@@ -2175,8 +2175,48 @@ Response after cancelling an upload.
 
 ## BotService
 
-Creates and manages bot accounts owned by human users. Bot API keys cannot
-call this service.
+Creates and manages bot accounts owned by human users. Bot API keys can
+read public permission summaries, but cannot use management operations.
+
+<a id="chatto-api-v1-BotService-ListBotPermissions"></a>
+
+### ListBotPermissions
+
+Describe a bot's effective permissions to any authenticated member.
+Hidden room IDs and names are omitted. Inactive grants are visible only to
+the bot's owner and authorised human bot managers. This does not grant
+access to bot credentials. Missing or non-bot accounts return NOT_FOUND.
+Each page is a current read; concurrent changes can move entries between
+pages. Clients should refresh while visible (the bundled client uses 30
+seconds) and stop refreshing and clear the view when the profile closes.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBotPermissions
+```
+
+<a id="chatto-api-v1-ListBotPermissionsRequest"></a>
+
+#### Input: ListBotPermissionsRequest
+
+Select a live page of a bot's permission summary.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot account ID. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Offset pagination over summary entries; default 20, maximum 100. |
+
+
+<a id="chatto-api-v1-ListBotPermissionsResponse"></a>
+
+#### Result: ListBotPermissionsResponse
+
+Current permission summary, filtered for the caller's room visibility.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`BotPermission`](#chatto-api-v1-BotPermission) | Ordered by permission catalog, then stable scope ID. An empty collection means no configured access is visible to this caller. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Pagination for the filtered collection. |
+
 
 <a id="chatto-api-v1-BotService-ListBotWebhookFailures"></a>
 
@@ -5720,6 +5760,23 @@ Authorization and signing credentials are write-only. The saved URL is visible.
 
 
 
+<a id="chatto-api-v1-BotPermission"></a>
+
+### BotPermission
+
+One permission in a bot's effective allowlist. Membership and other action
+requirements still apply. Broader scopes replace equivalent narrower entries.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key, such as message.read. |
+| `scope` | [`BotPermissionScope`](#chatto-api-v1-BotPermissionScope) | Where the permission applies. |
+| `scope_id` | `string` | Room or group ID. Empty for server and direct-message scopes. |
+| `scope_name` | `string` | Current room or group name. Empty for server and direct-message scopes. |
+| `active` | `bool` | False means the stored grant is unavailable under the owner's current permissions. Only the owner and authorised human bot managers see it. |
+
+
+
 <a id="chatto-api-v1-BotWebhookFailure"></a>
 
 ### BotWebhookFailure
@@ -6239,6 +6296,21 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+
+<a id="chatto-api-v1-BotPermissionScope"></a>
+
+### BotPermissionScope
+
+The scope of a bot permission. Channel scopes never include direct messages.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_SCOPE_UNSPECIFIED` | `0` | No scope was supplied. |
+| `BOT_PERMISSION_SCOPE_SERVER` | `1` | Server authority, or a default for all channel rooms and groups. |
+| `BOT_PERMISSION_SCOPE_GROUP` | `2` | A room group and its channel rooms. |
+| `BOT_PERMISSION_SCOPE_ROOM` | `3` | One channel room. |
+| `BOT_PERMISSION_SCOPE_DM` | `4` | Direct messages the bot belongs to; participant identities are not exposed. |
 
 
 <a id="chatto-api-v1-CredentialLastUsedState"></a>

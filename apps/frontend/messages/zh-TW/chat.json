@@ -80,7 +80,30 @@
       "fallback_title": "個人資料",
       "not_found": "找不到該使用者",
       "bot": "機器人",
-      "local_time": "當地時間 {time}（{zone}）"
+      "local_time": "當地時間 {time}（{zone}）",
+      "permissions": {
+        "title": "此機器人可以做什麼",
+        "note": "你可見的目前權限。訊息和通話操作還需要加入對應對話，並可能有其他要求。",
+        "empty": "沒有對你可見的有效權限。",
+        "error": "無法載入此機器人的權限。",
+        "inactive_title": "未生效的授權",
+        "inactive_note": "這些授權已儲存，但擁有者目前的權限不允許使用。",
+        "allowed": "可以：{action} — {scope}。",
+        "inactive": "{action} — {scope}。",
+        "read": "讀取所有訊息",
+        "interactions": "讀取它建立的或被直接提及的討論串",
+        "post": "發布新訊息",
+        "room": "#{name}",
+        "group": "群組：{name}",
+        "dm": "它參與的私人訊息",
+        "joined_rooms": "它已加入的房間",
+        "all_rooms": "所有頻道房間",
+        "server": "此伺服器",
+        "more": "顯示更多權限",
+        "list_rooms": "查看目錄中的房間",
+        "echo": "在房間時間軸中顯示討論串回覆",
+        "start_calls": "發起通話"
+      }
     }
   }
 }

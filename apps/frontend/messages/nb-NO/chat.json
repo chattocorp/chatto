@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Brukeren ble ikke funnet",
       "bot": "Bot",
-      "local_time": "{time} lokal tid ({zone})"
+      "local_time": "{time} lokal tid ({zone})",
+      "permissions": {
+        "title": "Hva denne boten kan gjøre",
+        "note": "Gjeldende tillatelser som er synlige for deg. Meldings- og samtalehandlinger krever også medlemskap og kan ha andre krav.",
+        "empty": "Ingen aktive tillatelser er synlige for deg.",
+        "error": "Kunne ikke laste botens tillatelser.",
+        "inactive_title": "Inaktive tillatelser",
+        "inactive_note": "Disse tillatelsene er lagret, men eierens gjeldende tillatelser tillater dem ikke.",
+        "allowed": "Kan: {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Lese alle meldinger",
+        "interactions": "Lese tråder den har opprettet eller der den er nevnt direkte",
+        "post": "Sende nye meldinger",
+        "room": "#{name}",
+        "group": "Gruppe: {name}",
+        "dm": "Direktemeldinger den deltar i",
+        "joined_rooms": "Rom den har blitt med i",
+        "all_rooms": "Alle kanalrom",
+        "server": "Denne serveren",
+        "more": "Vis flere tillatelser",
+        "list_rooms": "Se rom i katalogen",
+        "echo": "Vise trådsvar i rommets tidslinje",
+        "start_calls": "Starte samtaler"
+      }
     }
   }
 }

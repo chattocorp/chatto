@@ -80,7 +80,30 @@
       "fallback_title": "Profils",
       "not_found": "Lietotājs nav atrasts",
       "bot": "Bots",
-      "local_time": "{time} vietējais laiks ({zone})"
+      "local_time": "{time} vietējais laiks ({zone})",
+      "permissions": {
+        "title": "Ko šis bots var darīt",
+        "note": "Pašreizējās tev redzamās atļaujas. Ziņojumu un zvanu darbībām ir vajadzīga arī dalība, un tām var būt citas prasības.",
+        "empty": "Tev nav redzamu aktīvu atļauju.",
+        "error": "Neizdevās ielādēt šī bota atļaujas.",
+        "inactive_title": "Neaktīvas atļaujas",
+        "inactive_note": "Šīs atļaujas ir saglabātas, bet īpašnieka pašreizējās atļaujas tās nepieļauj.",
+        "allowed": "Var: {action} — {scope}.",
+        "inactive": "{action} — {scope}.",
+        "read": "Lasīt visus ziņojumus",
+        "interactions": "Lasīt pavedienus, kurus tas izveidojis vai kuros tas tieši pieminēts",
+        "post": "Sūtīt jaunus ziņojumus",
+        "room": "#{name}",
+        "group": "Grupa: {name}",
+        "dm": "Tiešie ziņojumi, kuros tas piedalās",
+        "joined_rooms": "Istabas, kurām tas pievienojies",
+        "all_rooms": "Visas kanālu istabas",
+        "server": "Šis serveris",
+        "more": "Rādīt vairāk atļauju",
+        "list_rooms": "Redzēt istabas katalogā",
+        "echo": "Rādīt pavedienu atbildes istabas laika skalā",
+        "start_calls": "Sākt zvanus"
+      }
     }
   }
 }
