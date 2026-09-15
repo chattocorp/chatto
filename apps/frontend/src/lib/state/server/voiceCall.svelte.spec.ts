@@ -529,6 +529,37 @@ describe('VoiceCallState', () => {
     }
   );
 
+  it('applies saved processing settings and live changes to the call processor', async () => {
+    const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+    const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
+    const preferences = new CallPreferencesState('call-effects');
+    preferences.setEffects({ equalizer: true, bass: -3, compressor: true });
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: -3, compressor: true }));
+      preferences.setEffects({ bass: 4, compressor: false });
+      await vi.waitFor(() =>
+        expect(applied).toHaveBeenCalledWith(
+          expect.objectContaining({ bass: 4, compressor: false })
+        )
+      );
+    } finally {
+      await state.leave();
+      applied.mockRestore();
+    }
+  });
+
   it('restores saved devices and joins muted without capture prompts', async () => {
     const preferences = new CallPreferencesState('call-device-restore');
     preferences.setDevice('audioinput', 'preferred-mic');
@@ -548,7 +579,8 @@ describe('VoiceCallState', () => {
     );
     await state.join('wss://livekit.example.test', 'R1');
     expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
-      deviceId: { ideal: 'preferred-mic' }
+      deviceId: { ideal: 'preferred-mic' },
+      autoGainControl: false
     });
     expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
       deviceId: { ideal: 'preferred-camera' }

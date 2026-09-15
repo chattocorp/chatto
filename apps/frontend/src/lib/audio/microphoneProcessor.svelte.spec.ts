@@ -84,13 +84,18 @@ it('gates a real LiveKit track, updates thresholds, restarts, and releases only 
   }
 });
 
-it.each(['missing API', 'module failure'])(
+it.each(['missing API', 'module failure', 'native node failure'])(
   'keeps ordinary audio available with %s',
   async (failure) => {
     const { context, oscillator, track } = await input();
     if (failure === 'missing API')
       Object.defineProperty(context, 'audioWorklet', { value: undefined });
-    else vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
+    else if (failure === 'module failure')
+      vi.spyOn(context.audioWorklet, 'addModule').mockRejectedValue(new Error('Unavailable'));
+    else
+      vi.spyOn(context, 'createDynamicsCompressor').mockImplementation(() => {
+        throw new Error('Unavailable');
+      });
     const processor = new MicrophoneProcessor(-20);
     try {
       await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });

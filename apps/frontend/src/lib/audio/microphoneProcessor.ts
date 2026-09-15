@@ -58,6 +58,7 @@ export class MicrophoneProcessor implements TrackProcessor<
     this.#node?.port.postMessage({ threshold: value });
   }
 
+  /** Retain settings across SDK restarts and apply them to the current graph. */
   setEffects(value: MicrophoneEffects): void {
     this.#effects = normalizeMicrophoneEffects(value);
     this.#graph?.update(this.#effects);
@@ -96,6 +97,7 @@ export class MicrophoneProcessor implements TrackProcessor<
         if (generation !== this.#generation) return;
         source.disconnect();
         this.#graph?.destroy();
+        this.#graph = undefined;
         node.disconnect();
         source.connect(destination);
         this.setupFallbackMeter(audioContext);

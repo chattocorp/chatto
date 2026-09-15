@@ -15,6 +15,7 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
+  /** Optional local effects; absent legacy values restore neutral defaults. */
   effects: MicrophoneEffects;
 }
 
@@ -54,6 +55,7 @@ export class CallPreferencesState {
     this.#slot.set(this.#value);
   }
 
+  /** Restore the processing defaults without changing device or join choices. */
   resetProcessing(): void {
     this.#value.effects = { ...defaultMicrophoneEffects };
     this.#value.microphoneThreshold = GATE_OFF;
