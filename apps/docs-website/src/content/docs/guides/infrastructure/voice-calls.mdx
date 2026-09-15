@@ -270,7 +270,7 @@ it does not compete with your compressor settings.
 
 Move the **Voice Quality** slider in **Microphone processing** to adjust your sound:
 
-- **Normal** (the default) disables the added filter, equaliser, and compressor.
+- **Normal** (the default) disables the added voice effects.
 - **Pretty cool** at the midpoint adds gentle tone adjustment and light compression.
 - **AWESOME** adds fuller bass, less nasal midrange, brighter highs, and firmer compression.
 
@@ -279,6 +279,12 @@ the final 20%, soft saturation adds warmth and harmonics, and a moving rainbow
 fades into the slider and moves faster as the value increases. At **AWESOME**,
 each letter of the value label dances in sequence, in rainbow colours. If your
 system prefers reduced motion, both stay still.
+
+As Voice Quality increases, automatic de-essing reduces sharp S and SH sounds.
+A final limiter catches sudden sample peaks after the other effects. An enabled
+noise gate also closes more gently to preserve quiet word endings. These changes
+increase toward AWESOME and need no extra controls. Normal bypasses them, and
+an Off gate stays off.
 The noise gate applies separately. Moving **Voice Quality** keeps your gate
 threshold, device choices, and join-muted preference. Browser echo cancellation
 and noise suppression stay enabled.

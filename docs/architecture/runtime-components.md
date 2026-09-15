@@ -220,7 +220,10 @@ track processor. Its bundled audio worklet calculates input RMS and applies
 one gate envelope across channels. Processing uses the audio sample clock,
 not browser UI timers: attack 5 ms, hold 150 ms, release 80 ms, and a closing
 threshold half the opening amplitude (about 6 dB lower). The -60 dB control
-position disables gating. The input meter maps -60 to 0 dBFS onto 0–1.
+position disables gating. Voice Quality derives a polish amount from 0 to 1.
+This widens the closed gate's smooth gain transition from 0 to 12 dB below the
+opening threshold and extends release from 80 to 180 ms. Hold and hysteresis
+remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
 80 Hz high-pass filter (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
@@ -235,6 +238,17 @@ Above 80, a post-compressor saturation branch fades from 0 to 50% wet at 100.
 A fixed 4097-point WaveShaper curve uses tanh(2.5x)/tanh(2.5). Oversampling stays
 off so the dry and wet branches have no resampler delay difference. Dry/wet gains
 use the same 15 ms smoothing. The graph owns and disconnects both branches.
+A second processor in the same bundled worklet runs `VoicePolish` after the
+native graph. A complementary one-pole split at 4 kHz detects prominent,
+audible high-band energy and reduces that band by up to 9 dB at full polish.
+Detection and gain attack use 1 ms; gain release uses 80 ms. Linked channel
+gains preserve balance. A final sample-peak limiter has immediate attack and
+80 ms release; its ceiling moves from 0.99 toward 0.89 as polish increases.
+This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
+Polish amount changes use 15 ms smoothing. Normal bypasses the added stage
+exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
+`MicrophoneProcessor`; a failure in either stops both and routes raw input to
+the existing output track and fallback meter. Restart restores derived settings.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
 The gate meters the signal after the optional low-cut filter and before EQ.
 Capture requests disable browser AGC in both owners. The processor graph is

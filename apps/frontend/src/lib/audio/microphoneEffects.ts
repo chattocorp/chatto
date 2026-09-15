@@ -11,6 +11,8 @@ export interface MicrophoneEffects {
   strength?: number;
   /** Soft saturation blend, 0–1; only the top fifth of Voice Quality enables it. */
   saturation?: number;
+  /** Automatic de-essing, limiting and gate softness, derived from Voice Quality. */
+  polish?: number;
 }
 
 /** Bound inputs before they reach AudioParams; omitted values produce fresh defaults. */
@@ -29,7 +31,8 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
     compressor: raw.compressor === true,
     amount: bounded(raw.amount, 0, 100, 50),
     strength: bounded(raw.strength, 0, 1, 1),
-    saturation: bounded(raw.saturation, 0, 1, 0)
+    saturation: bounded(raw.saturation, 0, 1, 0),
+    polish: bounded(raw.polish, 0, 1, 0)
   };
 }
 
@@ -51,6 +54,7 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
     compressor: amount > 0,
     amount: 15 + 70 * upper,
     strength: lower,
-    saturation: Math.max(0, (amount - 80) / 20) * 0.5
+    saturation: Math.max(0, (amount - 80) / 20) * 0.5,
+    polish: amount / 100
   };
 }

@@ -17,6 +17,8 @@ export function microphoneMeter(rms: number): number {
 export class NoiseGate {
   threshold = GATE_OFF;
   level = 0;
+  /** 0 preserves the original gate; 1 adds a 12 dB closing knee and longer release. */
+  softness = 0;
   #gain = 0;
   #open = false;
   #hold = 0;
@@ -39,14 +41,27 @@ export class NoiseGate {
       this.#hold = Math.max(0, this.#hold - frames);
       if (this.#hold === 0) this.#open = false;
     }
-    const target = this.#open ? 1 : 0;
-    const step = 1 / (this.sampleRate * (target ? 0.005 : 0.08));
+    const width = 12 * this.softness;
+    const position =
+      width > 0
+        ? Math.max(
+            0,
+            Math.min(
+              1,
+              (20 * Math.log10(Math.max(this.level, 1e-12)) - this.threshold + width) / width
+            )
+          )
+        : 0;
+    const knee = position * position * (3 - 2 * position);
+    const target = this.#open ? 1 : knee;
+    const rising = target > this.#gain;
+    const step = 1 / (this.sampleRate * (rising ? 0.005 : 0.08 + 0.1 * this.softness));
     for (let i = 0; i < frames; i++) {
       this.#gain = disabled
         ? 1
-        : target
-          ? Math.min(1, this.#gain + step)
-          : Math.max(0, this.#gain - step);
+        : rising
+          ? Math.min(target, this.#gain + step)
+          : Math.max(target, this.#gain - step);
       for (let c = 0; c < output.length; c++) output[c][i] = (input[c]?.[i] ?? 0) * this.#gain;
     }
   }

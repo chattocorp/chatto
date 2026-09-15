@@ -22,6 +22,7 @@ export class MicrophoneProcessor implements TrackProcessor<
   #disposed = false;
   #source?: MediaStreamAudioSourceNode;
   #node?: AudioWorkletNode;
+  #polish?: AudioWorkletNode;
   #onError?: () => void;
   #destination?: MediaStreamAudioDestinationNode;
   #threshold = GATE_OFF;
@@ -56,7 +57,12 @@ export class MicrophoneProcessor implements TrackProcessor<
 
   /** Retain settings across SDK restarts and apply them to the current graph. */
   setEffects(value: MicrophoneEffects): void {
+    const previous = this.#effects.polish;
     this.#effects = normalizeMicrophoneEffects(value);
+    if (previous !== this.#effects.polish) {
+      this.#node?.port.postMessage({ polish: this.#effects.polish });
+      this.#polish?.port.postMessage({ polish: this.#effects.polish });
+    }
     this.#graph?.update(this.#effects);
   }
 
@@ -80,11 +86,16 @@ export class MicrophoneProcessor implements TrackProcessor<
       const source = audioContext.createMediaStreamSource(new MediaStream([track]));
       this.#source = source;
       const node = new AudioWorkletNode(audioContext, 'chatto-microphone-gate', {
-        processorOptions: { threshold: this.#threshold }
+        processorOptions: { threshold: this.#threshold, polish: this.#effects.polish }
       });
       this.#node = node;
       const destination = audioContext.createMediaStreamDestination();
       this.#destination = destination;
+      const polish = new AudioWorkletNode(audioContext, 'chatto-voice-polish', {
+        processorOptions: { polish: this.#effects.polish }
+      });
+      this.#polish = polish;
+      polish.connect(destination);
       node.port.onmessage = ({ data }) => {
         this.#level = data;
       };
@@ -95,13 +106,22 @@ export class MicrophoneProcessor implements TrackProcessor<
         this.#graph?.destroy();
         this.#graph = undefined;
         node.disconnect();
+        polish.disconnect();
+        node.removeEventListener('processorerror', this.#onError!);
+        polish.removeEventListener('processorerror', this.#onError!);
+        node.port.onmessage = null;
+        node.port.postMessage({ stop: true });
+        polish.port.postMessage({ stop: true });
+        node.port.close();
+        polish.port.close();
         source.connect(destination);
         this.setupFallbackMeter(audioContext);
         this.active = false;
         this.unavailable = true;
       };
       node.addEventListener('processorerror', this.#onError, { once: true });
-      this.#graph = new MicrophoneEffectsGraph(audioContext, node, destination);
+      polish.addEventListener('processorerror', this.#onError, { once: true });
+      this.#graph = new MicrophoneEffectsGraph(audioContext, node, polish);
       this.#graph.update(this.#effects, true);
       source.connect(this.#graph.input);
       this.processedTrack = destination.stream.getAudioTracks()[0];
@@ -137,6 +157,13 @@ export class MicrophoneProcessor implements TrackProcessor<
       this.#node.port.onmessage = null;
       if (this.#onError) this.#node.removeEventListener('processorerror', this.#onError);
       this.#node.port.close();
+    }
+    if (this.#polish) {
+      this.#polish.port.postMessage({ stop: true });
+      if (this.#onError) this.#polish.removeEventListener('processorerror', this.#onError);
+      this.#polish.port.close();
+      this.#polish.disconnect();
+      this.#polish = undefined;
     }
     this.#graph?.destroy();
     this.#graph = undefined;

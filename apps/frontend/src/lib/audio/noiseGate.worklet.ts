@@ -1,4 +1,5 @@
 import { NoiseGate, normalizeGateThreshold } from './noiseGate';
+import { VoicePolish, normalizePolish } from './voicePolish';
 
 // AudioWorklet globals are separate from both DOM and WorkerGlobalScope.
 declare const sampleRate: number;
@@ -18,9 +19,13 @@ class MicrophoneGateWorklet extends AudioWorkletProcessor {
   constructor(options: AudioWorkletNodeOptions) {
     super();
     this.#gate.threshold = normalizeGateThreshold(options.processorOptions?.threshold);
+    this.#gate.softness = normalizePolish(options.processorOptions?.polish);
     this.port.onmessage = ({ data }) => {
       if (data.stop) this.#stopped = true;
-      else this.#gate.threshold = normalizeGateThreshold(data.threshold);
+      else {
+        if ('threshold' in data) this.#gate.threshold = normalizeGateThreshold(data.threshold);
+        if ('polish' in data) this.#gate.softness = normalizePolish(data.polish);
+      }
     };
   }
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
@@ -35,3 +40,23 @@ class MicrophoneGateWorklet extends AudioWorkletProcessor {
   }
 }
 registerProcessor('chatto-microphone-gate', MicrophoneGateWorklet);
+
+/** Final audio-thread stage, after the native EQ/compressor/saturation graph. */
+class VoicePolishWorklet extends AudioWorkletProcessor {
+  #polish: VoicePolish;
+  #stopped = false;
+  constructor(options: AudioWorkletNodeOptions) {
+    super();
+    this.#polish = new VoicePolish(sampleRate, options.processorOptions?.polish);
+    this.port.onmessage = ({ data }) => {
+      if (data.stop) this.#stopped = true;
+      else this.#polish.amount = data.polish;
+    };
+  }
+  process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+    if (this.#stopped) return false;
+    this.#polish.process(inputs[0] ?? [], outputs[0] ?? []);
+    return true;
+  }
+}
+registerProcessor('chatto-voice-polish', VoicePolishWorklet);

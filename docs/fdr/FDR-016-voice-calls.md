@@ -20,7 +20,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   both the rainbow and readout static; unavailable processing uses the standard
   disabled control.
   The low-cut filter, equaliser, and compression parameters interpolate between
-  these positions. Changes use short ramps to avoid clicks while dragging.
+  these positions. Automatic de-essing reduces sharp S and SH sounds, and a
+  final limiter catches sample peaks. Both increase toward AWESOME. An enabled
+  gate gets a softer closing transition to preserve quiet word endings; Off
+  still disables the gate. These additions need no separate controls and are
+  bypassed at Normal. Changes use short ramps to avoid clicks while dragging.
   The noise gate stays separate because its threshold depends on the microphone
   and room. The slider affects microphone audio in calls and the local test,
   not received audio or screen sharing. Its position is saved per browser and

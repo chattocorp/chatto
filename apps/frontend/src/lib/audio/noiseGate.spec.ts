@@ -50,3 +50,22 @@ describe('Noise gate', () => {
     expect(microphoneMeter(1)).toBe(1);
   });
 });
+
+it('softens quiet word endings progressively without changing gate Off', () => {
+  const gains = [0, 0.5, 1].map((softness) => {
+    const gate = new NoiseGate(48000);
+    gate.threshold = -20;
+    gate.softness = softness;
+    run(gate, 0.2, 10);
+    return run(gate, 0.04, 600)[127];
+  });
+  expect(gains[0]).toBe(0);
+  expect(gains[1]).toBe(0);
+  expect(gains[2]).toBeGreaterThan(0);
+  expect(gains[2]).toBeLessThan(0.04);
+  const gate = new NoiseGate(48000);
+  gate.softness = 1;
+  expect(run(gate, 0.001, 10)[127]).toBeCloseTo(0.001);
+  gate.threshold = -20;
+  expect(run(gate, 0.001, 600)[127]).toBe(0);
+});
