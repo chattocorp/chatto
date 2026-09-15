@@ -22,6 +22,7 @@
     "copy_room_id": "Ruimte-ID kopiëren",
     "copy_server_hostname": "Serverhostnaam kopiëren",
     "room_settings": "Ruimte-instellingen",
+    "add_to_group": "Toevoegen aan {group}",
     "group_settings": "Instellingen voor {group}",
     "server_actions": "Acties voor {server}",
     "room_actions": "Acties voor #{room}"

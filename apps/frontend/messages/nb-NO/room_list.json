@@ -22,6 +22,7 @@
     "copy_room_id": "Kopier rom-ID",
     "copy_server_hostname": "Kopier serverens vertsnavn",
     "room_settings": "Rominnstillinger",
+    "add_to_group": "Legg til i {group}",
     "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
     "room_actions": "Handlinger for #{room}"

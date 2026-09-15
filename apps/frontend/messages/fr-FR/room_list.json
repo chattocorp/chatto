@@ -22,6 +22,7 @@
     "copy_room_id": "Copier l’identifiant du salon",
     "copy_server_hostname": "Copier le nom d’hôte du serveur",
     "room_settings": "Paramètres du salon",
+    "add_to_group": "Ajouter à {group}",
     "group_settings": "Paramètres de {group}",
     "server_actions": "Actions pour {server}",
     "room_actions": "Actions pour #{room}"

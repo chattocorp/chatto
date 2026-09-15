@@ -22,6 +22,7 @@
     "copy_room_id": "نسخ معرّف الغرفة",
     "copy_server_hostname": "نسخ اسم مضيف الخادم",
     "room_settings": "إعدادات الغرفة",
+    "add_to_group": "إضافة إلى {group}",
     "group_settings": "إعدادات {group}",
     "server_actions": "إجراءات {server}",
     "room_actions": "إجراءات #{room}"

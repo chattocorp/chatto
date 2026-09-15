@@ -22,6 +22,7 @@
     "copy_room_id": "Kopii identigilon de ĉambro",
     "copy_server_hostname": "Kopii la gastigantonomon de la servilo",
     "room_settings": "Agordoj de ĉambro",
+    "add_to_group": "Aldoni al {group}",
     "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
     "room_actions": "Agoj por #{room}"

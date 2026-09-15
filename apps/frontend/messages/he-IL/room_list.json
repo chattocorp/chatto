@@ -22,6 +22,7 @@
     "copy_room_id": "העתקת מזהה החדר",
     "copy_server_hostname": "העתקת שם המארח של השרת",
     "room_settings": "הגדרות החדר",
+    "add_to_group": "הוספה אל {group}",
     "group_settings": "הגדרות עבור {group}",
     "server_actions": "פעולות עבור {server}",
     "room_actions": "פעולות עבור #{room}"

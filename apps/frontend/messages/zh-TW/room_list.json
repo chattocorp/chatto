@@ -22,6 +22,7 @@
     "copy_room_id": "複製聊天室 ID",
     "copy_server_hostname": "複製伺服器主機名稱",
     "room_settings": "聊天室設定",
+    "add_to_group": "新增至 {group}",
     "group_settings": "{group} 的設定",
     "server_actions": "{server} 的操作",
     "room_actions": "#{room} 的操作"

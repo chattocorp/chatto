@@ -371,7 +371,7 @@ async function waitForSidebarSets(page: Page, expectedCount: number): Promise<st
 
 function sidebarGroup(page: Page, name: string) {
   return page.locator('[data-testid="room-group-section"]', {
-    has: page.locator('button[aria-expanded]:not([data-testid="room-group-more"])', { hasText: name })
+    has: page.getByRole('button', { name, exact: true })
   });
 }
 
@@ -647,7 +647,7 @@ test.describe('Room Layout', () => {
 
       const main = sidebarGroup(page, 'Main');
       const projects = sidebarGroup(page, 'Projects');
-      await main.locator('button[aria-expanded]:not([data-testid="room-group-more"])').click({ button: 'right' });
+      await main.getByRole('button', { name: 'Main', exact: true }).click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'New Link', exact: true }).click();
 
       const dialog = page.getByRole('dialog', { name: 'Create Link' });
@@ -701,7 +701,7 @@ test.describe('Room Layout', () => {
       const projects = sidebarGroup(page, 'Projects');
       const disclosureIcon = projects.getByTestId('room-group-disclosure-icon');
       await expect(disclosureIcon).toHaveCSS('opacity', '1');
-      await projects.locator('button[aria-expanded]:not([data-testid="room-group-more"])').hover();
+      await projects.getByRole('button', { name: 'Projects', exact: true }).hover();
       await expect(projects.getByTestId('room-group-drag-handle')).toHaveCSS('opacity', '1');
       await expect(disclosureIcon).toHaveCSS('opacity', '0');
       await expect(projects.getByTestId('room-group-actions-button')).toHaveCount(0);
