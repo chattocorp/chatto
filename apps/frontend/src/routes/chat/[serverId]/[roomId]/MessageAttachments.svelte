@@ -50,7 +50,6 @@
     serverId: string;
     roomId: string;
     eventId: string;
-    /** Resolved message author, including the standard deleted/unknown fallback. */
     canDeleteAttachment?: boolean;
   } = $props();
 
