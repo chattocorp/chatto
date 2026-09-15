@@ -159,6 +159,13 @@
       "download_label": "Laadi alla {filename}",
       "image_refresh_failed": "Pildi linki ei saanud värskendada",
       "download_refresh_failed": "Allalaadimislinki ei saanud värskendada",
+      "add_description": "Lisa kirjeldus",
+      "edit_description": "Muuda kirjeldust",
+      "description_title": "Manuse kirjeldus",
+      "description_label": "Kirjeldus (valikuline)",
+      "description_help": "Kirjelda manust inimestele, kes ei saa seda näha ega kuulda.",
+      "description_too_long": "Kirjeldus võib sisaldada kuni {max} märki.",
+      "description_update_failed": "Manuse kirjelduse uuendamine nurjus",
       "html_viewer": {
         "download": "Laadi alla",
         "show_preview": "Näita eelvaadet",

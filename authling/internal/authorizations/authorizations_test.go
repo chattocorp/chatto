@@ -48,12 +48,12 @@ func TestClientDigestIsDeploymentKeyed(t *testing.T) {
 }
 
 func accountCreated(eventID string) *corev1.Event {
-	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_AccountCreated{AccountCreated: &corev1.AccountCreatedEvent{AccountId: "acc_one"}}}
+	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_AccountCreated{AccountCreated: &corev1.AccountCreatedEvent{AccountId: "acc_one", UserKeyRef: "uk_one", CredentialKeyRef: "dk_one"}}}
 }
 
 func grantAuthorized(eventID, grantID, priorEventID string) *corev1.Event {
 	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
-		AccountId: "acc_one", GrantId: grantID, ClientIdDigest: make([]byte, 32), ClientName: "Client One", ClientHost: "client.example",
+		AccountId: "acc_one", GrantId: grantID, ClientIdDigest: make([]byte, 32), MetadataEnvelopeVersion: 1, ConsentVersion: 1, UserKeyRef: "uk_one", CredentialKeyRef: "dk_one", MetadataNonce: make([]byte, 24), MetadataCiphertext: make([]byte, 16),
 		Scopes: []string{"openid"}, PriorAuthorizationEventId: priorEventID,
 	}}}
 }

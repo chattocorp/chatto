@@ -363,4 +363,8 @@ const (
 
 	// MaxMessageAttachmentAssetIDLength is the maximum length of a message attachment asset ID in bytes.
 	MaxMessageAttachmentAssetIDLength = 15
+
+	// MaxAttachmentDescriptionLength is the maximum number of Unicode
+	// characters in one attachment description.
+	MaxAttachmentDescriptionLength = 1000
 )

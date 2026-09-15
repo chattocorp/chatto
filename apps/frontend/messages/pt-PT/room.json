@@ -159,6 +159,13 @@
       "download_label": "Download {filename}",
       "image_refresh_failed": "Não foi possível atualizar o link da imagem",
       "download_refresh_failed": "Não foi possível atualizar o link de download",
+      "add_description": "Adicionar descrição",
+      "edit_description": "Editar descrição",
+      "description_title": "Descrição do anexo",
+      "description_label": "Descrição (opcional)",
+      "description_help": "Descreva o anexo para pessoas que não o conseguem ver ou ouvir.",
+      "description_too_long": "As descrições podem ter, no máximo, {max} caracteres.",
+      "description_update_failed": "Não foi possível atualizar a descrição do anexo",
       "html_viewer": {
         "download": "Transferir",
         "show_preview": "Mostrar pré-visualização",

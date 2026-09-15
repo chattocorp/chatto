@@ -8,7 +8,14 @@
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
-  import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
+  import {
+    Button,
+    FormError,
+    TextInput,
+    VerificationCodeInput,
+    validate,
+    z
+  } from '$lib/ui/form';
 
   const { data } = $props();
 
@@ -26,7 +33,7 @@
 
   let step = $state<Step>('email');
   let email = $state('');
-  let codeDigits = $state(['', '', '', '', '', '']);
+  let code = $state('');
   let completionToken = $state('');
   let login = $state('');
   let password = $state('');
@@ -34,7 +41,6 @@
   let error = $state('');
   let isLoading = $state(false);
   let isResending = $state(false);
-  let codeInputs: HTMLInputElement[] = [];
 
   const emailSchema = z.string().email(m('common.validation.email'));
   const loginSchema = z
@@ -48,7 +54,6 @@
 
   const normalizedEmail = $derived(email.trim().toLowerCase());
   const emailError = $derived(email ? validate(emailSchema, email) : undefined);
-  const code = $derived(codeDigits.join(''));
   const codeComplete = $derived(code.length === 6);
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
   const passwordError = $derived(password ? validate(passwordSchema, password) : undefined);
@@ -116,10 +121,9 @@
         return;
       }
 
-      codeDigits = ['', '', '', '', '', ''];
+      code = '';
       completionToken = '';
       step = 'code';
-      queueMicrotask(() => codeInputs[0]?.focus());
     } catch (err) {
       error = err instanceof Error ? err.message : m('auth.register.failed');
     } finally {
@@ -131,40 +135,6 @@
   async function handleEmailSubmit(e: Event) {
     e.preventDefault();
     await requestRegistrationCode();
-  }
-
-  function applyCodeFrom(index: number, value: string) {
-    const digits = value
-      .replace(/\D/g, '')
-      .slice(0, 6 - index)
-      .split('');
-    if (digits.length === 0) {
-      codeDigits[index] = '';
-      return;
-    }
-    for (const [offset, digit] of digits.entries()) {
-      codeDigits[index + offset] = digit;
-    }
-    const nextIndex = Math.min(index + digits.length, codeDigits.length - 1);
-    codeInputs[nextIndex]?.focus();
-  }
-
-  function handleCodeInput(index: number, e: Event) {
-    const input = e.currentTarget as HTMLInputElement;
-    applyCodeFrom(index, input.value);
-  }
-
-  function handleCodePaste(index: number, e: ClipboardEvent) {
-    e.preventDefault();
-    applyCodeFrom(index, e.clipboardData?.getData('text') ?? '');
-  }
-
-  function handleCodeKeydown(index: number, e: KeyboardEvent) {
-    if (e.key === 'Backspace' && codeDigits[index] === '' && index > 0) {
-      e.preventDefault();
-      codeDigits[index - 1] = '';
-      codeInputs[index - 1]?.focus();
-    }
   }
 
   async function handleCodeSubmit(e: Event) {
@@ -312,25 +282,13 @@
         <p class="mt-1 font-semibold break-words">{normalizedEmail}</p>
       </div>
 
-      <div class="grid grid-cols-6 gap-2" aria-label={m('auth.register.code.aria_label')}>
-        {#each codeDigits as digit, index (index)}
-          <input
-            bind:this={codeInputs[index]}
-            value={digit}
-            type="text"
-            inputmode="numeric"
-            pattern="[0-9]*"
-            maxlength="6"
-            autocomplete={index === 0 ? 'one-time-code' : 'off'}
-            aria-label={m('auth.register.code.digit_label', { number: index + 1 })}
-            disabled={isLoading}
-            oninput={(e) => handleCodeInput(index, e)}
-            onpaste={(e) => handleCodePaste(index, e)}
-            onkeydown={(e) => handleCodeKeydown(index, e)}
-            class="h-14 rounded-lg border border-text/20 bg-input text-center text-xl font-semibold transition-[border-color,box-shadow] outline-none focus:border-action focus:ring-2 focus:ring-action/30 disabled:opacity-60"
-          />
-        {/each}
-      </div>
+      <VerificationCodeInput
+        bind:value={code}
+        autofocus
+        disabled={isLoading}
+        label={m('auth.register.code.aria_label')}
+        digitLabel={(number) => m('auth.register.code.digit_label', { number })}
+      />
 
       <div class="text-center text-sm text-muted">
         {m('auth.register.code.did_not_receive')}

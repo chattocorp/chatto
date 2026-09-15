@@ -208,6 +208,7 @@ message Event {
     BotIncomingWebhookCreatedEvent bot_incoming_webhook_created = 725;
     BotApiKeyAddedEvent bot_api_key_added = 726;
     BotApiKeyRevokedEvent bot_api_key_revoked = 727;
+    UserPrimaryEmailChangedEvent user_primary_email_changed = 728;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

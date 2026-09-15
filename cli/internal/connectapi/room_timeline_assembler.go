@@ -269,7 +269,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	}
 	if body != nil {
 		message.Body = &body.Body
-		message.Attachments = h.attachments(payload.GetRoomId(), event.Id, body.Attachments)
+		message.Attachments = h.attachments(payload.GetRoomId(), event.Id, body.Attachments, body.AttachmentDescriptions)
 		message.LinkPreview = h.linkPreview(body.LinkPreview)
 		if body.UpdatedAt != nil {
 			message.UpdatedAt = timestamppb.New(*body.UpdatedAt)
@@ -317,7 +317,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	return message, nil
 }
 
-func (h *timelineHydrator) attachments(roomID, messageEventID string, attachments []*evtv1.Attachment) []*apiv1.MessageAttachment {
+func (h *timelineHydrator) attachments(roomID, messageEventID string, attachments []*evtv1.Attachment, descriptions map[string]string) []*apiv1.MessageAttachment {
 	result := make([]*apiv1.MessageAttachment, 0, len(attachments))
 	thumbnail := h.thumbnail
 	if thumbnail.width <= 0 || thumbnail.height <= 0 || thumbnail.fit == "" {
@@ -335,7 +335,7 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 		}
 		assetURL := h.api.core.GetStableAttachmentAssetURL(attachment.Id, h.viewerID)
 		thumbnailURL := h.api.core.GetStableTransformedAttachmentAssetURL(attachment.Id, h.viewerID, thumbnail.width, thumbnail.height, thumbnail.fit)
-		result = append(result, &apiv1.MessageAttachment{
+		view := &apiv1.MessageAttachment{
 			Id:                attachment.Id,
 			Filename:          attachment.Filename,
 			ContentType:       attachment.ContentType,
@@ -344,7 +344,11 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 			AssetUrl:          assetURLView(assetURL),
 			ThumbnailAssetUrl: assetURLView(thumbnailURL),
 			VideoProcessing:   apiVideoProcessing(h.api, h.viewerID, attachment),
-		})
+		}
+		if description := descriptions[attachment.GetId()]; description != "" {
+			view.Description = &description
+		}
+		result = append(result, view)
 	}
 	return result
 }

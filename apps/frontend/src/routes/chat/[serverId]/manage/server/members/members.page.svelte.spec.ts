@@ -10,6 +10,8 @@ type Member = {
   avatarUrl: string | null;
   roles: string[];
   createdAt: string;
+  verifiedEmails?: string[];
+  primaryVerifiedEmail?: string | null;
   isBot?: boolean;
 };
 
@@ -258,5 +260,23 @@ describe('server admin members pagination', () => {
     await settle();
 
     expect(container.querySelector('[data-testid="bot-badge"]')).toBeTruthy();
+  });
+
+  it('shows only the explicitly selected primary email', async () => {
+    queueResults(
+      result([
+        {
+          ...member(0),
+          verifiedEmails: ['first@example.test', 'primary@example.test'],
+          primaryVerifiedEmail: 'primary@example.test'
+        }
+      ])
+    );
+
+    const { container } = render(MembersPage);
+    await settle();
+
+    expect(container.textContent).toContain('primary@example.test');
+    expect(container.textContent).not.toContain('first@example.test');
   });
 });

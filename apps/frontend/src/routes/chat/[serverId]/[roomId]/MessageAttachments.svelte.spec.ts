@@ -124,7 +124,7 @@ function hlsVideoAttachment(overrides: Partial<MessageAttachmentView> = {}): Mes
 
 function renderAttachments(
   attachments: MessageAttachmentView[],
-  options: { canDeleteAttachment?: boolean } = {}
+  options: { canDeleteAttachment?: boolean; canEditAttachmentDescription?: boolean } = {}
 ) {
   return render(MessageAttachments, {
     props: {
@@ -139,7 +139,7 @@ function renderAttachments(
 
 function renderAttachment(
   attachment: MessageAttachmentView,
-  options: { canDeleteAttachment?: boolean } = {}
+  options: { canDeleteAttachment?: boolean; canEditAttachmentDescription?: boolean } = {}
 ) {
   return renderAttachments([attachment], options);
 }
@@ -218,6 +218,7 @@ describe('MessageAttachments', () => {
 
     expect(button.getAttribute('style')).toContain('width: 40px');
     expect(button.getAttribute('style')).toContain('aspect-ratio: 40 / 200');
+    expect(button.getBoundingClientRect().height).toBeLessThanOrEqual(202);
     expect(image.className).toContain('object-contain');
     expect(image.className).not.toContain('object-cover');
     expect(image.className).toContain('h-full');
@@ -261,6 +262,109 @@ describe('MessageAttachments', () => {
     expect(image.className).toContain('w-full');
   });
 
+  it('uses descriptions as image alt text and sends them to the image viewer', async () => {
+    attachmentMocks.refreshAssetUrls.mockResolvedValue(
+      new Map([
+        [
+          'att_1',
+          {
+            assetUrl: {
+              url: 'https://cdn.example.test/original.jpg',
+              expiresAt: '2027-05-29T15:00:00Z'
+            },
+            thumbnailAssetUrl: {
+              url: 'https://cdn.example.test/lightbox.jpg',
+              expiresAt: '2027-05-29T15:00:00Z'
+            },
+            videoThumbnailAssetUrl: null,
+            variantAssetUrls: new Map()
+          }
+        ]
+      ])
+    );
+    const description = 'A chart with a rising blue line.';
+    const { container } = renderAttachment(imageAttachment({ description }));
+    const image = container.querySelector<HTMLImageElement>(`img[alt="${description}"]`)!;
+
+    expect(image).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Show description"]')).toBeNull();
+    expect(image.closest('button')?.getAttribute('aria-describedby')).toBe(
+      'attachment-description-event_1-att_1'
+    );
+    image.closest('button')!.click();
+
+    await vi.waitFor(() => {
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: {
+          type: 'imageViewer',
+          serverId: 'server_1',
+          roomId: 'room_1',
+          eventId: 'event_1',
+          imageItems: [
+            {
+              id: 'att_1',
+              src: 'https://cdn.example.test/lightbox.jpg',
+              originalSrc: 'https://cdn.example.test/original.jpg',
+              alt: description,
+              filename: 'image.jpg',
+              description
+            }
+          ],
+          imageIndex: 0
+        }
+      });
+    });
+  });
+
+  it('stacks delete before edit and uses a file-edit icon for descriptions', () => {
+    const { container } = renderAttachment(imageAttachment({ description: 'A chart.' }), {
+      canDeleteAttachment: true,
+      canEditAttachmentDescription: true
+    });
+    const edit = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit description"]'
+    )!;
+    const remove = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Delete attachment"]'
+    )!;
+
+    expect([
+      ...container.querySelectorAll(
+        'button[aria-label="Delete attachment"], button[aria-label="Edit description"]'
+      )
+    ]).toEqual([remove, edit]);
+    expect(remove.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+      edit.getBoundingClientRect().top
+    );
+    expect(edit.querySelector('span')?.classList.contains('icon-[uil--file-edit-alt]')).toBe(true);
+  });
+
+  it('associates file controls with descriptions and opens the edit dialog', () => {
+    const description = 'Quarterly results in PDF format.';
+    const { container } = renderAttachment(fileAttachment({ description }), {
+      canEditAttachmentDescription: true
+    });
+    const download = container.querySelector<HTMLButtonElement>('button[aria-label^="Download"]')!;
+
+    expect(download.getAttribute('aria-describedby')).toBe('attachment-description-event_1-file_1');
+    expect(container.querySelector('button[aria-label="Show description"]')).toBeNull();
+    const edit = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Edit description"]'
+    )!;
+    edit.click();
+
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'editAttachmentDescription',
+        serverId: 'server_1',
+        roomId: 'room_1',
+        eventId: 'event_1',
+        attachmentId: 'file_1',
+        description
+      }
+    });
+  });
+
   it('uses a subtle attachment remove control when deletion is allowed', () => {
     const { container } = renderAttachments(
       [
@@ -277,7 +381,7 @@ describe('MessageAttachments', () => {
     );
 
     expect(deleteControls).toHaveLength(2);
-    expect(deleteControls[0].tagName).toBe('SPAN');
+    expect(deleteControls[0].tagName).toBe('BUTTON');
     expect(deleteControls[1].tagName).toBe('BUTTON');
     expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
     expect(deleteControls[1].className).toContain('mini-icon-action');

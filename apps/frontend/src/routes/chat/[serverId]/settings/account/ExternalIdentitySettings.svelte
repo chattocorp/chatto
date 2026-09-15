@@ -66,10 +66,16 @@
     () => {
       const activeServerId = serverScope.serverId;
       const activeConnection = serverScope.connection;
+      const activeUserId = currentUser.user?.id ?? '';
       return {
-        queryKey: settingsQueryKeys.externalIdentities(activeServerId, activeConnection),
+        queryKey: settingsQueryKeys.externalIdentities(
+          activeServerId,
+          activeConnection,
+          activeUserId
+        ),
         queryFn: ({ signal }) =>
           activeConnection.getAPI(createExternalIdentityAPI).list({ signal }),
+        enabled: activeUserId !== '',
         // A provider callback returns to this route and must not reuse the pre-link snapshot.
         refetchOnMount: 'always' as const
       };
@@ -77,8 +83,10 @@
     () => queryClient
   );
 
-  const providers = $derived(identitiesQuery.data?.providers ?? []);
-  const linkedIdentities = $derived(identitiesQuery.data?.linkedIdentities ?? []);
+  const providers = $derived(currentUser.user?.id ? (identitiesQuery.data?.providers ?? []) : []);
+  const linkedIdentities = $derived(
+    currentUser.user?.id ? (identitiesQuery.data?.linkedIdentities ?? []) : []
+  );
   const loading = $derived(identitiesQuery.isPending && !identitiesQuery.data);
   let actionError = $state('');
   let linkFreshAuthProvider = $state<ExternalIdentityProviderInfo | null>(null);

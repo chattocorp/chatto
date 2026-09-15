@@ -60,6 +60,11 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText('configured by this Authling operator', { exact: false })).toBeVisible();
 
+  await expect(page.getByText(accountID, { exact: true })).toBeVisible();
+  await expect(page.getByText(preferredUsername, { exact: true })).toBeVisible();
+  await expect(page.getByText(fullName, { exact: true })).toBeVisible();
+  await expect(page.getByText('This access includes future changes to your username and full name.', { exact: false })).toBeVisible();
+
   const callbackRequest = page.waitForRequest((request) =>
     request.url().startsWith(`${stack.callbackURL}?`)
   );
@@ -93,6 +98,17 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   });
   expect(userinfo.status()).toBe(200);
   expect(await userinfo.json()).toEqual({ sub: accountID, preferred_username: preferredUsername, name: fullName });
+
+  // The disclosure covers live UserInfo reads as well as later sign-ins.
+  await page.goto(`${stack.baseURL}/account/profile`);
+  await page.getByLabel('Preferred username').fill('updated-username');
+  await page.getByLabel('Full name').fill('Updated Profile Person');
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  const updatedUserinfo = await request.get(`${stack.baseURL}/oauth/userinfo`, {
+    headers: { Authorization: `Bearer ${tokens.access_token}` }
+  });
+  expect(updatedUserinfo.status()).toBe(200);
+  expect(await updatedUserinfo.json()).toEqual({ sub: accountID, preferred_username: 'updated-username', name: 'Updated Profile Person' });
 
   await page.goto(`${stack.baseURL}/account`);
   const authorizedApps = page.getByRole('heading', { name: 'Authorized apps' }).locator('..');

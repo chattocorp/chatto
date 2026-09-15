@@ -6,17 +6,26 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/ids"
+	"hmans.de/authling/internal/keyvault"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
+	"hmans.de/chatto/pkg/datacrypto"
 	"hmans.de/chatto/pkg/events"
 )
+
+// ConsentVersion identifies disclosure of sub, preferred_username, and name.
+// Increase it before expanding the claim-release policy.
+const ConsentVersion uint32 = 1
 
 // ErrNotFound indicates that an account or active authorization grant is not
 // available to the command.
@@ -41,12 +50,15 @@ type Grant struct {
 	AuthorizedAt         time.Time
 	AuthorizationEventID string
 	clientDigest         string
+	metadata             *corev1.OIDCGrantAuthorizedEvent
 }
+
+type accountKeys struct{ userRef, dataRef string }
 
 // Projection rebuilds active OIDC grants from account aggregate history.
 type Projection struct {
 	events.MemoryProjection
-	accounts map[string]struct{}
+	accounts map[string]accountKeys
 	byClient map[string]map[string]Grant
 	byID     map[string]map[string]Grant
 	usedIDs  map[string]struct{}
@@ -64,29 +76,32 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		p.Lock()
 		defer p.Unlock()
 		if p.accounts == nil {
-			p.accounts = make(map[string]struct{})
+			p.accounts = make(map[string]accountKeys)
 		}
 		if _, exists := p.accounts[created.GetAccountId()]; exists {
 			return fmt.Errorf("authorization projection saw duplicate account creation")
 		}
-		p.accounts[created.GetAccountId()] = struct{}{}
+		p.accounts[created.GetAccountId()] = accountKeys{created.GetUserKeyRef(), created.GetCredentialKeyRef()}
 		return nil
 	}
 	if authorized := event.GetOidcGrantAuthorized(); authorized != nil {
 		grant := Grant{
 			ID:                   authorized.GetGrantId(),
 			AccountID:            authorized.GetAccountId(),
-			ClientName:           authorized.GetClientName(),
-			ClientHost:           authorized.GetClientHost(),
 			Scopes:               append([]string(nil), authorized.GetScopes()...),
 			AuthorizedAt:         event.GetCreatedAt().AsTime(),
 			AuthorizationEventID: event.GetId(),
 			clientDigest:         string(authorized.GetClientIdDigest()),
+			metadata:             proto.Clone(authorized).(*corev1.OIDCGrantAuthorizedEvent),
 		}
 		p.Lock()
 		defer p.Unlock()
 		if _, exists := p.accounts[grant.AccountID]; !exists {
 			return fmt.Errorf("OIDC grant authorization references an absent account")
+		}
+		keys := p.accounts[grant.AccountID]
+		if keys.userRef == "" || keys.dataRef == "" || keys.userRef != authorized.GetUserKeyRef() || keys.dataRef != authorized.GetCredentialKeyRef() {
+			return fmt.Errorf("OIDC grant metadata references another account key hierarchy")
 		}
 		if p.byClient == nil {
 			p.byClient = make(map[string]map[string]Grant)
@@ -187,21 +202,22 @@ type Service struct {
 	publisher *evtstream.Publisher
 	handle    events.ProjectionHandle[*Projection]
 	indexKey  []byte
+	vault     *keyvault.Vault
 }
 
 // NewService constructs the OIDC authorization-grant boundary.
-func NewService(publisher *evtstream.Publisher, handle events.ProjectionHandle[*Projection], indexKey []byte) (*Service, error) {
-	if publisher == nil || handle.Projector() == nil || len(indexKey) != 32 {
+func NewService(publisher *evtstream.Publisher, handle events.ProjectionHandle[*Projection], indexKey []byte, vault *keyvault.Vault) (*Service, error) {
+	if publisher == nil || handle.Projector() == nil || len(indexKey) != 32 || vault == nil {
 		return nil, fmt.Errorf("authorization grant dependencies are incomplete")
 	}
-	return &Service{publisher: publisher, handle: handle, indexKey: append([]byte(nil), indexKey...)}, nil
+	return &Service{publisher: publisher, handle: handle, indexKey: append([]byte(nil), indexKey...), vault: vault}, nil
 }
 
 // Authorize records explicit consent. Re-consenting renews the current grant;
 // authorizing after revocation creates a new grant generation.
 func (s *Service) Authorize(ctx context.Context, accountID string, client Client, scopes []string) (Grant, error) {
-	if client.ID == "" {
-		return Grant{}, fmt.Errorf("OIDC client id is required")
+	if client.ID == "" || !validMetadata(client.Name, client.Host) {
+		return Grant{}, fmt.Errorf("OIDC client metadata is invalid")
 	}
 	clientDigest := s.clientDigest(client.ID)
 	for range 5 {
@@ -224,9 +240,15 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 			return Grant{}, err
 		}
 		event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
-			AccountId: accountID, GrantId: grantID, ClientIdDigest: []byte(clientDigest), ClientName: client.Name, ClientHost: client.Host,
+			AccountId: accountID, GrantId: grantID, ClientIdDigest: []byte(clientDigest),
 			Scopes: append([]string(nil), scopes...), PriorAuthorizationEventId: priorEventID,
 		}}}
+		s.handle.Projection().RLock()
+		keys := s.handle.Projection().accounts[accountID]
+		s.handle.Projection().RUnlock()
+		if err := s.sealMetadata(ctx, event, keys, client); err != nil {
+			return Grant{}, err
+		}
 		position, err := s.publisher.AppendOIDCGrantAuthorized(ctx, event, tail)
 		if errors.Is(err, events.ErrConflict) {
 			continue
@@ -241,7 +263,7 @@ func (s *Service) Authorize(ctx context.Context, accountID string, client Client
 		if !ok || grant.ID != grantID {
 			return Grant{}, fmt.Errorf("authorized OIDC grant is absent from projection")
 		}
-		return grant, nil
+		return s.openMetadata(ctx, grant)
 	}
 	return Grant{}, fmt.Errorf("OIDC grant authorization conflict")
 }
@@ -256,8 +278,11 @@ func (s *Service) Covers(ctx context.Context, accountID, clientID string, scopes
 		return false, err
 	}
 	grant, ok := s.handle.Projection().grantForClientDigest(accountID, s.clientDigest(clientID))
-	if !ok {
+	if !ok || grant.metadata.GetConsentVersion() != ConsentVersion {
 		return false, nil
+	}
+	if _, err := s.openMetadata(ctx, grant); err != nil {
+		return false, err
 	}
 	have := make(map[string]struct{}, len(grant.Scopes))
 	for _, scope := range grant.Scopes {
@@ -277,7 +302,15 @@ func (s *Service) List(ctx context.Context, accountID string) ([]Grant, error) {
 	if _, err := s.syncAccount(ctx, accountID); err != nil {
 		return nil, err
 	}
-	return s.handle.Projection().list(accountID), nil
+	grants := s.handle.Projection().list(accountID)
+	for i, grant := range grants {
+		opened, err := s.openMetadata(ctx, grant)
+		if err != nil {
+			return nil, err
+		}
+		grants[i] = opened
+	}
+	return grants, nil
 }
 
 // Revoke ends one active grant owned by accountID.
@@ -342,4 +375,69 @@ func (s *Service) syncAccount(ctx context.Context, accountID string) (uint64, er
 		return 0, ErrNotFound
 	}
 	return tail, nil
+}
+
+// metadataAAD binds the encrypted display snapshot to its complete durable
+// authorization context. JSON encoding keeps variable-length fields distinct.
+func metadataAAD(eventID string, grant *corev1.OIDCGrantAuthorizedEvent) []byte {
+	data, _ := json.Marshal([]any{"authling:oidc-grant-metadata:v1", eventID,
+		grant.GetAccountId(), grant.GetGrantId(), grant.GetClientIdDigest(),
+		grant.GetScopes(), grant.GetPriorAuthorizationEventId(), grant.GetConsentVersion(),
+		grant.GetUserKeyRef(), grant.GetCredentialKeyRef()})
+	return data
+}
+
+type clientMetadata struct {
+	Name string `json:"name"`
+	Host string `json:"host"`
+}
+
+func validMetadata(name, host string) bool {
+	return strings.TrimSpace(name) != "" && len(name) <= 256 && strings.TrimSpace(host) != "" && len(host) <= 256
+}
+
+func (s *Service) sealMetadata(ctx context.Context, event *corev1.Event, keys accountKeys, client Client) error {
+	if keys.userRef == "" || keys.dataRef == "" {
+		return fmt.Errorf("OIDC grant requires account encryption keys")
+	}
+	key, err := s.vault.ResolveDataKey(ctx, keys.dataRef, keys.userRef)
+	if err != nil {
+		return fmt.Errorf("resolve OIDC grant metadata key: %w", err)
+	}
+	defer clear(key)
+	grant := event.GetOidcGrantAuthorized()
+	grant.MetadataEnvelopeVersion, grant.ConsentVersion = 1, ConsentVersion
+	grant.UserKeyRef, grant.CredentialKeyRef = keys.userRef, keys.dataRef
+	plain, err := json.Marshal(clientMetadata{client.Name, client.Host})
+	if err != nil {
+		return fmt.Errorf("encode OIDC grant metadata")
+	}
+	defer clear(plain)
+	sealed, err := datacrypto.Seal(key, plain, metadataAAD(event.GetId(), grant))
+	if err != nil {
+		return fmt.Errorf("protect OIDC grant metadata: %w", err)
+	}
+	grant.MetadataNonce, grant.MetadataCiphertext = sealed.Nonce, sealed.Ciphertext
+	return nil
+}
+
+// openMetadata decrypts only at the service read boundary. The projection
+// retains ciphertext; grant metadata is never read from plaintext fields.
+func (s *Service) openMetadata(ctx context.Context, grant Grant) (Grant, error) {
+	key, err := s.vault.ResolveDataKey(ctx, grant.metadata.GetCredentialKeyRef(), grant.metadata.GetUserKeyRef())
+	if err != nil {
+		return Grant{}, fmt.Errorf("resolve OIDC grant metadata key: %w", err)
+	}
+	defer clear(key)
+	plain, err := datacrypto.Open(key, grant.metadata.GetMetadataCiphertext(), grant.metadata.GetMetadataNonce(), metadataAAD(grant.AuthorizationEventID, grant.metadata))
+	if err != nil {
+		return Grant{}, fmt.Errorf("open OIDC grant metadata: %w", err)
+	}
+	defer clear(plain)
+	var metadata clientMetadata
+	if json.Unmarshal(plain, &metadata) != nil || !validMetadata(metadata.Name, metadata.Host) {
+		return Grant{}, fmt.Errorf("invalid OIDC grant metadata")
+	}
+	grant.ClientName, grant.ClientHost = metadata.Name, metadata.Host
+	return grant, nil
 }

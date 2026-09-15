@@ -73,6 +73,9 @@ describe('server compatibility evaluation', () => {
   });
 
   it('derives feature support from the server release that introduced it', () => {
+    expect(supportsServerFeature('0.5.0-alpha.9', 'attachmentDescriptions')).toBe(true);
+    expect(supportsServerFeature('0.5.0-alpha.8', 'attachmentDescriptions')).toBe(false);
+    expect(supportsServerFeature('0.5.0-dev', 'attachmentDescriptions')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.6', 'realtimeProjection')).toBe(true);
     expect(supportsServerFeature('0.5.0-alpha.5', 'realtimeProjection')).toBe(false);
     expect(supportsServerFeature('0.5.0', 'messageSearch')).toBe(true);

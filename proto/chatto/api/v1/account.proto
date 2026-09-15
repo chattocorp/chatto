@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
 import "chatto/api/v1/external_identities.proto";
 import "chatto/api/v1/presence.proto";
@@ -55,6 +56,68 @@ message ChangePasswordRequest {
 message ChangePasswordResponse {
   // Current authenticated user profile after the password update.
   User user = 1;
+}
+
+// One email address that the authenticated user has proved they control.
+message VerifiedEmail {
+  // Normalized email address.
+  string email = 1;
+  // Time at which the address was verified.
+  google.protobuf.Timestamp verified_at = 2;
+  // Whether account-directed email is sent to this address.
+  bool primary = 3;
+}
+
+// Request the authenticated user's verified email addresses. expected_user_id
+// binds the request to the account state that the client currently displays.
+// The server returns FAILED_PRECONDITION if the authenticated account changed.
+message ListVerifiedEmailsRequest {
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Verified email addresses for the authenticated user.
+message ListVerifiedEmailsResponse {
+  repeated VerifiedEmail verified_emails = 1;
+}
+
+// Request a short-lived verification code for an email address.
+message RequestEmailVerificationRequest {
+  // New address to verify and add to the authenticated user's account.
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of requesting an email verification code.
+message RequestEmailVerificationResponse {}
+
+// Confirm control of an email address with a verification code.
+message ConfirmEmailVerificationRequest {
+  // Address that received the verification code.
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // Six-digit code that the server sent to the address.
+  string code = 2 [(buf.validate.field).string = {min_len: 1, max_len: 32}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Verified email addresses after a successful confirmation.
+message ConfirmEmailVerificationResponse {
+  repeated VerifiedEmail verified_emails = 1;
+}
+
+// Select a verified email for account-directed email.
+message SetPrimaryEmailRequest {
+  // Verified address to select as primary.
+  string email = 1 [(buf.validate.field).string = {email: true, max_len: 254}];
+  // User ID that the client expects to be authenticated.
+  string expected_user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Verified email addresses after the primary address changes.
+message SetPrimaryEmailResponse {
+  repeated VerifiedEmail verified_emails = 1;
 }
 
 // Request the authenticated user's display preferences. Human and bot accounts
@@ -119,6 +182,31 @@ service MyAccountService {
   rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
   // Updates or adds the authenticated user's password.
   rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
+  // Lists the authenticated user's verified email addresses and primary choice.
+  // Returns FAILED_PRECONDITION when the authenticated account does not match
+  // expected_user_id.
+  rpc ListVerifiedEmails(ListVerifiedEmailsRequest) returns (ListVerifiedEmailsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+  // Sends a six-digit code to an email address that the authenticated user
+  // wants to add. The code expires after the server-configured email OTP
+  // lifetime. The client can request a new code after expiry. The server must
+  // have transactional email enabled. Returns ALREADY_EXISTS when the address
+  // is already verified for the user, RESOURCE_EXHAUSTED after too many code
+  // requests or attempts, and UNAVAILABLE when email delivery is disabled or
+  // fails. Returns FAILED_PRECONDITION when the authenticated account does not
+  // match expected_user_id.
+  rpc RequestEmailVerification(RequestEmailVerificationRequest) returns (RequestEmailVerificationResponse);
+  // Confirms a verification code and adds the address to the account. Returns
+  // INVALID_ARGUMENT when the code is invalid or expired, and ALREADY_EXISTS
+  // when another user already controls the address. Returns FAILED_PRECONDITION
+  // when the authenticated account does not match expected_user_id.
+  rpc ConfirmEmailVerification(ConfirmEmailVerificationRequest) returns (ConfirmEmailVerificationResponse);
+  // Selects one verified address for future account-directed email. Returns
+  // NOT_FOUND when the address is not verified for the authenticated user, and
+  // FAILED_PRECONDITION when the authenticated account does not match
+  // expected_user_id.
+  rpc SetPrimaryEmail(SetPrimaryEmailRequest) returns (SetPrimaryEmailResponse);
   // Reads the authenticated user's display preferences without changing them.
   // Returns default settings when none have been saved.
   rpc GetSettings(GetSettingsRequest) returns (GetSettingsResponse);

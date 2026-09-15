@@ -44,9 +44,11 @@ type AdminMember struct {
 	Roles                  []string
 	CreatedAt              *timestamppb.Timestamp
 	Deleted                bool
-	IsBot            bool
+	IsBot                  bool
 	HasVerifiedEmail       bool
 	VerifiedEmails         []string
+	// PrimaryVerifiedEmail is empty when no primary address is visible.
+	PrimaryVerifiedEmail   string
 	ViewerCanDeleteAccount bool
 	LastLoginChange        *time.Time
 	CustomStatus           *evtv1.CustomUserStatus
@@ -294,7 +296,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		Roles:        roles,
 		CreatedAt:    user.GetCreatedAt(),
 		Deleted:      user.GetDeleted(),
-		IsBot:  user.GetIsBot(),
+		IsBot:        user.GetIsBot(),
 		CustomStatus: user.GetCustomStatus(),
 	}
 
@@ -313,6 +315,9 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		member.VerifiedEmails = make([]string, 0, len(verifiedEmails))
 		for _, email := range verifiedEmails {
 			member.VerifiedEmails = append(member.VerifiedEmails, email.Email)
+			if email.Primary {
+				member.PrimaryVerifiedEmail = email.Email
+			}
 		}
 	}
 

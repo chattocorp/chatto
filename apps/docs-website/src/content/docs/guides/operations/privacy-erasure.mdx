@@ -81,6 +81,11 @@ New message text uses a version-2 envelope with XChaCha20-Poly1305. Additional A
 Changing the ciphertext or moving it to a different event context causes authentication to fail. Historical version-1 bodies remain readable through a compatibility path that uses a legacy per-user ChaCha20-Poly1305 key directly.
 
 The surrounding `MessageBodyEvent` is not wholly encrypted. Attachment references and link-preview metadata sit outside the encrypted text field.
+Each attachment description is PII and has its own encrypted envelope in that
+message body. Its authenticated data also binds it to the attachment asset and
+description purpose. Chatto does not store description plaintext in the asset,
+upload session, permanent ownership event, projection snapshot, realtime event,
+log, or search index.
 
 ### Durable user PII
 

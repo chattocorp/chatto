@@ -34,6 +34,7 @@ export type RoomFileItem = {
     id: string;
     filename: string;
     contentType: string;
+    description?: string | null;
     width: number;
     height: number;
     assetUrl: ExpiringAssetUrl | null;
@@ -166,12 +167,13 @@ function roomFileItem(item: {
   threadRootEventId: string;
   createdAt?: { toDate(): Date };
   attachment?: Asset;
+  description?: string;
 }): RoomFileItem {
   return {
     messageEventId: item.messageEventId,
     threadRootEventId: item.threadRootEventId || null,
     createdAt: timestampToISO(item.createdAt),
-    attachment: roomFileAttachment(item.attachment)
+    attachment: roomFileAttachment(item.attachment, item.description)
   };
 }
 
@@ -184,15 +186,19 @@ export function roomFileItemsForTimelineEvent(event: RoomTimelineEvent): RoomFil
     messageEventId: event.id,
     threadRootEventId: message.threadRootEventId || null,
     createdAt: timestampToISO(event.createdAt),
-    attachment: roomFileAttachment(attachment)
+    attachment: roomFileAttachment(attachment, attachment.description)
   }));
 }
 
-function roomFileAttachment(value?: Asset | MessageAttachment): RoomFileItem['attachment'] {
+function roomFileAttachment(
+  value?: Asset | MessageAttachment,
+  description?: string
+): RoomFileItem['attachment'] {
   return {
     id: value?.id ?? '',
     filename: value?.filename ?? '',
     contentType: value?.contentType ?? '',
+    description: description ?? null,
     width: value?.width ?? 0,
     height: value?.height ?? 0,
     assetUrl: assetUrl(value?.assetUrl),

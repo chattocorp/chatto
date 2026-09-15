@@ -196,17 +196,25 @@ templ emailChangeConfirmPage(flow, message, signedInAs string) {
 	}
 }
 
-templ consentPage(request oidcprovider.ConsentRequest, signedInAs string) {
+templ consentPage(request oidcprovider.ConsentRequest, signedInAs, accountID string, profile accounts.Profile) {
 	@layout("Authorize access", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
 		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
 			<p class="font-medium">This application will be able to:</p>
 			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
-				<li>Know your stable account identifier.</li>
+				<li>Know your stable account ID: <span class="break-all font-medium">{ accountID }</span>.</li>
+				<li>Read your username: <span class="break-all font-medium">{ profile.PreferredUsername }</span>.</li>
+				if profile.FullName != "" {
+					<li>Read your full name: <span class="break-all font-medium">{ profile.FullName }</span>.</li>
+				} else {
+					<li>Read your full name if you add one to your profile.</li>
+				}
 			</ul>
 		</div>
+		<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">This access includes future changes to your username and full name. You can revoke this access from your account page.</p>
 		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">
+			<input type="hidden" name="consent_version" value={ strconv.FormatUint(uint64(authorizations.ConsentVersion), 10) }/>
 			<input type="hidden" name="id" value={ request.ID }/>
 			<button class="button button-primary w-full" type="submit" name="decision" value="allow">Authorize</button>
 			<button class="button button-secondary w-full" type="submit" name="decision" value="deny">Deny</button>
@@ -308,7 +316,7 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		</form>
 		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
 			<h2 class="text-xl font-semibold tracking-tight">Authorized apps</h2>
-			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Apps you allowed to know your stable Authling account identifier. Revoking an app makes it ask again next time; existing app sessions and issued tokens are not ended here.</p>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Apps you authorized through Authling. Access can include your account ID, username, and full name. Revoking an app makes it ask again next time; existing app sessions and issued tokens are not ended here.</p>
 			if len(authorizationGrants) == 0 {
 				<p class="mt-5 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">You haven’t authorized any apps yet.</p>
 			} else {

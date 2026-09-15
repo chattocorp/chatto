@@ -159,6 +159,13 @@
       "download_label": "{filename}'yi indirin",
       "image_refresh_failed": "Resim bağlantısı yenilenemedi",
       "download_refresh_failed": "İndirme bağlantısı yenilenemedi",
+      "add_description": "Açıklama ekle",
+      "edit_description": "Açıklamayı düzenle",
+      "description_title": "Ek açıklaması",
+      "description_label": "Açıklama (isteğe bağlı)",
+      "description_help": "Eki göremeyen veya duyamayan kişiler için açıklayın.",
+      "description_too_long": "Açıklamalar en fazla {max} karakter içerebilir.",
+      "description_update_failed": "Ek açıklaması güncellenemedi",
       "html_viewer": {
         "download": "İndir",
         "show_preview": "Önizlemeyi göster",

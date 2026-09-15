@@ -39,6 +39,9 @@ message RoomAttachmentListItem {
   string thread_root_event_id = 3;
   // Message creation timestamp.
   google.protobuf.Timestamp created_at = 4;
+  // User-provided description for this attachment. Absent when the attachment
+  // has no description.
+  optional string description = 5;
 }
 
 // Request to read one room-scoped asset with freshly signed URLs.

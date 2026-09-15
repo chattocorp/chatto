@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/encryption"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -15,6 +16,7 @@ import (
 // the file was posted.
 type RoomAttachmentItem struct {
 	Attachment        *evtv1.Attachment
+	Description       string
 	MessageEventID    string
 	ThreadRootEventID string
 	CreatedAt         *timestamppb.Timestamp
@@ -330,6 +332,13 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 			if len(attachments) != message.AttachmentCount {
 				return nil, fmt.Errorf("message %q attachment index changed during hydration", message.Entry.EventID)
 			}
+			descriptions, err := c.decryptAttachmentDescriptions(ctx, message.Entry.EventID, roomID, bodies[i])
+			if err != nil {
+				if !errors.Is(err, encryption.ErrKeyNotFound) {
+					return nil, err
+				}
+				descriptions = map[string]string{}
+			}
 			for _, attachment := range attachments[message.skip : message.skip+message.take] {
 				cloned := proto.Clone(attachment).(*evtv1.Attachment)
 				cloned.RoomId = roomID
@@ -337,7 +346,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 					cloned.MessageBodyId = message.Entry.EventID
 				}
 				items = append(items, &RoomAttachmentItem{
-					Attachment: cloned, MessageEventID: message.Entry.EventID,
+					Attachment: cloned, Description: descriptions[attachment.GetId()], MessageEventID: message.Entry.EventID,
 					ThreadRootEventID: message.Entry.InThreadEventID,
 					CreatedAt:         timestamppb.New(message.Entry.CreatedAt),
 				})

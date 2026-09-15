@@ -6,7 +6,7 @@
 import { AddReactionRequest, AddReactionResponse, ListReactionUsersRequest, ListReactionUsersResponse, RemoveReactionRequest, RemoveReactionResponse } from "./reactions_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { FetchLinkPreviewRequest, FetchLinkPreviewResponse } from "./link_previews_pb.js";
-import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
+import { BatchGetMessagesRequest, BatchGetMessagesResponse, CreateMessageRequest, CreateMessageResponse, DeleteAttachmentRequest, DeleteAttachmentResponse, DeleteLinkPreviewRequest, DeleteLinkPreviewResponse, DeleteMessageRequest, DeleteMessageResponse, GetMessageRequest, GetMessageResponse, SetAttachmentDescriptionRequest, SetAttachmentDescriptionResponse, UpdateMessageRequest, UpdateMessageResponse } from "./messages_pb.js";
 
 /**
  * Creates messages in room and thread timelines.
@@ -95,6 +95,20 @@ export const MessageService = {
       name: "DeleteAttachment",
       I: DeleteAttachmentRequest,
       O: DeleteAttachmentResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Sets or clears one attachment description. Authors can change descriptions
+     * within the message edit window. Effective message.manage permits changes
+     * at any time and to other users' messages. Room membership and message read
+     * access are required.
+     *
+     * @generated from rpc chatto.api.v1.MessageService.SetAttachmentDescription
+     */
+    setAttachmentDescription: {
+      name: "SetAttachmentDescription",
+      I: SetAttachmentDescriptionRequest,
+      O: SetAttachmentDescriptionResponse,
       kind: MethodKind.Unary,
     },
     /**

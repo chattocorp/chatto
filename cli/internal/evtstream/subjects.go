@@ -169,6 +169,7 @@ const (
 	EventUserAvatarSet                = "avatar_set"
 	EventUserAvatarCleared            = "avatar_cleared"
 	EventUserVerifiedEmailAdded       = "verified_email_added"
+	EventUserPrimaryEmailChanged      = "primary_email_changed"
 	EventUserPasswordHashChanged      = "password_hash_changed"
 	EventUserOIDCSubjectLinked        = "oidc_subject_linked"
 	EventUserExternalIdentityLinked   = "external_identity_linked"
@@ -435,6 +436,8 @@ func EventTypeOf(e *evtv1.Event) string {
 		return EventUserAvatarCleared
 	case *evtv1.Event_UserVerifiedEmailAdded:
 		return EventUserVerifiedEmailAdded
+	case *evtv1.Event_UserPrimaryEmailChanged:
+		return EventUserPrimaryEmailChanged
 	case *evtv1.Event_UserPasswordHashChanged:
 		return EventUserPasswordHashChanged
 	case *evtv1.Event_UserOidcSubjectLinked:

@@ -171,6 +171,7 @@ message/room/author/filter metadata. The state needed to apply a later edit or
 posting event is a stored, non-indexed field in that same Bleve document; it is
 not duplicated as one internal Bolt key per message. Candidate revisions must
 match current core state before hydration, fencing provider catch-up races.
+Attachment descriptions are not indexed or copied into this projection.
 
 Message bodies use BM25 scoring over a language-neutral field plus the
 operator-selected subset of all 22 complete language analyzers available in
@@ -346,6 +347,10 @@ components prepare successfully. Neither plaintext nor the digests are
 persisted in `EVT`. Read hydration decrypts profile PII with
 request-scoped DEK reuse. KMS and decryption failures remain operational errors
 rather than appearing as missing or deleted users.
+The projection also retains the event ID of the primary verified email. The
+first verified-email event supplies the default. A later primary-email event
+changes the selection by referencing an existing verified-email event, without
+copying the email address.
 `UserAuthProjection` is independently locked, registered, and replay-guarded.
 `UserModel` reads profile state from `UserProjection` and credential,
 external-identity, consent, and auth-generation state from

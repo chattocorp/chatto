@@ -417,3 +417,42 @@ func emailChangedEvents(changeEventID, claimEventID string) (*corev1.Event, *cor
 	}
 	return change, claim
 }
+
+func TestGrantMetadataEnvelopeValidation(t *testing.T) {
+	base := &corev1.Event{Id: "evt_grant", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
+		AccountId: "acc_test", GrantId: "grant_test", ClientIdDigest: make([]byte, 32), Scopes: []string{"openid"},
+		MetadataEnvelopeVersion: 1, ConsentVersion: 1, UserKeyRef: "uk_test", CredentialKeyRef: "dk_test", MetadataNonce: make([]byte, 24), MetadataCiphertext: make([]byte, 16),
+	}}}
+	for name, mutate := range map[string]func(*corev1.OIDCGrantAuthorizedEvent){
+		"valid protected":      func(g *corev1.OIDCGrantAuthorizedEvent) {},
+		"unknown envelope":     func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataEnvelopeVersion = 2 },
+		"unknown disclosure":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.ConsentVersion = 2 },
+		"missing disclosure":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.ConsentVersion = 0 },
+		"plaintext name":       func(g *corev1.OIDCGrantAuthorizedEvent) { g.ClientName = "Private Name" },
+		"plaintext host":       func(g *corev1.OIDCGrantAuthorizedEvent) { g.ClientHost = "private.example" },
+		"short nonce":          func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataNonce = make([]byte, 23) },
+		"missing ciphertext":   func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataCiphertext = nil },
+		"oversized ciphertext": func(g *corev1.OIDCGrantAuthorizedEvent) { g.MetadataCiphertext = make([]byte, 4097) },
+		"missing key":          func(g *corev1.OIDCGrantAuthorizedEvent) { g.CredentialKeyRef = "" },
+		"plaintext envelope": func(g *corev1.OIDCGrantAuthorizedEvent) {
+			g.MetadataEnvelopeVersion, g.ConsentVersion = 0, 0
+			g.UserKeyRef, g.CredentialKeyRef = "", ""
+			g.MetadataNonce, g.MetadataCiphertext = nil, nil
+			g.ClientName = "Legacy"
+			g.ClientHost = "legacy.example"
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			event := proto.Clone(base).(*corev1.Event)
+			mutate(event.GetOidcGrantAuthorized())
+			data, err := proto.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = Decode(data)
+			if (err == nil) != (name == "valid protected") {
+				t.Fatalf("envelope validation = %v", err)
+			}
+		})
+	}
+}

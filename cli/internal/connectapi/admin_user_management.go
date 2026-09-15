@@ -271,6 +271,9 @@ func (s *adminUserManagementService) adminMember(ctx context.Context, member cor
 	if member.AvatarURL != "" {
 		response.User.AvatarUrl = stringPtr(s.api.absolutizeAssetURL(ctx, member.AvatarURL))
 	}
+	if member.PrimaryVerifiedEmail != "" {
+		response.PrimaryVerifiedEmail = stringPtr(member.PrimaryVerifiedEmail)
+	}
 	if member.LastLoginChange != nil {
 		response.LastLoginChange = timestamppb.New(*member.LastLoginChange)
 	}

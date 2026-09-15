@@ -10,6 +10,7 @@ export { default as Button } from './Button.svelte';
 export { default as FormError } from './FormError.svelte';
 export { default as ExpirySelect } from './ExpirySelect.svelte';
 export { default as RangeField } from './RangeField.svelte';
+export { default as VerificationCodeInput } from './VerificationCodeInput.svelte';
 
 // Validation helpers
 export * from './validation';

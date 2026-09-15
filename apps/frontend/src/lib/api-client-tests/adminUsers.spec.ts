@@ -67,7 +67,8 @@ describe('createAdminUserManagementAPI', () => {
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },
           hasVerifiedEmail: true,
-          verifiedEmails: ['alice@example.test'],
+          verifiedEmails: ['first@example.test', 'alice@example.test'],
+          primaryVerifiedEmail: 'alice@example.test',
           viewerCanDeleteAccount: true,
           lastLoginChange: undefined
         }
@@ -101,7 +102,8 @@ describe('createAdminUserManagementAPI', () => {
           createdAt: '2026-01-02T03:04:05.000Z',
           deleted: false,
           hasVerifiedEmail: true,
-          verifiedEmails: ['alice@example.test'],
+          verifiedEmails: ['first@example.test', 'alice@example.test'],
+          primaryVerifiedEmail: 'alice@example.test',
           viewerCanDeleteAccount: true,
           lastLoginChange: null
         }
@@ -171,6 +173,7 @@ describe('createAdminUserManagementAPI', () => {
         deleted: false,
         hasVerifiedEmail: false,
         verifiedEmails: [],
+        primaryVerifiedEmail: null,
         viewerCanDeleteAccount: false,
         lastLoginChange: '2026-02-03T04:05:06.000Z'
       },

@@ -151,6 +151,20 @@ Chatto does not silently merge accounts by email. External identities link by ve
 
 This avoids accidental account takeover through recycled or unverified email addresses.
 
+## Verified Email Addresses
+
+A signed-in user can add email addresses under **Settings → Account**. The user
+must enter the new address twice before Chatto sends email. The dialog explains
+that Chatto will send a six-digit verification code. The next page asks the
+user for this code. The address is not added to the account and cannot become
+primary until the user confirms the code. Reloading the confirmation page
+keeps the pending verification in the same browser tab.
+
+An account can have multiple verified email addresses. The first address is
+primary until the user selects another verified address. Future
+account-directed email uses the primary address. Sign-in, password reset, and
+configured-owner matching continue to accept every verified address.
+
 ## Invite-Only Account Creation
 
 Set `auth.account_creation_policy = "invite_only"` (or

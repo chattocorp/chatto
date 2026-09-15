@@ -15,6 +15,12 @@ func MessageBodyAAD(eventID, bodyEventID, roomID, authorID string, epoch int32) 
 	return []byte(fmt.Sprintf("chatto:message-body-context:v2\x00event_type=message_body\x00event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00content_key_epoch=%d", eventID, bodyEventID, roomID, authorID, epoch))
 }
 
+// AttachmentDescriptionAAD returns the authenticated context for one
+// encrypted attachment description in a persisted message body.
+func AttachmentDescriptionAAD(canonicalMessageEventID, bodyEventID, roomID, authorID, assetID string, epoch int32) []byte {
+	return []byte(fmt.Sprintf("chatto:attachment-description-context:v1\x00purpose=attachment_description\x00event_type=message_body\x00canonical_message_event_id=%s\x00body_event_id=%s\x00room_id=%s\x00author_id=%s\x00asset_id=%s\x00content_key_epoch=%d", canonicalMessageEventID, bodyEventID, roomID, authorID, assetID, epoch))
+}
+
 // UserDEKAAD returns the authenticated context used to wrap a persisted user
 // data-encryption key, including compatibility with legacy unspecified-purpose
 // content keys.

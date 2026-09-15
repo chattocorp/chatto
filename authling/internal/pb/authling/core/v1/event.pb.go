@@ -1357,15 +1357,27 @@ type OIDCGrantAuthorizedEvent struct {
 	GrantId   string                 `protobuf:"bytes,2,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
 	// Deployment-keyed digest of the exact client ID. The raw configured ID or
 	// CIMD URL is not retained in durable account history.
-	ClientIdDigest []byte   `protobuf:"bytes,3,opt,name=client_id_digest,json=clientIdDigest,proto3" json:"client_id_digest,omitempty"`
-	ClientName     string   `protobuf:"bytes,4,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
-	ClientHost     string   `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3" json:"client_host,omitempty"`
-	Scopes         []string `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	ClientIdDigest []byte `protobuf:"bytes,3,opt,name=client_id_digest,json=clientIdDigest,proto3" json:"client_id_digest,omitempty"`
+	// Unused plaintext fields. Writers leave them empty; readers reject values.
+	ClientName string   `protobuf:"bytes,4,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientHost string   `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3" json:"client_host,omitempty"`
+	Scopes     []string `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// Empty for a new grant. Renewals identify the active authorization event
 	// they replace so replay rejects stale or forked grant history.
 	PriorAuthorizationEventId string `protobuf:"bytes,7,opt,name=prior_authorization_event_id,json=priorAuthorizationEventId,proto3" json:"prior_authorization_event_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	// Versioned authenticated encryption of the client name and display host.
+	// Version one uses the account's existing credential data key and binds
+	// the grant context as AAD. Other versions are not supported.
+	MetadataEnvelopeVersion uint32 `protobuf:"varint,8,opt,name=metadata_envelope_version,json=metadataEnvelopeVersion,proto3" json:"metadata_envelope_version,omitempty"`
+	UserKeyRef              string `protobuf:"bytes,9,opt,name=user_key_ref,json=userKeyRef,proto3" json:"user_key_ref,omitempty"`
+	CredentialKeyRef        string `protobuf:"bytes,10,opt,name=credential_key_ref,json=credentialKeyRef,proto3" json:"credential_key_ref,omitempty"`
+	MetadataNonce           []byte `protobuf:"bytes,11,opt,name=metadata_nonce,json=metadataNonce,proto3" json:"metadata_nonce,omitempty"`
+	MetadataCiphertext      []byte `protobuf:"bytes,12,opt,name=metadata_ciphertext,json=metadataCiphertext,proto3" json:"metadata_ciphertext,omitempty"`
+	// Identifies the claim disclosure accepted by explicit consent. Only grants
+	// with the current version can bypass the consent page.
+	ConsentVersion uint32 `protobuf:"varint,13,opt,name=consent_version,json=consentVersion,proto3" json:"consent_version,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *OIDCGrantAuthorizedEvent) Reset() {
@@ -1445,6 +1457,48 @@ func (x *OIDCGrantAuthorizedEvent) GetPriorAuthorizationEventId() string {
 		return x.PriorAuthorizationEventId
 	}
 	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetMetadataEnvelopeVersion() uint32 {
+	if x != nil {
+		return x.MetadataEnvelopeVersion
+	}
+	return 0
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetUserKeyRef() string {
+	if x != nil {
+		return x.UserKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetCredentialKeyRef() string {
+	if x != nil {
+		return x.CredentialKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetMetadataNonce() []byte {
+	if x != nil {
+		return x.MetadataNonce
+	}
+	return nil
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetMetadataCiphertext() []byte {
+	if x != nil {
+		return x.MetadataCiphertext
+	}
+	return nil
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetConsentVersion() uint32 {
+	if x != nil {
+		return x.ConsentVersion
+	}
+	return 0
 }
 
 // OIDCGrantRevokedEvent ends one active authorization-grant generation.
@@ -1617,7 +1671,7 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"emailNonce\x12)\n" +
 	"\x10email_ciphertext\x18\x06 \x01(\fR\x0femailCiphertext\x12@\n" +
 	"\x1demail_change_request_event_id\x18\a \x01(\tR\x19emailChangeRequestEventId\x129\n" +
-	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId\"\x99\x02\n" +
+	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId\"\xa6\x04\n" +
 	"\x18OIDCGrantAuthorizedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x19\n" +
@@ -1628,7 +1682,15 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\vclient_host\x18\x05 \x01(\tR\n" +
 	"clientHost\x12\x16\n" +
 	"\x06scopes\x18\x06 \x03(\tR\x06scopes\x12?\n" +
-	"\x1cprior_authorization_event_id\x18\a \x01(\tR\x19priorAuthorizationEventId\"\x87\x01\n" +
+	"\x1cprior_authorization_event_id\x18\a \x01(\tR\x19priorAuthorizationEventId\x12:\n" +
+	"\x19metadata_envelope_version\x18\b \x01(\rR\x17metadataEnvelopeVersion\x12 \n" +
+	"\fuser_key_ref\x18\t \x01(\tR\n" +
+	"userKeyRef\x12,\n" +
+	"\x12credential_key_ref\x18\n" +
+	" \x01(\tR\x10credentialKeyRef\x12%\n" +
+	"\x0emetadata_nonce\x18\v \x01(\fR\rmetadataNonce\x12/\n" +
+	"\x13metadata_ciphertext\x18\f \x01(\fR\x12metadataCiphertext\x12'\n" +
+	"\x0fconsent_version\x18\r \x01(\rR\x0econsentVersion\"\x87\x01\n" +
 	"\x15OIDCGrantRevokedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12\x19\n" +

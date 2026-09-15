@@ -140,7 +140,7 @@
         <Panel noPadding>
           <DataTable
             items={users}
-            columns={4}
+            columns={5}
             emptyMessage={m('admin.members.empty')}
             hasMore={hasMore && !error}
             {loadingMore}
@@ -158,6 +158,7 @@
             {#snippet header()}
               <th class="table-header-cell">{m('admin.common.user')}</th>
               <th class="table-header-cell">{m('admin.users.login')}</th>
+              <th class="table-header-cell">{m('admin.users.email')}</th>
               <th class="table-header-cell">{m('admin.common.joined')}</th>
               <th class="table-header-cell">{m('admin.common.roles')}</th>
             {/snippet}
@@ -172,6 +173,18 @@
                 </div>
               </td>
               <td class="px-4 py-3 text-muted">@{user.login}</td>
+              <td class="px-4 py-3 text-muted">
+                {#if user.primaryVerifiedEmail}
+                  <span class="flex min-w-0 items-center gap-1">
+                    <span class="iconify icon-[uil--check-circle] shrink-0 text-success"></span>
+                    <bdi class="truncate" dir="auto" title={user.primaryVerifiedEmail}
+                      >{user.primaryVerifiedEmail}</bdi
+                    >
+                  </span>
+                {:else}
+                  —
+                {/if}
+              </td>
               <td class="px-4 py-3 text-muted">{formatDate(user.createdAt)}</td>
               <td class="px-4 py-3">
                 <div class="flex flex-wrap gap-1">
