@@ -503,8 +503,12 @@ export class VoiceCallState {
         : [];
       const outputDevice = availableCallDevice(this.preferences?.speaker ?? '', outputDevices);
 
-      const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
-      this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
+      try {
+        const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
+        this.microphoneProcessor = new MicrophoneProcessor(this.preferences?.microphoneThreshold);
+      } catch {
+        this.microphoneGateUnavailable = true;
+      }
 
       // Create and connect LiveKit room
       this.room = new Room({
@@ -1303,14 +1307,15 @@ export class VoiceCallState {
 
   /**
    * Update the non-reactive audio level cache. Called at ~60ms.
-   * Writes to a plain Map (not $state) so Svelte's reactive graph is
-   * completely untouched.
+   * Participant levels stay in a plain Map; only the settings meter and
+   * optional processor availability enter Svelte's reactive graph.
    */
   private updateAudioLevels(): void {
     if (!this.room) return;
 
     this.microphoneProcessor?.setThreshold(this.preferences?.microphoneThreshold ?? -60);
-    this.microphoneGateUnavailable = this.microphoneProcessor?.unavailable ?? false;
+    if (this.microphoneProcessor)
+      this.microphoneGateUnavailable = this.microphoneProcessor.unavailable;
     const localAudioLevel = this.getLocalAudioLevel();
     this.microphoneLevel = this.isMuted
       ? 0
@@ -1335,8 +1340,8 @@ export class VoiceCallState {
   }
 
   /**
-   * Set up a Web Audio API analyser connected to the local microphone track.
-   * This gives us instant audio level readings without server round-trip.
+   * Attach optional processing after LiveKit assigns the audio context.
+   * Use the existing input analyser only when processing is unavailable.
    */
   private async setupLocalAudioAnalyser(): Promise<void> {
     this.teardownLocalAudioAnalyser();
@@ -1390,7 +1395,7 @@ export class VoiceCallState {
 
   /**
    * Read the current local microphone audio level (0–1) from the Web Audio
-   * API analyser. Returns 0 if the analyser is not set up.
+   * processor or fallback analyser. Returns 0 while muted or unavailable.
    */
   private getLocalAudioLevel(): number {
     if (this.isMuted) return 0;

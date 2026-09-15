@@ -73,6 +73,20 @@ let localTrackPublications: Array<{
 }> = [];
 let mockRemoteParticipants = new Map<string, unknown>();
 
+let processorConstructionFails = false;
+vi.mock('$lib/audio/microphoneProcessor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('$lib/audio/microphoneProcessor')>();
+  return {
+    ...actual,
+    MicrophoneProcessor: class extends actual.MicrophoneProcessor {
+      constructor(...args: ConstructorParameters<typeof actual.MicrophoneProcessor>) {
+        if (processorConstructionFails) throw new Error('Processor unavailable');
+        super(...args);
+      }
+    }
+  };
+});
+
 vi.mock('livekit-client', () => {
   class MockExternalE2EEKeyProvider {
     setKey: ReturnType<typeof vi.fn>;
@@ -481,6 +495,20 @@ describe('VoiceCallState', () => {
       calls.indexOf('setE2EEEnabled:true')
     );
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
+  });
+
+  it('keeps calls usable when optional processor construction fails', async () => {
+    processorConstructionFails = true;
+    const state = createPermittedCallState(createVoiceCallClient());
+    try {
+      await state.join('wss://livekit.example.test', 'R1');
+      expect(state.connected).toBe(true);
+      expect(state.isMuted).toBe(false);
+      expect(state.microphoneGateUnavailable).toBe(true);
+    } finally {
+      processorConstructionFails = false;
+      await state.leave();
+    }
   });
 
   it.each([false, true])(

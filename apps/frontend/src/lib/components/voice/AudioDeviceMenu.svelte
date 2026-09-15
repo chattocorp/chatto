@@ -57,7 +57,7 @@ Reads available devices and current selection from `voiceCallState`.
   ]);
 </script>
 
-<ContextMenu {anchor} {onclose}>
+<ContextMenu {anchor} {onclose} role="dialog" ariaLabel={m('voice.devices')}>
   {#if voiceCallState.preferences}
     <div class="p-3">
       <MicrophoneSensitivity
