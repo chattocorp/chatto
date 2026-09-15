@@ -39,7 +39,6 @@ export class CallDeviceTest {
       const value = effects();
       return (
         threshold() > GATE_OFF ||
-        value.noiseSuppression ||
         value.lowCut ||
         value.equalizer ||
         value.compressor ||
@@ -79,7 +78,7 @@ export class CallDeviceTest {
       );
       let processor: MicrophoneProcessor | undefined;
       let readLevel: () => number;
-      const context: OutputAudioContext = new AudioContext({ sampleRate: 48000 });
+      const context: OutputAudioContext = new AudioContext();
       this.#context = context;
       if (!processing) {
         // A real bypass: playback consumes the captured stream itself. The

@@ -72,7 +72,6 @@
     "game_window_selected": "{name} elektita",
     "permission_denied": "Vi ne havas permeson fari ĉi tiun agon en la voko.",
     "preferences": {
-      "noise_suppression": "Bruosubpremado",
       "title": "Voĉo kaj video",
       "scope": "Konservita en ĉi tiu retumilo por ĉi tiu servilo.",
       "system_default": "Sistema defaŭlto",
@@ -80,7 +79,7 @@
       "output_unsupported": "Ĉi tiu retumilo uzas la sisteman laŭtparolilon. Elekto de laŭtparolilo ne disponeblas.",
       "sensitivity": "Sojlo de brupordego",
       "gate_off": "Malŝaltita",
-      "gate_unavailable": "Mikrofona prilaborado ne disponeblas.",
+      "gate_unavailable": "Mikrofona prilaborado ne disponeblas. Ordinara sono estas uzata.",
       "call_settings": "Vokaj agordoj",
       "join_muted": "Aliĝi al vokoj kun silentigita mikrofono",
       "input_level": "Mikrofona nivelo",

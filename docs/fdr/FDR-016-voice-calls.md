@@ -9,16 +9,10 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Behavior
 
-- Optional **Noise suppression** reduces background noise locally. It is off by
-  default and is independent of voice quality and the noise gate. Its assets
-  come from the Chatto server; processing sends no audio to an external service.
-  If the filter cannot start, audio continues and processing is shown as
-  unavailable.
-
 - **Voice Quality** in App Preferences is a continuous processing slider.
   **Normal** (the default) disables the added effects, **Pretty cool** marks
-  gentle processing at the midpoint, and **AWESOME** adds modest warmth and
-  clarity with moderate compression while preserving the natural voice. Saturation
+  gentle processing at the midpoint, and **AWESOME** adds warmth, clarity,
+  and loudness with stronger EQ and moderate compression. Saturation
   is excluded because the combined effects must not distort ordinary speech. At the maximum,
   the voice slider shows a moving rainbow and the AWESOME readout dances in
   rainbow colours, with each letter moving in sequence. The rainbow fades in
@@ -41,7 +35,8 @@ Rooms support real-time voice conversations with optional camera video and scree
   not received audio or screen sharing. Its position is saved per browser and
   server without changing gate, device, or join-muted choices.
   EQ boosts reserve headroom. Compression reduces loud peaks and uses the browser
-  compressor's built-in makeup gain. Browser automatic gain control is disabled
+  compressor's built-in makeup gain. Additional gain after compression restores
+  loudness before the final peak limiter. Browser automatic gain control is disabled
   to avoid competing volume adjustments. Calls retain browser echo cancellation
   and noise suppression. The local test disables echo cancellation so it does
   not cancel its own playback.

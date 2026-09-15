@@ -72,7 +72,6 @@
     "game_window_selected": "{name} נבחר",
     "permission_denied": "אין לך הרשאה לבצע פעולה זו בשיחה.",
     "preferences": {
-      "noise_suppression": "דיכוי רעשים",
       "title": "קול ווידאו",
       "scope": "נשמר בדפדפן הזה עבור השרת הזה.",
       "system_default": "ברירת המחדל של המערכת",
@@ -80,7 +79,7 @@
       "output_unsupported": "הדפדפן הזה משתמש ברמקול של המערכת. בחירת רמקול אינה זמינה.",
       "sensitivity": "סף שער רעש",
       "gate_off": "כבוי",
-      "gate_unavailable": "עיבוד המיקרופון אינו זמין.",
+      "gate_unavailable": "עיבוד המיקרופון אינו זמין. נעשה שימוש בשמע רגיל.",
       "call_settings": "הגדרות שיחה",
       "join_muted": "הצטרפות לשיחות עם מיקרופון מושתק",
       "input_level": "עוצמת המיקרופון",

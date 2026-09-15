@@ -72,7 +72,6 @@
     "game_window_selected": "已選擇 {name}",
     "permission_denied": "你沒有執行此通話操作的權限。",
     "preferences": {
-      "noise_suppression": "雜訊抑制",
       "title": "語音與視訊",
       "scope": "儲存在此瀏覽器中，僅供此伺服器使用。",
       "system_default": "系統預設",
@@ -80,7 +79,7 @@
       "output_unsupported": "此瀏覽器使用系統喇叭，無法選擇喇叭。",
       "sensitivity": "噪音閘門檻",
       "gate_off": "關閉",
-      "gate_unavailable": "麥克風處理無法使用。",
+      "gate_unavailable": "麥克風處理無法使用。正在使用一般音訊。",
       "call_settings": "通話設定",
       "join_muted": "加入通話時將麥克風靜音",
       "input_level": "麥克風音量",

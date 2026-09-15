@@ -246,24 +246,18 @@ scale with the existing polish amount, and bypass exactly at Normal. Partial
 threshold messages do not change their amount. The heuristic can react to
 very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
 look-ahead buffer, saved setting, or external connection is required.
-An optional `RnnoiseStage` precedes the gate and native effects. It loads the
-bundled RNNoise worklet and one of two WASM variants from the Chatto origin.
-The worklet patch starts its message port, reports WASM setup success or failure,
-and stops processing after destruction. Audio bypasses the stage until setup
-succeeds. Disable, destroy, or restart invalidates pending loads; failed setup
-or processing restores bypass. Unsupported context rates other than 48 kHz
-also use bypass. Local tests request a 48 kHz context; calls use the SDK context.
-The saved noise-suppression switch defaults off and is independent of voice
-strength. CSP permits WASM compilation without permitting JavaScript eval.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
 60 Hz high-pass filter at maximum (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
 compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amount maps 0–100
 to threshold -12…-20 dB and ratio 1.5…3.5, with 15 ms attack and 200 ms release.
 The voice slider scales linearly from neutral at 0 to low-cut 60 Hz,
-EQ +2.5/+2/+4 dB, compressor threshold -18 dB and ratio 3 at 100. At the
-midpoint the cutoff is 30 Hz, EQ is +1.25/+1/+2 dB, threshold is -9 dB,
-and ratio is 2. Fractional DSP parameters are not rounded. There is no
+EQ +4/+3/+6 dB, compressor threshold -18 dB and ratio 3 at 100. At the
+midpoint the cutoff is 30 Hz, EQ is +2/+1.5/+3 dB, threshold is -9 dB,
+and ratio is 2. A post-compressor gain restores loudness after the pre-EQ
+headroom reduction. It scales from 0 to +11 dB before the final peak limiter;
+this is a gain-stage setting, not the net output increase. Fractional DSP
+parameters are not rounded. There is no
 saturation branch; ordinary speech must retain its harmonic balance.
 A second processor in the same bundled worklet runs `VoicePolish` after the
 native graph. A complementary one-pole split at 4 kHz detects prominent,

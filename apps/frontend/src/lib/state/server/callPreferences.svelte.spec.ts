@@ -114,17 +114,3 @@ it('rejects non-finite runtime voice strength', () => {
     expect(state.voiceAmount).toBe(0);
   }
 });
-
-it('persists noise suppression independently and leaves it off for older preferences', () => {
-  localStorage.clear();
-  const state = new CallPreferencesState('noise');
-  expect(state.noiseSuppression).toBe(false);
-  state.setNoiseSuppression(true);
-  expect(new CallPreferencesState('noise').effects.noiseSuppression).toBe(true);
-  expect(state.voiceAmount).toBe(0);
-  expect(new CallPreferencesState('other').noiseSuppression).toBe(false);
-  state.setVoiceAmount(100);
-  state.setNoiseSuppression(false);
-  expect(new CallPreferencesState('noise').noiseSuppression).toBe(false);
-  expect(state.voiceAmount).toBe(100);
-});

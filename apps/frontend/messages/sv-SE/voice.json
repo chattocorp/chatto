@@ -72,7 +72,6 @@
     "game_window_selected": "{name} har valts",
     "permission_denied": "Du har inte behörighet att utföra den här samtalsåtgärden.",
     "preferences": {
-      "noise_suppression": "Brusreducering",
       "title": "Röst och video",
       "scope": "Sparas i den här webbläsaren för den här servern.",
       "system_default": "Systemstandard",
@@ -80,7 +79,7 @@
       "output_unsupported": "Webbläsaren använder systemets högtalare. Högtalarval är inte tillgängligt.",
       "sensitivity": "Tröskel för brusgrind",
       "gate_off": "Av",
-      "gate_unavailable": "Mikrofonbearbetning är inte tillgänglig.",
+      "gate_unavailable": "Mikrofonbearbetning är inte tillgänglig. Vanligt ljud används.",
       "call_settings": "Samtalsinställningar",
       "join_muted": "Anslut till samtal med avstängd mikrofon",
       "input_level": "Mikrofonnivå",

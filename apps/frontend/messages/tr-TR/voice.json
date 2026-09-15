@@ -72,7 +72,6 @@
     "game_window_selected": "{name} seçildi",
     "permission_denied": "Bu arama işlemini gerçekleştirme iznin yok.",
     "preferences": {
-      "noise_suppression": "Gürültü bastırma",
       "title": "Ses ve video",
       "scope": "Bu sunucu için bu tarayıcıda kaydedilir.",
       "system_default": "Sistem varsayılanı",
@@ -80,7 +79,7 @@
       "output_unsupported": "Bu tarayıcı sistem hoparlörünü kullanır. Hoparlör seçimi kullanılamıyor.",
       "sensitivity": "Gürültü kapısı eşiği",
       "gate_off": "Kapalı",
-      "gate_unavailable": "Mikrofon işleme kullanılamıyor.",
+      "gate_unavailable": "Mikrofon işleme kullanılamıyor. Normal ses kullanılıyor.",
       "call_settings": "Arama ayarları",
       "join_muted": "Aramalara mikrofon kapalı olarak katıl",
       "input_level": "Mikrofon seviyesi",

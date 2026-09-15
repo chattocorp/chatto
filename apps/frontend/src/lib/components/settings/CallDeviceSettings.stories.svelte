@@ -29,7 +29,3 @@
 <Story name="Microphone effects" asChild>
   <CallDeviceSettingsStoryHarness inCall threshold={-35} effects />
 </Story>
-
-<Story name="Noise suppression" asChild>
-  <CallDeviceSettingsStoryHarness inCall noiseSuppression />
-</Story>

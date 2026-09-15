@@ -1,7 +1,5 @@
 /** Browser-local microphone effects. Gains are dB; compressor amount is 0–100. */
 export interface MicrophoneEffects {
-  /** Optional local RNNoise suppression, independent of voice colouring. */
-  noiseSuppression?: boolean;
   lowCut: boolean;
   equalizer: boolean;
   bass: number;
@@ -9,6 +7,8 @@ export interface MicrophoneEffects {
   treble: number;
   compressor: boolean;
   amount: number;
+  /** Post-compressor gain in dB, before the final peak limiter. */
+  outputGain?: number;
   /** Ramp filter cutoff and compression from neutral; omitted means full strength. */
   strength?: number;
   /** Automatic bass/plosive control, de-essing, limiting and gate softness. */
@@ -23,7 +23,6 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
       ? Math.max(min, Math.min(max, value))
       : fallback;
   return {
-    noiseSuppression: raw.noiseSuppression === true,
     lowCut: raw.lowCut === true,
     equalizer: raw.equalizer === true,
     bass: bounded(raw.bass, -6, 6, 0),
@@ -31,6 +30,7 @@ export function normalizeMicrophoneEffects(value?: unknown): MicrophoneEffects {
     treble: bounded(raw.treble, -6, 6, 0),
     compressor: raw.compressor === true,
     amount: bounded(raw.amount, 0, 100, 50),
+    outputGain: bounded(raw.outputGain, 0, 12, 0),
     strength: bounded(raw.strength, 0, 1, 1),
     polish: bounded(raw.polish, 0, 1, 0)
   };
@@ -47,11 +47,12 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   return {
     lowCut: strength > 0,
     equalizer: strength > 0,
-    bass: 2.5 * strength,
-    mid: 2 * strength,
-    treble: 4 * strength,
+    bass: 4 * strength,
+    mid: 3 * strength,
+    treble: 6 * strength,
     compressor: strength > 0,
     amount: 75,
+    outputGain: 11 * strength,
     strength,
     polish: strength
   };

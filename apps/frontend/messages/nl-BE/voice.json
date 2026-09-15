@@ -72,7 +72,6 @@
     "game_window_selected": "{name} geselecteerd",
     "permission_denied": "Je hebt geen toestemming voor deze oproepactie.",
     "preferences": {
-      "noise_suppression": "Ruisonderdrukking",
       "title": "Spraak en video",
       "scope": "Opgeslagen in deze browser voor deze server.",
       "system_default": "Systeemstandaard",
@@ -80,7 +79,7 @@
       "output_unsupported": "Deze browser gebruikt de systeemluidspreker. Luidsprekerselectie is niet beschikbaar.",
       "sensitivity": "Drempel voor ruispoort",
       "gate_off": "Uit",
-      "gate_unavailable": "Microfoonverwerking niet beschikbaar.",
+      "gate_unavailable": "Microfoonverwerking niet beschikbaar. Normaal geluid wordt gebruikt.",
       "call_settings": "Oproepinstellingen",
       "join_muted": "Deelnemen aan gesprekken met gedempte microfoon",
       "input_level": "Microfoonniveau",

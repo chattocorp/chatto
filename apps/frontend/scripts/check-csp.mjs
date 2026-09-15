@@ -29,16 +29,14 @@ function requireValues(name, expected) {
 }
 
 requireValues('default-src', ["'self'"]);
-requireValues('script-src', ["'self'", "'wasm-unsafe-eval'"]);
+requireValues('script-src', ["'self'"]);
 requireValues('style-src', ["'self'", "'unsafe-inline'"]);
 requireValues('worker-src', ["'self'"]);
 requireValues('frame-src', ["'self'", 'http:', 'https:']);
 requireValues('connect-src', ["'self'", 'http:', 'https:', 'ws:', 'wss:']);
 
-if (
-  ["'unsafe-inline'", "'unsafe-eval'"].some((value) => directives.get('script-src').includes(value))
-) {
-  throw new Error('CSP script-src must not allow inline scripts or JavaScript eval');
+if (directives.get('script-src').includes("'unsafe-inline'")) {
+  throw new Error("CSP script-src must not contain 'unsafe-inline'");
 }
 
 for (const [, script] of html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)) {

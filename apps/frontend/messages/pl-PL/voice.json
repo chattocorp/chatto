@@ -72,7 +72,6 @@
     "game_window_selected": "Wybrano: {name}",
     "permission_denied": "Nie masz uprawnień do wykonania tej czynności w rozmowie.",
     "preferences": {
-      "noise_suppression": "Tłumienie szumów",
       "title": "Głos i obraz",
       "scope": "Zapisane w tej przeglądarce dla tego serwera.",
       "system_default": "Domyślne urządzenie systemowe",
@@ -80,7 +79,7 @@
       "output_unsupported": "Ta przeglądarka używa głośnika systemowego. Wybór głośnika jest niedostępny.",
       "sensitivity": "Próg bramki szumów",
       "gate_off": "Wyłączony",
-      "gate_unavailable": "Przetwarzanie mikrofonu jest niedostępne.",
+      "gate_unavailable": "Przetwarzanie mikrofonu jest niedostępne. Używany jest zwykły dźwięk.",
       "call_settings": "Ustawienia połączeń",
       "join_muted": "Dołączaj do rozmów z wyciszonym mikrofonem",
       "input_level": "Poziom mikrofonu",

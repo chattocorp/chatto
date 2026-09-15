@@ -1,4 +1,3 @@
-import { RnnoiseStage } from './rnnoise';
 import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
 import type { AudioProcessorOptions, Track, TrackProcessor } from 'livekit-client';
 import workletURL from './noiseGate.worklet?worker&url';
@@ -18,16 +17,7 @@ export class MicrophoneProcessor implements TrackProcessor<
   #analyser?: AnalyserNode;
   #samples?: Float32Array<ArrayBuffer>;
   active = false;
-  #unavailable = false;
-  #suppression?: RnnoiseStage;
-
-  get unavailable(): boolean {
-    return this.#unavailable || (this.#suppression?.unavailable ?? false);
-  }
-
-  set unavailable(value: boolean) {
-    this.#unavailable = value;
-  }
+  unavailable = false;
   #generation = 0;
   #disposed = false;
   #source?: MediaStreamAudioSourceNode;
@@ -75,7 +65,6 @@ export class MicrophoneProcessor implements TrackProcessor<
       this.#polish?.port.postMessage({ polish: this.#effects.polish });
     }
     this.#graph?.update(this.#effects);
-    void this.#suppression?.setEnabled(this.#effects.noiseSuppression === true);
   }
 
   async init({ track, audioContext }: AudioProcessorOptions): Promise<void> {
@@ -117,8 +106,6 @@ export class MicrophoneProcessor implements TrackProcessor<
       this.#onError = () => {
         if (generation !== this.#generation) return;
         source.disconnect();
-        this.#suppression?.destroy();
-        this.#suppression = undefined;
         this.#graph?.destroy();
         this.#graph = undefined;
         node.disconnect();
@@ -139,12 +126,9 @@ export class MicrophoneProcessor implements TrackProcessor<
       polish.addEventListener('processorerror', this.#onError, { once: true });
       this.#graph = new MicrophoneEffectsGraph(audioContext, node, polish);
       this.#graph.update(this.#effects, true);
-      this.#suppression = new RnnoiseStage(audioContext, this.#graph.input);
-      source.connect(this.#suppression.input);
-      await this.#suppression.setEnabled(this.#effects.noiseSuppression === true);
-      if (generation !== this.#generation) return;
+      source.connect(this.#graph.input);
       this.processedTrack = destination.stream.getAudioTracks()[0];
-      this.active = !this.#unavailable;
+      this.active = true;
     } catch {
       if (generation !== this.#generation) return;
       void this.destroy();
@@ -195,8 +179,6 @@ export class MicrophoneProcessor implements TrackProcessor<
       this.#polish.disconnect();
       this.#polish = undefined;
     }
-    this.#suppression?.destroy();
-    this.#suppression = undefined;
     this.#graph?.destroy();
     this.#graph = undefined;
     this.#source?.disconnect();

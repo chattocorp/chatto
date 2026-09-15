@@ -10,6 +10,7 @@ export class MicrophoneEffectsGraph {
   readonly #compressor: DynamicsCompressorNode;
   readonly #dry: GainNode;
   readonly #wet: GainNode;
+  readonly #makeup: GainNode;
   readonly #nodes: AudioNode[];
   #settings = '';
 
@@ -40,7 +41,8 @@ export class MicrophoneEffectsGraph {
     this.#dry = context.createGain();
     this.#wet = context.createGain();
     const sum = context.createGain();
-    sum.connect(output);
+    this.#makeup = context.createGain();
+    sum.connect(this.#makeup).connect(output);
     this.input.connect(gate);
     gate.connect(this.#headroom).connect(this.#bass).connect(this.#mid).connect(this.#treble);
     this.#treble.connect(this.#dry).connect(sum);
@@ -54,6 +56,7 @@ export class MicrophoneEffectsGraph {
       this.#compressor,
       this.#dry,
       this.#wet,
+      this.#makeup,
       sum
     ];
     this.update(normalizeMicrophoneEffects(), true);
@@ -82,6 +85,8 @@ export class MicrophoneEffectsGraph {
     set(this.#compressor.ratio, 1 + (0.5 + value.amount * 0.02) * strength);
     set(this.#dry.gain, value.compressor ? 0 : 1);
     set(this.#wet.gain, value.compressor ? 1 : 0);
+    // Restore loudness lost to pre-EQ headroom. VoicePolish limits final peaks.
+    set(this.#makeup.gain, 10 ** ((value.outputGain ?? 0) / 20));
   }
 
   destroy(): void {

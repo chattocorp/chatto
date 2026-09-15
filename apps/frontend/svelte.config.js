@@ -44,7 +44,7 @@ const config = {
         'base-uri': ['self'],
         'object-src': ['none'],
         'form-action': ['self'],
-        'script-src': ['self', 'wasm-unsafe-eval', ...appTemplateScriptHashes()],
+        'script-src': ['self', ...appTemplateScriptHashes()],
         // Svelte transitions and several interactive controls create runtime
         // styles or update style attributes.
         'style-src': ['self', 'unsafe-inline'],

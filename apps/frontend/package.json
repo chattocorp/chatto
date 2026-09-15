@@ -98,7 +98,6 @@
     "@chatto/lingua": "workspace:*",
     "@connectrpc/connect": "^1.7.0",
     "@connectrpc/connect-web": "^1.7.0",
-    "@sapphi-red/web-noise-suppressor": "0.4.0",
     "@tanstack/svelte-query": "^6.1.38",
     "gemoji": "^8.1.0",
     "heic2any": "^0.0.4",
