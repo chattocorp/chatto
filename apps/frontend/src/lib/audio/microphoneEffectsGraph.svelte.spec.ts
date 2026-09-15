@@ -86,8 +86,8 @@ it('interpolates fractional tone and compression settings across both slider hal
     [0, 0, 0, 0, 0, 0, 1],
     [25, 40, -0.5, 0.5, 0.5, -7.8, 1.95],
     [50, 80, -1, 1, 1, -15.6, 2.9],
-    [75, 80, -2, 1.5, 2, -20.4, 4.1],
-    [100, 80, -3, 2, 3, -25.2, 5.3]
+    [75, 80, 1.5, -0.5, 2.5, -24, 5],
+    [100, 80, 4, -2, 4, -32.4, 7.1]
   ]) {
     graph.update(microphoneEffectsForAmount(amount), true);
     expect(filters[0].frequency.value).toBeCloseTo(cutoff);
@@ -102,4 +102,16 @@ it('interpolates fractional tone and compression settings across both slider hal
 
 it('keeps Normal audio neutral through the complete graph', async () => {
   expect(await level(1000, 0.5, microphoneEffectsForAmount(0))).toBeCloseTo(0.5 / Math.SQRT2, 4);
+});
+
+it('makes AWESOME fuller and more compressed than Pretty cool', async () => {
+  const cool = microphoneEffectsForAmount(50);
+  const awesome = microphoneEffectsForAmount(100);
+  const tone = async (settings: MicrophoneEffects) =>
+    (await level(100, 0.05, { ...settings, compressor: false })) /
+    (await level(1200, 0.05, { ...settings, compressor: false }));
+  expect(await tone(awesome)).toBeGreaterThan((await tone(cool)) * 1.5);
+  const dynamics = async (settings: MicrophoneEffects) =>
+    (await level(1000, 0.8, settings)) / (await level(1000, 0.02, settings));
+  expect(await dynamics(awesome)).toBeLessThan(await dynamics(cool));
 });

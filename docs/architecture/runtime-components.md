@@ -228,8 +228,8 @@ compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amou
 to threshold -12…-36 dB and ratio 2…8, with 6 ms attack and 150 ms release.
 The voice slider interpolates linearly in two segments: 0–50 and 50–100.
 Its anchors are neutral at 0, low-cut 80 Hz / EQ -1/+1/+1 dB / compressor
-threshold -15.6 dB and ratio 2.9 at 50, and low-cut 80 Hz / EQ -3/+2/+3 dB /
-threshold -25.2 dB and ratio 5.3 at 100. Neutral compression uses threshold 0
+threshold -15.6 dB and ratio 2.9 at 50, and low-cut 80 Hz / EQ +4/-2/+4 dB /
+threshold -32.4 dB and ratio 7.1 at 100. Neutral compression uses threshold 0
 and ratio 1. Fractional DSP parameters are not rounded.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
 The gate meters the signal after the optional low-cut filter and before EQ.

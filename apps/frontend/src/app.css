@@ -465,6 +465,79 @@
   @apply h-2 w-2 rounded-full bg-white;
 }
 
+/* Explicit opt-in celebration for a full-scale range. This spectrum is content,
+   not an action/status colour; keep ordinary form controls on semantic tokens. */
+@utility range-rainbow {
+  appearance: none;
+  background: transparent;
+  --range-spectrum: repeating-linear-gradient(
+    90deg,
+    #ff477e 0%,
+    #ffb347,
+    #ffe66d,
+    #50e3a4,
+    #36cfff,
+    #a78bfa,
+    #ff477e 50%
+  );
+  animation: range-rainbow-flow 2.4s linear infinite;
+
+  &::-webkit-slider-runnable-track {
+    height: 0.625rem;
+    border-radius: 999px;
+    background-image: var(--range-spectrum);
+    background-size: 200% 100%;
+    background-position: inherit;
+    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 40%, transparent);
+  }
+
+  &::-moz-range-track {
+    height: 0.625rem;
+    border-radius: 999px;
+    background-image: var(--range-spectrum);
+    background-size: 200% 100%;
+    background-position: inherit;
+    box-shadow: 0 0 0.75rem color-mix(in srgb, var(--color-action) 40%, transparent);
+  }
+
+  &::-webkit-slider-thumb {
+    appearance: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: -0.3125rem;
+    border: 2px solid var(--color-text);
+    border-radius: 50%;
+    background: var(--color-surface);
+  }
+
+  &::-moz-range-thumb {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--color-text);
+    border-radius: 50%;
+    background: var(--color-surface);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-action);
+    outline-offset: 4px;
+    border-radius: 999px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes range-rainbow-flow {
+  from {
+    background-position: 0% 50%;
+  }
+  to {
+    background-position: 200% 50%;
+  }
+}
+
 /* Form error utility */
 @utility form-error {
   @apply text-sm text-error;

@@ -20,6 +20,7 @@
 <script lang="ts">
   let volume = $state(70);
   let disabledValue = $state(35);
+  let awesome = $state(100);
 </script>
 
 <Story name="Default" asChild>
@@ -45,6 +46,34 @@
       max={100}
       bind:value={disabledValue}
       displayValue={`${disabledValue}%`}
+      disabled
+    />
+  </div>
+</Story>
+
+<Story name="Rainbow at maximum" asChild>
+  <div class="max-w-md">
+    <RangeField
+      id="rainbow-range"
+      label="Your Voice"
+      min={0}
+      max={100}
+      bind:value={awesome}
+      displayValue={awesome === 100 ? 'AWESOME' : `${awesome}%`}
+      rainbow
+    />
+  </div>
+</Story>
+<Story name="Unavailable rainbow" asChild>
+  <div class="max-w-md">
+    <RangeField
+      id="disabled-rainbow"
+      label="Your Voice"
+      min={0}
+      max={100}
+      value={100}
+      displayValue="AWESOME"
+      rainbow
       disabled
     />
   </div>

@@ -25,6 +25,7 @@
       min={0}
       max={100}
       step={0.1}
+      rainbow
       disabled={unavailable}
       bind:value={() => preferences.voiceAmount, (value) => preferences.setVoiceAmount(value ?? 0)}
       displayValue={preferences.voiceAmount === 0

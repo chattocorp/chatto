@@ -145,12 +145,14 @@ it('offers a continuous voice slider while keeping the gate separate', async () 
   slider.element().focus();
   await userEvent.keyboard('{End}');
   expect(new CallPreferencesState('voice-ui').voiceAmount).toBe(100);
+  expect(slider.element().classList.contains('range-rainbow')).toBe(true);
   await expect.element(slider).toHaveAttribute('aria-valuetext', 'AWESOME');
   const input = slider.element() as HTMLInputElement;
   input.value = '37.5';
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await tick();
   expect(preferences.voiceAmount).toBe(37.5);
+  expect(slider.element().classList.contains('range-rainbow')).toBe(false);
   expect(preferences.effects.mid).toBe(0.75);
   await userEvent.keyboard('{Home}');
   expect(preferences.effects.compressor).toBe(false);

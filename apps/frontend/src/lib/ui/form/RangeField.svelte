@@ -15,6 +15,7 @@ icon, disabled state, semantic action color, and field spacing.
     max,
     step = 1,
     disabled = false,
+    rainbow = false,
     testid,
     oninput,
     onchange
@@ -28,6 +29,8 @@ icon, disabled state, semantic action color, and field spacing.
     max: number;
     step?: number;
     disabled?: boolean;
+    /** Celebratory full-scale track; animation respects reduced motion and disabled state. */
+    rainbow?: boolean;
     testid?: string;
     oninput?: (event: Event) => void;
     onchange?: (event: Event) => void;
@@ -56,6 +59,9 @@ icon, disabled state, semantic action color, and field spacing.
     aria-valuetext={displayValue}
     {oninput}
     {onchange}
-    class="w-full cursor-pointer accent-action disabled:cursor-not-allowed disabled:opacity-60"
+    class={[
+      'h-5 w-full cursor-pointer accent-action disabled:cursor-not-allowed disabled:opacity-60',
+      rainbow && !disabled && value === max && 'range-rainbow'
+    ]}
   />
 </label>

@@ -42,11 +42,11 @@ export function microphoneEffectsForAmount(amount: number): MicrophoneEffects {
   return {
     lowCut: amount > 0,
     equalizer: amount > 0,
-    bass: 0 - lower - 2 * upper,
-    mid: lower + upper,
-    treble: lower + 2 * upper,
+    bass: 0 - lower + 5 * upper,
+    mid: lower - 3 * upper,
+    treble: lower + 3 * upper,
     compressor: amount > 0,
-    amount: 15 + 40 * upper,
+    amount: 15 + 70 * upper,
     strength: lower
   };
 }
