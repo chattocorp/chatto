@@ -142,6 +142,14 @@
       },
       "show_less": "daha az göster"
     },
+    "typing": {
+      "one": "{name} yazıyor",
+      "two": "{first} ve {second} yazıyor",
+      "many_count": {
+        "other": "{names} ve {count} kişi daha yazıyor",
+        "one": "{names} ve {count} kişi daha yazıyor"
+      }
+    },
     "attachment": {
       "delete_title": "Eki Sil",
       "delete_prompt": "Bu eki silmek istediğinizden emin misiniz? Bu geri alınamaz.",
@@ -157,7 +165,19 @@
       "description_label": "Açıklama (isteğe bağlı)",
       "description_help": "Eki göremeyen veya duyamayan kişiler için açıklayın.",
       "description_too_long": "Açıklamalar en fazla {max} karakter içerebilir.",
-      "description_update_failed": "Ek açıklaması güncellenemedi"
+      "description_update_failed": "Ek açıklaması güncellenemedi",
+      "html_viewer": {
+        "download": "İndir",
+        "show_preview": "Önizlemeyi göster",
+        "warning": "Bu belge harici web sitelerinden içerik yükleyebilir. Bu web siteleri IP adresini görebilir.",
+        "preview_title": "{filename} önizlemesi",
+        "preview_failed": "Önizleme yüklenemedi. Lütfen tekrar dene.",
+        "document_type": "Belge türü",
+        "html_document": "HTML belgesi",
+        "xhtml_document": "XHTML belgesi",
+        "file_size": "Dosya boyutu",
+        "unavailable": "Kullanılamıyor"
+      }
     },
     "link_preview": {
       "delete_title": "Bağlantı Önizlemesini Sil",

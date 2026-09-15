@@ -110,7 +110,8 @@
       "room": "Ruumid",
       "server": "Server",
       "user": "Kasutajad",
-      "other": "Muud"
+      "other": "Muud",
+      "call": "Kõned"
     },
     "permission_descriptions": {
       "server_manage": "Värskenda serveri seadeid (nimi, kirjeldus, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Looge kasutajaid, muutke konto identiteeti, lähtestage paroolid, lisage kinnitatud e-kirjad ja tühjendage sisselogimisperioodid",
       "user_manage_permissions": "Muutke otse kasutajapõhiseid lubade alistamisi",
       "bot_create": "Loo endale kuuluvaid botikontosid",
-      "bot_manage": "Vaata ja halda kõiki botikontosid"
+      "bot_manage": "Vaata ja halda kõiki botikontosid",
+      "call_start": "Kõne alustamine (nõuab ka õigust call.join)",
+      "call_join": "Käimasoleva kõnega liitumine",
+      "call_voice": "Mikrofoni kasutamine kõnedes",
+      "call_camera": "Kaamera kasutamine kõnedes",
+      "call_screenshare": "Ekraani või rakenduse jagamine koos salvestatud heliga"
     }
   }
 }

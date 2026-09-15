@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Rādīt vairāk istabu grupā {group} ({count})",
+    "hide_rooms_in_group": "Paslēpt grupas {group} istabas, kurām neesat pievienojies",
+    "more_rooms": "Vēl {count}",
+    "show_less": "Rādīt mazāk",
     "active_call": "Aktīvs zvans",
     "call_participants": "{count} dalībnieku zvanā",
     "go_to_notifications": "Dodieties uz {count} paziņojumiem",
@@ -18,6 +22,7 @@
     "copy_room_id": "Kopēt telpas ID",
     "copy_server_hostname": "Kopēt servera resursdatora nosaukumu",
     "room_settings": "Telpas iestatījumi",
+    "add_to_group": "Pievienot grupai {group}",
     "group_settings": "Iestatījumi {group}",
     "server_actions": "Darbības {server}",
     "room_actions": "Darbības ar #{room}"

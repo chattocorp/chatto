@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "{group} grubunda daha fazla oda göster ({count})",
+    "hide_rooms_in_group": "{group} grubunda katılmadığın odaları gizle",
+    "more_rooms": "{count} oda daha",
+    "show_less": "Daha az göster",
     "active_call": "Etkin çağrı",
     "call_participants": "Görüşmedeki {count} katılımcı",
     "go_to_notifications": "{count} bildirimlerine git",
@@ -18,6 +22,7 @@
     "copy_room_id": "Oda kimliğini kopyala",
     "copy_server_hostname": "Sunucu ana bilgisayar adını kopyala",
     "room_settings": "Oda ayarları",
+    "add_to_group": "{group} grubuna ekle",
     "group_settings": "{group} ayarları",
     "server_actions": "{server} için eylemler",
     "room_actions": "#{room} için eylemler"

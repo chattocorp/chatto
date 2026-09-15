@@ -346,13 +346,12 @@ export class AuthPage {
   }
 
   /**
-   * Open the logout confirmation dialog. Idempotent: if the dialog is already
-   * open, this is a no-op. Otherwise it clicks the Sign Out button and retries
-   * the click if the first attempt didn't open the dialog (Svelte hydration
-   * race: actionability checks pass before onclick is attached, so the first
-   * click can be dropped).
+   * Open the logout confirmation dialog without choosing a sign-out action.
+   * Cold page initialization and lazy-loaded dialog code can delay opening.
+   * Retry only this idempotent open action; never repeat a sign-out mutation.
+   * If the dialog is already visible, leave it open.
    */
-  private async openLogoutDialog(): Promise<void> {
+  async openLogoutDialog(): Promise<void> {
     await expect(async () => {
       if (!(await this.logoutDialog.isVisible())) {
         await this.logoutButton.click();

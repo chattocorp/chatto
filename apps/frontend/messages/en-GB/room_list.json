@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Show more rooms in {group} ({count})",
+    "hide_rooms_in_group": "Hide unjoined rooms in {group}",
+    "more_rooms": "{count} more",
+    "show_less": "Show less",
     "active_call": "Active call",
     "call_participants": "{count} participants in call",
     "go_to_notifications": "Go to {count} notifications",
@@ -18,6 +22,7 @@
     "copy_room_id": "Copy Room ID",
     "copy_server_hostname": "Copy Server Hostname",
     "room_settings": "Room settings",
+    "add_to_group": "Add to {group}",
     "group_settings": "Settings for {group}",
     "server_actions": "Actions for {server}",
     "room_actions": "Actions for #{room}"

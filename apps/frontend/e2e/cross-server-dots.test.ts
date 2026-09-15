@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page, type WebSocket } from '@playwright/test';
+import { RealtimeServerFrame } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { test } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withServerUser } from './fixtures/serverUser';
@@ -65,6 +66,66 @@ async function navigateWithinClient(page: Page, href: string): Promise<void> {
 }
 
 /**
+ * Observe actual remote projection connections. Wait for the initial catch-up
+ * and socket closure before advancing the periodic poll, so late initial
+ * reconciliation cannot reschedule the timer after the clock advance.
+ */
+function observeRemotePolling(page: Page, remoteURL: string) {
+  const remoteHost = new URL(remoteURL).host;
+  const connections: Array<{ socket: WebSocket; caughtUp: boolean }> = [];
+  page.on('websocket', (socket) => {
+    const url = new URL(socket.url());
+    if (url.host !== remoteHost || url.pathname !== '/api/realtime') return;
+    const connection = { socket, caughtUp: false };
+    connections.push(connection);
+    socket.on('framereceived', ({ payload }) => {
+      if (
+        typeof payload !== 'string' &&
+        RealtimeServerFrame.fromBinary(payload).frame.case === 'caughtUp'
+      ) {
+        connection.caughtUp = true;
+      }
+    });
+  });
+  return {
+    async waitUntilReady() {
+      await expect
+        .poll(() => connections.some((connection) => connection.caughtUp), {
+          timeout: TIMEOUTS.REALTIME_EVENT
+        })
+        .toBe(true);
+    },
+    async waitUntilDormant() {
+      await expect
+        .poll(
+          () => connections.length > 0 && connections.every(({ socket }) => socket.isClosed()),
+          {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          }
+        )
+        .toBe(true);
+    },
+    async advance() {
+      const previousCount = connections.length;
+      // The production interval is 60s with up to 10s of positive jitter.
+      // Only browser time advances; server responses and delivery remain real.
+      await page.clock.fastForward(70_001);
+      await expect
+        .poll(
+          () =>
+            connections
+              .slice(previousCount)
+              .some(({ socket, caughtUp }) => caughtUp && socket.isClosed()),
+          {
+            timeout: TIMEOUTS.REALTIME_EVENT
+          }
+        )
+        .toBe(true);
+    }
+  };
+}
+
+/**
  * Cross-instance dot indicator coverage.
  *
  * Most dot-rendering code is instance-agnostic (one render path keyed by
@@ -88,13 +149,14 @@ test.describe('Cross-instance dots', () => {
     page,
     chatPage
   }) => {
-    test.slow();
+    await page.clock.install();
     // Home: log in so the SPA boots.
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
     // Remote: owner loads the server, viewer connects, mentioner joins.
     const baseURL = remoteBaseURL(remoteServer);
+    const polling = observeRemotePolling(page, baseURL);
     const ts = Date.now();
     const viewerLogin = `xviewer${ts}`;
     const owner = await createUserOnRemote(baseURL, `xowner${ts}`, 'password123');
@@ -110,9 +172,10 @@ test.describe('Cross-instance dots', () => {
     const generalRoomId = await getRoomOnRemote(baseURL, owner.token, 'general');
 
     // Connect the remote instance as `viewer` and stay on the origin Overview
-    // page (away from the remote server). This is the cold-load timing window
-    // where the bus has to be ready and consumers have to attach reactively.
+    // page (away from the remote server). Establish the initial projection
+    // before testing delivery through a later inactive-server poll.
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
+    await polling.waitUntilReady();
     await navigateWithinClient(page, routes.serverOverview);
     await page.waitForLoadState('networkidle');
 
@@ -125,6 +188,7 @@ test.describe('Cross-instance dots', () => {
       has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
     });
     const remoteSpaceBadge = remoteSpaceWrapper.getByTestId('server-notification-badge');
+    await polling.waitUntilDormant();
     await expect(remoteSpaceBadge).not.toBeVisible();
 
     // Mentioner posts an @mention of the viewer in the remote server. No reload.
@@ -137,7 +201,8 @@ test.describe('Cross-instance dots', () => {
 
     // The inactive server has no persistent socket. Its serialized resume poll
     // should still update the retained projection without a reload.
-    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.BACKGROUND_SERVER_POLL });
+    await polling.advance();
+    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(remoteSpaceBadge).toHaveText('1');
   });
 
@@ -150,7 +215,7 @@ test.describe('Cross-instance dots', () => {
     chatPage,
     roomPage
   }) => {
-    test.slow();
+    await page.clock.install();
     // Home: mount a normal room first. This is the stale-state setup: the
     // currently rendered Room subtree belongs to the home server before the
     // remote notification badge routes to another server.
@@ -163,6 +228,7 @@ test.describe('Cross-instance dots', () => {
 
     // Remote: viewer will receive a mention on a thread reply.
     const baseURL = remoteBaseURL(remoteServer);
+    const polling = observeRemotePolling(page, baseURL);
     const suffix = Date.now().toString(36);
     const viewerLogin = `tv${suffix}`;
     const owner = await createUserOnRemote(baseURL, `to${suffix}`, 'password123');
@@ -178,6 +244,7 @@ test.describe('Cross-instance dots', () => {
     );
 
     await connectRemoteInstance(page, { ...remoteServer, baseURL }, viewer.userId);
+    await polling.waitUntilReady();
     await navigateWithinClient(page, routes.room(homeGeneralRoomId));
     await waitForRoomReady(page, 'general');
     await expect(page.getByText(homeBody)).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -187,6 +254,7 @@ test.describe('Cross-instance dots', () => {
       has: page.locator(`a[data-testid="server-icon"][href*="/chat/${remoteHostSegment}"]`)
     });
     const remoteSpaceBadge = remoteSpaceWrapper.getByTestId('server-notification-badge');
+    await polling.waitUntilDormant();
     await expect(remoteSpaceBadge).not.toBeVisible();
 
     const remoteReplyBody = `@${viewerLogin} remote thread reply ${suffix}`;
@@ -198,7 +266,8 @@ test.describe('Cross-instance dots', () => {
       remoteRootEventId
     );
 
-    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.BACKGROUND_SERVER_POLL });
+    await polling.advance();
+    await expect(remoteSpaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(remoteSpaceBadge).toHaveText('1');
     await remoteSpaceBadge.click();
 

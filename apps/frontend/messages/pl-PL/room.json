@@ -148,6 +148,15 @@
       },
       "show_less": "pokazuj mniej"
     },
+    "typing": {
+      "one": "{name} pisze",
+      "two": "{first} i {second} piszą",
+      "many_count": {
+        "other": "{names} i {count} osób pisze",
+        "one": "{names} i {count} osoba piszą",
+        "few": "{names} i {count} osoby piszą"
+      }
+    },
     "attachment": {
       "delete_title": "Usuń załącznik",
       "delete_prompt": "Czy na pewno chcesz usunąć ten załącznik? Tego nie można cofnąć.",
@@ -163,7 +172,19 @@
       "description_label": "Opis (opcjonalny)",
       "description_help": "Opisz załącznik osobom, które nie mogą go zobaczyć ani usłyszeć.",
       "description_too_long": "Opis może zawierać maksymalnie {max} znaków.",
-      "description_update_failed": "Nie udało się zaktualizować opisu załącznika"
+      "description_update_failed": "Nie udało się zaktualizować opisu załącznika",
+      "html_viewer": {
+        "download": "Pobierz",
+        "show_preview": "Pokaż podgląd",
+        "warning": "Ten dokument może wczytywać treści z zewnętrznych witryn. Te witryny mogą zobaczyć Twój adres IP.",
+        "preview_title": "Podgląd pliku {filename}",
+        "preview_failed": "Nie udało się wczytać podglądu. Spróbuj ponownie.",
+        "document_type": "Typ dokumentu",
+        "html_document": "Dokument HTML",
+        "xhtml_document": "Dokument XHTML",
+        "file_size": "Rozmiar pliku",
+        "unavailable": "Niedostępny"
+      }
     },
     "link_preview": {
       "delete_title": "Usuń podgląd linku",

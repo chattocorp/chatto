@@ -25,6 +25,7 @@ type PermissionCategory string
 const (
 	CategoryServer  PermissionCategory = "server"
 	CategoryRoom    PermissionCategory = "room"
+	CategoryCall    PermissionCategory = "call"
 	CategoryMessage PermissionCategory = "message"
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
@@ -68,6 +69,20 @@ const (
 
 	// PermRoomMemberBan allows banning members from channel rooms.
 	PermRoomMemberBan Permission = "room.ban-member"
+
+	// ===== Call Permissions =====
+
+	// PermCallStart allows starting a call. Joining also requires PermCallJoin.
+	PermCallStart Permission = "call.start"
+	// PermCallJoin allows joining an active call, including as a listener.
+	PermCallJoin Permission = "call.join"
+	// PermCallVoice allows publishing microphone audio.
+	PermCallVoice Permission = "call.voice"
+	// PermCallCamera allows publishing camera video.
+	PermCallCamera Permission = "call.camera"
+	// PermCallScreenShare allows screen/window/tab video and captured audio,
+	// including native application sharing. It does not grant microphone use.
+	PermCallScreenShare Permission = "call.screenshare"
 
 	// ===== Message Permissions =====
 
@@ -182,6 +197,13 @@ var allPermissions = []PermissionMetadata{
 	{Permission: PermRoomList, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{Permission: PermRoomManage, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
 	{Permission: PermRoomMemberBan, Category: CategoryRoom, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}, RequiresPrivilegedMode: true},
+
+	// Calls
+	{Permission: PermCallStart, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermCallJoin, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermCallVoice, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermCallCamera, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
+	{Permission: PermCallScreenShare, Category: CategoryCall, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}},
 
 	// Message
 	{Permission: PermMessageRead, Category: CategoryMessage, Scopes: []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom, ScopeDM}, Includes: []Permission{PermMessageReadInteractions}},
@@ -373,6 +395,11 @@ func DefaultEveryonePermissions() []Permission {
 		PermMessageReact,
 		PermMessageEcho,
 		PermBotCreate,
+		PermCallStart,
+		PermCallJoin,
+		PermCallVoice,
+		PermCallCamera,
+		PermCallScreenShare,
 	}
 }
 

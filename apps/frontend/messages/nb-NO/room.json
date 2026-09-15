@@ -142,6 +142,14 @@
       },
       "show_less": "vis mindre"
     },
+    "typing": {
+      "one": "{name} skriver",
+      "two": "{first} og {second} skriver",
+      "many_count": {
+        "other": "{names} og {count} andre skriver",
+        "one": "{names} og {count} annen skriver"
+      }
+    },
     "attachment": {
       "delete_title": "Slett vedlegg",
       "delete_prompt": "Er du sikker på at du vil slette dette vedlegget? Dette kan ikke angres.",
@@ -157,7 +165,19 @@
       "description_label": "Beskrivelse (valgfritt)",
       "description_help": "Beskriv vedlegget for personer som ikke kan se eller høre det.",
       "description_too_long": "Beskrivelser kan inneholde maksimalt {max} tegn.",
-      "description_update_failed": "Kunne ikke oppdatere beskrivelsen av vedlegget"
+      "description_update_failed": "Kunne ikke oppdatere beskrivelsen av vedlegget",
+      "html_viewer": {
+        "download": "Last ned",
+        "show_preview": "Vis forhåndsvisning",
+        "warning": "Dette dokumentet kan laste inn innhold fra eksterne nettsteder. Disse nettstedene kan se IP-adressen din.",
+        "preview_title": "Forhåndsvisning av {filename}",
+        "preview_failed": "Kunne ikke laste inn forhåndsvisningen. Prøv igjen.",
+        "document_type": "Dokumenttype",
+        "html_document": "HTML-dokument",
+        "xhtml_document": "XHTML-dokument",
+        "file_size": "Filstørrelse",
+        "unavailable": "Ikke tilgjengelig"
+      }
     },
     "link_preview": {
       "delete_title": "Slett forhåndsvisning av kobling",

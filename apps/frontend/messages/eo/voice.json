@@ -69,6 +69,23 @@
     "no_game_windows": "Neniuj kundivideblaj fenestroj troviĝis. Malfermu ludon en fenestra aŭ senranda reĝimo kaj reprovu.",
     "game_windows_failed": "Ne eblis ŝargi kundivideblajn fenestrojn.",
     "untitled_window": "Sentitola fenestro",
-    "game_window_selected": "{name} elektita"
+    "game_window_selected": "{name} elektita",
+    "permission_denied": "Vi ne havas permeson fari ĉi tiun agon en la voko.",
+    "preferences": {
+      "title": "Voĉo kaj video",
+      "scope": "Konservita en ĉi tiu retumilo por ĉi tiu servilo.",
+      "system_default": "Sistema defaŭlto",
+      "unavailable_device": "Konservita aparato ne disponeblas",
+      "output_unsupported": "Ĉi tiu retumilo uzas la sisteman laŭtparolilon. Elekto de laŭtparolilo ne disponeblas.",
+      "call_settings": "Vokaj agordoj",
+      "join_muted": "Aliĝi al vokoj kun silentigita mikrofono",
+      "test_title": "Testi vian mikrofonon",
+      "input_level": "Mikrofona nivelo",
+      "start_test": "Startigi mikrofonan teston",
+      "stop_test": "Haltigi teston",
+      "waiting": "Atendante aliron al la mikrofono…",
+      "test_failed": "Ne eblis testi la mikrofonon. Kontrolu la aparatan aliron kaj reprovu.",
+      "test_in_call": "Forlasu vian vokon antaŭ ol testi la mikrofonon."
+    }
   }
 }

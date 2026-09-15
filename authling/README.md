@@ -13,6 +13,44 @@ Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
 [`docs/`](docs/README.md).
 
+## Container image
+
+Build from the containing repository root:
+
+```sh
+docker build -f authling/Dockerfile -t authling:local .
+docker run --rm --network none --read-only authling:local version
+```
+
+The image includes the web assets and runs as UID 1000. Its default command is
+`run`; mount a configuration file and pass `run --config /config/authling.toml`,
+or configure it through environment variables. The development configuration
+is not loaded from the image's `/data` working directory.
+
+The `build Authling image` workflow builds and checks Linux amd64 images for
+pull requests. Relevant changes on `main` and manual workflow runs also publish
+`ghcr.io/chattocorp/authling:<full-commit-sha>`. Deployment promotion is manual;
+pin the published digest after staging verification.
+
+For an external NATS server with a private CA, mount its CA in a dedicated
+directory and add that directory to `SSL_CERT_DIR` alongside `/etc/ssl/certs`.
+This extends Go's process-wide trust store, including outbound HTTPS. Do not
+disable TLS verification. Authling starts its HTTP listener only after startup
+replay and issuer initialization finish. A TCP startup/readiness probe can
+check that milestone, but does not prove continuing NATS or JetStream health.
+
+When the external account uses tiered JetStream quotas, provide an R1 tier for
+Authling's temporary ordered consumers and browser-session KV watcher, even
+when `AUTHLING_NATS_REPLICAS=3` puts all three data streams in R3. An R3-only
+account can reject those consumers with NATS error 10120 (no applicable tier).
+Keep the R3 tier and its storage allowance when adding R1. Accounts with an
+applicable default tier do not need separate R1/R3 tiers.
+
+If a required background task fails during startup, Authling exits and reports
+the underlying error. For error 10120, the message also identifies the account
+tiers to check. Consumer-limit errors require sufficient consumer capacity;
+restarting alone does not correct account quotas.
+
 Authling is a separate product from Chatto:
 
 - it is built from its own Go module;
@@ -88,6 +126,8 @@ signup at <http://localhost:8080/signup>, login at
 <http://localhost:8080/password-reset>. Signed-in accounts can change their
 verified email address or password, review or revoke other browser sessions,
 and manage authorized OIDC apps from <http://localhost:8080/account>.
+Authling also redirects `/.well-known/change-password` to the signed-in
+password-change page for compatible password managers.
 Mailpit receives SMTP on port 1025 and shows captured messages at
 <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
@@ -109,6 +149,10 @@ When the proxy overwrites `X-Forwarded-Host` and `X-Forwarded-Proto`, set
 `http.trust_proxy_headers = true` (or `AUTHLING_HTTP_TRUST_PROXY_HEADERS=true`)
 so canonical-host and same-origin checks use that browser-facing origin. Never
 enable this for a listener directly reachable by untrusted clients.
+Requests through another hostname, port, or scheme redirect to `http.public_url`
+with HTTP 307 before Authling processes them. The redirect preserves the path,
+query, and request method. DNS, certificates, and proxy routes must still allow
+the alias to reach Authling. OIDC clients must use the canonical issuer URL.
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.

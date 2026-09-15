@@ -35,6 +35,7 @@ login cooldown fact append in one atomic batch of existing EVT events.
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services; every authenticated unary procedure honors `Chatto-Realtime-Minimum-Cursor` | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Browser authentication | `GET /auth/browser/csrf`, `POST /auth/browser/login`, `POST /auth/browser/register/complete`, `POST /auth/browser/logout`, `POST /auth/browser/session/migrate`, `POST /auth/browser/session/renew`, `POST /auth/browser/revoke-bearer-session` | Bound CSRF-proof repair, cookie-only password/registration authentication, one-time 0.4 typed-cookie migration, logout, stable-handle session renewal, and removal of stored origin bearer authority | Every mutation requires JSON and an exact same-origin request. A browser-auth mode header, if present, must select cookies. Browser routes treat an absent header as cookie mode. Renewal and logout also require signed double-submit CSRF proof while a valid cookie authority exists. Migration uses the independent browser-route proof because it runs before a current cookie session exists. Logout can clear invalid session cookies with the same proof. The safe CSRF route requires a valid cookie session. These routes do not return bearer credentials. |
+| Password-manager discovery | `GET` and `HEAD /.well-known/change-password` | Temporary redirect to `/chat/-/settings/account` for the origin server | Public and query-free. Unknown `/.well-known` resources return `404` and do not use the frontend fallback. |
 | Programmatic authentication | `POST /auth/login`, `POST /auth/register/complete`, `POST /auth/logout`, `POST /oauth/token` | First-party bearer issuance, stable bearer-session revocation, and OAuth code/refresh exchange | JSON is required for direct login and registration. These routes do not create, read, or clear ambient browser authentication cookies. OAuth token exchange also accepts the documented form encoding. |
 | Realtime WebSocket | `GET /api/realtime` | One binary `RealtimeSubscribe` message, then binary snapshot, event, caught-up, heartbeat, and close frames; large, paginated, and targeted resources stay in ConnectRPC | Bearer access token in the subscription or same-origin cookie; exact human credentials are revalidated before subscription and once per minute; bearer expiry and cookie renewal thresholds request reconnects, while OAuth-client blocks terminate matching established sessions |
 | Bot incoming webhook | `POST /webhooks/incoming/{credential}` with optional `room_id` query parameter | Slack-compatible plain-text JSON subset with Chatto aliases and Grafana `message` and optional thread creation | Action-limited bot webhook credential; the handler posts through the normal message operation and does not accept the bot API key |
@@ -269,6 +270,14 @@ complete object. NATS-backed video is therefore not seekable. Passive S3-backed
 media redirects after authorization to a presigned object URL whose storage
 backend provides byte-range delivery.
 
+`GET /assets/files/{assetId}?download=1` forces an original-file download. It
+uses the same access ticket or authenticated credentials and current read
+checks as the inline response. Chatto streams this mode on both storage
+backends and sets `Content-Disposition: attachment` with the stored filename,
+with path components and control characters removed and MIME encoding applied.
+It preserves the private cache policy, `nosniff`, and active-document sandbox
+headers. The optional query parameter does not change stored data or tickets.
+
 Processed videos can instead expose HLS. Six-second MPEG-TS segments make
 seeking and adaptive rendition switching independent of byte-range support.
 HLS child responses remain behind Chatto so membership loss revokes an already
@@ -309,3 +318,10 @@ Account validation errors include `Chatto-Error-Field` response metadata with
 the affected field. Errors without this metadata apply to the form.
 The `[core] skip_setup_wizard` flag suppresses the command and discovery state.
 See [FDR-047](../fdr/FDR-047-first-run-setup.md).
+
+The call credential APIs require room membership and `call.join`. Starting a
+call also requires `call.start`. Tokens encode `call.voice`, `call.camera`, and
+`call.screenshare` as source restrictions; native companion credentials require
+`call.screenshare`. Member-only observer reads and leaving do not require these
+permissions. Room viewer-state permission rows expose the five actions through
+existing room reads and realtime reconciliation.

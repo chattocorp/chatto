@@ -142,6 +142,14 @@
       },
       "show_less": "一部を表示"
     },
+    "typing": {
+      "one": "{name} が入力しています",
+      "two": "{first} と {second} が入力しています",
+      "many_count": {
+        "other": "{names} と他 {count} 人が入力しています",
+        "one": "{names} と他 {count} 人が入力しています"
+      }
+    },
     "attachment": {
       "delete_title": "添付ファイルを削除",
       "delete_prompt": "この添付ファイルを削除してもよろしいですか?これを元に戻すことはできません。",
@@ -157,7 +165,19 @@
       "description_label": "説明（任意）",
       "description_help": "添付ファイルを見たり聞いたりできない人のために説明してください。",
       "description_too_long": "説明は最大{max}文字まで入力できます。",
-      "description_update_failed": "添付ファイルの説明を更新できませんでした"
+      "description_update_failed": "添付ファイルの説明を更新できませんでした",
+      "html_viewer": {
+        "download": "ダウンロード",
+        "show_preview": "プレビューを表示",
+        "warning": "このドキュメントは外部のウェブサイトからコンテンツを読み込む場合があります。これらのウェブサイトにはあなたのIPアドレスが伝わります。",
+        "preview_title": "{filename} のプレビュー",
+        "preview_failed": "プレビューを読み込めませんでした。もう一度お試しください。",
+        "document_type": "ドキュメントの種類",
+        "html_document": "HTMLドキュメント",
+        "xhtml_document": "XHTMLドキュメント",
+        "file_size": "ファイルサイズ",
+        "unavailable": "利用できません"
+      }
     },
     "link_preview": {
       "delete_title": "リンクのプレビューを削除",

@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Vis flere rom i {group} ({count})",
+    "hide_rooms_in_group": "Skjul rom du ikke har blitt med i i {group}",
+    "more_rooms": "{count} flere",
+    "show_less": "Vis færre",
     "active_call": "Aktiv samtale",
     "call_participants": "{count} deltakere i samtalen",
     "go_to_notifications": "Gå til {count}-varsler",
@@ -18,6 +22,7 @@
     "copy_room_id": "Kopier rom-ID",
     "copy_server_hostname": "Kopier serverens vertsnavn",
     "room_settings": "Rominnstillinger",
+    "add_to_group": "Legg til i {group}",
     "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
     "room_actions": "Handlinger for #{room}"

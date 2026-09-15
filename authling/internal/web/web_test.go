@@ -35,6 +35,34 @@ func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
 	}
 }
 
+func TestChangePasswordWellKnownURLRedirectsToPasswordPage(t *testing.T) {
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		t.Run(method, func(t *testing.T) {
+			request := httptest.NewRequest(method, changePasswordWellKnownPath, nil)
+			response := httptest.NewRecorder()
+
+			Handler().ServeHTTP(response, request)
+
+			if response.Code != http.StatusSeeOther {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusSeeOther)
+			}
+			if got := response.Header().Get("Location"); got != accountPasswordPath {
+				t.Fatalf("Location = %q, want %q", got, accountPasswordPath)
+			}
+			if got := response.Header().Get("Cache-Control"); got != "no-store" {
+				t.Fatalf("Cache-Control = %q, want no-store", got)
+			}
+		})
+	}
+
+	request := httptest.NewRequest(http.MethodGet, "/.well-known/unknown", nil)
+	response := httptest.NewRecorder()
+	Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("unknown well-known status = %d, want %d", response.Code, http.StatusNotFound)
+	}
+}
+
 func TestLoginPageAutofocusesEmail(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/login", nil)
 	response := httptest.NewRecorder()
@@ -50,6 +78,34 @@ func TestLoginPageAutofocusesEmail(t *testing.T) {
 	}
 	if !strings.Contains(body, `href="/password-reset"`) || !strings.Contains(body, "Forgot your password?") {
 		t.Fatalf("login page does not link to password reset: %q", body)
+	}
+}
+
+func TestLoginPageAcceptsOnlyPasswordChangeReturnPath(t *testing.T) {
+	tests := []struct {
+		name       string
+		returnPath string
+		wantHidden bool
+	}{
+		{name: "password change", returnPath: accountPasswordPath, wantHidden: true},
+		{name: "external URL", returnPath: "https://attacker.example", wantHidden: false},
+		{name: "scheme-relative URL", returnPath: "//attacker.example", wantHidden: false},
+		{name: "other internal path", returnPath: "/account", wantHidden: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/login?"+url.Values{loginReturnParameter: {test.returnPath}}.Encode(), nil)
+			response := httptest.NewRecorder()
+			Handler().ServeHTTP(response, request)
+
+			if response.Code != http.StatusOK {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+			}
+			hasHidden := strings.Contains(response.Body.String(), `name="return_to" value="/account/password"`)
+			if hasHidden != test.wantHidden {
+				t.Fatalf("return-path hidden field present = %v, want %v", hasHidden, test.wantHidden)
+			}
+		})
 	}
 }
 
@@ -179,14 +235,14 @@ func TestSameOriginRejectsMissingAndCrossSiteSignals(t *testing.T) {
 	}
 }
 
-func TestHandlerRejectsNonCanonicalHost(t *testing.T) {
+func TestHandlerRedirectsNonCanonicalHost(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "https://alias.example/", nil)
 	response := httptest.NewRecorder()
 
 	Handler(Dependencies{PublicURL: "https://auth.example"}).ServeHTTP(response, request)
 
-	if response.Code != http.StatusMisdirectedRequest {
-		t.Fatalf("status = %d, want %d", response.Code, http.StatusMisdirectedRequest)
+	if response.Code != http.StatusTemporaryRedirect {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusTemporaryRedirect)
 	}
 }
 
@@ -219,7 +275,7 @@ func TestHandlerUsesForwardedOriginOnlyWhenExplicitlyTrusted(t *testing.T) {
 		trust bool
 		want  int
 	}{
-		{name: "disabled", want: http.StatusMisdirectedRequest},
+		{name: "disabled", want: http.StatusTemporaryRedirect},
 		{name: "enabled", trust: true, want: http.StatusOK},
 	} {
 		t.Run(test.name, func(t *testing.T) {
@@ -268,6 +324,47 @@ func TestHandlerRejectsMalformedTrustedProxyOrigins(t *testing.T) {
 
 			if response.Code != http.StatusBadRequest {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}
+
+func TestCanonicalRedirectUsesOnlyConfiguredOrigin(t *testing.T) {
+	for _, test := range []struct{ name, method, requestURL, want string }{
+		{"alias", "GET", "https://alias.example/login?next=%2Faccount", "https://auth.example/login?next=%2Faccount"},
+		{"upgrade", "GET", "http://auth.example/login", "https://auth.example/login"},
+		{"port", "GET", "https://auth.example:8443/", "https://auth.example/"},
+		{"escaped path", "GET", "https://alias.example/a%2Fb?x=%26", "https://auth.example/a%2Fb?x=%26"},
+		{"authority-like path", "GET", "https://alias.example//evil.example/path", "https://auth.example//evil.example/path"},
+		{"token POST", "POST", "https://alias.example/oauth/token", "https://auth.example/oauth/token"},
+		{"discovery", "GET", "https://alias.example/.well-known/openid-configuration", "https://auth.example/.well-known/openid-configuration"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			canonical, _ := url.Parse("https://auth.example")
+			handler := redirectToCanonicalOrigin(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { t.Fatal("alias reached application handler") }), canonical)
+			request := httptest.NewRequest(test.method, test.requestURL, strings.NewReader("secret=value"))
+			request.Header.Set("X-Forwarded-Host", "evil.example")
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, request)
+			if response.Code != http.StatusTemporaryRedirect || response.Header().Get("Location") != test.want {
+				t.Fatalf("response = %d %q, want 307 %q", response.Code, response.Header().Get("Location"), test.want)
+			}
+			if response.Header().Get("Set-Cookie") != "" || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatal("redirect must not set a cookie or be cached")
+			}
+		})
+	}
+}
+
+func TestCanonicalRedirectRejectsMalformedHost(t *testing.T) {
+	for _, host := range []string{"", "user@auth.example", "alias.example/path", "alias.example?query", "alias.example#fragment", "alias.example:invalid"} {
+		t.Run(host, func(t *testing.T) {
+			request := httptest.NewRequest("GET", "https://alias.example/", nil)
+			request.Host = host
+			response := httptest.NewRecorder()
+			Handler(Dependencies{PublicURL: "https://auth.example"}).ServeHTTP(response, request)
+			if response.Code != http.StatusBadRequest || response.Header().Get("Location") != "" {
+				t.Fatalf("malformed host response = %d", response.Code)
 			}
 		})
 	}

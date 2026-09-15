@@ -69,6 +69,23 @@
     "no_game_windows": "Kopīgojami logi nav atrasti. Atveriet spēli loga vai bezmalu režīmā un mēģiniet vēlreiz.",
     "game_windows_failed": "Neizdevās ielādēt kopīgojamos logus.",
     "untitled_window": "Logs bez nosaukuma",
-    "game_window_selected": "Atlasīts: {name}"
+    "game_window_selected": "Atlasīts: {name}",
+    "permission_denied": "Tev nav atļaujas veikt šo darbību zvanā.",
+    "preferences": {
+      "title": "Balss un video",
+      "scope": "Saglabāts šajā pārlūkā šim serverim.",
+      "system_default": "Sistēmas noklusējums",
+      "unavailable_device": "Saglabātā ierīce nav pieejama",
+      "output_unsupported": "Šis pārlūks izmanto sistēmas skaļruni. Skaļruņa izvēle nav pieejama.",
+      "call_settings": "Zvanu iestatījumi",
+      "join_muted": "Pievienoties zvaniem ar izslēgtu mikrofonu",
+      "test_title": "Pārbaudīt mikrofonu",
+      "input_level": "Mikrofona līmenis",
+      "start_test": "Sākt mikrofona pārbaudi",
+      "stop_test": "Apturēt pārbaudi",
+      "waiting": "Gaida piekļuvi mikrofonam…",
+      "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
+      "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu."
+    }
   }
 }

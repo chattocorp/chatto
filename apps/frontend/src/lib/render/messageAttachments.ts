@@ -1,5 +1,11 @@
 import type { ExpiringAssetUrl } from '$lib/attachments/attachmentUrls';
 
+/** HTML documents use an opt-in sandboxed viewer instead of opening a window. */
+export function isHtmlAttachment(contentType: string): boolean {
+  const mediaType = contentType.split(';', 1)[0].trim().toLowerCase();
+  return mediaType === 'text/html' || mediaType === 'application/xhtml+xml';
+}
+
 export enum VideoProcessingStatus {
   Completed = 'COMPLETED',
   Failed = 'FAILED',

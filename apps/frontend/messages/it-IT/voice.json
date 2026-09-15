@@ -69,6 +69,23 @@
     "no_game_windows": "Nessuna finestra condivisibile trovata. Apri un gioco in modalità finestra o senza bordi e riprova.",
     "game_windows_failed": "Impossibile caricare le finestre condivisibili.",
     "untitled_window": "Finestra senza titolo",
-    "game_window_selected": "{name} selezionato"
+    "game_window_selected": "{name} selezionato",
+    "permission_denied": "Non hai il permesso di eseguire questa azione nella chiamata.",
+    "preferences": {
+      "title": "Voce e video",
+      "scope": "Salvato in questo browser per questo server.",
+      "system_default": "Predefinito di sistema",
+      "unavailable_device": "Dispositivo salvato non disponibile",
+      "output_unsupported": "Questo browser usa l’altoparlante di sistema. La selezione dell’altoparlante non è disponibile.",
+      "call_settings": "Impostazioni chiamate",
+      "join_muted": "Partecipa alle chiamate con il microfono disattivato",
+      "test_title": "Prova il microfono",
+      "input_level": "Livello del microfono",
+      "start_test": "Avvia test del microfono",
+      "stop_test": "Interrompi test",
+      "waiting": "In attesa dell’accesso al microfono…",
+      "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
+      "test_in_call": "Esci dalla chiamata prima di provare il microfono."
+    }
   }
 }

@@ -114,7 +114,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `RBACModel`                      | [`rbac_model.go`](../../cli/internal/core/rbac_model.go)                                                                                                       | Sole core owner of RBAC projection reads and readiness for role, assignment, and permission authorization and writes |
 | `MentionablesModel`              | [`mentionables_projection.go`](../../cli/internal/core/mentionables_projection.go)                                                                              | Global mention-handle namespace lookup and readiness                                                                                          |
 | `PresenceModel`                  | [`presence_model.go`](../../cli/internal/core/presence_model.go), [`presence_hub.go`](../../cli/internal/core/presence_hub.go)                                    | Live presence writes plus per-process watcher, bulk-read snapshot, and fanout for presence state in `MEMORY_CACHE`                            |
-| `CallModel`                      | [`call_model.go`](../../cli/internal/core/call_model.go), [`voice.go`](../../cli/internal/core/voice.go), [`lease.go`](../../cli/internal/lease/lease.go)             | Sole core owner of call-state projection reads and readiness; generation-consistent participant snapshots and call ID/E2EE access material; durable LiveKit call lifecycle/participant facts and elected LiveKit reconciliation |
+| `CallModel`                      | [`call_model.go`](../../cli/internal/core/call_model.go), [`voice.go`](../../cli/internal/core/voice.go), [`lease.go`](../../cli/internal/lease/lease.go)             | Sole core owner of call-state projection reads and readiness; generation-consistent participant snapshots and call ID/E2EE access material; durable LiveKit call lifecycle/participant facts and elected LiveKit reconciliation, including current call permission enforcement |
 | `MediaModel`                     | [`media_model.go`](../../cli/internal/core/media_model.go), [`attachments.go`](../../cli/internal/core/attachments.go)                                             | Eagerly wired attachment/media binary storage, signed asset and origin-scoped HLS URLs, transformed image cache operations                                    |
 | `AssetModel`                     | [`asset_model.go`](../../cli/internal/core/asset_model.go), [`asset_cleanup.go`](../../cli/internal/core/asset_cleanup.go), [`asset_projection.go`](../../cli/internal/core/asset_projection.go) | Sole core owner of asset-projection reads and readiness; detached generation-consistent asset state; uploader-bound exclusive message attachments with asset-aggregate OCC; exact-owner deletion; processing transitions, tombstones, and shared durable physical deletion |
 | `AssetUploadModel`               | [`asset_uploads.go`](../../cli/internal/core/asset_uploads.go)                                                                                                    | Eagerly wired chunked attachment upload sessions, temporary object assembly, pending-asset expiry, and process-local periodic cleanup           |
@@ -185,3 +185,38 @@ bootstrap, startup closes setup when user history exists. The operation uses
 authoritative EVT reads and the existing user creation, RBAC, and configuration
 write models. Successful setup waits for the required projections before the
 browser starts normal login. See [FDR-047](../fdr/FDR-047-first-run-setup.md).
+
+Call authorization lives in [`call_permissions.go`](../../cli/internal/core/call_permissions.go).
+Join writes recheck start/join authority on each room OCC attempt. Credential
+issuance resolves permissions at stable authorization inputs and retains the
+existing call-generation checks. Browser tokens restrict microphone, camera,
+and share sources separately. Native publisher audio uses the microphone wire
+source, but its authority is `call.screenshare`.
+
+The elected LiveKit scan checks current membership and permission grants every
+30 seconds. It removes unauthorized main and companion participants and updates
+allowed media sources. Update failures retry without advancing the global
+LiveKit listing-outage counter. This is eventual enforcement, including for
+reconnects using old unexpired credentials.
+
+Startup initializes missing server/everyone call permissions with ordinary RBAC
+grants guarded by the complete RBAC subject tail. It reads historical decisions
+so a cleared or denied grant cannot return after restart. No new event variant,
+stream, or snapshot contract is required.
+
+## Browser call preferences and device test
+
+The server-owned frontend store gives each call state a browser-local
+`CallPreferencesState`. It saves device IDs and join-muted at the existing
+per-server storage boundary. These settings do not enter Chatto APIs or EVT.
+LiveKit capture defaults use the saved input choices; a missing output device
+uses the browser default. Device switches save only after success.
+
+The settings page owns `CallDeviceTest`. Explicit capture feeds a Web Audio
+meter and an audio element for immediate local playback. The selected speaker
+is applied where the browser supports output selection. No recording is made.
+Generation checks stop late streams or playback after cancellation. Page exit
+stops tracks and playback, closes the audio context, and cancels meter updates.
+Camera discovery requests temporary access on page open only if device names
+are unavailable and no call is active on the selected server.
+The test does not contact a media server.

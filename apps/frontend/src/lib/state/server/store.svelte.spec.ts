@@ -16,6 +16,9 @@ import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import {
   ListRoomsResponse,
+  ListRoomGroupsResponse,
+  RoomGroup,
+  RoomGroupViewerState,
   RoomViewerState,
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
@@ -26,7 +29,7 @@ import {
   ViewerCapabilities,
   ViewerUser
 } from '@chatto/api-types/api/v1/viewer_pb';
-import { CapabilityGrant } from '@chatto/api-types/api/v1/permissions_pb';
+import { CapabilityGrant, PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import {
   RealtimeResourceUpdate,
   type RealtimeResourceFamily
@@ -206,21 +209,24 @@ vi.mock('$lib/audio/callSounds', () => ({
   playCallSound: soundMocks.playCallSound
 }));
 
-vi.mock('$lib/api-client/roomDirectory', () => ({
-  RoomDirectoryScope: {
-    ALL: 1
-  },
-  RoomKind: {
-    CHANNEL: 1,
-    DM: 2
-  },
-  mapDirectoryRoom: (room: unknown) => room,
-  mapRoomGroup: (group: unknown) => group,
-  createRoomDirectoryAPI: vi.fn(() => ({
-    listRooms: apiMocks.listRooms,
-    listRoomGroups: apiMocks.listRoomGroups
-  }))
-}));
+vi.mock('$lib/api-client/roomDirectory', async (importActual) => {
+  const actual = await importActual<typeof import('$lib/api-client/roomDirectory')>();
+  return {
+    RoomDirectoryScope: {
+      ALL: 1
+    },
+    RoomKind: {
+      CHANNEL: 1,
+      DM: 2
+    },
+    mapDirectoryRoom: (room: unknown) => room,
+    mapRoomGroup: actual.mapRoomGroup,
+    createRoomDirectoryAPI: vi.fn(() => ({
+      listRooms: apiMocks.listRooms,
+      listRoomGroups: apiMocks.listRoomGroups
+    }))
+  };
+});
 
 vi.mock('$lib/api-client/memberDirectory', () => ({
   mapDirectoryMember: (member: unknown) => member,
@@ -696,6 +702,60 @@ describe('ServerStateStore privileged mode', () => {
     expect(store.realtimeSync.resumeCursor).toBe('cursor-after');
     expect(store.realtimeSync.authorizationRefreshRequired).toBe(false);
     expect(fake.forceReconnect).toHaveBeenCalledWith('privileged mode changed');
+  });
+
+  it('refreshes navigation group permissions on activation and deactivation without a layout event', async () => {
+    const fake = new FakeServerConnection([]);
+    const store = makeStore(fake);
+    store.projection.viewer = new GetViewerResponse({
+      user: new ViewerUser({ profile: new User({ id: 'U1' }) }),
+      privilegedMode: new PrivilegedModeState({ available: true, active: false })
+    });
+    store.realtimeSync.markCaughtUp('cursor-before');
+    const group = (granted: boolean) =>
+      new RoomGroup({
+        id: 'G1',
+        name: 'Lobby',
+        viewerState: new RoomGroupViewerState({
+          permissions: [
+            new PermissionGrant({ permission: 'room.create', granted }),
+            new PermissionGrant({ permission: 'room.manage', granted })
+          ]
+        })
+      });
+    store.projection.roomGroups = [group(false)];
+    apiMocks.readRealtimeResource.mockImplementation(async (family) =>
+      family === 'roomGroups'
+        ? [
+            new RealtimeResourceUpdate({
+              resource: {
+                case: 'roomGroups',
+                value: new ListRoomGroupsResponse({
+                  groups: [group(store.projection.viewer?.privilegedMode?.active ?? false)]
+                })
+              }
+            })
+          ]
+        : []
+    );
+    fake.forceReconnect.mockImplementation(() => {
+      const generation = store.realtimeSync.pendingAuthorizationRefreshGeneration;
+      void store
+        .completeRealtimeCatchUp('cursor-after')
+        .then(() => store.realtimeSync.markCaughtUp('cursor-after', generation));
+    });
+
+    for (const active of [true, false]) {
+      await store.setPrivilegedMode(active);
+      expect(apiMocks.readRealtimeResource).toHaveBeenCalledWith('roomGroups', 'cursor-after');
+      expect(store.navigation.roomGroups).toMatchObject([
+        {
+          id: 'G1',
+          viewerCanCreateRoom: active,
+          viewerCanManageGroup: active
+        }
+      ]);
+    }
   });
 
   it('clears expired activation and refreshes effective permissions', async () => {

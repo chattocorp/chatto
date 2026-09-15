@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Meer kamers in {group} tonen ({count})",
+    "hide_rooms_in_group": "Niet-deelgenomen kamers in {group} verbergen",
+    "more_rooms": "{count} meer",
+    "show_less": "Minder tonen",
     "active_call": "Actief gesprek",
     "call_participants": "{count}-deelnemers in gesprek",
     "go_to_notifications": "Ga naar {count}-meldingen",
@@ -18,6 +22,7 @@
     "copy_room_id": "Ruimte-ID kopiëren",
     "copy_server_hostname": "Serverhostnaam kopiëren",
     "room_settings": "Ruimte-instellingen",
+    "add_to_group": "Toevoegen aan {group}",
     "group_settings": "Instellingen voor {group}",
     "server_actions": "Acties voor {server}",
     "room_actions": "Acties voor #{room}"

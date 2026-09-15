@@ -110,7 +110,8 @@
       "room": "Kamers",
       "server": "Server",
       "user": "Gebruikers",
-      "other": "Overig"
+      "other": "Overig",
+      "call": "Oproepen"
     },
     "permission_descriptions": {
       "server_manage": "Serverinstellingen bijwerken (naam, beschrijving, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Gebruikers aanmaken, accountidentiteit bewerken, wachtwoorden opnieuw instellen, geverifieerde e-mails bijvoegen en cooldowns voor inloggen wissen",
       "user_manage_permissions": "Wijzig directe machtigingsoverschrijvingen per gebruiker",
       "bot_create": "Botaccounts maken waarvan je eigenaar bent",
-      "bot_manage": "Alle botaccounts bekijken en beheren"
+      "bot_manage": "Alle botaccounts bekijken en beheren",
+      "call_start": "Een oproep starten (vereist ook call.join)",
+      "call_join": "Deelnemen aan een actieve oproep",
+      "call_voice": "De microfoon gebruiken in oproepen",
+      "call_camera": "De camera gebruiken in oproepen",
+      "call_screenshare": "Een scherm of toepassing delen, inclusief opgenomen audio"
     }
   }
 }

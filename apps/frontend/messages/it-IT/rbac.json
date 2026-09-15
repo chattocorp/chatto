@@ -110,7 +110,8 @@
       "room": "Stanze",
       "server": "Server",
       "user": "Utenti",
-      "other": "Altro"
+      "other": "Altro",
+      "call": "Chiamate"
     },
     "permission_descriptions": {
       "server_manage": "Aggiorna le impostazioni del server (nome, descrizione, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Crea utenti, modifica l'identità dell'account, reimposta le password, allega e-mail verificate e cancella i tempi di recupero dell'accesso",
       "user_manage_permissions": "Modifica le autorizzazioni dirette per utente",
       "bot_create": "Creare account bot di tua proprietà",
-      "bot_manage": "Visualizzare e gestire tutti gli account bot"
+      "bot_manage": "Visualizzare e gestire tutti gli account bot",
+      "call_start": "Avviare una chiamata (richiede anche call.join)",
+      "call_join": "Partecipare a una chiamata in corso",
+      "call_voice": "Usare il microfono nelle chiamate",
+      "call_camera": "Usare la videocamera nelle chiamate",
+      "call_screenshare": "Condividere uno schermo o un’applicazione, incluso l’audio acquisito"
     }
   }
 }

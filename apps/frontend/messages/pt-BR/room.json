@@ -142,6 +142,14 @@
       },
       "show_less": "mostrar menos"
     },
+    "typing": {
+      "one": "{name} está digitando",
+      "two": "{first} e {second} estão digitando",
+      "many_count": {
+        "other": "{names} e {count} outros estão digitando",
+        "one": "{names} e {count} outro estão digitando"
+      }
+    },
     "attachment": {
       "delete_title": "Excluir anexo",
       "delete_prompt": "Tem certeza de que deseja excluir este anexo? Isto não pode ser desfeito.",
@@ -157,7 +165,19 @@
       "description_label": "Descrição (opcional)",
       "description_help": "Descreva o anexo para pessoas que não conseguem vê-lo ou ouvi-lo.",
       "description_too_long": "As descrições podem ter no máximo {max} caracteres.",
-      "description_update_failed": "Não foi possível atualizar a descrição do anexo"
+      "description_update_failed": "Não foi possível atualizar a descrição do anexo",
+      "html_viewer": {
+        "download": "Baixar",
+        "show_preview": "Mostrar prévia",
+        "warning": "Este documento pode carregar conteúdo de sites externos. Esses sites podem ver seu endereço IP.",
+        "preview_title": "Prévia de {filename}",
+        "preview_failed": "Não foi possível carregar a prévia. Tente novamente.",
+        "document_type": "Tipo de documento",
+        "html_document": "Documento HTML",
+        "xhtml_document": "Documento XHTML",
+        "file_size": "Tamanho do arquivo",
+        "unavailable": "Indisponível"
+      }
     },
     "link_preview": {
       "delete_title": "Excluir visualização do link",

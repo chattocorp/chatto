@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import type { ServerDirectorySnapshot } from '$lib/serverDirectory';
+import { serverDirectoryDiscoveryConsent } from '$lib/serverDirectoryConsent';
 
 const mocks = vi.hoisted(() => ({
   servers: [] as Array<{
@@ -179,6 +180,8 @@ function approachAutomaticLoad(container: HTMLElement): HTMLElement {
 
 describe('Server Directory page', () => {
   beforeEach(() => {
+    serverDirectoryDiscoveryConsent.remove();
+    serverDirectoryDiscoveryConsent.set(true);
     mocks.servers = [
       {
         id: 'joined',
@@ -209,8 +212,35 @@ describe('Server Directory page', () => {
   });
 
   afterEach(() => {
+    serverDirectoryDiscoveryConsent.remove();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it('waits for consent and remembers it on this device', async () => {
+    serverDirectoryDiscoveryConsent.remove();
+    mocks.loadServerDirectory.mockResolvedValue({
+      entries: [],
+      failedSourceCount: 0,
+      sourceCount: 2
+    });
+
+    const first = render(Page);
+
+    await vi.waitFor(() => expect(button(first.container, 'Discover servers')).toBeDefined());
+    expect(first.container.textContent).toContain(
+      'Each contacted server can see your IP address and technical connection details'
+    );
+    expect(mocks.loadServerDirectory).not.toHaveBeenCalled();
+
+    button(first.container, 'Discover servers')?.click();
+
+    await vi.waitFor(() => expect(mocks.loadServerDirectory).toHaveBeenCalledOnce());
+    expect(serverDirectoryDiscoveryConsent.get()).toBe(true);
+    first.unmount();
+
+    render(Page);
+    await vi.waitFor(() => expect(mocks.loadServerDirectory).toHaveBeenCalledTimes(2));
   });
 
   it('keeps directory response order and marks registered entries as joined', async () => {
@@ -245,7 +275,7 @@ describe('Server Directory page', () => {
     ]);
     expect(entries[0]?.textContent).toContain('Zulu description');
     expect(entries[1]?.textContent).toContain('Joined');
-    expect(entries[1]?.querySelector('img')?.src).toContain('/Alpha/banner.webp');
+    expect(entries[1]?.querySelector('img')).toBeNull();
   });
 
   it('hides unavailable entries and reports partial source failures', async () => {

@@ -69,6 +69,23 @@
     "no_game_windows": "Aucune fenêtre partageable trouvée. Ouvrez un jeu en mode fenêtré ou sans bordure et réessayez.",
     "game_windows_failed": "Impossible de charger les fenêtres partageables.",
     "untitled_window": "Fenêtre sans titre",
-    "game_window_selected": "{name} sélectionné"
+    "game_window_selected": "{name} sélectionné",
+    "permission_denied": "Vous n’avez pas la permission d’effectuer cette action dans un appel.",
+    "preferences": {
+      "title": "Voix et vidéo",
+      "scope": "Enregistré dans ce navigateur pour ce serveur.",
+      "system_default": "Paramètre système par défaut",
+      "unavailable_device": "Appareil enregistré indisponible",
+      "output_unsupported": "Ce navigateur utilise le haut-parleur du système. La sélection du haut-parleur est indisponible.",
+      "call_settings": "Paramètres des appels",
+      "join_muted": "Rejoindre les appels avec le microphone coupé",
+      "test_title": "Tester votre microphone",
+      "input_level": "Niveau du microphone",
+      "start_test": "Démarrer le test du microphone",
+      "stop_test": "Arrêter le test",
+      "waiting": "En attente de l’accès au microphone…",
+      "test_failed": "Impossible de tester le microphone. Vérifiez l’accès à l’appareil et réessayez.",
+      "test_in_call": "Quittez votre appel avant de tester le microphone."
+    }
   }
 }

@@ -142,6 +142,14 @@
       },
       "show_less": "收起"
     },
+    "typing": {
+      "one": "{name} 正在输入",
+      "two": "{first} 和 {second} 正在输入",
+      "many_count": {
+        "other": "{names} 等其他 {count} 人正在输入",
+        "one": "{names} 等其他 {count} 人正在输入"
+      }
+    },
     "attachment": {
       "delete_title": "删除附件",
       "delete_prompt": "确定要删除此附件吗？此操作无法撤销。",
@@ -157,7 +165,19 @@
       "description_label": "描述（可选）",
       "description_help": "请为无法看到或听到此附件的人描述其内容。",
       "description_too_long": "描述最多可包含 {max} 个字符。",
-      "description_update_failed": "无法更新附件描述"
+      "description_update_failed": "无法更新附件描述",
+      "html_viewer": {
+        "download": "下载",
+        "show_preview": "显示预览",
+        "warning": "此文档可能会从外部网站加载内容。这些网站可以看到你的 IP 地址。",
+        "preview_title": "{filename} 的预览",
+        "preview_failed": "无法加载预览。请重试。",
+        "document_type": "文档类型",
+        "html_document": "HTML 文档",
+        "xhtml_document": "XHTML 文档",
+        "file_size": "文件大小",
+        "unavailable": "无法获取"
+      }
     },
     "link_preview": {
       "delete_title": "删除链接预览",

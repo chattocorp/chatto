@@ -19,6 +19,7 @@ test.describe('Typing indicators', () => {
     serverURL
   }) => {
     // User 1: Create account and enter room
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     const user1 = await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -48,6 +49,11 @@ test.describe('Typing indicators', () => {
         await expect(page.locator('.typing-dots')).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });
+        await expect(page.getByTestId('typing-indicator')).toContainText(user2.displayName);
+        await expect(page.getByTestId('typing-indicator').locator('.typing-dot').first()).toHaveCSS(
+          'animation-name',
+          'none'
+        );
 
         // User 2: Clear the input (stop typing)
         await roomPage2.messageInput.fill('');
@@ -141,6 +147,9 @@ test.describe('Typing indicators', () => {
         // User 1: Should see typing indicator in the THREAD pane (avatar visible)
         const threadTypingDots = roomPage.threadPane.locator('.typing-dots');
         await expect(threadTypingDots).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(roomPage.threadPane.getByTestId('typing-indicator')).toContainText(
+          'is typing'
+        );
 
         // User 1: Should NOT see typing indicator in the MAIN room
         // The typing dots should only appear once (in the thread pane)
@@ -248,6 +257,7 @@ test.describe('Typing indicators', () => {
             await expect(page.locator('.typing-dots')).toBeVisible({
               timeout: TIMEOUTS.REALTIME_EVENT
             });
+            await expect(page.getByTestId('typing-indicator')).toContainText(user2.displayName);
 
             // User 3: Also start typing
             await roomPage3.messageInput.fill('User 3 typing...');
@@ -256,6 +266,7 @@ test.describe('Typing indicators', () => {
             await expect(page.locator('.typing-dots')).toBeVisible({
               timeout: TIMEOUTS.REALTIME_EVENT
             });
+            await expect(page.getByTestId('typing-indicator')).toContainText(user3.displayName);
           },
           { viewport: { width: 1280, height: 720 } }
         );

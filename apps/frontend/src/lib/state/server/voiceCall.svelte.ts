@@ -6,6 +6,7 @@
  * screen share toggle, and audio/video device selection.
  */
 
+import { CallPreferencesState, availableCallDevice } from './callPreferences.svelte';
 import type {
   Participant,
   RemoteTrack,
@@ -19,6 +20,23 @@ import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
+
+/** Resolved room actions. Missing permission data always denies access. */
+export type CallPermissions = {
+  start: boolean;
+  join: boolean;
+  voice: boolean;
+  camera: boolean;
+  screenshare: boolean;
+};
+
+export const NO_CALL_PERMISSIONS: CallPermissions = {
+  start: false,
+  join: false,
+  voice: false,
+  camera: false,
+  screenshare: false
+};
 
 export type CallParticipantInfo = {
   identity: string;
@@ -262,8 +280,70 @@ export class VoiceCallState {
   private analyserSource: MediaStreamAudioSourceNode | null = null;
   private analyserData: Float32Array<ArrayBuffer> | null = null;
 
-  constructor(api: VoiceCallAPI) {
+  readonly preferences?: CallPreferencesState;
+
+  readonly permissionsFor: (roomId: string) => CallPermissions;
+
+  constructor(
+    api: VoiceCallAPI,
+    permissionsFor: (roomId: string) => CallPermissions = () => NO_CALL_PERMISSIONS,
+    preferences?: CallPreferencesState
+  ) {
     this.#api = api;
+    this.permissionsFor = permissionsFor;
+    this.preferences = preferences;
+  }
+
+  get canUseVoice(): boolean {
+    return !!this.roomId && this.permissionsFor(this.roomId).voice;
+  }
+  get canUseCamera(): boolean {
+    return !!this.roomId && this.permissionsFor(this.roomId).camera;
+  }
+  get canScreenShare(): boolean {
+    return !!this.roomId && this.permissionsFor(this.roomId).screenshare;
+  }
+
+  /** Stop revoked media after pending capture operations settle. Recheck the
+   * room after each await so old work cannot affect a replacement call. */
+  async reconcilePermissions(): Promise<void> {
+    const room = this.room;
+    if (!room || !this.roomId) return;
+    if (!this.permissionsFor(this.roomId).join) {
+      await this.leave();
+      return;
+    }
+    try {
+      await Promise.all([
+        this.microphoneToggleInFlight,
+        this.cameraToggleInFlight,
+        this.screenShareToggleInFlight,
+        this.nativeScreenShareToggleInFlight
+      ]);
+      if (this.room !== room) return;
+      if (!this.canUseVoice) {
+        await room.localParticipant.setMicrophoneEnabled(false);
+        if (this.room !== room) return;
+        this.isMuted = true;
+        this.teardownLocalAudioAnalyser();
+      }
+      if (!this.canUseCamera) {
+        await room.localParticipant.setCameraEnabled(false);
+        if (this.room !== room) return;
+        this.isCameraEnabled = false;
+      }
+      if (!this.canScreenShare) {
+        await this.stopNativeScreenShare();
+        if (this.room !== room) return;
+        await room.localParticipant.setScreenShareEnabled(false);
+        if (this.room !== room) return;
+        this.isScreenShareEnabled = false;
+      }
+      this.updateParticipants();
+    } catch {
+      // If capture cannot be stopped reliably, close this media session.
+      if (this.room === room) await this.leave();
+    }
   }
 
   /**
@@ -378,6 +458,8 @@ export class VoiceCallState {
   }
 
   private async performJoin(livekitUrl: string, roomId: string): Promise<void> {
+    if (!this.permissionsFor(roomId).join)
+      throw new VoiceCallJoinError('Call join denied', m('voice.permission_denied'));
     assertLiveKitE2EESupported();
 
     // Leave existing call first
@@ -388,6 +470,7 @@ export class VoiceCallState {
     this.connecting = true;
     this.roomId = roomId;
     let joinIntentRecorded = false;
+    let ownedRoom: Room | null = null;
 
     try {
       const { AudioPresets, ExternalE2EEKeyProvider, Room, VideoPresets } = await loadLiveKit();
@@ -407,19 +490,34 @@ export class VoiceCallState {
       const { default: E2EEWorker } = await import('livekit-client/e2ee-worker?worker');
       this.e2eeWorker = new E2EEWorker();
 
+      // Enumeration never requests capture merely to restore a saved device.
+      const outputDevices = this.preferences?.speaker
+        ? await Room.getLocalDevices('audiooutput', false).catch(() => [])
+        : [];
+      const outputDevice = availableCallDevice(this.preferences?.speaker ?? '', outputDevices);
+
       // Create and connect LiveKit room
       this.room = new Room({
         encryption: {
           keyProvider,
           worker: this.e2eeWorker
         },
+        ...(outputDevice &&
+        typeof HTMLMediaElement !== 'undefined' &&
+        'setSinkId' in HTMLMediaElement.prototype
+          ? { audioOutput: { deviceId: outputDevice } }
+          : {}),
         audioCaptureDefaults: {
+          ...(this.preferences?.microphone
+            ? { deviceId: { ideal: this.preferences.microphone } }
+            : {}),
           channelCount: { ideal: 1 },
           autoGainControl: true,
           echoCancellation: true,
           noiseSuppression: true
         },
         videoCaptureDefaults: {
+          ...(this.preferences?.camera ? { deviceId: { ideal: this.preferences.camera } } : {}),
           resolution: VideoPresets.h720.resolution
         },
         publishDefaults: {
@@ -435,31 +533,60 @@ export class VoiceCallState {
       });
 
       this.setupRoomEventListeners();
-
+      const room = this.room;
+      ownedRoom = room;
       await keyProvider.setKey(e2eeKey);
-      await this.room.setE2EEEnabled(true);
-      await this.room.connect(livekitUrl, token);
+      if (this.room !== room) return;
+      await room.setE2EEEnabled(true);
+      if (this.room !== room) return;
+      await room.connect(livekitUrl, token);
+      if (this.room !== room) {
+        room.disconnect();
+        return;
+      }
       this.liveKitURL = livekitUrl;
 
-      // Try to enable microphone, but join muted if no device is available
-      try {
-        await this.runExplicitMediaDeviceOperation(() =>
-          this.room!.localParticipant.setMicrophoneEnabled(true)
-        );
-        this.isMuted = false;
-        this.setupLocalAudioAnalyser();
-      } catch (err) {
-        this.isMuted = true;
-        this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'join'));
-      }
+      // Listen-only participants never request microphone access.
+      this.isMuted = true;
+      if (this.canUseVoice && !this.preferences?.joinMuted)
+        try {
+          await this.runExplicitMediaDeviceOperation(() =>
+            room.localParticipant.setMicrophoneEnabled(true)
+          );
+          if (this.room === room) {
+            this.isMuted = false;
+            this.setupLocalAudioAnalyser();
+          }
+        } catch (err) {
+          if (this.room === room) {
+            this.isMuted = true;
+            this.notifyMediaDeviceError(
+              getVoiceCallMediaDeviceErrorMessage('microphone', err, 'join')
+            );
+          }
+        }
 
+      // Initial capture can finish after revocation or an explicit leave.
+      if (this.room !== room) {
+        await room.localParticipant.setMicrophoneEnabled(false);
+        room.disconnect();
+        return;
+      }
       this.connected = true;
+      await this.reconcilePermissions();
+      if (this.room !== room) return;
       this.updateParticipants();
       await this.refreshDevices();
+      if (this.room !== room) return;
       if (this.consumePendingOwnJoinSound()) {
         void playCallSound('join');
       }
     } catch (err) {
+      // A departed join must not clean up or mutate a replacement call.
+      if (ownedRoom && this.room !== ownedRoom) {
+        ownedRoom.disconnect();
+        return;
+      }
       console.error('Failed to join voice call:', summarizeJoinError(err));
       if (joinIntentRecorded) {
         await this.recordLeaveIntent(roomId);
@@ -467,7 +594,7 @@ export class VoiceCallState {
       this.cleanup();
       throw err;
     } finally {
-      this.connecting = false;
+      if (!ownedRoom || this.room === ownedRoom) this.connecting = false;
     }
   }
 
@@ -557,6 +684,7 @@ export class VoiceCallState {
    * Toggle microphone mute.
    */
   async toggleMute(): Promise<void> {
+    if (this.isMuted && !this.canUseVoice) return;
     if (this.microphoneToggleInFlight) return this.microphoneToggleInFlight;
 
     const room = this.room;
@@ -606,6 +734,7 @@ export class VoiceCallState {
    * Toggle camera on/off. Camera is always off by default.
    */
   async toggleCamera(): Promise<void> {
+    if (!this.isCameraEnabled && !this.canUseCamera) return;
     if (this.cameraToggleInFlight) return this.cameraToggleInFlight;
 
     const room = this.room;
@@ -651,6 +780,7 @@ export class VoiceCallState {
    * Toggle video-only screen/window/tab sharing.
    */
   async toggleScreenShare(): Promise<void> {
+    if (!this.isScreenShareEnabled && !this.canScreenShare) return;
     if (this.nativeScreenShareToggleInFlight) {
       await this.nativeScreenShareToggleInFlight;
       return;
@@ -679,10 +809,11 @@ export class VoiceCallState {
 
   /** Publish a host-provided native capture as this participant's screen share. */
   async startNativeScreenShare(sourceId: string, sourceName: string): Promise<void> {
+    const room = this.room;
+    if (!room || !this.canScreenShare) return;
     if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
     if (this.screenShareToggleInFlight) await this.screenShareToggleInFlight;
-    const room = this.room;
-    if (!room) return;
+    if (this.room !== room || !this.canScreenShare) return;
 
     const startPromise = this.performStartNativeScreenShare(room, sourceId, sourceName);
     this.nativeScreenShareToggleInFlight = startPromise;
@@ -876,28 +1007,37 @@ export class VoiceCallState {
    * Refresh available audio and video devices.
    */
   async refreshDevices(options: { requestVideoPermissions?: boolean } = {}): Promise<void> {
+    const room = this.room;
     try {
       const { Room } = await loadLiveKit();
-      const requestVideoPermissions = options.requestVideoPermissions ?? this.isCameraEnabled;
+      const requestVideoPermissions =
+        this.canUseCamera && (options.requestVideoPermissions ?? this.isCameraEnabled);
       const [inputDevices, outputDevices, videoInputDevices] = await Promise.all([
-        Room.getLocalDevices('audioinput'),
-        Room.getLocalDevices('audiooutput'),
+        Room.getLocalDevices('audioinput', this.canUseVoice && !this.isMuted),
+        Room.getLocalDevices('audiooutput', this.canUseVoice && !this.isMuted),
         Room.getLocalDevices('videoinput', requestVideoPermissions)
       ]);
 
+      if (this.room !== room) return;
       this.audioDevices = inputDevices;
       this.audioOutputDevices = outputDevices;
       this.videoDevices = videoInputDevices;
 
       // Set default selections if not already set
       if (!this.selectedDeviceId && inputDevices.length > 0) {
-        this.selectedDeviceId = inputDevices[0].deviceId;
+        this.selectedDeviceId =
+          availableCallDevice(this.preferences?.microphone ?? '', inputDevices) ||
+          inputDevices[0].deviceId;
       }
       if (!this.selectedOutputDeviceId && outputDevices.length > 0) {
-        this.selectedOutputDeviceId = outputDevices[0].deviceId;
+        this.selectedOutputDeviceId =
+          availableCallDevice(this.preferences?.speaker ?? '', outputDevices) ||
+          outputDevices[0].deviceId;
       }
       if (!this.selectedVideoDeviceId && videoInputDevices.length > 0) {
-        this.selectedVideoDeviceId = videoInputDevices[0].deviceId;
+        this.selectedVideoDeviceId =
+          availableCallDevice(this.preferences?.camera ?? '', videoInputDevices) ||
+          videoInputDevices[0].deviceId;
       }
     } catch {
       this.audioDevices = [];
@@ -910,13 +1050,17 @@ export class VoiceCallState {
    * Switch to a different audio input device.
    */
   async setAudioDevice(deviceId: string): Promise<void> {
-    if (!this.room) return;
+    const room = this.room;
+    if (!room) return;
 
     try {
-      await this.runExplicitMediaDeviceOperation(() =>
-        this.room!.switchActiveDevice('audioinput', deviceId)
+      const changed = await this.runExplicitMediaDeviceOperation(() =>
+        room.switchActiveDevice('audioinput', deviceId)
       );
+      if (changed === false) throw new Error('Device switch failed');
+      if (this.room !== room) return;
       this.selectedDeviceId = deviceId;
+      this.preferences?.setDevice('audioinput', deviceId);
     } catch (err) {
       this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('microphone', err, 'switch'));
       return;
@@ -932,13 +1076,17 @@ export class VoiceCallState {
    * Switch to a different audio output device.
    */
   async setAudioOutputDevice(deviceId: string): Promise<void> {
-    if (!this.room) return;
+    const room = this.room;
+    if (!room) return;
 
     try {
-      await this.runExplicitMediaDeviceOperation(() =>
-        this.room!.switchActiveDevice('audiooutput', deviceId)
+      const changed = await this.runExplicitMediaDeviceOperation(() =>
+        room.switchActiveDevice('audiooutput', deviceId)
       );
+      if (changed === false) throw new Error('Device switch failed');
+      if (this.room !== room) return;
       this.selectedOutputDeviceId = deviceId;
+      this.preferences?.setDevice('audiooutput', deviceId);
     } catch (err) {
       this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('speaker', err, 'switch'));
     }
@@ -948,13 +1096,17 @@ export class VoiceCallState {
    * Switch to a different video input device.
    */
   async setVideoDevice(deviceId: string): Promise<void> {
-    if (!this.room) return;
+    const room = this.room;
+    if (!room) return;
 
     try {
-      await this.runExplicitMediaDeviceOperation(() =>
-        this.room!.switchActiveDevice('videoinput', deviceId)
+      const changed = await this.runExplicitMediaDeviceOperation(() =>
+        room.switchActiveDevice('videoinput', deviceId)
       );
+      if (changed === false) throw new Error('Device switch failed');
+      if (this.room !== room) return;
       this.selectedVideoDeviceId = deviceId;
+      this.preferences?.setDevice('videoinput', deviceId);
     } catch (err) {
       this.notifyMediaDeviceError(getVoiceCallMediaDeviceErrorMessage('camera', err, 'switch'));
     }

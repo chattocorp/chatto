@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Afficher plus de salons dans {group} ({count})",
+    "hide_rooms_in_group": "Masquer les salons non rejoints dans {group}",
+    "more_rooms": "{count} de plus",
+    "show_less": "Afficher moins",
     "active_call": "Appel actif",
     "call_participants": "Participants {count} à l'appel",
     "go_to_notifications": "Accédez aux notifications {count}",
@@ -18,6 +22,7 @@
     "copy_room_id": "Copier l’identifiant du salon",
     "copy_server_hostname": "Copier le nom d’hôte du serveur",
     "room_settings": "Paramètres du salon",
+    "add_to_group": "Ajouter à {group}",
     "group_settings": "Paramètres de {group}",
     "server_actions": "Actions pour {server}",
     "room_actions": "Actions pour #{room}"

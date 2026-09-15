@@ -69,6 +69,23 @@
     "no_game_windows": "Nie znaleziono okien do udostępnienia. Otwórz grę w trybie okienkowym lub bez ramek i spróbuj ponownie.",
     "game_windows_failed": "Nie udało się wczytać okien do udostępnienia.",
     "untitled_window": "Okno bez tytułu",
-    "game_window_selected": "Wybrano: {name}"
+    "game_window_selected": "Wybrano: {name}",
+    "permission_denied": "Nie masz uprawnień do wykonania tej czynności w rozmowie.",
+    "preferences": {
+      "title": "Głos i obraz",
+      "scope": "Zapisane w tej przeglądarce dla tego serwera.",
+      "system_default": "Domyślne urządzenie systemowe",
+      "unavailable_device": "Zapisane urządzenie jest niedostępne",
+      "output_unsupported": "Ta przeglądarka używa głośnika systemowego. Wybór głośnika jest niedostępny.",
+      "call_settings": "Ustawienia połączeń",
+      "join_muted": "Dołączaj do rozmów z wyciszonym mikrofonem",
+      "test_title": "Przetestuj mikrofon",
+      "input_level": "Poziom mikrofonu",
+      "start_test": "Rozpocznij test mikrofonu",
+      "stop_test": "Zatrzymaj test",
+      "waiting": "Oczekiwanie na dostęp do mikrofonu…",
+      "test_failed": "Nie udało się przetestować mikrofonu. Sprawdź dostęp do urządzenia i spróbuj ponownie.",
+      "test_in_call": "Opuść rozmowę przed testowaniem mikrofonu."
+    }
   }
 }

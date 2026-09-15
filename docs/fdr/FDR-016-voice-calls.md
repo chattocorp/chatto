@@ -1,13 +1,50 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
 Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
+
+- **App Preferences → Voice & video** stores microphone, speaker, camera, and
+  join-muted choices in this browser for the selected server. Successful device
+  changes during a call update those choices. Missing devices use a system
+  default without erasing the saved choice. The next call can use a device
+  that returns.
+- Camera selection does not start video. Joining muted does not request
+  microphone access merely to list devices. Browser support controls whether
+  a speaker can be selected.
+- Device choices use radio controls. An explicit local microphone test shows
+  an input meter and plays the microphone immediately through the selected
+  speaker. It does not record audio, connect to LiveKit, or verify network
+  connectivity. Testing is unavailable during the selected server's call.
+  Stop, navigation, and device changes release capture and stop playback;
+  late capture results are stopped as well.
+- Opening the settings page requests camera access only if camera names are
+  unavailable and no call is active on the selected server. The browser may
+  show its permission dialog. Discovery stops camera capture immediately.
+
+- Room membership and `call.join` are required to enter a call. Starting a
+  new call also requires `call.start`. Media permissions do not grant entry.
+- `call.voice`, `call.camera`, and `call.screenshare` independently control
+  microphone, camera, and screen or application sharing. Captured share audio
+  belongs to `call.screenshare`, including native game sharing.
+- Members with `call.join` and no media permissions can listen and watch.
+  Their client does not request microphone or camera access to join.
+- Members can still view an active call and leave it after call permissions
+  are denied. Call controls show which actions are unavailable.
+- The client stops revoked media when it receives updated room permissions.
+  The server also checks connected participants on its 30-second LiveKit
+  reconciliation cycle. It updates media grants or disconnects participants
+  who can no longer join. Failures retry on later cycles. Revocation is not
+  instantaneous, and an old unexpired token can briefly reconnect before a
+  subsequent check removes that participant again.
+- Existing human call access is preserved on upgrade through initial server
+  grants for `everyone`. An existing grant, deny, or clear is never overwritten.
+  Bots need explicit grants and their owner's current authority.
 
 - Members of a room with the right permission see a phone tab alongside the room sidebar's members/files tabs when LiveKit is configured.
 - Opening the call tab shows the current room call. If no call is active, it offers a "Start call" action. If a call is active and the viewer has not joined, it shows projected participants as ungrouped participant cards and a "Join call" action.
@@ -107,13 +144,17 @@ Rooms support real-time voice conversations with optional camera video and scree
 
 ## Permissions
 
-- `voiceCallToken` query — requires room membership.
-- `CreateCallMediaPublisherToken` — requires room membership and current participation in the active call.
-- `callParticipants` query — requires room membership.
-- `activeCallRoomIds` query — requires server membership.
-- `joinVoiceCall` / `leaveVoiceCall` mutations — require room membership.
+All five permissions support Server, Room group, Room, and Direct messages
+scopes. DM checks use the shared Direct messages scope, not individual DM rules.
 
-Voice calling doesn't have a dedicated permission today; room membership is the gate.
+- `call.start` — start a call; also requires `call.join`.
+- `call.join` — join an active call, including as a listener.
+- `call.voice` — publish microphone audio.
+- `call.camera` — publish camera video.
+- `call.screenshare` — share a screen, window, tab, or native application,
+  including captured audio.
+
+Call hosts, participant removal, and other management actions are deferred.
 
 ## Related
 

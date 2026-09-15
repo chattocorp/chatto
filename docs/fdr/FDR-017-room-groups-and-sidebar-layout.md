@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-08-30
+**Last reviewed:** 2026-09-14
 
 ## Overview
 
@@ -11,9 +11,11 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
 - Authorized viewers manage the layout where they use it. Group headers provide actions to create rooms and links, open group settings, or delete an empty group. Room and link rows provide their applicable settings, edit, archive, and delete actions. Server-wide room managers can create a group from a compact control after the last room group.
+- A group header shows a permanent **+** button when the viewer can create a room or manage the group. It opens a small menu with **New Room** (`room.create`) and **New Link** (group `room.manage`), showing only permitted actions. The button also works when the group is collapsed. The controls and open creation menu update when group permissions change, including when privileged mode is enabled or disabled. Each action creates its entry in that group. The header context menu keeps the creation and management actions.
 - Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Pointer-based layouts fade each drag handle in over the leading row icon. Touch layouts keep the controls visible.
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
+- Unjoined channel rooms are hidden by default in each expanded group. A compact "+ N more" row at the end of the group reveals them in their configured order. Select "Show less" to hide them again. The control appears even when only one unjoined room remains. Joined rooms, sidebar links, and the current room stay visible. The same rule applies to the alphabetical fallback. Expansion is independent for each group and resets when the sidebar is remounted. This control does not contact an external service.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
 - Every visible sidebar room row exposes a context menu with a final “Copy Room ID” action that writes the room's stable ID to the clipboard. Successful copies are confirmed; clipboard failures report an error. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
 - The room-layout overview remains available as a management fallback while the sidebar gains feature parity. Resource settings pages remain the place for group metadata and permission matrices.
@@ -73,8 +75,8 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 ### 8. Sidebar visibility follows room.list, not membership
 
-**Decision:** Channel-room sidebar entries are based on `room.list` visibility and room-group layout, while membership only changes the row's presentation and action.
-**Why:** Operators configure the sidebar through room groups. Showing all listable rooms makes that layout the user's map of the server, and lets users discover rooms before joining them.
+**Decision:** Channel-room sidebar entries are based on `room.list` visibility and room-group layout, while membership controls which rooms appear before the viewer selects "+ N more".
+**Why:** Operators configure the sidebar through room groups. The count keeps rooms discoverable before users join them and keeps the default sidebar short.
 **Tradeoff:** The sidebar can show rooms the viewer cannot enter yet. Those rows need clear affordances so discovery does not look like broken navigation.
 
 ### 9. Room directory reads are available over ConnectRPC
@@ -87,7 +89,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Creation, removal, and ordering actions live next to the affected room group, room, or sidebar link. Detailed metadata and permission settings remain on resource pages in the management area. The room-layout overview remains available during the transition.
 **Why:** Operators can adjust the navigation structure without leaving the navigation context. The split also keeps complex forms out of the narrow sidebar.
-**Tradeoff:** Hover controls are less visible than permanent toolbar controls. Context menus and touch-visible controls provide another path. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
+**Tradeoff:** The permanent creation button uses space in each group header so users can find it. Drag handles still appear on hover or focus, and stay visible on touch layouts. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
 
 ### 11. Structural changes commit all authoritative facts together
 

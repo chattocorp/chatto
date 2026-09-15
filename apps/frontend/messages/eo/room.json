@@ -142,6 +142,14 @@
       },
       "show_less": "montri malpli"
     },
+    "typing": {
+      "one": "{name} skribas",
+      "two": "{first} kaj {second} skribas",
+      "many_count": {
+        "one": "{names} kaj {count} alia skribas",
+        "other": "{names} kaj {count} aliaj skribas"
+      }
+    },
     "attachment": {
       "delete_title": "Forigi Aldonaĵon",
       "delete_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun aldonaĵon? Ĉi tio ne povas esti malfarita.",
@@ -157,7 +165,19 @@
       "description_label": "Priskribo (nedeviga)",
       "description_help": "Priskribu la aldonaĵon por homoj, kiuj ne povas vidi aŭ aŭdi ĝin.",
       "description_too_long": "Priskriboj povas enhavi maksimume {max} signojn.",
-      "description_update_failed": "Ne eblis ĝisdatigi la priskribon de la aldonaĵo"
+      "description_update_failed": "Ne eblis ĝisdatigi la priskribon de la aldonaĵo",
+      "html_viewer": {
+        "download": "Elŝuti",
+        "show_preview": "Montri antaŭrigardon",
+        "warning": "Ĉi tiu dokumento povas ŝargi enhavon de eksteraj retejoj. Tiuj retejoj povas vidi vian IP-adreson.",
+        "preview_title": "Antaŭrigardo de {filename}",
+        "preview_failed": "Ne eblis ŝargi la antaŭrigardon. Bonvolu reprovi.",
+        "document_type": "Dokumenttipo",
+        "html_document": "HTML-dokumento",
+        "xhtml_document": "XHTML-dokumento",
+        "file_size": "Dosiergrando",
+        "unavailable": "Ne disponebla"
+      }
     },
     "link_preview": {
       "delete_title": "Forigi ligilon antaŭrigardon",

@@ -142,6 +142,14 @@
       },
       "show_less": "ukázat méně"
     },
+    "typing": {
+      "one": "{name} píše",
+      "two": "{first} a {second} píšou",
+      "many_count": {
+        "other": "{names} a {count} dalších píše",
+        "one": "{names} a {count} další píšou"
+      }
+    },
     "attachment": {
       "delete_title": "Smazat přílohu",
       "delete_prompt": "Opravdu chcete smazat tuto přílohu? Toto nelze vrátit zpět.",
@@ -157,7 +165,19 @@
       "description_label": "Popis (volitelný)",
       "description_help": "Popište přílohu lidem, kteří ji nemohou vidět ani slyšet.",
       "description_too_long": "Popis může obsahovat nejvýše {max} znaků.",
-      "description_update_failed": "Popis přílohy se nepodařilo aktualizovat"
+      "description_update_failed": "Popis přílohy se nepodařilo aktualizovat",
+      "html_viewer": {
+        "download": "Stáhnout",
+        "show_preview": "Zobrazit náhled",
+        "warning": "Tento dokument může načítat obsah z externích webových stránek. Tyto stránky mohou vidět tvou IP adresu.",
+        "preview_title": "Náhled souboru {filename}",
+        "preview_failed": "Náhled se nepodařilo načíst. Zkus to znovu.",
+        "document_type": "Typ dokumentu",
+        "html_document": "Dokument HTML",
+        "xhtml_document": "Dokument XHTML",
+        "file_size": "Velikost souboru",
+        "unavailable": "Nedostupné"
+      }
     },
     "link_preview": {
       "delete_title": "Smazat náhled odkazu",

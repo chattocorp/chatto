@@ -3,6 +3,7 @@
  * Created and managed by the ServerRegistry — do not instantiate directly.
  */
 
+import { CallPreferencesState } from './callPreferences.svelte';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -241,7 +242,24 @@ export class ServerStateStore {
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(voiceCallAPI);
+    this.voiceCall = new VoiceCallState(
+      voiceCallAPI,
+      (roomId) => {
+        const state = this.projection.rooms.get(roomId)?.viewerState;
+        const granted = (permission: string) =>
+          state?.isMember === true &&
+          (state.permissions.some((grant) => grant.permission === permission && grant.granted) ??
+            false);
+        return {
+          start: granted('call.start'),
+          join: granted('call.join'),
+          voice: granted('call.voice'),
+          camera: granted('call.camera'),
+          screenshare: granted('call.screenshare')
+        };
+      },
+      new CallPreferencesState(this.serverId)
+    );
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     this.navigation = new NavigationStore(this.projection, this.realtimeSync, this.notifications);
     this.roomDirectory = new RoomDirectoryStore(
@@ -327,13 +345,21 @@ export class ServerStateStore {
     }
   }
 
-  /** Complete auxiliary reads and event reconciliation through `cursor`. */
+  /** Complete auxiliary reads and event reconciliation through `cursor`.
+   * Room groups must also be read: their viewer permissions can change when
+   * privileged mode changes without a durable room-layout event. */
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
     const batches = await Promise.all(
-      (['serverState', 'viewer', 'rooms', 'notifications'] as RealtimeResourceFamily[]).map(
-        (family) => this.#realtimeResources.read(family, cursor)
-      )
+      (
+        [
+          'serverState',
+          'viewer',
+          'rooms',
+          'roomGroups',
+          'notifications'
+        ] as RealtimeResourceFamily[]
+      ).map((family) => this.#realtimeResources.read(family, cursor))
     );
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of batches.flat()) {
@@ -633,6 +659,7 @@ export class ServerStateStore {
           break;
         }
         case 'rooms':
+          void this.voiceCall.reconcilePermissions();
           for (const [roomId, room] of this.projection.rooms) {
             this.roomDirectory.acknowledgeMembership(roomId, room.viewerState?.isMember);
             this.roomUnread.acknowledgeRoomProjection(roomId, room.viewerState?.hasUnread);

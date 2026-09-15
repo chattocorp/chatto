@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "לגלות שרתים מומלצים?",
+      "consent_body": "Chatto יוצר קשר עם שרתים שהשרתים שהצטרפת אליהם ממליצים עליהם. שרתים אלה יכולים לראות את כתובת ה-IP שלך ופרטים טכניים על החיבור. Chatto שומר את הבחירה שלך במכשיר זה.",
+      "consent_action": "לגלות שרתים",
       "recommended_by": "מומלץ על ידי {servers}",
       "more_recommenders_count": {
         "other": "עוד {count}"

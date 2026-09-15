@@ -96,6 +96,68 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     (ContextMenuTriggerDetails & { group: RoomsListGroup; item: RoomsListGroupItem }) | null
   >(null);
 
+  let creationMenu = $state<{
+    groupId: string;
+    trigger: HTMLButtonElement;
+    position: { x: number; y: number; alignRight: boolean };
+  } | null>(null);
+
+  const creationGroup = $derived(
+    navigation.roomGroups.find((group) => group.id === creationMenu?.groupId)
+  );
+  const canShowCreationMenu = $derived(
+    !!creationMenu &&
+      !!creationGroup &&
+      (creationGroup.viewerCanCreateRoom || creationGroup.viewerCanManageGroup)
+  );
+
+  function openCreationMenu(event: MouseEvent, group: RoomsListGroup): void {
+    event.stopPropagation();
+    const trigger = event.currentTarget as HTMLButtonElement;
+    const rect = trigger.getBoundingClientRect();
+    roomContextMenu = null;
+    groupContextMenu = null;
+    linkContextMenu = null;
+    creationMenu = {
+      groupId: group.id,
+      trigger,
+      position: { x: rect.right, y: rect.bottom + 4, alignRight: true }
+    };
+  }
+
+  function closeCreationMenu(): void {
+    const trigger = creationMenu?.trigger;
+    creationMenu = null;
+    trigger?.focus({ preventScroll: true });
+  }
+
+  /** Focus the first command on mount and support standard menu navigation. */
+  const creationMenuKeyboard: Attachment<HTMLDivElement> = (node) => {
+    const items = () => Array.from(node.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    // The parent popover must enter the top layer before a command can receive focus.
+    const frame = requestAnimationFrame(() => items()[0]?.focus({ preventScroll: true }));
+    const keydown = (event: KeyboardEvent) => {
+      if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const commands = items();
+      const current = commands.indexOf(document.activeElement as HTMLButtonElement);
+      const index =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? commands.length - 1
+            : (current + (event.key === 'ArrowDown' ? 1 : -1) + commands.length) % commands.length;
+      commands[index]?.focus({ preventScroll: true });
+    };
+    node.addEventListener('keydown', keydown);
+    return () => {
+      cancelAnimationFrame(frame);
+      node.removeEventListener('keydown', keydown);
+      // Permission loss also unmounts this menu; do not reopen it on a later grant.
+      creationMenu = null;
+    };
+  };
+
   let createRoomDialogVisible = $state(false);
   let createRoomGroupId = $state<string | null>(null);
   let linkDialogVisible = $state(false);
@@ -110,6 +172,8 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   let archiveRoomDialogVisible = $state(false);
   let archiveRoomTarget = $state<RoomsListItem | null>(null);
   let optimisticGroupSections = $state<ManagedNavigationSection[] | null>(null);
+  // Expansion belongs to this sidebar instance and is scoped to each server and section.
+  const expandedRoomSections = new SvelteMap<string, boolean>();
   const optimisticGroupItems = new SvelteMap<string, RoomsListGroupItem[]>();
   let activeItemDragId = $state<string | null>(null);
   let itemFinalizeScheduled = false;
@@ -278,6 +342,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   function openCreateRoom(group: RoomsListGroup): void {
+    closeCreationMenu();
     groupContextMenu = null;
     createRoomGroupId = group.id;
     createRoomDialogVisible = true;
@@ -291,6 +356,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   }
 
   function openCreateLink(group: RoomsListGroup): void {
+    closeCreationMenu();
     groupContextMenu = null;
     editingLinkId = null;
     linkGroupId = group.id;
@@ -480,6 +546,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   type ManagedNavigationSection = NavigationSection & { group: RoomsListGroup };
 
+  function isHiddenUnjoinedRoom(item: RoomsListGroupItem): boolean {
+    if (item.type !== 'room' || isDndShadow(item)) return false;
+    const room = roomMap.get(item.roomId);
+    return !!room && room.type !== RoomKind.DM && !room.viewerIsMember && room.id !== activeRoomId;
+  }
+
+  function visibleSectionItems(section: NavigationSection): RoomsListGroupItem[] {
+    return expandedRoomSections.get(section.persistKey)
+      ? section.items
+      : section.items.filter((item) => !isHiddenUnjoinedRoom(item));
+  }
+
   function roomItems(rooms: RoomsListItem[]): RoomsListGroupItem[] {
     return rooms.map((room) => ({
       id: `room:${room.id}`,
@@ -583,13 +661,20 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     );
     return sections.map((section) => ({
       ...section,
-      items: optimisticGroupItems.get(section.group.id) ?? section.items
+      items: optimisticGroupItems.get(section.group.id) ?? visibleSectionItems(section)
     }));
   });
 
   let renderManagedSections = $derived(optimisticGroupSections ?? managedSections);
 
-  let unmanagedSections = $derived(navigationSections.filter((section) => !section.group));
+  let unmanagedSections = $derived(
+    navigationSections
+      .filter((section) => !section.group)
+      .map((section) => ({
+        ...section,
+        items: visibleSectionItems(section)
+      }))
+  );
 
   // The viewer ID and DM members must come from the same server projection.
   // Reading the viewer ID from a global auth context here is unsafe — the
@@ -927,6 +1012,29 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {/if}
 {/snippet}
 
+{#snippet moreRooms(section: NavigationSection)}
+  {@const unjoinedCount =
+    navigationSections.find((entry) => entry.id === section.id)?.items.filter(isHiddenUnjoinedRoom)
+      .length ?? 0}
+  {#if unjoinedCount > 0}
+    {@const expanded = expandedRoomSections.get(section.persistKey) ?? false}
+    <button
+      type="button"
+      class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+      aria-expanded={expanded}
+      aria-label={expanded ? m('room_list.hide_rooms_in_group', { group: section.label }) : m('room_list.show_rooms_in_group', { count: unjoinedCount, group: section.label })}
+      title={expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}
+      data-testid="room-group-more"
+      onclick={() => {
+        expandedRoomSections.set(section.persistKey, !expanded);
+      }}
+    >
+      <span class="sidebar-icon" aria-hidden="true">{expanded ? '−' : '+'}</span>
+      <span>{expanded ? m('room_list.show_less') : m('room_list.more_rooms', { count: unjoinedCount })}</span>
+    </button>
+  {/if}
+{/snippet}
+
 {#snippet groupLeadingOverlay()}
   <button
     type="button"
@@ -944,20 +1052,36 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 {/snippet}
 
 {#snippet groupHeaderActions(group: RoomsListGroup)}
-  {#if group.viewerCanCreateRoom}
+  {#if group.viewerCanCreateRoom || group.viewerCanManageGroup}
     <button
       type="button"
-      class="pointer-events-none mini-icon-action h-6 w-6 items-center justify-center opacity-0 transition-opacity group-focus-within/section-header:pointer-events-auto group-focus-within/section-header:opacity-100 group-hover/section-header:pointer-events-auto group-hover/section-header:opacity-100 [@media(hover:none)]:pointer-events-auto [@media(hover:none)]:opacity-100"
-      aria-label={m('admin.rooms_admin.new_room')}
-      onclick={(event) => {
-        event.stopPropagation();
-        openCreateRoom(group);
-      }}
-      data-testid="create-room-button"
+      class="mini-icon-action h-6 w-6 items-center justify-center"
+      aria-label={m('room_list.add_to_group', { group: group.name })}
+      aria-haspopup="menu"
+      aria-expanded={canShowCreationMenu && creationGroup?.id === group.id}
+      onclick={(event) => openCreationMenu(event, group)}
+      onpointerdown={(event) => event.stopPropagation()}
+      data-sidebar-swipe-ignore
+      data-testid="room-group-create-button"
     >
       <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
     </button>
   {/if}
+{/snippet}
+
+{#snippet creationActions(group: RoomsListGroup)}
+  <MenuSection>
+    {#if group.viewerCanCreateRoom}
+      <MenuItem icon="icon-[uil--plus]" onclick={() => openCreateRoom(group)}>
+        {m('admin.rooms_admin.new_room')}
+      </MenuItem>
+    {/if}
+    {#if group.viewerCanManageGroup}
+      <MenuItem icon="icon-[uil--external-link-alt]" onclick={() => openCreateLink(group)}>
+        {m('admin.rooms_admin.new_link')}
+      </MenuItem>
+    {/if}
+  </MenuSection>
 {/snippet}
 
 {#if channels.length === 0 && dmRooms.length === 0 && visibleSets.length === 0 && !navigation.isInitialLoading}
@@ -978,6 +1102,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@attach supportsRelativeSidebarMoves && canReorderGroups ? groupDragAttachment : undefined}
     >
       {#each renderManagedSections as section, i (section.id)}
+        {#snippet footer()}
+          {@render moreRooms(section)}
+        {/snippet}
         {#snippet headerActions()}
           {#if !isDndShadow(section)}
             {@render groupHeaderActions(section.group)}
@@ -994,6 +1121,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
           containItemDrag
           isDndShadow={isDndShadow(section)}
           {headerActions}
+          {footer}
           leadingOverlay={!isDndShadow(section) && supportsRelativeSidebarMoves && canReorderGroups
             ? groupLeadingOverlay
             : undefined}
@@ -1005,16 +1133,33 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <CreateRoomGroupControl />
     {/if}
     {#each unmanagedSections as section, i (section.id)}
+      {#snippet footer()}
+        {@render moreRooms(section)}
+      {/snippet}
       <RoomGroupSection
         label={section.label}
         items={section.items}
         item={sidebarLink}
         persistKey={section.persistKey}
         keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
+        {footer}
         separated={renderManagedSections.length > 0 || i > 0}
       />
     {/each}
   </nav>
+{/if}
+
+{#if canShowCreationMenu && creationMenu && creationGroup}
+  <ContextMenu
+    position={creationMenu.position}
+    presentation="floating"
+    ariaLabel={m('room_list.add_to_group', { group: creationGroup.name })}
+    onclose={closeCreationMenu}
+  >
+    <div {@attach creationMenuKeyboard}>
+      {@render creationActions(creationGroup)}
+    </div>
+  </ContextMenu>
 {/if}
 
 {#if groupContextMenu}
@@ -1026,21 +1171,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     onclose={() => (groupContextMenu = null)}
   >
     {#if contextGroup.viewerCanCreateRoom || contextGroup.viewerCanManageGroup}
-      <MenuSection>
-        {#if contextGroup.viewerCanCreateRoom}
-          <MenuItem icon="icon-[uil--plus]" onclick={() => openCreateRoom(contextGroup)}>
-            {m('admin.rooms_admin.new_room')}
-          </MenuItem>
-        {/if}
-        {#if contextGroup.viewerCanManageGroup}
-          <MenuItem
-            icon="icon-[uil--external-link-alt]"
-            onclick={() => openCreateLink(contextGroup)}
-          >
-            {m('admin.rooms_admin.new_link')}
-          </MenuItem>
-        {/if}
-      </MenuSection>
+      {@render creationActions(contextGroup)}
     {/if}
     {#if contextGroup.viewerCanManageGroup}
       <MenuSection>

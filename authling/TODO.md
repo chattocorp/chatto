@@ -19,7 +19,8 @@ current runtime in `docs/architecture/`.
 
 - [ ] Design upstream SSO through Goth-supported providers
 - [ ] Define secure upstream-account linking and email-collision behavior
-- [ ] Implement an event-backed orphan-key cleanup worker and crash/race tests
+- [ ] Implement an event-backed orphan-key cleanup worker that resolves unknown
+  publication outcomes before deleting keys, with crash/race tests
 - [ ] Implement durable account erasure
 - [ ] Implement erasure-aware two-phase replay before destroying account keys
 - [ ] Add key-loss, erasure, backup, substitution, and KMS-failure tests

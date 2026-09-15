@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Visa fler rum i {group} ({count})",
+    "hide_rooms_in_group": "Dölj rum du inte har gått med i i {group}",
+    "more_rooms": "{count} fler",
+    "show_less": "Visa färre",
     "active_call": "Aktivt samtal",
     "call_participants": "{count} deltagare i samtal",
     "go_to_notifications": "Gå till {count}-aviseringar",
@@ -18,6 +22,7 @@
     "copy_room_id": "Kopiera rums-ID",
     "copy_server_hostname": "Kopiera serverns värdnamn",
     "room_settings": "Rumsinställningar",
+    "add_to_group": "Lägg till i {group}",
     "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
     "room_actions": "Åtgärder för #{room}"

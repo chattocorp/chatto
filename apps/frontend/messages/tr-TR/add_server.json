@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Önerilen sunucular keşfedilsin mi?",
+      "consent_body": "Chatto, katıldığınız sunucuların önerdiği sunucularla bağlantı kurar. Bu sunucular IP adresinizi ve bağlantıyla ilgili teknik ayrıntıları görebilir. Chatto seçiminizi bu cihaza kaydeder.",
+      "consent_action": "Sunucuları keşfet",
       "recommended_by": "Önerenler: {servers}",
       "more_recommenders_count": {
         "other": "{count} tane daha"

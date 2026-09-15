@@ -160,6 +160,42 @@ describe('MessageAttachments', () => {
     attachmentMocks.refreshAssetUrls.mockResolvedValue(new Map());
   });
 
+  it.each([
+    'text/html',
+    'TEXT/HTML; charset=UTF-8',
+    'application/xhtml+xml',
+    ' Application/XHTML+XML ; charset=utf-8'
+  ])('opens %s in the HTML viewer without fetching the document', async (contentType) => {
+    const attachment = fileAttachment({ filename: 'report.html', contentType });
+    const view = renderAttachment(attachment);
+    await view.getByRole('button', { name: 'View report.html' }).click();
+    expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+      modal: {
+        type: 'htmlViewer',
+        serverId: 'server_1',
+        roomId: 'room_1',
+        eventId: 'event_1',
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        assetUrl: attachment.assetUrl
+      }
+    });
+    expect(attachmentMocks.refreshAssetUrls).not.toHaveBeenCalled();
+    expect(view.container.querySelector('iframe')).toBeNull();
+  });
+
+  it.each(['text/plain', 'application/pdf', 'application/xml'])(
+    'keeps %s on the file download path',
+    async (contentType) => {
+      const view = renderAttachment(fileAttachment({ filename: 'report.html', contentType }));
+      await expect
+        .element(view.getByRole('button', { name: 'Download report.html' }))
+        .toBeVisible();
+      expect(attachmentMocks.pushState).not.toHaveBeenCalled();
+    }
+  );
+
   it('keeps the video player module out of non-video attachment rendering', async () => {
     renderAttachment(fileAttachment({}));
 
@@ -348,7 +384,8 @@ describe('MessageAttachments', () => {
     expect(deleteControls[0].tagName).toBe('BUTTON');
     expect(deleteControls[1].tagName).toBe('BUTTON');
     expect(deleteControls[1].getAttribute('title')).toBe('Delete attachment');
-    expect(deleteControls[1].className).toContain('attachment-remove-button');
+    expect(deleteControls[1].className).toContain('mini-icon-action');
+    expect(deleteControls[1].className).not.toContain('attachment-remove-button');
     expect(deleteControls[1].className).not.toContain('embed-control-button');
 
     deleteControls[1].click();

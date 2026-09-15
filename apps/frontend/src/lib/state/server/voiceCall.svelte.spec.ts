@@ -1,3 +1,4 @@
+import { CallPreferencesState } from './callPreferences.svelte';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
@@ -270,6 +271,16 @@ async function flushPromises(times = 5): Promise<void> {
   }
 }
 
+function createPermittedCallState(api: VoiceCallAPI) {
+  return new VoiceCallState(api, () => ({
+    start: true,
+    join: true,
+    voice: true,
+    camera: true,
+    screenshare: true
+  }));
+}
+
 describe('VoiceCallState', () => {
   beforeEach(() => {
     calls.length = 0;
@@ -305,10 +316,151 @@ describe('VoiceCallState', () => {
     vi.unstubAllGlobals();
   });
 
+  it('denies a join when permission data is absent', async () => {
+    const client = createVoiceCallClient();
+    const state = new VoiceCallState(client);
+    await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
+      'Call join denied'
+    );
+    expect(client.joinCall).not.toHaveBeenCalled();
+  });
+
+  it('joins listen-only without requesting capture and rejects media actions', async () => {
+    const state = new VoiceCallState(createVoiceCallClient(), () => ({
+      start: true,
+      join: true,
+      voice: false,
+      camera: false,
+      screenshare: false
+    }));
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoom!.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(state.isMuted).toBe(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput', false);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audiooutput', false);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    await state.toggleMute();
+    await state.toggleCamera();
+    await state.toggleScreenShare();
+    await state.startNativeScreenShare('source', 'Application');
+    expect(lastRoom!.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom!.localParticipant.setCameraEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom!.localParticipant.setScreenShareEnabled).not.toHaveBeenCalledWith(
+      true,
+      expect.anything()
+    );
+    expect(gameCaptureMocks.start).not.toHaveBeenCalled();
+    await state.leave();
+  });
+
+  it('stops revoked microphone and camera but retains the call', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleCamera();
+    permissions.voice = false;
+    permissions.camera = false;
+    await state.reconcilePermissions();
+    expect(lastRoom!.localParticipant.setMicrophoneEnabled).toHaveBeenLastCalledWith(false);
+    expect(lastRoom!.localParticipant.setCameraEnabled).toHaveBeenLastCalledWith(false);
+    expect(state.isMuted).toBe(true);
+    expect(state.connected).toBe(true);
+    permissions.join = false;
+    await state.reconcilePermissions();
+    expect(state.connected).toBe(false);
+  });
+
+  it('stops a capture that completes after permission loss', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    await state.join('wss://livekit.example.test', 'R1');
+    let release!: () => void;
+    cameraGate = {
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      resolve: () => release()
+    };
+    const enabling = state.toggleCamera();
+    permissions.camera = false;
+    const reconcile = state.reconcilePermissions();
+    release();
+    await enabling;
+    await reconcile;
+    expect(lastRoom!.localParticipant.setCameraEnabled).toHaveBeenLastCalledWith(false);
+    expect(state.isCameraEnabled).toBe(false);
+    await state.leave();
+  });
+
+  it('does not restore connected state when join access is lost during initial capture', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    let release!: () => void;
+    microphoneGate = {
+      promise: new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+      resolve: () => release()
+    };
+    const joining = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() =>
+      expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true)
+    );
+    const room = lastRoom!;
+    permissions.join = false;
+    await state.reconcilePermissions();
+    release();
+    await joining;
+    expect(state.connected).toBe(false);
+    expect(state.roomId).toBeNull();
+    expect(room.disconnect).toHaveBeenCalled();
+  });
+
+  it('keeps a replacement listen-only call muted when old capture completes', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    const gate = deferredVoid();
+    microphoneGate = gate;
+    const firstJoin = state.join('wss://livekit.example.test', 'R1');
+    await vi.waitFor(() =>
+      expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true)
+    );
+    permissions.join = false;
+    await state.reconcilePermissions();
+    permissions.join = true;
+    permissions.voice = false;
+    microphoneGate = null;
+    await state.join('wss://livekit.example.test', 'R2');
+    gate.resolve();
+    await firstJoin;
+    expect(state.roomId).toBe('R2');
+    expect(state.connected).toBe(true);
+    expect(state.isMuted).toBe(true);
+    await state.leave();
+  });
+
+  it('rechecks native sharing permission after waiting for browser capture', async () => {
+    const permissions = { start: true, join: true, voice: true, camera: true, screenshare: true };
+    const state = new VoiceCallState(createVoiceCallClient(), () => permissions);
+    await state.join('wss://livekit.example.test', 'R1');
+    screenShareGate = deferredVoid();
+    const browserShare = state.toggleScreenShare();
+    const nativeShare = state.startNativeScreenShare('window:42', 'Application');
+    permissions.screenshare = false;
+    const reconcile = state.reconcilePermissions();
+    screenShareGate.resolve();
+    await browserShare;
+    await nativeShare;
+    await reconcile;
+    expect(gameCaptureMocks.start).not.toHaveBeenCalled();
+    expect(state.isScreenShareEnabled).toBe(false);
+    await state.leave();
+  });
+
   it('sets up LiveKit E2EE before connecting', async () => {
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(client.joinCall).toHaveBeenCalledWith('R1');
@@ -322,9 +474,116 @@ describe('VoiceCallState', () => {
     expect(calls.indexOf('setE2EEEnabled:true')).toBeLessThan(calls.indexOf('connect'));
   });
 
+  it('restores saved devices and joins muted without capture prompts', async () => {
+    const preferences = new CallPreferencesState('call-device-restore');
+    preferences.setDevice('audioinput', 'preferred-mic');
+    preferences.setDevice('audiooutput', 'missing-speaker');
+    preferences.setDevice('videoinput', 'preferred-camera');
+    preferences.setJoinMuted(true);
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      new CallPreferencesState('call-device-restore')
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoomOptions?.audioCaptureDefaults).toMatchObject({
+      deviceId: { ideal: 'preferred-mic' }
+    });
+    expect(lastRoomOptions?.videoCaptureDefaults).toMatchObject({
+      deviceId: { ideal: 'preferred-camera' }
+    });
+    expect(lastRoomOptions?.audioOutput).toBeUndefined();
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalledWith(true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput', false);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
+    expect(preferences.speaker).toBe('missing-speaker');
+    await state.toggleMute();
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
+    await state.leave();
+  });
+
+  it('restores an available speaker and keeps saved media subordinate to permission', async () => {
+    const preferences = new CallPreferencesState('call-device-permission');
+    preferences.setDevice('audioinput', 'audio-input-1');
+    preferences.setDevice('audiooutput', 'audio-output-1');
+    preferences.setDevice('videoinput', 'video-input-1');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: false,
+        camera: false,
+        screenshare: false
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    expect(lastRoomOptions?.audioOutput).toEqual({ deviceId: 'audio-output-1' });
+    expect(lastRoom?.localParticipant.setMicrophoneEnabled).not.toHaveBeenCalledWith(true);
+    expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalledWith(true);
+    await state.leave();
+  });
+
+  it('does not save a device when LiveKit reports an unsuccessful switch', async () => {
+    const preferences = new CallPreferencesState('call-device-false');
+    preferences.setDevice('audioinput', 'working');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    lastRoom!.switchActiveDevice.mockResolvedValueOnce(false);
+    await state.setAudioDevice('unavailable');
+    expect(new CallPreferencesState('call-device-false').microphone).toBe('working');
+    await state.leave();
+  });
+
+  it('remembers successful call device switches but not failed switches', async () => {
+    const preferences = new CallPreferencesState('call-device-switch');
+    const state = new VoiceCallState(
+      createVoiceCallClient(),
+      () => ({
+        start: true,
+        join: true,
+        voice: true,
+        camera: true,
+        screenshare: true
+      }),
+      preferences
+    );
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.setAudioDevice('mic-two');
+    await state.setAudioOutputDevice('speaker-two');
+    await state.setVideoDevice('camera-two');
+    switchActiveDeviceFailure = new Error('unavailable');
+    await state.setAudioDevice('missing');
+    const restored = new CallPreferencesState('call-device-switch');
+    expect([restored.microphone, restored.speaker, restored.camera]).toEqual([
+      'mic-two',
+      'speaker-two',
+      'camera-two'
+    ]);
+    await state.leave();
+  });
+
   it('configures microphone capture and publication as mono', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
 
@@ -338,7 +597,7 @@ describe('VoiceCallState', () => {
 
   it('does not play a join sound without the participant join event', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
 
@@ -347,14 +606,14 @@ describe('VoiceCallState', () => {
 
   it('joins with microphone enabled but does not request camera permission while refreshing devices', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(lastRoom?.localParticipant.setMicrophoneEnabled).toHaveBeenCalledWith(true);
     expect(lastRoom?.localParticipant.setCameraEnabled).not.toHaveBeenCalled();
-    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput');
-    expect(Room.getLocalDevices).toHaveBeenCalledWith('audiooutput');
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audioinput', true);
+    expect(Room.getLocalDevices).toHaveBeenCalledWith('audiooutput', true);
     expect(Room.getLocalDevices).toHaveBeenCalledWith('videoinput', false);
     expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput');
     expect(Room.getLocalDevices).not.toHaveBeenCalledWith('videoinput', true);
@@ -363,7 +622,7 @@ describe('VoiceCallState', () => {
   it('joins muted when microphone enable fails without enabling the camera', async () => {
     microphoneFailure = new Error('microphone unavailable');
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
 
@@ -381,7 +640,7 @@ describe('VoiceCallState', () => {
   it('plays a deferred current-user join event after connecting successfully', async () => {
     connectGate = deferredVoid();
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     const join = state.join('wss://livekit.example.test', 'R1');
     expect(state.connecting).toBe(true);
@@ -404,7 +663,7 @@ describe('VoiceCallState', () => {
 
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow(
       VoiceCallJoinError
@@ -427,7 +686,7 @@ describe('VoiceCallState', () => {
   it('coalesces duplicate joins for the same room while connecting', async () => {
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await Promise.all([
       state.join('wss://livekit.example.test', 'R1'),
       state.join('wss://livekit.example.test', 'R1')
@@ -441,7 +700,7 @@ describe('VoiceCallState', () => {
   it('coalesces duplicate leave actions while the leave intent is in flight', async () => {
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -458,7 +717,7 @@ describe('VoiceCallState', () => {
     connectFailure = new Error('connect failed');
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await expect(state.join('wss://livekit.example.test', 'R1')).rejects.toThrow('connect failed');
 
@@ -471,7 +730,7 @@ describe('VoiceCallState', () => {
   it('disconnects without recording leave when the backend ends the current call', async () => {
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -491,7 +750,7 @@ describe('VoiceCallState', () => {
 
   it('disconnects local media without recording leave when room access is revoked', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -509,7 +768,7 @@ describe('VoiceCallState', () => {
   it('disconnects only for the current user participant leave event', async () => {
     const client = createVoiceCallClient();
 
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     soundMocks.playCallSound.mockClear();
 
@@ -534,7 +793,7 @@ describe('VoiceCallState', () => {
 
   it('matches only the currently connected call', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(state.matchesActiveCall('R1', 'call-1')).toBe(true);
@@ -545,7 +804,7 @@ describe('VoiceCallState', () => {
 
   it('toggles screen sharing with browser-tab audio through LiveKit', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleScreenShare();
@@ -589,7 +848,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleCamera();
@@ -625,7 +884,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.startNativeScreenShare('window:42', 'Moonring');
 
@@ -651,7 +910,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.startNativeScreenShare('window:42', 'Moonring');
 
@@ -672,7 +931,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
@@ -686,7 +945,7 @@ describe('VoiceCallState', () => {
   });
 
   it('preserves an existing browser screen share when publisher credentials fail', async () => {
-    const state = new VoiceCallState(
+    const state = createPermittedCallState(
       createVoiceCallClient({
         createGameSharePublisherToken: vi.fn(async () => {
           throw new Error('credential request failed');
@@ -711,7 +970,7 @@ describe('VoiceCallState', () => {
 
   it('preserves an existing browser screen share when native publisher startup fails', async () => {
     gameCaptureMocks.start.mockRejectedValue(new Error('helper startup failed'));
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
@@ -733,7 +992,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     screenShareFailure = new Error('browser unpublish failed');
@@ -756,7 +1015,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     screenShareGate = deferredVoid();
@@ -779,7 +1038,7 @@ describe('VoiceCallState', () => {
       onEnded: null as ((error?: Error) => void) | null
     };
     gameCaptureMocks.start.mockResolvedValue(session);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     screenShareFailureAfterUpdate = new Error('late browser unpublish failure');
@@ -797,7 +1056,7 @@ describe('VoiceCallState', () => {
 
   it('keeps microphone pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     microphoneGate = deferredVoid();
 
@@ -817,7 +1076,7 @@ describe('VoiceCallState', () => {
 
   it('keeps camera pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     cameraGate = deferredVoid();
 
@@ -837,7 +1096,7 @@ describe('VoiceCallState', () => {
 
   it('refreshes devices without camera permission until camera is explicitly enabled', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     vi.mocked(Room.getLocalDevices).mockClear();
 
@@ -857,7 +1116,7 @@ describe('VoiceCallState', () => {
 
   it('keeps screen share pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     screenShareGate = deferredVoid();
 
@@ -889,7 +1148,7 @@ describe('VoiceCallState', () => {
 
   it('keeps the call connected when screen capture fails', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     screenShareFailure = new Error('permission denied');
 
@@ -917,7 +1176,7 @@ describe('VoiceCallState', () => {
 
   it('reports permission failures when enabling media devices', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     toastMocks.error.mockClear();
 
@@ -947,7 +1206,7 @@ describe('VoiceCallState', () => {
 
   it('reports LiveKit media device errors without disconnecting', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     toastMocks.error.mockClear();
 
@@ -960,7 +1219,7 @@ describe('VoiceCallState', () => {
 
   it('keeps selected devices unchanged when device switching fails', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     toastMocks.error.mockClear();
     switchActiveDeviceFailure = Object.assign(new Error('device not found'), {
@@ -1006,7 +1265,7 @@ describe('VoiceCallState', () => {
 
   it('keeps camera and screen-share tracks separate', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleCamera();
@@ -1027,7 +1286,7 @@ describe('VoiceCallState', () => {
 
   it('clears screen-share state on leave', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
@@ -1039,7 +1298,7 @@ describe('VoiceCallState', () => {
 
   it('updates screen-share state when LiveKit reports local unpublish', async () => {
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
     expect(state.isScreenShareEnabled).toBe(true);
@@ -1065,7 +1324,7 @@ describe('VoiceCallState', () => {
       getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
     });
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
     await state.join('wss://livekit.example.test', 'R1');
     state.toggleParticipantLocalMute('remote-user');
     setVolume.mockClear();
@@ -1105,7 +1364,7 @@ describe('VoiceCallState', () => {
       getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
     });
     const client = createVoiceCallClient();
-    const state = new VoiceCallState(client);
+    const state = createPermittedCallState(client);
 
     await state.join('wss://livekit.example.test', 'R1');
     setVolume.mockClear();
@@ -1149,12 +1408,13 @@ describe('VoiceCallState', () => {
       trackPublications: new Map(),
       getTrackPublications: vi.fn(() => [])
     });
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
 
     await state.join('wss://livekit.example.test', 'R1');
 
-    expect(state.participants.find((participant) => participant.identity === 'automation-bot'))
-      .toMatchObject({ login: 'automation_bot', isBot: true });
+    expect(
+      state.participants.find((participant) => participant.identity === 'automation-bot')
+    ).toMatchObject({ login: 'automation_bot', isBot: true });
   });
 
   it('merges a companion screen-share publisher into its owning participant', async () => {
@@ -1184,7 +1444,7 @@ describe('VoiceCallState', () => {
       getTrackPublications: vi.fn(() => [{ isMuted: false, track: gameVideoTrack }])
     });
 
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
 
     expect(state.participants.map((participant) => participant.identity)).toEqual([
@@ -1215,7 +1475,7 @@ describe('VoiceCallState', () => {
       getTrackPublications: vi.fn(() => [])
     };
     mockRemoteParticipants.set('publisher-1', companion);
-    const state = new VoiceCallState(createVoiceCallClient());
+    const state = createPermittedCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
     const gameAudio = { kind: 'audio', attach: vi.fn(), detach: vi.fn() };
 

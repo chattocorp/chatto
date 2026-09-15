@@ -69,6 +69,23 @@
     "no_game_windows": "Jagatavaid aknaid ei leitud. Ava mäng akna- või ääristeta režiimis ja proovi uuesti.",
     "game_windows_failed": "Jagatavate akende laadimine ebaõnnestus.",
     "untitled_window": "Pealkirjata aken",
-    "game_window_selected": "{name} valitud"
+    "game_window_selected": "{name} valitud",
+    "permission_denied": "Sul pole selle kõnetoimingu jaoks õigust.",
+    "preferences": {
+      "title": "Hääl ja video",
+      "scope": "Salvestatakse selles brauseris selle serveri jaoks.",
+      "system_default": "Süsteemi vaikeseade",
+      "unavailable_device": "Salvestatud seade pole saadaval",
+      "output_unsupported": "See brauser kasutab süsteemi kõlarit. Kõlari valimine pole saadaval.",
+      "call_settings": "Kõneseaded",
+      "join_muted": "Liitu kõnedega vaigistatud mikrofoniga",
+      "test_title": "Testi mikrofoni",
+      "input_level": "Mikrofoni tase",
+      "start_test": "Alusta mikrofoni testi",
+      "stop_test": "Peata test",
+      "waiting": "Mikrofoni juurdepääsu ootel…",
+      "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
+      "test_in_call": "Enne mikrofoni testimist lahku kõnest."
+    }
   }
 }

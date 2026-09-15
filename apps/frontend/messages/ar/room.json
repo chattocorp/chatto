@@ -158,6 +158,14 @@
       },
       "show_less": "عرض أقل"
     },
+    "typing": {
+      "one": "{name} يكتب",
+      "two": "{first} و{second} يكتبان",
+      "many_count": {
+        "other": "{names} و{count} آخرون يكتبون",
+        "one": "{names} و{count} آخر يكتبون"
+      }
+    },
     "attachment": {
       "delete_title": "حذف المرفق",
       "delete_prompt": "هل أنت متأكد أنك تريد حذف هذا المرفق؟ لا يمكن التراجع عن هذا.",
@@ -173,7 +181,19 @@
       "description_label": "الوصف (اختياري)",
       "description_help": "صِف المرفق للأشخاص الذين لا يستطيعون رؤيته أو سماعه.",
       "description_too_long": "يمكن أن يحتوي الوصف على {max} حرفًا كحد أقصى.",
-      "description_update_failed": "تعذر تحديث وصف المرفق"
+      "description_update_failed": "تعذر تحديث وصف المرفق",
+      "html_viewer": {
+        "download": "تنزيل",
+        "show_preview": "إظهار المعاينة",
+        "warning": "قد يحمّل هذا المستند محتوى من مواقع ويب خارجية. يمكن لهذه المواقع رؤية عنوان IP الخاص بك.",
+        "preview_title": "معاينة {filename}",
+        "preview_failed": "تعذّر تحميل المعاينة. حاول مرة أخرى.",
+        "document_type": "نوع المستند",
+        "html_document": "مستند HTML",
+        "xhtml_document": "مستند XHTML",
+        "file_size": "حجم الملف",
+        "unavailable": "غير متاح"
+      }
     },
     "link_preview": {
       "delete_title": "حذف معاينة الرابط",

@@ -142,6 +142,14 @@
       },
       "show_less": "mostrar menos"
     },
+    "typing": {
+      "one": "{name} está escribiendo",
+      "two": "{first} y {second} están escribiendo",
+      "many_count": {
+        "other": "{names} y {count} más están escribiendo",
+        "one": "{names} y {count} más están escribiendo"
+      }
+    },
     "attachment": {
       "delete_title": "Eliminar archivo adjunto",
       "delete_prompt": "¿Estás seguro de que deseas eliminar este archivo adjunto? Esto no se puede deshacer.",
@@ -157,7 +165,19 @@
       "description_label": "Descripción (opcional)",
       "description_help": "Describe el archivo adjunto para las personas que no pueden verlo ni oírlo.",
       "description_too_long": "Las descripciones pueden tener un máximo de {max} caracteres.",
-      "description_update_failed": "No se pudo actualizar la descripción del archivo adjunto"
+      "description_update_failed": "No se pudo actualizar la descripción del archivo adjunto",
+      "html_viewer": {
+        "download": "Descargar",
+        "show_preview": "Mostrar vista previa",
+        "warning": "Este documento puede cargar contenido de sitios web externos. Estos sitios pueden ver tu dirección IP.",
+        "preview_title": "Vista previa de {filename}",
+        "preview_failed": "No se pudo cargar la vista previa. Inténtalo de nuevo.",
+        "document_type": "Tipo de documento",
+        "html_document": "Documento HTML",
+        "xhtml_document": "Documento XHTML",
+        "file_size": "Tamaño del archivo",
+        "unavailable": "No disponible"
+      }
     },
     "link_preview": {
       "delete_title": "Eliminar vista previa del enlace",

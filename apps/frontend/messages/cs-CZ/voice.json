@@ -69,6 +69,23 @@
     "no_game_windows": "Nebyla nalezena žádná okna ke sdílení. Otevřete hru v režimu okna nebo bez okrajů a zkuste to znovu.",
     "game_windows_failed": "Okna ke sdílení se nepodařilo načíst.",
     "untitled_window": "Okno bez názvu",
-    "game_window_selected": "Vybráno: {name}"
+    "game_window_selected": "Vybráno: {name}",
+    "permission_denied": "K této akci v hovoru nemáš oprávnění.",
+    "preferences": {
+      "title": "Hlas a video",
+      "scope": "Uloženo v tomto prohlížeči pro tento server.",
+      "system_default": "Výchozí zařízení systému",
+      "unavailable_device": "Uložené zařízení není dostupné",
+      "output_unsupported": "Tento prohlížeč používá systémový reproduktor. Výběr reproduktoru není dostupný.",
+      "call_settings": "Nastavení hovorů",
+      "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
+      "test_title": "Otestovat mikrofon",
+      "input_level": "Úroveň mikrofonu",
+      "start_test": "Spustit test mikrofonu",
+      "stop_test": "Zastavit test",
+      "waiting": "Čekání na přístup k mikrofonu…",
+      "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
+      "test_in_call": "Před testem mikrofonu opusťte hovor."
+    }
   }
 }

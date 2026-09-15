@@ -251,6 +251,7 @@ sidebar. Shows the avatar with presence and the live display name.
           icon={voiceCallState.isMuted ? 'icon-[uil--microphone-slash]' : 'icon-[uil--microphone]'}
           onclick={() => voiceCallState.toggleMute()}
           pending={voiceCallState.isMicrophonePending}
+          disabled={!voiceCallState.canUseVoice && voiceCallState.isMuted}
         />
         <VoiceCallControlButton
           class={voiceCallState.isCameraEnabled
@@ -263,6 +264,7 @@ sidebar. Shows the avatar with presence and the live display name.
           icon={voiceCallState.isCameraEnabled ? 'icon-[uil--video]' : 'icon-[uil--video-slash]'}
           onclick={() => voiceCallState.toggleCamera()}
           pending={voiceCallState.isCameraPending}
+          disabled={!voiceCallState.canUseCamera && !voiceCallState.isCameraEnabled}
         />
         <ScreenShareControlButton
           {voiceCallState}

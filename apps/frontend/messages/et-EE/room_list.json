@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Kuva rohkem ruume rühmas {group} ({count})",
+    "hide_rooms_in_group": "Peida rühmas {group} ruumid, millega sa pole liitunud",
+    "more_rooms": "Veel {count}",
+    "show_less": "Kuva vähem",
     "active_call": "Aktiivne kõne",
     "call_participants": "{count} kõnes osalejat",
     "go_to_notifications": "Avage {count} teatised",
@@ -18,6 +22,7 @@
     "copy_room_id": "Kopeeri ruumi ID",
     "copy_server_hostname": "Kopeeri serveri hostinimi",
     "room_settings": "Ruumi seaded",
+    "add_to_group": "Lisa gruppi {group}",
     "group_settings": "Seaded: {group}",
     "server_actions": "Toimingud: {server}",
     "room_actions": "Toimingud: #{room}"

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { trackScrollEdges, type ScrollEdges } from '$lib/ui/scrollEdges';
-  import type { MessageAttachmentView } from '$lib/render/messageAttachments';
+  import { isHtmlAttachment, type MessageAttachmentView } from '$lib/render/messageAttachments';
   import type { ImageItem } from '$lib/ui/ImageModal.svelte';
 
   type RawAttachment = MessageAttachmentView;
@@ -397,6 +397,21 @@
     });
   }
 
+  function openHtmlModal(attachment: Attachment) {
+    pushState('', {
+      modal: {
+        type: 'htmlViewer',
+        serverId,
+        roomId,
+        eventId,
+        attachmentId: attachment.id,
+        filename: attachment.filename,
+        contentType: attachment.contentType,
+        assetUrl: attachment.assetUrl
+      }
+    });
+  }
+
   async function openDownload(attachment: Attachment) {
     const freshUrls = await refreshAndApplyUrls();
     if (!serverScope.isCurrent()) return;
@@ -617,18 +632,28 @@
           {@render attachmentControls(attachment)}
         </div>
       {:else}
-        <div class="group/attachment relative embed-frame block">
+        <div
+          class="group/attachment embed-frame flex max-w-full min-w-[min(14rem,100%)] items-center"
+        >
           <button
             type="button"
-            onclick={() => openDownload(attachment)}
-            aria-label={m('room.attachment.download_label', { filename: attachment.filename })}
+            onclick={() =>
+              isHtmlAttachment(attachment.contentType)
+                ? openHtmlModal(attachment)
+                : openDownload(attachment)}
+            aria-label={m(
+              isHtmlAttachment(attachment.contentType)
+                ? 'room.attachment.view_label'
+                : 'room.attachment.download_label',
+              { filename: attachment.filename }
+            )}
             aria-describedby={attachment.description ? descriptionID(attachment) : undefined}
-            class="block w-full cursor-pointer text-start"
+            class="block min-w-0 flex-1 cursor-pointer text-start"
           >
-            <div class="flex h-16 items-center gap-2 px-3">
+            <div class="flex min-h-16 items-center gap-3 px-3 py-3">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                class="h-6 w-6 text-muted"
+                class="h-6 w-6 shrink-0 text-muted"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -640,10 +665,39 @@
                   d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                 />
               </svg>
-              <span class="text-sm">{attachment.filename}</span>
+              <span class="min-w-0 text-sm wrap-anywhere"><bdi>{attachment.filename}</bdi></span>
             </div>
           </button>
-          {@render attachmentControls(attachment)}
+          {#if canDeleteAttachment || canEditAttachmentDescription}
+            <div class="me-1 flex shrink-0 items-center">
+              {#if canDeleteAttachment}
+                <button
+                  type="button"
+                  onclick={(event) => openDeleteConfirmation(attachment, event)}
+                  class="mini-icon-action h-10 w-10 items-center justify-center"
+                  aria-label={m('room.attachment.delete_label')}
+                  title={m('room.attachment.delete_label')}
+                >
+                  <span class="iconify icon-[uil--times] text-sm" aria-hidden="true"></span>
+                </button>
+              {/if}
+              {#if canEditAttachmentDescription}
+                <button
+                  type="button"
+                  onclick={(event) => openDescriptionEditor(attachment, event)}
+                  class="mini-icon-action h-10 w-10 items-center justify-center"
+                  aria-label={attachment.description
+                    ? m('room.attachment.edit_description')
+                    : m('room.attachment.add_description')}
+                  title={attachment.description
+                    ? m('room.attachment.edit_description')
+                    : m('room.attachment.add_description')}
+                >
+                  <span class="iconify icon-[uil--file-edit-alt] text-sm" aria-hidden="true"></span>
+                </button>
+              {/if}
+            </div>
+          {/if}
         </div>
       {/if}
       {#if attachment.description && !isGalleryImageAttachment(attachment)}

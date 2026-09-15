@@ -371,7 +371,7 @@ async function waitForSidebarSets(page: Page, expectedCount: number): Promise<st
 
 function sidebarGroup(page: Page, name: string) {
   return page.locator('[data-testid="room-group-section"]', {
-    has: page.locator('button[aria-expanded]', { hasText: name })
+    has: page.getByRole('button', { name, exact: true })
   });
 }
 
@@ -587,6 +587,7 @@ test.describe('Room Layout', () => {
       ]);
       await navigateToSpace(page);
 
+      await sidebarGroup(page, 'Main').getByTestId('room-group-more').click();
       const alphaRow = page.locator('.room-list a.sidebar-item', { hasText: 'alpha' });
       await alphaRow.hover();
       const handle = alphaRow.getByTestId('room-drag-handle');
@@ -623,6 +624,8 @@ test.describe('Room Layout', () => {
       await expect(sidebarGroup(page, 'Main')).toBeVisible();
       const projects = sidebarGroup(page, 'Projects');
       await expect(projects).toBeVisible();
+      await expect(projects.locator('a.sidebar-item', { hasText: 'alpha' })).toHaveCount(0);
+      await projects.getByTestId('room-group-more').click();
       await expect(projects.locator('a.sidebar-item', { hasText: 'alpha' })).toBeVisible();
       await expect(
         page
@@ -644,7 +647,7 @@ test.describe('Room Layout', () => {
 
       const main = sidebarGroup(page, 'Main');
       const projects = sidebarGroup(page, 'Projects');
-      await main.locator('button[aria-expanded]').click({ button: 'right' });
+      await main.getByRole('button', { name: 'Main', exact: true }).click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'New Link', exact: true }).click();
 
       const dialog = page.getByRole('dialog', { name: 'Create Link' });
@@ -698,7 +701,7 @@ test.describe('Room Layout', () => {
       const projects = sidebarGroup(page, 'Projects');
       const disclosureIcon = projects.getByTestId('room-group-disclosure-icon');
       await expect(disclosureIcon).toHaveCSS('opacity', '1');
-      await projects.locator('button[aria-expanded]').hover();
+      await projects.getByRole('button', { name: 'Projects', exact: true }).hover();
       await expect(projects.getByTestId('room-group-drag-handle')).toHaveCSS('opacity', '1');
       await expect(disclosureIcon).toHaveCSS('opacity', '0');
       await expect(projects.getByTestId('room-group-actions-button')).toHaveCount(0);
@@ -965,7 +968,7 @@ test.describe('Room Layout', () => {
   });
 
   test.describe('Edge Cases', () => {
-    test('listable rooms user has not joined are shown faded in sets', async ({
+    test('listable unjoined rooms are hidden until the group discovery row is expanded', async ({
       page,
       browser,
       serverURL
@@ -997,14 +1000,20 @@ test.describe('Room Layout', () => {
 
         await navigateToSpace(page2);
 
-        // User B should see announcements, general, joined public, and listable
-        // non-member private. Non-member channel rows use a leading + affordance.
+        // Discovery keeps joined rooms visible and reveals the unjoined room on demand.
+        const initialRooms = await waitForSidebarRooms(page2, 3);
+        expect(initialRooms).not.toContain('private');
+        const more = sidebarGroup(page2, 'All').getByTestId('room-group-more');
+        await expect(more).toContainText('1 more');
+        await more.click();
         const roomNames = await waitForSidebarRooms(page2, 4);
         expect(roomNames).toContain('announcements');
         expect(roomNames).toContain('general');
         expect(roomNames).toContain('public');
         expect(roomNames).toContain('private');
         await expect(page2.getByRole('link', { name: '+ private' })).toHaveClass(/opacity-60/);
+        await more.click();
+        expect(await waitForSidebarRooms(page2, 3)).not.toContain('private');
       });
     });
   });

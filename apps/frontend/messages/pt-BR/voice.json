@@ -69,6 +69,23 @@
     "no_game_windows": "Nenhuma janela compartilhável foi encontrada. Abra um jogo no modo janela ou sem bordas e tente novamente.",
     "game_windows_failed": "Não foi possível carregar as janelas compartilháveis.",
     "untitled_window": "Janela sem título",
-    "game_window_selected": "{name} selecionado"
+    "game_window_selected": "{name} selecionado",
+    "permission_denied": "Você não tem permissão para realizar esta ação na chamada.",
+    "preferences": {
+      "title": "Voz e vídeo",
+      "scope": "Salvo neste navegador para este servidor.",
+      "system_default": "Padrão do sistema",
+      "unavailable_device": "Dispositivo salvo indisponível",
+      "output_unsupported": "Este navegador usa o alto-falante do sistema. A seleção de alto-falantes não está disponível.",
+      "call_settings": "Configurações de chamadas",
+      "join_muted": "Entrar nas chamadas com o microfone silenciado",
+      "test_title": "Testar o microfone",
+      "input_level": "Nível do microfone",
+      "start_test": "Iniciar teste do microfone",
+      "stop_test": "Parar teste",
+      "waiting": "Aguardando acesso ao microfone…",
+      "test_failed": "Não foi possível testar o microfone. Verifique o acesso ao dispositivo e tente novamente.",
+      "test_in_call": "Saia da chamada antes de testar o microfone."
+    }
   }
 }

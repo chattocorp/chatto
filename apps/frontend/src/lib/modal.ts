@@ -1,3 +1,5 @@
+import type { ExpiringAssetUrl } from '$lib/attachments/attachmentUrls';
+
 /** One image shown by the history-backed attachment viewer. */
 export type ImageViewerItem = {
   id?: string;
@@ -29,6 +31,14 @@ export type ChatModal =
     })
   | (RoomModalTarget & { type: 'deleteLinkPreview'; eventId: string; previewUrl: string })
   | (RoomModalTarget & {
+      type: 'htmlViewer';
+      eventId: string;
+      attachmentId: string;
+      filename: string;
+      contentType: string;
+      assetUrl: ExpiringAssetUrl | null;
+    })
+  | (RoomModalTarget & {
       type: 'imageViewer';
       eventId: string;
       imageItems: ImageViewerItem[];
@@ -46,6 +56,7 @@ export type EditAttachmentDescriptionModalState = Extract<
   ChatModal,
   { type: 'editAttachmentDescription' }
 >;
+export type HtmlViewerModalState = Extract<ChatModal, { type: 'htmlViewer' }>;
 
 /** Identifies one modal interaction while allowing its render data to refresh in place. */
 export function chatModalKey(modal: ChatModal): ChatModal | string {

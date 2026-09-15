@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "Montri pliajn ĉambrojn en {group} ({count})",
+    "hide_rooms_in_group": "Kaŝi nealiĝintajn ĉambrojn en {group}",
+    "more_rooms": "{count} pliaj",
+    "show_less": "Montri malpli",
     "active_call": "Aktiva voko",
     "call_participants": "{count} partoprenantoj en voko",
     "go_to_notifications": "Iru al {count} sciigoj",
@@ -18,6 +22,7 @@
     "copy_room_id": "Kopii identigilon de ĉambro",
     "copy_server_hostname": "Kopii la gastigantonomon de la servilo",
     "room_settings": "Agordoj de ĉambro",
+    "add_to_group": "Aldoni al {group}",
     "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
     "room_actions": "Agoj por #{room}"

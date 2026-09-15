@@ -69,6 +69,23 @@
     "no_game_windows": "未找到可共享的窗口。请以窗口或无边框模式打开游戏，然后重试。",
     "game_windows_failed": "无法加载可共享的窗口。",
     "untitled_window": "无标题窗口",
-    "game_window_selected": "已选择 {name}"
+    "game_window_selected": "已选择 {name}",
+    "permission_denied": "你没有执行此通话操作的权限。",
+    "preferences": {
+      "title": "语音与视频",
+      "scope": "保存在此浏览器中，仅用于此服务器。",
+      "system_default": "系统默认",
+      "unavailable_device": "已保存的设备不可用",
+      "output_unsupported": "此浏览器使用系统扬声器，无法选择扬声器。",
+      "call_settings": "通话设置",
+      "join_muted": "加入通话时将麦克风静音",
+      "test_title": "测试麦克风",
+      "input_level": "麦克风音量",
+      "start_test": "开始麦克风测试",
+      "stop_test": "停止测试",
+      "waiting": "正在等待麦克风访问权限…",
+      "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
+      "test_in_call": "请先退出通话，再测试麦克风。"
+    }
   }
 }

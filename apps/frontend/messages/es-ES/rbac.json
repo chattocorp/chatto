@@ -110,7 +110,8 @@
       "room": "Salas",
       "server": "Servidor",
       "user": "Usuarios",
-      "other": "Otros"
+      "other": "Otros",
+      "call": "Llamadas"
     },
     "permission_descriptions": {
       "server_manage": "Actualizar configuración del servidor (nombre, descripción, logo)",
@@ -139,7 +140,12 @@
       "user_manage_accounts": "Cree usuarios, edite la identidad de la cuenta, restablezca contraseñas, adjunte correos electrónicos verificados y borre los tiempos de reutilización de inicio de sesión",
       "user_manage_permissions": "Editar anulaciones de permisos directos por usuario",
       "bot_create": "Crear cuentas de bot propias",
-      "bot_manage": "Ver y gestionar todas las cuentas de bot"
+      "bot_manage": "Ver y gestionar todas las cuentas de bot",
+      "call_start": "Iniciar una llamada (también requiere call.join)",
+      "call_join": "Unirse a una llamada en curso",
+      "call_voice": "Usar el micrófono en las llamadas",
+      "call_camera": "Usar la cámara en las llamadas",
+      "call_screenshare": "Compartir una pantalla o aplicación, incluido el audio capturado"
     }
   }
 }

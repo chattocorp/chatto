@@ -25,11 +25,25 @@
   let dialogWithoutTitleVisible = $state(false);
   let smallDialogVisible = $state(false);
   let largeDialogVisible = $state(false);
+  let extraLargeDialogVisible = $state(false);
   let dialogWithFooterVisible = $state(false);
   let referenceDialogVisible = $state(false);
   let longDialogVisible = $state(false);
   let adaptiveDialogVisible = $state(false);
 </script>
+
+<Story name="Extra large document viewer" asChild>
+  <Button onclick={() => (extraLargeDialogVisible = true)}>Open document viewer</Button>
+  <Dialog bind:visible={extraLargeDialogVisible} title="project-report.html" size="xl">
+    <div class="flex h-[60dvh] items-center justify-center text-muted">Document preview area</div>
+    {#snippet footerDetails()}
+      <p class="text-muted">HTML document · 24 KiB</p>
+    {/snippet}
+    {#snippet footer()}
+      <Button variant="secondary" onclick={() => (extraLargeDialogVisible = false)}>Close</Button>
+    {/snippet}
+  </Dialog>
+</Story>
 
 <Story
   name="Default (with title)"

@@ -57,6 +57,7 @@ type DirectoryRoom struct {
 }
 
 type DirectoryRoomViewerState struct {
+	CallPermissions        CallPermissions // Effective call actions, false for non-members.
 	IsMember               bool
 	HasUnread              bool
 	CanListRoom            bool
@@ -585,6 +586,13 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		return DirectoryRoomViewerState{}, err
 	}
 
+	var callPermissions CallPermissions
+	if isMember {
+		callPermissions, err = s.core.resolveCallPermissions(ctx, actorID, kind, room.Id)
+		if err != nil {
+			return DirectoryRoomViewerState{}, err
+		}
+	}
 	messageActionsEnabled := isMember && !room.GetArchived()
 	memberActionsEnabled := isMember
 	canJoin = canJoin && !isMember && kind == KindChannel && !room.GetArchived()
@@ -604,6 +612,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	}
 
 	return DirectoryRoomViewerState{
+		CallPermissions:        callPermissions,
 		IsMember:               isMember,
 		HasUnread:              hasUnread,
 		CanListRoom:            canList,

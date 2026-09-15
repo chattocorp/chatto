@@ -146,6 +146,14 @@
       },
       "show_less": "להראות פחות"
     },
+    "typing": {
+      "one": "{name} מקליד/ת",
+      "two": "{first} ו{second} מקלידים",
+      "many_count": {
+        "other": "{names} ועוד {count} מקלידים",
+        "one": "{names} ועוד {count} מקלידים"
+      }
+    },
     "attachment": {
       "delete_title": "מחק קובץ מצורף",
       "delete_prompt": "האם אתה בטוח שברצונך למחוק את הקובץ המצורף הזה? לא ניתן לבטל זאת.",
@@ -161,7 +169,19 @@
       "description_label": "תיאור (רשות)",
       "description_help": "תארו את הקובץ המצורף עבור אנשים שאינם יכולים לראות או לשמוע אותו.",
       "description_too_long": "התיאור יכול להכיל עד {max} תווים.",
-      "description_update_failed": "עדכון תיאור הקובץ המצורף נכשל"
+      "description_update_failed": "עדכון תיאור הקובץ המצורף נכשל",
+      "html_viewer": {
+        "download": "הורדה",
+        "show_preview": "הצגת תצוגה מקדימה",
+        "warning": "מסמך זה עשוי לטעון תוכן מאתרים חיצוניים. אתרים אלה יכולים לראות את כתובת ה-IP שלך.",
+        "preview_title": "תצוגה מקדימה של {filename}",
+        "preview_failed": "לא ניתן לטעון את התצוגה המקדימה. אפשר לנסות שוב.",
+        "document_type": "סוג מסמך",
+        "html_document": "מסמך HTML",
+        "xhtml_document": "מסמך XHTML",
+        "file_size": "גודל הקובץ",
+        "unavailable": "לא זמין"
+      }
     },
     "link_preview": {
       "delete_title": "מחק תצוגה מקדימה של קישור",

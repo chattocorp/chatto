@@ -340,9 +340,9 @@ func TestInitServerDefaults(t *testing.T) {
 
 	t.Run("admin has expected server permissions", func(t *testing.T) {
 		// Admin-specific defaults include administration, room administration,
-		// and message management. Ordinary posting defaults come from everyone.
+		// and message management. Ordinary posting and call defaults come from everyone.
 		for _, perm := range PermissionsForScope(ScopeServer) {
-			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
+			if perm.Category == CategoryCall || (perm.Category == CategoryMessage && perm.Permission != PermMessageManage) {
 				continue
 			}
 			// The admin role stores the broad server.manage grant. The resolver
@@ -359,7 +359,7 @@ func TestInitServerDefaults(t *testing.T) {
 				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
 			}
 		}
-		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermBotCreate} {
+		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermBotCreate, PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare} {
 			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
 				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
@@ -383,10 +383,28 @@ func TestInitServerDefaults(t *testing.T) {
 			PermMessageAttach,
 			PermMessageReact,
 			PermMessageEcho,
+			PermCallStart, PermCallJoin, PermCallVoice, PermCallCamera, PermCallScreenShare,
 		}
 		for _, perm := range expectedPerms {
 			if got := core.rbacModel.decision(ScopeServer, "", RoleEveryone, perm); got != DecisionAllow {
 				t.Errorf("everyone decision for %s = %s, want %s", perm, got, DecisionAllow)
+			}
+		}
+	})
+
+	t.Run("admin inherits call access from everyone", func(t *testing.T) {
+		ctx := testContext(t)
+		user, err := core.CreateUser(ctx, SystemActorID, "call-default-admin", "Admin", "password")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := core.AssignServerRole(ctx, SystemActorID, user.Id, RoleAdmin); err != nil {
+			t.Fatal(err)
+		}
+		for _, permission := range callPermissionIDs() {
+			allowed, err := core.HasServerPermission(ctx, user.Id, permission)
+			if err != nil || !allowed {
+				t.Errorf("admin effective %s = %v, %v; want allow", permission, allowed, err)
 			}
 		}
 	})

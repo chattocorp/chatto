@@ -69,6 +69,23 @@
     "no_game_windows": "Geen deelbare vensters gevonden. Open een game in venster- of randloze modus en probeer het opnieuw.",
     "game_windows_failed": "De deelbare vensters konden niet worden geladen.",
     "untitled_window": "Venster zonder titel",
-    "game_window_selected": "{name} geselecteerd"
+    "game_window_selected": "{name} geselecteerd",
+    "permission_denied": "Je hebt geen toestemming voor deze oproepactie.",
+    "preferences": {
+      "title": "Spraak en video",
+      "scope": "Opgeslagen in deze browser voor deze server.",
+      "system_default": "Systeemstandaard",
+      "unavailable_device": "Opgeslagen apparaat niet beschikbaar",
+      "output_unsupported": "Deze browser gebruikt de systeemluidspreker. Luidsprekerselectie is niet beschikbaar.",
+      "call_settings": "Oproepinstellingen",
+      "join_muted": "Deelnemen aan gesprekken met gedempte microfoon",
+      "test_title": "Je microfoon testen",
+      "input_level": "Microfoonniveau",
+      "start_test": "Microfoontest starten",
+      "stop_test": "Test stoppen",
+      "waiting": "Wachten op microfoontoegang…",
+      "test_failed": "De microfoon kon niet worden getest. Controleer de apparaattoegang en probeer het opnieuw.",
+      "test_in_call": "Verlaat je gesprek voordat je de microfoon test."
+    }
   }
 }

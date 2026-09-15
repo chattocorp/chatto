@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "{group} の他のルームを表示（{count}）",
+    "hide_rooms_in_group": "{group} の未参加ルームを非表示",
+    "more_rooms": "他 {count} 件",
+    "show_less": "表示を減らす",
     "active_call": "アクティブな通話",
     "call_participants": "{count} 人が通話に参加しています",
     "go_to_notifications": "{count} 通知に移動",
@@ -18,6 +22,7 @@
     "copy_room_id": "ルームIDをコピー",
     "copy_server_hostname": "サーバーのホスト名をコピー",
     "room_settings": "ルーム設定",
+    "add_to_group": "{group}に追加",
     "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
     "room_actions": "#{room}のアクション"

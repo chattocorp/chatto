@@ -1,3 +1,7 @@
+import { ServerProjectionStore } from '$lib/state/server/projection.svelte';
+import { NavigationStore } from '$lib/state/server/rooms.svelte';
+import { RoomGroup, RoomGroupViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
+import { PermissionGrant } from '@chatto/api-types/api/v1/permissions_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -31,6 +35,7 @@ const { mocks } = vi.hoisted(() => ({
     },
     roomCommandAPI: {
       createRoom: vi.fn().mockResolvedValue(null),
+      joinRoom: vi.fn().mockResolvedValue(null),
       archiveRoom: vi.fn().mockResolvedValue(null)
     },
     appUi: {
@@ -342,7 +347,9 @@ describe('RoomList', () => {
     setRoomUnread('channel-1', true);
 
     const { container } = render(RoomList);
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const groupHeader = groupHeaders[0];
 
     expect(groupHeaders).toHaveLength(1);
@@ -366,7 +373,9 @@ describe('RoomList', () => {
     mocks.store.navigation.rooms = [dm] as never;
 
     const { container } = render(RoomList);
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const groupHeader = groupHeaders[0];
 
     expect(groupHeaders).toHaveLength(1);
@@ -388,7 +397,9 @@ describe('RoomList', () => {
   it('renders a full-width separator between adjacent room and DM sections', () => {
     const { container } = render(RoomList);
     const roomList = q(container, 'nav.room-list') as HTMLElement;
-    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>(
+      'button[aria-expanded]:not([data-testid="room-group-more"])'
+    );
     const sections = roomList.querySelectorAll<HTMLElement>('[data-testid="room-group-section"]');
     const separatedSection = sections[1];
 
@@ -448,6 +459,10 @@ describe('RoomList', () => {
 
   it('offers a join action for a visible non-member room', async () => {
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
@@ -482,6 +497,10 @@ describe('RoomList', () => {
     channel.viewerCanManageRoom = true;
 
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(document.body.textContent).toContain('Room settings'));
@@ -501,6 +520,10 @@ describe('RoomList', () => {
 
   it('shows a disabled join action for a visible restricted room', async () => {
     const { container } = render(RoomList);
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
 
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
@@ -870,9 +893,73 @@ describe('RoomList', () => {
     }
   );
 
+  it('hides unjoined rooms until expanded and can hide them again', async () => {
+    const { container } = render(RoomList);
+    const more = q(container, '[data-testid="room-group-more"]');
+    await expect.element(more).toHaveTextContent('2 more');
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'true');
+    await expect.element(more).toHaveTextContent('Show less');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'false');
+    await expect
+      .poll(() => container.querySelector('[href="/chat/-/joinable-channel"]'))
+      .toBeNull();
+  });
+
+  it('expands groups independently and omits the control for joined-only groups', async () => {
+    mocks.store.navigation.roomGroups = [
+      { id: 'discovery-first', name: 'Projects', viewerCanManageGroup: false, roomIds: ['joinable-channel'] },
+      { id: 'discovery-second', name: 'Gaming', viewerCanManageGroup: false, roomIds: ['restricted-channel'] },
+      { id: 'discovery-joined', name: 'Joined', viewerCanManageGroup: false, roomIds: ['channel-1'] }
+    ];
+    const { container } = render(RoomList);
+    const sections = container.querySelectorAll('[data-testid="room-group-section"]');
+    const first = sections[0]?.querySelector<HTMLButtonElement>('[data-testid="room-group-more"]');
+    const second = sections[1]?.querySelector<HTMLButtonElement>('[data-testid="room-group-more"]');
+    expect(sections[2]?.querySelector('[data-testid="room-group-more"]')).toBeNull();
+    first?.click();
+    await expect.element(first).toHaveAttribute('aria-expanded', 'true');
+    await expect.element(second).toHaveAttribute('aria-expanded', 'false');
+    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+    expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
+    second?.click();
+    await expect.poll(() => container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull();
+  });
+
+  it('hides a single unjoined room behind the disclosure', async () => {
+    mocks.store.navigation.roomGroups = [
+      { id: 'single', name: 'Projects', viewerCanManageGroup: false, roomIds: ['channel-1', 'joinable-channel'] }
+    ];
+    const { container } = render(RoomList);
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+    const more = q(container, '[data-testid="room-group-more"]');
+    await expect.element(more).toHaveTextContent('1 more');
+    more?.click();
+    await expect.element(more).toHaveAttribute('aria-expanded', 'true');
+    await expect.poll(() => container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull();
+  });
+
+  it('keeps the current unjoined room visible and hides the remaining room', async () => {
+    mocks.activeRoomId = 'joinable-channel';
+    const { container } = render(RoomList);
+    await expect.element(q(container, '[href="/chat/-/joinable-channel"]')).toBeInTheDocument();
+    expect(container.querySelector('[href="/chat/-/restricted-channel"]')).toBeNull();
+    await expect.element(q(container, '[data-testid="room-group-more"]')).toHaveTextContent('1 more');
+  });
+
   it('lets faded joinable non-member channel rows navigate to the room route', async () => {
     const { container } = render(RoomList);
 
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/joinable-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
@@ -885,6 +972,10 @@ describe('RoomList', () => {
   it('lets faded non-joinable channel rows navigate to the inline access screen', async () => {
     const { container } = render(RoomList);
 
+    q(container, '[data-testid="room-group-more"]')?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/restricted-channel"]')).not.toBeNull()
+    );
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     expect(row.className).toContain('opacity-60');
@@ -985,58 +1076,246 @@ describe('RoomList', () => {
     expect(link.getAttribute('rel')).toBeNull();
   });
 
-  it('adds HTTPS when a new sidebar link uses a hostname without a scheme', async () => {
-    mocks.store.navigation.rooms = [];
+  it.each([
+    [true, true, ['New Room', 'New Link']],
+    [true, false, ['New Room']],
+    [false, true, ['New Link']],
+    [false, false, []]
+  ] as const)(
+    'gates the creation menu with room=%s and manage=%s',
+    async (room, manage, labels) => {
+      mocks.store.navigation.roomGroups = [
+        {
+          id: 'creation-permissions',
+          name: 'Projects',
+          roomIds: ['channel-1'],
+          viewerCanCreateRoom: room,
+          viewerCanManageGroup: manage
+        }
+      ];
+      const { container } = render(RoomList);
+      const trigger = container.querySelector<HTMLButtonElement>(
+        '[data-testid="room-group-create-button"]'
+      );
+      if (labels.length === 0) {
+        expect(trigger).toBeNull();
+        return;
+      }
+      await expect.element(trigger).toBeVisible();
+      expect(getComputedStyle(trigger!).opacity).toBe('1');
+      await userEvent.click(trigger!);
+      const menu = document.querySelector<HTMLElement>(
+        '[role="menu"][aria-label="Add to Projects"]'
+      );
+      await expect.element(menu).toBeVisible();
+      expect(
+        Array.from(menu!.querySelectorAll('[role="menuitem"]')).map((item) =>
+          item.textContent?.trim()
+        )
+      ).toEqual(labels);
+      await expect.element(trigger).toHaveAttribute('aria-expanded', 'true');
+    }
+  );
+
+  it('updates creation controls and an open menu when projected group permissions change', async () => {
+    const originalNavigation = mocks.store.navigation;
+    const projection = new ServerProjectionStore();
+    const setPermissions = (create: boolean, manage: boolean) => {
+      projection.roomGroups = [
+        new RoomGroup({
+          id: 'reactive-group',
+          name: 'Projects',
+          viewerState: new RoomGroupViewerState({
+            permissions: [
+              new PermissionGrant({ permission: 'room.create', granted: create }),
+              new PermissionGrant({ permission: 'room.manage', granted: manage })
+            ]
+          })
+        })
+      ];
+    };
+    mocks.store.navigation = new NavigationStore(
+      projection,
+      { hasUsableProjection: true },
+      {
+        roomUnreadCounts: {},
+        roomImportantUnreadCounts: {}
+      }
+    ) as unknown as typeof originalNavigation;
+    try {
+      setPermissions(false, false);
+      const { container } = render(RoomList);
+      expect(container.querySelector('[data-testid="room-group-create-button"]')).toBeNull();
+      setPermissions(true, true);
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="room-group-create-button"]')).not.toBeNull()
+      );
+      const trigger = q(container, '[data-testid="room-group-create-button"]') as HTMLButtonElement;
+      expect(getComputedStyle(trigger).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+      expect(trigger.getBoundingClientRect().height).toBeLessThanOrEqual(24);
+      await userEvent.click(trigger);
+      await expect.element(document.querySelector<HTMLElement>('[role="menu"]')).toBeVisible();
+      setPermissions(false, true);
+      await vi.waitFor(() =>
+        expect(
+          Array.from(document.querySelectorAll('[role="menuitem"]')).map((item) =>
+            item.textContent?.trim()
+          )
+        ).toEqual(['New Link'])
+      );
+      setPermissions(false, false);
+      await vi.waitFor(() => {
+        expect(document.querySelector('[role="menu"]')).toBeNull();
+        expect(container.querySelector('[data-testid="room-group-create-button"]')).toBeNull();
+      });
+      setPermissions(true, true);
+      await vi.waitFor(() =>
+        expect(container.querySelector('[data-testid="room-group-create-button"]')).not.toBeNull()
+      );
+      expect(document.querySelector('[role="menu"]')).toBeNull();
+    } finally {
+      mocks.store.navigation = originalNavigation;
+    }
+  });
+
+  it('opens the creation menu by keyboard in a collapsed group and restores focus on dismissal', async () => {
     mocks.store.navigation.roomGroups = [
       {
-        id: 'resources',
-        name: 'Resources',
-        viewerCanManageGroup: true,
-        roomIds: [],
-        items: []
+        id: 'creation-keyboard',
+        name: 'Projects',
+        roomIds: ['channel-1'],
+        viewerCanCreateRoom: true,
+        viewerCanManageGroup: true
       }
     ];
-
-    const { container } = render(RoomList);
-    const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
-      button.textContent?.includes('Resources')
-    );
-    groupHeader!.dispatchEvent(
-      new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 40, clientY: 60 })
-    );
-
-    await vi.waitFor(() =>
-      expect(
-        document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
-      ).not.toBeNull()
-    );
-    const newLink = Array.from(document.querySelectorAll('button')).find(
-      (button) => button.textContent?.trim() === 'New Link'
-    );
-    newLink!.click();
-
-    await vi.waitFor(() => expect(document.querySelector('#sidebar-link-url')).not.toBeNull());
-    const label = document.querySelector<HTMLInputElement>('#sidebar-link-label')!;
-    const url = document.querySelector<HTMLInputElement>('#sidebar-link-url')!;
-    label.value = 'Docs';
-    label.dispatchEvent(new Event('input', { bubbles: true }));
-    url.value = 'docs.example.test/guide';
-    url.dispatchEvent(new Event('input', { bubbles: true }));
-
-    const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
-      (button) => button.type === 'submit' && button.textContent?.trim() === 'Create Link'
-    );
-    await expect.element(submit ?? null).toBeEnabled();
-    submit!.click();
-
-    await vi.waitFor(() =>
-      expect(mocks.layoutAPI.createSidebarLink).toHaveBeenCalledWith({
-        groupId: 'resources',
-        label: 'Docs',
-        url: 'https://docs.example.test/guide'
-      })
-    );
+    const { container } = render(RoomList, { props: { canReorderGroups: true } });
+    const header = q(container, '[data-testid="room-group-section"] button') as HTMLButtonElement;
+    await userEvent.click(header);
+    await expect.element(header).toHaveAttribute('aria-expanded', 'false');
+    const trigger = q(container, '[data-testid="room-group-create-button"]') as HTMLButtonElement;
+    await expect.element(trigger).toBeVisible();
+    trigger.focus();
+    await userEvent.keyboard('{Enter}');
+    const menu = document.querySelector<HTMLElement>('[role="menu"][aria-label="Add to Projects"]');
+    await expect.element(menu).toBeVisible();
+    const items = menu!.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+    await expect.element(items[0]).toHaveFocus();
+    await userEvent.keyboard('{ArrowDown}');
+    await expect.element(items[1]).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    await expect.element(trigger).toHaveFocus();
+    await expect.element(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    await userEvent.keyboard(' ');
+    await expect.element(document.querySelector<HTMLElement>('[role="menu"]')).toBeVisible();
+    await userEvent.click(header);
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(mocks.layoutAPI.moveRoomGroup).not.toHaveBeenCalled();
+    expect(mocks.layoutAPI.moveSidebarItem).not.toHaveBeenCalled();
   });
+
+  it('creates and joins a room in the group selected through the creation menu', async () => {
+    mocks.roomCommandAPI.createRoom.mockResolvedValueOnce({ id: 'created-room' });
+    mocks.store.navigation.roomGroups = ['first', 'second'].map((id) => ({
+      id,
+      name: id,
+      roomIds: [],
+      viewerCanCreateRoom: true,
+      viewerCanManageGroup: true
+    }));
+    const { container } = render(RoomList);
+    const trigger = q(container, '[aria-label="Add to second"]') as HTMLButtonElement;
+    await userEvent.click(trigger);
+    const newRoom = Array.from(
+      document.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    ).find((item) => item.textContent?.trim() === 'New Room')!;
+    await userEvent.click(newRoom);
+    await vi.waitFor(() => expect(document.querySelector('#room-name')).not.toBeNull());
+    const input = document.querySelector<HTMLInputElement>('#room-name')!;
+    input.value = 'new-project';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const submit = document.querySelector<HTMLButtonElement>('dialog button[type="submit"]')!;
+    await expect.element(submit).toBeEnabled();
+    await userEvent.click(submit);
+    await vi.waitFor(() =>
+      expect(mocks.roomCommandAPI.createRoom).toHaveBeenCalledWith(
+        expect.objectContaining({
+          groupId: 'second',
+          name: 'new-project'
+        })
+      )
+    );
+    expect(mocks.roomCommandAPI.joinRoom).toHaveBeenCalledWith('created-room');
+    expect(mocks.goto).toHaveBeenCalledWith('/chat/-/created-room');
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it.each(['context menu', 'creation menu'])(
+    'adds HTTPS to a new sidebar link from the %s',
+    async (entry) => {
+      mocks.store.navigation.rooms = [];
+      mocks.store.navigation.roomGroups = [
+        {
+          id: 'resources',
+          name: 'Resources',
+          viewerCanManageGroup: true,
+          roomIds: [],
+          items: []
+        }
+      ];
+
+      const { container } = render(RoomList);
+      if (entry === 'creation menu') {
+        await userEvent.click(
+          q(container, '[data-testid="room-group-create-button"]') as HTMLButtonElement
+        );
+      } else {
+        const groupHeader = Array.from(container.querySelectorAll('button')).find((button) =>
+          button.textContent?.includes('Resources')
+        );
+        groupHeader!.dispatchEvent(
+          new MouseEvent('contextmenu', {
+            bubbles: true,
+            cancelable: true,
+            clientX: 40,
+            clientY: 60
+          })
+        );
+
+        await vi.waitFor(() =>
+          expect(
+            document.querySelector('[role="menu"][aria-label="Settings for Resources"]')
+          ).not.toBeNull()
+        );
+      }
+      const newLink = Array.from(document.querySelectorAll('button')).find(
+        (button) => button.textContent?.trim() === 'New Link'
+      );
+      newLink!.click();
+
+      await vi.waitFor(() => expect(document.querySelector('#sidebar-link-url')).not.toBeNull());
+      const label = document.querySelector<HTMLInputElement>('#sidebar-link-label')!;
+      const url = document.querySelector<HTMLInputElement>('#sidebar-link-url')!;
+      label.value = 'Docs';
+      label.dispatchEvent(new Event('input', { bubbles: true }));
+      url.value = 'docs.example.test/guide';
+      url.dispatchEvent(new Event('input', { bubbles: true }));
+
+      const submit = Array.from(document.querySelectorAll<HTMLButtonElement>('button')).find(
+        (button) => button.type === 'submit' && button.textContent?.trim() === 'Create Link'
+      );
+      await expect.element(submit ?? null).toBeEnabled();
+      submit!.click();
+
+      await vi.waitFor(() =>
+        expect(mocks.layoutAPI.createSidebarLink).toHaveBeenCalledWith({
+          groupId: 'resources',
+          label: 'Docs',
+          url: 'https://docs.example.test/guide'
+        })
+      );
+    }
+  );
 
   it('keeps an empty manageable group visible and opens its settings from a context menu', async () => {
     mocks.store.navigation.rooms = [];
@@ -1177,6 +1456,10 @@ describe('RoomList', () => {
     expect(Boolean(handle)).toBe(hasOverlay);
     await userEvent.unhover(heading);
     await expect.poll(() => getComputedStyle(icon).opacity).toBe('1');
+    // Wait for the header's hover transition before sampling its resting colour.
+    await Promise.all(
+      heading.element().parentElement!.getAnimations({ subtree: true }).map((animation) => animation.finished)
+    );
     const mutedColour = getComputedStyle(heading.element()).color;
 
     for (const expanded of [true, false]) {
@@ -1231,7 +1514,9 @@ describe('RoomList', () => {
 
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
 
-    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-create-button"]'))
+      .toBeInTheDocument();
     await expect
       .element(q(container, '[data-testid="room-group-drag-handle"]'))
       .toBeInTheDocument();
@@ -1291,7 +1576,9 @@ describe('RoomList', () => {
     ];
     const { container } = render(RoomList, { props: { canReorderGroups: true } });
     const header = Array.from(
-      container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]')
+      container.querySelectorAll<HTMLButtonElement>(
+        'button[aria-expanded]:not([data-testid="room-group-more"])'
+      )
     ).find((button) => button.textContent?.trim() === 'Projects');
     const title = header?.querySelector(':scope > span:last-child');
     expect(title).not.toBeNull();
@@ -1430,7 +1717,9 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
 
     await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
-    await expect.element(q(container, '[data-testid="create-room-button"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-create-button"]'))
+      .toBeInTheDocument();
   });
 
   it('keeps context-menu attachments but hides drag handles for a server without relative moves', () => {

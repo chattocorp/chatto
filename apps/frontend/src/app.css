@@ -727,19 +727,18 @@
   height: 3px;
   border-radius: 9999px;
   background-color: currentColor;
-  animation: typing-bounce 1.4s ease-in-out infinite;
+  animation: typing-chase 800ms linear infinite;
 }
 
-@keyframes typing-bounce {
-  0%,
-  60%,
-  100% {
-    transform: translateY(0);
-    opacity: 0.4;
-  }
-  30% {
-    transform: translateY(-3px);
+@keyframes typing-chase {
+  0% {
     opacity: 1;
+    transform: scale(1.15);
+  }
+  75%,
+  100% {
+    opacity: 0.15;
+    transform: scale(0.85);
   }
 }
 

@@ -1,3 +1,4 @@
+import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
@@ -173,12 +174,8 @@ vi.mock('$lib/state/clientAccount', () => ({
   }
 }));
 
-vi.mock('$lib/attachments/attachmentUrls', () => ({
-  LIGHTBOX_ATTACHMENT_IMAGE_REFRESH: {
-    width: 2048,
-    height: 2048,
-    fit: 'contain'
-  },
+vi.mock('$lib/attachments/attachmentUrls', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('$lib/attachments/attachmentUrls')>()),
   refreshAttachmentUrlsForAssets: mocks.refreshAttachmentUrlsForAssets
 }));
 
@@ -358,7 +355,7 @@ describe('ModalContainer image viewer', () => {
       expect.anything(),
       'room_1',
       ['att_1'],
-      { width: 2048, height: 2048, fit: 'contain' }
+      { width: 2048, height: 2048, fit: ImageFitMode.CONTAIN }
     );
     expect(mocks.getClient).toHaveBeenCalledWith('remote');
     expect(mocks.replaceState).toHaveBeenCalledWith('', {

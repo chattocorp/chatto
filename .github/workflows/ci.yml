@@ -500,7 +500,19 @@ jobs:
         if: needs.changes.outputs.chatto == 'true'
         env:
           E2E_SHARD: ${{ matrix.shard }}
-        run: cd apps/frontend && pnpm exec playwright test --grep-invert @ffmpeg --shard="$E2E_SHARD/4"
+          PLAYWRIGHT_JSON_OUTPUT_FILE: e2e-results.json
+        run: |
+          cd apps/frontend
+          node --test scripts/run-e2e-shard.test.mjs
+          node scripts/run-e2e-shard.mjs "$E2E_SHARD/4" --grep-invert @ffmpeg
+
+      - name: Upload E2E timings
+        uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() && needs.changes.outputs.chatto == 'true' }}
+        with:
+          name: e2e-timings-${{ matrix.shard }}-of-4
+          path: apps/frontend/e2e-results.json
+          retention-days: 14
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v7

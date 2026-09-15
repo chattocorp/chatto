@@ -19,6 +19,7 @@ import (
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
@@ -421,6 +422,57 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 	}
 	if successes != 1 || rejected != 1 {
 		t.Fatalf("concurrent code redemption successes/rejections = %d/%d, want 1/1", successes, rejected)
+	}
+}
+
+func TestPasswordManagerDiscoveryResumesPasswordChangeAfterLogin(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "password-manager@example.com", "a deliberately uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{
+		Accounts: runtime.Accounts, Authentication: runtime.Authentication, Sessions: runtime.Sessions,
+		PublicURL: cfg.HTTP.PublicURLOrDefault(),
+	})
+
+	discovery := requestHandler(t, handler, http.MethodGet, "/.well-known/change-password", "", nil)
+	if discovery.Code != http.StatusSeeOther || discovery.Header().Get("Location") != "/account/password" {
+		t.Fatalf("discovery status/location = %d %q", discovery.Code, discovery.Header().Get("Location"))
+	}
+
+	protectedPage := requestHandler(t, handler, http.MethodGet, discovery.Header().Get("Location"), "", nil)
+	loginTarget := protectedPage.Header().Get("Location")
+	if protectedPage.Code != http.StatusSeeOther || loginTarget != "/login?return_to=%2Faccount%2Fpassword" {
+		t.Fatalf("protected page status/location = %d %q", protectedPage.Code, loginTarget)
+	}
+
+	loginPage := requestHandler(t, handler, http.MethodGet, loginTarget, "", nil)
+	if loginPage.Code != http.StatusOK || !strings.Contains(loginPage.Body.String(), `name="return_to" value="/account/password"`) {
+		t.Fatalf("login page status/body = %d %s", loginPage.Code, loginPage.Body.String())
+	}
+
+	login := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+		"email": {"password-manager@example.com"}, "password": {"a deliberately uncommon password"},
+		"return_to": {"/account/password"},
+	}.Encode(), nil)
+	if login.Code != http.StatusSeeOther || login.Header().Get("Location") != "/account/password" || len(login.Result().Cookies()) != 1 {
+		t.Fatalf("login status/location/cookies = %d %q %d", login.Code, login.Header().Get("Location"), len(login.Result().Cookies()))
+	}
+
+	passwordPage := requestHandler(t, handler, http.MethodGet, login.Header().Get("Location"), "", login.Result().Cookies()[0])
+	if passwordPage.Code != http.StatusOK || !strings.Contains(passwordPage.Body.String(), "Change your password") {
+		t.Fatalf("password page status/body = %d %s", passwordPage.Code, passwordPage.Body.String())
+	}
+
+	externalReturn := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+		"email": {"password-manager@example.com"}, "password": {"a deliberately uncommon password"},
+		"return_to": {"https://attacker.example"},
+	}.Encode(), nil)
+	if externalReturn.Code != http.StatusSeeOther || externalReturn.Header().Get("Location") != "/account" {
+		t.Fatalf("external return status/location = %d %q", externalReturn.Code, externalReturn.Header().Get("Location"))
 	}
 }
 
@@ -2225,4 +2277,78 @@ func eventCount(t *testing.T, runtime *Runtime) uint64 {
 		t.Fatal(err)
 	}
 	return info.State.Msgs
+}
+
+// A stopped inventory used to cancel projectors without releasing Serve's
+// readiness wait, hiding the underlying NATS error until external cancellation.
+func TestServeReturnsInventoryStartupFailure(t *testing.T) {
+	for _, missingTier := range []bool{false, true} {
+		t.Run(fmt.Sprintf("missing_tier=%v", missingTier), func(t *testing.T) {
+			cfg := embeddedTestConfig(t)
+			cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:0", PublicURL: "http://localhost:8080"}
+			logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+			runtime, err := New(testContext(t), cfg, logging.Events{Logger: logger})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer runtime.Close()
+			js, err := jetstream.New(runtime.connection.NATS)
+			if err != nil {
+				t.Fatal(err)
+			}
+			stream, err := js.Stream(testContext(t), "KV_"+storage.RuntimeStateBucket)
+			if err != nil {
+				t.Fatal(err)
+			}
+			info, err := stream.Info(testContext(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			info.Config.MaxConsumers = 1
+			if _, err := js.UpdateStream(testContext(t), info.Config); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := stream.CreateConsumer(testContext(t), jetstream.ConsumerConfig{Name: "occupy-quota", AckPolicy: jetstream.AckExplicitPolicy}); err != nil {
+				t.Fatal(err)
+			}
+			if missingTier {
+				runtime.Sessions = sessions.New(failingInventoryKV{}, js, make([]byte, 32), runtime.Accounts.AuthenticationVersion)
+			}
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() { done <- serveRuntime(ctx, cfg, logger, runtime) }()
+			select {
+			case err := <-done:
+				var apiErr nats.JetStreamError
+				if !errors.As(err, &apiErr) {
+					t.Fatalf("lost NATS API error: %v", err)
+				}
+				if missingTier && apiErr.APIError().ErrorCode != 10120 {
+					t.Fatalf("NATS error code = %d", apiErr.APIError().ErrorCode)
+				}
+				if missingTier && !strings.Contains(err.Error(), "R1 tier") {
+					t.Fatalf("missing quota hint: %v", err)
+				}
+				if !missingTier && !strings.Contains(err.Error(), "maximum consumers limit reached") {
+					t.Fatalf("lost consumer limit error: %v", err)
+				}
+				if !strings.Contains(err.Error(), "watch browser sessions") {
+					t.Fatalf("lost inventory context: %v", err)
+				}
+			case <-time.After(3 * time.Second):
+				cancel()
+				err := <-done
+				t.Fatalf("startup waited for external cancellation: %v", err)
+			}
+		})
+	}
+}
+
+// Missing R1 tiers on an R3 deployment produce this server API error. Inject
+// only Watch's failure; run the real inventory and projection lifecycles.
+type failingInventoryKV struct{ jetstream.KeyValue }
+
+func (failingInventoryKV) Watch(context.Context, string, ...jetstream.WatchOpt) (jetstream.KeyWatcher, error) {
+	return nil, &nats.APIError{Code: 400, ErrorCode: 10120, Description: "no JetStream default or applicable tiered limit present"}
 }

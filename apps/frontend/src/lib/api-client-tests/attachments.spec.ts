@@ -5,6 +5,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 
 import {
   Asset,
+  GetAssetResponse,
   BatchGetAssetsResponse,
   RoomAttachmentListItem
 } from '@chatto/api-types/api/v1/attachments_pb';
@@ -23,7 +24,8 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   handleAuthenticationRequired: vi.fn(),
   listRoomAttachments: vi.fn(),
-  batchGetAssets: vi.fn()
+  batchGetAssets: vi.fn(),
+  getAsset: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -54,6 +56,7 @@ describe('createAttachmentAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.listRoomAttachments.mockReset();
     mocks.batchGetAssets.mockReset();
+    mocks.getAsset.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockImplementation((service) => {
       if (service.typeName === 'chatto.api.v1.RoomService') {
@@ -62,9 +65,34 @@ describe('createAttachmentAPI', () => {
         };
       }
       return {
+        getAsset: mocks.getAsset,
         batchGetAssets: mocks.batchGetAssets
       };
     });
+  });
+
+  it('reads file size as authenticated metadata and forwards cancellation', async () => {
+    mocks.getAsset.mockResolvedValue(
+      new GetAssetResponse({ asset: new Asset({ id: 'html', size: 1536n }) })
+    );
+    const api = createAttachmentAPI({
+      baseUrl: 'https://remote.example/api/connect',
+      bearerToken: 'test-token'
+    });
+    const controller = new AbortController();
+    await expect(api.getMetadata('room', 'html', controller.signal)).resolves.toEqual({
+      size: 1536
+    });
+    expect(mocks.getAsset).toHaveBeenCalledWith(
+      { roomId: 'room', assetId: 'html' },
+      { headers: { Authorization: 'Bearer test-token' }, signal: controller.signal }
+    );
+  });
+
+  it('does not report a missing asset as a zero-byte file', async () => {
+    mocks.getAsset.mockResolvedValue(new GetAssetResponse());
+    const api = createAttachmentAPI({ baseUrl: '/api/connect', bearerToken: null });
+    await expect(api.getMetadata('room', 'missing')).rejects.toThrow('Asset metadata unavailable');
   });
 
   it('lists room attachments with bearer auth and maps attachment metadata', async () => {

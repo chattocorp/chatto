@@ -235,8 +235,8 @@ timed-out, and rejected catch-ups.
 ## Authorization and projection readiness
 
 Privileged-mode changes keep the mounted client state and resume cursor. The
-client reconnects and reads current viewer and room resources before it marks
-catch-up complete. The server cancels authorized work at the session's privilege
+client reconnects and reads current viewer, room, and room-group resources
+before it marks catch-up complete. The server cancels authorized work at the session's privilege
 deadline and sends a reconnecting `PRIVILEGED_MODE_EXPIRED` close. The client
 then reads effective permissions with privileged mode inactive. See
 [ADR-096](../adr/ADR-096-session-scoped-privileged-mode.md).
@@ -331,7 +331,7 @@ server-side policy checks.
 The bundled frontend selects `SNAPSHOT`. It resets its server projection when
 it receives a snapshot and applies all resource families from that one frame.
 After every `caught_up`, including a successful resume, it replaces the server
-runtime state, viewer, visible rooms, notifications, and displayed user
+runtime state, viewer, visible rooms, room groups, notifications, and displayed user
 presence with cursor-bounded ConnectRPC results. It replaces mounted timelines
 only after snapshot fallback because durable replay already repairs timeline
 changes. It saves the `caught_up` cursor only after this reconciliation and all

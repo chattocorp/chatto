@@ -47,6 +47,29 @@ require launching
 `mise x node@24 npm:portless@0.15.5 -- portless trust` in an
 interactive terminal so macOS can trust Portless's development CA.
 
+## Local Development with Codex
+
+The Codex desktop environment is in `.codex/environments/environment.toml`.
+Select **Chatto** in the app's local environment settings. New worktrees use
+the same setup commands as Conductor. The **Dev stack**, **Storybook**, and
+**Docs website** actions run the corresponding `mise` tasks in the integrated
+terminal. The cleanup script stops workspace processes before Codex deletes
+the worktree.
+
+Start an action, then open its URL in the app's browser. With the default
+local settings, Chatto uses `https://chatto.local.localhost:42444`, Storybook
+uses `https://storybook.local.localhost:42444`, and the docs website uses
+`https://docs.local.localhost:42444`. Authling, Mailpit, LiveKit, and Runling
+use the same URL pattern with their service names.
+
+This configuration does not allocate ports or route names for each worktree.
+The development stack uses base port `4000` and route suffix `local` outside
+Conductor. Run one such stack at a time, or set distinct `CONDUCTOR_PORT` and
+`CONDUCTOR_WORKSPACE_NAME` values for each workspace before starting its
+actions. These variables are the existing `mise` inputs for port and route
+isolation. Conductor's preview URL list, `.worktreeinclude` handling, Git
+settings, and PR prompt are not part of the Codex environment configuration.
+
 ## Developing Outside of Conductor
 
 Use `mise` for local tool versions and tasks:
@@ -147,3 +170,28 @@ Seed the starting state, then perform the action under test in the browser.
 For live-delivery tests, connect the receiver before sending the new message.
 Keep the normal login flow when testing authentication. The performance fixture
 retains its separate, fixed workload.
+
+## E2E Shards
+
+CI runs the non-media e2e tests on four runners. Each runner uses four workers.
+The shard script collects the current suite, sorts tests by file and source
+line, then assigns consecutive tests to different runners. This spreads large
+groups of slow tests across the runners without a stored timing database.
+Tests must run independently; do not use this split for serial suites.
+
+To run the first CI shard locally, start in `apps/frontend/`:
+
+```sh
+mise x -- node scripts/run-e2e-shard.mjs 1/4 --grep-invert @ffmpeg
+```
+
+Add `--list` to inspect the selection without starting test servers. The media
+and performance suites keep their separate CI jobs. CI uploads an
+`e2e-timings-N-of-4` JSON artifact for each shard, including successful runs.
+Compare the slowest test step and complete job across repeated runs; summed
+test durations alone do not measure CI wall time.
+
+The inactive-server notification tests advance the browser clock past the
+background poll interval. They wait for real projection catch-up and socket
+closure before and after the advance. Keep server requests and message delivery
+real when adding tests that control browser time.

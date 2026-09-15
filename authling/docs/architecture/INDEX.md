@@ -9,7 +9,9 @@ The [`authling` command](../../cmd/authling/main.go) exposes `help`, `version`,
 and `run`. `run` loads the standalone configuration, opens Authling's NATS
 storage, starts every required projection and the browser-session inventory,
 waits for startup replay, starts the HTTP listener, and then runs until its
-process context is cancelled.
+process context is cancelled. A required task failure cancels startup readiness
+waits and is returned to the CLI with its original error chain. A missing
+JetStream tier error also includes an account-quota hint.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
 signed-in password-change, verified email-change, consent, account, and logout
@@ -29,7 +31,9 @@ override TOML values. Unknown TOML fields fail decoding.
 browser cookie transport policy. An `http://` origin is valid only when both
 the origin and listener are loopback; every other deployment must configure an
 `https://` origin. `AUTHLING_HTTP_PUBLIC_URL` provides the equivalent override.
-Requests with another `Host` are rejected, and unsafe browser requests must
+Requests at another host, port, or scheme receive a temporary redirect (307)
+to the configured public origin, with their path and query preserved. Redirects
+run before application handlers and are not cached. Unsafe browser requests must
 carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. An explicit configuration switch lets canonical-origin
@@ -87,7 +91,9 @@ restore boundary.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event
-commits. Normal command failures compensate immediately. Crash orphans remain
+is acknowledged. Failures before publication and definite OCC rejections permit
+immediate cleanup. An unknown publication outcome retains both keys and the
+operation marker, even if the request reports failure. Crash orphans remain
 discoverable by their durable marker; Authling does not use time alone as
 authority to delete keys that an in-flight replica could still reference.
 
@@ -150,6 +156,9 @@ share distributed attempt limits and bounded Argon2 capacity. They resolve and
 decrypt a verifier only for one bounded Argon2id comparison; absent login
 accounts resolve a persistent synthetic key hierarchy and encrypted dummy
 verifier through the same storage path.
+After a successful password check, login waits for both account and registry
+projection boundaries and reads the generation only if the exact verified
+credential remains active. Audit events do not change that credential proof.
 
 The runtime does not become ready until the projections have replayed their
 captured startup history. A decode or apply failure fails the projection and
@@ -224,7 +233,12 @@ inactivity limit. Activity updates use OCC and never extend the absolute
 deadline. Each session records the account authentication version current at
 issuance. Password reset, signed-in password change, and verified email change
 advance that durable version, invalidating every older session across replicas
-and restarts. Logout deletes the server record before clearing the cookie.
+and restarts. Login, signup, and recovery bind session creation to the exact
+authentication generation that authorized the operation. A later mutation
+cannot upgrade an earlier proof to the new generation. The event and session
+storage formats are unchanged; all replicas must run the fix to close the old
+session-creation path. Logout deletes the server record before clearing the
+cookie.
 
 `GET /account` also reads the current account's active sessions from the
 process-wide inventory. It renders lifecycle timestamps and identifies the
@@ -280,6 +294,9 @@ projection boundaries, then appends a `PasswordChangedEvent` bound to the exact
 reauthenticated credential. It advances the authentication version, invalidates
 older browser sessions, and creates a replacement session at that exact
 generation. The account ID, verified email, and OIDC `sub` remain unchanged.
+`GET` and `HEAD /.well-known/change-password` return a temporary, non-cacheable
+redirect to this page. A signed-out request carries only this fixed internal
+return target through login. Other submitted return targets are ignored.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,

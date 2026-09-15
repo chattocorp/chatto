@@ -52,6 +52,10 @@ type Dependencies struct {
 	TrustProxyHeaders bool
 }
 
+const changePasswordWellKnownPath = "/.well-known/change-password"
+const accountPasswordPath = "/account/password"
+const loginReturnParameter = "return_to"
+
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
 // the server and remain usable without client-side JavaScript.
 func Handler(dependencies ...Dependencies) http.Handler {
@@ -73,16 +77,20 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		panic("open embedded web assets: " + err.Error())
 	}
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
+	mux.HandleFunc("GET "+changePasswordWellKnownPath, func(w http.ResponseWriter, r *http.Request) {
+		redirect(w, r, accountPasswordPath)
+	})
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		render(w, r, http.StatusOK, homePage())
 	})
 	mux.HandleFunc("GET /login", func(w http.ResponseWriter, r *http.Request) {
 		requestID := r.URL.Query().Get("id")
+		returnPath := loginReturnPath(r.URL.Query().Get(loginReturnParameter))
 		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
-		render(w, r, http.StatusOK, loginPage("", requestID))
+		render(w, r, http.StatusOK, loginPage("", requestID, returnPath))
 	})
 	mux.HandleFunc("POST /login", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Authentication == nil || deps.Sessions == nil {
@@ -95,29 +103,34 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", ""))
+			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", "", ""))
 			return
 		}
 		requestID := r.FormValue("oidc_request")
+		returnPath := loginReturnPath(r.FormValue(loginReturnParameter))
 		if requestID != "" && (deps.OIDC == nil || !validConsentRequest(r, deps.OIDC, requestID)) {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
 		account, err := deps.Authentication.Login(r.Context(), r.FormValue("email"), r.FormValue("password"))
 		if errors.Is(err, accounts.ErrInvalidCredentials) {
-			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID))
+			render(w, r, http.StatusUnprocessableEntity, loginPage("The email address or password is incorrect.", requestID, returnPath))
 			return
 		}
 		if err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
-			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID))
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
+			render(w, r, http.StatusServiceUnavailable, loginPage("We couldn't sign you in. Please try again later.", requestID, returnPath))
 			return
 		}
 		if requestID != "" {
 			redirect(w, r, "/oidc/consent?id="+url.QueryEscape(requestID))
+			return
+		}
+		if returnPath != "" {
+			redirect(w, r, returnPath)
 			return
 		}
 		redirect(w, r, "/account")
@@ -215,7 +228,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusOK, passwordResetCompletePage())
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
 			render(w, r, http.StatusServiceUnavailable, passwordResetCompletePage())
 			return
 		}
@@ -512,11 +525,11 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		redirect(w, r, "/account?profile_updated=1")
 	})
-	mux.HandleFunc("GET /account/password", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET "+accountPasswordPath, func(w http.ResponseWriter, r *http.Request) {
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
-			redirect(w, r, "/login")
+			redirect(w, r, passwordChangeLoginURL())
 			return
 		} else if err != nil {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
@@ -533,7 +546,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 		render(w, r, http.StatusOK, passwordChangePage("", deps.Accounts.PasswordMinimumLength(), email))
 	})
-	mux.HandleFunc("POST /account/password", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("POST "+accountPasswordPath, func(w http.ResponseWriter, r *http.Request) {
 		if deps.Accounts == nil || deps.Authentication == nil || deps.Sessions == nil {
 			http.Error(w, "password change unavailable", http.StatusServiceUnavailable)
 			return
@@ -834,7 +847,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusCreated, accountCreatedPage(account.ID))
 			return
 		}
-		if err := establishSession(w, r, deps, account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, account.ID, account.AuthenticationVersion); err != nil {
 			render(w, r, http.StatusServiceUnavailable, accountCreatedPage(account.ID))
 			return
 		}
@@ -843,7 +856,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	if deps.OIDC != nil {
 		mux.Handle("/", deps.OIDC)
 	}
-	handler := requireCanonicalHost(mux, publicOrigin)
+	handler := redirectToCanonicalOrigin(mux, publicOrigin)
 	if deps.TrustProxyHeaders {
 		handler = useTrustedProxyOrigin(handler)
 	}
@@ -883,6 +896,17 @@ func validConsentRequest(r *http.Request, service *oidcprovider.Service, id stri
 	return err == nil
 }
 
+func loginReturnPath(candidate string) string {
+	if candidate == accountPasswordPath {
+		return candidate
+	}
+	return ""
+}
+
+func passwordChangeLoginURL() string {
+	return "/login?" + url.Values{loginReturnParameter: {accountPasswordPath}}.Encode()
+}
+
 func render(w http.ResponseWriter, r *http.Request, status int, component templ.Component) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -897,22 +921,10 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-func establishSession(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string) error {
-	return establishSessionForAuthenticationVersion(w, r, deps, accountID, nil)
-}
-
+// establishSessionAtAuthenticationVersion never upgrades a stale login or
+// recovery proof to a credential generation that did not authorize it.
 func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64) error {
-	return establishSessionForAuthenticationVersion(w, r, deps, accountID, &authenticationVersion)
-}
-
-func establishSessionForAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion *uint64) error {
-	var token string
-	var err error
-	if authenticationVersion == nil {
-		token, _, err = deps.Sessions.Create(r.Context(), accountID)
-	} else {
-		token, _, err = deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, *authenticationVersion)
-	}
+	token, _, err := deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, authenticationVersion)
 	if err != nil {
 		return err
 	}
@@ -1052,16 +1064,31 @@ func sameOrigin(r *http.Request, expected *url.URL) bool {
 	return err == nil && sameOriginTuple(parsed, requestOrigin)
 }
 
-func requireCanonicalHost(next http.Handler, expected *url.URL) http.Handler {
+// redirectToCanonicalOrigin serves application routes only at the configured
+// public origin. Redirect targets use trusted configuration, never a request
+// host or an absolute request URI. A 307 preserves methods without caching a
+// hostname choice permanently.
+func redirectToCanonicalOrigin(next http.Handler, expected *url.URL) http.Handler {
 	if expected == nil {
 		return next
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestHost, err := url.Parse(expected.Scheme + "://" + r.Host)
-		if err != nil || requestHost.User != nil || requestHost.Path != "" ||
-			requestHost.RawQuery != "" || requestHost.Fragment != "" ||
-			!sameHostPort(requestHost, expected) {
-			http.Error(w, "request host does not match Authling's public URL", http.StatusMisdirectedRequest)
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		requestOrigin, err := url.Parse(scheme + "://" + r.Host)
+		if err != nil || requestOrigin.Host == "" || requestOrigin.User != nil || requestOrigin.Path != "" ||
+			requestOrigin.RawQuery != "" || requestOrigin.Fragment != "" {
+			http.Error(w, "invalid request host", http.StatusBadRequest)
+			return
+		}
+		if !sameOriginTuple(requestOrigin, expected) {
+			target := *expected
+			target.Path, target.RawPath = r.URL.Path, r.URL.RawPath
+			target.RawQuery, target.ForceQuery = r.URL.RawQuery, r.URL.ForceQuery
+			w.Header().Set("Cache-Control", "no-store")
+			http.Redirect(w, r, target.String(), http.StatusTemporaryRedirect)
 			return
 		}
 		next.ServeHTTP(w, r)

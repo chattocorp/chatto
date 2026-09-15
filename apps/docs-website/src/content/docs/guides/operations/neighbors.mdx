@@ -37,9 +37,14 @@ as a rank or preference.
 ## Use the Server Directory
 
 Select **Add Server** in the Server Gutter to open the Server Directory. The
-client starts from every server that is registered on the device. It shows each
-direct recommendation after its public profile loads. Direct recommendations
-do not need reciprocal confirmation.
+client first explains that each contacted server can see your IP address and
+technical connection details. Select **Discover servers** to allow these
+connections. The client saves this choice on your device. It asks again if you
+clear local browser data or use another device or browser profile.
+
+After you give consent, the client starts from every server that is registered
+on the device. It shows each direct recommendation after its public profile
+loads. Direct recommendations do not need reciprocal confirmation.
 
 The client reads a recommended server's directory before it uses that server as
 a recursive source. It expands the server only when the source and target
@@ -53,11 +58,14 @@ recommend the same result, the card shows two server names and the number of
 other recommendations. Server profile cards use a tapestry layout.
 
 The client requests each advertised server's public profile. A result can show
-the server name, description, logo, and banner. If a server is offline or does
-not return a valid public profile, the Server Directory omits it. The Neighbors
-administration page keeps the failed server visible so that an administrator
-can review or remove it. A failed server does not prevent the client from
-showing other results.
+the server name, description, logo, and banner. The client accepts a logo or
+banner only from that server's origin. It loads the image without credentials
+or referrer data, does not follow image redirects, and accepts only responses
+that declare a supported raster image media type and contain at most 5 MiB. If
+a server is offline or does not return a valid public profile, the Server
+Directory omits it. The Neighbors administration page keeps the failed server
+visible so that an administrator can review or remove it. A failed server does
+not prevent the client from showing other results.
 
 The client starts one automatic batch of 12 candidate-directory requests. It
 can start one more batch after you scroll near the end of the results. A short
@@ -97,12 +105,14 @@ advertise each other. It uses this observation only to expand recursive
 discovery. Direct recommendations can remain one-sided. Neither case is
 authenticated consent, a durable relationship, compatibility, or trust.
 
-Opening the Neighbors administration page or the Server Directory makes the
-client contact advertised origins and load their public images. Public
-discovery requests contain no reusable user credential and do not follow
+Opening the Neighbors administration page makes the client contact advertised
+origins. The Server Directory makes these connections only after you select
+**Discover servers** once on the device. Public discovery and image requests
+contain no reusable user credential or referrer data and do not follow
 redirects. A failed cross-origin request can still send an unauthenticated CORS
-preflight. The session limits bound this request effect. The server-side
-Neighbor configuration remains passive.
+preflight. Each remote server can see your network IP address and technical
+connection details. The session limits bound the Server Directory request
+effect. The server-side Neighbor configuration remains passive.
 
 ## Use the API
 

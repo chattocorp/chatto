@@ -17,6 +17,9 @@
       "find": "Find server",
       "servers_title": "Servers",
       "servers_description": "Recommended by servers you have joined. Results are not ranked.",
+      "consent_title": "Kas otsida soovitatud servereid?",
+      "consent_body": "Chatto võtab ühendust serveritega, mida soovitavad serverid, millega oled liitunud. Need serverid näevad sinu IP-aadressi ja ühenduse tehnilisi üksikasju. Chatto salvestab sinu valiku sellesse seadmesse.",
+      "consent_action": "Otsi servereid",
       "recommended_by": "Soovitajad: {servers}",
       "more_recommenders_count": {
         "other": "veel {count}"

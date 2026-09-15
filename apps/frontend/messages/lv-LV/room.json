@@ -142,6 +142,14 @@
       },
       "show_less": "rādīt mazāk"
     },
+    "typing": {
+      "one": "{name} raksta",
+      "two": "{first} un {second} raksta",
+      "many_count": {
+        "other": "{names} un vēl {count} raksta",
+        "one": "{names} un vēl {count} raksta"
+      }
+    },
     "attachment": {
       "delete_title": "Dzēst pielikumu",
       "delete_prompt": "Vai tiešām vēlaties dzēst šo pielikumu? Šo darbību nevar atsaukt.",
@@ -157,7 +165,19 @@
       "description_label": "Apraksts (neobligāts)",
       "description_help": "Aprakstiet pielikumu cilvēkiem, kuri to nevar redzēt vai dzirdēt.",
       "description_too_long": "Aprakstā drīkst būt ne vairāk kā {max} rakstzīmes.",
-      "description_update_failed": "Neizdevās atjaunināt pielikuma aprakstu"
+      "description_update_failed": "Neizdevās atjaunināt pielikuma aprakstu",
+      "html_viewer": {
+        "download": "Lejupielādēt",
+        "show_preview": "Rādīt priekšskatījumu",
+        "warning": "Šis dokuments var ielādēt saturu no ārējām vietnēm. Šīs vietnes var redzēt tavu IP adresi.",
+        "preview_title": "Faila {filename} priekšskatījums",
+        "preview_failed": "Neizdevās ielādēt priekšskatījumu. Mēģini vēlreiz.",
+        "document_type": "Dokumenta veids",
+        "html_document": "HTML dokuments",
+        "xhtml_document": "XHTML dokuments",
+        "file_size": "Faila lielums",
+        "unavailable": "Nav pieejams"
+      }
     },
     "link_preview": {
       "delete_title": "Dzēst saites priekšskatījumu",
