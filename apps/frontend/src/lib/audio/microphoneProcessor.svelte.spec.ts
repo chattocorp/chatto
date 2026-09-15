@@ -181,42 +181,48 @@ it('rejects SDK initialization queued after permanent disposal', async () => {
   }
 });
 
-it('applies automatic polish live and retains it after restart', async () => {
-  const { context, oscillator, gain, track } = await input();
-  const processor = new MicrophoneProcessor();
-  oscillator.frequency.value = 8000;
-  gain.gain.value = 0.3;
-  const analyser = context.createAnalyser();
-  const samples = new Float32Array(analyser.fftSize);
-  const peak = () => {
-    analyser.getFloatTimeDomainData(samples);
-    return Math.max(...samples.map(Math.abs));
-  };
-  try {
-    await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
-    const monitor = () =>
-      context
-        .createMediaStreamSource(new MediaStream([processor.processedTrack!]))
-        .connect(analyser);
-    monitor();
-    await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.25));
-    processor.setEffects({ ...normalizeMicrophoneEffects(), polish: 1 });
-    await vi.waitFor(() => expect(peak()).toBeLessThan(0.24));
-    await processor.restart({ track, audioContext: context, kind: Track.Kind.Audio });
-    monitor();
-    await vi.waitFor(() => {
-      expect(peak()).toBeGreaterThan(0.05);
-      expect(peak()).toBeLessThan(0.24);
-    });
-    processor.setEffects(normalizeMicrophoneEffects());
-    await vi.waitFor(() => expect(peak()).toBeGreaterThan(0.25));
-  } finally {
-    await processor.destroy();
-    oscillator.stop();
-    track.stop();
-    await context.close();
+it.each([
+  { frequency: 100, amplitude: 0.5 },
+  { frequency: 8000, amplitude: 0.3 }
+])(
+  'applies automatic polish live and after restart at $frequency Hz',
+  async ({ frequency, amplitude }) => {
+    const { context, oscillator, gain, track } = await input();
+    const processor = new MicrophoneProcessor();
+    oscillator.frequency.value = frequency;
+    gain.gain.value = amplitude;
+    const analyser = context.createAnalyser();
+    const samples = new Float32Array(analyser.fftSize);
+    const peak = () => {
+      analyser.getFloatTimeDomainData(samples);
+      return Math.max(...samples.map(Math.abs));
+    };
+    try {
+      await processor.init({ track, audioContext: context, kind: Track.Kind.Audio });
+      const monitor = () =>
+        context
+          .createMediaStreamSource(new MediaStream([processor.processedTrack!]))
+          .connect(analyser);
+      monitor();
+      await vi.waitFor(() => expect(peak()).toBeGreaterThan(amplitude * 0.83));
+      processor.setEffects({ ...normalizeMicrophoneEffects(), polish: 1 });
+      await vi.waitFor(() => expect(peak()).toBeLessThan(amplitude * 0.8));
+      await processor.restart({ track, audioContext: context, kind: Track.Kind.Audio });
+      monitor();
+      await vi.waitFor(() => {
+        expect(peak()).toBeGreaterThan(0.05);
+        expect(peak()).toBeLessThan(amplitude * 0.8);
+      });
+      processor.setEffects(normalizeMicrophoneEffects());
+      await vi.waitFor(() => expect(peak()).toBeGreaterThan(amplitude * 0.83));
+    } finally {
+      await processor.destroy();
+      oscillator.stop();
+      track.stop();
+      await context.close();
+    }
   }
-});
+);
 
 it('updates gate softness without changing its saved threshold or Off behavior', async () => {
   const { context, oscillator, gain, track } = await input();

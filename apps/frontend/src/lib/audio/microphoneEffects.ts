@@ -11,7 +11,7 @@ export interface MicrophoneEffects {
   strength?: number;
   /** Soft saturation blend, 0–1; only the top fifth of Voice Quality enables it. */
   saturation?: number;
-  /** Automatic de-essing, limiting and gate softness, derived from Voice Quality. */
+  /** Automatic bass/plosive control, de-essing, limiting and gate softness. */
   polish?: number;
 }
 

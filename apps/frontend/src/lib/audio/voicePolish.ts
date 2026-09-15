@@ -64,7 +64,7 @@ export class VoicePolish {
         Math.min(1, (this.#highEnergy / Math.max(this.#energy, 1e-12) - 0.25) / 0.35)
       );
       const audible = Math.max(0, Math.min(1, (Math.sqrt(this.#highEnergy) - 0.015) / 0.06));
-      const target = 10 ** ((-9 * this.#amount * prominence * audible) / 20);
+      const target = 10 ** ((-9 * prominence * audible) / 20);
       this.#deEssGain +=
         (target - this.#deEssGain) * (target < this.#deEssGain ? this.#attack : this.#release);
       let peak = 0;
@@ -73,7 +73,7 @@ export class VoicePolish {
         const sample =
           this.#amount === 0
             ? (input[c]?.[i] ?? 0)
-            : this.#low[c] + this.#high[c] * this.#deEssGain;
+            : this.#low[c] + this.#high[c] * (1 + (this.#deEssGain - 1) * this.#amount);
         output[c][i] = sample;
         peak = Math.max(peak, Math.abs(output[c][i]));
       }
@@ -86,7 +86,10 @@ export class VoicePolish {
       const limit = Math.min(1, ceiling / Math.max(peak, 1e-12));
       // Immediate linked attack catches even the first sample of a transient.
       this.#limitGain = Math.min(limit, this.#limitGain + (1 - this.#limitGain) * this.#release);
-      for (const channel of output) channel[i] *= this.#limitGain;
+      // Fade held attenuation with the control, while still enforcing the
+      // current sample ceiling for an active limiter.
+      const appliedGain = Math.min(limit, 1 + (this.#limitGain - 1) * this.#amount);
+      for (const channel of output) channel[i] *= appliedGain;
     }
   }
 }

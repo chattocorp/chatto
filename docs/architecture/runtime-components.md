@@ -236,6 +236,16 @@ position disables gating. Voice Quality derives a polish amount from 0 to 1.
 This widens the closed gate's smooth gain transition from 0 to 12 dB below the
 opening threshold and extends release from 80 to 180 ms. Hold and hysteresis
 remain unchanged. The input meter maps -60 to 0 dBFS onto 0–1.
+The gate worklet then applies `LowFrequencyControl` in place, before native EQ
+and compression. A 120 Hz low-pass detector compares 2 ms energy with a 150 ms
+baseline and full-band energy to identify audible bass bursts. Its cut is
+bounded to 9 dB, with 1 ms gain attack and 80 ms release. A separate 250 Hz
+low-pass stage reduces sustained audible bass dominance by up to 4 dB, with
+150 ms detection/attack and 500 ms release. Both share gains across channels,
+scale with the existing polish amount, and bypass exactly at Normal. Partial
+threshold messages do not change their amount. The heuristic can react to
+very low-pitched vowels; bounded cuts limit that tradeoff. No new worklet node,
+look-ahead buffer, saved setting, or external connection is required.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
 80 Hz high-pass filter (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
@@ -257,7 +267,9 @@ Detection and gain attack use 1 ms; gain release uses 80 ms. Linked channel
 gains preserve balance. A final sample-peak limiter has immediate attack and
 80 ms release; its ceiling moves from 0.99 toward 0.89 as polish increases.
 This is a pre-encoding sample ceiling, not an inter-sample peak guarantee.
-Polish amount changes use 15 ms smoothing. Normal bypasses the added stage
+Polish amount changes use 15 ms smoothing and blend held corrections directly,
+so slow release does not produce a level step when returning to Normal.
+Normal bypasses the added stage
 exactly. Neither stage adds a look-ahead buffer. Both worklets are owned by
 `MicrophoneProcessor`; a failure in either stops both and routes raw input to
 the existing output track and fallback meter. Restart restores derived settings.

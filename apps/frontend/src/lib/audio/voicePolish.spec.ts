@@ -65,3 +65,23 @@ it('smooths updates and returns to exact bypass', () => {
   expect(normalizePolish(2)).toBe(1);
   expect([0, 50, 100].map((n) => microphoneEffectsForAmount(n).polish)).toEqual([0, 0.5, 1]);
 });
+
+it('fades out held limiter gain when switching back to Normal', () => {
+  const processor = new VoicePolish(48000, 1);
+  const output = [new Float32Array(128)];
+  processor.process([new Float32Array(128).fill(4)], output);
+  processor.amount = 0;
+  const input = [new Float32Array(128).fill(0.1)];
+  processor.process(input, output);
+  let previous = output[0][127];
+  let largestStep = 0;
+  for (let i = 0; i < 150; i++) {
+    processor.process(input, output);
+    for (const sample of output[0]) {
+      largestStep = Math.max(largestStep, Math.abs(sample - previous));
+      previous = sample;
+    }
+  }
+  expect(largestStep).toBeLessThan(0.001);
+  expect(output).toEqual(input);
+});

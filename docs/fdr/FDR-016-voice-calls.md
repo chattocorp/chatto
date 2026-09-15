@@ -20,7 +20,11 @@ Rooms support real-time voice conversations with optional camera video and scree
   both the rainbow and readout static; unavailable processing uses the standard
   disabled control.
   The low-cut filter, equaliser, and compression parameters interpolate between
-  these positions. Automatic de-essing reduces sharp S and SH sounds, and a
+  these positions. Automatic plosive control reduces brief bass thumps, and
+  adaptive bass control reduces sustained boom while preserving vocal warmth.
+  These cuts increase toward AWESOME and run before compression so excessive
+  bass is less likely to lower the whole voice. Automatic de-essing reduces
+  sharp S and SH sounds, and a
   final limiter catches sample peaks. Both increase toward AWESOME. An enabled
   gate gets a softer closing transition to preserve quiet word endings; Off
   still disables the gate. These additions need no separate controls and are
