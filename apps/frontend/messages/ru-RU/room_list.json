@@ -22,6 +22,7 @@
     "copy_room_id": "Скопировать ID комнаты",
     "copy_server_hostname": "Скопировать имя хоста сервера",
     "room_settings": "Настройки комнаты",
+    "add_to_group": "Добавить в {group}",
     "group_settings": "Настройки для {group}",
     "server_actions": "Действия для {server}",
     "room_actions": "Действия для #{room}"

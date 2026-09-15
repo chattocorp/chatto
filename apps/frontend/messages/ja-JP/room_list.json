@@ -22,6 +22,7 @@
     "copy_room_id": "ルームIDをコピー",
     "copy_server_hostname": "サーバーのホスト名をコピー",
     "room_settings": "ルーム設定",
+    "add_to_group": "{group}に追加",
     "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
     "room_actions": "#{room}のアクション"

@@ -22,6 +22,7 @@
     "copy_room_id": "Copiar ID de la sala",
     "copy_server_hostname": "Copiar nombre de host del servidor",
     "room_settings": "Configuración de la sala",
+    "add_to_group": "Añadir a {group}",
     "group_settings": "Configuración de {group}",
     "server_actions": "Acciones para {server}",
     "room_actions": "Acciones para #{room}"

@@ -22,6 +22,7 @@
     "copy_room_id": "Zkopírovat ID místnosti",
     "copy_server_hostname": "Zkopírovat název hostitele serveru",
     "room_settings": "Nastavení místnosti",
+    "add_to_group": "Přidat do {group}",
     "group_settings": "Nastavení pro {group}",
     "server_actions": "Akce pro {server}",
     "room_actions": "Akce pro #{room}"

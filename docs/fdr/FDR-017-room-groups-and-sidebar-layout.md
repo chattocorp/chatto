@@ -11,6 +11,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
 - Authorized viewers manage the layout where they use it. Group headers provide actions to create rooms and links, open group settings, or delete an empty group. Room and link rows provide their applicable settings, edit, archive, and delete actions. Server-wide room managers can create a group from a compact control after the last room group.
+- A group header shows a permanent **+** button when the viewer can create a room or manage the group. It opens a small menu with **New Room** (`room.create`) and **New Link** (group `room.manage`), showing only permitted actions. The button also works when the group is collapsed. The controls and open creation menu update when group permissions change, including when privileged mode is enabled or disabled. Each action creates its entry in that group. The header context menu keeps the creation and management actions.
 - Explicit drag handles let authorized viewers reorder groups and move room or link entries within or between groups. Pointer-based layouts fade each drag handle in over the leading row icon. Touch layouts keep the controls visible.
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
@@ -88,7 +89,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 
 **Decision:** Creation, removal, and ordering actions live next to the affected room group, room, or sidebar link. Detailed metadata and permission settings remain on resource pages in the management area. The room-layout overview remains available during the transition.
 **Why:** Operators can adjust the navigation structure without leaving the navigation context. The split also keeps complex forms out of the narrow sidebar.
-**Tradeoff:** Hover controls are less visible than permanent toolbar controls. Context menus and touch-visible controls provide another path. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
+**Tradeoff:** The permanent creation button uses space in each group header so users can find it. Drag handles still appear on hover or focus, and stay visible on touch layouts. Relative move commands preserve entries that the caller cannot see, so a filtered sidebar cannot remove hidden rooms from the authoritative layout.
 
 ### 11. Structural changes commit all authoritative facts together
 

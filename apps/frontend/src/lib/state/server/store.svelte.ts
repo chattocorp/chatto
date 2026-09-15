@@ -340,13 +340,21 @@ export class ServerStateStore {
     }
   }
 
-  /** Complete auxiliary reads and event reconciliation through `cursor`. */
+  /** Complete auxiliary reads and event reconciliation through `cursor`.
+   * Room groups must also be read: their viewer permissions can change when
+   * privileged mode changes without a durable room-layout event. */
   async completeRealtimeCatchUp(cursor: string): Promise<void> {
     const generation = this.#realtimeProjectionGeneration;
     const batches = await Promise.all(
-      (['serverState', 'viewer', 'rooms', 'notifications'] as RealtimeResourceFamily[]).map(
-        (family) => this.#realtimeResources.read(family, cursor)
-      )
+      (
+        [
+          'serverState',
+          'viewer',
+          'rooms',
+          'roomGroups',
+          'notifications'
+        ] as RealtimeResourceFamily[]
+      ).map((family) => this.#realtimeResources.read(family, cursor))
     );
     this.requireCurrentRealtimeProjection(generation);
     for (const resource of batches.flat()) {

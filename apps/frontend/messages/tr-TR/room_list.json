@@ -22,6 +22,7 @@
     "copy_room_id": "Oda kimliğini kopyala",
     "copy_server_hostname": "Sunucu ana bilgisayar adını kopyala",
     "room_settings": "Oda ayarları",
+    "add_to_group": "{group} grubuna ekle",
     "group_settings": "{group} ayarları",
     "server_actions": "{server} için eylemler",
     "room_actions": "#{room} için eylemler"

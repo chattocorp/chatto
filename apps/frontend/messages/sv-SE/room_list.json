@@ -22,6 +22,7 @@
     "copy_room_id": "Kopiera rums-ID",
     "copy_server_hostname": "Kopiera serverns värdnamn",
     "room_settings": "Rumsinställningar",
+    "add_to_group": "Lägg till i {group}",
     "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
     "room_actions": "Åtgärder för #{room}"
