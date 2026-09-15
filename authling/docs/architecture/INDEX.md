@@ -322,7 +322,11 @@ five-minute tokens or relying-party sessions.
 Conventional clients resolve from configuration. Unconfigured HTTPS URL client
 IDs resolve through the bounded CIMD fetcher, which disables redirects and
 proxies, validates DNS destinations before fetch and dial, and caps fetch time,
-body size, concurrency, and cache lifetime. Pending requests, code mappings,
+body size, concurrency, and cache lifetime. Each process admits at most eight
+cache-miss lookups without a waiting queue, before DNS work starts. One
+five-second lookup deadline includes DNS and body reads. Its cache holds at
+most 256 clients, removes expired entries on access, and evicts the entry with
+the earliest expiry when full. Pending requests, code mappings,
 and opaque access-token records are encrypted and expire in runtime state.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
