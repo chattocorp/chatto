@@ -19,6 +19,11 @@ account, and logout pages plus embedded browser assets. It also exposes OpenID C
 authorization, token, UserInfo, and JWKS endpoints. Authling exposes no public
 account-management, application-data, document, or synchronization API.
 
+`web.Handler` composes feature-specific route registration functions for login,
+signup, recovery, consent, account management, profile, password change, email
+change, and deletion. It retains the shared assets and home routes, OIDC
+fallback, and outer security and origin middleware.
+
 ## Configuration
 
 The runtime reads `authling.toml` by default. `AUTHLING_*` environment variables
