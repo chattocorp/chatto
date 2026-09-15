@@ -84,6 +84,11 @@
       href: resolve('/chat/[serverId]/settings/composer', { serverId: serverSegment }),
       label: m('settings.app_preferences.composer.title'),
       icon: 'iconify icon-[uil--edit]'
+    },
+    {
+      href: resolve('/chat/[serverId]/settings/voice', { serverId: serverSegment }),
+      label: m('voice.preferences.title'),
+      icon: 'iconify icon-[uil--headphones]'
     }
   ]);
 

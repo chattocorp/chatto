@@ -1,13 +1,31 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
 Rooms support real-time voice conversations with optional camera video and screen/window/tab sharing. Supported browsers can include audio from a shared browser tab. A phone tab in the room sidebar lets members start or join the room call; the call panel shows screen-share tiles first, then video-enabled participant cards, then compact voice-only participant cards, and provides mute, camera, screen-share, device-selection, and hang-up controls. Audio and video are routed through LiveKit (an external WebRTC service); Chatto only handles authorization, participant state, and the UI.
 
 ## Behavior
+
+- **App Preferences → Voice & video** stores microphone, speaker, camera, and
+  join-muted choices in this browser for the selected server. Successful device
+  changes during a call update those choices. Missing devices use a system
+  default without erasing the saved choice. The next call can use a device
+  that returns.
+- Camera selection does not start video. Joining muted does not request
+  microphone access merely to list devices. Browser support controls whether
+  a speaker can be selected.
+- Device choices use radio controls. An explicit local microphone test shows
+  an input meter and plays the microphone immediately through the selected
+  speaker. It does not record audio, connect to LiveKit, or verify network
+  connectivity. Testing is unavailable during the selected server's call.
+  Stop, navigation, and device changes release capture and stop playback;
+  late capture results are stopped as well.
+- Opening the settings page requests camera access only if camera names are
+  unavailable and no call is active on the selected server. The browser may
+  show its permission dialog. Discovery stops camera capture immediately.
 
 - Room membership and `call.join` are required to enter a call. Starting a
   new call also requires `call.start`. Media permissions do not grant entry.

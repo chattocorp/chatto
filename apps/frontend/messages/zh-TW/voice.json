@@ -70,6 +70,22 @@
     "game_windows_failed": "無法載入可分享的視窗。",
     "untitled_window": "未命名視窗",
     "game_window_selected": "已選擇 {name}",
-    "permission_denied": "你沒有執行此通話操作的權限。"
+    "permission_denied": "你沒有執行此通話操作的權限。",
+    "preferences": {
+      "title": "語音與視訊",
+      "scope": "儲存在此瀏覽器中，僅供此伺服器使用。",
+      "system_default": "系統預設",
+      "unavailable_device": "已儲存的裝置無法使用",
+      "output_unsupported": "此瀏覽器使用系統喇叭，無法選擇喇叭。",
+      "call_settings": "通話設定",
+      "join_muted": "加入通話時將麥克風靜音",
+      "test_title": "測試麥克風",
+      "input_level": "麥克風音量",
+      "start_test": "開始麥克風測試",
+      "stop_test": "停止測試",
+      "waiting": "正在等待麥克風存取權限…",
+      "test_failed": "無法測試麥克風。請檢查裝置存取權限後再試一次。",
+      "test_in_call": "請先離開通話，再測試麥克風。"
+    }
   }
 }

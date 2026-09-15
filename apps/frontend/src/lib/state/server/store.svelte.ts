@@ -3,6 +3,7 @@
  * Created and managed by the ServerRegistry — do not instantiate directly.
  */
 
+import { CallPreferencesState } from './callPreferences.svelte';
 import { CurrentUserState } from '$lib/auth/currentUser.svelte';
 import { ServerInfoState } from './state.svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
@@ -241,20 +242,24 @@ export class ServerStateStore {
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
     this.pendingHighlights = new PendingHighlightStore();
-    this.voiceCall = new VoiceCallState(voiceCallAPI, (roomId) => {
-      const state = this.projection.rooms.get(roomId)?.viewerState;
-      const granted = (permission: string) =>
-        state?.isMember === true &&
-        (state.permissions.some((grant) => grant.permission === permission && grant.granted) ??
-          false);
-      return {
-        start: granted('call.start'),
-        join: granted('call.join'),
-        voice: granted('call.voice'),
-        camera: granted('call.camera'),
-        screenshare: granted('call.screenshare')
-      };
-    });
+    this.voiceCall = new VoiceCallState(
+      voiceCallAPI,
+      (roomId) => {
+        const state = this.projection.rooms.get(roomId)?.viewerState;
+        const granted = (permission: string) =>
+          state?.isMember === true &&
+          (state.permissions.some((grant) => grant.permission === permission && grant.granted) ??
+            false);
+        return {
+          start: granted('call.start'),
+          join: granted('call.join'),
+          voice: granted('call.voice'),
+          camera: granted('call.camera'),
+          screenshare: granted('call.screenshare')
+        };
+      },
+      new CallPreferencesState(this.serverId)
+    );
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
     this.navigation = new NavigationStore(this.projection, this.realtimeSync, this.notifications);
     this.roomDirectory = new RoomDirectoryStore(

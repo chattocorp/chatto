@@ -70,6 +70,22 @@
     "game_windows_failed": "No se han podido cargar las ventanas para compartir.",
     "untitled_window": "Ventana sin título",
     "game_window_selected": "{name} seleccionado",
-    "permission_denied": "No tienes permiso para realizar esta acción en la llamada."
+    "permission_denied": "No tienes permiso para realizar esta acción en la llamada.",
+    "preferences": {
+      "title": "Voz y vídeo",
+      "scope": "Guardado en este navegador para este servidor.",
+      "system_default": "Predeterminado del sistema",
+      "unavailable_device": "Dispositivo guardado no disponible",
+      "output_unsupported": "Este navegador usa el altavoz del sistema. No se puede seleccionar otro altavoz.",
+      "call_settings": "Configuración de llamadas",
+      "join_muted": "Unirse a las llamadas con el micrófono silenciado",
+      "test_title": "Probar tu micrófono",
+      "input_level": "Nivel del micrófono",
+      "start_test": "Iniciar prueba del micrófono",
+      "stop_test": "Detener prueba",
+      "waiting": "Esperando acceso al micrófono…",
+      "test_failed": "No se pudo probar el micrófono. Comprueba el acceso al dispositivo e inténtalo de nuevo.",
+      "test_in_call": "Sal de la llamada antes de probar el micrófono."
+    }
   }
 }

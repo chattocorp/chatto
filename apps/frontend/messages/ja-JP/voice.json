@@ -70,6 +70,22 @@
     "game_windows_failed": "共有できるウィンドウを読み込めませんでした。",
     "untitled_window": "タイトルなしのウィンドウ",
     "game_window_selected": "{name}を選択しました",
-    "permission_denied": "この通話操作を実行する権限がありません。"
+    "permission_denied": "この通話操作を実行する権限がありません。",
+    "preferences": {
+      "title": "音声と映像",
+      "scope": "このサーバー用に、このブラウザーに保存されます。",
+      "system_default": "システムの既定",
+      "unavailable_device": "保存したデバイスは利用できません",
+      "output_unsupported": "このブラウザーはシステムのスピーカーを使用します。スピーカーの選択は利用できません。",
+      "call_settings": "通話設定",
+      "join_muted": "マイクをミュートして通話に参加",
+      "test_title": "マイクをテスト",
+      "input_level": "マイクのレベル",
+      "start_test": "マイクテストを開始",
+      "stop_test": "テストを停止",
+      "waiting": "マイクへのアクセスを待っています…",
+      "test_failed": "マイクをテストできませんでした。デバイスへのアクセスを確認して、もう一度お試しください。",
+      "test_in_call": "マイクをテストする前に通話から退出してください。"
+    }
   }
 }
