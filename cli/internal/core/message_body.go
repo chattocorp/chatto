@@ -6,6 +6,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/encryption"
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
@@ -14,6 +17,8 @@ import (
 // plaintext content. The body's encryption envelope is unwrapped by
 // the resolver layer's decryptMessageBody helper.
 type DecryptedMessageBody struct {
+	// MessageEventID is the canonical owner used for encryption and assets.
+	MessageEventID         string
 	AuthorId               string
 	Body                   string
 	Attachments            []*evtv1.Attachment
@@ -46,14 +51,18 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 		return nil, nil
 	}
 
-	plaintext, err := c.decryptMessageBody(ctx, eventID, entry.RoomID, body)
+	contentID, err := c.ResolveMessageContentID(entry.RoomID, eventID)
+	if err != nil {
+		return nil, nil
+	}
+	plaintext, err := c.decryptMessageBody(ctx, contentID, entry.RoomID, body)
 	if err != nil {
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			return nil, nil // crypto-shredded
 		}
 		return nil, fmt.Errorf("failed to decrypt message body: %w", err)
 	}
-	descriptions, err := c.decryptAttachmentDescriptions(ctx, eventID, entry.RoomID, body)
+	descriptions, err := c.decryptAttachmentDescriptions(ctx, contentID, entry.RoomID, body)
 	if err != nil {
 		if errors.Is(err, encryption.ErrKeyNotFound) {
 			return nil, nil
@@ -62,6 +71,7 @@ func (c *ChattoCore) GetFullMessageBody(ctx context.Context, eventID string) (*D
 	}
 
 	result := &DecryptedMessageBody{
+		MessageEventID:         contentID,
 		AuthorId:               body.GetAuthorId(),
 		Body:                   string(plaintext),
 		Attachments:            c.mediaModel.MessageBodyAttachments(body),
@@ -150,6 +160,59 @@ func (c *ChattoCore) attachmentDescriptionCanonicalEventID(eventID string) strin
 	return eventID
 }
 
+// ResolveMessageContentID returns the canonical content owner in the given
+// room. It rejects hidden echoes and invalid links. Callers must authorize the
+// requested operation; resolving a link does not grant message access.
+func (c *ChattoCore) ResolveMessageContentID(roomID, eventID string) (string, error) {
+	entry, ok := c.roomModel.timelineEntry(eventID)
+	if !ok || entry.RoomID != roomID {
+		return "", ErrMessageNotFound
+	}
+	id, ok := c.roomModel.timeline.Projection().ContentEventID(eventID)
+	if !ok {
+		return "", ErrMessageNotFound
+	}
+	return id, nil
+}
+
+// HydrateMessagePost resolves echo attribution and mentions for a read response.
+// The returned echo payload is detached from EVT. Missing originals never use old
+// copied echo metadata. Envelope identity and timeline routing remain unchanged.
+func (c *ChattoCore) HydrateMessagePost(ctx context.Context, event *evtv1.Event) (*evtv1.MessagePostedEvent, error) {
+	post := event.GetMessagePosted()
+	if post == nil || post.GetEchoOfEventId() == "" {
+		return post, nil
+	}
+	result := proto.Clone(post).(*evtv1.MessagePostedEvent)
+	result.InReplyTo = ""
+	result.MentionedUserIds = nil
+	result.Mentions = nil
+	id, err := c.ResolveMessageContentID(post.GetRoomId(), event.GetId())
+	if err != nil {
+		return result, nil
+	}
+	_, retracted, _ := c.roomModel.latestBodyReference(event.GetId())
+	if retracted {
+		return result, nil
+	}
+	entry, ok := c.roomModel.timelineEntry(id)
+	if !ok {
+		return result, nil
+	}
+	originals, err := c.timelineHydrator.events(ctx, []*TimelineEntry{entry})
+	if errors.Is(err, jetstream.ErrMsgNotFound) {
+		return result, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	original := originals[0].GetMessagePosted()
+	result.InReplyTo = original.GetInReplyTo()
+	result.MentionedUserIds = append([]string(nil), original.GetMentionedUserIds()...)
+	result.Mentions = cloneMessageMentions(original.GetMentions())
+	return result, nil
+}
+
 func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*evtv1.MessageBody, error) {
 	for attempt := 0; attempt < maxTimelineHydrationAttempts; attempt++ {
 		reference, retracted, known := c.roomModel.latestBodyReference(eventID)
@@ -161,9 +224,12 @@ func (c *ChattoCore) currentMessageBody(ctx context.Context, eventID string) (*e
 			if !c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
 				continue
 			}
+			if errors.Is(err, jetstream.ErrMsgNotFound) {
+				return nil, fmt.Errorf("%w: referenced body is missing", ErrMessageBodyCorrupt)
+			}
 			return nil, err
 		}
-		if c.roomModel.timeline.Projection().BodyReferenceCurrent(reference) {
+		if current, retracted, known := c.roomModel.latestBodyReference(eventID); known && !retracted && current == reference {
 			return body, nil
 		}
 	}

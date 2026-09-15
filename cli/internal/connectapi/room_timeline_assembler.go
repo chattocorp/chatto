@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/log"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
@@ -170,6 +171,31 @@ type timelineHydrator struct {
 	userIDs              map[string]struct{}
 	thumbnail            attachmentThumbnailRequest
 	threadMetadata       map[string]*core.ThreadMetadata
+	// bodyLoads shares one canonical body hydration per response. The response
+	// owns this cache; projections never retain its plaintext.
+	bodyMu    sync.Mutex
+	bodyLoads map[string]func() (*core.DecryptedMessageBody, error)
+}
+
+func (h *timelineHydrator) messageBody(ctx context.Context, roomID, eventID string) (*core.DecryptedMessageBody, error) {
+	id, err := h.api.core.ResolveMessageContentID(roomID, eventID)
+	if errors.Is(err, core.ErrMessageNotFound) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	h.bodyMu.Lock()
+	if h.bodyLoads == nil {
+		h.bodyLoads = make(map[string]func() (*core.DecryptedMessageBody, error))
+	}
+	load := h.bodyLoads[id]
+	if load == nil {
+		load = sync.OnceValues(func() (*core.DecryptedMessageBody, error) { return h.api.core.GetFullMessageBody(ctx, id) })
+		h.bodyLoads[id] = load
+	}
+	h.bodyMu.Unlock()
+	return load()
 }
 
 func timelineThreadKey(roomID, threadRootEventID string) string {
@@ -231,6 +257,10 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 }
 
 func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEvent, payload *evtv1.MessagePostedEvent) (*apiv1.Message, error) {
+	payload, err := h.api.core.HydrateMessagePost(ctx, event.Event)
+	if err != nil {
+		return nil, err
+	}
 	hydrationState, err := h.api.core.RoomTimelineReads().MessageHydrationState(event.Id)
 	if err != nil {
 		return nil, err
@@ -253,7 +283,10 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	}
 	message.ChannelEchoEventId = hydrationState.ChannelEchoEventID
 
-	body, err := h.api.core.GetFullMessageBody(ctx, event.Id)
+	var body *core.DecryptedMessageBody
+	if !hydrationState.HasDeletedAt {
+		body, err = h.messageBody(ctx, payload.GetRoomId(), event.Id)
+	}
 	if err != nil {
 		if !errors.Is(err, core.ErrMessageBodyCorrupt) {
 			return nil, err
@@ -269,7 +302,7 @@ func (h *timelineHydrator) messagePosted(ctx context.Context, event *core.RoomEv
 	}
 	if body != nil {
 		message.Body = &body.Body
-		message.Attachments = h.attachments(payload.GetRoomId(), event.Id, body.Attachments, body.AttachmentDescriptions)
+		message.Attachments = h.attachments(payload.GetRoomId(), body.MessageEventID, body.Attachments, body.AttachmentDescriptions)
 		message.LinkPreview = h.linkPreview(body.LinkPreview)
 		if body.UpdatedAt != nil {
 			message.UpdatedAt = timestamppb.New(*body.UpdatedAt)
@@ -327,6 +360,8 @@ func (h *timelineHydrator) attachments(roomID, messageEventID string, attachment
 		if attachment == nil {
 			continue
 		}
+		// A response can share a canonical body across original and echo rows.
+		attachment = proto.Clone(attachment).(*evtv1.Attachment)
 		if attachment.RoomId == "" {
 			attachment.RoomId = roomID
 		}

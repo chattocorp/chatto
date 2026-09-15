@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
+
 	evtv1 "hmans.de/chatto/internal/pb/chatto/core/evt/v1"
 )
 
@@ -210,6 +212,14 @@ func (c *ChattoCore) hydrateTimelineEntries(ctx context.Context, entries []*Time
 	}
 	result := make([]*RoomEvent, len(entries))
 	for i, event := range hydrated {
+		if event.GetMessagePosted().GetEchoOfEventId() != "" {
+			post, err := c.HydrateMessagePost(ctx, event)
+			if err != nil {
+				return nil, err
+			}
+			event = proto.Clone(event).(*evtv1.Event)
+			event.Event = &evtv1.Event_MessagePosted{MessagePosted: post}
+		}
 		result[i] = &RoomEvent{Event: event, Sequence: entries[i].StreamSeq}
 	}
 	return result, nil

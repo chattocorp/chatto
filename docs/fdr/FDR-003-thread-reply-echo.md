@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -14,7 +14,7 @@ conversation**.
 
 - The thread composer shows an echo checkbox when the user has the required
   permissions. It says **Also send to conversation** in a DM.
-- Ticking the checkbox and sending the reply produces two visible artifacts: the reply inside the thread pane, and a copy of the same message in the room timeline.
+- Ticking the checkbox and sending the reply produces two visible artifacts: the reply inside the thread pane, and a reference to the same message in the room timeline.
 - The checkbox resets to unchecked after each successful send.
 - A thread reply with an echo shows a megaphone icon after its text. The icon is not a control. It updates when the echo is added or removed.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
@@ -23,6 +23,7 @@ conversation**.
 - Deleting the echo itself only hides that room-timeline copy. The original thread reply remains in the thread with its body readable.
 - Reactions shown on the original reply and its channel echo are the same reaction set; reacting in either place targets the original reply.
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
+- Search returns the original reply once. Echoes do not create separate search matches.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
 - The main-room composer never shows the echo checkbox — the action only makes sense from inside a thread.
 - Editing a thread reply shows the same "Also send to channel" checkbox while
@@ -35,11 +36,11 @@ conversation**.
 
 ## Design Decisions
 
-### 1. Echo links by event identity, not payload aliases
+### 1. Echoes reference the original reply
 
-**Decision:** The echo and the original thread reply are two different EVT envelopes. The echo carries `echoOfEventId`, which points at the original reply envelope. The message identity itself lives on the envelope (`Event.id`), not inside the `MessagePostedEvent` payload.
-**Why:** Public timeline APIs and EVT now model the same wrapper/payload boundary. Echoes still render the same text, but edits and deletes are propagated through the event-link relationship instead of a shared `messageBodyId` payload crutch.
-**Tradeoff:** Read models have to keep the echo link when applying edit/delete and reaction state.
+**Decision:** An echo stores its own timeline identity and a link to the original thread reply. It does not store a second body, attachment list, preview, mention list, or reply attribution. Reads use the original content. API responses still contain a complete message.
+**Why:** One content source prevents stale copies and makes edits apply in both views without duplicate writes.
+**Tradeoff:** Reads must resolve the link. If the original is unavailable, the echo cannot use a historical copy as a fallback. Historical copies remain subject to normal secure deletion; upgrades do not bulk-delete them.
 
 ### 2. Echo deletion hides the echo artifact
 
@@ -53,11 +54,11 @@ conversation**.
 **Why:** The echo represents the same contribution in a second timeline context. A single reaction set keeps the room and thread views consistent and avoids users seeing different counts for one reply.
 **Tradeoff:** Reaction reads need the echo link to resolve aliases. Historical echo-keyed reaction facts are canonicalized during projection replay instead of rewriting EVT.
 
-### 4. Mentions copy to the echo, but don't re-notify
+### 4. Echoes resolve mentions without new notifications
 
-**Decision:** The echo carries the same `mentionedUserIds` as the original, but only the original triggers mention notifications.
-**Why:** The mention rendering (highlight, link to profile) needs to work on the echo too, so the field has to be present. But getting two notifications for one mention would be noisy.
-**Tradeoff:** Mention-driven indicators in the UI need to look at both events; the notification system has to know to skip the echo.
+**Decision:** Reads resolve mentions from the original reply. Only the original triggers mention notifications.
+**Why:** Mentions must display in both views, but each recipient must receive only one notification.
+**Tradeoff:** Timeline and realtime responses must resolve the original mention metadata.
 
 ### 5. Echo publish is best-effort
 

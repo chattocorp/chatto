@@ -1502,3 +1502,47 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
   });
 });
+
+test('a receiver with only the echo loaded sees canonical edits after reconnect', async ({
+  page,
+  chatPage,
+  roomPage,
+  browser,
+  serverURL
+}) => {
+  await createAndLoginTestUser(page);
+  await chatPage.goto();
+  await chatPage.enterRoom('general');
+  const { roomId } = await getIdsFromUrlViaConnect(page);
+  const root = await postMessageViaConnect(page, roomId, 'Reference echo receiver root');
+  const initial = 'Reference echo receiver initial';
+  const edited = 'Reference echo receiver edited';
+  const reply = await postThreadReplyWithEchoViaConnect(page, roomId, initial, root, '');
+  await roomPage.expectMessageVisible(initial);
+
+  await withServerUser(
+    browser!,
+    serverURL,
+    async ({ page: receiver, chatPage: receiverChat, roomPage: receiverRoom }) => {
+      await receiverChat.goto();
+      await receiverChat.enterRoom('general');
+      await receiverRoom.expectMessageVisible(initial);
+      await expect(receiverRoom.threadPane).not.toBeVisible();
+      await connectPost(page, 'chatto.api.v1.MessageService/UpdateMessage', {
+        roomId,
+        eventId: reply,
+        body: edited
+      });
+      await receiverRoom.expectMessageVisible(edited);
+      await receiverRoom.expectMessageNotVisible(initial);
+      await receiver.reload();
+      await receiverRoom.expectMessageVisible(edited);
+      await expect(receiverRoom.threadPane).not.toBeVisible();
+      await connectPost(page, 'chatto.api.v1.MessageService/DeleteMessage', {
+        roomId,
+        eventId: reply
+      });
+      await receiverRoom.expectMessageNotVisible(edited);
+    }
+  );
+});

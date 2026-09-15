@@ -310,7 +310,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 		references := make([]TimelineBodyReference, len(selected))
 		for i, message := range selected {
 			references[i] = TimelineBodyReference{
-				MessageEventID:  message.Entry.EventID,
+				MessageEventID:  message.BodyMessageEventID,
 				BodyEventID:     message.BodyEventID,
 				RoomID:          message.Entry.RoomID,
 				AuthorID:        message.BodyAuthorID,
@@ -332,7 +332,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 			if len(attachments) != message.AttachmentCount {
 				return nil, fmt.Errorf("message %q attachment index changed during hydration", message.Entry.EventID)
 			}
-			descriptions, err := c.decryptAttachmentDescriptions(ctx, message.Entry.EventID, roomID, bodies[i])
+			descriptions, err := c.decryptAttachmentDescriptions(ctx, message.BodyMessageEventID, roomID, bodies[i])
 			if err != nil {
 				if !errors.Is(err, encryption.ErrKeyNotFound) {
 					return nil, err
@@ -343,7 +343,7 @@ func (c *ChattoCore) getRoomAttachments(ctx context.Context, kind RoomKind, room
 				cloned := proto.Clone(attachment).(*evtv1.Attachment)
 				cloned.RoomId = roomID
 				if cloned.MessageBodyId == "" {
-					cloned.MessageBodyId = message.Entry.EventID
+					cloned.MessageBodyId = message.BodyMessageEventID
 				}
 				items = append(items, &RoomAttachmentItem{
 					Attachment: cloned, Description: descriptions[attachment.GetId()], MessageEventID: message.Entry.EventID,

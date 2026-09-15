@@ -47,10 +47,8 @@ type RoomTimelineProjection struct {
 	attachmentMessageRoom      map[string]string
 	// echoLinks maps an original message's event_id to the event_ids
 	// of any echoes pointing at it. Maintained as MessagePostedEvents
-	// with EchoOfEventId arrive. Used by EditMessage / DeleteMessage
-	// to fan mutations across linked messages. Each echo has its own
-	// projected body payload, so edits and retractions need explicit
-	// propagation.
+	// with EchoOfEventId arrive. Content reads resolve the original;
+	// physical body history remains separate for legacy secure deletion.
 	echoLinks map[string][]string
 	// hiddenEchoes tracks echo MessagePostedEvents that were directly
 	// retracted. A direct echo retract removes the room-timeline copy
@@ -112,11 +110,12 @@ type RoomTimelineMessageHydrationState struct {
 }
 
 type projectedRoomAttachmentMessage struct {
-	Entry           *TimelineEntry
-	BodySequence    uint64
-	BodyEventID     string
-	BodyAuthorID    string
-	AttachmentCount int
+	Entry              *TimelineEntry
+	BodyMessageEventID string
+	BodySequence       uint64
+	BodyEventID        string
+	BodyAuthorID       string
+	AttachmentCount    int
 }
 
 // TimelineBodyReference identifies one active MessageBodyEvent in EVT. The
@@ -297,6 +296,9 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 				}
 			}
 		}
+		for _, echoID := range p.echoLinks[targetID] {
+			p.refreshAttachmentMessageLocked(roomID, echoID)
+		}
 		return nil
 	}
 
@@ -340,11 +342,11 @@ func (p *RoomTimelineProjection) Apply(event *evtv1.Event, seq uint64) error {
 		if state, ok := p.bodyStates[targetID]; ok && state.active {
 			p.refreshAttachmentMessageLocked(roomID, targetID)
 		}
-		// Track echo links so edits on either side can fan out to the
-		// other, and so original retractions can be reflected when
-		// rendering echoes.
+		// Track timeline placements so content and attachment reads can
+		// resolve the original without separate echo body state.
 		if origID := ev.MessagePosted.GetEchoOfEventId(); origID != "" && targetID != "" {
 			p.echoLinks[origID] = append(p.echoLinks[origID], targetID)
+			p.refreshAttachmentMessageLocked(roomID, targetID)
 		}
 	case *evtv1.Event_MessageRetracted:
 		targetID := ev.MessageRetracted.GetEventId()
@@ -651,43 +653,71 @@ func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (t
 // LatestBodyReference returns the current MessageBodyEvent reference for a
 // message, or a zero reference plus retracted=true after retraction.
 //
-// Returns (nil, false, false) if the event_id isn't known to the
-// projection (caller can treat as "not found yet").
+// Echo references identify the original content owner, not the echo's
+// physical body history. Unknown messages return a zero reference and ok=false.
+// Invalid links return a zero reference without reporting a deletion.
 //
 // O(1): it consults indexes that Apply keeps in lockstep with byRoom.
 func (p *RoomTimelineProjection) LatestBodyReference(eventID string) (reference TimelineBodyReference, retracted bool, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
-	if eventID == "" {
-		return TimelineBodyReference{}, false, false
+	return p.latestBodyReferenceLocked(eventID)
+}
+
+// ContentEventID resolves a visible message to the owner of its content.
+// Echo links must point directly to a thread reply in the same room.
+func (p *RoomTimelineProjection) ContentEventID(eventID string) (string, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	entry := p.contentEntryLocked(eventID)
+	if entry == nil {
+		return "", false
 	}
-	if _, exists := p.byEventID[eventID]; !exists {
+	return entry.EventID, true
+}
+
+func (p *RoomTimelineProjection) contentEntryLocked(eventID string) *TimelineEntry {
+	entry, _ := p.entryByEventIDLocked(eventID)
+	if entry == nil || !entry.IsMessagePost() {
+		return nil
+	}
+	if _, hidden := p.hiddenEchoes[eventID]; hidden {
+		return nil
+	}
+	if entry.EchoOfEventID == "" {
+		return entry
+	}
+	original, _ := p.entryByEventIDLocked(entry.EchoOfEventID)
+	if original == nil || !original.IsMessagePost() || original.EchoOfEventID != "" ||
+		original.InThreadEventID == "" || original.RoomID != entry.RoomID ||
+		original.InThreadEventID != entry.ThreadRootEventID {
+		return nil
+	}
+	return original
+}
+
+func (p *RoomTimelineProjection) latestBodyReferenceLocked(eventID string) (TimelineBodyReference, bool, bool) {
+	visible, _ := p.entryByEventIDLocked(eventID)
+	if visible == nil || !visible.IsMessagePost() {
 		return TimelineBodyReference{}, false, false
 	}
 	if _, hidden := p.hiddenEchoes[eventID]; hidden {
 		return TimelineBodyReference{}, true, true
 	}
-	if _, isRetracted := p.retractedFlags[eventID]; isRetracted {
+	if _, retracted := p.retractedFlags[eventID]; retracted {
 		return TimelineBodyReference{}, true, true
 	}
-	if origID := p.echoOriginalIDLocked(eventID); origID != "" {
-		if _, originalRetracted := p.retractedFlags[origID]; originalRetracted {
-			return TimelineBodyReference{}, true, true
-		}
+	entry := p.contentEntryLocked(eventID)
+	if entry == nil {
+		return TimelineBodyReference{}, false, true
 	}
-	if state, has := p.bodyStates[eventID]; has && state.active {
-		entry, _ := p.entryByEventIDLocked(eventID)
-		roomID := ""
-		if entry != nil {
-			roomID = entry.RoomID
-		}
+	if _, retracted := p.retractedFlags[entry.EventID]; retracted {
+		return TimelineBodyReference{}, true, true
+	}
+	if state, has := p.bodyStates[entry.EventID]; has && state.active {
 		return TimelineBodyReference{
-			MessageEventID:  eventID,
-			BodyEventID:     state.currentEventID,
-			RoomID:          roomID,
-			AuthorID:        state.authorID,
-			StreamSeq:       state.currentSequence,
-			AttachmentCount: state.attachmentCount,
+			MessageEventID: entry.EventID, BodyEventID: state.currentEventID, RoomID: entry.RoomID,
+			AuthorID: state.authorID, StreamSeq: state.currentSequence, AttachmentCount: state.attachmentCount,
 		}, false, true
 	}
 	return TimelineBodyReference{}, false, true
@@ -726,16 +756,18 @@ func (p *RoomTimelineProjection) CurrentRoomAttachmentMessages(roomID string) []
 				continue
 			}
 		}
-		state := p.bodyStates[eventID]
-		if !state.active || state.attachmentCount == 0 {
+		reference, retracted, _ := p.latestBodyReferenceLocked(eventID)
+		if retracted || reference.StreamSeq == 0 || reference.AttachmentCount == 0 {
 			continue
 		}
+
 		out = append(out, projectedRoomAttachmentMessage{
-			Entry:           cloneTimelineEntry(entry),
-			BodySequence:    state.currentSequence,
-			BodyEventID:     state.currentEventID,
-			BodyAuthorID:    state.authorID,
-			AttachmentCount: state.attachmentCount,
+			Entry:              cloneTimelineEntry(entry),
+			BodyMessageEventID: reference.MessageEventID,
+			BodySequence:       reference.StreamSeq,
+			BodyEventID:        reference.BodyEventID,
+			BodyAuthorID:       reference.AuthorID,
+			AttachmentCount:    reference.AttachmentCount,
 		})
 	}
 	return out
@@ -745,13 +777,13 @@ func (p *RoomTimelineProjection) refreshAttachmentMessageLocked(roomID, eventID 
 	if roomID == "" || eventID == "" {
 		return
 	}
-	state := p.bodyStates[eventID]
-	if !state.active || state.attachmentCount == 0 {
+	reference, retracted, _ := p.latestBodyReferenceLocked(eventID)
+	if retracted || reference.StreamSeq == 0 || reference.AttachmentCount == 0 {
 		p.removeAttachmentMessageLocked(eventID)
 		return
 	}
 	entry, _ := p.entryByEventIDLocked(eventID)
-	if entry == nil || p.isHiddenEchoEntryLocked(entry) {
+	if entry == nil {
 		return
 	}
 	p.addAttachmentMessageLocked(roomID, eventID, entry.StreamSeq)
@@ -1039,15 +1071,8 @@ func removeString(values []string, value string) []string {
 	return out
 }
 
-// LinkedEventIDs returns the set of event_ids that an edit targeting
-// `eventID` should also be applied to: any echoes pointing
-// at `eventID`, plus the original message that `eventID` is an echo
-// of (if any). Does NOT include `eventID` itself — the caller emits
-// the mutation for the target separately.
-//
-// Used by EditMessage to preserve the legacy "edit the echo, the
-// original updates too (and vice versa)" semantic after the shared-
-// messageBodyId mechanism was retired in #614.
+// LinkedEventIDs returns related timeline IDs for physical legacy-body cleanup.
+// Content edits must resolve the original instead of writing to these IDs.
 func (p *RoomTimelineProjection) LinkedEventIDs(eventID string) []string {
 	p.RLock()
 	defer p.RUnlock()

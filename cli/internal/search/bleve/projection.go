@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	checkpointContractBaseID = "bleve-message-index-v9"
+	checkpointContractBaseID = "bleve-message-index-v10"
 	checkpointInternalKey    = "chatto/search/checkpoint"
 	dekInternalKey           = "chatto/search/deks"
 	startupReplayBatchSize   = 256
@@ -261,6 +261,9 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 			if err != nil {
 				return err
 			}
+			if state.PostedSequence > 0 && !state.Visible {
+				break
+			}
 			if seq > state.BodySequence {
 				plaintext, err := p.decryptBodyWithDEKs(context.Background(), bodyEvent.GetEventId(), bodyEvent.GetRoomId(), bodyEvent.GetBody(), batch.deks)
 				if err != nil && !errors.Is(err, encryption.ErrKeyNotFound) {
@@ -295,7 +298,13 @@ func (p *Projection) applyEvent(batch *projectionBatch, event *evtv1.Event, seq 
 			state.MessageID = event.GetId()
 			state.RoomID = posted.GetRoomId()
 			state.AuthorID = event.GetActorId()
-			state.Visible = true
+			// Echoes are timeline references, not separate searchable contributions.
+			state.Visible = posted.GetEchoOfEventId() == ""
+			if !state.Visible {
+				state.Body = ""
+				state.BodyEventID = ""
+				state.HasAttachments = false
+			}
 			if event.GetCreatedAt() != nil {
 				state.CreatedAt = event.GetCreatedAt().AsTime()
 			}

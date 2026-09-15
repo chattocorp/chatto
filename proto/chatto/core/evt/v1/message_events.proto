@@ -40,7 +40,9 @@ message MessagePostedEvent {
 
   // Echo fields (empty for regular messages, set for "also send to channel" echoes).
   // When set, this event is an echo of a thread reply. Echoes are independent
-  // message events that reference the original reply by event ID.
+  // message events that reference the original reply by event ID. New echoes
+  // have no MessageBodyEvent, mentions, or reply attribution of their own.
+  // Reads resolve these fields from the original; historical copies are ignored.
 
   // Event ID of the original thread reply this echoes (empty = not an echo)
   string echo_of_event_id = 7;

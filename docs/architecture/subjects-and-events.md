@@ -526,3 +526,12 @@ owner assignment, settings, and completion share one whole-EVT OCC batch.
 The owning core operation reads the latest setup fact directly from EVT;
 no snapshot or separate projection controls eligibility. These facts are not
 public realtime events. EVT backup and restore include them automatically.
+
+
+### Echo writes
+
+An echo appends one `message_posted` fact with the original reply ID and thread
+routing. It has no `message_body` fact or copied mention and reply-attribution
+fields. Full and partial content edits append the original message's body and
+edit facts only. Edit-driven echo creation or removal shares the parent edit's
+room-OCC batch.

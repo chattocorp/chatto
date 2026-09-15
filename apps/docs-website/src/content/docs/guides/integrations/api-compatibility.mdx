@@ -525,3 +525,18 @@ ID in ascending order. Bans with equal timestamps now keep the same order
 between reads. Offset pages remain live reads: additions, removals, or expiry
 between requests can still shift offsets. No client regeneration or data
 migration is required.
+
+
+## Reference-only echoes in 0.5
+
+Echo responses keep their complete message shape. Content comes from the
+original thread reply. Content mutations through an echo ID change that reply;
+deleting an echo still removes only the echo. Attachment-description updates
+also accept echo IDs.
+
+Before enabling a server build that writes reference-only echoes, stop all
+replicas of the earlier build. Upgrade all replicas before you resume writes.
+Earlier builds require separate echo bodies and cannot read new reference-only
+echoes. After the first new echo is written, rollback to those builds is not
+supported. Existing echo records remain readable after the upgrade, and the
+upgrade does not bulk-delete their historical body copies.
