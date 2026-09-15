@@ -66,7 +66,7 @@ describe('room sidebar panel storage', () => {
 describe('profile preferences', () => {
   it('round-trips profiles with and without a previous panel', () => {
     for (const previousPanel of ['files', null] as const) {
-      const preference = { view: 'profile', previousPanel } as const;
+      const preference = { previousPanel } as const;
       setRoomSidebarPanelState('server-a', 'dm-1', preference);
       expect(getRoomSidebarPanelState('server-a', 'dm-1')).toEqual(preference);
     }

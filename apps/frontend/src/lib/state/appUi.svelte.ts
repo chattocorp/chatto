@@ -56,14 +56,6 @@ export class AppUiState {
   #roomSidebarPanelRequest: RoomSidebarPanelRequest | null = null;
   #roomSidebarProfileRequest: RoomSidebarProfileRequest | null = null;
 
-  get activeServerId(): string | null {
-    return this.#activeServerId;
-  }
-
-  get activeRoomId(): string | null {
-    return this.#activeRoomId;
-  }
-
   get activeRoomScope(): AppRoomScope | null {
     if (!this.#activeServerId || !this.#activeRoomId) return null;
     return { serverId: this.#activeServerId, roomId: this.#activeRoomId };
@@ -74,7 +66,7 @@ export class AppUiState {
 
     this.#activeServerId = serverId;
     this.#activeRoomId = null;
-    this.#clearRoomSidebarProfiles();
+    this.#roomSidebarProfile = null;
     if (previousScope !== null) this.disableRoomCallWide();
   }
 
@@ -85,7 +77,7 @@ export class AppUiState {
 
     const nextScope = this.#activeRoomScopeKey;
     if (previousScope !== null && previousScope !== nextScope) {
-      this.#clearRoomSidebarProfiles();
+      this.#roomSidebarProfile = null;
       this.disableRoomCallWide();
     }
 
@@ -94,12 +86,6 @@ export class AppUiState {
     }
     this.#applyRoomSidebarPanelRequest();
     this.#applyRoomSidebarProfileRequest();
-  }
-
-  clearActiveRoomScope(serverId: string, roomId: string): void {
-    this.disableRoomCallWideFor(serverId, roomId);
-    if (this.#activeServerId !== serverId || this.#activeRoomId !== roomId) return;
-    this.#activeRoomId = null;
   }
 
   get activeDesktopRoomSidebarPanel(): RoomSidebarPanelState {
@@ -115,13 +101,13 @@ export class AppUiState {
    * This derived presentation must not create a mobile profile or write storage.
    */
   desktopRoomSidebarProfileUserId(defaultUserId: string | null): string | null {
-    if (this.activeRoomSidebarProfileUserId) return this.activeRoomSidebarProfileUserId;
-    const scope = this.#activeRoomScopeKey;
-    if (!scope) return null;
     const preference = this.#desktopRoomSidebarPreference;
-    return preference === undefined || (typeof preference === 'object' && preference !== null)
-      ? defaultUserId
-      : null;
+    return (
+      this.activeRoomSidebarProfileUserId ??
+      (this.#activeRoomId && preference !== null && typeof preference !== 'string'
+        ? defaultUserId
+        : null)
+    );
   }
 
   get mobileRoomSidebarPanel(): RoomSidebarPanelState {
@@ -131,7 +117,10 @@ export class AppUiState {
 
   /** The profile currently shown for the active room, if any. */
   get activeRoomSidebarProfileUserId(): string | null {
-    return this.#profileUserIdForActiveRoom(this.#roomSidebarProfile);
+    const profile = this.#roomSidebarProfile;
+    return profile?.serverId === this.#activeServerId && profile?.roomId === this.#activeRoomId
+      ? profile.userId
+      : null;
   }
 
   toggleDesktopRoomSidebarPanel(panel: RoomSidebarPanel): void {
@@ -155,12 +144,7 @@ export class AppUiState {
   }
 
   toggleMobileRoomSidebarPanel(panel: RoomSidebarPanel): void {
-    if (this.activeRoomSidebarProfileUserId) {
-      this.closeRoomSidebarProfile('mobile');
-      this.openMobileRoomSidebarPanel(panel);
-      return;
-    }
-    if (this.mobileRoomSidebarPanel === panel) {
+    if (!this.activeRoomSidebarProfileUserId && this.mobileRoomSidebarPanel === panel) {
       this.closeMobileRoomSidebarPanel();
       return;
     }
@@ -197,7 +181,6 @@ export class AppUiState {
     if (!scope) return;
     if (presentation === 'desktop') {
       this.#setDesktopRoomSidebarPanel({
-        view: 'profile',
         previousPanel: this.activeDesktopRoomSidebarPanel
       });
     }
@@ -314,18 +297,6 @@ export class AppUiState {
 
     setRoomSidebarPanelState(scope.serverId, scope.roomId, panel);
     this.#desktopRoomSidebarSessionState[roomScopeKey(scope.serverId, scope.roomId)] = panel;
-  }
-
-  #profileUserIdForActiveRoom(profile: RoomSidebarProfileState | null): string | null {
-    const scope = this.activeRoomScope;
-    if (!scope || !profile) return null;
-    return profile.serverId === scope.serverId && profile.roomId === scope.roomId
-      ? profile.userId
-      : null;
-  }
-
-  #clearRoomSidebarProfiles(): void {
-    this.#roomSidebarProfile = null;
   }
 
   #applyRoomSidebarPanelRequest(): void {

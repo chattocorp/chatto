@@ -15,8 +15,6 @@ describe('AppUiState', () => {
 
     appUi.setActiveRoomScope('server-a', 'room-1');
 
-    expect(appUi.activeServerId).toBe('server-a');
-    expect(appUi.activeRoomId).toBe('room-1');
     expect(appUi.activeRoomScope).toEqual({ serverId: 'server-a', roomId: 'room-1' });
   });
 
@@ -27,8 +25,6 @@ describe('AppUiState', () => {
     appUi.setRoomCallWide('server-a', 'room-1', true);
     appUi.setActiveServer('server-a');
 
-    expect(appUi.activeServerId).toBe('server-a');
-    expect(appUi.activeRoomId).toBe(null);
     expect(appUi.activeRoomScope).toBe(null);
     expect(appUi.isRoomCallWide).toBe(false);
   });
@@ -215,7 +211,7 @@ describe('AppUiState', () => {
   });
 
   it('selects the underlying panel when toggled from a restored profile', () => {
-    setRoomSidebarPanelState('server-a', 'dm-1', { view: 'profile', previousPanel: 'files' });
+    setRoomSidebarPanelState('server-a', 'dm-1', { previousPanel: 'files' });
     const appUi = new AppUiState();
     appUi.setActiveRoomScope('server-a', 'dm-1');
     appUi.toggleDesktopRoomSidebarPanel('files');
@@ -224,12 +220,23 @@ describe('AppUiState', () => {
   });
 
   it('applies explicit navigation requests after restoring the saved preference', () => {
-    setRoomSidebarPanelState('server-a', 'dm-1', { view: 'profile', previousPanel: 'files' });
+    setRoomSidebarPanelState('server-a', 'dm-1', { previousPanel: 'files' });
     const appUi = new AppUiState();
     appUi.requestRoomSidebarPanel('server-a', 'dm-1', 'call', 'desktop');
     appUi.setActiveRoomScope('server-a', 'dm-1');
     expect(appUi.activeDesktopRoomSidebarPanel).toBe('call');
     expect(appUi.desktopRoomSidebarProfileUserId('peer')).toBeNull();
+  });
+
+  it('selects the underlying mobile panel when a profile is open', () => {
+    const appUi = new AppUiState();
+    appUi.setActiveRoomScope('server-a', 'dm-1');
+    appUi.openMobileRoomSidebarPanel('files');
+    appUi.openRoomSidebarProfile('peer', 'mobile');
+    appUi.toggleMobileRoomSidebarPanel('files');
+    expect(appUi.activeRoomSidebarProfileUserId).toBeNull();
+    expect(appUi.mobileRoomSidebarPanel).toBe('files');
+    expect(getRoomSidebarPanelState('server-a', 'dm-1')).toBeUndefined();
   });
 
   it('keeps desktop preferences intact during mobile actions', () => {

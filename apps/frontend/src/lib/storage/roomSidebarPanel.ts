@@ -7,7 +7,6 @@ export type RoomSidebarPanelState = RoomSidebarPanel | null;
 
 /** A desktop profile retains the extras panel to show when the profile closes. */
 export type RoomSidebarProfilePreference = {
-  view: 'profile';
   previousPanel: RoomSidebarPanelState;
 };
 
@@ -33,7 +32,6 @@ const codec: Codec<Exclude<RoomSidebarPreference, undefined>> = {
       const previousPanel = raw.slice('profile:'.length);
       if (previousPanel === 'closed' || isRoomSidebarPanel(previousPanel)) {
         return {
-          view: 'profile',
           previousPanel: previousPanel === 'closed' ? null : previousPanel
         };
       }
