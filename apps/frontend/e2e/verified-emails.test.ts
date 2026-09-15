@@ -9,6 +9,7 @@ import * as routes from './routes';
 
 const CONFIRM_EMAIL_ROUTE =
   '**/api/connect/chatto.api.v1.MyAccountService/ConfirmEmailVerification';
+const LIST_EMAILS_ROUTE = '**/api/connect/chatto.api.v1.MyAccountService/ListVerifiedEmails';
 
 test.describe('Verified email settings', () => {
   test('adds an address only after verification and then allows primary selection', async ({
@@ -70,6 +71,39 @@ test.describe('Verified email settings', () => {
     await expect(
       page.getByText(`${firstUser.login}@example.com`, { exact: true })
     ).toBeVisible();
+    await page.getByRole('link', { name: 'Profile', exact: true }).click();
+    await page.waitForURL(routes.settingsProfile);
+
+    let markListStarted = () => {};
+    let releaseList = () => {};
+    const listStarted = new Promise<void>((resolve) => (markListStarted = resolve));
+    const listGate = new Promise<void>((resolve) => (releaseList = resolve));
+    await page.route(
+      LIST_EMAILS_ROUTE,
+      async (route) => {
+        markListStarted();
+        await listGate;
+
+        // The request started while this SPA still displayed the first user.
+        // Send it with the cookie that the other tab installed afterward.
+        const cookies = await page.context().cookies(route.request().url());
+        const response = await route.fetch({
+          headers: {
+            ...route.request().headers(),
+            cookie: cookies.map(({ name, value }) => `${name}=${value}`).join('; ')
+          }
+        });
+        await route.fulfill({ response });
+      },
+      { times: 1 }
+    );
+
+    const listResponse = page.waitForResponse((response) =>
+      response.url().includes('/chatto.api.v1.MyAccountService/ListVerifiedEmails')
+    );
+    await page.getByRole('link', { name: 'Account', exact: true }).click();
+    await page.waitForURL(routes.settingsAccount);
+    await listStarted;
 
     const otherTab = await page.context().newPage();
     const secondUser = await createAndLoginTestUser(otherTab, {
@@ -91,16 +125,7 @@ test.describe('Verified email settings', () => {
     );
     expect(currentResponse.ok()).toBe(true);
 
-    // Keep the mounted SPA on Alice. A same-server remount must send Alice's
-    // expected ID with Bob's new cookie, reject the response, and never put
-    // Bob's address in Alice's cache.
-    await page.getByRole('link', { name: 'Profile', exact: true }).click();
-    await page.waitForURL(routes.settingsProfile);
-    const listResponse = page.waitForResponse((response) =>
-      response.url().includes('/chatto.api.v1.MyAccountService/ListVerifiedEmails')
-    );
-    await page.getByRole('link', { name: 'Account', exact: true }).click();
-    await page.waitForURL(routes.settingsAccount);
+    releaseList();
     const rejectedList = await listResponse;
     expect(rejectedList.ok()).toBe(false);
     await expect(rejectedList.json()).resolves.toMatchObject({ code: 'failed_precondition' });
