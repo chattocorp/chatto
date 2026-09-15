@@ -107,7 +107,8 @@ type ConsentRequest struct {
 	ID, ClientID, ClientName, ClientHost, RedirectOrigin string
 	Scopes                                               []string
 	ForceConsent                                         bool
-	Silent                                               bool
+	// Silent requires a code or protocol error without interactive pages.
+	Silent bool
 }
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.

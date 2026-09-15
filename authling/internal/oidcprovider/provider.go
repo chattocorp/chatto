@@ -420,7 +420,12 @@ func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
 	prompts := strings.Fields(query.Get("prompt"))
 	seenPrompts := make(map[string]bool, len(prompts))
 	for _, prompt := range prompts {
-		if (prompt != liboidc.PromptConsent && prompt != liboidc.PromptLogin && prompt != liboidc.PromptNone) || seenPrompts[prompt] || prompt == liboidc.PromptNone && len(prompts) != 1 {
+		switch prompt {
+		case liboidc.PromptConsent, liboidc.PromptLogin, liboidc.PromptNone:
+		default:
+			return clientError("invalid_request")
+		}
+		if seenPrompts[prompt] || prompt == liboidc.PromptNone && len(prompts) != 1 {
 			return clientError("invalid_request")
 		}
 		seenPrompts[prompt] = true

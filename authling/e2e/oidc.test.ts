@@ -251,7 +251,6 @@ test('rechecks max_age when consent is submitted after authentication expires', 
   await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
 });
 
-
 test('continues OIDC after signup and supports silent authorization', async ({ page, request, stack }) => {
   const verifier = 'signup-verifier-with-at-least-forty-three-characters';
   const authorize = new URL('/oauth/authorize', stack.baseURL);

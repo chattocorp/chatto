@@ -109,7 +109,7 @@ func TestOIDCAdmissionLimitsStateAcrossRestart(t *testing.T) {
 		}
 	}
 	response = httptest.NewRecorder()
-	betaHandler(runtime, cfg).ServeHTTP(response, httptest.NewRequest(http.MethodGet, pending, nil))
+	betaHandler(runtime, cfg).ServeHTTP(response, httptest.NewRequest(http.MethodGet, cfg.HTTP.PublicURLOrDefault()+pending, nil))
 	if response.Code != http.StatusSeeOther || !strings.HasPrefix(response.Header().Get("Location"), "/login?id=") {
 		t.Fatal("admission exhaustion blocked an existing request")
 	}

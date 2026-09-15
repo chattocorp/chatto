@@ -222,12 +222,11 @@ ordinary server-rendered links and forms.
 `GET /signup` renders the email form. Three POST endpoints start a flow, verify
 its code, and complete account creation with a password. Unsafe requests reject
 cross-origin browser submissions. Signup from an OIDC login carries the
-validated pending request ID through its
-forms and resumes consent after session creation. A silent OIDC request returns
+validated pending request ID through its forms and resumes consent after
+session creation. A silent OIDC request returns
 an authorization code or a protocol error without rendering login or consent;
 its encrypted `silent` flag survives restart.
-The browser carries a random opaque flow
-token in hidden fields; raw email addresses, OTPs, and passwords never enter
+The browser carries a random opaque flow token in hidden fields; raw email addresses, OTPs, and passwords never enter
 URLs.
 
 `GET /login` renders local credential login. `POST /login` applies a shared,
@@ -265,8 +264,8 @@ local watcher before redirecting.
 create an expiring flow, verify its six-digit code, and commit a new password.
 Claimed and unclaimed valid addresses follow the same email-delivery and
 browser path. After non-refundable admission and delivery limits accept an
-existing account's request, a
-PII-free `PasswordResetRequestedEvent` must commit before flow creation or SMTP
+existing account's request, a PII-free `PasswordResetRequestedEvent` must commit
+before flow creation or SMTP
 delivery; absent accounts have no aggregate on which to record one. Encrypted
 flow state is bound to that audit event and the credential event current at
 start. Account-subject OCC prevents concurrent stale flows from overwriting a

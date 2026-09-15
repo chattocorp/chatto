@@ -117,7 +117,8 @@ validated redirect URI with the original state. Combining `none` with another
 prompt is invalid. The encrypted request stores this constraint across restart.
 
 Both automatic grant reuse and explicit approval check freshness. If the
-session is too old, the browser returns to login with the same pending request.
+session is too old, an interactive request returns to login with the same
+pending request. A silent request returns `login_required`.
 A failed login does not change authentication time. The checks use full timestamp
 precision so a session from earlier in the same second cannot satisfy forced
 login. Positive age limits are checked again when consent is submitted.
