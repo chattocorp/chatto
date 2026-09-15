@@ -164,30 +164,35 @@ describe('Profile settings page', () => {
     expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
   });
 
-  it('submits a valid display name through the account API', async () => {
-    const { container } = render(ProfilePage);
-    await settle();
+  it.each(['markdown', 'visual'] as const)(
+    'submits a display name with the %s bio editor',
+    async (editorKind) => {
+      userPreferences.composerEditor = editorKind;
+      const { container } = render(ProfilePage);
+      await settle();
+      await expect.poll(() => q(container, '[data-testid="settings-bio"]')).not.toBeNull();
 
-    const displayNameInput = q(
-      container,
-      'input[placeholder="Enter your display name"]'
-    ) as HTMLInputElement;
-    setInputValue(displayNameInput, 'Ada Lovelace');
+      const displayNameInput = q(
+        container,
+        'input[placeholder="Enter your display name"]'
+      ) as HTMLInputElement;
+      setInputValue(displayNameInput, 'Ada Lovelace');
 
-    const saveButton = q(container, 'button[type="submit"]') as HTMLButtonElement;
-    await expect.element(saveButton).toBeEnabled();
-    saveButton.click();
+      const saveButton = q(container, 'button[type="submit"]') as HTMLButtonElement;
+      await expect.element(saveButton).toBeEnabled();
+      saveButton.click();
 
-    await vi.waitFor(() => {
-      expect(mocks.updateProfile).toHaveBeenCalledWith({
-        displayName: 'Ada Lovelace',
-        login: undefined,
-        bio: undefined
+      await vi.waitFor(() => {
+        expect(mocks.updateProfile).toHaveBeenCalledWith({
+          displayName: 'Ada Lovelace',
+          login: undefined,
+          bio: undefined
+        });
       });
-    });
-    await expect.element(q(container, 'form')).toHaveTextContent('Profile updated successfully');
-    await expect.element(displayNameInput).toHaveValue('Ada Lovelace');
-  });
+      await expect.element(q(container, 'form')).toHaveTextContent('Profile updated successfully');
+      await expect.element(displayNameInput).toHaveValue('Ada Lovelace');
+    }
+  );
 
   it('sends a trimmed sparse bio update', async () => {
     const { container } = render(ProfilePage);

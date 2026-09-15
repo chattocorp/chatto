@@ -42,6 +42,25 @@ describe('TipTapEditor accessibility', () => {
   });
 });
 
+describe('TipTapEditor editability', () => {
+  it('does not emit content changes when disabled or enabled', async () => {
+    const onUpdate = vi.fn();
+    const rendered = render(TipTapEditor, {
+      props: { placeholder: 'Write a bio', onUpdate }
+    });
+    const editor = page.getByRole('textbox', { name: 'Write a bio' }).element();
+    await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+
+    await rendered.rerender({ editable: false });
+    await expect.element(editor).toHaveAttribute('contenteditable', 'false');
+    expect(onUpdate).not.toHaveBeenCalled();
+
+    await rendered.rerender({ editable: true });
+    await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+    expect(onUpdate).not.toHaveBeenCalled();
+  });
+});
+
 describe('TipTapEditor wrapping', () => {
   it('formats selected text as inline code when backtick is pressed', async () => {
     const readyApis: ComposerEditorApi[] = [];
