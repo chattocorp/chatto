@@ -1,10 +1,12 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { AccountAPI } from '$lib/api-client/account';
+  import UserBioEditor from '$lib/components/users/UserBioEditor.svelte';
+  import { userPreferences } from '$lib/state/userPreferences.svelte';
   import Panel from '$lib/ui/Panel.svelte';
   import { m } from '$lib/i18n/messages';
   import { ConfirmDialog, Hint } from '$lib/ui';
-  import { Button, Form, TextArea, TextInput } from '$lib/ui/form';
+  import { Button, Form, TextInput } from '$lib/ui/form';
   import {
     formatCooldownRemaining,
     getLoginChangeCooldownRemaining,
@@ -177,16 +179,11 @@
       oninput={clearMessages}
     />
 
-    <TextArea
-      id="settings-bio"
-      label={m('settings.profile.bio.label')}
-      description={m('settings.profile.bio.description', { max: MAX_BIO_LENGTH })}
+    <UserBioEditor
       bind:value={bio}
-      placeholder={m('settings.profile.bio.placeholder')}
-      rows={4}
+      editorKind={userPreferences.composerEditor}
       maxlength={MAX_BIO_LENGTH}
       disabled={isSaving}
-      testid="settings-bio"
       oninput={clearMessages}
     />
 

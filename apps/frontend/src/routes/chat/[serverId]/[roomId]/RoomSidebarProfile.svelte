@@ -145,7 +145,7 @@ realtime changes arrive.
           separated
         >
           {#snippet content()}
-            <UserBio {bio} class="px-1 pt-2 pb-2" />
+            <UserBio {bio} timestampSettings={viewerTimeSettings} class="px-1 pt-2 pb-2" />
           {/snippet}
         </RoomGroupSection>
       </div>

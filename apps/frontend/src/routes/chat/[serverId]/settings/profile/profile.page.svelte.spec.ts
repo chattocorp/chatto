@@ -3,6 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import ProfilePage from './+page.svelte';
 import { q } from '$lib/test-utils';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const avatarDataUrl = 'data:image/gif;base64,R0lGODlhAQABAAAAACwAAAAAAQABAAA=';
 
@@ -85,8 +86,21 @@ function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: str
   flushSync();
 }
 
+async function pasteBio(container: HTMLElement, text: string) {
+  await expect.poll(() => q(container, '[data-testid="settings-bio"]')).not.toBeNull();
+  const input = q(container, '[data-testid="settings-bio"]') as HTMLElement;
+  const data = new DataTransfer();
+  data.setData('text/plain', text);
+  input.dispatchEvent(
+    new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: data })
+  );
+  flushSync();
+  return input;
+}
+
 describe('Profile settings page', () => {
   beforeEach(() => {
+    userPreferences.composerEditor = 'markdown';
     mocks.currentUser.user = {
       id: 'user-1',
       login: 'alice',
@@ -179,8 +193,7 @@ describe('Profile settings page', () => {
     const { container } = render(ProfilePage);
     await settle();
 
-    const bioInput = q(container, '[data-testid="settings-bio"]') as HTMLTextAreaElement;
-    setInputValue(bioInput, '  I build analytical engines.  ');
+    const bioInput = await pasteBio(container, '  I build analytical engines.  ');
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
@@ -190,7 +203,56 @@ describe('Profile settings page', () => {
         bio: 'I build analytical engines.'
       });
     });
-    await expect.element(bioInput).toHaveValue('I build analytical engines.');
+    await expect.element(bioInput).toHaveTextContent('I build analytical engines.');
+  });
+
+  it('uses the preferred visual editor and saves Markdown', async () => {
+    userPreferences.composerEditor = 'visual';
+    const { container } = render(ProfilePage);
+    await settle();
+    await expect.poll(() => q(container, '[data-testid="settings-bio"]')).not.toBeNull();
+    (q(container, 'button[aria-label="Bold"]') as HTMLButtonElement).click();
+    const input = await pasteBio(container, 'Visual bio');
+    expect(input.classList.contains('tiptap')).toBe(true);
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: undefined,
+        login: undefined,
+        bio: '**Visual bio**'
+      });
+    });
+  });
+
+  it('preserves an unsaved bio when the preferred editor changes', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+    await pasteBio(container, '**Keep this draft**');
+    userPreferences.composerEditor = 'visual';
+    await expect
+      .poll(() => q(container, '[data-testid="settings-bio"].tiptap strong')?.textContent)
+      .toBe('Keep this draft');
+    userPreferences.composerEditor = 'markdown';
+    await expect
+      .poll(() => q(container, '[data-testid="settings-bio"].cm-content')?.textContent)
+      .toBe('**Keep this draft**');
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(mocks.updateProfile).toHaveBeenCalledWith({
+        displayName: undefined,
+        login: undefined,
+        bio: '**Keep this draft**'
+      });
+    });
+  });
+
+  it('rejects bio Markdown over the character limit without discarding the draft', async () => {
+    const { container } = render(ProfilePage);
+    await settle();
+    const input = await pasteBio(container, 'a'.repeat(1001));
+    (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
+    await expect.element(input).toHaveTextContent('a'.repeat(1001));
+    expect(mocks.updateProfile).not.toHaveBeenCalled();
   });
 
   it('keeps the bio draft when saving fails', async () => {
@@ -198,14 +260,13 @@ describe('Profile settings page', () => {
     const { container } = render(ProfilePage);
     await settle();
 
-    const bioInput = q(container, '[data-testid="settings-bio"]') as HTMLTextAreaElement;
-    setInputValue(bioInput, 'Unsaved profile draft');
+    const bioInput = await pasteBio(container, 'Unsaved profile draft');
     (q(container, 'button[type="submit"]') as HTMLButtonElement).click();
 
     await expect
       .element(q(container, 'form'))
       .toHaveTextContent('Profile changed; reload and try again.');
-    await expect.element(bioInput).toHaveValue('Unsaved profile draft');
+    await expect.element(bioInput).toHaveTextContent('Unsaved profile draft');
   });
 
   it('shows client validation errors without calling the profile mutation', async () => {
@@ -261,9 +322,9 @@ describe('Profile settings page', () => {
 
     const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
     await expect.element(usernameInput).toBeDisabled();
-    await expect.element(q(container, 'form')).toHaveTextContent(
-      'You can change your username again in'
-    );
+    await expect
+      .element(q(container, 'form'))
+      .toHaveTextContent('You can change your username again in');
   });
 
   it('lets an account manager bypass their own username cooldown', async () => {
