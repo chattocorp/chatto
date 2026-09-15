@@ -21,9 +21,9 @@ export class MessageAttachmentDescriptionInput extends Message<MessageAttachment
   assetId = "";
 
   /**
-   * Plain-text description. Chatto trims outer whitespace, preserves internal
-   * line breaks, permits at most 1,000 Unicode characters after trimming, and
-   * omits an empty result.
+   * Plain-text description with at most 1,000 Unicode characters. Trim outer
+   * whitespace before sending. Chatto also trims outer whitespace, preserves
+   * internal line breaks, and omits an empty result.
    *
    * @generated from field: string description = 2;
    */
@@ -529,9 +529,9 @@ export class SetAttachmentDescriptionRequest extends Message<SetAttachmentDescri
   attachmentId = "";
 
   /**
-   * Replacement description. Chatto trims outer whitespace, preserves
-   * internal line breaks, and permits at most 1,000 Unicode characters after
-   * trimming. An empty result clears the description.
+   * Replacement description with at most 1,000 Unicode characters. Trim outer
+   * whitespace before sending. Chatto also trims outer whitespace and preserves
+   * internal line breaks. An empty result clears the description.
    *
    * @generated from field: string description = 4;
    */

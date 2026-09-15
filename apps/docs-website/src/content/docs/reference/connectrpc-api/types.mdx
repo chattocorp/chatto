@@ -984,7 +984,7 @@ Description supplied for one attachment in a new message.
 | Field | Type | Description |
 | --- | --- | --- |
 | `asset_id` | `string` | Required. Asset ID included in attachment_asset_ids on the same request. |
-| `description` | `string` | Plain-text description. Chatto trims outer whitespace, preserves internal line breaks, permits at most 1,000 Unicode characters after trimming, and omits an empty result. |
+| `description` | `string` | Plain-text description with at most 1,000 Unicode characters. Trim outer whitespace before sending. Chatto also trims outer whitespace, preserves internal line breaks, and omits an empty result. |
 
 <a id="chatto-api-v1-AllMentionReceived"></a>
 

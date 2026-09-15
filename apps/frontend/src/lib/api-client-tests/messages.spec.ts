@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   handleAuthenticationRequired: vi.fn(),
   createMessage: vi.fn(),
   updateMessage: vi.fn(),
+  setAttachmentDescription: vi.fn(),
   deleteMessage: vi.fn(),
   deleteAttachment: vi.fn(),
   deleteLinkPreview: vi.fn(),
@@ -51,6 +52,7 @@ describe('createMessageAPI', () => {
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
     mocks.createMessage.mockReset();
     mocks.updateMessage.mockReset();
+    mocks.setAttachmentDescription.mockReset();
     mocks.deleteMessage.mockReset();
     mocks.deleteAttachment.mockReset();
     mocks.deleteLinkPreview.mockReset();
@@ -78,11 +80,42 @@ describe('createMessageAPI', () => {
       return {
         createMessage: mocks.createMessage,
         updateMessage: mocks.updateMessage,
+        setAttachmentDescription: mocks.setAttachmentDescription,
         deleteMessage: mocks.deleteMessage,
         deleteAttachment: mocks.deleteAttachment,
         deleteLinkPreview: mocks.deleteLinkPreview
       };
     });
+  });
+
+  it('trims descriptions before create and edit requests reach schema validation', async () => {
+    mocks.createMessage.mockResolvedValue(new CreateMessageResponse());
+    mocks.setAttachmentDescription.mockResolvedValue({});
+    const api = createMessageAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: null
+    });
+    const description = '界'.repeat(1000);
+    await api.createMessage({
+      roomId: 'room-1',
+      body: 'hello',
+      attachmentDescriptions: [{ assetId: 'asset-1', description: `  ${description}\n` }]
+    });
+    expect(mocks.createMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ attachmentDescriptions: [{ assetId: 'asset-1', description }] }),
+      expect.anything()
+    );
+    await api.setAttachmentDescription('room-1', 'event-1', 'asset-1', `  ${description}\n`);
+    expect(mocks.setAttachmentDescription).toHaveBeenCalledWith(
+      expect.objectContaining({ description }),
+      expect.anything()
+    );
+    await api.setAttachmentDescription('room-1', 'event-1', 'asset-1', ' \n ');
+    expect(mocks.setAttachmentDescription).toHaveBeenLastCalledWith(
+      expect.objectContaining({ description: '' }),
+      expect.anything()
+    );
   });
 
   it('posts a message with bearer auth and maps the renderable event response', async () => {

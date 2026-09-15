@@ -69,7 +69,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
         const attachmentDescriptions = (input.attachmentDescriptions ?? []).flatMap((entry) => {
           const assetId =
             'assetId' in entry ? entry.assetId : uploadedAssetIDByFile.get(entry.file);
-          return assetId ? [{ assetId, description: entry.description }] : [];
+          return assetId ? [{ assetId, description: entry.description.trim() }] : [];
         });
         const response = await client.createMessage(
           {
@@ -167,7 +167,7 @@ export function createMessageAPI(config: MessageAPIConfig) {
     ): Promise<UpdateMessageResult> {
       try {
         const response = await client.setAttachmentDescription(
-          { roomId, eventId, attachmentId, description },
+          { roomId, eventId, attachmentId, description: description.trim() },
           { headers: headers() }
         );
         const users = await timelineUsersForMessages(

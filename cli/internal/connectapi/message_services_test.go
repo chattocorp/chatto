@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 
 	"hmans.de/chatto/internal/config"
@@ -2141,5 +2142,28 @@ func TestRoomTimelineExposesAccountKeyShredDeletedAt(t *testing.T) {
 	}
 	if got := message.GetDeletedAt(); got == nil || !got.AsTime().Equal(deletedAt) {
 		t.Fatalf("account-shredded message deleted_at = %v, want %v", got, deletedAt)
+	}
+}
+
+func TestAttachmentDescriptionSchemaLength(t *testing.T) {
+	for _, tc := range []struct {
+		name, description string
+		valid             bool
+	}{
+		{"empty", "", true},
+		{"unicode limit", strings.Repeat("界", 1000), true},
+		{"unicode over limit", strings.Repeat("界", 1001), false},
+		{"untrimmed over limit", " " + strings.Repeat("界", 1000), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			create := &apiv1.CreateMessageRequest{RoomId: "room", AttachmentAssetIds: []string{"asset"}, AttachmentDescriptions: []*apiv1.MessageAttachmentDescriptionInput{{AssetId: "asset", Description: tc.description}}}
+			edit := &apiv1.SetAttachmentDescriptionRequest{RoomId: "room", EventId: "event", AttachmentId: "asset", Description: tc.description}
+			if err := protovalidate.Validate(create); (err == nil) != tc.valid {
+				t.Fatalf("create validation = %v, want valid=%v", err, tc.valid)
+			}
+			if err := protovalidate.Validate(edit); (err == nil) != tc.valid {
+				t.Fatalf("edit validation = %v, want valid=%v", err, tc.valid)
+			}
+		})
 	}
 }

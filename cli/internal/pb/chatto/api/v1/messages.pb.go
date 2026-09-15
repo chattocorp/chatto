@@ -28,9 +28,9 @@ type MessageAttachmentDescriptionInput struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Required. Asset ID included in attachment_asset_ids on the same request.
 	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
-	// Plain-text description. Chatto trims outer whitespace, preserves internal
-	// line breaks, permits at most 1,000 Unicode characters after trimming, and
-	// omits an empty result.
+	// Plain-text description with at most 1,000 Unicode characters. Trim outer
+	// whitespace before sending. Chatto also trims outer whitespace, preserves
+	// internal line breaks, and omits an empty result.
 	Description   string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -585,9 +585,9 @@ type SetAttachmentDescriptionRequest struct {
 	EventId string `protobuf:"bytes,2,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
 	// Required. Attachment asset ID in the current message body.
 	AttachmentId string `protobuf:"bytes,3,opt,name=attachment_id,json=attachmentId,proto3" json:"attachment_id,omitempty"`
-	// Replacement description. Chatto trims outer whitespace, preserves
-	// internal line breaks, and permits at most 1,000 Unicode characters after
-	// trimming. An empty result clears the description.
+	// Replacement description with at most 1,000 Unicode characters. Trim outer
+	// whitespace before sending. Chatto also trims outer whitespace and preserves
+	// internal line breaks. An empty result clears the description.
 	Description   string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1005,10 +1005,10 @@ var File_chatto_api_v1_messages_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\n" +
-	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"k\n" +
+	"\x1cchatto/api/v1/messages.proto\x12\rchatto.api.v1\x1a google/protobuf/field_mask.proto\x1a\x1bbuf/validate/validate.proto\x1a!chatto/api/v1/link_previews.proto\x1a!chatto/api/v1/message_types.proto\x1a\x1dchatto/api/v1/reactions.proto\"u\n" +
 	"!MessageAttachmentDescriptionInput\x12$\n" +
-	"\basset_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01(\x0fR\aassetId\x12 \n" +
-	"\vdescription\x18\x02 \x01(\tR\vdescription\"\xa3\x04\n" +
+	"\basset_id\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01(\x0fR\aassetId\x12*\n" +
+	"\vdescription\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aR\vdescription\"\xa3\x04\n" +
 	"\x14CreateMessageRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\x12\n" +
 	"\x04body\x18\x02 \x01(\tR\x04body\x12B\n" +
@@ -1045,12 +1045,12 @@ const file_chatto_api_v1_messages_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12,\n" +
 	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\")\n" +
-	"\x18DeleteAttachmentResponseJ\x04\b\x01\x10\x02R\adeleted\"\xb7\x01\n" +
+	"\x18DeleteAttachmentResponseJ\x04\b\x01\x10\x02R\adeleted\"\xc1\x01\n" +
 	"\x1fSetAttachmentDescriptionRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12\"\n" +
 	"\bevent_id\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\aeventId\x12,\n" +
-	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\x12 \n" +
-	"\vdescription\x18\x04 \x01(\tR\vdescription\"T\n" +
+	"\rattachment_id\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\fattachmentId\x12*\n" +
+	"\vdescription\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xe8\aR\vdescription\"T\n" +
 	" SetAttachmentDescriptionResponse\x120\n" +
 	"\amessage\x18\x01 \x01(\v2\x16.chatto.api.v1.MessageR\amessage\"{\n" +
 	"\x18DeleteLinkPreviewRequest\x12 \n" +

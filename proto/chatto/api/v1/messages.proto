@@ -15,10 +15,10 @@ message MessageAttachmentDescriptionInput {
     min_len: 1
     max_bytes: 15
   }];
-  // Plain-text description. Chatto trims outer whitespace, preserves internal
-  // line breaks, permits at most 1,000 Unicode characters after trimming, and
-  // omits an empty result.
-  string description = 2;
+  // Plain-text description with at most 1,000 Unicode characters. Trim outer
+  // whitespace before sending. Chatto also trims outer whitespace, preserves
+  // internal line breaks, and omits an empty result.
+  string description = 2 [(buf.validate.field).string.max_len = 1000];
 }
 
 // Request to create a message in a room or thread.
@@ -160,10 +160,10 @@ message SetAttachmentDescriptionRequest {
   string event_id = 2 [(buf.validate.field).string.min_len = 1];
   // Required. Attachment asset ID in the current message body.
   string attachment_id = 3 [(buf.validate.field).string.min_len = 1];
-  // Replacement description. Chatto trims outer whitespace, preserves
-  // internal line breaks, and permits at most 1,000 Unicode characters after
-  // trimming. An empty result clears the description.
-  string description = 4;
+  // Replacement description with at most 1,000 Unicode characters. Trim outer
+  // whitespace before sending. Chatto also trims outer whitespace and preserves
+  // internal line breaks. An empty result clears the description.
+  string description = 4 [(buf.validate.field).string.max_len = 1000];
 }
 
 // Result of setting or clearing an attachment description.
