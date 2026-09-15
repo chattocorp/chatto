@@ -205,8 +205,14 @@ describe('MessageAttachments', () => {
     'opens %s in the shared viewer',
     async (contentType) => {
       const view = renderAttachment(fileAttachment({ filename: 'report.html', contentType }));
-      await expect.element(view.getByRole('button', { name: 'View report.html' })).toBeVisible();
-      expect(attachmentMocks.pushState).not.toHaveBeenCalled();
+      await view.getByRole('button', { name: 'View report.html' }).click();
+      expect(attachmentMocks.pushState).toHaveBeenCalledWith('', {
+        modal: expect.objectContaining({
+          type: 'attachmentViewer',
+          items: [expect.objectContaining({ contentType })],
+          index: 0
+        })
+      });
     }
   );
 

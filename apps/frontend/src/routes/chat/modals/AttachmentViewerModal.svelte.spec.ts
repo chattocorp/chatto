@@ -299,6 +299,9 @@ describe('shared attachment previews', () => {
     view.container.querySelector('img')!.dispatchEvent(new Event('error'));
     await expect.element(view.getByRole('alert')).toBeVisible();
     expect(mocks.refreshUrls).toHaveBeenCalledTimes(2);
+    await expect.element(view.getByRole('button', { name: 'Try Again', exact: true })).toBeVisible();
+    await view.getByRole('button', { name: 'Try Again', exact: true }).click();
+    await expect.poll(() => mocks.refreshUrls.mock.calls.length).toBe(3);
   });
 
   it.each(['application/pdf', 'application/zip', 'text/plain'])(
