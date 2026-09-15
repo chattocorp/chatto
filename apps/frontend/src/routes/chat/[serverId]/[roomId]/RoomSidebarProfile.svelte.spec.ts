@@ -50,6 +50,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   })
 }));
 vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
   getLiveBio: (_userId: string, fallback: string | null) => fallback,
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
   getLiveLogin: (_userId: string, fallback: string) => fallback,

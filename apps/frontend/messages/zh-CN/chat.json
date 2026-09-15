@@ -80,7 +80,30 @@
       "fallback_title": "个人资料",
       "not_found": "未找到该用户",
       "bot": "机器人",
-      "local_time": "当地时间 {time}（{zone}）"
+      "local_time": "当地时间 {time}（{zone}）",
+      "permissions": {
+        "title": "它能做什么",
+        "empty": "没有对你可见的有效权限。",
+        "error": "无法加载此机器人的权限。",
+        "inactive_title": "未生效的授权",
+        "inactive_note": "这些授权已保存，但所有者当前的权限不允许使用。",
+        "read": "读取所有消息",
+        "interactions": "读取它创建的或被直接提及的主题",
+        "post": "发布新消息",
+        "room": "#{name}",
+        "group": "分组：{name}",
+        "dm": "它参与的私信",
+        "joined_rooms": "它已加入的房间",
+        "all_rooms": "房间",
+        "server": "此服务器",
+        "list_rooms": "浏览房间",
+        "echo": "在房间时间线中显示主题回复",
+        "start_calls": "发起通话",
+        "browse_join": "浏览并加入房间",
+        "reply": "在线程中回复",
+        "manage_messages": "管理消息"
+      },
+      "owned_by": "所有者"
     }
   }
 }

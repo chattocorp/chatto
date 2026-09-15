@@ -3,7 +3,9 @@
 
 A persistent, collapsible section for Chatto sidebars. It provides the shared
 heading, full-width divider, item spacing, and disclosure behaviour used by room
-navigation, member presence groups, and attachment date groups.
+navigation, member presence groups, and attachment date groups. Collection
+transitions belong to the outer conditional block so an empty collapsed group
+can slide out before its rows are removed.
 -->
 <script module lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
@@ -165,11 +167,13 @@ navigation, member presence groups, and attachment date groups.
         ]}
         data-testid={itemsAttachment ? 'room-group-items-dropzone' : undefined}
         {@attach itemsAttachment}
+        transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
       >
         {#if itemsAttachment}
           {#each visibleItems as entry (entry.id)}
             <div
-              animate:flip={{ duration: COMPACT_MOTION_DURATION_MS }}
+              animate:flip={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
+              transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}
               data-is-dnd-shadow-item-hint={isDndShadowItem(entry) || undefined}
             >
               {@render item(entry)}
@@ -185,7 +189,9 @@ navigation, member presence groups, and attachment date groups.
       </div>
     {/if}
     {#if !collapsed && footer}
-      {@render footer()}
+      <div transition:slide={expoOutTransition(COMPACT_MOTION_DURATION_MS)}>
+        {@render footer()}
+      </div>
     {/if}
   </div>
 </section>

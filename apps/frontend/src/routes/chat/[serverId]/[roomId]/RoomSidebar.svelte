@@ -421,7 +421,11 @@ calls, and similar room-specific panels can plug into the same shell. See the
   </PaneHeader>
 
   {#if activeProfileUserId}
-    <RoomSidebarProfile userId={activeProfileUserId} />
+    <RoomSidebarProfile
+      userId={activeProfileUserId}
+      onSendMessage={canStartDMs ? (userId) => startDMWith(activeServerId, userId) : undefined}
+      {onOpenProfile}
+    />
   {:else if activePanel === 'members'}
     <div class="flex min-h-0 flex-1 flex-col">
       <ScrollFader
@@ -431,10 +435,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
         data-testid="room-member-list"
         aria-label={m('room.sidebar.members')}
       >
-        <nav
-          aria-label={m('room.sidebar.members')}
-          aria-busy={membersPending}
-        >
+        <nav aria-label={m('room.sidebar.members')} aria-busy={membersPending}>
           {#if !membersPending}
             {#if members.length === 0}
               <div class="px-2 py-8 text-center text-sm text-muted">

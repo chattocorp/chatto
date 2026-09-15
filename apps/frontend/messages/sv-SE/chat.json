@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Användaren hittades inte",
       "bot": "Bot",
-      "local_time": "{time} lokal tid ({zone})"
+      "local_time": "{time} lokal tid ({zone})",
+      "permissions": {
+        "title": "Vad den kan göra",
+        "empty": "Inga aktiva behörigheter är synliga för dig.",
+        "error": "Det gick inte att läsa in botens behörigheter.",
+        "inactive_title": "Inaktiva behörigheter",
+        "inactive_note": "Dessa behörigheter är sparade, men ägarens aktuella behörigheter tillåter dem inte.",
+        "read": "Läsa alla meddelanden",
+        "interactions": "Läsa trådar som den har skapat eller där den har nämnts direkt",
+        "post": "Skicka nya meddelanden",
+        "room": "#{name}",
+        "group": "Grupp: {name}",
+        "dm": "Dess direktmeddelanden",
+        "joined_rooms": "Rum som den har gått med i",
+        "all_rooms": "Rum",
+        "server": "Den här servern",
+        "list_rooms": "Bläddra bland rum",
+        "echo": "Visa trådsvar i rummets tidslinje",
+        "start_calls": "Starta samtal",
+        "browse_join": "Bläddra bland och gå med i rum",
+        "reply": "Svara i trådar",
+        "manage_messages": "Hantera meddelanden"
+      },
+      "owned_by": "Ägs av"
     }
   }
 }

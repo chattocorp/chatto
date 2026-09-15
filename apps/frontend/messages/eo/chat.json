@@ -80,7 +80,30 @@
       "fallback_title": "Profilo",
       "not_found": "Uzanto ne trovita",
       "bot": "Roboto",
-      "local_time": "Loka tempo {time} ({zone})"
+      "local_time": "Loka tempo {time} ({zone})",
+      "permissions": {
+        "title": "Kion ĝi povas fari",
+        "empty": "Neniuj aktivaj permesoj estas videblaj al vi.",
+        "error": "Ne eblis ŝargi la permesojn de ĉi tiu roboto.",
+        "inactive_title": "Neaktivaj permesoj",
+        "inactive_note": "Ĉi tiuj permesoj estas konservitaj, sed la nunaj permesoj de la posedanto ne permesas ilin.",
+        "read": "Legi ĉiujn mesaĝojn",
+        "interactions": "Legi fadenojn kiujn ĝi kreis aŭ en kiuj ĝi estis rekte menciita",
+        "post": "Afiŝi novajn mesaĝojn",
+        "room": "#{name}",
+        "group": "Grupo: {name}",
+        "dm": "Ĝiaj rektaj mesaĝoj",
+        "joined_rooms": "Ĉambroj al kiuj ĝi aliĝis",
+        "all_rooms": "Ĉambroj",
+        "server": "Ĉi tiu servilo",
+        "list_rooms": "Foliumi ĉambrojn",
+        "echo": "Montri fadenajn respondojn en la ĉambra templinio",
+        "start_calls": "Komenci vokojn",
+        "browse_join": "Foliumi kaj aliĝi al ĉambroj",
+        "reply": "Respondi en fadenoj",
+        "manage_messages": "Administri mesaĝojn"
+      },
+      "owned_by": "Posedanto"
     }
   }
 }

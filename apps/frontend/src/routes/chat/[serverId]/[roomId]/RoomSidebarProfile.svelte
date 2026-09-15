@@ -9,6 +9,8 @@ realtime changes arrive.
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createUserAPI } from '$lib/api-client/users';
+  import BotOwnerRow from '$lib/components/bots/BotOwnerRow.svelte';
+  import BotPermissionSummary from '$lib/components/bots/BotPermissionSummary.svelte';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import UserCustomStatusBadge from '$lib/components/UserCustomStatusBadge.svelte';
   import UserBio from '$lib/components/users/UserBio.svelte';
@@ -27,7 +29,15 @@ realtime changes arrive.
   import { Hint } from '$lib/ui';
   import { formatMessageTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
-  let { userId }: { userId: string } = $props();
+  let {
+    userId,
+    onSendMessage,
+    onOpenProfile
+  }: {
+    userId: string;
+    onSendMessage?: (userId: string) => void;
+    onOpenProfile?: (userId: string) => void;
+  } = $props();
 
   const serverScope = useServerScope();
   const viewerTimeSettings = $derived(
@@ -49,7 +59,8 @@ realtime changes arrive.
           return user;
         },
         enabled: !!userId,
-        staleTime: 30_000
+        staleTime: 30_000,
+        refetchInterval: (query) => (query.state.data?.isBot ? 30_000 : false)
       };
     },
     () => queryClient
@@ -116,8 +127,25 @@ realtime changes arrive.
       </div>
     </div>
 
+    {#if baseUser.isBot && baseUser.bot?.ownerUserId}
+      {#key baseUser.bot?.ownerUserId}
+        <BotOwnerRow
+          ownerId={baseUser.bot?.ownerUserId}
+          {onSendMessage}
+          {onOpenProfile}
+          viewerSettings={serverScope.store.currentUser.user?.settings}
+        />
+      {/key}
+    {/if}
+
     {#if bio}
       <UserBio {bio} class="mt-4" />
+    {/if}
+
+    {#if baseUser.isBot}
+      {#key baseUser.id}
+        <BotPermissionSummary botId={baseUser.id} botOwnerId={baseUser.bot?.ownerUserId} />
+      {/key}
     {/if}
 
     {#if timezone && localTime}

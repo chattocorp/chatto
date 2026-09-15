@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -18,8 +17,8 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/email"
+	"hmans.de/authling/internal/runtimejson"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const FlowTTL = 15 * time.Minute
@@ -39,7 +38,6 @@ var (
 	ErrInvalidEmail   = errors.New("enter a valid email address")
 	ErrInvalidCode    = errors.New("the code is invalid or has expired")
 	ErrInvalidFlow    = errors.New("the email change has expired; start again")
-	errTooManyCodes   = errors.New("too many email change codes requested")
 	errCompletionBusy = errors.New("email change completion capacity exhausted")
 )
 
@@ -52,11 +50,6 @@ type flowState struct {
 	CompletionAttempts   int                        `json:"completion_attempts"`
 	CompletionLeaseUntil time.Time                  `json:"completion_lease_until"`
 	ExpiresAt            time.Time                  `json:"expires_at"`
-}
-
-type sealedState struct {
-	Version           int `json:"version"`
-	Nonce, Ciphertext []byte
 }
 
 // Completion reports a committed identity change and whether the best-effort
@@ -76,6 +69,7 @@ type Service struct {
 	sender          email.Sender
 	accounts        *accounts.Service
 	authentication  *authentication.Service
+	deliveryBudget  *storage.DeliveryBudget
 	deliverySlots   chan struct{}
 	completionSlots chan struct{}
 	now             func() time.Time
@@ -96,7 +90,23 @@ func WithClock(now func() time.Time) Option {
 
 // New constructs the verified email-change workflow.
 func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, options ...Option) *Service {
-	service := &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, authentication: authenticationService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions), now: time.Now}
+	service := &Service{
+		kv:             kv,
+		js:             js,
+		key:            append([]byte(nil), key...),
+		sender:         sender,
+		accounts:       accountService,
+		authentication: authenticationService,
+		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
+			GlobalKey:      "email-change-limit.global",
+			GlobalLimit:    maxGlobalDeliveredCodes,
+			RecipientLimit: maxDeliveredCodes,
+			Window:         FlowTTL,
+		}),
+		deliverySlots:   make(chan struct{}, maxConcurrentDeliveries),
+		completionSlots: make(chan struct{}, maxConcurrentCompletions),
+		now:             time.Now,
+	}
 	for _, option := range options {
 		option(service)
 	}
@@ -115,16 +125,15 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if err != nil {
 		return "", err
 	}
-	if err := s.reserveDelivery(ctx, newEmail); err != nil {
+	if err := s.deliveryBudget.Reserve(ctx, s.deliveryKey(newEmail)); err != nil {
 		return "", err
 	}
-	reserved := true
 	delivered := false
 	defer func() {
-		if reserved && !delivered {
+		if !delivered {
 			cleanupContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_ = s.rollbackDelivery(cleanupContext, newEmail)
+			_ = s.deliveryBudget.Rollback(cleanupContext, s.deliveryKey(newEmail))
 		}
 	}()
 	target, err = s.accounts.RecordEmailChangeRequested(ctx, target)
@@ -259,16 +268,7 @@ func (s *Service) flowKey(token string) string {
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
-	plain, err := json.Marshal(state)
-	if err != nil {
-		return nil, err
-	}
-	defer clear(plain)
-	sealed, err := datacrypto.Seal(s.key, plain, []byte("authling:email-change-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(sealedState{Version: 1, Nonce: sealed.Nonce, Ciphertext: sealed.Ciphertext})
+	return runtimejson.Seal(s.key, []byte("authling:email-change-runtime:v1\x00"+key), state, runtimejson.CapitalizedFields)
 }
 
 func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry, flowState, error) {
@@ -276,17 +276,8 @@ func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry
 	if err != nil {
 		return nil, flowState{}, err
 	}
-	var sealed sealedState
-	if err := json.Unmarshal(entry.Value(), &sealed); err != nil || sealed.Version != 1 {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	plain, err := datacrypto.Open(s.key, sealed.Ciphertext, sealed.Nonce, []byte("authling:email-change-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	defer clear(plain)
 	var state flowState
-	if err := json.Unmarshal(plain, &state); err != nil {
+	if err := runtimejson.Open(s.key, []byte("authling:email-change-runtime:v1\x00"+key), entry.Value(), &state); err != nil {
 		return nil, flowState{}, ErrInvalidFlow
 	}
 	return entry, state, nil
@@ -308,84 +299,8 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	return updated, nil
 }
 
-type deliveryCounter struct {
-	Count int `json:"count"`
-}
-
 func (s *Service) deliveryKey(address string) string {
 	return "email-change-limit." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "delivery\x00"+address))
-}
-
-func (s *Service) reserveDelivery(ctx context.Context, address string) error {
-	if err := s.reserveCounter(ctx, "email-change-limit.global", maxGlobalDeliveredCodes); err != nil {
-		return err
-	}
-	if err := s.reserveCounter(ctx, s.deliveryKey(address), maxDeliveredCodes); err != nil {
-		_ = s.rollbackCounter(ctx, "email-change-limit.global")
-		return err
-	}
-	return nil
-}
-
-func (s *Service) reserveCounter(ctx context.Context, key string, limit int) error {
-	for range 16 {
-		entry, err := s.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			data, _ := json.Marshal(deliveryCounter{Count: 1})
-			if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err == nil {
-				return nil
-			}
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("read email change delivery limit: %w", err)
-		}
-		var counter deliveryCounter
-		if json.Unmarshal(entry.Value(), &counter) != nil {
-			return fmt.Errorf("decode email change delivery limit")
-		}
-		if counter.Count >= limit {
-			return errTooManyCodes
-		}
-		counter.Count++
-		data, _ := json.Marshal(counter)
-		if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL); err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("update email change delivery limit")
-}
-
-func (s *Service) rollbackDelivery(ctx context.Context, address string) error {
-	return errors.Join(s.rollbackCounter(ctx, s.deliveryKey(address)), s.rollbackCounter(ctx, "email-change-limit.global"))
-}
-
-func (s *Service) rollbackCounter(ctx context.Context, key string) error {
-	for range 16 {
-		entry, err := s.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		var counter deliveryCounter
-		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-			return fmt.Errorf("decode email change delivery limit for rollback")
-		}
-		if counter.Count == 1 {
-			if err := s.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err == nil {
-				return nil
-			}
-			continue
-		}
-		counter.Count--
-		data, _ := json.Marshal(counter)
-		if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL); err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("rollback email change delivery limit after repeated conflicts")
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {

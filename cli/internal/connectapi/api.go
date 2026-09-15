@@ -127,6 +127,7 @@ func (a *API) Handlers() []Handler {
 	}
 
 	accountPath, accountHandler := apiv1connect.NewMyAccountServiceHandler(&accountService{api: a}, uploadOptions...)
+	effectivePermissionPath, effectivePermissionHandler := apiv1connect.NewPermissionServiceHandler(&effectivePermissionService{api: a}, options...)
 	botPath, botHandler := apiv1connect.NewBotServiceHandler(&botService{api: a}, options...)
 	assetPath, assetHandler := apiv1connect.NewAssetServiceHandler(&assetService{api: a}, options...)
 	assetUploadPath, assetUploadHandler := apiv1connect.NewAssetUploadServiceHandler(&assetUploadService{api: a}, assetUploadOptions...)
@@ -160,6 +161,7 @@ func (a *API) Handlers() []Handler {
 		{ServicePath: setupPath, Handler: setupHandler, AuthPolicy: AuthPolicyPublic},
 		{ServicePath: accountPath, Handler: accountHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: botPath, Handler: botHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
+		{ServicePath: effectivePermissionPath, Handler: effectivePermissionHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetPath, Handler: assetHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: assetUploadPath, Handler: assetUploadHandler, AuthPolicy: AuthPolicyAuthenticatedUser},
 		{ServicePath: adminDiagnosticsPath, Handler: adminDiagnosticsHandler, AuthPolicy: AuthPolicyAuthenticatedUser},

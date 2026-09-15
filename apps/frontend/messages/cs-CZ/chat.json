@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Uživatel nenalezen",
       "bot": "Bot",
-      "local_time": "{time} místního času ({zone})"
+      "local_time": "{time} místního času ({zone})",
+      "permissions": {
+        "title": "Co může dělat",
+        "empty": "Nejsou pro tebe viditelná žádná aktivní oprávnění.",
+        "error": "Oprávnění tohoto bota se nepodařilo načíst.",
+        "inactive_title": "Neaktivní oprávnění",
+        "inactive_note": "Tato oprávnění jsou uložená, ale aktuální oprávnění vlastníka je neumožňují.",
+        "read": "Číst všechny zprávy",
+        "interactions": "Číst vlákna, která vytvořil nebo ve kterých byl přímo zmíněn",
+        "post": "Posílat nové zprávy",
+        "room": "#{name}",
+        "group": "Skupina: {name}",
+        "dm": "Jeho přímé zprávy",
+        "joined_rooms": "Místnosti, do kterých se připojil",
+        "all_rooms": "Místnosti",
+        "server": "Tento server",
+        "list_rooms": "Procházet místnosti",
+        "echo": "Zobrazovat odpovědi z vláken na časové ose místnosti",
+        "start_calls": "Zahajovat hovory",
+        "browse_join": "Procházet místnosti a připojovat se",
+        "reply": "Odpovídat ve vláknech",
+        "manage_messages": "Spravovat zprávy"
+      },
+      "owned_by": "Vlastník"
     }
   }
 }

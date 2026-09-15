@@ -1,7 +1,7 @@
 # FDR-007: Verified Email Change
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -68,9 +68,11 @@ event contains opaque account and credential-event IDs only.
 **Why:** Durable audit and uniqueness do not require exposing login identifiers
 in stream subjects or plaintext event payloads.
 
-**Tradeoff:** Historical encrypted addresses remain decryptable to a live
-Authling process with key-store access until erasure-aware replay and key
-retirement are implemented.
+**Tradeoff:** Historical encrypted addresses remain decryptable while the
+account's key material is available. Email change does not erase earlier
+addresses independently. Account deletion destroys the live account keys and
+supports replay after erasure; [FDR-013](FDR-013-account-deletion.md) records the
+limits for backups and external copies.
 
 ### 3. Claim and activate atomically
 
@@ -130,7 +132,7 @@ claim may already be observed.
 may retry a notification after an ambiguous crash, so the old mailbox can
 receive a duplicate. Recovery is browser-driven, so a crash can still lose the
 best-effort effect when no completion retry reaches the restarted process.
-Durable operational effects remain future work.
+Durable retries for these security notifications remain future work.
 
 ## Security and Failure Behavior
 

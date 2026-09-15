@@ -99,6 +99,27 @@ func TestJWKSCacheControlDependsOnResponseStatus(t *testing.T) {
 	}
 }
 
+func TestTokenPreflightRunsBeforePostValidation(t *testing.T) {
+	handler := (&Service{}).wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("invalid request reached token engine")
+	}))
+	request := httptest.NewRequest(http.MethodOptions, "https://auth.example/oauth/token", nil)
+	request.Header.Set("Origin", "https://client.example")
+	request.Header.Set("Access-Control-Request-Method", "POST")
+	request.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	if response.Code != http.StatusNoContent || response.Header().Get("Access-Control-Allow-Origin") != "*" || response.Header().Get("Access-Control-Allow-Headers") != "Authorization, Content-Type" {
+		t.Fatalf("preflight status/headers: %d %v", response.Code, response.Header())
+	}
+	// Moving preflight must not bypass validation for actual malformed POSTs.
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "https://auth.example/oauth/token", nil))
+	if response.Code != http.StatusBadRequest || response.Header().Get("Access-Control-Allow-Origin") != "*" {
+		t.Fatalf("invalid POST status/CORS: %d %v", response.Code, response.Header())
+	}
+}
+
 func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
 	tests := []struct {
@@ -113,7 +134,7 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 		{name: "extra scope"},
 		{name: "duplicate scope"},
 		{name: "account data without openid"},
-		{name: "prompt none"},
+		{name: "prompt none", want: true},
 		{name: "prompt login", want: true},
 		{name: "form post"},
 		{name: "max age", want: true},

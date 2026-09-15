@@ -19,6 +19,11 @@ account, and logout pages plus embedded browser assets. It also exposes OpenID C
 authorization, token, UserInfo, and JWKS endpoints. Authling exposes no public
 account-management, application-data, document, or synchronization API.
 
+`web.Handler` composes feature-specific route registration functions for login,
+signup, recovery, consent, account management, profile, password change, email
+change, and deletion. It retains the shared assets and home routes, OIDC
+fallback, and outer security and origin middleware.
+
 ## Configuration
 
 The runtime reads `authling.toml` by default. `AUTHLING_*` environment variables
@@ -60,7 +65,9 @@ configuration. HTTPS redirects are mandatory outside loopback development.
 `oidc.cimd_trusted_private_hosts` and `oidc.cimd_trusted_loopback_hosts` are
 separate, exact-host development exceptions. They permit named CIMD hosts to
 resolve only to private or loopback addresses respectively; neither permits
-other special-use destinations.
+other special-use destinations. An issuer with a loopback hostname also permits
+loopback CIMD destinations without an explicit trusted-host entry. CIMD URLs
+still require HTTPS.
 
 Operators must select exactly one NATS mode:
 
@@ -198,9 +205,10 @@ revision when this model is running.
 The issuer projection consumes the singleton `authling.evt.issuer` subject.
 On first initialization, its service creates or resolves the RS256 signing key
 and establishes the issuer with subject-level OCC. It then materializes one
-active key, at most one pre-published successor, and at most one unexpired
-predecessor. The in-process reconciler automatically requests rotation when
-the active key reaches its configured age, creates event-owned key material,
+active key and at most one pre-published successor or unexpired predecessor.
+A new rotation waits for the preceding retirement to complete. The in-process
+reconciler automatically requests rotation when the active key reaches its
+configured age, creates event-owned key material,
 activates it after ten minutes of JWKS publication, and retires the predecessor
 after a 15-minute overlap. Every transition uses issuer-subject OCC and waits
 for its projected position. Restart resumes incomplete creation or destruction
@@ -221,8 +229,12 @@ ordinary server-rendered links and forms.
 
 `GET /signup` renders the email form. Three POST endpoints start a flow, verify
 its code, and complete account creation with a password. Unsafe requests reject
-cross-origin browser submissions. The browser carries a random opaque flow
-token in hidden fields; raw email addresses, OTPs, and passwords never enter
+cross-origin browser submissions. Signup from an OIDC login carries the
+validated pending request ID through its forms and resumes consent after
+session creation. A silent OIDC request returns
+an authorization code or a protocol error without rendering login or consent;
+its encrypted `silent` flag survives restart.
+The browser carries a random opaque flow token in hidden fields; raw email addresses, OTPs, and passwords never enter
 URLs.
 
 `GET /login` renders local credential login. `POST /login` applies a shared,
@@ -232,6 +244,14 @@ same-origin `POST /logout` revokes it. Successful signup also starts a session.
 The host-only browser cookie carries only a random opaque bearer and is
 `HttpOnly`, `SameSite=Lax`, scoped to `/`, non-persistent, and secure outside
 the explicit loopback development mode.
+
+The `internal/runtimejson` codec encodes version-1 encrypted JSON envelopes
+for signup, password reset, email change, sessions, and OIDC runtime state.
+It preserves the capitalized workflow fields and lowercase session/OIDC fields.
+Callers supply the existing key and associated data, including the storage key.
+They retain expiry, revision checks, storage access, and domain validation.
+The codec clears temporary plaintext buffers before returning. Existing records
+remain readable, and old readers can read new records without migration.
 
 Session records are authenticated-encrypted in runtime state beneath
 HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
@@ -259,8 +279,9 @@ local watcher before redirecting.
 `GET /password-reset` starts verified-email recovery. Three POST endpoints
 create an expiring flow, verify its six-digit code, and commit a new password.
 Claimed and unclaimed valid addresses follow the same email-delivery and
-browser path. After delivery limits accept an existing account's request, a
-PII-free `PasswordResetRequestedEvent` must commit before flow creation or SMTP
+browser path. After non-refundable admission and delivery limits accept an
+existing account's request, a PII-free `PasswordResetRequestedEvent` must commit
+before flow creation or SMTP
 delivery; absent accounts have no aggregate on which to record one. Encrypted
 flow state is bound to that audit event and the credential event current at
 start. Account-subject OCC prevents concurrent stale flows from overwriting a
@@ -300,6 +321,13 @@ projection boundaries, then appends a `PasswordChangedEvent` bound to the exact
 reauthenticated credential. It advances the authentication version, invalidates
 older browser sessions, and creates a replacement session at that exact
 generation. The account ID, verified email, and OIDC `sub` remain unchanged.
+Both password commands use one private replacement method in `accounts` for
+password hashing, verifier encryption, event publication, and projection waits.
+Each command retains its input checks and ceremony kind. Recovery also retains
+its request event reference. A confirmed conflict triggers a fresh credential
+check; retries reuse the same event and encrypted verifier. Other publication
+errors return without retry because the commit outcome can be unknown.
+
 `GET` and `HEAD /.well-known/change-password` return a temporary, non-cacheable
 redirect to this page. A signed-out request carries only this fixed internal
 return target through login. Other submitted return targets are ignored.
@@ -336,6 +364,12 @@ five-second lookup deadline includes DNS and body reads. Its cache holds at
 most 256 clients, removes expired entries on access, and evicts the entry with
 the earliest expiry when full. Pending requests, code mappings,
 and opaque access-token records are encrypted and expire in runtime state.
+New authorization requests first consume a shared OCC admission counter in
+`AUTHLING_RUNTIME_STATE`. It permits 1,000 admissions and expires ten minutes
+after the last admission. Failed work does not refund it. Recovery uses separate
+global and keyed per-address admission counters with a 15-minute quiet window,
+so failed SMTP delivery cannot bypass the bound on permanent recovery events.
+These counters contain no identifiers or secrets and share no event subjects.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
 any prepared successor and unexpired predecessor. JWKS responses have a
@@ -348,6 +382,15 @@ The HTTP server bounds header, body-read, response-write, and idle time. Signup,
 password reset, signed-in password change, and email change also cap request
 bodies. OTP flows globally limit delivery and bound concurrent SMTP and
 completion work per process.
+
+Signup, password reset, and email change use `storage.DeliveryBudget` for
+refundable delivery counters. Each workflow keeps its existing global key,
+HMAC-derived recipient keys, limits, and 15-minute quiet window. The budget
+reserves global capacity before recipient capacity. Failed work refunds
+confirmed reservations on a best-effort basis. Counter mutations retry only
+confirmed revision conflicts. An uncertain write acknowledgement stops the
+operation and can leave capacity consumed until expiry. Rollback attempts both
+counters even if one fails. Non-refundable request admission remains separate.
 
 ## Account deletion and erasure
 

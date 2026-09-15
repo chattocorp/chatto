@@ -16,7 +16,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 - Default page size is 20; the maximum is 500. Requests larger than 500 are silently clamped down.
 - Results are sorted by `createdAt` ascending (oldest member first). Users created before the timestamp field existed sort to the end, alphabetically by login.
 - Direct user lookups by stable user ID or login return the same public directory row shape as the directory and require authentication. Batch user hydration by stable user ID supports cache-miss loading without N+1 reads.
-- Directory and lookup rows expose the canonical `User.is_bot` marker. Clients render an accessible bot indicator so people can distinguish automation from human accounts.
+- Directory and lookup rows expose the canonical `User.bot` metadata. Clients render an accessible bot indicator so people can distinguish automation from human accounts.
 
 ## Design Decisions
 
@@ -48,7 +48,7 @@ Any authenticated user can browse the server's member directory — a paginated 
 
 **Decision:** No special permission required; any authenticated user can list members or look up a member by stable user ID.
 **Why:** Chatto's privacy model treats user identity (login, display name, avatar) as public to other members. Hiding members from members would be incongruent — they'd see each other in messages anyway. Operators who want a fully private member list would need a different feature.
-**Tradeoff:** Bot accounts intentionally surface in normal listings. Integrations that need only human accounts must filter the canonical `is_bot` marker. The admin UI may still require admin permissions to reach its member-management page, but the underlying directory query remains available to authenticated users.
+**Tradeoff:** Bot accounts intentionally surface in normal listings. Integrations that need only human accounts must filter the presence of canonical `User.bot` metadata. The admin UI may still require admin permissions to reach its member-management page, but the underlying directory query remains available to authenticated users.
 
 ### 6. Implicit membership, no explicit member records
 

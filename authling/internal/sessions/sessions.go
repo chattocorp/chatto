@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -15,8 +14,8 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"hmans.de/authling/internal/runtimejson"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const (
@@ -47,12 +46,6 @@ type Session struct {
 // AuthenticationVersionResolver returns the durable credential generation for
 // an account. A changed generation invalidates sessions issued before it.
 type AuthenticationVersionResolver func(ctx context.Context, accountID string) (uint64, bool, error)
-
-type sealedState struct {
-	Version    int    `json:"version"`
-	Nonce      []byte `json:"nonce"`
-	Ciphertext []byte `json:"ciphertext"`
-}
 
 // Service stores encrypted session state in Authling's runtime KV bucket.
 type Service struct {
@@ -268,35 +261,27 @@ func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry
 }
 
 func (s *Service) open(key string, value []byte) (Session, error) {
-	var sealed sealedState
-	if err := json.Unmarshal(value, &sealed); err != nil || sealed.Version != 1 {
-		return Session{}, fmt.Errorf("decode session envelope")
-	}
-	plain, err := datacrypto.Open(s.key, sealed.Ciphertext, sealed.Nonce, sessionAAD(key))
-	if err != nil {
-		return Session{}, fmt.Errorf("decrypt session: %w", err)
-	}
-	defer clear(plain)
 	var state Session
-	if err := json.Unmarshal(plain, &state); err != nil || state.AccountID == "" || state.CreatedAt.IsZero() || state.AuthenticatedAt.IsZero() || state.AuthenticatedAt.After(state.CreatedAt) || state.LastSeenAt.Before(state.CreatedAt) || state.LastSeenAt.After(state.ExpiresAt) || !state.ExpiresAt.After(state.CreatedAt) {
+	if err := runtimejson.Open(s.key, sessionAAD(key), value, &state); err != nil {
+		switch {
+		case errors.Is(err, runtimejson.ErrInvalidEnvelope):
+			return Session{}, fmt.Errorf("decode session envelope")
+		case errors.Is(err, runtimejson.ErrInvalidState):
+			return Session{}, fmt.Errorf("decode session state")
+		default:
+			return Session{}, fmt.Errorf("decrypt session: %w", err)
+		}
+	}
+	if state.AccountID == "" || state.CreatedAt.IsZero() || state.AuthenticatedAt.IsZero() || state.AuthenticatedAt.After(state.CreatedAt) || state.LastSeenAt.Before(state.CreatedAt) || state.LastSeenAt.After(state.ExpiresAt) || !state.ExpiresAt.After(state.CreatedAt) {
 		return Session{}, fmt.Errorf("decode session state")
 	}
 	return state, nil
 }
 
 func (s *Service) seal(key string, state Session) ([]byte, error) {
-	plain, err := json.Marshal(state)
+	data, err := runtimejson.Seal(s.key, sessionAAD(key), state, runtimejson.LowercaseFields)
 	if err != nil {
-		return nil, fmt.Errorf("encode session state: %w", err)
-	}
-	sealed, err := datacrypto.Seal(s.key, plain, sessionAAD(key))
-	clear(plain)
-	if err != nil {
-		return nil, fmt.Errorf("encrypt session: %w", err)
-	}
-	data, err := json.Marshal(sealedState{Version: 1, Nonce: sealed.Nonce, Ciphertext: sealed.Ciphertext})
-	if err != nil {
-		return nil, fmt.Errorf("encode session envelope: %w", err)
+		return nil, fmt.Errorf("encode encrypted session: %w", err)
 	}
 	return data, nil
 }

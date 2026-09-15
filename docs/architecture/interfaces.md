@@ -64,7 +64,7 @@ socket.
 | ------- | --------------- | ----------- |
 | `chatto.auth.v1` | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService` | Public capability-token flows |
 | `chatto.discovery.v1` | `ServerDiscoveryService` | Public discovery |
-| `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
+| `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationPolicyService`, `NotificationService`, `PermissionService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user; `ViewerService` also reports and changes privileged mode for the current human session |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
 `MyAccountService.GetSettings` exposes caller-owned display preferences using
@@ -98,6 +98,12 @@ methods require `server.manage-neighbors`. `ServerDiscoveryService.ListNeighbors
 returns canonical origins without a session or an ordering contract. The
 server does not contact the advertised origins.
 
+Public `User` resources expose `bot: BotInfo` for active bots in ordinary
+reads, administrator lists, and realtime snapshot hydration. The bot profile
+refreshes this reference every 30 seconds and loads the owner's public identity
+through `UserService.BatchGetUsers`. No credentials or management rights are
+exposed by the reference.
+
 `UserService` provides user reads and the canonical target-aware avatar upload
 and delete operations. Self-targeting is available to human and bot callers. A
 cross-human target requires `user.manage-accounts`. A cross-bot target permits
@@ -120,13 +126,23 @@ See [role operations](../../cli/internal/core/role_management.go) and the
 
 `BotService` exposes bot lifecycle, administrator-initiated owner reassignment,
 and create and revoke operations for as many as 20 named API keys and 20 named
-incoming webhooks for each bot. Bot
-permission reads and writes use `AdminPermissionService`'s canonical user
-permission operations with the bot's user ID as the target. Human owners can
+incoming webhooks for each bot. Bot permission configuration reads and writes
+use `AdminPermissionService`'s canonical user permission operations with the
+bot's user ID as the target. Human owners can
 manage their own bots; `bot.manage` allows global management. A human with
 `user.manage-accounts` can list and read all bots for avatar administration,
 but this visibility does not grant bot credential, permission, ownership, or
 lifecycle authority.
+
+`chatto.api.v1.PermissionService.ListEffectivePermissions` is a read-only,
+complete effective permission read without pagination or truncation. Authenticated members can inspect
+bot targets; human targets require `user.manage-permissions`. Core evaluates
+the existing resolver in one server content view, including bot owner limits.
+The response retains inherited and included grants. Child coverage metadata
+accounts for hidden rooms before room identities are filtered. The client
+combines grants for display. Stored overrides and inactive grants remain in
+the existing admin matrix API, with its management checks. Neither effective
+permission scopes nor their coverage metadata expose individual DM participants.
 
 Owner reassignment validates stable request-time authorization inputs and uses
 user-family OCC. This boundary serializes reassignment with deletion of the bot

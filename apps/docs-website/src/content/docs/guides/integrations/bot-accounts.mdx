@@ -15,6 +15,29 @@ login forms.
   out of source control, logs, URLs, screenshots, and support requests.
 </Aside>
 
+## View a bot's access
+
+Open the bot's profile pane in chat. The **Owned by** row shows its human owner.
+The owner’s card includes message and profile actions when your permissions allow them.
+Select the owner's avatar or name to open their profile card. This row stays
+visible when you collapse the permissions section. **What it can do** describes its
+current permissions. All signed-in members can see this summary. Room names
+appear only when you can see those rooms. Direct-message permissions appear
+under a separate heading and do not reveal participants. Icons identify each
+scope. Each heading lists
+short actions, such as **Read all messages** and **Reply in threads**.
+Select the section heading to collapse or expand it. It starts expanded and
+remembers your choice for this server on this device.
+
+The summary applies the owner's permission limits and combines overlapping
+grants. Message and call actions still require membership and other action
+requirements. The complete summary loads in one request and refreshes every 30 seconds
+while it is open.
+
+If you own or manage the bot, expand **Inactive grants** to see saved grants that the
+owner's current permissions do not allow. These grants can become active again
+if the owner regains the required permissions.
+
 ## Create and configure a bot
 
 <Steps>
@@ -242,7 +265,7 @@ Authorization: Bearer cht_BK_…
 
 The request is authorized as the bot user. For example, posting a message
 requires an explicit effective `message.post` allow and normal room access.
-The canonical `User.is_bot` field identifies bot authors to API clients;
+The presence of canonical `User.bot` metadata identifies bot authors to API clients;
 the bundled client also shows a robot marker on their avatars, except on
 extra-small avatars such as thread participants. The marker uses
 soft shading and changes its colours to match the light or dark theme.
@@ -284,8 +307,11 @@ incoming webhook credentials. The bot can use
 `MyAccountService.UpdateProfile` with its API key for self-profile
 changes. Avatar mutations use the target-aware `UserService` methods. A raw key
 appears only in `CreateBot` and `CreateBotApiKey` responses.
-Bot permissions use the same `AdminPermissionService` user-permission RPCs as
-human accounts, with the bot's user ID as the target. See the
+Effective permissions use `PermissionService.ListEffectivePermissions` in
+`chatto.api.v1`. Any signed-in member can read a bot target. Stored grants and
+permission changes use the same `AdminPermissionService` user-permission RPCs
+as human accounts, with the bot's user ID as the target. See the
+[PermissionService reference](/reference/connectrpc-api/permissions/),
 [BotService reference](/reference/connectrpc-api/bots/),
 [UserService reference](/reference/connectrpc-api/users/), and
 [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

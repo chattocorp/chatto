@@ -1,7 +1,7 @@
 # FDR-006: Password Reset
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -17,6 +17,15 @@ email claim, and OpenID Connect `sub` remain unchanged.
 - Every syntactically valid email address follows the same flow and email
   delivery path whether or not it currently identifies an account. Browser
   copy does not disclose account existence.
+- Before any audit append or delivery work, a request consumes a shared global
+  admission and a keyed per-address admission. The limits are 1,000 globally
+  and ten per address. Each admission restarts that counter's 15-minute quiet
+  window. Exhausted counters expire after that window; rejected requests do
+  not extend it. Global admission comes first to bound address-counter creation.
+  Counters use OCC and survive process restart. SMTP and storage failures,
+  including unknown acknowledgements, do not refund admission. Thus failed
+  delivery cannot cause unlimited permanent recovery events. Existing and
+  absent addresses use the same policy and public failure response.
 - After rate limits accept a request for an existing account, Authling commits
   a `PasswordResetRequestedEvent` before creating the flow or sending email.
   The event contains only the account ID and current credential event ID; its
@@ -80,8 +89,10 @@ reset code, and its verified flow cannot complete.
 **Decision:** The encrypted flow records the account, credential event, and
 request event IDs observed at start. Completion compares the credential
 binding with the current projection and appends against the observed
-account-subject tail using OCC. Audit-only reset requests advance that tail but
-do not stale a flow whose credential remains current.
+account-subject tail using OCC. It first waits for both the account and
+email-registry projection boundaries and rejects a partly projected email
+change. Audit-only reset requests advance the account tail but do not stale a
+flow whose credential remains current.
 
 **Why:** Two independently verified recovery flows must never overwrite each
 other according to completion timing after one has already changed the
@@ -108,14 +119,16 @@ The completing browser is deliberately reauthenticated with a new session.
 **Decision:** `PasswordChangedEvent` encrypts its verifier with the local
 credential's existing data key and new event-specific AAD.
 
-**Why:** Authling cannot destroy the prior key while historical account events
-still require it during replay. Adding a new key would not erase the older
-verifier and would increase key-management complexity without improving the
-current erasure guarantee.
+**Why:** An active account still needs this key for its email, profile, and
+other protected fields. Adding a new verifier key would not erase the older
+verifier protected by the shared key. It would increase key-management
+complexity without improving the current erasure guarantee.
 
-**Tradeoff:** Historical password verifiers remain decryptable to a live
-Authling process with key-store access until erasure-aware replay and key
-retirement are implemented.
+**Tradeoff:** Historical password verifiers remain decryptable while the
+account's key material is available. Password reset does not erase earlier
+verifiers independently. Account deletion destroys the live account keys and
+supports replay after erasure; [FDR-013](FDR-013-account-deletion.md) records the
+limits for backups and external copies.
 
 ## Security and Failure Behavior
 

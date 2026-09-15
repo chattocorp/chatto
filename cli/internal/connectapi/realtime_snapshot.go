@@ -240,7 +240,9 @@ func (a *API) realtimeSnapshotUser(ctx context.Context, content *core.HydratedUs
 		Deleted:        user.GetDeleted(),
 		PresenceStatus: apiv1.PresenceStatus_PRESENCE_STATUS_UNSPECIFIED,
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
-		IsBot:          user.GetIsBot(),
+	}
+	if user.GetIsBot() && !user.GetDeleted() {
+		summary.Bot = &apiv1.BotInfo{OwnerUserId: user.GetBotOwnerUserId()}
 	}
 	if user.GetBio() != "" {
 		bio := user.GetBio()

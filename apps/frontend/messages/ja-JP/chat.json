@@ -80,7 +80,30 @@
       "fallback_title": "プロフィール",
       "not_found": "ユーザーが見つかりません",
       "bot": "ボット",
-      "local_time": "現地時間 {time}（{zone}）"
+      "local_time": "現地時間 {time}（{zone}）",
+      "permissions": {
+        "title": "できること",
+        "empty": "表示できる有効な権限はありません。",
+        "error": "このボットの権限を読み込めませんでした。",
+        "inactive_title": "無効な権限",
+        "inactive_note": "これらの権限は保存されていますが、所有者の現在の権限では許可されていません。",
+        "read": "すべてのメッセージを読む",
+        "interactions": "自分が作成したスレッドや直接メンションされたスレッドを読む",
+        "post": "新しいメッセージを投稿する",
+        "room": "#{name}",
+        "group": "グループ：{name}",
+        "dm": "参加中のダイレクトメッセージ",
+        "joined_rooms": "参加しているルーム",
+        "all_rooms": "ルーム",
+        "server": "このサーバー",
+        "list_rooms": "ルームを探す",
+        "echo": "スレッドの返信をルームのタイムラインに表示する",
+        "start_calls": "通話を開始する",
+        "browse_join": "ルームを探して参加",
+        "reply": "スレッドで返信",
+        "manage_messages": "メッセージを管理"
+      },
+      "owned_by": "所有者"
     }
   }
 }

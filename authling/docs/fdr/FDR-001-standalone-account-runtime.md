@@ -1,7 +1,7 @@
 # FDR-001: Standalone Account Runtime
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-31
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
@@ -22,10 +22,11 @@ for the underlying structural runtime.
   server whose data persists in a configured directory.
 - External NATS deployments must provide credentials for Authling's dedicated
   NATS account.
-- Authling becomes ready only after its account model has replayed retained
-  history.
-- Once ready, Authling serves a small, server-rendered status page and its
-  embedded browser assets from the configured HTTP listener.
+- Authling becomes ready only after all required projections and the browser
+  session inventory have replayed their startup state, and issuer and OIDC
+  initialization have succeeded.
+- Once ready, Authling serves its browser identity flows, OpenID Connect
+  endpoints, and embedded assets from the configured HTTP listener.
 - Creating an account produces an opaque account identifier and is visible to
   the creating operation only after the local model reflects the committed
   fact.
@@ -43,8 +44,8 @@ and creation time.
 prematurely introducing email addresses, password verifiers, or encryption-key
 workflows.
 
-**Tradeoff:** The account is not yet useful to an end user and has no public
-creation path.
+**Tradeoff:** A structural account alone has no public creation path. Verified
+email signup adds the credential and key hierarchy needed for local login.
 
 ### 2. Make embedded storage opt-in
 
@@ -59,8 +60,9 @@ unexpected local directory.
 
 ### 3. Gate readiness on replay
 
-**Decision:** The process does not report readiness until its required account
-model has replayed retained history.
+**Decision:** The process does not report readiness until all required
+projections, the browser session inventory, and issuer and OIDC initialization
+are ready.
 
 **Why:** Serving from a partial identity model would make absence and
 uniqueness decisions unsafe.
@@ -81,5 +83,3 @@ snapshots are implemented.
 
 - Which operator-facing diagnostics and health interfaces should expose
   readiness?
-- Which configuration mechanics should move into reusable packages shared with
-  Chatto?

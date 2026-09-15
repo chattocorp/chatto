@@ -128,7 +128,7 @@ export class ActiveCallRoomsState {
               displayName: user.displayName,
               login: user.login,
               avatarUrl: user.avatarUrl ?? null,
-              isBot: user.isBot
+              isBot: !!user.bot
             }
           ];
         })

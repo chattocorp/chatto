@@ -17,6 +17,36 @@ name. It does not mean that every Chatto release exposes the same API.
   your integration against a new version before upgrading that deployment.
 </Aside>
 
+## Bot identity
+
+The public `User` resource now has a `bot` message of type `BotInfo`.
+Presence identifies a bot; absence identifies a human or a deleted-account
+reference. `bot.owner_user_id` identifies the human owner and does not grant
+management access.
+
+This replaces `User.is_bot`. Update clients to test for `user.bot` and read its
+owner ID. The removed `is_bot` field number and name are reserved. Older clients that read `is_bot` must be updated for this alpha
+API change. Stored accounts and events are unchanged; no data migration is
+required.
+
+## Effective permissions
+
+`chatto.api.v1.PermissionService.ListEffectivePermissions` is a new read-only
+API. Any signed-in member can read bot effective permissions. Human targets,
+including the caller, require `user.manage-permissions`.
+
+Each response contains all visible allowed permissions at server, group,
+channel-room, and DM scopes, without pagination or truncation. It applies bot owner limits and omits hidden room identities.
+`covers_descendants` reports whether a grant covers all applicable child
+scopes, including hidden rooms. Channel defaults and DM access are separate.
+Clients can use this metadata to combine overlapping grants for display.
+The response never contains stored overrides or inactive grants. These remain
+in the admin matrix API under its existing management checks.
+
+Older servers return an unimplemented-method error. The bundled profile shows
+an unavailable state in that case. No stored-data migration is required. See
+the [PermissionService reference](/reference/connectrpc-api/permissions/).
+
 ## Target a server release
 
 Use the protobuf definitions and API reference from the same Chatto release as

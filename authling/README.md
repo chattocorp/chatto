@@ -184,6 +184,18 @@ not yet expose a manual emergency-rotation command.
 Explicit consent creates a durable authorization grant for the exact client
 ID and `openid` scope. Later covered requests skip repeated consent unless the
 client sends `prompt=consent`. The account page lists and revokes these grants.
+`prompt=none` checks the current session and grant without showing login or
+consent. It returns a code when both permit access, or `login_required` or
+`consent_required` when interaction is needed. New users can create an account
+from the OIDC login page and then continue to consent.
+
+New authorization requests have a shared limit of 1,000 admissions with a
+ten-minute quiet window. Exhaustion returns HTTP 429; existing consent and
+token exchanges can still finish. Password-reset requests have separate
+non-refundable limits of ten per address and 1,000 globally with a 15-minute
+quiet window. Each successful admission restarts its counter's window;
+failed work does not refund it. Update all replicas to enforce these limits.
+
 Revocation makes future requests ask again; it does not end already issued
 five-minute tokens or sessions held by the relying party.
 

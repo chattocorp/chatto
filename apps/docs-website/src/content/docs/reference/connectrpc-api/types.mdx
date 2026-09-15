@@ -84,6 +84,17 @@ Custom status shown on a user profile, separate from presence.
 | `text` | `string` | User-written status text. |
 | `expires_at` | `google.protobuf.Timestamp` | Optional time after which clients should stop showing the status. |
 
+<a id="chatto-api-v1-BotInfo"></a>
+
+### BotInfo
+
+Public metadata for a bot account. Presence on User identifies a bot.
+Credentials and management-only details belong to the managed Bot resource.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `owner_user_id` | `string` | Human account that owns this bot; this identity does not grant management access. |
+
 <a id="chatto-api-v1-User"></a>
 
 ### User
@@ -99,9 +110,9 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `is_bot` | `bool` | True when this identity represents an automated bot. |
 | `bio` | `optional string` | Short self-authored biography shown on the user's profile, when set. |
 | `timezone` | `optional string` | IANA time zone the user chose to share on their profile (for example "Europe/Berlin"). Absent means the user has not enabled time-zone sharing or has no stored time zone. |
+| `bot` | [`BotInfo`](#chatto-api-v1-BotInfo) | Present for a bot identity; absent for humans and deleted-account references. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -128,6 +139,32 @@ Clients should ignore unknown keys so servers can add capabilities over time.
 | --- | --- | --- |
 | `capability` | `string` | Stable capability key, such as "admin.view" or "dm.start". |
 | `granted` | `bool` | Whether the capability is currently available. |
+
+<a id="chatto-api-v1-EffectivePermission"></a>
+
+### EffectivePermission
+
+A permission currently allowed at a scope. Membership and action-specific
+requirements still apply. This is effective authority, not a stored grant.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission identifier. |
+| `scope` | [`EffectivePermissionScope`](#chatto-api-v1-EffectivePermissionScope) | Scope where the permission is allowed. |
+| `covers_descendants` | `bool` | True when every applicable child scope also allows this permission. Hidden rooms participate in this check without revealing their identities. False means clients must not describe this grant as covering all children. |
+
+<a id="chatto-api-v1-EffectivePermissionScope"></a>
+
+### EffectivePermissionScope
+
+Scope metadata visible to the caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`EffectivePermissionScopeKind`](#chatto-api-v1-EffectivePermissionScopeKind) | Scope tier. |
+| `id` | `string` | Room or group ID; empty for server and DM scopes. |
+| `name` | `string` | Current room or group name; empty for server and DM scopes. |
+| `parent_group_id` | `string` | Parent group ID for a channel room; empty for other scopes. |
 
 <a id="chatto-api-v1-PermissionGrant"></a>
 
@@ -1824,6 +1861,20 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
+
+<a id="chatto-api-v1-EffectivePermissionScopeKind"></a>
+
+### EffectivePermissionScopeKind
+
+Scope of effective authority. Channel scopes never include direct messages.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | No scope supplied. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server authority or the default for channel rooms. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP` | `2` | A channel room group. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM` | `3` | One channel room. |
+| `EFFECTIVE_PERMISSION_SCOPE_KIND_DM` | `4` | Direct-message authority; membership is always required. |
 
 <a id="chatto-api-v1-ImageFitMode"></a>
 

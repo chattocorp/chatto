@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/mail"
@@ -17,8 +16,8 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/email"
+	"hmans.de/authling/internal/runtimejson"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/chatto/pkg/datacrypto"
 )
 
 const FlowTTL = 15 * time.Minute
@@ -33,7 +32,6 @@ var (
 	ErrInvalidEmail   = errors.New("enter a valid email address")
 	ErrInvalidCode    = errors.New("the code is invalid or has expired")
 	ErrInvalidFlow    = errors.New("the password reset has expired; start again")
-	errTooManyCodes   = errors.New("too many password reset codes requested")
 	errCompletionBusy = errors.New("password reset completion capacity exhausted")
 )
 
@@ -47,11 +45,6 @@ type flowState struct {
 	ExpiresAt          time.Time                    `json:"expires_at"`
 }
 
-type sealedState struct {
-	Version           int `json:"version"`
-	Nonce, Ciphertext []byte
-}
-
 // Service coordinates expiring recovery state, email delivery, and durable
 // password changes without exposing whether an address has an account.
 type Service struct {
@@ -60,13 +53,28 @@ type Service struct {
 	key             []byte
 	sender          email.Sender
 	accounts        *accounts.Service
+	deliveryBudget  *storage.DeliveryBudget
 	deliverySlots   chan struct{}
 	completionSlots chan struct{}
 }
 
 // New constructs the password-reset workflow.
 func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service) *Service {
-	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions)}
+	return &Service{
+		kv:       kv,
+		js:       js,
+		key:      append([]byte(nil), key...),
+		sender:   sender,
+		accounts: accountService,
+		deliveryBudget: storage.NewDeliveryBudget(kv, js, storage.DeliveryPolicy{
+			GlobalKey:      "password-reset-limit.global",
+			GlobalLimit:    maxGlobalDeliveredCodes,
+			RecipientLimit: maxDeliveredCodes,
+			Window:         FlowTTL,
+		}),
+		deliverySlots:   make(chan struct{}, maxConcurrentDeliveries),
+		completionSlots: make(chan struct{}, maxConcurrentCompletions),
+	}
 }
 
 // PasswordMinimumLength returns the active local password policy for form rendering.
@@ -79,6 +87,15 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// Bound accepted work even when SMTP or a later storage operation fails.
+	// Global admission comes first to bound the number of address counters.
+	if err := storage.AdmitRequest(ctx, s.kv, s.js, "password-reset-admission.global", maxGlobalDeliveredCodes, FlowTTL); err != nil {
+		return "", err
+	}
+	admissionKey := "password-reset-admission." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "admission\x00"+normalized))
+	if err := storage.AdmitRequest(ctx, s.kv, s.js, admissionKey, maxDeliveredCodes, FlowTTL); err != nil {
+		return "", err
+	}
 	token, err := randomToken(32)
 	if err != nil {
 		return "", err
@@ -87,16 +104,15 @@ func (s *Service) Start(ctx context.Context, rawEmail string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := s.reserveDelivery(ctx, normalized); err != nil {
+	if err := s.deliveryBudget.Reserve(ctx, s.deliveryKey(normalized)); err != nil {
 		return "", err
 	}
-	reserved := true
 	delivered := false
 	defer func() {
-		if reserved && !delivered {
+		if !delivered {
 			cleanupContext, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
-			_ = s.rollbackDelivery(cleanupContext, normalized)
+			_ = s.deliveryBudget.Rollback(cleanupContext, s.deliveryKey(normalized))
 		}
 	}()
 	target, _, err := s.accounts.RecordPasswordResetRequested(ctx, normalized)
@@ -188,16 +204,7 @@ func (s *Service) flowKey(token string) string {
 }
 
 func (s *Service) seal(key string, state flowState) ([]byte, error) {
-	plain, err := json.Marshal(state)
-	if err != nil {
-		return nil, err
-	}
-	defer clear(plain)
-	sealed, err := datacrypto.Seal(s.key, plain, []byte("authling:password-reset-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, err
-	}
-	return json.Marshal(sealedState{Version: 1, Nonce: sealed.Nonce, Ciphertext: sealed.Ciphertext})
+	return runtimejson.Seal(s.key, []byte("authling:password-reset-runtime:v1\x00"+key), state, runtimejson.CapitalizedFields)
 }
 
 func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry, flowState, error) {
@@ -205,17 +212,8 @@ func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry
 	if err != nil {
 		return nil, flowState{}, err
 	}
-	var sealed sealedState
-	if err := json.Unmarshal(entry.Value(), &sealed); err != nil || sealed.Version != 1 {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	plain, err := datacrypto.Open(s.key, sealed.Ciphertext, sealed.Nonce, []byte("authling:password-reset-runtime:v1\x00"+key))
-	if err != nil {
-		return nil, flowState{}, ErrInvalidFlow
-	}
-	defer clear(plain)
 	var state flowState
-	if err := json.Unmarshal(plain, &state); err != nil {
+	if err := runtimejson.Open(s.key, []byte("authling:password-reset-runtime:v1\x00"+key), entry.Value(), &state); err != nil {
 		return nil, flowState{}, ErrInvalidFlow
 	}
 	return entry, state, nil
@@ -237,74 +235,8 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	return updated, nil
 }
 
-type deliveryCounter struct {
-	Count int `json:"count"`
-}
-
 func (s *Service) deliveryKey(address string) string {
 	return "password-reset-limit." + base64.RawURLEncoding.EncodeToString(keyedDigest(s.key, "delivery\x00"+address))
-}
-
-func (s *Service) reserveDelivery(ctx context.Context, address string) error {
-	if err := s.reserveCounter(ctx, "password-reset-limit.global", maxGlobalDeliveredCodes); err != nil {
-		return err
-	}
-	if err := s.reserveCounter(ctx, s.deliveryKey(address), maxDeliveredCodes); err != nil {
-		_ = s.rollbackCounter(ctx, "password-reset-limit.global")
-		return err
-	}
-	return nil
-}
-
-func (s *Service) reserveCounter(ctx context.Context, key string, limit int) error {
-	for range 16 {
-		entry, err := s.kv.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			data, _ := json.Marshal(deliveryCounter{Count: 1})
-			if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(FlowTTL)); err == nil {
-				return nil
-			}
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("read password reset delivery limit: %w", err)
-		}
-		var counter deliveryCounter
-		if json.Unmarshal(entry.Value(), &counter) != nil {
-			return fmt.Errorf("decode password reset delivery limit")
-		}
-		if counter.Count >= limit {
-			return errTooManyCodes
-		}
-		counter.Count++
-		data, _ := json.Marshal(counter)
-		if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL); err == nil {
-			return nil
-		}
-	}
-	return fmt.Errorf("update password reset delivery limit")
-}
-
-func (s *Service) rollbackDelivery(ctx context.Context, address string) error {
-	return errors.Join(s.rollbackCounter(ctx, s.deliveryKey(address)), s.rollbackCounter(ctx, "password-reset-limit.global"))
-}
-
-func (s *Service) rollbackCounter(ctx context.Context, key string) error {
-	entry, err := s.kv.Get(ctx, key)
-	if err != nil {
-		return nil
-	}
-	var counter deliveryCounter
-	if json.Unmarshal(entry.Value(), &counter) != nil {
-		return nil
-	}
-	if counter.Count <= 1 {
-		return s.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-	}
-	counter.Count--
-	data, _ := json.Marshal(counter)
-	_, err = storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL)
-	return err
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {

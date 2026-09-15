@@ -1,13 +1,17 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-09-14
+**Last reviewed:** 2026-09-15
 
 ## Overview
 
 Channel rooms are organized into **room groups** — named, ordered containers that act as both a UI grouping concept (collapsible sections in the sidebar) and the primary permission scope for room-level permissions. Every channel room belongs to exactly one group; DMs sit outside the group system entirely. Groups can also contain sidebar links: operator-managed links rendered in the same ordered sidebar section as rooms.
 
 ## Behavior
+
+- Collapsible sidebar sections slide their content in and out, including
+  drag-enabled rows and footer controls. Highlighted rows remain visible when
+  required. Reduced-motion preferences disable spatial animation.
 
 - The sidebar shows `room.list`-visible channel rooms and sidebar links grouped under their group's name in operator-defined order. Groups can be collapsed or expanded. A viewer with effective group `room.manage` also sees group actions, including when no rooms in the group are otherwise visible.
 - Authorized viewers manage the layout where they use it. Group headers provide actions to create rooms and links, open group settings, or delete an empty group. Room and link rows provide their applicable settings, edit, archive, and delete actions. Server-wide room managers can create a group from a compact control after the last room group.

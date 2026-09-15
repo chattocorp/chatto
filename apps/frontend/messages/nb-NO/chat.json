@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Brukeren ble ikke funnet",
       "bot": "Bot",
-      "local_time": "{time} lokal tid ({zone})"
+      "local_time": "{time} lokal tid ({zone})",
+      "permissions": {
+        "title": "Hva den kan gjøre",
+        "empty": "Ingen aktive tillatelser er synlige for deg.",
+        "error": "Kunne ikke laste botens tillatelser.",
+        "inactive_title": "Inaktive tillatelser",
+        "inactive_note": "Disse tillatelsene er lagret, men eierens gjeldende tillatelser tillater dem ikke.",
+        "read": "Lese alle meldinger",
+        "interactions": "Lese tråder den har opprettet eller der den er nevnt direkte",
+        "post": "Sende nye meldinger",
+        "room": "#{name}",
+        "group": "Gruppe: {name}",
+        "dm": "Dets direktemeldinger",
+        "joined_rooms": "Rom den har blitt med i",
+        "all_rooms": "Rom",
+        "server": "Denne serveren",
+        "list_rooms": "Bla gjennom rom",
+        "echo": "Vise trådsvar i rommets tidslinje",
+        "start_calls": "Starte samtaler",
+        "browse_join": "Bla gjennom og bli med i rom",
+        "reply": "Svare i tråder",
+        "manage_messages": "Administrere meldinger"
+      },
+      "owned_by": "Eies av"
     }
   }
 }

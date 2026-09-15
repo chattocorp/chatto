@@ -97,14 +97,37 @@
       {#snippet footer()}
         <button
           type="button"
-          class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-xs text-start"
+          class="mini-icon-action w-full items-center gap-2 px-1 py-1 text-start text-xs"
           aria-expanded={discoveryExpanded}
-          aria-label={discoveryExpanded ? "Hide unjoined rooms" : "Show 2 unjoined rooms"}
-          onclick={() => { discoveryExpanded = !discoveryExpanded; }}
+          aria-label={discoveryExpanded ? 'Hide unjoined rooms' : 'Show 2 unjoined rooms'}
+          onclick={() => {
+            discoveryExpanded = !discoveryExpanded;
+          }}
         >
           <span class="sidebar-icon" aria-hidden="true">{discoveryExpanded ? '−' : '+'}</span>
           <span>{discoveryExpanded ? 'Show less' : '2 more'}</span>
         </button>
+      {/snippet}
+    </RoomGroupSection>
+  </div>
+</Story>
+
+<Story name="Collapsible content" asChild>
+  <div class="w-72 bg-background">
+    <RoomGroupSection
+      label="What it can do"
+      items={[{ id: 'permissions' }]}
+      persistKey="storybook:room-group-section:content"
+      separated
+    >
+      {#snippet item()}
+        <div class="space-y-3 px-2 py-2">
+          <p class="font-medium">Rooms it has joined</p>
+          <ul class="list-disc space-y-1 ps-5">
+            <li>Read all messages</li>
+            <li>Reply in threads</li>
+          </ul>
+        </div>
       {/snippet}
     </RoomGroupSection>
   </div>

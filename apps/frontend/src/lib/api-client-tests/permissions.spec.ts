@@ -373,23 +373,30 @@ describe('createPermissionAPI', () => {
     );
   });
 
-it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
-  mocks.listRolePermissionDecisions.mockResolvedValue({
-    roleName: 'moderator', decisions: [],
-    scopes: [{ kind: PermissionScopeKind.ROOM, id: 'room-1' }],
-    page: { totalCount: 1n, hasMore: false }
+  it('sends scope pages and cancellation for JSON-compatible decision reads', async () => {
+    mocks.listRolePermissionDecisions.mockResolvedValue({
+      roleName: 'moderator',
+      decisions: [],
+      scopes: [{ kind: PermissionScopeKind.ROOM, id: 'room-1' }],
+      page: { totalCount: 1n, hasMore: false }
+    });
+    const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+    const signal = new AbortController().signal;
+    const result = await api.listRolePermissionDecisions('moderator', {
+      signal,
+      page: { limit: 10, offset: 0 },
+      scope: { tier: 'room', roomId: 'room-1' }
+    });
+    expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith(
+      {
+        roleName: 'moderator',
+        includeDirectMessageScope: true,
+        page: { limit: 10, offset: 0 },
+        scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
+      },
+      { headers: { Authorization: 'Bearer token' }, signal }
+    );
+    expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
+    expect(result.page).toEqual({ totalCount: 1, hasMore: false });
   });
-  const api = createPermissionAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-  const signal = new AbortController().signal;
-  const result = await api.listRolePermissionDecisions('moderator', {
-    signal, page: { limit: 10, offset: 0 }, scope: { tier: 'room', roomId: 'room-1' }
-  });
-  expect(mocks.listRolePermissionDecisions).toHaveBeenCalledWith({
-    roleName: 'moderator', includeDirectMessageScope: true,
-    page: { limit: 10, offset: 0 }, scope: { kind: PermissionScopeKind.ROOM, id: 'room-1' }
-  }, { headers: { Authorization: 'Bearer token' }, signal });
-  expect(result.scopes).toEqual([{ tier: 'room', roomId: 'room-1' }]);
-  expect(result.page).toEqual({ totalCount: 1, hasMore: false });
-});
-
 });

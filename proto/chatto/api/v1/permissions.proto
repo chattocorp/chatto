@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package chatto.api.v1;
 
+import "buf/validate/validate.proto";
+
 // Effective decision for one permission key.
 message PermissionGrant {
   // Stable permission key, such as "server.manage".
@@ -31,4 +33,71 @@ message CapabilityGrant {
   string capability = 1;
   // Whether the capability is currently available.
   bool granted = 2;
+}
+
+// Scope of effective authority. Channel scopes never include direct messages.
+enum EffectivePermissionScopeKind {
+  // No scope supplied.
+  EFFECTIVE_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
+  // Server authority or the default for channel rooms.
+  EFFECTIVE_PERMISSION_SCOPE_KIND_SERVER = 1;
+  // A channel room group.
+  EFFECTIVE_PERMISSION_SCOPE_KIND_GROUP = 2;
+  // One channel room.
+  EFFECTIVE_PERMISSION_SCOPE_KIND_ROOM = 3;
+  // Direct-message authority; membership is always required.
+  EFFECTIVE_PERMISSION_SCOPE_KIND_DM = 4;
+}
+
+// Scope metadata visible to the caller.
+message EffectivePermissionScope {
+  // Scope tier.
+  EffectivePermissionScopeKind kind = 1;
+  // Room or group ID; empty for server and DM scopes.
+  string id = 2;
+  // Current room or group name; empty for server and DM scopes.
+  string name = 3;
+  // Parent group ID for a channel room; empty for other scopes.
+  string parent_group_id = 4;
+}
+
+// A permission currently allowed at a scope. Membership and action-specific
+// requirements still apply. This is effective authority, not a stored grant.
+message EffectivePermission {
+  // Stable permission identifier.
+  string permission = 1;
+  // Scope where the permission is allowed.
+  EffectivePermissionScope scope = 2;
+  // True when every applicable child scope also allows this permission.
+  // Hidden rooms participate in this check without revealing their identities.
+  // False means clients must not describe this grant as covering all children.
+  bool covers_descendants = 3;
+}
+
+// Read all effective permissions for one account.
+message ListEffectivePermissionsRequest {
+  // Required target account ID.
+  string user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// All visible effective grants in permission-catalog order, then stable scope-ID order.
+// Denied and unconfigured permissions are absent. Inherited and included
+// permissions remain separate entries; clients can group them for display.
+message ListEffectivePermissionsResponse {
+  // Effective grants visible to the caller.
+  repeated EffectivePermission permissions = 1;
+}
+
+// Read-only effective authority. Configuration and explanations remain in
+// chatto.admin.v1.AdminPermissionService.
+service PermissionService {
+  // Any authenticated member may read a bot's effective permissions. Human
+  // targets require user.manage-permissions, including self-targeted reads.
+  // Bot authority includes the owner's current limits. Hidden room identities,
+  // stored grants, credentials, and individual DM participants are not exposed.
+  // Missing or deleted targets return NOT_FOUND. Each call returns the complete
+  // visible set from one coherent read, without pagination or truncation. Clients
+  // should refresh visible views (the bundled client uses 30 seconds) and clear
+  // the view on close or read failure.
+  rpc ListEffectivePermissions(ListEffectivePermissionsRequest) returns (ListEffectivePermissionsResponse);
 }

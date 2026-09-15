@@ -221,11 +221,17 @@ describe('createRoleAPI', () => {
 
   it('loads an explicit role member page with authentication and cancellation', async () => {
     const user = { id: 'user-1', login: 'alice', displayName: 'Alice', isBot: true };
-    mocks.listMembers.mockResolvedValue({ members: [user], page: { totalCount: 31n, hasMore: true } });
+    mocks.listMembers.mockResolvedValue({
+      members: [{ ...user, bot: { ownerUserId: 'owner' } }],
+      page: { totalCount: 31n, hasMore: true }
+    });
     const api = createRoleAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
     const signal = new AbortController().signal;
-    expect(await api.listMembers('helpdesk', { limit: 20, offset: 20 }, { signal }))
-      .toEqual({ users: [user], totalCount: 31, hasMore: true });
+    expect(await api.listMembers('helpdesk', { limit: 20, offset: 20 }, { signal })).toEqual({
+      users: [user],
+      totalCount: 31,
+      hasMore: true
+    });
     expect(mocks.listMembers).toHaveBeenCalledWith(
       { name: 'helpdesk', page: { limit: 20, offset: 20 } },
       { headers: { Authorization: 'Bearer token' }, signal }

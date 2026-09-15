@@ -449,6 +449,11 @@ scope, bot access, and the timing of in-call permission changes.
   omitted expiry means no expiry. See the
   [migration guide](/guides/integrations/api-compatibility/#resource-updates-in-05).
 
+- **API migration:** Public user identities now use `User.bot: BotInfo`. Test
+  whether `bot` is present instead of reading `is_bot`; read the owner from
+  `bot.owner_user_id`. Update custom clients for this alpha API change. Stored
+  accounts and events need no migration. See
+  [API Compatibility](/guides/integrations/api-compatibility/#bot-identity).
 - **API migration:** Role and user permission matrix/decision reads now return
   scope pages: 20 scopes by default, capped at 100. Consume `page` metadata or
   request one typed `scope`. Offsets count scopes, not decisions. The editors

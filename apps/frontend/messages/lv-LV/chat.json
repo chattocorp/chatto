@@ -80,7 +80,30 @@
       "fallback_title": "Profils",
       "not_found": "Lietotājs nav atrasts",
       "bot": "Bots",
-      "local_time": "{time} vietējais laiks ({zone})"
+      "local_time": "{time} vietējais laiks ({zone})",
+      "permissions": {
+        "title": "Ko tas var darīt",
+        "empty": "Tev nav redzamu aktīvu atļauju.",
+        "error": "Neizdevās ielādēt šī bota atļaujas.",
+        "inactive_title": "Neaktīvas atļaujas",
+        "inactive_note": "Šīs atļaujas ir saglabātas, bet īpašnieka pašreizējās atļaujas tās nepieļauj.",
+        "read": "Lasīt visus ziņojumus",
+        "interactions": "Lasīt pavedienus, kurus tas izveidojis vai kuros tas tieši pieminēts",
+        "post": "Sūtīt jaunus ziņojumus",
+        "room": "#{name}",
+        "group": "Grupa: {name}",
+        "dm": "Tā tiešie ziņojumi",
+        "joined_rooms": "Istabas, kurām tas pievienojies",
+        "all_rooms": "Telpas",
+        "server": "Šis serveris",
+        "list_rooms": "Pārlūkot telpas",
+        "echo": "Rādīt pavedienu atbildes istabas laika skalā",
+        "start_calls": "Sākt zvanus",
+        "browse_join": "Pārlūkot telpas un pievienoties tām",
+        "reply": "Atbildēt pavedienos",
+        "manage_messages": "Pārvaldīt ziņojumus"
+      },
+      "owned_by": "Īpašnieks"
     }
   }
 }

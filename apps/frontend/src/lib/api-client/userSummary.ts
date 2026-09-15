@@ -20,6 +20,8 @@ export type UserSummary = {
   displayName: string;
   deleted: boolean;
   isBot?: boolean;
+  /** Public human owner of an active bot; absent for other accounts. */
+  bot?: { ownerUserId: string };
   avatarUrl: string | null;
   /** Public self-authored bio; `null` when unset. */
   bio?: string | null;
@@ -41,7 +43,8 @@ export function mapUserSummary(user: APIUser): UserSummary {
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
-    isBot: user.isBot,
+    isBot: !!user.bot,
+    ...(user.bot ? { bot: { ownerUserId: user.bot.ownerUserId } } : {}),
     avatarUrl: user.avatarUrl || null,
     bio: user.bio || null,
     timezone: user.timezone || null

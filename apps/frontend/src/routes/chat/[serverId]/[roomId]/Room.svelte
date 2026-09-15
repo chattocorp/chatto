@@ -409,13 +409,6 @@
       supportsPinnedMessages
     )
   );
-  const activeRoomSidebarProfileUserId = $derived(appUi.activeRoomSidebarProfileUserId);
-  const activeDesktopRoomSidebarProfileUserId = $derived(
-    desktopRoomLayout.current ? activeRoomSidebarProfileUserId : null
-  );
-  const activeMobileRoomSidebarProfileUserId = $derived(
-    desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
-  );
   const directMessageProfileUserId = $derived.by(() => {
     const participantIds = room.dmData?.participantIds ?? [];
     const otherParticipantIds = participantIds.filter(
@@ -426,6 +419,17 @@
       ? participantIds[0]
       : null;
   });
+  const activeRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current
+      ? appUi.desktopRoomSidebarProfileUserId(room.isDM ? directMessageProfileUserId : null)
+      : appUi.activeRoomSidebarProfileUserId
+  );
+  const activeDesktopRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current ? activeRoomSidebarProfileUserId : null
+  );
+  const activeMobileRoomSidebarProfileUserId = $derived(
+    desktopRoomLayout.current ? null : activeRoomSidebarProfileUserId
+  );
   const hasMobileRoomSidebar = $derived(
     mobileRoomSidebarPanel !== null || activeMobileRoomSidebarProfileUserId !== null
   );
@@ -542,7 +546,7 @@
 
   function closeDesktopRoomSidebar(): void {
     if (activeRoomSidebarProfileUserId) {
-      appUi.closeRoomSidebarProfile();
+      appUi.closeRoomSidebarProfile('desktop');
       return;
     }
     closeDesktopRoomSidebarPanel();
@@ -550,7 +554,7 @@
 
   function closeMobileRoomSidebar(): void {
     if (activeRoomSidebarProfileUserId) {
-      appUi.closeRoomSidebarProfile();
+      appUi.closeRoomSidebarProfile('mobile');
       return;
     }
     appUi.closeMobileRoomSidebarPanel();

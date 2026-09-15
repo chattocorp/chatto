@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Benutzer nicht gefunden",
       "bot": "Bot",
-      "local_time": "{time} Ortszeit ({zone})"
+      "local_time": "{time} Ortszeit ({zone})",
+      "permissions": {
+        "title": "Was er tun kann",
+        "empty": "Für dich sind keine aktiven Berechtigungen sichtbar.",
+        "error": "Die Berechtigungen dieses Bots konnten nicht geladen werden.",
+        "inactive_title": "Inaktive Freigaben",
+        "inactive_note": "Diese Freigaben sind gespeichert, aber die aktuellen Berechtigungen des Besitzers lassen sie nicht zu.",
+        "read": "Alle Nachrichten lesen",
+        "interactions": "Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde",
+        "post": "Neue Nachrichten posten",
+        "room": "#{name}",
+        "group": "Gruppe: {name}",
+        "dm": "Seine Direktnachrichten",
+        "joined_rooms": "Räume, denen er beigetreten ist",
+        "all_rooms": "Räume",
+        "server": "Dieser Server",
+        "list_rooms": "Räume finden",
+        "echo": "Thread-Antworten im Raumverlauf anzeigen",
+        "start_calls": "Anrufe starten",
+        "browse_join": "Räume finden und beitreten",
+        "reply": "In Threads antworten",
+        "manage_messages": "Nachrichten verwalten"
+      },
+      "owned_by": "Gehört"
     }
   }
 }

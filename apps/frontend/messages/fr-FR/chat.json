@@ -80,7 +80,30 @@
       "fallback_title": "Profil",
       "not_found": "Utilisateur introuvable",
       "bot": "Bot",
-      "local_time": "Heure locale : {time} ({zone})"
+      "local_time": "Heure locale : {time} ({zone})",
+      "permissions": {
+        "title": "Ce qu’il peut faire",
+        "empty": "Aucune autorisation active n’est visible pour toi.",
+        "error": "Impossible de charger les autorisations de ce bot.",
+        "inactive_title": "Autorisations inactives",
+        "inactive_note": "Ces autorisations sont enregistrées, mais les droits actuels du propriétaire ne les permettent pas.",
+        "read": "Lire tous les messages",
+        "interactions": "Lire les fils qu’il a créés ou dans lesquels il a été mentionné directement",
+        "post": "Publier de nouveaux messages",
+        "room": "#{name}",
+        "group": "Groupe : {name}",
+        "dm": "Ses messages directs",
+        "joined_rooms": "Salons qu’il a rejoints",
+        "all_rooms": "Salons",
+        "server": "Ce serveur",
+        "list_rooms": "Parcourir les salons",
+        "echo": "Afficher les réponses des fils dans le salon",
+        "start_calls": "Démarrer des appels",
+        "browse_join": "Parcourir et rejoindre des salons",
+        "reply": "Répondre dans les fils",
+        "manage_messages": "Gérer les messages"
+      },
+      "owned_by": "Propriétaire"
     }
   }
 }

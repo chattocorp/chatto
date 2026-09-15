@@ -132,7 +132,7 @@ func TestOneTimeCodeInputsDisableOnePassword(t *testing.T) {
 		name string
 		page templ.Component
 	}{
-		{name: "signup", page: codePage("flow", "")},
+		{name: "signup", page: codePage("flow", "", "")},
 		{name: "password reset", page: passwordResetCodePage("flow", "", "")},
 		{name: "email change", page: emailChangeCodePage("flow", "", "person@example.com")},
 	}

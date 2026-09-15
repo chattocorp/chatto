@@ -1,0 +1,62 @@
+---
+title: PermissionService
+description: Read-only effective permissions for bot and human accounts.
+editUrl: false
+---
+
+{/* Generated from proto/chatto/{auth,discovery,api,admin,realtime}/v1/*.proto. Do not edit directly. */}
+
+Chatto exposes this service below `/api/connect`.
+
+
+
+Shared message and enum definitions are documented in [Shared Types And Enums](/reference/connectrpc-api/types/).
+
+
+
+<a id="chatto-api-v1-PermissionService"></a>
+
+## PermissionService
+
+Read-only effective authority. Configuration and explanations remain in
+chatto.admin.v1.AdminPermissionService.
+
+<a id="chatto-api-v1-PermissionService-ListEffectivePermissions"></a>
+
+### ListEffectivePermissions
+
+Any authenticated member may read a bot's effective permissions. Human
+targets require user.manage-permissions, including self-targeted reads.
+Bot authority includes the owner's current limits. Hidden room identities,
+stored grants, credentials, and individual DM participants are not exposed.
+Missing or deleted targets return NOT_FOUND. Each call returns the complete
+visible set from one coherent read, without pagination or truncation. Clients
+should refresh visible views (the bundled client uses 30 seconds) and clear
+the view on close or read failure.
+
+```http
+POST /api/connect/chatto.api.v1.PermissionService/ListEffectivePermissions
+```
+
+<a id="chatto-api-v1-ListEffectivePermissionsRequest"></a>
+
+#### Input: ListEffectivePermissionsRequest
+
+Read all effective permissions for one account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user_id` | `string` | Required target account ID. |
+
+
+<a id="chatto-api-v1-ListEffectivePermissionsResponse"></a>
+
+#### Result: ListEffectivePermissionsResponse
+
+All visible effective grants in permission-catalog order, then stable scope-ID order.
+Denied and unconfigured permissions are absent. Inherited and included
+permissions remain separate entries; clients can group them for display.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permissions` | repeated [`EffectivePermission`](/reference/connectrpc-api/types/#chatto-api-v1-EffectivePermission) | Effective grants visible to the caller. |
