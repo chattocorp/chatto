@@ -138,7 +138,7 @@ realtime changes arrive.
     {#if bio}
       <div class="-mx-4 mt-6">
         <RoomGroupSection
-          label={m('chat.profile.bio')}
+          label={m('settings.profile.bio.label')}
           persistKey={serverStorageKey(serverScope.serverId, 'profile-bio-collapsed')}
           items={[]}
           testid="profile-bio-heading"
