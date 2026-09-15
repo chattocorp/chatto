@@ -67,11 +67,9 @@ func mountAccount(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			http.Error(w, "authorized app management unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 16<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
@@ -101,11 +99,9 @@ func mountAccount(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 16<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 		account, token, err := authenticatedAccountAndToken(r, deps, true)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
@@ -137,11 +133,9 @@ func mountAccount(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 16<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return

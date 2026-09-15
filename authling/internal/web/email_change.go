@@ -34,11 +34,9 @@ func mountEmailChange(mux *http.ServeMux, deps Dependencies, publicOrigin *url.U
 			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
@@ -77,11 +75,9 @@ func mountEmailChange(mux *http.ServeMux, deps Dependencies, publicOrigin *url.U
 			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
@@ -113,11 +109,9 @@ func mountEmailChange(mux *http.ServeMux, deps Dependencies, publicOrigin *url.U
 			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return

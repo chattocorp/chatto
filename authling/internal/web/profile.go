@@ -39,11 +39,9 @@ func mountProfile(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) 
 			http.Error(w, "profile unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 16<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)

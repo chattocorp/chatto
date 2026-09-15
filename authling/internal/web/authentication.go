@@ -25,11 +25,9 @@ func mountLogin(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) {
 			http.Error(w, "login unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !guardFormRequest(w, r, publicOrigin, 64<<10) {
 			return
 		}
-		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
 		if err := r.ParseForm(); err != nil {
 			render(w, r, http.StatusBadRequest, loginPage("Invalid form submission.", "", ""))
 			return
@@ -73,8 +71,7 @@ func mountLogout(mux *http.ServeMux, deps Dependencies, publicOrigin *url.URL) {
 			http.Error(w, "logout unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+		if !requireSameOrigin(w, r, publicOrigin) {
 			return
 		}
 		cookie, err := sessionCookie(r, deps.SecureCookies)
