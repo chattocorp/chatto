@@ -246,7 +246,8 @@ export async function postMessageAttachmentOnRemote(
   body: string,
   filePath: string,
   fileName: string,
-  contentType: string
+  contentType: string,
+  description?: string
 ): Promise<{ eventId: string; attachmentUrl: string }> {
   const fileBytes = await readFile(filePath);
   const uploadClient = assetUploadClient(remoteBaseURL);
@@ -299,7 +300,8 @@ export async function postMessageAttachmentOnRemote(
     {
       roomId,
       body,
-      attachmentAssetIds: [assetId]
+      attachmentAssetIds: [assetId],
+      attachmentDescriptions: description ? [{ assetId, description }] : []
     },
     { headers: authHeaders(token) }
   );

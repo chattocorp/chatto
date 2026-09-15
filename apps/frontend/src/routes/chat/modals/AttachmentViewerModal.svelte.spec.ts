@@ -98,6 +98,30 @@ describe('HTML viewer', () => {
       .toBeVisible();
   });
 
+  it.each(['text/html', 'application/pdf', 'audio/mpeg', 'video/mp4'])(
+    'shows a plain-text description for %s without treating it as document content',
+    async (contentType) => {
+      const modal = modalState();
+      const description = '<strong>Quarterly report</strong>\nNotes from the author.';
+      modal.items[0] = { ...modal.items[0], contentType, description };
+      const view = mount(modal);
+      const captionId = view.container.querySelector('dialog')!.getAttribute('aria-describedby')!;
+      const caption = document.getElementById(captionId)!;
+      expect(caption.textContent?.trim()).toBe(description);
+      expect(caption.querySelector('strong')).toBeNull();
+      await expect.element(view.getByRole('dialog')).toHaveAttribute('aria-describedby', caption.id);
+      await expect.element(view.getByRole('link', { name: 'Download', exact: true })).toBeVisible();
+      expect(view.container.querySelector('iframe')).toBeNull();
+      if (contentType === 'text/html') {
+        expect(mocks.refreshUrls).not.toHaveBeenCalled();
+        mocks.refreshUrls.mockResolvedValue(freshUrls());
+        await view.getByRole('button', { name: 'Show preview' }).click();
+        await expect.element(view.getByTitle('Preview of report.html')).toBeVisible();
+        await expect.element(caption).toBeVisible();
+      }
+    }
+  );
+
   it('shows XHTML and a zero-byte size without loading the preview', async () => {
     mocks.getMetadata.mockResolvedValue({ size: 0 });
     const view = mount({
@@ -282,6 +306,19 @@ describe('shared attachment previews', () => {
     await view.getByRole('button', { name: 'Next image' }).click();
     await expect.element(view.getByAltText(modal.items[1].description)).toBeVisible();
     await expect.element(view.getByText(modal.items[1].description, { exact: true })).toBeVisible();
+  });
+
+  it('removes the caption and accessible description for an undescribed gallery image', async () => {
+    const modal = gallery();
+    modal.items[0].description = 'Blue line rising across the chart.';
+    const view = mount(modal);
+    await expect.element(view.getByText(modal.items[0].description, { exact: true })).toBeVisible();
+    await view.getByRole('button', { name: 'Next image' }).click();
+    await expect.element(view.getByAltText('second.gif')).toBeVisible();
+    expect(view.container.querySelector('p[id]')).toBeNull();
+    await expect.element(view.getByRole('dialog')).not.toHaveAttribute('aria-describedby');
+    await view.getByRole('button', { name: 'Previous image' }).click();
+    await expect.element(view.getByText(modal.items[0].description, { exact: true })).toBeVisible();
   });
 
   it('discards an earlier image refresh after changing the selection', async () => {

@@ -31,6 +31,7 @@ test('another user can download unsupported files and play audio in the shared m
     const audio = contentType.startsWith('audio/');
     const path = audio ? 'e2e/fixtures/test-audio.mp3' : testInfo.outputPath(filename);
     if (!audio) await writeFile(path, `Original bytes for ${filename}\n`);
+    const description = `Notes for ${filename}\n${'A long description that stays readable on a small screen.\n'.repeat(14)}`;
     await postMessageAttachmentOnRemote(
       serverURL,
       sender.token,
@@ -38,7 +39,8 @@ test('another user can download unsupported files and play audio in the shared m
       filename,
       path,
       filename,
-      contentType
+      contentType,
+      description
     );
     const trigger = page.getByRole('button', { name: `View ${filename}`, exact: true });
     await trigger.click();
@@ -46,6 +48,15 @@ test('another user can download unsupported files and play audio in the shared m
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText(contentType, { exact: true })).toBeVisible();
     await expect(dialog.locator('iframe')).toHaveCount(0);
+    const caption = dialog.locator('p[id]');
+    await expect(caption).toHaveText(description);
+    await expect(dialog).toHaveAttribute('aria-describedby', (await caption.getAttribute('id'))!);
+    const captionSize = await caption.evaluate((element) => ({
+      height: element.clientHeight,
+      scrollHeight: element.scrollHeight
+    }));
+    expect(captionSize.height).toBeLessThanOrEqual(128);
+    expect(captionSize.scrollHeight).toBeGreaterThan(captionSize.height);
     if (audio) {
       await expect
         .poll(() => dialog.locator('audio').evaluate((element) => element.readyState))

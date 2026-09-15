@@ -59,6 +59,7 @@ for (const remote of [false, true]) {
         });
       });
       const filename = 'Shared report ü.html';
+      const description = 'Quarterly report with an external chart image.';
       const html =
         '<!doctype html><html lang="en"><title>Shared report</title><body><h1>HTML preview fixture</h1><script>document.body.dataset.scriptRan="yes"</script><img alt="External fixture" src="https://preview-resource.example.test/pixel.svg"></body></html>';
       const fixturePath = testInfo.outputPath('report.html');
@@ -70,12 +71,14 @@ for (const remote of [false, true]) {
         'Shared HTML report',
         fixturePath,
         filename,
-        'text/html'
+        'text/html',
+        description
       );
       const trigger = page.getByRole('button', { name: `View ${filename}`, exact: true });
       await trigger.click();
       const dialog = page.getByRole('dialog', { name: filename, exact: true });
       await expect(dialog).toBeVisible();
+      await expect(dialog.getByText(description, { exact: true })).toBeVisible();
       await expect(dialog.getByText('HTML document', { exact: true })).toBeVisible();
       await expect(dialog.getByText(`${Buffer.byteLength(html)} B`, { exact: true })).toBeVisible();
       await expect(dialog.locator('iframe')).toHaveCount(0);

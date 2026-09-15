@@ -64,6 +64,7 @@
   {#if documentOpen}
     <AttachmentModal
       filename="Project archive.zip"
+      description="Project files and reference material for the next release."
       contentType="application/zip"
       size={2048000}
       downloadUrl="data:application/zip,"
