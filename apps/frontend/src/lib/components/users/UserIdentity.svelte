@@ -86,7 +86,7 @@ With openOnClick, a keyboard-accessible button also opens it on click or tap.
   <button
     type="button"
     class={[
-      '-mx-1 inline-flex min-h-10 min-w-0 cursor-pointer items-center gap-2 selectable-list-item px-1 text-start',
+      '-mx-1 inline-flex min-h-10 min-w-0 cursor-pointer items-center gap-2 rounded-md px-1 text-start focus-visible:outline-2 focus-visible:outline-action',
       className
     ]}
     data-testid="user-identity"
