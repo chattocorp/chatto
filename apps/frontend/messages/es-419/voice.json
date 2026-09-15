@@ -82,7 +82,6 @@
       "gate_unavailable": "Procesamiento del micrófono no disponible. Se usa el audio normal.",
       "call_settings": "Configuración de llamadas",
       "join_muted": "Unirse a las llamadas con el micrófono silenciado",
-      "test_title": "Probar tu micrófono",
       "input_level": "Nivel del micrófono",
       "start_test": "Iniciar prueba del micrófono",
       "stop_test": "Detener prueba",
@@ -90,10 +89,10 @@
       "test_failed": "No se pudo probar el micrófono. Comprueba el acceso al dispositivo e inténtalo de nuevo.",
       "test_in_call": "Sal de la llamada antes de probar el micrófono.",
       "processing": "Procesamiento del micrófono",
-      "processing_none": "Sin procesamiento",
-      "processing_subtle": "Procesamiento suave",
-      "processing_strong": "Procesamiento fuerte",
-      "gate_separate": "La puerta de ruido se aplica por separado."
+      "your_voice": "Tu voz",
+      "voice_normal": "Normal",
+      "voice_cool": "Muy buena",
+      "voice_awesome": "INCREÍBLE"
     }
   }
 }

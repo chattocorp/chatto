@@ -82,7 +82,6 @@
       "gate_unavailable": "麦克风处理不可用。正在使用普通音频。",
       "call_settings": "通话设置",
       "join_muted": "加入通话时将麦克风静音",
-      "test_title": "测试麦克风",
       "input_level": "麦克风音量",
       "start_test": "开始麦克风测试",
       "stop_test": "停止测试",
@@ -90,10 +89,10 @@
       "test_failed": "无法测试麦克风。请检查设备访问权限后重试。",
       "test_in_call": "请先退出通话，再测试麦克风。",
       "processing": "麦克风处理",
-      "processing_none": "不处理",
-      "processing_subtle": "轻度处理",
-      "processing_strong": "强力处理",
-      "gate_separate": "噪声门单独应用。"
+      "your_voice": "你的声音",
+      "voice_normal": "普通",
+      "voice_cool": "挺酷",
+      "voice_awesome": "超棒"
     }
   }
 }

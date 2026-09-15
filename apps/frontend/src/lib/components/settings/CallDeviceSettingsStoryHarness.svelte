@@ -7,9 +7,9 @@
     preferences.setDevice('audiooutput', '');
     preferences.setDevice('videoinput', '');
     preferences.setJoinMuted(unavailable);
-    preferences.setProcessingPreset('none');
+    preferences.setVoiceAmount(0);
     preferences.setMicrophoneThreshold(threshold);
-    if (effects) preferences.setProcessingPreset('strong');
+    if (effects) preferences.setVoiceAmount(100);
     return preferences;
   }
   let {

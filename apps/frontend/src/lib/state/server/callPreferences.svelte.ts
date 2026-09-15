@@ -1,7 +1,4 @@
-import {
-  microphoneEffectsForPreset,
-  type MicrophoneProcessingPreset
-} from '$lib/audio/microphoneEffects';
+import { microphoneEffectsForAmount, normalizeVoiceAmount } from '$lib/audio/microphoneEffects';
 import { GATE_OFF, normalizeGateThreshold } from '$lib/audio/noiseGate';
 import { Codecs, serverSlot, type StorageSlot } from '$lib/storage/slot';
 
@@ -14,8 +11,8 @@ export interface CallPreferences {
   joinMuted: boolean;
   /** dBFS threshold; -60 disables the optional gate. */
   microphoneThreshold: number;
-  /** Local preset; the noise gate remains independent. */
-  processingPreset: MicrophoneProcessingPreset;
+  /** Voice processing amount, 0–100; the noise gate remains independent. */
+  voiceAmount: number;
 }
 
 const defaults: CallPreferences = {
@@ -23,7 +20,7 @@ const defaults: CallPreferences = {
   speaker: '',
   camera: '',
   joinMuted: false,
-  processingPreset: 'none',
+  voiceAmount: 0,
   microphoneThreshold: GATE_OFF
 };
 
@@ -35,38 +32,46 @@ export class CallPreferencesState {
   constructor(serverId: string) {
     this.#slot = serverSlot(serverId, 'callPreferences', defaults, Codecs.json());
     const raw = this.#slot.get();
-    // Experimental effect sliders migrate to Subtle only when explicitly enabled.
-    const legacy = (
-      raw as unknown as {
-        effects?: { lowCut?: unknown; equalizer?: unknown; compressor?: unknown };
-      } | null
-    )?.effects;
-    const preset =
-      raw?.processingPreset ??
-      (legacy?.lowCut === true || legacy?.equalizer === true || legacy?.compressor === true
-        ? 'subtle'
-        : 'none');
+    // Preserve the previous preset positions; experimental enabled effects use the midpoint.
+    const legacy = raw as unknown as {
+      processingPreset?: string;
+      effects?: { lowCut?: unknown; equalizer?: unknown; compressor?: unknown };
+    } | null;
+    const oldAmount =
+      legacy?.processingPreset === 'strong'
+        ? 100
+        : legacy?.processingPreset === 'subtle'
+          ? 50
+          : legacy?.processingPreset !== undefined
+            ? 0
+            : legacy?.effects?.lowCut === true ||
+                legacy?.effects?.equalizer === true ||
+                legacy?.effects?.compressor === true
+              ? 50
+              : 0;
     this.#value = $state({
       microphone: typeof raw?.microphone === 'string' ? raw.microphone : '',
       speaker: typeof raw?.speaker === 'string' ? raw.speaker : '',
       camera: typeof raw?.camera === 'string' ? raw.camera : '',
       microphoneThreshold: normalizeGateThreshold(raw?.microphoneThreshold),
-      processingPreset: preset === 'subtle' || preset === 'strong' ? preset : 'none',
+      voiceAmount: normalizeVoiceAmount(
+        raw?.voiceAmount === undefined ? oldAmount : raw.voiceAmount
+      ),
       joinMuted: raw?.joinMuted === true
     });
   }
 
   get effects() {
-    return microphoneEffectsForPreset(this.#value.processingPreset);
+    return microphoneEffectsForAmount(this.#value.voiceAmount);
   }
 
-  get processingPreset(): MicrophoneProcessingPreset {
-    return this.#value.processingPreset;
+  get voiceAmount(): number {
+    return this.#value.voiceAmount;
   }
 
-  /** Change tone and dynamics without changing the gate or capture choices. */
-  setProcessingPreset(preset: MicrophoneProcessingPreset): void {
-    this.#value.processingPreset = preset === 'subtle' || preset === 'strong' ? preset : 'none';
+  /** Change voice processing without changing the gate or capture choices. */
+  setVoiceAmount(amount: number): void {
+    this.#value.voiceAmount = normalizeVoiceAmount(amount);
     this.#slot.set(this.#value);
   }
 

@@ -533,7 +533,7 @@ describe('VoiceCallState', () => {
     const { MicrophoneProcessor } = await import('$lib/audio/microphoneProcessor');
     const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
     const preferences = new CallPreferencesState('call-effects');
-    preferences.setProcessingPreset('strong');
+    preferences.setVoiceAmount(100);
     const state = new VoiceCallState(
       createVoiceCallClient(),
       () => ({
@@ -548,7 +548,7 @@ describe('VoiceCallState', () => {
     try {
       await state.join('wss://livekit.example.test', 'R1');
       expect(applied).toHaveBeenCalledWith(expect.objectContaining({ bass: -3, compressor: true }));
-      preferences.setProcessingPreset('none');
+      preferences.setVoiceAmount(0);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
           expect.objectContaining({ bass: 0, compressor: false })

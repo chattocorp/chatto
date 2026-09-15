@@ -82,7 +82,6 @@
       "gate_unavailable": "עיבוד המיקרופון אינו זמין. נעשה שימוש בשמע רגיל.",
       "call_settings": "הגדרות שיחה",
       "join_muted": "הצטרפות לשיחות עם מיקרופון מושתק",
-      "test_title": "בדיקת המיקרופון",
       "input_level": "עוצמת המיקרופון",
       "start_test": "התחלת בדיקת מיקרופון",
       "stop_test": "עצירת הבדיקה",
@@ -90,10 +89,10 @@
       "test_failed": "לא ניתן לבדוק את המיקרופון. יש לבדוק את הגישה למכשיר ולנסות שוב.",
       "test_in_call": "יש לצאת מהשיחה לפני בדיקת המיקרופון.",
       "processing": "עיבוד מיקרופון",
-      "processing_none": "ללא עיבוד",
-      "processing_subtle": "עיבוד עדין",
-      "processing_strong": "עיבוד חזק",
-      "gate_separate": "שער הרעש חל בנפרד."
+      "your_voice": "הקול שלך",
+      "voice_normal": "רגיל",
+      "voice_cool": "די מגניב",
+      "voice_awesome": "מדהים"
     }
   }
 }

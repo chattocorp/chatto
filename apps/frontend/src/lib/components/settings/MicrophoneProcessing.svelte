@@ -1,7 +1,7 @@
 <!-- @component Local microphone effects; changes apply to the active call or voice test. -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import ChoiceRow from '$lib/ui/ChoiceRow.svelte';
+  import { RangeField } from '$lib/ui/form';
   import type { CallPreferencesState } from '$lib/state/server/callPreferences.svelte';
   import MicrophoneSensitivity from './MicrophoneSensitivity.svelte';
 
@@ -18,25 +18,27 @@
 
 <div class="flex flex-col gap-5">
   <MicrophoneSensitivity {preferences} {level} {unavailable} />
-  <div role="radiogroup" aria-label={m('voice.preferences.processing')} class="flex flex-col gap-2">
-    <ChoiceRow
-      label={m('voice.preferences.processing_none')}
-      selected={preferences.processingPreset === 'none'}
+  <div class="flex flex-col gap-2">
+    <RangeField
+      id="microphone-voice"
+      label={m('voice.preferences.your_voice')}
+      min={0}
+      max={100}
+      step={0.1}
       disabled={unavailable}
-      onclick={() => preferences.setProcessingPreset('none')}
+      bind:value={() => preferences.voiceAmount, (value) => preferences.setVoiceAmount(value ?? 0)}
+      displayValue={preferences.voiceAmount === 0
+        ? m('voice.preferences.voice_normal')
+        : preferences.voiceAmount === 50
+          ? m('voice.preferences.voice_cool')
+          : preferences.voiceAmount === 100
+            ? m('voice.preferences.voice_awesome')
+            : `${Math.round(preferences.voiceAmount)}%`}
     />
-    <ChoiceRow
-      label={m('voice.preferences.processing_subtle')}
-      selected={preferences.processingPreset === 'subtle'}
-      disabled={unavailable}
-      onclick={() => preferences.setProcessingPreset('subtle')}
-    />
-    <ChoiceRow
-      label={m('voice.preferences.processing_strong')}
-      selected={preferences.processingPreset === 'strong'}
-      disabled={unavailable}
-      onclick={() => preferences.setProcessingPreset('strong')}
-    />
+    <div class="grid grid-cols-3 gap-2 px-3 text-xs text-muted" aria-hidden="true">
+      <span>{m('voice.preferences.voice_normal')}</span>
+      <span class="text-center">{m('voice.preferences.voice_cool')}</span>
+      <span class="text-end">{m('voice.preferences.voice_awesome')}</span>
+    </div>
   </div>
-  <p class="text-sm text-muted">{m('voice.preferences.gate_separate')}</p>
 </div>

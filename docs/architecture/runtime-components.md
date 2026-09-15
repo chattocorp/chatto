@@ -207,10 +207,11 @@ stream, or snapshot contract is required.
 ## Browser call preferences and device test
 
 The server-owned frontend store gives each call state a browser-local
-`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and processing preset at the existing
+`CallPreferencesState`. It saves device IDs, join-muted, microphone threshold, and voice processing amount at the existing
 per-server storage boundary. These settings do not enter Chatto APIs or EVT.
-The preset is `none`, `subtle`, or `strong`; missing or invalid values use `none`.
-Legacy enabled effect settings map to `subtle`. Other saved choices remain intact.
+The voice amount is a finite number from 0 to 100. Invalid values use 0.
+Previous presets map to 0 (none), 50 (subtle), and 100 (strong).
+Legacy enabled effect settings map to 50. Other saved choices remain intact.
 LiveKit capture defaults use the saved input choices; a missing output device
 uses the browser default. Device switches save only after success.
 
@@ -223,11 +224,13 @@ position disables gating. The input meter maps -60 to 0 dBFS onto 0–1.
 `MicrophoneEffectsGraph` adds native Web Audio processing around the gate:
 80 Hz high-pass filter (0 Hz when disabled), pre-EQ headroom gain,
 200 Hz low shelf, 1.2 kHz peaking filter, 4 kHz high shelf, and a soft-knee
-compressor. Each EQ band is bounded to ±6 dB. Compressor amount maps 0–100
+compressor. Each EQ band is bounded to ±6 dB. At full strength, compressor amount maps 0–100
 to threshold -12…-36 dB and ratio 2…8, with 6 ms attack and 150 ms release.
-Presets derive effect settings without changing the gate. Subtle enables low-cut,
-EQ (-1/+1/+1 dB), and compressor amount 15; Strong uses -3/+2/+3 dB and amount 55.
-No processing disables these three effects.
+The voice slider interpolates linearly in two segments: 0–50 and 50–100.
+Its anchors are neutral at 0, low-cut 80 Hz / EQ -1/+1/+1 dB / compressor
+threshold -15.6 dB and ratio 2.9 at 50, and low-cut 80 Hz / EQ -3/+2/+3 dB /
+threshold -25.2 dB and ratio 5.3 at 100. Neutral compression uses threshold 0
+and ratio 1. Fractional DSP parameters are not rounded.
 Disabled compression uses a dry path. Parameter changes use 15 ms smoothing.
 The gate meters the signal after the optional low-cut filter and before EQ.
 Capture requests disable browser AGC in both owners. The processor graph is

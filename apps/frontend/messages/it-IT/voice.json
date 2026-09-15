@@ -82,7 +82,6 @@
       "gate_unavailable": "Elaborazione del microfono non disponibile. Viene usato l’audio normale.",
       "call_settings": "Impostazioni chiamate",
       "join_muted": "Partecipa alle chiamate con il microfono disattivato",
-      "test_title": "Prova il microfono",
       "input_level": "Livello del microfono",
       "start_test": "Avvia test del microfono",
       "stop_test": "Interrompi test",
@@ -90,10 +89,10 @@
       "test_failed": "Impossibile provare il microfono. Controlla l’accesso al dispositivo e riprova.",
       "test_in_call": "Esci dalla chiamata prima di provare il microfono.",
       "processing": "Elaborazione del microfono",
-      "processing_none": "Nessuna elaborazione",
-      "processing_subtle": "Elaborazione leggera",
-      "processing_strong": "Elaborazione intensa",
-      "gate_separate": "Il noise gate si applica separatamente."
+      "your_voice": "La tua voce",
+      "voice_normal": "Normale",
+      "voice_cool": "Niente male",
+      "voice_awesome": "FANTASTICA"
     }
   }
 }

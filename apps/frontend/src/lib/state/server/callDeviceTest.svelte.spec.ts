@@ -26,7 +26,7 @@ describe('CallDeviceTest', () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play');
     const test = new CallDeviceTest();
     const preferences = new CallPreferencesState('test-presets');
-    preferences.setProcessingPreset('subtle');
+    preferences.setVoiceAmount(50);
     const applied = vi.spyOn(MicrophoneProcessor.prototype, 'setEffects');
     try {
       await test.start(
@@ -38,13 +38,13 @@ describe('CallDeviceTest', () => {
       expect(applied).toHaveBeenCalledWith(
         expect.objectContaining({ amount: 15, compressor: true })
       );
-      preferences.setProcessingPreset('strong');
+      preferences.setVoiceAmount(100);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
           expect.objectContaining({ amount: 55, compressor: true })
         )
       );
-      preferences.setProcessingPreset('none');
+      preferences.setVoiceAmount(0);
       await vi.waitFor(() =>
         expect(applied).toHaveBeenCalledWith(
           expect.objectContaining({ compressor: false, equalizer: false, lowCut: false })

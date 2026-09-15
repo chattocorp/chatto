@@ -82,7 +82,6 @@
       "gate_unavailable": "Mikrofona apstrāde nav pieejama. Tiek izmantota parastā skaņa.",
       "call_settings": "Zvanu iestatījumi",
       "join_muted": "Pievienoties zvaniem ar izslēgtu mikrofonu",
-      "test_title": "Pārbaudīt mikrofonu",
       "input_level": "Mikrofona līmenis",
       "start_test": "Sākt mikrofona pārbaudi",
       "stop_test": "Apturēt pārbaudi",
@@ -90,10 +89,10 @@
       "test_failed": "Neizdevās pārbaudīt mikrofonu. Pārbaudi piekļuvi ierīcei un mēģini vēlreiz.",
       "test_in_call": "Pirms mikrofona pārbaudes atstāj zvanu.",
       "processing": "Mikrofona apstrāde",
-      "processing_none": "Bez apstrādes",
-      "processing_subtle": "Viegla apstrāde",
-      "processing_strong": "Spēcīga apstrāde",
-      "gate_separate": "Trokšņu vārti tiek piemēroti atsevišķi."
+      "your_voice": "Tava balss",
+      "voice_normal": "Parasta",
+      "voice_cool": "Diezgan forša",
+      "voice_awesome": "LIELISKA"
     }
   }
 }

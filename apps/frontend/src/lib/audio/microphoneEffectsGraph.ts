@@ -67,15 +67,16 @@ export class MicrophoneEffectsGraph {
       if (immediate) param.value = target;
       else param.setTargetAtTime(target, this.context.currentTime, 0.015);
     };
-    set(this.input.frequency, value.lowCut ? 80 : 0);
+    const strength = value.strength ?? 1;
+    set(this.input.frequency, value.lowCut ? 80 * strength : 0);
     const gains = value.equalizer ? [value.bass, value.mid, value.treble] : [0, 0, 0];
     set(this.#bass.gain, gains[0]);
     set(this.#mid.gain, gains[1]);
     set(this.#treble.gain, gains[2]);
     // Reserve the sum of positive boosts before EQ to avoid output clipping.
     set(this.#headroom.gain, 10 ** (-gains.reduce((sum, gain) => sum + Math.max(0, gain), 0) / 20));
-    set(this.#compressor.threshold, -12 - value.amount * 0.24);
-    set(this.#compressor.ratio, 2 + value.amount * 0.06);
+    set(this.#compressor.threshold, (-12 - value.amount * 0.24) * strength);
+    set(this.#compressor.ratio, 1 + (1 + value.amount * 0.06) * strength);
     set(this.#dry.gain, value.compressor ? 0 : 1);
     set(this.#wet.gain, value.compressor ? 1 : 0);
   }

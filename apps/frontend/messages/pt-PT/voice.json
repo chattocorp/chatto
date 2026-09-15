@@ -82,7 +82,6 @@
       "gate_unavailable": "Processamento do microfone indisponível. É usado o áudio normal.",
       "call_settings": "Definições de chamadas",
       "join_muted": "Entrar nas chamadas com o microfone silenciado",
-      "test_title": "Testar o microfone",
       "input_level": "Nível do microfone",
       "start_test": "Iniciar teste do microfone",
       "stop_test": "Parar teste",
@@ -90,10 +89,10 @@
       "test_failed": "Não foi possível testar o microfone. Verifique o acesso ao dispositivo e tente novamente.",
       "test_in_call": "Saia da chamada antes de testar o microfone.",
       "processing": "Processamento do microfone",
-      "processing_none": "Sem processamento",
-      "processing_subtle": "Processamento ligeiro",
-      "processing_strong": "Processamento forte",
-      "gate_separate": "O gate de ruído é aplicado separadamente."
+      "your_voice": "A tua voz",
+      "voice_normal": "Normal",
+      "voice_cool": "Bem fixe",
+      "voice_awesome": "INCRÍVEL"
     }
   }
 }

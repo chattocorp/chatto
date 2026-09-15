@@ -82,7 +82,6 @@
       "gate_unavailable": "Mikrofonbehandling er utilgjengelig. Vanlig lyd brukes.",
       "call_settings": "Anropsinnstillinger",
       "join_muted": "Bli med i samtaler med dempet mikrofon",
-      "test_title": "Test mikrofonen",
       "input_level": "Mikrofonnivå",
       "start_test": "Start mikrofontest",
       "stop_test": "Stopp test",
@@ -90,10 +89,10 @@
       "test_failed": "Kunne ikke teste mikrofonen. Kontroller enhetstilgangen og prøv igjen.",
       "test_in_call": "Forlat samtalen før du tester mikrofonen.",
       "processing": "Mikrofonbehandling",
-      "processing_none": "Ingen behandling",
-      "processing_subtle": "Lett behandling",
-      "processing_strong": "Kraftig behandling",
-      "gate_separate": "Støyporten brukes separat."
+      "your_voice": "Stemmen din",
+      "voice_normal": "Normal",
+      "voice_cool": "Ganske kul",
+      "voice_awesome": "FANTASTISK"
     }
   }
 }

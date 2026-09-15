@@ -62,35 +62,37 @@ describe('CallPreferencesState', () => {
   });
 });
 
-it('persists each preset without changing the gate, devices or join choice', () => {
-  const state = new CallPreferencesState('presets');
+it('persists fractional voice strength independently of gate, devices, join and server', () => {
+  const state = new CallPreferencesState('voice-strength');
   state.setDevice('audioinput', 'chosen');
   state.setJoinMuted(true);
   state.setMicrophoneThreshold(-25);
-  for (const preset of ['subtle', 'strong', 'none'] as const) {
-    state.setProcessingPreset(preset);
-    const restored = new CallPreferencesState('presets');
-    expect(restored.processingPreset).toBe(preset);
-    expect(new CallPreferencesState('separate-presets').processingPreset).toBe('none');
-    expect(restored.effects.compressor).toBe(preset !== 'none');
-    expect(restored.effects.equalizer).toBe(preset !== 'none');
-    expect(restored.effects.lowCut).toBe(preset !== 'none');
+  for (const amount of [0, 12.5, 50, 87.3, 100]) {
+    state.setVoiceAmount(amount);
+    const restored = new CallPreferencesState('voice-strength');
+    expect(restored.voiceAmount).toBe(amount);
+    expect(restored.effects.compressor).toBe(amount > 0);
     expect(restored.microphoneThreshold).toBe(-25);
     expect(restored.microphone).toBe('chosen');
     expect(restored.joinMuted).toBe(true);
+    expect(new CallPreferencesState('separate-strength').voiceAmount).toBe(0);
   }
 });
 
 it.each([
-  [{}, 'none'],
-  [{ processingPreset: 'invalid', effects: { compressor: true } }, 'none'],
-  [{ processingPreset: 'strong' }, 'strong'],
-  [{ effects: { lowCut: false, equalizer: false, compressor: false } }, 'none'],
-  [{ effects: { lowCut: true } }, 'subtle'],
-  [{ effects: { equalizer: true } }, 'subtle'],
-  [{ effects: { compressor: true } }, 'subtle'],
-  [{ effects: { compressor: 'true' } }, 'none']
-])('restores safe presets from saved preferences %j', (saved, expected) => {
+  [{}, 0],
+  [{ processingPreset: 'none' }, 0],
+  [{ processingPreset: 'subtle' }, 50],
+  [{ processingPreset: 'strong' }, 100],
+  [{ processingPreset: 'invalid' }, 0],
+  [{ effects: { compressor: true } }, 50],
+  [{ effects: { compressor: 'true' } }, 0],
+  [{ voiceAmount: 32.5, processingPreset: 'strong' }, 32.5],
+  [{ voiceAmount: 'bad', processingPreset: 'strong' }, 0],
+  [{ voiceAmount: null, processingPreset: 'strong' }, 0],
+  [{ voiceAmount: 200 }, 100],
+  [{ voiceAmount: -10 }, 0]
+])('restores safe voice strength from %j', (saved, expected) => {
   localStorage.setItem(
     'chatto:i:migration:callPreferences',
     JSON.stringify({
@@ -100,18 +102,15 @@ it.each([
     })
   );
   const state = new CallPreferencesState('migration');
-  expect(state.processingPreset).toBe(expected);
+  expect(state.voiceAmount).toBe(expected);
   expect(state.microphone).toBe('mic');
   expect(state.microphoneThreshold).toBe(-30);
 });
 
-it('uses stronger tone shaping and compression for Strong than Subtle', () => {
-  const state = new CallPreferencesState('strength');
-  state.setProcessingPreset('subtle');
-  const subtle = state.effects;
-  state.setProcessingPreset('strong');
-  expect(state.effects.amount).toBeGreaterThan(subtle.amount);
-  expect(state.effects.treble).toBeGreaterThan(subtle.treble);
-  state.effects.bass = 6;
-  expect(state.effects.bass).toBe(-3);
+it('rejects non-finite runtime voice strength', () => {
+  const state = new CallPreferencesState('invalid-strength');
+  for (const value of [NaN, Infinity, -Infinity]) {
+    state.setVoiceAmount(value);
+    expect(state.voiceAmount).toBe(0);
+  }
 });

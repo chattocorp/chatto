@@ -82,7 +82,6 @@
       "gate_unavailable": "Mikrofonbearbetning är inte tillgänglig. Vanligt ljud används.",
       "call_settings": "Samtalsinställningar",
       "join_muted": "Anslut till samtal med avstängd mikrofon",
-      "test_title": "Testa mikrofonen",
       "input_level": "Mikrofonnivå",
       "start_test": "Starta mikrofontest",
       "stop_test": "Stoppa test",
@@ -90,10 +89,10 @@
       "test_failed": "Kunde inte testa mikrofonen. Kontrollera enhetsåtkomsten och försök igen.",
       "test_in_call": "Lämna samtalet innan du testar mikrofonen.",
       "processing": "Mikrofonbearbetning",
-      "processing_none": "Ingen bearbetning",
-      "processing_subtle": "Lätt bearbetning",
-      "processing_strong": "Kraftig bearbetning",
-      "gate_separate": "Brusgrinden tillämpas separat."
+      "your_voice": "Din röst",
+      "voice_normal": "Normal",
+      "voice_cool": "Rätt cool",
+      "voice_awesome": "FANTASTISK"
     }
   }
 }

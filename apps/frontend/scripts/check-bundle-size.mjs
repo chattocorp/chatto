@@ -12,7 +12,9 @@ const messagesRoot = resolve(frontendRoot, 'messages');
 const routes = [
   {
     name: 'login',
-    budgetKiB: 290,
+    // Browser-local voice settings and their legacy migration are loaded by the
+    // server store. Allow one KiB for this bounded control data; media DSP stays lazy.
+    budgetKiB: 291,
     components: ['src/routes/+layout.svelte', 'src/routes/login/+page.svelte']
   },
   {

@@ -82,7 +82,6 @@
       "gate_unavailable": "Mikrofonverarbeitung nicht verfügbar. Normales Audio wird verwendet.",
       "call_settings": "Anrufeinstellungen",
       "join_muted": "Anrufen mit stummgeschaltetem Mikrofon beitreten",
-      "test_title": "Mikrofon testen",
       "input_level": "Mikrofonpegel",
       "start_test": "Mikrofontest starten",
       "stop_test": "Test stoppen",
@@ -90,10 +89,10 @@
       "test_failed": "Mikrofon konnte nicht getestet werden. Prüfe den Gerätezugriff und versuche es erneut.",
       "test_in_call": "Verlasse deinen Anruf, bevor du das Mikrofon testest.",
       "processing": "Mikrofonverarbeitung",
-      "processing_none": "Keine Verarbeitung",
-      "processing_subtle": "Dezente Verarbeitung",
-      "processing_strong": "Starke Verarbeitung",
-      "gate_separate": "Das Noise Gate wird separat angewendet."
+      "your_voice": "Deine Stimme",
+      "voice_normal": "Normal",
+      "voice_cool": "Ziemlich cool",
+      "voice_awesome": "MEGA"
     }
   }
 }

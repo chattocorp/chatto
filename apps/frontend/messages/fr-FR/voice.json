@@ -82,7 +82,6 @@
       "gate_unavailable": "Traitement du microphone indisponible. Le son normal est utilisé.",
       "call_settings": "Paramètres des appels",
       "join_muted": "Rejoindre les appels avec le microphone coupé",
-      "test_title": "Tester votre microphone",
       "input_level": "Niveau du microphone",
       "start_test": "Démarrer le test du microphone",
       "stop_test": "Arrêter le test",
@@ -90,10 +89,10 @@
       "test_failed": "Impossible de tester le microphone. Vérifiez l’accès à l’appareil et réessayez.",
       "test_in_call": "Quittez votre appel avant de tester le microphone.",
       "processing": "Traitement du microphone",
-      "processing_none": "Aucun traitement",
-      "processing_subtle": "Traitement léger",
-      "processing_strong": "Traitement fort",
-      "gate_separate": "La porte de bruit s’applique séparément."
+      "your_voice": "Ta voix",
+      "voice_normal": "Normale",
+      "voice_cool": "Plutôt cool",
+      "voice_awesome": "GÉNIALE"
     }
   }
 }

@@ -82,7 +82,6 @@
       "gate_unavailable": "Mikrofoni töötlus pole saadaval. Kasutatakse tavalist heli.",
       "call_settings": "Kõneseaded",
       "join_muted": "Liitu kõnedega vaigistatud mikrofoniga",
-      "test_title": "Testi mikrofoni",
       "input_level": "Mikrofoni tase",
       "start_test": "Alusta mikrofoni testi",
       "stop_test": "Peata test",
@@ -90,10 +89,10 @@
       "test_failed": "Mikrofoni testimine nurjus. Kontrolli seadme juurdepääsu ja proovi uuesti.",
       "test_in_call": "Enne mikrofoni testimist lahku kõnest.",
       "processing": "Mikrofoni töötlus",
-      "processing_none": "Töötlus puudub",
-      "processing_subtle": "Õrn töötlus",
-      "processing_strong": "Tugev töötlus",
-      "gate_separate": "Müraväravat rakendatakse eraldi."
+      "your_voice": "Sinu hääl",
+      "voice_normal": "Tavaline",
+      "voice_cool": "Päris lahe",
+      "voice_awesome": "VÕIMAS"
     }
   }
 }

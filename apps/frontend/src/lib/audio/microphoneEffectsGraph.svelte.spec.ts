@@ -1,6 +1,10 @@
 import { expect, it } from 'vitest';
 import { MicrophoneEffectsGraph } from './microphoneEffectsGraph';
-import { normalizeMicrophoneEffects, type MicrophoneEffects } from './microphoneEffects';
+import {
+  microphoneEffectsForAmount,
+  normalizeMicrophoneEffects,
+  type MicrophoneEffects
+} from './microphoneEffects';
 
 /** Render real native DSP offline so assertions do not depend on wall-clock audio. */
 async function level(frequency: number, amplitude: number, effects: Partial<MicrophoneEffects>) {
@@ -59,4 +63,43 @@ it('compresses loud input more than quiet input, with stronger reduction at high
     0.8 / Math.SQRT2,
     4
   );
+});
+
+it('interpolates fractional tone and compression settings across both slider halves', () => {
+  const context = new OfflineAudioContext(1, 48000, 48000);
+  const filters: BiquadFilterNode[] = [];
+  const original = context.createBiquadFilter.bind(context);
+  context.createBiquadFilter = () => {
+    const node = original();
+    filters.push(node);
+    return node;
+  };
+  const compressors: DynamicsCompressorNode[] = [];
+  const compressor = context.createDynamicsCompressor.bind(context);
+  context.createDynamicsCompressor = () => {
+    const node = compressor();
+    compressors.push(node);
+    return node;
+  };
+  const graph = new MicrophoneEffectsGraph(context, context.createGain(), context.destination);
+  for (const [amount, cutoff, bass, mid, treble, threshold, ratio] of [
+    [0, 0, 0, 0, 0, 0, 1],
+    [25, 40, -0.5, 0.5, 0.5, -7.8, 1.95],
+    [50, 80, -1, 1, 1, -15.6, 2.9],
+    [75, 80, -2, 1.5, 2, -20.4, 4.1],
+    [100, 80, -3, 2, 3, -25.2, 5.3]
+  ]) {
+    graph.update(microphoneEffectsForAmount(amount), true);
+    expect(filters[0].frequency.value).toBeCloseTo(cutoff);
+    expect(filters[1].gain.value).toBeCloseTo(bass);
+    expect(filters[2].gain.value).toBeCloseTo(mid);
+    expect(filters[3].gain.value).toBeCloseTo(treble);
+    expect(compressors[0].threshold.value).toBeCloseTo(threshold);
+    expect(compressors[0].ratio.value).toBeCloseTo(ratio);
+  }
+  graph.destroy();
+});
+
+it('keeps Normal audio neutral through the complete graph', async () => {
+  expect(await level(1000, 0.5, microphoneEffectsForAmount(0))).toBeCloseTo(0.5 / Math.SQRT2, 4);
 });

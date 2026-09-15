@@ -82,7 +82,6 @@
       "gate_unavailable": "Microfoonverwerking niet beschikbaar. Normaal geluid wordt gebruikt.",
       "call_settings": "Oproepinstellingen",
       "join_muted": "Deelnemen aan gesprekken met gedempte microfoon",
-      "test_title": "Je microfoon testen",
       "input_level": "Microfoonniveau",
       "start_test": "Microfoontest starten",
       "stop_test": "Test stoppen",
@@ -90,10 +89,10 @@
       "test_failed": "De microfoon kon niet worden getest. Controleer de apparaattoegang en probeer het opnieuw.",
       "test_in_call": "Verlaat je gesprek voordat je de microfoon test.",
       "processing": "Microfoonverwerking",
-      "processing_none": "Geen verwerking",
-      "processing_subtle": "Lichte verwerking",
-      "processing_strong": "Sterke verwerking",
-      "gate_separate": "De ruispoort wordt afzonderlijk toegepast."
+      "your_voice": "Jouw stem",
+      "voice_normal": "Normaal",
+      "voice_cool": "Best cool",
+      "voice_awesome": "GEWELDIG"
     }
   }
 }

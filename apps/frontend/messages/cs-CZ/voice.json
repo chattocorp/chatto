@@ -82,7 +82,6 @@
       "gate_unavailable": "Zpracování mikrofonu není dostupné. Používá se běžný zvuk.",
       "call_settings": "Nastavení hovorů",
       "join_muted": "Připojovat se k hovorům se ztlumeným mikrofonem",
-      "test_title": "Otestovat mikrofon",
       "input_level": "Úroveň mikrofonu",
       "start_test": "Spustit test mikrofonu",
       "stop_test": "Zastavit test",
@@ -90,10 +89,10 @@
       "test_failed": "Mikrofon se nepodařilo otestovat. Zkontrolujte přístup k zařízení a zkuste to znovu.",
       "test_in_call": "Před testem mikrofonu opusťte hovor.",
       "processing": "Zpracování mikrofonu",
-      "processing_none": "Bez zpracování",
-      "processing_subtle": "Jemné zpracování",
-      "processing_strong": "Silné zpracování",
-      "gate_separate": "Šumová brána se používá samostatně."
+      "your_voice": "Tvůj hlas",
+      "voice_normal": "Normální",
+      "voice_cool": "Docela super",
+      "voice_awesome": "ÚŽASNÝ"
     }
   }
 }

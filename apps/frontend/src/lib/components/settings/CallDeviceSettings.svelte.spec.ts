@@ -135,39 +135,37 @@ describe('Call device settings', () => {
   });
 });
 
-it('offers three presets, keeps the gate separate and removes individual effect controls', async () => {
+it('offers a continuous voice slider while keeping the gate separate', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
-  const preferences = new CallPreferencesState('processing-ui');
+  const preferences = new CallPreferencesState('voice-ui');
   preferences.setMicrophoneThreshold(-30);
   const screen = render(CallDeviceSettings, { preferences });
-  const choices = screen.getByRole('radiogroup', { name: 'Microphone processing' });
-  await expect
-    .element(choices.getByRole('radio', { name: 'No processing' }))
-    .toHaveAttribute('aria-checked', 'true');
-  await choices.getByRole('radio', { name: 'Subtle processing' }).click();
-  expect(preferences.processingPreset).toBe('subtle');
-  await choices.getByRole('radio', { name: 'Strong processing' }).click();
-  expect(new CallPreferencesState('processing-ui').processingPreset).toBe('strong');
-  await expect
-    .element(choices.getByRole('radio', { name: 'Strong processing' }))
-    .toHaveAttribute('aria-checked', 'true');
-  choices.getByRole('radio', { name: 'No processing' }).element().focus();
-  await userEvent.keyboard('{Enter}');
+  const slider = screen.getByRole('slider', { name: /^Your Voice/ });
+  await expect.element(slider).toHaveValue('0');
+  slider.element().focus();
+  await userEvent.keyboard('{End}');
+  expect(new CallPreferencesState('voice-ui').voiceAmount).toBe(100);
+  await expect.element(slider).toHaveAttribute('aria-valuetext', 'AWESOME');
+  const input = slider.element() as HTMLInputElement;
+  input.value = '37.5';
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await tick();
+  expect(preferences.voiceAmount).toBe(37.5);
+  expect(preferences.effects.mid).toBe(0.75);
+  await userEvent.keyboard('{Home}');
   expect(preferences.effects.compressor).toBe(false);
   expect(preferences.microphoneThreshold).toBe(-30);
-  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(1);
+  expect(screen.container.querySelectorAll('input[type=range]')).toHaveLength(2);
   expect(screen.container.querySelector('details')).toBeNull();
-  expect(screen.container.textContent).not.toContain('Amount');
+  await expect.element(screen.getByText('Pretty cool', { exact: true })).toBeVisible();
 });
 
-it('disables preset choices when processing is unavailable in a call', async () => {
+it('disables the voice slider when processing is unavailable', async () => {
   vi.spyOn(navigator.mediaDevices, 'enumerateDevices').mockResolvedValue([visibleCamera]);
   const screen = render(CallDeviceSettings, {
-    preferences: new CallPreferencesState('unavailable-presets'),
+    preferences: new CallPreferencesState('unavailable-voice'),
     inCall: true,
     gateUnavailable: true
   });
-  for (const name of ['No processing', 'Subtle processing', 'Strong processing']) {
-    await expect.element(screen.getByRole('radio', { name, exact: true })).toBeDisabled();
-  }
+  await expect.element(screen.getByRole('slider', { name: /^Your Voice/ })).toBeDisabled();
 });

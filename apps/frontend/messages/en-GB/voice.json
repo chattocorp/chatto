@@ -82,7 +82,6 @@
       "gate_unavailable": "Microphone processing unavailable. Using normal audio.",
       "call_settings": "Call Settings",
       "join_muted": "Join calls with microphone muted",
-      "test_title": "Test your microphone",
       "input_level": "Microphone level",
       "start_test": "Start microphone test",
       "stop_test": "Stop test",
@@ -90,10 +89,10 @@
       "test_failed": "Could not test the microphone. Check device access and try again.",
       "test_in_call": "Leave your call before testing the microphone.",
       "processing": "Microphone processing",
-      "processing_none": "No processing",
-      "processing_subtle": "Subtle processing",
-      "processing_strong": "Strong processing",
-      "gate_separate": "Noise gate applies separately."
+      "your_voice": "Your Voice",
+      "voice_normal": "Normal",
+      "voice_cool": "Pretty cool",
+      "voice_awesome": "AWESOME"
     }
   }
 }
