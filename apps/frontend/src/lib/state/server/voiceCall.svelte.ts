@@ -21,7 +21,7 @@ import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
-import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
+import type { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
 /** Resolved room actions. Missing permission data always denies access. */
 export type CallPermissions = {
@@ -844,6 +844,10 @@ export class VoiceCallState {
     const livekitUrl = this.liveKitURL;
     const roomId = this.roomId;
     if (!livekitUrl || !roomId) return;
+    const { NativeScreenSharePublisherSession } = await import(
+      '$lib/desktop/nativeScreenSharePublisher'
+    );
+    if (this.room !== room || !this.canScreenShare) return;
     const credential = await this.#api.createGameSharePublisherToken(roomId);
     if (!credential || credential.callId !== this.activeCallId) {
       throw new Error('The server could not create a native screen-share publisher credential.');

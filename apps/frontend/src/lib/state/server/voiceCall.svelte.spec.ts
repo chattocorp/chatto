@@ -1108,8 +1108,7 @@ describe('VoiceCallState', () => {
     screenShareGate = deferredVoid();
 
     const starting = state.startNativeScreenShare('window:42', 'Moonring');
-    await flushPromises();
-    expect(session.onEnded).not.toBeNull();
+    await expect.poll(() => session.onEnded).not.toBeNull();
     session.onEnded?.(new Error('native publisher ended'));
     screenShareGate.resolve();
 

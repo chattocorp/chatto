@@ -161,6 +161,7 @@ for (const result of routeResults) {
 
 const roomResult = routeResults.find(({ name }) => name === 'room');
 const deferredRoomInteractionSources = [
+  'src/lib/desktop/nativeScreenSharePublisher.ts',
   'src/lib/components/EmojiPicker.svelte',
   'src/lib/components/chat/VideoPlayer.svelte',
   'src/lib/components/menus/UserContextMenu.svelte',
