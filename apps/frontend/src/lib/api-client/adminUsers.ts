@@ -210,7 +210,7 @@ function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
     login: user.login,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null,
-    ...(!!user.bot ? { isBot: true } : {})
+    ...(user.bot ? { isBot: true } : {})
   };
 }
 
