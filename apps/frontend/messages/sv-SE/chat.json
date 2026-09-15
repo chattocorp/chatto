@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} lokal tid ({zone})",
       "permissions": {
-        "title": "Vad den här boten kan göra",
-        "note": "Aktuella behörigheter som du kan se. Meddelande- och samtalsåtgärder kräver även medlemskap och kan ha andra krav.",
+        "title": "Vad den kan göra",
         "empty": "Inga aktiva behörigheter är synliga för dig.",
         "error": "Det gick inte att läsa in botens behörigheter.",
         "inactive_title": "Inaktiva behörigheter",

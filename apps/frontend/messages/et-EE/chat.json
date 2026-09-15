@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} kohalik aeg ({zone})",
       "permissions": {
-        "title": "Mida see bot teha saab",
-        "note": "Praegused õigused, mis on sulle nähtavad. Sõnumi- ja kõnetoimingud nõuavad ka liikmelisust ning neil võib olla muid nõudeid.",
+        "title": "Mida ta saab teha",
         "empty": "Sulle pole nähtavaid aktiivseid õigusi.",
         "error": "Selle boti õigusi ei saanud laadida.",
         "inactive_title": "Mitteaktiivsed õigused",

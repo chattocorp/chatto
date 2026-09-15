@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} lokale tijd ({zone})",
       "permissions": {
-        "title": "Wat deze bot kan doen",
-        "note": "Huidige machtigingen die je kunt zien. Bericht- en gespreksacties vereisen ook lidmaatschap en kunnen andere voorwaarden hebben.",
+        "title": "Wat hij kan doen",
         "empty": "Er zijn geen actieve machtigingen zichtbaar voor jou.",
         "error": "De machtigingen van deze bot konden niet worden geladen.",
         "inactive_title": "Inactieve machtigingen",

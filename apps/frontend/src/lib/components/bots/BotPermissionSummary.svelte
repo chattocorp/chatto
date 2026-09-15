@@ -6,7 +6,8 @@ while mounted and discards cached data when the profile closes. -->
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { HelpTooltip } from '$lib/ui';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
   import { Button } from '$lib/ui/form';
   import {
     groupBotPermissions,
@@ -44,7 +45,7 @@ while mounted and discards cached data when the profile closes. -->
 {#snippet permissionGroups(groups: BotPermissionGroup[])}
   {#each groups as group (group.id)}
     <div class="space-y-1">
-      <h4 class="break-words font-medium"><bdi>{group.label}</bdi></h4>
+      <h4 class="font-medium break-words"><bdi>{group.label}</bdi></h4>
       <ul class="list-disc space-y-1 ps-5">
         {#each group.actions as action (action.id)}
           <li class="break-words">{action.text}</li>
@@ -54,39 +55,47 @@ while mounted and discards cached data when the profile closes. -->
   {/each}
 {/snippet}
 
-<section class="mt-6 space-y-3" aria-label={m('chat.profile.permissions.title')}>
-  <div class="flex items-center gap-2">
-    <h3 class="font-semibold text-text-top">{m('chat.profile.permissions.title')}</h3>
-    <HelpTooltip>{m('chat.profile.permissions.note')}</HelpTooltip>
-  </div>
-  {#if query.isError}
-    <p role="alert" class="text-muted">{m('chat.profile.permissions.error')}</p>
-    <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
-  {:else if query.isPending}
-    <p class="text-muted" aria-busy="true">{m('common.loading')}</p>
-  {:else}
-    {#if active.length > 0}
-      {@render permissionGroups(active)}
-    {:else if !query.hasNextPage}
-      <p class="text-muted">{m('chat.profile.permissions.empty')}</p>
-    {/if}
-    {#if inactive.length > 0}
-      <details class="space-y-3 text-muted">
-        <summary class="cursor-pointer font-medium"
-          >{m('chat.profile.permissions.inactive_title')}</summary
+{#snippet permissionContent()}
+  <div class="space-y-3 px-2 pt-2 pb-2">
+    {#if query.isError}
+      <p role="alert" class="text-muted">{m('chat.profile.permissions.error')}</p>
+      <Button variant="secondary" onclick={() => query.refetch()}>{m('common.retry')}</Button>
+    {:else if query.isPending}
+      <p class="text-muted" aria-busy="true">{m('common.loading')}</p>
+    {:else}
+      {#if active.length > 0}
+        {@render permissionGroups(active)}
+      {:else if !query.hasNextPage}
+        <p class="text-muted">{m('chat.profile.permissions.empty')}</p>
+      {/if}
+      {#if inactive.length > 0}
+        <details class="space-y-3 text-muted">
+          <summary class="cursor-pointer font-medium"
+            >{m('chat.profile.permissions.inactive_title')}</summary
+          >
+          <p>{m('chat.profile.permissions.inactive_note')}</p>
+          {@render permissionGroups(inactive)}
+        </details>
+      {/if}
+      {#if query.hasNextPage}
+        <Button
+          variant="secondary"
+          disabled={query.isFetchingNextPage}
+          onclick={() => query.fetchNextPage()}
         >
-        <p>{m('chat.profile.permissions.inactive_note')}</p>
-        {@render permissionGroups(inactive)}
-      </details>
+          {m('chat.profile.permissions.more')}
+        </Button>
+      {/if}
     {/if}
-    {#if query.hasNextPage}
-      <Button
-        variant="secondary"
-        disabled={query.isFetchingNextPage}
-        onclick={() => query.fetchNextPage()}
-      >
-        {m('chat.profile.permissions.more')}
-      </Button>
-    {/if}
-  {/if}
-</section>
+  </div>
+{/snippet}
+
+<div class="-mx-4 mt-6">
+  <RoomGroupSection
+    label={m('chat.profile.permissions.title')}
+    persistKey={serverStorageKey(scope.serverId, 'bot-profile-permissions-collapsed')}
+    items={[{ id: 'permissions' }]}
+    item={permissionContent}
+    separated
+  />
+</div>

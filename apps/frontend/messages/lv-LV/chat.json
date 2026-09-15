@@ -82,8 +82,7 @@
       "bot": "Bots",
       "local_time": "{time} vietējais laiks ({zone})",
       "permissions": {
-        "title": "Ko šis bots var darīt",
-        "note": "Pašreizējās tev redzamās atļaujas. Ziņojumu un zvanu darbībām ir vajadzīga arī dalība, un tām var būt citas prasības.",
+        "title": "Ko tas var darīt",
         "empty": "Tev nav redzamu aktīvu atļauju.",
         "error": "Neizdevās ielādēt šī bota atļaujas.",
         "inactive_title": "Neaktīvas atļaujas",

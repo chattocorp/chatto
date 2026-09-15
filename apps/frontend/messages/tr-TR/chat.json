@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} yerel saat ({zone})",
       "permissions": {
-        "title": "Bu bot neler yapabilir",
-        "note": "Görebildiğin mevcut izinler. Mesaj ve arama işlemleri üyelik de gerektirir ve başka koşulları olabilir.",
+        "title": "Yapabilecekleri",
         "empty": "Görebildiğin etkin bir izin yok.",
         "error": "Bu botun izinleri yüklenemedi.",
         "inactive_title": "Etkin olmayan izinler",

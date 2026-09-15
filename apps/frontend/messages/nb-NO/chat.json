@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} lokal tid ({zone})",
       "permissions": {
-        "title": "Hva denne boten kan gjøre",
-        "note": "Gjeldende tillatelser som er synlige for deg. Meldings- og samtalehandlinger krever også medlemskap og kan ha andre krav.",
+        "title": "Hva den kan gjøre",
         "empty": "Ingen aktive tillatelser er synlige for deg.",
         "error": "Kunne ikke laste botens tillatelser.",
         "inactive_title": "Inaktive tillatelser",

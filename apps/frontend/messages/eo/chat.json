@@ -82,8 +82,7 @@
       "bot": "Roboto",
       "local_time": "Loka tempo {time} ({zone})",
       "permissions": {
-        "title": "Kion ĉi tiu roboto povas fari",
-        "note": "Nunaj permesoj videblaj al vi. Mesaĝaj kaj vokaj agoj ankaŭ postulas membrecon kaj povas havi aliajn postulojn.",
+        "title": "Kion ĝi povas fari",
         "empty": "Neniuj aktivaj permesoj estas videblaj al vi.",
         "error": "Ne eblis ŝargi la permesojn de ĉi tiu roboto.",
         "inactive_title": "Neaktivaj permesoj",

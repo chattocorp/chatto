@@ -12,14 +12,15 @@ exercise more authority than its human owner currently possesses.
 
 ## Behavior
 
-- A bot's profile pane shows **What this bot can do** to all authenticated
+- A bot's profile pane shows **What it can do** to all authenticated
   members. It describes effective permissions after the owner's current
   authority is applied. Channel rooms and direct messages have separate
   descriptions. Message and call actions still require membership and other
   action-specific conditions.
 - Actions appear as short bullets under scope headings. Room browsing and
-  joining share one bullet when both apply to the same scope. An info tooltip
-  explains membership and other action requirements.
+  joining share one bullet when both apply to the same scope. The section
+  starts expanded and remembers its collapsed state for each server on this
+  device.
 - The summary combines broader and narrower grants only when every applicable
   narrower scope has the same effective access. It omits permissions already
   included by another displayed permission. Named rooms follow the viewer's

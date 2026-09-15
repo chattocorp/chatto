@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} czasu lokalnego ({zone})",
       "permissions": {
-        "title": "Co ten bot może robić",
-        "note": "Aktualne uprawnienia widoczne dla ciebie. Działania dotyczące wiadomości i rozmów wymagają też członkostwa i mogą mieć inne wymagania.",
+        "title": "Co może robić",
         "empty": "Nie widzisz żadnych aktywnych uprawnień.",
         "error": "Nie udało się wczytać uprawnień tego bota.",
         "inactive_title": "Nieaktywne uprawnienia",

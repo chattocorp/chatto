@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} místního času ({zone})",
       "permissions": {
-        "title": "Co tento bot může dělat",
-        "note": "Aktuální oprávnění, která vidíš. Akce se zprávami a hovory vyžadují také členství a mohou mít další podmínky.",
+        "title": "Co může dělat",
         "empty": "Nejsou pro tebe viditelná žádná aktivní oprávnění.",
         "error": "Oprávnění tohoto bota se nepodařilo načíst.",
         "inactive_title": "Neaktivní oprávnění",

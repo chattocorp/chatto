@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time}, hora local ({zone})",
       "permissions": {
-        "title": "Qué puede hacer este bot",
-        "note": "Permisos actuales visibles para ti. Las acciones de mensajes y llamadas también requieren ser miembro y pueden tener otros requisitos.",
+        "title": "Qué puede hacer",
         "empty": "No hay permisos activos visibles para ti.",
         "error": "No se pudieron cargar los permisos de este bot.",
         "inactive_title": "Permisos inactivos",

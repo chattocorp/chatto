@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} local time ({zone})",
       "permissions": {
-        "title": "What this bot can do",
-        "note": "Current permissions visible to you. Membership and other action requirements still apply.",
+        "title": "What it can do",
         "empty": "No active permissions are visible to you.",
         "error": "Could not load this bot’s permissions.",
         "inactive_title": "Inactive grants",

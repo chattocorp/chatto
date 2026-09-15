@@ -92,12 +92,8 @@ describe('bot permission summary', () => {
     expect(mounted.container.querySelectorAll('li')).toHaveLength(7);
     expect(mounted.container.querySelector('details')?.open).toBe(false);
     await expect
-      .element(page.getByText('Current permissions visible to you.', { exact: false }))
+      .element(page.getByRole('button', { name: 'More information' }))
       .not.toBeInTheDocument();
-    await page.getByRole('button', { name: 'More information' }).click();
-    await expect
-      .element(page.getByRole('tooltip'))
-      .toHaveTextContent('Membership and other action requirements still apply.');
   });
 
   it('keeps rooms with equal names in separate groups', async () => {
@@ -204,13 +200,31 @@ describe('bot permission summary', () => {
       hasMore: false
     });
     mounted = render(BotPermissionSummary, { botId: 'bot' });
-    await expect
-      .element(page.getByRole('heading', { name: 'Was dieser Bot tun kann' }))
-      .toBeVisible();
+    await expect.element(page.getByRole('button', { name: 'Was er tun kann' })).toBeVisible();
     await expect
       .element(
         page.getByText('Threads lesen, die er erstellt hat oder in denen er direkt erwähnt wurde')
       )
       .toBeVisible();
+  });
+
+  it('collapses the complete permission section and remembers the choice', async () => {
+    mocks.listPermissions.mockResolvedValue({
+      permissions: [entry('message.read', 'server')],
+      hasMore: false
+    });
+    mounted = render(BotPermissionSummary, { botId: 'collapse-test' });
+    const toggle = page.getByRole('button', { name: 'What it can do' });
+    await expect.element(page.getByText('Read all messages', { exact: true })).toBeVisible();
+    await toggle.click();
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect
+      .element(page.getByText('Read all messages', { exact: true }))
+      .not.toBeInTheDocument();
+    mounted.unmount();
+    mounted = render(BotPermissionSummary, { botId: 'collapse-test' });
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
+    await toggle.click();
+    await expect.element(page.getByText('Read all messages', { exact: true })).toBeVisible();
   });
 });

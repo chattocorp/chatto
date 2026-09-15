@@ -82,8 +82,7 @@
       "bot": "Bot",
       "local_time": "{time} Ortszeit ({zone})",
       "permissions": {
-        "title": "Was dieser Bot tun kann",
-        "note": "Aktuelle Berechtigungen, die du sehen kannst. Mitgliedschaft und weitere Voraussetzungen gelten weiterhin.",
+        "title": "Was er tun kann",
         "empty": "Für dich sind keine aktiven Berechtigungen sichtbar.",
         "error": "Die Berechtigungen dieses Bots konnten nicht geladen werden.",
         "inactive_title": "Inaktive Freigaben",
