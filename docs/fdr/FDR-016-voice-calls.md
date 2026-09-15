@@ -74,9 +74,12 @@ Rooms support real-time voice conversations with optional camera video and scree
   disables browser noise suppression, and does not initialize custom processing.
   Switching between this bypass and processing restarts capture and keeps the
   selected speaker. Use headphones for local monitoring to avoid feedback.
-- Opening the settings page requests camera access only if camera names are
-  unavailable and no call is active on the selected server. The browser may
-  show its permission dialog. Discovery stops camera capture immediately.
+- Opening the settings page requests microphone and camera access separately
+  when their device names are unavailable and no call is active on the selected
+  server. The browser may show permission dialogs. Each successful request
+  refreshes the device choices and stops capture immediately. A missing or
+  blocked camera does not prevent audio device discovery. Discovery does not
+  play, record, or send media to an external service.
 
 - Room membership and `call.join` are required to enter a call. Starting a
   new call also requires `call.start`. Media permissions do not grant entry.
