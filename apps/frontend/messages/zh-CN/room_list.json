@@ -1,5 +1,9 @@
 {
   "room_list": {
+    "show_rooms_in_group": "显示 {group} 中的更多聊天室（{count}）",
+    "hide_rooms_in_group": "隐藏 {group} 中尚未加入的聊天室",
+    "more_rooms": "还有 {count} 个",
+    "show_less": "收起",
     "active_call": "正在通话",
     "call_participants": "{count} 人正在通话",
     "go_to_notifications": "前往查看 {count} 条通知",

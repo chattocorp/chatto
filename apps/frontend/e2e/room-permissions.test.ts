@@ -708,6 +708,8 @@ test.describe('Permission-only Resolution', () => {
       await page.goto(routes.chat);
 
       const roomLink = page.locator(`a[href="${routes.room(roomId)}"]`).first();
+      await expect(roomLink).toHaveCount(0);
+      await page.getByTestId('room-group-more').click();
       await expect(roomLink).toBeVisible();
       await roomLink.click();
 
